@@ -63,6 +63,14 @@ may change without notice.
 
 - All variable, function, class, and module names MUST be self-descriptive
 - Single letter variables are NOT allowed (except for standard loop counters: i, j, k in simple iterations)
+
+- Constants must be UPPER_CASE_WITH_UNDERSCORES
+- No magic numbers - all numeric literals must be named constants or have inline comments
+- Maximum line length of 100 characters (120 for documentation)
+- Consistent naming conventions per language (camelCase for JS/TS, snake_case for Python, etc.)
+
+### Documentation Standards
+
 - Every class MUST have a docstring describing its purpose and responsibilities
 - Every public function/method MUST have documentation including:
   - Description of what the function does
@@ -71,14 +79,6 @@ may change without notice.
   - Exceptions that may be raised
   - Usage examples for complex functions
 - Private methods should have documentation for non-trivial implementations
-- Constants must be UPPER_CASE_WITH_UNDERSCORES
-- No magic numbers - all numeric literals must be named constants or have inline comments
-- Maximum line length of 100 characters (120 for documentation)
-- Consistent naming conventions per language (camelCase for JS/TS, snake_case for Python, etc.)
-
-### Documentation Standards
-
-- All public APIs MUST have complete documentation
 - README files required at project root and for major subsystems/packages
 - System Design Plans (SDPs) and/or Proposals for significant design choices
 - Inline documentation for complex algorithms or business logic
