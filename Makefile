@@ -24,6 +24,11 @@ _deps-install-dev: _check-dependency-binaries
 	@echo "📦 Installing development dependencies with uv..."
 	uv sync --extra dev
 	@echo "✅ Development dependencies installed successfully"
+	@echo "🪝 Installing pre-commit hooks..."
+	uv run pre-commit install --hook-type commit-msg
+	@echo "✅ Pre-commit hooks installed successfully"
+	@echo "  To bypass hooks: git commit --no-verify"
+	@echo "  To update hooks: make update-hooks"
 
 _check-dependency-binaries:
 	@if ! command -v uv >/dev/null 2>&1; then \
@@ -54,7 +59,7 @@ test-integration: check-deps ## Run integration tests
 .PHONY: test-coverage
 test-coverage: check-deps ## Run tests with coverage report
 	@echo "🧪 Running tests with coverage..."
-	uv run pytest tests/ --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml
+	uv run pytest tests/ --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --cov-report=xml --junitxml=pytest-results.xml
 
 .PHONY: test-fast
 test-fast: check-deps ## Run tests with fail-fast and short traceback
@@ -103,6 +108,15 @@ typecheck: ## Run type checking only with mypy
 	@echo "🔍 Running type checking..."
 	uv run mypy --strict src/ tests/
 	@echo "✅ Type checking completed"
+
+
+# Pre-commit targets
+# ========================================================
+.PHONY: update-hooks
+update-hooks: ## Update pre-commit hooks to latest versions
+	@echo "🔄 Updating pre-commit hooks..."
+	uv run pre-commit autoupdate
+	@echo "✅ Pre-commit hooks updated successfully"
 
 
 # Clean targets
