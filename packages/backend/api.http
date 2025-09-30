@@ -1,0 +1,36 @@
+
+
+
+
+GET http://localhost:3000/health
+###
+
+GET http://localhost:3000/api/tools
+
+
+###
+
+POST http://localhost:3000/api/tools/query
+Content-Type: application/json
+
+{
+  "sql": "SELECT * FROM pods;"
+}
+
+###
+
+POST http://localhost:3000/api/ai/stream
+Content-Type: application/json
+
+{
+  "prompt": "Hello"
+}
+
+###
+
+POST http://localhost:3000/api/ai/stream
+Content-Type: application/json
+
+{
+  "prompt": "How many pods do i have?"
+}

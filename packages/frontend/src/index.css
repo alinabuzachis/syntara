@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  @apply w-lvw h-lvh;
+}
+
+#root {
+  @apply w-full h-full;
+  @apply flex flex-col;
+}
+@layer utilities {
+  .glass {
+    @apply bg-black/20;
+    @apply backdrop-blur-lg;
+    @apply border-white/10;
+    @apply bg-linear-0 from-violet-400/15 via-purple-400/15 to-sky-400/15;
+  }
+}
