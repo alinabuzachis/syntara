@@ -12,4 +12,14 @@ export default defineConfig({
     }),
     tailwindcss(),
   ],
+  server: {
+    host: true, // Listen on all addresses for Docker
+    port: 5173,
+    strictPort: true,
+  },
+  preview: {
+    host: true,
+    port: 5173,
+    strictPort: true,
+  },
 });

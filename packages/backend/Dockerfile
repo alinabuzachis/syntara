@@ -8,8 +8,8 @@ COPY package*.json ./
 # Copy workspace package files
 COPY packages/backend/package*.json ./packages/backend/
 
-# Install dependencies
-RUN npm ci --omit=dev
+# Install all dependencies (tsx is in devDependencies but needed for runtime)
+RUN npm ci
 
 # Copy source code
 COPY packages/backend ./packages/backend
