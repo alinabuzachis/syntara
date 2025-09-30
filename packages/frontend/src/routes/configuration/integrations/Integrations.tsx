@@ -1,22 +1,49 @@
+import { Toggle, ToggleGroup } from "@base-ui-components/react";
 import clsx from "clsx";
+import {
+  EllipsisVerticalIcon,
+  LayoutDashboardIcon,
+  TableIcon,
+} from "lucide-react";
 import { AppPage } from "../../../app/AppPage";
 import { AppPageHeader } from "../../../app/AppPageHeader";
 import { ChatInput } from "../../../components/chat/ChatInput";
+import { Scrollable } from "../../../components/Scrollable";
 
 export default function Integrations() {
   return (
     <AppPage>
-      <AppPageHeader title="Integrations" />
+      <AppPageHeader title="Integrations">
+        {/* <ExampleToggleGroup /> */}
+        <button className="bg-blue-400/70 px-4 py-1 rounded-full">
+          Add Integration
+        </button>
+      </AppPageHeader>
       <Scrollable className="glass rounded-3xl border">
         <div
-          className={`p-8 grid gap-4 grid-cols-[repeat(auto-fit,minmax(250px,1fr))] `}
+          className={`p-8 grid gap-4 grid-cols-[repeat(auto-fit,minmax(350px,1fr))] `}
         >
-          {new Array(30).fill(0).map((_, i) => (
-            <div key={i} className="p-8 glass rounded-2xl border">
-              <div>Integration {i + 1}</div>
-              <div className="text-white/60 text-xs">MCP Server</div>
-            </div>
-          ))}
+          <IntegrationCard
+            name="Ansible Automation Platform"
+            type="MCP Server"
+            description="Ansible Automation Platform is an enterprise framework for building and operating IT automation at scale."
+            status="connected"
+            url="https://ansible.example.com"
+          />
+          <IntegrationCard
+            name="GitHub"
+            type="Version Control"
+            description="GitHub is a code hosting platform for version control and collaboration."
+            status="disconnected"
+            url="https://github.example.com"
+          />
+          <IntegrationCard
+            name="Kubernetes Cluster"
+            type="MCP Server"
+            description="A Kubernetes cluster is a set of node machines for running containerized applications."
+            status="connected"
+            url="https://k8s.example.com"
+          />
         </div>
       </Scrollable>
       <ChatInput />
@@ -24,22 +51,80 @@ export default function Integrations() {
   );
 }
 
-import { ScrollArea } from "@base-ui-components/react/scroll-area";
-
-export function Scrollable(props: {
-  children: React.ReactNode;
-  className?: string;
+function IntegrationCard(props: {
+  name: string;
+  type: string;
+  description?: string;
+  status?: "connected" | "disconnected";
+  url?: string;
 }) {
   return (
-    <ScrollArea.Root
-      className={clsx("h-full w-full overflow-hidden", props.className)}
+    <div className="p-8 glass rounded-2xl border flex flex-col gap-4">
+      <div>
+        <div className="flex items-center justify-between">
+          <div className="font-bold text-lg">{props.name}</div>
+          <button className="-mr-3 -mt-0">
+            <EllipsisVerticalIcon />
+          </button>
+        </div>
+        {props.type && (
+          <div id="type" className="text-sm text-white/50">
+            {props.type}
+          </div>
+        )}
+        <div id="description" className="text-white/70 mt-4">
+          {props.description}
+        </div>
+      </div>
+
+      <dl className="details">
+        <dt>Status</dt>
+        <dd>
+          {props.status === "connected" ? (
+            <div className="bg-green-400 rounded-full w-2.5 h-2.5 inline-block mr-2" />
+          ) : (
+            <div className="bg-red-400 rounded-full w-2.5 h-2.5 inline-block mr-2" />
+          )}
+          {props.status === "connected" ? "Connected" : "Disconnected"}
+        </dd>
+        {props.url && (
+          <>
+            <dt>URL</dt>
+            <dd>{props.url}</dd>
+          </>
+        )}
+      </dl>
+    </div>
+  );
+}
+
+export function ExampleToggleGroup() {
+  return (
+    <ToggleGroup
+      defaultValue={["dashboard"]}
+      className="border rounded-xl border-white/20 flex items-center p-1 gap-1 text-gray-500"
+      // className="flex gap-px rounded-md border border-gray-200 bg-gray-50 p-0.5"
     >
-      <ScrollArea.Viewport className="h-full overscroll-contain rounded-md">
-        {props.children}
-      </ScrollArea.Viewport>
-      <ScrollArea.Scrollbar className="mx-3 my-4 flex w-2 justify-center rounded opacity-0 transition-opacity delay-300 data-[hovering]:opacity-100 data-[hovering]:delay-0 data-[hovering]:duration-75 data-[scrolling]:opacity-100 data-[scrolling]:delay-0 data-[scrolling]:duration-75">
-        <ScrollArea.Thumb className="w-full rounded bg-violet-500/40" />
-      </ScrollArea.Scrollbar>
-    </ScrollArea.Root>
+      <Toggle
+        aria-label="Table view"
+        value="table"
+        className={clsx("p-1", "data-[pressed]:bg-white/10 rounded ")}
+
+        // className="flex size-8 items-center justify-center rounded-sm text-gray-600 select-none hover:bg-gray-100 focus-visible:bg-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-blue-800 active:bg-gray-200 data-[pressed]:bg-gray-100 data-[pressed]:text-gray-900"
+      >
+        <TableIcon />
+      </Toggle>
+      <Toggle
+        aria-label="Table view"
+        value="dashboard"
+        // className="flex size-8 items-center justify-center rounded-sm text-gray-600 select-none hover:bg-gray-100 focus-visible:bg-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-blue-800 active:bg-gray-200 data-[pressed]:bg-gray-100 data-[pressed]:text-gray-900"
+        className={clsx(
+          "p-1",
+          "data-[pressed]:bg-white/10 rounded-lg text-white "
+        )}
+      >
+        <LayoutDashboardIcon />
+      </Toggle>
+    </ToggleGroup>
   );
 }

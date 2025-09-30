@@ -32,4 +32,11 @@ body {
     @apply border-white/10;
     @apply bg-linear-0 from-violet-400/15 via-purple-400/15 to-sky-400/15;
   }
+
+  .details > dt {
+    @apply text-white/60 mb-0.5;
+  }
+  .details > dd {
+    @apply text-white not-last:mb-6;
+  }
 }
