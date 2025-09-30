@@ -1,0 +1,60 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile
+    ports:
+      - 8880:3000
+    environment:
+      VIRTUAL_HOST: ansibledev.com
+      VIRTUAL_PORT: 3000
+      LETSENCRYPT_HOST: ansibledev.com
+    restart: always
+    networks:
+      - proxy-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+
+  nginx-proxy:
+    container_name: nginx-proxy
+    image: nginxproxy/nginx-proxy:1.7-alpine
+    environment:
+      TRUST_DOWNSTREAM_PROXY: false
+      NGINX_ENTRYPOINT_QUIET_LOGS: 1
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - certs:/etc/nginx/certs:ro
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - proxy-net
+
+  nginx-acme:
+    container_name: nginx-acme
+    image: nginxproxy/acme-companion:latest
+    environment:
+      DEFAULT_EMAIL: 6277895+jamestalton@users.noreply.github.com
+      NGINX_PROXY_CONTAINER: nginx-proxy
+      NGINX_ENTRYPOINT_QUIET_LOGS: 1
+    restart: always
+    volumes:
+      - certs:/etc/nginx/certs
+      - html:/usr/share/nginx/html
+      - acme:/etc/acme.sh
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - proxy-net
+
+volumes:
+  certs:
+  acme:
+  html:      
+
+networks:
+  proxy-net:
+    driver: bridge
