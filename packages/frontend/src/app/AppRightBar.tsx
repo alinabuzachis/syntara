@@ -4,7 +4,7 @@ import {
   Volume2Icon,
 } from "lucide-react";
 
-export function AppLeftBar() {
+export function AppRightBar() {
   return (
     <div className="grow-0 self-center flex flex-col py-1 text-white/60 glass rounded-full border mx-8">
       <button className="p-3">

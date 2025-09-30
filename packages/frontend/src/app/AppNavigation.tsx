@@ -1,16 +1,27 @@
-import { Navigation } from "../components/nav/Navigation";
+import { useLocation } from "wouter";
 import { NavItem } from "../components/nav/NavItem";
-import { AppRoute } from "./AppRoute";
+import { navigationItems } from "./navigationItems";
 
 export function AppNavigation() {
+  const [location] = useLocation();
+  const activeTopLevel = location.split("/")[1];
+  const activeTopNavItem = navigationItems.find((item) =>
+    item.path.startsWith("/" + activeTopLevel + "/")
+  );
   return (
-    <Navigation size="lg">
-      <NavItem to={AppRoute.Dashboard} label="Dashboard" />
-      <NavItem to={AppRoute.Builder} label="Automation Builder" />
-      <NavItem to={AppRoute.Automations} label="Automations" disabled />
-      <NavItem to={AppRoute.Approvals} label="Approvals" disabled />
-      <NavItem to={AppRoute.Configuration} label="Configuration" />
-      <NavItem to={AppRoute.Support} label="Support" disabled />
-    </Navigation>
+    <div className="flex flex-col gap-2 items-center">
+      <div className="flex justify-center glass px-6 rounded-full py-1">
+        {navigationItems.map((item) => (
+          <NavItem key={item.label} to={item.path} label={item.label} />
+        ))}
+      </div>
+      {activeTopNavItem?.children && (
+        <div className="flex justify-center glass px-4 rounded-full">
+          {activeTopNavItem.children.map((item) => (
+            <NavItem key={item.label} to={item.path} label={item.label} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

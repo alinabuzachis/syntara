@@ -22,7 +22,9 @@ body {
 #root {
   @apply w-full h-full;
   @apply flex flex-col;
+  @apply max-h-lvh;
 }
+
 @layer utilities {
   .glass {
     @apply bg-black/20;

@@ -3,7 +3,7 @@ export function ChatInput() {
     // 1. Main container: This is now the "glass pane".
     // It has the blur, the semi-transparent background, and padding.
     <div
-      className="rounded-full glass p-1.5 justify-self-center min-w-128 max-w-full m-8"
+      className="rounded-full glass p-1.5 justify-self-center min-w-128 max-w-128 self-center"
       style={{
         boxShadow:
           "-2px -2px 4px var(--color-violet-800), 2px 2px 4px var(--color-sky-700), -2px 2px 4px var(--color-pink-800), 2px -2px 4px var(--color-pink-800)",

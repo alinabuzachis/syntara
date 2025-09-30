@@ -23,3 +23,10 @@ export function NavItem(props: {
     </Link>
   );
 }
+
+export type INavigationItem = {
+  label: string;
+  path: string;
+  element?: React.ReactNode;
+  children?: INavigationItem[];
+};
