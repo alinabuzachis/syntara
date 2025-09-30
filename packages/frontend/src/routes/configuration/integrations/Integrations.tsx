@@ -14,7 +14,7 @@ export default function Integrations() {
           {new Array(30).fill(0).map((_, i) => (
             <div key={i} className="p-8 glass rounded-2xl border">
               <div>Integration {i + 1}</div>
-              <div className="text-white/70">MCP Server</div>
+              <div className="text-white/60 text-xs">MCP Server</div>
             </div>
           ))}
         </div>
