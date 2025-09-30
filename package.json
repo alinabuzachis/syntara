@@ -8,12 +8,23 @@
     "frontend": "cd packages/frontend && npm run start",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "clean": "npm run clean --workspaces --if-present"
+    "clean": "npm run clean --workspaces --if-present",
+    "docker:build": "docker compose build",
+    "docker:run": "docker compose up backend frontend"
   },
   "workspaces": [
     "packages/*"
   ],
   "devDependencies": {
     "concurrently": "^9.2.1"
-  }
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "windows"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
 }

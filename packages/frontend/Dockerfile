@@ -3,7 +3,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 COPY packages/frontend/package*.json ./packages/frontend/
-RUN npm install
+RUN npm ci
 COPY packages/frontend ./packages/frontend
 RUN npm run build --workspace=packages/frontend
 
