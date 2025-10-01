@@ -3,12 +3,12 @@ import { AppNavigation } from "./AppNavigation";
 
 export function AppHeader() {
   return (
-    <div className="p-8 flex justify-center">
+    <div className="p-8 pb-12 flex justify-center">
       <div className="left-8 top-7 absolute flex gap-4 items-center">
         <RedHatIcon />
         <div className="flex flex-col">
           <span className="text-[#e00] text-sm font-extrabold">Red Hat</span>
-          <span className="text-3xl font-bold text-white leading-7">Nexus</span>
+          <span className="text-4xl font-bold text-white leading-7">Nexus</span>
         </div>
       </div>
 

@@ -24,7 +24,7 @@ export function IntegrationForm() {
       </AppPageHeader>
       <div className="grid grid-cols-2 gap-6 grow">
         <Form
-          className="flex flex-col gap-4 glass border grow p-8 rounded-3xl"
+          className="flex flex-col gap-4 glass border grow p-8 rounded-4xl"
           id="integration-form"
           onSubmit={(e) => {
             const data = new FormData(e.currentTarget);
@@ -47,15 +47,18 @@ export function IntegrationForm() {
             label="Server name / ID"
             placeholder="Enter server name / ID"
           />
-          <button className="bg-white/10 px-4 py-1 rounded-full mt-8 self-start">
+          {/* <button className="bg-white/10 px-4 py-1 rounded-full mt-8 self-start">
+            Test Integration
+          </button> */}
+        </Form>
+        <div className="flex flex-col gap-4 glass border grow p-8 rounded-4xl justify-center text-balance items-center">
+          Test the integration to identify and manage the tools it provides.
+          <button className="bg-white/10 px-4 py-1 rounded-full mt-8">
             Test Integration
           </button>
-        </Form>
-        <div className="flex flex-col gap-4 glass border grow p-8 rounded-3xl justify-center text-balance">
-          Test the integration to identify and manage the tools it provides.
         </div>
       </div>
-      <div className="glass border px-8 py-6 rounded-3xl flex gap-4">
+      <div className="glass border px-8 py-6 rounded-4xl flex gap-4">
         <button
           className="bg-blue-400/40 px-4 py-1 rounded-full self-end"
           type="submit"
@@ -63,6 +66,10 @@ export function IntegrationForm() {
         >
           Add integration
         </button>
+        <button className="bg-white/10 px-4 py-1 rounded-full self-start">
+          Test Integration
+        </button>
+        <div className="grow" />
         <button
           className="bg-white/10 px-4 py-1 rounded-full self-end"
           onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}

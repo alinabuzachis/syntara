@@ -36,6 +36,7 @@ body {
   .details > dt {
     @apply text-white/60 mb-0.5;
   }
+
   .details > dd {
     @apply text-white not-last:mb-6;
   }
@@ -64,5 +65,11 @@ body {
     @apply focus:border-white/30 focus:ring-0;
     @apply rounded-xl;
     @apply px-4 py-2;
+  }
+
+  .ai-shadow {
+    box-shadow: -2px -2px 4px var(--color-violet-800),
+      2px 2px 4px var(--color-sky-700), -2px 2px 4px var(--color-pink-800),
+      2px -2px 4px var(--color-pink-800);
   }
 }
