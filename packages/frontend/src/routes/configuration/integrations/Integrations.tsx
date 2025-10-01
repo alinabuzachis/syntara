@@ -85,16 +85,9 @@ export default function Integrations() {
                   </tr>
                 ))}
               </tbody>
-              {/* <tfoot>
-                <tr className="sticky bottom-0 bg-black/10 glass z-10 ">
-                  <td className="px-8 py-6 bg-white/0 rounded-bl-3xl col-span-2">
-                    Name
-                  </td>
-                </tr>
-              </tfoot> */}
             </table>
           </Scrollable>
-          <div className="grow glass" />
+          <div className="grow glass flex p-8 items-end"></div>
         </div>
       ) : (
         // </div>
