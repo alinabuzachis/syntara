@@ -6,8 +6,11 @@ import { ChatInput } from "../../../../components/chat/ChatInput";
 import { Form } from "../../../../components/form/Form";
 import { Input } from "../../../../components/form/Input";
 import { Select } from "../../../../components/form/Select";
+import type { Integration } from "../Integration";
+import { useIntegrations } from "../useIntegrations";
 
 export function IntegrationForm() {
+  const { addResource: addIntegration } = useIntegrations();
   return (
     <AppPage>
       <AppPageHeader title="Configure Integration">
@@ -20,7 +23,19 @@ export function IntegrationForm() {
         </button> */}
       </AppPageHeader>
       <div className="grid grid-cols-2 gap-6 grow">
-        <Form className="flex flex-col gap-4 glass border grow p-8 rounded-3xl">
+        <Form
+          className="flex flex-col gap-4 glass border grow p-8 rounded-3xl"
+          id="integration-form"
+          onSubmit={(e) => {
+            const data = new FormData(e.currentTarget);
+            const integration = Object.fromEntries(
+              data.entries()
+            ) as unknown as Omit<Integration, "id">;
+            addIntegration(integration);
+            e.preventDefault();
+            navigate(AppRoute.Configuration.Integrations.Root);
+          }}
+        >
           <Select
             name="type"
             label="Type"
@@ -32,7 +47,6 @@ export function IntegrationForm() {
             label="Server name / ID"
             placeholder="Enter server name / ID"
           />
-          <Input name="name" label="Name" placeholder="Enter name" />
           <button className="bg-white/10 px-4 py-1 rounded-full mt-8 self-start">
             Test Integration
           </button>
@@ -44,7 +58,8 @@ export function IntegrationForm() {
       <div className="glass border px-8 py-6 rounded-3xl flex gap-4">
         <button
           className="bg-blue-400/40 px-4 py-1 rounded-full self-end"
-          onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}
+          type="submit"
+          form="integration-form"
         >
           Add integration
         </button>
