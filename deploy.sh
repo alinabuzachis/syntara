@@ -11,7 +11,7 @@ IMAGE_FILE="frontend-image.tar"
 REMOTE_DIR="/home/ec2-user"
 
 echo "🏗️  Building Docker image for linux/amd64..."
-podman build --platform linux/amd64 -t "$IMAGE_NAME" -f packages/frontend/Dockerfile .
+podman build --platform linux/amd64/v4 -t "$IMAGE_NAME" -f packages/frontend/Dockerfile .
 
 echo "💾 Saving Docker image to file..."
 podman save -o "$IMAGE_FILE" "$IMAGE_NAME"
