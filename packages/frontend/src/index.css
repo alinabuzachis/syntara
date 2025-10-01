@@ -39,4 +39,14 @@ body {
   .details > dd {
     @apply text-white not-last:mb-6;
   }
+
+  .search {
+    @apply bg-black/40;
+    @apply border-white/10;
+    @apply text-white;
+    @apply placeholder-white/60;
+    @apply focus:border-white/30 focus:ring-0;
+    @apply rounded-xl;
+    @apply px-4 py-2;
+  }
 }

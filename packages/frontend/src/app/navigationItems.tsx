@@ -7,6 +7,10 @@ const Integrations = lazy(
   () => import("../routes/configuration/integrations/Integrations")
 );
 
+const Glossary = lazy(
+  () => import("../routes/documentation/glossary/Glossary")
+);
+
 export const navigationItems: INavigationItem[] = [
   {
     label: "Dashboard",
@@ -49,6 +53,13 @@ export const navigationItems: INavigationItem[] = [
   },
   {
     label: "Support",
-    path: AppRoute.Support,
+    path: AppRoute.Support.Root,
+    children: [
+      {
+        label: "Glossary",
+        path: AppRoute.Support.Glossary,
+        element: <Glossary />,
+      },
+    ],
   },
 ];

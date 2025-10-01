@@ -4,10 +4,13 @@ export const AppRoute = {
   Automations: "/automations",
   Approvals: "/approvals",
   Configuration: {
-    Overview: "/configuration/",
+    Overview: "/configuration",
     Integrations: "/configuration/integrations",
     Credentials: "/configuration/credentials",
     Settings: "/configuration/settings",
   },
-  Support: "/support",
+  Support: {
+    Root: "/support/glossary",
+    Glossary: "/support/glossary",
+  },
 };

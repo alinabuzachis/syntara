@@ -15,6 +15,7 @@ export default function Integrations() {
     <AppPage>
       <AppPageHeader title="Integrations">
         {/* <ExampleToggleGroup /> */}
+        <input className="search grow" placeholder="Search integrations..." />
         <button className="bg-blue-400/70 px-4 py-1 rounded-full">
           Add Integration
         </button>
