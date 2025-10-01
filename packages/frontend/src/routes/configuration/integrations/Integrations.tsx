@@ -46,51 +46,42 @@ export default function Integrations() {
         {/* <ExampleToggleGroup /> */}
       </AppPageHeader>
       {!useCards ? (
-        <Scrollable
-          className="glass rounded-4xl border p-8"
-          render={
-            <table className="w-full rounded-t-2xl overflow-scroll">
-              <thead>
-                <tr className="border-b border-white/20 text-left">
-                  <th className="px-6 py-4 bg-white/10 rounded-tl-3xl">Name</th>
-                  <th className="px-6 py-4 bg-white/10 rounded-tr-3xl">Type</th>
+        <div className="glass rounded-4xl border p-8 grow">
+          <Scrollable render={<table className="w-full rounded-t-2xl" />}>
+            <thead>
+              <tr className="border-b border-white/20 text-left">
+                <th className="px-6 py-4 bg-white/0 rounded-tl-3xl">Name</th>
+                <th className="px-6 py-4 bg-white/0 rounded-tr-3xl">Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map((integration) => (
+                <tr key={integration.id} className="border-b border-white/20">
+                  <td className="px-6 py-4">{integration.name}</td>
+                  <td className="px-6 py-4">{integration.type}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {results.map((integration) => (
-                  <tr key={integration.id} className="border-b border-white/20">
-                    <td className="px-6 py-4">{integration.name}</td>
-                    <td className="px-6 py-4">{integration.type}</td>
-                  </tr>
-                ))}
-                {results.map((integration) => (
-                  <tr key={integration.id} className="border-b border-white/20">
-                    <td className="px-6 py-4">{integration.name}</td>
-                    <td className="px-6 py-4">{integration.type}</td>
-                  </tr>
-                ))}
-                {results.map((integration) => (
-                  <tr key={integration.id} className="border-b border-white/20">
-                    <td className="px-6 py-4">{integration.name}</td>
-                    <td className="px-6 py-4">{integration.type}</td>
-                  </tr>
-                ))}
-                {results.map((integration) => (
-                  <tr key={integration.id} className="border-b border-white/20">
-                    <td className="px-6 py-4">{integration.name}</td>
-                    <td className="px-6 py-4">{integration.type}</td>
-                  </tr>
-                ))}
-                {results.map((integration) => (
-                  <tr key={integration.id} className="border-b border-white/20">
-                    <td className="px-6 py-4">{integration.name}</td>
-                    <td className="px-6 py-4">{integration.type}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          }
-        ></Scrollable>
+              ))}
+              {results.map((integration) => (
+                <tr key={integration.id} className="border-b border-white/20">
+                  <td className="px-6 py-4">{integration.name}</td>
+                  <td className="px-6 py-4">{integration.type}</td>
+                </tr>
+              ))}
+              {results.map((integration) => (
+                <tr key={integration.id} className="border-b border-white/20">
+                  <td className="px-6 py-4">{integration.name}</td>
+                  <td className="px-6 py-4">{integration.type}</td>
+                </tr>
+              ))}
+              {results.map((integration) => (
+                <tr key={integration.id} className="border-b border-white/20">
+                  <td className="px-6 py-4">{integration.name}</td>
+                  <td className="px-6 py-4">{integration.type}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Scrollable>
+        </div>
       ) : (
         <Scrollable className="glass rounded-4xl border">
           <div
