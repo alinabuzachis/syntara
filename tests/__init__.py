@@ -1,1 +1,1 @@
-"""Tests for Nexus-NG project."""
+"""Tests for Nexus project."""
