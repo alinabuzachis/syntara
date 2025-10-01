@@ -1,6 +1,6 @@
-# next-ui
+# Nexus UI
 
-A modern full-stack application with AI-powered features, built with React 19 and Express, integrated with Model Context Protocol (MCP) servers.
+A modern full-stack application with AI-powered features.
 
 ## Quick Start
 

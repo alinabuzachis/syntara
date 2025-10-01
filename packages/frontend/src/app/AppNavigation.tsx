@@ -12,13 +12,23 @@ export function AppNavigation() {
     <div className="flex flex-col gap-2 items-center">
       <div className="flex justify-center glass px-6 rounded-full py-1">
         {navigationItems.map((item) => (
-          <NavItem key={item.label} to={item.path} label={item.label} />
+          <NavItem
+            key={item.label}
+            to={item.path}
+            label={item.label}
+            disabled={!item.element && !item.children?.length}
+          />
         ))}
       </div>
       {activeTopNavItem?.children && (
         <div className="flex justify-center glass px-4 rounded-full">
           {activeTopNavItem.children.map((item) => (
-            <NavItem key={item.label} to={item.path} label={item.label} />
+            <NavItem
+              key={item.label}
+              to={item.path}
+              label={item.label}
+              disabled={!item.element}
+            />
           ))}
         </div>
       )}
