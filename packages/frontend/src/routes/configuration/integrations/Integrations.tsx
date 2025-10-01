@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import Fuse from "fuse.js";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -47,51 +48,54 @@ export default function Integrations() {
       </AppPageHeader>
       {!useCards ? (
         // <div className="roundedgrow overflow-hidden flex flex-col">
-        <>
-          <Scrollable className="rounded-4xl border-white/20 border">
+        <div className="rounded-4xl grow flex flex-col overflow-hidden ring-2 ring-white/20">
+          <Scrollable>
             <table className="w-full">
-              <thead className="sticky top-0 bg-black/10 glass z-10">
-                <tr className="border-b border-white/20 text-left">
-                  <th className="px-8 py-6 bg-white/0 rounded-tl-3xl">Name</th>
-                  <th className="px-8 py-6 bg-white/0 rounded-tr-3xl">Type</th>
+              <thead
+                className={clsx("sticky top-0 bg-black/10 glass z-10", {
+                  "shadow-lg shadow-black/50": false,
+                })}
+              >
+                <tr className="border-0 border-white/20 text-left">
+                  <th>
+                    <div className="px-8 py-6 border-b border-white/20">
+                      Name
+                    </div>
+                  </th>
+                  <th>
+                    <div className="px-8 py-6 border-b border-white/20">
+                      Type
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="glass">
                 {results.map((integration) => (
-                  <tr key={integration.id} className="border-b border-white/20">
-                    <td className="px-8 py-4">{integration.name}</td>
-                    <td className="px-8 py-4">{integration.type}</td>
-                  </tr>
-                ))}
-                {results.map((integration) => (
-                  <tr key={integration.id} className="border-b border-white/20">
-                    <td className="px-8 py-4">{integration.name}</td>
-                    <td className="px-8 py-4">{integration.type}</td>
-                  </tr>
-                ))}
-                {results.map((integration) => (
-                  <tr key={integration.id} className="border-b border-white/20">
-                    <td className="px-8 py-4">{integration.name}</td>
-                    <td className="px-8 py-4">{integration.type}</td>
-                  </tr>
-                ))}
-                {results.map((integration) => (
-                  <tr key={integration.id} className="border-b border-white/20">
-                    <td className="px-8 py-4">{integration.name}</td>
-                    <td className="px-8 py-4">{integration.type}</td>
-                  </tr>
-                ))}
-                {results.map((integration) => (
-                  <tr key={integration.id} className="border-b border-white/20">
-                    <td className="px-8 py-4">{integration.name}</td>
-                    <td className="px-8 py-4">{integration.type}</td>
+                  <tr key={integration.id}>
+                    <td>
+                      <div className="px-8 py-4 border-b border-white/15">
+                        {integration.name}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="px-8 py-4 border-b border-white/15">
+                        {integration.type}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
+              {/* <tfoot>
+                <tr className="sticky bottom-0 bg-black/10 glass z-10 ">
+                  <td className="px-8 py-6 bg-white/0 rounded-bl-3xl col-span-2">
+                    Name
+                  </td>
+                </tr>
+              </tfoot> */}
             </table>
           </Scrollable>
-          <div className="sticky top-0 bg-black/10 glass z-10 p-8">test</div>
-        </>
+          <div className="grow glass" />
+        </div>
       ) : (
         // </div>
         <Scrollable className="glass rounded-4xl border">

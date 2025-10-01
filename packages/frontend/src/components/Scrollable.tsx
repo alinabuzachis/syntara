@@ -7,9 +7,7 @@ export function Scrollable(props: {
   render?: React.ReactElement<Record<string, unknown>>;
 }) {
   return (
-    <ScrollArea.Root
-      className={clsx("overflow-hidden flex-1", props.className)}
-    >
+    <ScrollArea.Root className={clsx("overflow-hidden", props.className)}>
       <ScrollArea.Viewport
         className="h-full overscroll-contain rounded-md"
         render={props.render}

@@ -28,7 +28,7 @@ body {
 @layer utilities {
   .glass {
     @apply bg-black/20;
-    @apply backdrop-blur-lg;
+    @apply backdrop-blur-3xl;
     @apply border-white/10;
     @apply bg-linear-0 from-violet-400/15 via-purple-400/15 to-sky-400/15;
   }
