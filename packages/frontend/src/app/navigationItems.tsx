@@ -30,7 +30,7 @@ export const navigationItems: INavigationItem[] = [
   },
   {
     label: "Configuration",
-    path: AppRoute.Configuration.Overview,
+    path: AppRoute.Configuration.Integrations,
     children: [
       {
         label: "Overview",

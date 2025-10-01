@@ -6,9 +6,9 @@ export function NavItem(props: {
   label: string;
   disabled?: boolean;
 }) {
-  const [isActiveParent] = useRoute(props.to + "/*");
+  // const [isActiveParent] = useRoute(props.to + "/*");
   const [isActive] = useRoute(props.to);
-  const reallyActive = isActive || isActiveParent;
+  const reallyActive = isActive;
   return (
     <Link
       href={props.disabled ? "" : props.to}

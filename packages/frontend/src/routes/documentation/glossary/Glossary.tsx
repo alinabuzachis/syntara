@@ -25,11 +25,6 @@ interface GlossaryTerm {
   definition: string;
 }
 
-interface GlossaryTerm {
-  term: string;
-  definition: string;
-}
-
 const glossaryTerms: GlossaryTerm[] = [
   {
     term: "MCP Server",
@@ -37,8 +32,3 @@ const glossaryTerms: GlossaryTerm[] = [
       "In the context of AI, the Model Context Protocol (MCP) is an open-source standard that provides a universal way for AI models to connect with and use external data, tools, and systems.",
   },
 ];
-
-// Term component for providing a popover or tooltip in the future
-export function Term(props: { term: string }) {
-  return <span>{props.term}</span>;
-}
