@@ -42,7 +42,7 @@ body {
 
   .search {
     @apply bg-black/40;
-    @apply border-white/10;
+    @apply border-white/10 border;
     @apply text-white;
     @apply placeholder-white/60;
     @apply focus:border-white/30 focus:ring-0;
