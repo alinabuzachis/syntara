@@ -4,14 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "concurrently npm:frontend npm:backend -c auto",
+    "start": "concurrently npm:frontend -c auto",
     "frontend": "npm run start --prefix packages/frontend",
-    "backend": "npm run start --prefix packages/backend",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",
     "docker:build": "docker compose build",
-    "docker:run": "docker compose up backend frontend"
+    "docker:run": "docker compose up frontend"
   },
   "workspaces": [
     "packages/*"

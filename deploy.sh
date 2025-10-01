@@ -5,7 +5,7 @@ set -e
 # Configuration
 SSH_HOST="ansibledev.com"
 SSH_USER="ec2-user"
-SSH_KEY="~/Documents/id_rsa.pem"
+SSH_KEY="~/Documents/ec2-user.pem"
 REMOTE_DIR="/home/ec2-user"
 
 echo "🏗️  Building frontend..."

@@ -16,11 +16,11 @@ export function AppHeader() {
 
       <div className="absolute right-8 top-8 flex flex-row gap-4 items-center">
         <div className="flex flex-col text-right">
-          <span className="text-white text-lg leading-5">James</span>
-          <span className="text-sm text-white/70 leading-5">Talton</span>
+          <span className="text-white text-lg leading-5">Demo</span>
+          <span className="text-sm text-white/70 leading-5">Coffee</span>
         </div>
         <div className="glass border flex flex-row gap-4 items-center justify-center text-xl text-white w-12 h-12 rounded-full">
-          JT
+          DC
         </div>
       </div>
     </div>
