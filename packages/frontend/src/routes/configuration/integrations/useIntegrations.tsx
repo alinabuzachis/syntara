@@ -1,7 +1,7 @@
-import type { IIntegration } from "./IIntegration";
-import { createCrud } from "./createCrud";
+import { createCrud } from "../../../hooks/createCrud";
+import type { Integration } from "./Integration";
 
-const defaultIntegrations: IIntegration[] = [
+const defaultIntegrations: Integration[] = [
   {
     id: 1,
     name: "Ansible Automation Platform",
@@ -31,7 +31,7 @@ const defaultIntegrations: IIntegration[] = [
   },
 ];
 
-export const useIntegrations = createCrud<IIntegration>(
+export const useIntegrations = createCrud<Integration>(
   "integrations",
   defaultIntegrations
 );

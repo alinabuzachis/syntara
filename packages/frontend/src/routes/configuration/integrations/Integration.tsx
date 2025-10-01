@@ -1,4 +1,4 @@
-export interface IIntegration {
+export interface Integration {
   id: number;
   name: string;
   type: string;

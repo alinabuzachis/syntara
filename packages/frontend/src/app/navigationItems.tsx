@@ -56,6 +56,14 @@ export const navigationItems: INavigationItem[] = [
     path: AppRoute.Support.Root,
     children: [
       {
+        label: "Documentation",
+        path: AppRoute.Support.Documentation,
+      },
+      {
+        label: "FAQ",
+        path: AppRoute.Support.FAQ,
+      },
+      {
         label: "Glossary",
         path: AppRoute.Support.Glossary,
         element: <Glossary />,
