@@ -1,6 +1,6 @@
 # Contributing to Nexus
 
-Thank you for your interest in contributing to the Nexus project! 
+Thank you for your interest in contributing to the Nexus project!
 
 This document outlines the guidelines and best practices for contributing to this automation nexus system.
 
@@ -121,7 +121,7 @@ This project uses `uv` for dependency management and provides a comprehensive Ma
 
 ### Development Commands
 
-This project provides a comprehensive Makefile for development tasks. 
+This project provides a comprehensive Makefile for development tasks.
 
 For a complete list of available commands and their descriptions, see the [Development Commands section in README.md](README.md#development-commands).
 
@@ -151,11 +151,11 @@ Before submitting your changes:
 
 ### Pre-commit
 
-The project uses `pre-commit`. 
+The project uses `pre-commit`.
 
 `pre-commit` is installed by the `make install` target.
 
-`pre-commit` is set up to run each time you create a new commit. 
+`pre-commit` is set up to run each time you create a new commit.
 
 If you want to run pre-commit against all tracked files without committing, use:
 ```bash
