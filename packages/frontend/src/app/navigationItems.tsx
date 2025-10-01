@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { INavigationItem } from "../components/nav/NavItem";
+import { IntegrationForm } from "../routes/configuration/integrations/form/IntegrationForm";
 import { AppRoute } from "./AppRoute";
 
 // use react lazy
@@ -30,7 +31,7 @@ export const navigationItems: INavigationItem[] = [
   },
   {
     label: "Configuration",
-    path: AppRoute.Configuration.Integrations,
+    path: AppRoute.Configuration.Integrations.Root,
     children: [
       {
         label: "Overview",
@@ -38,8 +39,15 @@ export const navigationItems: INavigationItem[] = [
       },
       {
         label: "Integrations",
-        path: AppRoute.Configuration.Integrations,
+        path: AppRoute.Configuration.Integrations.Root,
         element: <Integrations />,
+        children: [
+          {
+            label: "Configure",
+            path: AppRoute.Configuration.Integrations.Configure,
+            element: <IntegrationForm />,
+          },
+        ],
       },
       {
         label: "Credentials",

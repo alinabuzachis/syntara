@@ -1,13 +1,16 @@
 import Fuse from "fuse.js";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { AppPage } from "../../../app/AppPage";
 import { AppPageHeader } from "../../../app/AppPageHeader";
+import { AppRoute } from "../../../app/AppRoute";
 import { ChatInput } from "../../../components/chat/ChatInput";
 import { Scrollable } from "../../../components/Scrollable";
 import { IntegrationCard } from "./IntegrationCard";
 import { useIntegrations } from "./useIntegrations";
 
 export default function Integrations() {
+  const [_, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const { resources: integrations } = useIntegrations();
   const fuse = new Fuse(integrations, {
@@ -32,7 +35,12 @@ export default function Integrations() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button className="bg-blue-400/70 px-4 py-1 rounded-full">
+        <button
+          className="bg-blue-400/70 px-4 py-1 rounded-full"
+          onClick={() =>
+            navigate(AppRoute.Configuration.Integrations.Configure)
+          }
+        >
           Add Integration
         </button>
       </AppPageHeader>

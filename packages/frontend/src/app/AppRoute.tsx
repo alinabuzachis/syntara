@@ -5,7 +5,10 @@ export const AppRoute = {
   Approvals: "/approvals",
   Configuration: {
     Overview: "/configuration",
-    Integrations: "/configuration/integrations",
+    Integrations: {
+      Root: "/configuration/integrations",
+      Configure: "/configuration/integrations/configure",
+    },
     Credentials: "/configuration/credentials",
     Settings: "/configuration/settings",
   },

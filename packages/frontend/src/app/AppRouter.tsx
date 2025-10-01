@@ -8,9 +8,17 @@ export function AppRouter() {
         <>
           {item.children &&
             item.children.map((child) => (
-              <Route key={child.path} path={child.path}>
-                {child.element}
-              </Route>
+              <>
+                {child.children &&
+                  child.children.map((child) => (
+                    <Route key={child.path} path={child.path}>
+                      {child.element}
+                    </Route>
+                  ))}
+                <Route key={child.path} path={child.path}>
+                  {child.element}
+                </Route>
+              </>
             ))}
           {item.element && (
             <Route key={item.path} path={item.path}>

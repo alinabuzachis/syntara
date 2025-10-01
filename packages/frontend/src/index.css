@@ -40,6 +40,22 @@ body {
     @apply text-white not-last:mb-6;
   }
 
+  .label {
+    @apply text-white/70;
+    @apply mb-1;
+    @apply font-medium;
+  }
+
+  .input {
+    @apply bg-black/40;
+    @apply border-white/10 border;
+    @apply text-white;
+    @apply placeholder-white/60;
+    @apply focus:border-white/30 focus:ring-0;
+    @apply rounded-xl;
+    @apply px-4 py-2;
+  }
+
   .search {
     @apply bg-black/40;
     @apply border-white/10 border;
