@@ -15,18 +15,6 @@ services:
     networks:
       - proxy-net
 
-  backend:
-    container_name: backend
-    image: backend:latest
-    build:
-      context: .
-      dockerfile: packages/backend/Dockerfile
-    environment:
-      NODE_ENV: production
-    restart: always
-    networks:
-      - proxy-net
-
   nginx-proxy:
     container_name: nginx-proxy
     image: nginxproxy/nginx-proxy:1.7-alpine

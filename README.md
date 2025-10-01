@@ -8,19 +8,19 @@ A modern full-stack application with AI-powered features.
 # Install dependencies
 npm ci
 
-# Start both frontend and backend
+# Start
 npm start
 ```
 
-The frontend will be available at http://localhost:5173 and the backend at http://localhost:3000.
+The frontend will be available at http://localhost:5173.
 
 ## Project Structure
 
 ```
 next-ui/
 ├── packages/
-│   ├── frontend/    # React 19 + Vite application
-│   └── backend/     # Express server with AI streaming
+│   └── frontend/    # React 19 + Vite application
+streaming
 ├── package.json     # Root workspace configuration
 └── docker-compose.yml
 ```
@@ -36,12 +36,10 @@ next-ui/
 
 ```bash
 # Development
-npm start              # Start both frontend and backend
-npm run frontend       # Start frontend only
-npm run backend        # Start backend only
+npm start
 
 # Building
-npm run build          # Build all packages
+npm run build
 
 # Testing
 npm test               # Run tests in all packages
@@ -49,16 +47,6 @@ npm test               # Run tests in all packages
 # Docker
 npm run docker:build   # Build Docker images
 npm run docker:run     # Run with Docker Compose
-```
-
-## Environment Setup
-
-Create a `.env` file in `packages/backend/` (see `.env.example`):
-
-```env
-PORT=3000
-OPENAI_API_KEY=your_key_here
-ANTHROPIC_API_KEY=your_key_here
 ```
 
 ## Technology Stack
@@ -70,10 +58,3 @@ ANTHROPIC_API_KEY=your_key_here
 - Base UI components
 - Wouter (routing)
 - Fuse.js (search)
-
-### Backend
-- Express 5
-- TypeScript
-- Vercel AI SDK
-- Ollama AI provider
-- Model Context Protocol (MCP) SDK
