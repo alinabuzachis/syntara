@@ -10,11 +10,11 @@ IMAGE_NAME="frontend:latest"
 IMAGE_FILE="frontend-image.tar"
 REMOTE_DIR="/home/ec2-user"
 
-echo "🏗️  Building Docker image..."
-npm run docker:build
+echo "🏗️  Building Docker image for linux/amd64..."
+podman build --platform linux/amd64 -t "$IMAGE_NAME" -f packages/frontend/Dockerfile .
 
 echo "💾 Saving Docker image to file..."
-docker save -o "$IMAGE_FILE" "$IMAGE_NAME"
+podman save -o "$IMAGE_FILE" "$IMAGE_NAME"
 
 echo "📦 Compressing image..."
 gzip -f "$IMAGE_FILE"
