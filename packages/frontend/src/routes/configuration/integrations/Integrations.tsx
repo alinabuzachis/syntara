@@ -1,21 +1,41 @@
 import { Toggle, ToggleGroup } from "@base-ui-components/react";
 import clsx from "clsx";
+import Fuse from "fuse.js";
 import {
   EllipsisVerticalIcon,
   LayoutDashboardIcon,
   TableIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { AppPage } from "../../../app/AppPage";
 import { AppPageHeader } from "../../../app/AppPageHeader";
 import { ChatInput } from "../../../components/chat/ChatInput";
 import { Scrollable } from "../../../components/Scrollable";
 
 export default function Integrations() {
+  const [search, setSearch] = useState("");
+  const fuse = new Fuse(integrations, {
+    keys: [
+      { name: "name", weight: 0.5 },
+      { name: "type", weight: 0.3 },
+      { name: "description", weight: 0.2 },
+    ],
+    threshold: 0.7,
+  });
+  const results = search
+    ? fuse.search(search).map((result) => result.item)
+    : integrations;
+
   return (
     <AppPage>
       <AppPageHeader title="Integrations">
         {/* <ExampleToggleGroup /> */}
-        <input className="search grow" placeholder="Search integrations..." />
+        <input
+          className="search grow"
+          placeholder="Search integrations..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <button className="bg-blue-400/70 px-4 py-1 rounded-full">
           Add Integration
         </button>
@@ -24,27 +44,9 @@ export default function Integrations() {
         <div
           className={`p-8 grid gap-4 grid-cols-[repeat(auto-fit,minmax(350px,1fr))] `}
         >
-          <IntegrationCard
-            name="Ansible Automation Platform"
-            type="MCP Server"
-            description="Ansible Automation Platform is an enterprise framework for building and operating IT automation at scale."
-            status="connected"
-            url="https://ansible.example.com"
-          />
-          <IntegrationCard
-            name="GitHub"
-            type="Version Control"
-            description="GitHub is a code hosting platform for version control and collaboration."
-            status="disconnected"
-            url="https://github.example.com"
-          />
-          <IntegrationCard
-            name="Kubernetes Cluster"
-            type="MCP Server"
-            description="A Kubernetes cluster is a set of node machines for running containerized applications."
-            status="connected"
-            url="https://k8s.example.com"
-          />
+          {results.map((integration) => (
+            <IntegrationCard key={integration.name} {...integration} />
+          ))}
         </div>
       </Scrollable>
       <ChatInput />
@@ -98,6 +100,41 @@ function IntegrationCard(props: {
     </div>
   );
 }
+
+interface IIntegration {
+  name: string;
+  type: string;
+  description?: string;
+  status?: "connected" | "disconnected";
+  url?: string;
+}
+
+const integrations: IIntegration[] = [
+  {
+    name: "Ansible Automation Platform",
+    type: "MCP Server",
+    description:
+      "Ansible Automation Platform is an enterprise framework for building and operating IT automation at scale.",
+    status: "connected",
+    url: "https://ansible.example.com",
+  },
+  {
+    name: "GitHub",
+    type: "Version Control",
+    description:
+      "GitHub is a code hosting platform for version control and collaboration.",
+    status: "disconnected",
+    url: "https://github.example.com",
+  },
+  {
+    name: "Kubernetes Cluster",
+    type: "MCP Server",
+    description:
+      "A Kubernetes cluster is a set of node machines for running containerized applications.",
+    status: "connected",
+    url: "https://k8s.example.com",
+  },
+];
 
 export function ExampleToggleGroup() {
   return (
