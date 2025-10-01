@@ -15,7 +15,7 @@ import { useIntegrations } from "./useIntegrations";
 
 export default function Integrations() {
   const [search, setSearch] = useState("");
-  const integrations = useIntegrations();
+  const { integrations } = useIntegrations();
   const fuse = new Fuse(integrations, {
     keys: [
       { name: "name", weight: 0.5 },

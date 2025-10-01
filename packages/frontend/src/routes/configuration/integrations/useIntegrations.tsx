@@ -27,5 +27,5 @@ export function useIntegrations() {
       url: "https://k8s.example.com",
     },
   ];
-  return integrations;
+  return { integrations };
 }
