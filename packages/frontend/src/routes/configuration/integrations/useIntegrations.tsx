@@ -1,6 +1,5 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import type { IIntegration } from "./IIntegration";
+import { createCrud } from "./createCrud";
 
 const defaultIntegrations: IIntegration[] = [
   {
@@ -32,40 +31,7 @@ const defaultIntegrations: IIntegration[] = [
   },
 ];
 
-interface IntegrationsStore {
-  integrations: IIntegration[];
-  addIntegration: (integration: Omit<IIntegration, "id">) => void;
-  editIntegration: (id: number, integration: Partial<IIntegration>) => void;
-  deleteIntegration: (id: number) => void;
-}
-
-export const useIntegrations = create<IntegrationsStore>()(
-  persist(
-    (set) => ({
-      integrations: defaultIntegrations,
-      addIntegration: (integration) =>
-        set((state) => ({
-          integrations: [
-            ...state.integrations,
-            {
-              ...integration,
-              id: Math.max(0, ...state.integrations.map((i) => i.id)) + 1,
-            },
-          ],
-        })),
-      editIntegration: (id, updates) =>
-        set((state) => ({
-          integrations: state.integrations.map((i) =>
-            i.id === id ? { ...i, ...updates } : i,
-          ),
-        })),
-      deleteIntegration: (id) =>
-        set((state) => ({
-          integrations: state.integrations.filter((i) => i.id !== id),
-        })),
-    }),
-    {
-      name: "integrations-storage",
-    },
-  ),
+export const useIntegrations = createCrud<IIntegration>(
+  "integrations",
+  defaultIntegrations
 );

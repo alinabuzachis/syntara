@@ -1,11 +1,5 @@
-import { Toggle, ToggleGroup } from "@base-ui-components/react";
-import clsx from "clsx";
 import Fuse from "fuse.js";
-import {
-  EllipsisVerticalIcon,
-  LayoutDashboardIcon,
-  TableIcon,
-} from "lucide-react";
+import { EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";
 import { AppPage } from "../../../app/AppPage";
 import { AppPageHeader } from "../../../app/AppPageHeader";
@@ -15,7 +9,7 @@ import { useIntegrations } from "./useIntegrations";
 
 export default function Integrations() {
   const [search, setSearch] = useState("");
-  const { integrations } = useIntegrations();
+  const { resources: integrations } = useIntegrations();
   const fuse = new Fuse(integrations, {
     keys: [
       { name: "name", weight: 0.5 },
@@ -47,7 +41,7 @@ export default function Integrations() {
           className={`p-8 grid gap-4 grid-cols-[repeat(auto-fit,minmax(350px,1fr))] `}
         >
           {results.map((integration) => (
-            <IntegrationCard key={integration.name} {...integration} />
+            <IntegrationCard key={integration.id} {...integration} />
           ))}
         </div>
       </Scrollable>
@@ -103,33 +97,33 @@ function IntegrationCard(props: {
   );
 }
 
-export function ExampleToggleGroup() {
-  return (
-    <ToggleGroup
-      defaultValue={["dashboard"]}
-      className="border rounded-xl border-white/20 flex items-center p-1 gap-1 text-gray-500"
-      // className="flex gap-px rounded-md border border-gray-200 bg-gray-50 p-0.5"
-    >
-      <Toggle
-        aria-label="Table view"
-        value="table"
-        className={clsx("p-1", "data-[pressed]:bg-white/10 rounded ")}
+// export function ExampleToggleGroup() {
+//   return (
+//     <ToggleGroup
+//       defaultValue={["dashboard"]}
+//       className="border rounded-xl border-white/20 flex items-center p-1 gap-1 text-gray-500"
+//       // className="flex gap-px rounded-md border border-gray-200 bg-gray-50 p-0.5"
+//     >
+//       <Toggle
+//         aria-label="Table view"
+//         value="table"
+//         className={clsx("p-1", "data-[pressed]:bg-white/10 rounded ")}
 
-        // className="flex size-8 items-center justify-center rounded-sm text-gray-600 select-none hover:bg-gray-100 focus-visible:bg-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-blue-800 active:bg-gray-200 data-[pressed]:bg-gray-100 data-[pressed]:text-gray-900"
-      >
-        <TableIcon />
-      </Toggle>
-      <Toggle
-        aria-label="Table view"
-        value="dashboard"
-        // className="flex size-8 items-center justify-center rounded-sm text-gray-600 select-none hover:bg-gray-100 focus-visible:bg-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-blue-800 active:bg-gray-200 data-[pressed]:bg-gray-100 data-[pressed]:text-gray-900"
-        className={clsx(
-          "p-1",
-          "data-[pressed]:bg-white/10 rounded-lg text-white "
-        )}
-      >
-        <LayoutDashboardIcon />
-      </Toggle>
-    </ToggleGroup>
-  );
-}
+//         // className="flex size-8 items-center justify-center rounded-sm text-gray-600 select-none hover:bg-gray-100 focus-visible:bg-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-blue-800 active:bg-gray-200 data-[pressed]:bg-gray-100 data-[pressed]:text-gray-900"
+//       >
+//         <TableIcon />
+//       </Toggle>
+//       <Toggle
+//         aria-label="Table view"
+//         value="dashboard"
+//         // className="flex size-8 items-center justify-center rounded-sm text-gray-600 select-none hover:bg-gray-100 focus-visible:bg-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-blue-800 active:bg-gray-200 data-[pressed]:bg-gray-100 data-[pressed]:text-gray-900"
+//         className={clsx(
+//           "p-1",
+//           "data-[pressed]:bg-white/10 rounded-lg text-white "
+//         )}
+//       >
+//         <LayoutDashboardIcon />
+//       </Toggle>
+//     </ToggleGroup>
+//   );
+// }
