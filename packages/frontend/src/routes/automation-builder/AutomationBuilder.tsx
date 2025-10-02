@@ -46,6 +46,24 @@ const initialNodes: NodeType[] = [
       label: "Analysis Agent",
       description:
         "Analyze region expenses, resource availability, and organizational policies.",
+      steps: [
+        {
+          label: "Analyze region expenses",
+          description: "Check the cost of resources in different regions.",
+          status: "completed",
+        },
+        {
+          label: "Check resource availability",
+          description: "Ensure resources are available in the selected region.",
+          status: "in-progress",
+        },
+        {
+          label: "Review organizational policies",
+          description:
+            "Make sure the deployment complies with company policies.",
+          status: "pending",
+        },
+      ],
       model: "Claude Opus 4",
     },
   },

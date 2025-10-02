@@ -8,7 +8,9 @@ export function AppHeader() {
         <RedHatIcon />
         <div className="flex flex-col">
           <span className="text-[#e00] text-sm font-extrabold">Red Hat</span>
-          <span className="text-4xl font-bold text-white leading-7">Nexus</span>
+          <span className="text-4xl font-bold text-white leading-7">
+            Automation
+          </span>
         </div>
       </div>
 
