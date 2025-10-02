@@ -1,26 +1,22 @@
 import Dagre from "@dagrejs/dagre";
 import {
   Controls,
-  Handle,
   Panel,
-  Position,
   ReactFlow,
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
   useReactFlow,
-  type Node,
-  type NodeProps,
-  type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { createContext, useCallback, useContext, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppPage } from "../../app/AppPage";
 import { AppPageHeader } from "../../app/AppPageHeader";
 import { ChatInput } from "../../components/chat/ChatInput";
+import { FlowDirectionContext } from "./FlowDirectionContext";
+import { nodeTypes, type NodeType } from "./nodes/NodeType";
 import "./react-flow.css";
 
-type NodeType = TriggerNode | AgentNode | OutputNode;
 const initialNodes: NodeType[] = [
   {
     id: "trigger",
@@ -64,11 +60,17 @@ const initialNodes: NodeType[] = [
     },
   },
 ];
-initialNodes.forEach((node, index) => {
-  node.position = { x: index * 350 + 32, y: index * 0 + 32 };
-});
+// initialNodes.forEach((node, index) => {
+//   node.position = { x: index * 350 + 32, y: index * 0 + 32 };
+// });
 
-type EdgeType = { id: string; source: string; target: string };
+type EdgeType = {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
+};
 const initialEdges: EdgeType[] = [
   { id: "trigger-agent", source: "trigger", target: "agent" },
   { id: "trigger2-agent", source: "trigger-2", target: "agent" },
@@ -104,14 +106,25 @@ const getLayoutedElements = (
 
       return { ...node, position: { x, y } };
     }),
-    edges,
+    edges: edges.map((edge) => ({
+      ...edge,
+      sourceHandle: options.direction === "TB" ? "bottom" : "right",
+      targetHandle: options.direction === "TB" ? "top" : "left",
+    })),
   };
 };
 
 export default function AutomationBuilder() {
   return (
     <AppPage>
-      <AppPageHeader title="Automation Builder" />
+      <AppPageHeader title="Automation Builder">
+        <div className="grow" />
+        <div>Add node</div>
+        <div>Add notation</div>
+        <div>Save</div>
+        <div>Run</div>
+        <div>Test</div>
+      </AppPageHeader>
       <ReactFlowProvider>
         <AutomationBuilderFlow />
       </ReactFlowProvider>
@@ -119,8 +132,6 @@ export default function AutomationBuilder() {
     </AppPage>
   );
 }
-
-const FlowDirectionContext = createContext<"TB" | "LR">("TB");
 
 function AutomationBuilderFlow() {
   const { fitView } = useReactFlow();
@@ -139,6 +150,10 @@ function AutomationBuilderFlow() {
     [nodes, edges, setNodes, setEdges, fitView]
   );
 
+  useEffect(() => {
+    onLayout(flowDirection);
+  }, [flowDirection]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <FlowDirectionContext.Provider value={flowDirection}>
       <ReactFlow<NodeType, EdgeType>
@@ -154,7 +169,7 @@ function AutomationBuilderFlow() {
         fitView
       >
         <Controls />
-        <Panel position="bottom-center">
+        {/* <Panel position="bottom-center">
           <div className="bg-white/5 rounded-full px-8 py-4 flex gap-8 border border-white/10 mb-4">
             <div>Add node</div>
             <div>Add notation</div>
@@ -162,12 +177,11 @@ function AutomationBuilderFlow() {
             <div>Run</div>
             <div>Test</div>
           </div>
-        </Panel>
+        </Panel> */}
         <Panel position="top-right" className="flex gap-4">
           <button
             onClick={() => {
               setFlowDirection("TB");
-              onLayout("TB");
             }}
           >
             vertical
@@ -175,7 +189,6 @@ function AutomationBuilderFlow() {
           <button
             onClick={() => {
               setFlowDirection("LR");
-              onLayout("LR");
             }}
           >
             horizontal
@@ -183,124 +196,5 @@ function AutomationBuilderFlow() {
         </Panel>
       </ReactFlow>
     </FlowDirectionContext.Provider>
-  );
-}
-
-const nodeTypes: NodeTypes = {
-  trigger: TriggerNodeComponent,
-  agent: AgentNodeComponent,
-  result: OutputNodeComponent,
-};
-
-type TriggerNode = { type: "trigger" } & Node<{
-  label: string;
-  description?: string;
-  integrations?: Array<string>;
-}>;
-export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
-  const flowDirection = useContext(FlowDirectionContext);
-  return (
-    <>
-      <div>
-        <label className="text-lg font-bold">{props.data.label}</label>
-        <div className="text-white/60 text-xs">Trigger</div>
-      </div>
-      {props.data.description && (
-        <div className="text-pretty">{props.data.description}</div>
-      )}
-      {props.data.integrations && (
-        <div>
-          <div className="text-white/70">Integrations</div>
-          <ul className="flex mt-1">
-            {props.data.integrations.map((integration) => (
-              <li
-                className="px-4 py-0 bg-white/10 rounded-xl"
-                key={integration}
-              >
-                {integration}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <Handle
-        type="source"
-        position={flowDirection === "TB" ? Position.Bottom : Position.Right}
-      />
-    </>
-  );
-}
-
-type AgentNode = { type: "agent" } & Node<{
-  label: string;
-  description?: string;
-  model: string;
-}>;
-function AgentNodeComponent(props: NodeProps<AgentNode>) {
-  const flowDirection = useContext(FlowDirectionContext);
-
-  return (
-    <>
-      <div>
-        <label className="text-lg font-bold">{props.data.label}</label>
-        <div className="text-white/60 text-xs">Agent</div>
-      </div>
-      {props.data.description && (
-        <div className="text-pretty">{props.data.description}</div>
-      )}
-      {props.data.model && (
-        <div>
-          <div className="text-white/70">Model</div>
-          <div className="text-pretty">{props.data.model}</div>
-        </div>
-      )}
-      <Handle
-        type="target"
-        position={flowDirection === "TB" ? Position.Top : Position.Left}
-      />
-      <Handle
-        type="source"
-        position={flowDirection === "TB" ? Position.Bottom : Position.Right}
-      />
-    </>
-  );
-}
-
-type OutputNode = { type: "result" } & Node<{
-  label: string;
-  description?: string;
-  integrations?: Array<string>;
-}>;
-function OutputNodeComponent(props: NodeProps<OutputNode>) {
-  const flowDirection = useContext(FlowDirectionContext);
-  return (
-    <>
-      <div>
-        <label className="text-lg font-bold">{props.data.label}</label>
-        <div className="text-white/60 text-xs">Result</div>
-      </div>
-      {props.data.description && (
-        <div className="text-pretty">{props.data.description}</div>
-      )}
-      {props.data.integrations && (
-        <div>
-          <div className="text-white/70">Integrations</div>
-          <ul className="flex mt-1">
-            {props.data.integrations.map((integration) => (
-              <li
-                className="px-4 py-0 bg-white/10 rounded-xl"
-                key={integration}
-              >
-                {integration}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <Handle
-        type="target"
-        position={flowDirection === "TB" ? Position.Top : Position.Left}
-      />
-    </>
   );
 }
