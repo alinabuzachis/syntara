@@ -1,21 +1,20 @@
+import Dagre from "@dagrejs/dagre";
 import {
   Controls,
   Handle,
   Panel,
   Position,
   ReactFlow,
-  addEdge,
-  applyEdgeChanges,
-  applyNodeChanges,
-  type Connection,
-  type EdgeChange,
+  ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
   type Node,
-  type NodeChange,
   type NodeProps,
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useCallback, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import { AppPage } from "../../app/AppPage";
 import { AppPageHeader } from "../../app/AppPageHeader";
 import { ChatInput } from "../../components/chat/ChatInput";
@@ -31,6 +30,16 @@ const initialNodes: NodeType[] = [
       label: "EDA Event",
       description: "Trigger event show need to create VM.",
       integrations: ["Ansible Automation Platform"],
+    },
+  },
+  {
+    id: "trigger-2",
+    type: "trigger",
+    position: { x: 0, y: 0 },
+    data: {
+      label: "Webhook",
+      description: "Trigger event from webhook.",
+      integrations: ["GitHub", "GitLab"],
     },
   },
   {
@@ -62,36 +71,76 @@ initialNodes.forEach((node, index) => {
 type EdgeType = { id: string; source: string; target: string };
 const initialEdges: EdgeType[] = [
   { id: "trigger-agent", source: "trigger", target: "agent" },
+  { id: "trigger2-agent", source: "trigger-2", target: "agent" },
   { id: "agent-result", source: "agent", target: "result" },
 ];
 
+const getLayoutedElements = (
+  nodes: NodeType[],
+  edges: EdgeType[],
+  options: { direction: "TB" | "LR" }
+) => {
+  const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+  g.setGraph({ rankdir: options.direction });
+
+  edges.forEach((edge) => g.setEdge(edge.source, edge.target));
+  nodes.forEach((node) =>
+    g.setNode(node.id, {
+      ...node,
+      width: node.measured?.width ?? 0,
+      height: node.measured?.height ?? 0,
+    })
+  );
+
+  Dagre.layout(g);
+
+  return {
+    nodes: nodes.map((node) => {
+      const position = g.node(node.id);
+      // We are shifting the dagre node position (anchor=center center) to the top left
+      // so it matches the React Flow node anchor point (top left).
+      const x = position.x - (node.measured?.width ?? 0) / 2;
+      const y = position.y - (node.measured?.height ?? 0) / 2;
+
+      return { ...node, position: { x, y } };
+    }),
+    edges,
+  };
+};
+
 export default function AutomationBuilder() {
-  const [nodes, setNodes] = useState(initialNodes);
-  const [edges, setEdges] = useState(initialEdges);
-
-  const onNodesChange = useCallback(
-    (nodeChanges: NodeChange<NodeType>[]) =>
-      setNodes((nodesSnapshot) =>
-        applyNodeChanges<NodeType>(nodeChanges, nodesSnapshot)
-      ),
-    []
-  );
-
-  const onEdgesChange = useCallback(
-    (edgeChanges: EdgeChange[]) =>
-      setEdges((edgesSnapshot) => applyEdgeChanges(edgeChanges, edgesSnapshot)),
-    []
-  );
-
-  const onConnect = useCallback(
-    (connection: Connection) =>
-      setEdges((edgesSnapshot) => addEdge(connection, edgesSnapshot)),
-    []
-  );
-
   return (
     <AppPage>
       <AppPageHeader title="Automation Builder" />
+      <ReactFlowProvider>
+        <AutomationBuilderFlow />
+      </ReactFlowProvider>
+      <ChatInput />
+    </AppPage>
+  );
+}
+
+const FlowDirectionContext = createContext<"TB" | "LR">("TB");
+
+function AutomationBuilderFlow() {
+  const { fitView } = useReactFlow();
+  const [flowDirection, setFlowDirection] = useState<"TB" | "LR">("TB");
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  const onLayout = useCallback(
+    (direction: "TB" | "LR") => {
+      const layouted = getLayoutedElements(nodes, edges, { direction });
+      setNodes([...layouted.nodes]);
+      setEdges([...layouted.edges]);
+      fitView({ maxZoom: 1 });
+    },
+    [nodes, edges, setNodes, setEdges, fitView]
+  );
+
+  return (
+    <FlowDirectionContext.Provider value={flowDirection}>
       <ReactFlow<NodeType, EdgeType>
         className="glass border rounded-4xl"
         colorMode="dark"
@@ -100,8 +149,9 @@ export default function AutomationBuilder() {
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        // onConnect={onConnect}
         proOptions={{ hideAttribution: true }}
+        fitView
       >
         <Controls />
         <Panel position="bottom-center">
@@ -113,9 +163,26 @@ export default function AutomationBuilder() {
             <div>Test</div>
           </div>
         </Panel>
+        <Panel position="top-right" className="flex gap-4">
+          <button
+            onClick={() => {
+              setFlowDirection("TB");
+              onLayout("TB");
+            }}
+          >
+            vertical
+          </button>
+          <button
+            onClick={() => {
+              setFlowDirection("LR");
+              onLayout("LR");
+            }}
+          >
+            horizontal
+          </button>
+        </Panel>
       </ReactFlow>
-      <ChatInput />
-    </AppPage>
+    </FlowDirectionContext.Provider>
   );
 }
 
@@ -131,6 +198,7 @@ type TriggerNode = { type: "trigger" } & Node<{
   integrations?: Array<string>;
 }>;
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
+  const flowDirection = useContext(FlowDirectionContext);
   return (
     <>
       <div>
@@ -155,7 +223,10 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
           </ul>
         </div>
       )}
-      <Handle type="source" position={Position.Right} />
+      <Handle
+        type="source"
+        position={flowDirection === "TB" ? Position.Bottom : Position.Right}
+      />
     </>
   );
 }
@@ -166,6 +237,8 @@ type AgentNode = { type: "agent" } & Node<{
   model: string;
 }>;
 function AgentNodeComponent(props: NodeProps<AgentNode>) {
+  const flowDirection = useContext(FlowDirectionContext);
+
   return (
     <>
       <div>
@@ -181,8 +254,14 @@ function AgentNodeComponent(props: NodeProps<AgentNode>) {
           <div className="text-pretty">{props.data.model}</div>
         </div>
       )}
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle
+        type="target"
+        position={flowDirection === "TB" ? Position.Top : Position.Left}
+      />
+      <Handle
+        type="source"
+        position={flowDirection === "TB" ? Position.Bottom : Position.Right}
+      />
     </>
   );
 }
@@ -193,6 +272,7 @@ type OutputNode = { type: "result" } & Node<{
   integrations?: Array<string>;
 }>;
 function OutputNodeComponent(props: NodeProps<OutputNode>) {
+  const flowDirection = useContext(FlowDirectionContext);
   return (
     <>
       <div>
@@ -217,7 +297,10 @@ function OutputNodeComponent(props: NodeProps<OutputNode>) {
           </ul>
         </div>
       )}
-      <Handle type="target" position={Position.Left} />
+      <Handle
+        type="target"
+        position={flowDirection === "TB" ? Position.Top : Position.Left}
+      />
     </>
   );
 }
