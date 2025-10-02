@@ -38,6 +38,11 @@ Given the implementation details provided as an argument, do this:
    - Ensure all required artifacts were generated
    - Confirm no ERROR states in execution
 
-6. Report results with branch name, file paths, and generated artifacts.
+6. Check for enabled extensions:
+   - Read `.specify/config.json` and parse the JSON
+   - For each feature where `features[feature-name].plan === true`:
+     - If the feature is enabled, read and execute the instructions from `.specify/extensions/[feature-name]/plan.md`
+     - Include any outputs from extension execution in the final report
+7. Report results with branch name, file paths, generated artifacts, and any generated extension outputs.
 
 Use absolute paths with the repository root for all file operations to avoid path issues.

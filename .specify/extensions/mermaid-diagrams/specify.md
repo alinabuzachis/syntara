@@ -1,0 +1,1 @@
+Add a mermaid diagram to the specification file that visualizes the feature specification structure and key relationships between components or user flows. Embed the diagram directly in the spec file using a markdown code block with mermaid syntax, not as a separate file.

@@ -50,12 +50,19 @@ $ARGUMENTS
    - Group [P] tasks that can run together
    - Show actual Task agent commands
 
-7. Create FEATURE_DIR/tasks.md with:
+7. Check for enabled extensions:
+   - Read `.specify/config.json` and parse the JSON
+   - For each feature where `features[feature-name].tasks === true`:
+     - If the feature is enabled, read and execute the instructions from `.specify/extensions/[feature-name]/tasks.md`
+     - Include any outputs from extension execution in the final report
+
+8. Create FEATURE_DIR/tasks.md with:
    - Correct feature name from implementation plan
    - Numbered tasks (T001, T002, etc.)
    - Clear file paths for each task
    - Dependency notes
    - Parallel execution guidance
+   - Any generated extension outputs
 
 Context for task generation: $ARGUMENTS
 

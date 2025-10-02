@@ -21,7 +21,6 @@ repos:
   - id: check-added-large-files
     args: [--maxkb=500]
   - id: check-json
-    args: [--autofix]
   - id: check-toml
   - id: mixed-line-ending
     args: [--fix=lf]
