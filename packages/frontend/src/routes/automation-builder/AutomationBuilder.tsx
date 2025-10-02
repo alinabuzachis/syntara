@@ -135,7 +135,8 @@ export default function AutomationBuilder() {
 
 function AutomationBuilderFlow() {
   const { fitView } = useReactFlow();
-  const [flowDirection, setFlowDirection] = useState<"TB" | "LR">("TB");
+  const [flowDirection, setFlowDirection] = useState<"TB" | "LR">("LR");
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -150,8 +151,18 @@ function AutomationBuilderFlow() {
     [nodes, edges, setNodes, setEdges, fitView]
   );
 
+  // Apply initial layout after nodes are measured
   useEffect(() => {
-    onLayout(flowDirection);
+    if (!isInitialized && nodes.every((node) => node.measured)) {
+      setIsInitialized(true);
+      onLayout(flowDirection);
+    }
+  }, [nodes, isInitialized, flowDirection, onLayout]);
+
+  useEffect(() => {
+    if (isInitialized) {
+      onLayout(flowDirection);
+    }
   }, [flowDirection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
