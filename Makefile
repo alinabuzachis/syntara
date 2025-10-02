@@ -87,6 +87,11 @@ dev: check-deps ## Run the hello world application
 
 # Code quality
 # ========================================================
+.PHONY: check-path-sequence
+check-path-sequence: ## Validate numbering sequence under specs/
+	@echo "🔢 Validating numbered entries in specs/..."
+	python tools/ci/check_path_sequence.py specs/ --strict
+
 .PHONY: format
 format: ## Format code with ruff
 	@echo "🎨 Formatting code..."

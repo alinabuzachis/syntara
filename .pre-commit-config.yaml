@@ -43,6 +43,14 @@ repos:
     pass_filenames: false
     always_run: true
 
+  - id: check-path-sequence
+    name: check numbered path sequence
+    entry: make
+    args: [check-path-sequence]
+    language: system
+    pass_filenames: false
+    always_run: true
+
 - repo: https://github.com/compilerla/conventional-pre-commit
   rev: v4.2.0
   hooks:
