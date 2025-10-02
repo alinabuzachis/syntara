@@ -18,6 +18,7 @@ import "@xyflow/react/dist/style.css";
 import { useCallback, useState } from "react";
 import { AppPage } from "../../app/AppPage";
 import { AppPageHeader } from "../../app/AppPageHeader";
+import { ChatInput } from "../../components/chat/ChatInput";
 import "./react-flow.css";
 
 type NodeType = TriggerNode | AgentNode | OutputNode;
@@ -55,7 +56,7 @@ const initialNodes: NodeType[] = [
   },
 ];
 initialNodes.forEach((node, index) => {
-  node.position = { x: index * 350 + 48, y: index * 0 + 48 };
+  node.position = { x: index * 350 + 32, y: index * 0 + 32 };
 });
 
 type EdgeType = { id: string; source: string; target: string };
@@ -104,7 +105,7 @@ export default function AutomationBuilder() {
       >
         <Controls />
         <Panel position="bottom-center">
-          <div className="bg-white/5 rounded-full px-8 py-4 flex gap-8 border border-white/10">
+          <div className="bg-white/5 rounded-full px-8 py-4 flex gap-8 border border-white/10 mb-4">
             <div>Add node</div>
             <div>Add notation</div>
             <div>Save</div>
@@ -113,6 +114,7 @@ export default function AutomationBuilder() {
           </div>
         </Panel>
       </ReactFlow>
+      <ChatInput />
     </AppPage>
   );
 }
