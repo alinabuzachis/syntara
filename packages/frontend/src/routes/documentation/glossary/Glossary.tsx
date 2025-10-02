@@ -29,7 +29,7 @@ export default function Glossary() {
           onChange={(e) => setSearch(e.target.value)}
         />
       </AppPageHeader>
-      <Scrollable className="glass rounded-4xl border">
+      <Scrollable className="glass rounded-4xl border grow">
         <dl className=" px-8 py-6 grid gap-6">
           {results.map((result) => (
             <div key={result.term} className="detail">

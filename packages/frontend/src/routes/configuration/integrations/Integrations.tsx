@@ -48,24 +48,20 @@ export default function Integrations() {
       </AppPageHeader>
       {!useCards ? (
         // <div className="roundedgrow overflow-hidden flex flex-col">
-        <div className="rounded-4xl grow flex flex-col overflow-hidden ring-2 ring-white/20">
+        <div className="rounded-4xl grow flex flex-col overflow-hidden ring-2 ring-black/50">
           <Scrollable>
             <table className="w-full">
               <thead
-                className={clsx("sticky top-0 bg-black/10 glass z-10", {
+                className={clsx("sticky top-0 glass z-10", {
                   "shadow-lg shadow-black/50": false,
                 })}
               >
-                <tr className="border-0 border-white/20 text-left">
+                <tr className="border-0 border-white/15 text-left">
                   <th>
-                    <div className="px-8 py-6 border-b border-white/20">
-                      Name
-                    </div>
+                    <div className="px-8 py-6 border-b border-black">Name</div>
                   </th>
                   <th>
-                    <div className="px-8 py-6 border-b border-white/20">
-                      Type
-                    </div>
+                    <div className="px-8 py-6 border-b border-black">Type</div>
                   </th>
                 </tr>
               </thead>
@@ -73,12 +69,12 @@ export default function Integrations() {
                 {results.map((integration) => (
                   <tr key={integration.id}>
                     <td>
-                      <div className="px-8 py-4 border-b border-white/15">
+                      <div className="px-8 py-4 border-b border-black">
                         {integration.name}
                       </div>
                     </td>
                     <td>
-                      <div className="px-8 py-4 border-b border-white/15">
+                      <div className="px-8 py-4 border-b border-black">
                         {integration.type}
                       </div>
                     </td>
