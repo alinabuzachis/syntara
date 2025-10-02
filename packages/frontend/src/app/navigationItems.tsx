@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { INavigationItem } from "../components/nav/NavItem";
+import AutomationBuilder from "../routes/automation-builder/AutomationBuilder";
 import { IntegrationForm } from "../routes/configuration/integrations/form/IntegrationForm";
 import { AppRoute } from "./AppRoute";
 
@@ -19,11 +20,12 @@ export const navigationItems: INavigationItem[] = [
   },
   {
     label: "Builder",
-    path: AppRoute.Builder,
+    path: AppRoute.AutomationBuilder,
   },
   {
     label: "Automations",
     path: AppRoute.Automations,
+    element: <AutomationBuilder />,
   },
   {
     label: "Approvals",

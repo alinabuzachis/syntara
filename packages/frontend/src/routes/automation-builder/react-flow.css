@@ -1,0 +1,20 @@
+/* https://reactflow.dev/learn/customization/theming */
+
+.react-flow.dark {
+  background: transparent;
+  --xy-controls-button-background-color-default: transparent;
+  --xy-edge-stroke-default: #FFF8;
+  --xy-edge-stroke-width-default: 2px;
+}
+
+.react-flow__node {
+  background: #fff1;
+  color: #fffe;
+  border-radius: 12px;
+  border: 1px solid #fff2;
+  padding: 16px;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}

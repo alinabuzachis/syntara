@@ -27,16 +27,6 @@ export function AppRouter() {
           )}
         </>
       ))}
-      {/* <Route path={AppRoute.Dashboard}>
-          <AppDashboard />
-        </Route>
-        <Route path={AppRoute.Builder}>
-          <AppAutomationBuilder />
-        </Route>
-        <Route path={AppRoute.Configuration} nest>
-          <Configuration />
-        </Route> */}
-      {/* // under construction catch */}
       <Route>
         <div className="p-4">Under Construction</div>
       </Route>

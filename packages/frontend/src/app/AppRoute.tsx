@@ -1,6 +1,6 @@
 export const AppRoute = {
   Dashboard: "/dashboard",
-  Builder: "/builder",
+  AutomationBuilder: "/automation-builder",
   Automations: "/automations",
   Approvals: "/approvals",
   Configuration: {
