@@ -14,17 +14,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Build Docker image
+        run: |
+          docker build -f packages/frontend/Dockerfile -t next-ui-frontend:latest .
 
-      - name: Build frontend
-        run: npm run build --prefix packages/frontend
+      - name: Export Docker image
+        run: |
+          docker save next-ui-frontend:latest | gzip > next-ui-frontend.tar.gz
 
       - name: Configure SSH
         env:
@@ -37,31 +36,24 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
-      - name: Create remote directories
+      - name: Upload Docker image and docker-compose.yml
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
-          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "mkdir -p /home/ec2-user/packages/frontend"
-
-      - name: Deploy files to server
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-        run: |
-          scp -i ~/.ssh/deploy_key -r packages/frontend/dist "$SSH_USER@$SSH_HOST:/home/ec2-user/packages/frontend/"
-          scp -i ~/.ssh/deploy_key packages/frontend/.htpasswd "$SSH_USER@$SSH_HOST:/home/ec2-user/packages/frontend/"
-          scp -i ~/.ssh/deploy_key packages/frontend/nginx.conf "$SSH_USER@$SSH_HOST:/home/ec2-user/packages/frontend/"
+          scp -i ~/.ssh/deploy_key next-ui-frontend.tar.gz "$SSH_USER@$SSH_HOST:/home/ec2-user/"
           scp -i ~/.ssh/deploy_key docker-compose.yml "$SSH_USER@$SSH_HOST:/home/ec2-user/"
 
-      - name: Start services with Docker Compose
+      - name: Load Docker image and start services
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" << 'EOF'
           cd /home/ec2-user
+          gunzip -c next-ui-frontend.tar.gz | docker load
           docker-compose up -d
+          rm next-ui-frontend.tar.gz
           EOF
 
       - name: Cleanup SSH key
