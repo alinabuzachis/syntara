@@ -1,0 +1,69 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build --prefix packages/frontend
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Create remote directories
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "mkdir -p /home/ec2-user/packages/frontend"
+
+      - name: Deploy files to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          scp -i ~/.ssh/deploy_key -r packages/frontend/dist "$SSH_USER@$SSH_HOST:/home/ec2-user/packages/frontend/"
+          scp -i ~/.ssh/deploy_key packages/frontend/.htpasswd "$SSH_USER@$SSH_HOST:/home/ec2-user/packages/frontend/"
+          scp -i ~/.ssh/deploy_key packages/frontend/nginx.conf "$SSH_USER@$SSH_HOST:/home/ec2-user/packages/frontend/"
+          scp -i ~/.ssh/deploy_key docker-compose.yml "$SSH_USER@$SSH_HOST:/home/ec2-user/"
+
+      - name: Start services with Docker Compose
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" << 'EOF'
+          cd /home/ec2-user
+          docker-compose up -d
+          EOF
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
