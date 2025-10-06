@@ -104,7 +104,7 @@ As an automation professional, I want to create, execute, and monitor complex wo
 - **Activity**: Individual tasks within a workflow that can be agentic (AI-driven), non-agentic (traditional automation), or human-interactive
 - **Execution**: Runtime instance of a workflow with current state, execution history, logs, and status information
 - **User**: Platform users with different roles (creator, approver, administrator) and associated permissions
-- **Connector**: Integration points with enterprise systems, including configuration, authentication, and available operations
+- **Connector**: References to external agentic tool servers (MCP servers) defined in the MCP Server Integration and Tool Management feature, enabling workflow activities to invoke external tools and services
 - **Approval**: Human-in-the-loop decision points that can pause workflow execution pending user input
 
 ---

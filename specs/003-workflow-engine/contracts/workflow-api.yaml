@@ -1,0 +1,1043 @@
+openapi: 3.0.3
+info:
+  title: Workflow Engine API
+  description: |
+    API for managing and executing dynamic workflows with agentic and non-agentic tasks.
+
+    ## Schema Composition
+
+    This API uses schema composition to reduce duplication:
+
+    ```
+    BaseResource (id, labels, created_at, updated_at)
+    ├── NamedResource (+ name, description)
+    │   └── Workflow (+ SoftDeletableResource + UserOwnedResource)
+    │       └── WorkflowWithVersion (+ version details)
+    ├── Execution (+ workflow execution fields)
+    ├── ActivityExecution (+ activity execution fields)
+    └── Approval (+ approval fields)
+
+    SoftDeletableResource (deleted_at, deleted_by)
+    UserOwnedResource (created_by)
+    ```
+
+    ## Labels
+
+    All resources support key-value labels for categorization and filtering:
+    - Format: `{"key": "value"}` (both key and value must be strings)
+    - Use cases: environment tags, team ownership, priority levels, cost centers
+    - Queryable: Filter resources by label selectors in list endpoints
+  version: 1.0.0
+  contact:
+    name: Automation Nexus Team
+
+servers:
+- url: http://localhost:8000/api/v1
+  description: Development server
+
+paths:
+  /activity-types:
+    get:
+      summary: List available activity types
+      description: |
+        Retrieve all available activity executor types that can be used in workflow definitions.
+        This endpoint is used for workflow validation, UI tooling, and documentation.
+      responses:
+        '200':
+          description: List of available activity types with their configuration schemas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activity_types:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ActivityType'
+
+  /workflows:
+    get:
+      summary: List workflows
+      description: Retrieve a list of workflows with filtering and pagination. Supports
+        streaming via Accept text/event-stream header.
+      parameters:
+      - name: created_by
+        in: query
+        schema:
+          type: string
+          format: uuid
+        description: Filter by creator user ID
+      - name: is_enabled
+        in: query
+        schema:
+          type: boolean
+        description: Filter by enabled status
+      - name: labels
+        in: query
+        schema:
+          type: string
+        description: Filter by labels (format "key=value,key2=value2" or "key" for
+          existence check)
+        example: environment=production,team=data-platform
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/LastEventId'
+      responses:
+        '200':
+          description: List of workflows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workflows:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workflow'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/StreamEvent'
+    post:
+      summary: Create workflow
+      description: Create a new workflow from YAML definition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowRequest'
+      responses:
+        '201':
+          description: Workflow created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '400':
+          description: Invalid workflow definition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /workflows/{workflowId}:
+    get:
+      summary: Get workflow
+      description: Retrieve a specific workflow by ID and optionally a specific version.
+        Returns the current version if no version parameter is provided. Supports
+        streaming via Accept text/event-stream header.
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: version
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+        description: Specific workflow version to retrieve. If omitted, returns the
+          current version.
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/LastEventId'
+      responses:
+        '200':
+          description: Workflow details including version information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowWithVersion'
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/StreamEvent'
+        '404':
+          description: Workflow or specified version not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update workflow (full replacement)
+      description: Replace an existing workflow with new definition (creates new version)
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWorkflowRequest'
+      responses:
+        '200':
+          description: Workflow updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '404':
+          description: Workflow not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      summary: Partially update workflow
+      description: Update specific workflow fields (name, description, is_active)
+        without creating new version
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchWorkflowRequest'
+      responses:
+        '200':
+          description: Workflow patched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '404':
+          description: Workflow not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete workflow (soft delete)
+      description: Soft delete a workflow by setting deleted_at and deleted_by fields.
+        The workflow remains in the database for audit purposes but is excluded from
+        normal queries.
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Workflow soft deleted successfully
+        '404':
+          description: Workflow not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Workflow cannot be deleted (has running executions)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /executions:
+    get:
+      summary: List executions
+      description: Retrieve executions with filtering and pagination. Supports streaming
+        via Accept text/event-stream header.
+      parameters:
+      - name: workflow_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+        description: Filter by workflow ID
+      - name: started_by
+        in: query
+        schema:
+          type: string
+          format: uuid
+        description: Filter by user who started the execution
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/ExecutionStatus'
+        description: Filter by execution status
+      - name: labels
+        in: query
+        schema:
+          type: string
+        description: Filter by labels (format "key=value,key2=value2" or "key" for
+          existence check)
+        example: priority=high,env=production
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/LastEventId'
+      responses:
+        '200':
+          description: List of executions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  executions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Execution'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/StreamEvent'
+    post:
+      summary: Create execution
+      description: Start a new workflow execution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExecutionRequest'
+      responses:
+        '201':
+          description: Execution started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Execution'
+        '404':
+          description: Workflow not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /executions/{executionId}:
+    get:
+      summary: Get execution
+      description: Retrieve details of a specific execution. Supports streaming via
+        Accept text/event-stream header for real-time updates.
+      parameters:
+      - name: executionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/LastEventId'
+      responses:
+        '200':
+          description: Execution details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Execution'
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/StreamEvent'
+        '404':
+          description: Execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      summary: Control execution
+      description: Pause, resume, or cancel a workflow execution
+      parameters:
+      - name: executionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutionControlRequest'
+      responses:
+        '200':
+          description: Execution control applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Execution'
+        '404':
+          description: Execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /executions/{executionId}/activities:
+    get:
+      summary: List activity executions
+      description: Retrieve activity executions for a workflow execution. Supports
+        streaming via Accept text/event-stream header for real-time updates.
+      parameters:
+      - name: executionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/LastEventId'
+      responses:
+        '200':
+          description: List of activity executions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivityExecution'
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/StreamEvent'
+        '404':
+          description: Execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /approvals:
+    get:
+      summary: List pending approvals
+      description: Retrieve pending approvals for the current user. Supports streaming
+        via Accept text/event-stream header for real-time updates.
+      parameters:
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/ApprovalStatus'
+      - name: activity_execution_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/LastEventId'
+      responses:
+        '200':
+          description: List of approvals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Approval'
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/StreamEvent'
+
+  /approvals/{approvalId}:
+    get:
+      summary: Get approval
+      description: Retrieve details of a specific approval request. Supports streaming
+        via Accept text/event-stream header for real-time updates.
+      parameters:
+      - name: approvalId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/LastEventId'
+      responses:
+        '200':
+          description: Approval details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/StreamEvent'
+        '404':
+          description: Approval not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      summary: Respond to approval
+      description: Approve or reject an approval request
+      parameters:
+      - name: approvalId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalResponseRequest'
+      responses:
+        '200':
+          description: Approval response recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+        '404':
+          description: Approval not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    BaseResource:
+      type: object
+      title: Base Resource
+      description: Base fields common to all resources including unique identifier,
+        labels for categorization, and audit timestamps
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique resource identifier
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Key-value labels for categorization and filtering (e.g., {"environment":"production",
+            "team":"data-platform"})
+          example:
+            environment: production
+            team: data-platform
+            priority: high
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when resource was created
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when resource was last updated
+
+    NamedResource:
+      allOf:
+      - $ref: '#/components/schemas/BaseResource'
+      - type: object
+        title: Named Resource
+        description: Extension of BaseResource with human-readable name and optional
+          description
+        properties:
+          name:
+            type: string
+            description: Human-readable name
+          description:
+            type: string
+            description: Optional description
+            nullable: true
+
+    SoftDeletableResource:
+      type: object
+      title: Soft Deletable Resource
+      description: Mixin fields for resources that support soft deletion with audit
+        trail (deleted_at timestamp and deleted_by user)
+      properties:
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when resource was soft deleted
+        deleted_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: User who soft deleted the resource
+
+    UserOwnedResource:
+      type: object
+      title: User Owned Resource
+      description: Mixin fields for resources with user ownership tracking (created_by
+        user reference)
+      properties:
+        created_by:
+          type: string
+          format: uuid
+          description: User who created the resource
+
+    Workflow:
+      allOf:
+      - $ref: '#/components/schemas/NamedResource'
+      - $ref: '#/components/schemas/SoftDeletableResource'
+      - $ref: '#/components/schemas/UserOwnedResource'
+      - type: object
+        title: Workflow
+        description: A complete automation process with versioned definitions, combining
+          named resource, soft delete, and user ownership capabilities
+        properties:
+          current_version:
+            type: integer
+            description: Current active version number
+          is_enabled:
+            type: boolean
+            description: Whether workflow is enabled and available for execution
+
+    WorkflowWithVersion:
+      allOf:
+      - $ref: '#/components/schemas/Workflow'
+      - type: object
+        title: Workflow With Version
+        description: Workflow combined with a specific version's details including
+          YAML definition, schema version, and change history
+        properties:
+          version:
+            type: object
+            description: Specific version details
+            properties:
+              version:
+                type: integer
+              schema_version:
+                type: string
+              yaml_definition:
+                type: string
+              schedule_config:
+                type: object
+                nullable: true
+              created_by:
+                type: string
+                format: uuid
+              created_at:
+                type: string
+                format: date-time
+              change_description:
+                type: string
+                nullable: true
+
+    Execution:
+      allOf:
+      - $ref: '#/components/schemas/BaseResource'
+      - type: object
+        title: Execution
+        description: Runtime instance of a workflow execution with current state,
+          activity tracking, and execution history
+        properties:
+          workflow_id:
+            type: string
+            format: uuid
+            description: ID of the workflow being executed
+          temporal_workflow_id:
+            type: string
+            description: Temporal workflow execution ID
+          status:
+            $ref: '#/components/schemas/ExecutionStatus'
+          started_by:
+            type: string
+            format: uuid
+            description: User who started the execution
+          started_at:
+            type: string
+            format: date-time
+            nullable: true
+            description: When execution transitioned from pending to running status
+              (null if still pending)
+          completed_at:
+            type: string
+            format: date-time
+            nullable: true
+            description: When execution reached terminal state (completed, failed,
+              or cancelled)
+          input_data:
+            type: object
+            description: Input parameters for the execution
+          error_details:
+            type: string
+            nullable: true
+            description: Error information if execution failed
+          current_activities:
+            type: array
+            description: Currently executing activities
+            items:
+              type: object
+              properties:
+                activity_name:
+                  type: string
+                temporal_activity_id:
+                  type: string
+                iteration:
+                  type: integer
+                  nullable: true
+
+    ActivityExecution:
+      allOf:
+      - $ref: '#/components/schemas/BaseResource'
+      - type: object
+        title: Activity Execution
+        description: Individual activity execution within a workflow with runtime
+          state, retry tracking, and activity definition snapshot
+        properties:
+          execution_id:
+            type: string
+            format: uuid
+            description: Parent execution ID
+          activity_name:
+            type: string
+            description: Activity ID from YAML workflow definition
+          activity_definition:
+            type: object
+            description: Snapshot of the activity configuration from YAML at execution
+              time, including executor, config, retry policy, timeout, approval settings
+          temporal_activity_id:
+            type: string
+            description: Temporal activity execution ID
+          status:
+            $ref: '#/components/schemas/ActivityStatus'
+          started_at:
+            type: string
+            format: date-time
+            nullable: true
+            description: When activity transitioned from pending to running status
+              (null if still pending)
+          completed_at:
+            type: string
+            format: date-time
+            nullable: true
+            description: When activity reached terminal state (completed, failed)
+          input_data:
+            type: object
+            description: Runtime input parameters
+          output_data:
+            type: object
+            nullable: true
+            description: Activity results
+          error_details:
+            type: string
+            nullable: true
+            description: Error information if failed
+          retry_count:
+            type: integer
+            description: Number of retry attempts
+          iteration:
+            type: integer
+            nullable: true
+            description: Iteration number if activity is within a loop (0-indexed)
+
+    Approval:
+      allOf:
+      - $ref: '#/components/schemas/BaseResource'
+      - type: object
+        title: Approval
+        description: Human-in-the-loop decision point that pauses workflow execution
+          pending approver response
+        properties:
+          activity_execution_id:
+            type: string
+            format: uuid
+            description: Activity requiring approval
+          approver_id:
+            type: string
+            format: uuid
+            description: User assigned to review this approval
+          status:
+            $ref: '#/components/schemas/ApprovalStatus'
+          request_data:
+            type: object
+            description: Data presented for approval
+          response_data:
+            type: object
+            nullable: true
+            description: Approver's response including reason and comments
+          requested_at:
+            type: string
+            format: date-time
+            description: When approval was requested
+          responded_at:
+            type: string
+            format: date-time
+            nullable: true
+            description: When approver responded
+          expires_at:
+            type: string
+            format: date-time
+            nullable: true
+            description: Approval timeout deadline
+
+    ExecutionStatus:
+      type: string
+      title: Execution Status
+      description: Current state of a workflow execution lifecycle
+      enum: [pending, running, paused, completed, failed, cancelled]
+
+    ActivityStatus:
+      type: string
+      title: Activity Status
+      description: Current state of an individual activity execution
+      enum: [pending, running, completed, failed, retrying]
+
+    ApprovalStatus:
+      type: string
+      title: Approval Status
+      description: Current state of a human approval request
+      enum: [pending, approved, rejected, expired]
+
+    CreateWorkflowRequest:
+      type: object
+      title: Create Workflow Request
+      description: Request payload for creating a new workflow from YAML definition
+      required:
+      - name
+      - yaml_definition
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        yaml_definition:
+          type: string
+        schedule_config:
+          type: object
+
+    UpdateWorkflowRequest:
+      type: object
+      title: Update Workflow Request
+      description: Request payload for full workflow replacement creating a new version
+      required:
+      - yaml_definition
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        yaml_definition:
+          type: string
+          description: New YAML definition (creates new version)
+        schedule_config:
+          type: object
+
+    PatchWorkflowRequest:
+      type: object
+      title: Patch Workflow Request
+      description: Request payload for partial workflow updates without creating a
+        new version (metadata only)
+      properties:
+        name:
+          type: string
+          description: Update workflow name
+        description:
+          type: string
+          description: Update workflow description
+        is_enabled:
+          type: boolean
+          description: Enable or disable workflow for execution
+
+    CreateExecutionRequest:
+      type: object
+      title: Create Execution Request
+      description: Request payload for starting a new workflow execution with optional
+        input parameters
+      required:
+      - workflow_id
+      properties:
+        workflow_id:
+          type: string
+          format: uuid
+          description: ID of the workflow to execute
+        input_data:
+          type: object
+          description: Input parameters for the workflow execution
+
+    ExecutionControlRequest:
+      type: object
+      title: Execution Control Request
+      description: Request payload for controlling workflow execution state (pause,
+        resume, cancel)
+      required:
+      - action
+      properties:
+        action:
+          type: string
+          enum: [pause, resume, cancel]
+
+    ApprovalResponseRequest:
+      type: object
+      title: Approval Response Request
+      description: Request payload for approver to approve or reject an approval request
+        with reason
+      required:
+      - status
+      - response_data
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
+        response_data:
+          type: object
+          description: Approver's response including reason, comments, and any additional
+            structured data
+
+    StreamEvent:
+      type: object
+      title: Stream Event
+      description: Server-sent event for real-time workflow execution updates via
+        text/event-stream
+      properties:
+        event_id:
+          type: string
+        event_type:
+          type: string
+        execution_id:
+          type: string
+          format: uuid
+        data:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+
+    ActivityType:
+      type: object
+      title: Activity Type
+      description: Definition of an available activity executor type with its configuration
+        schema
+      required:
+      - type
+      - name
+      - description
+      - config_schema
+      properties:
+        type:
+          type: string
+          description: Unique identifier for the executor type
+          example: agentic
+          enum: [agentic, connector, script, api]
+        name:
+          type: string
+          description: Human-readable name of the executor type
+          example: Agentic Tool Execution
+        description:
+          type: string
+          description: Detailed description of what this executor type does
+          example: Execute tasks using external agentic tool servers (MCP) with AI
+            model integration
+        config_schema:
+          type: object
+          description: JSON Schema defining the valid configuration structure for
+            this executor type
+          example:
+            type: object
+            required: [agent, tools, model]
+            properties:
+              agent:
+                type: string
+                description: MCP server URI
+                pattern: ^mcp://.+
+              tools:
+                type: array
+                description: List of tool names to invoke
+                items:
+                  type: string
+              model:
+                type: string
+                description: AI model to use
+                enum: [claude-3-opus, claude-3-sonnet, gpt-4, gpt-4-turbo]
+        examples:
+          type: array
+          description: Example configurations for this executor type
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Name of the example
+              description:
+                type: string
+                description: What this example demonstrates
+              config:
+                type: object
+                description: Example configuration object
+          example:
+          - name: Sentiment Analysis
+            description: Analyze text sentiment using MCP tool
+            config:
+              agent: mcp://sentiment-server
+              tools: [analyze_sentiment]
+              model: claude-3-opus
+              prompt: Analyze the sentiment of the following text
+
+    Error:
+      type: object
+      title: Error Response
+      description: Standard error response format with error code, message, and optional
+        details
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+  parameters:
+    SessionId:
+      name: session_id
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Session ID for resumable streaming (used with Accept text/event-stream)
+
+    LastEventId:
+      name: last_event_id
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Last received event ID for resuming stream (used with Accept text/event-stream)
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+- bearerAuth: []
