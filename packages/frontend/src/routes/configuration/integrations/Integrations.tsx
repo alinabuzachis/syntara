@@ -71,27 +71,48 @@ export default function Integrations() {
       {view !== "cards" ? (
         // <div className="roundedgrow overflow-hidden flex flex-col">
         <div className="rounded-4xl grow flex flex-col overflow-hidden ring-2 ring-black/50">
-          <Scrollable>
-            <table className="w-full">
+          <Scrollable className="grow">
+            <table className="w-full border-separate border-spacing-0 h-full">
               <thead
-                className={clsx("sticky top-0 glass z-10", {
+                className={clsx("sticky top-0 glass z-10 ", {
                   "shadow-lg shadow-black/50": false,
                 })}
               >
-                <tr className="border-0 border-white/15 text-left">
-                  <th>
-                    <div className="px-8 py-6 border-b border-black">
+                <tr className="text-left *:border-b *:border-violet-300/20 *:h-16 bg-white/5">
+                  <th className="w-1 min-w-12 text-center">
+                    <input type="checkbox" />
+                  </th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th className="w-1 min-w-12 text-center">
+                    <Menu>
+                      <MenuTrigger>
+                        <EllipsisVerticalIcon />
+                      </MenuTrigger>
+                      <MenuItems>
+                        <MenuGroup label="View">
+                          <MenuRadioGroup>
+                            <MenuRadioItem value="table">Table</MenuRadioItem>
+                            <MenuRadioItem value="cards">Cards</MenuRadioItem>
+                          </MenuRadioGroup>
+                        </MenuGroup>
+                      </MenuItems>
+                    </Menu>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="glass">
+                {results.map((integration) => (
+                  <tr
+                    key={integration.id}
+                    className="text-left *:border-b *:border-violet-300/20 *:h-12"
+                  >
+                    <td className="w-1 min-w-12 text-center">
                       <input type="checkbox" />
-                    </div>
-                  </th>
-                  <th>
-                    <div className="px-8 py-6 border-b border-black">Name</div>
-                  </th>
-                  <th>
-                    <div className="px-8 py-6 border-b border-black">Type</div>
-                  </th>
-                  <th>
-                    <div className="px-8 py-6 border-b border-black">
+                    </td>
+                    <td>{integration.name}</td>
+                    <td>{integration.type}</td>
+                    <td className="w-1 min-w-12 text-center">
                       <Menu>
                         <MenuTrigger>
                           <EllipsisVerticalIcon />
@@ -105,59 +126,28 @@ export default function Integrations() {
                           </MenuGroup>
                         </MenuItems>
                       </Menu>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="glass">
-                {results.map((integration) => (
-                  <tr key={integration.id}>
-                    <td className="w-1">
-                      <div className="px-8 py-4 border-b border-black">
-                        <input type="checkbox" />
-                      </div>
-                    </td>
-                    <td>
-                      <div className="px-8 py-4 border-b border-black">
-                        {integration.name}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="px-8 py-4 border-b border-black">
-                        {integration.type}
-                      </div>
-                    </td>
-                    <td className="w-1">
-                      <div className="px-8 py-4 border-b border-black">
-                        <Menu>
-                          <MenuTrigger>
-                            <EllipsisVerticalIcon />
-                          </MenuTrigger>
-                          <MenuItems>
-                            <MenuGroup label="View">
-                              <MenuRadioGroup>
-                                <MenuRadioItem value="table">
-                                  Table
-                                </MenuRadioItem>
-                                <MenuRadioItem value="cards">
-                                  Cards
-                                </MenuRadioItem>
-                              </MenuRadioGroup>
-                            </MenuGroup>
-                          </MenuItems>
-                        </Menu>
-                      </div>
                     </td>
                   </tr>
                 ))}
+                <tr>
+                  <td colSpan={4} />
+                </tr>
               </tbody>
+              <tfoot className="sticky bottom-0 glass z-10 min-h-12 h-16">
+                <tr className="bg-white/5">
+                  <td
+                    colSpan={4}
+                    className="px-6 border-t border-violet-300/20"
+                  >
+                    Count: {results.length} integrations
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </Scrollable>
-          <div className="grow glass flex p-8 items-end"></div>
         </div>
       ) : (
-        // </div>
-        <Scrollable className="glass rounded-4xl border">
+        <Scrollable className="glass rounded-4xl border grow">
           <div
             className={`p-8 grid gap-4 grid-cols-[repeat(auto-fit,minmax(350px,1fr))]`}
           >
