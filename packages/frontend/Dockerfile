@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY packages/frontend/package*.json ./packages/frontend/
 RUN npm ci
-COPY packages/frontend ./packages/frontend
+COPY packages ./packages
 RUN npm run build --workspace=packages/genie-ui-framework
 RUN npm run build --workspace=packages/frontend
 
