@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "concurrently npm:frontend -c auto",
-    "frontend": "npm run start --prefix packages/frontend",
+    "start": "concurrently npm:start:* -c auto",
+    "start:frontend": "npm run start --prefix packages/frontend",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",

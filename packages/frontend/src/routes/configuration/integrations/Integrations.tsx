@@ -1,5 +1,14 @@
 import clsx from "clsx";
 import Fuse from "fuse.js";
+import {
+  Menu,
+  MenuGroup,
+  MenuItems,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuTrigger,
+} from "genie-ui-framework";
+import { EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { AppPage } from "../../../app/AppPage";
@@ -25,7 +34,7 @@ export default function Integrations() {
   const results = search
     ? fuse.search(search).map((result) => result.item)
     : integrations;
-  const useCards = false;
+  const [view, setView] = useState<"table" | "cards">("table");
   return (
     <AppPage>
       <AppPageHeader title="Integrations">
@@ -44,9 +53,22 @@ export default function Integrations() {
         >
           Add Integration
         </button>
+        <Menu>
+          <MenuTrigger>
+            <EllipsisVerticalIcon />
+          </MenuTrigger>
+          <MenuItems>
+            <MenuGroup label="View">
+              <MenuRadioGroup value={view} onValueChange={setView}>
+                <MenuRadioItem value="table">Table</MenuRadioItem>
+                <MenuRadioItem value="cards">Cards</MenuRadioItem>
+              </MenuRadioGroup>
+            </MenuGroup>
+          </MenuItems>
+        </Menu>
         {/* <ExampleToggleGroup /> */}
       </AppPageHeader>
-      {!useCards ? (
+      {view !== "cards" ? (
         // <div className="roundedgrow overflow-hidden flex flex-col">
         <div className="rounded-4xl grow flex flex-col overflow-hidden ring-2 ring-black/50">
           <Scrollable>
@@ -58,16 +80,43 @@ export default function Integrations() {
               >
                 <tr className="border-0 border-white/15 text-left">
                   <th>
+                    <div className="px-8 py-6 border-b border-black">
+                      <input type="checkbox" />
+                    </div>
+                  </th>
+                  <th>
                     <div className="px-8 py-6 border-b border-black">Name</div>
                   </th>
                   <th>
                     <div className="px-8 py-6 border-b border-black">Type</div>
+                  </th>
+                  <th>
+                    <div className="px-8 py-6 border-b border-black">
+                      <Menu>
+                        <MenuTrigger>
+                          <EllipsisVerticalIcon />
+                        </MenuTrigger>
+                        <MenuItems>
+                          <MenuGroup label="View">
+                            <MenuRadioGroup>
+                              <MenuRadioItem value="table">Table</MenuRadioItem>
+                              <MenuRadioItem value="cards">Cards</MenuRadioItem>
+                            </MenuRadioGroup>
+                          </MenuGroup>
+                        </MenuItems>
+                      </Menu>
+                    </div>
                   </th>
                 </tr>
               </thead>
               <tbody className="glass">
                 {results.map((integration) => (
                   <tr key={integration.id}>
+                    <td className="w-1">
+                      <div className="px-8 py-4 border-b border-black">
+                        <input type="checkbox" />
+                      </div>
+                    </td>
                     <td>
                       <div className="px-8 py-4 border-b border-black">
                         {integration.name}
@@ -76,6 +125,27 @@ export default function Integrations() {
                     <td>
                       <div className="px-8 py-4 border-b border-black">
                         {integration.type}
+                      </div>
+                    </td>
+                    <td className="w-1">
+                      <div className="px-8 py-4 border-b border-black">
+                        <Menu>
+                          <MenuTrigger>
+                            <EllipsisVerticalIcon />
+                          </MenuTrigger>
+                          <MenuItems>
+                            <MenuGroup label="View">
+                              <MenuRadioGroup>
+                                <MenuRadioItem value="table">
+                                  Table
+                                </MenuRadioItem>
+                                <MenuRadioItem value="cards">
+                                  Cards
+                                </MenuRadioItem>
+                              </MenuRadioGroup>
+                            </MenuGroup>
+                          </MenuItems>
+                        </Menu>
                       </div>
                     </td>
                   </tr>
