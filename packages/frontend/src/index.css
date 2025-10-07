@@ -16,13 +16,14 @@
 }
 
 body {
-  @apply w-lvw h-lvh;
+  @apply w-lvw h-lvh relative;
 }
 
 #root {
   @apply w-full h-full;
   @apply flex flex-col;
   @apply max-h-lvh;
+  @apply isolate;
 }
 
 @layer utilities {

@@ -3,6 +3,7 @@ import { AppPage } from "../../../../app/AppPage";
 import { AppPageHeader } from "../../../../app/AppPageHeader";
 import { AppRoute } from "../../../../app/AppRoute";
 import { ChatInput } from "../../../../components/chat/ChatInput";
+import { Field } from "../../../../components/form/Field";
 import { Form } from "../../../../components/form/Form";
 import { Input } from "../../../../components/form/Input";
 import { Select } from "../../../../components/form/Select";
@@ -47,17 +48,15 @@ export function IntegrationForm() {
             navigate(AppRoute.Configuration.Integrations.Root);
           }}
         >
-          <Select
-            name="type"
-            label="Type"
-            options={[{ label: "MCP Server", value: "mcp-server" }]}
-          />
-          <Input name="name" label="Name" placeholder="Enter name" />
-          <Input
-            name="url"
-            label="Server name / ID"
-            placeholder="Enter server name / ID"
-          />
+          <Field label="Type" name="type">
+            <Select options={[{ label: "MCP Server", value: "mcp-server" }]} />
+          </Field>
+          <Field label="Name" name="name">
+            <Input placeholder="Enter name" required />
+          </Field>
+          <Field label="Server name / ID" name="url">
+            <Input placeholder="Enter server name / ID" required />
+          </Field>
           {/* <button className="bg-white/10 px-4 py-1 rounded-full mt-8 self-start">
             Test Integration
           </button> */}
