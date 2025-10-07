@@ -87,6 +87,14 @@ dev: check-deps ## Run the hello world application
 	uv run python src/api/main.py
 
 
+# Tools
+# ========================================================
+.PHONY: install-cursor-commands
+install-cursor-commands: ## Sync Claude commands to Cursor format
+	@echo "🔄 Syncing commands from .claude/ to .cursor/..."
+	uv run python tools/install_cursor_commands.py
+
+
 # Code quality
 # ========================================================
 .PHONY: check-path-sequence
