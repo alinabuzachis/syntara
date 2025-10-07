@@ -20,7 +20,9 @@ Given the implementation details provided as an argument, do this:
 
 3. Read the constitution at `.specify/memory/constitution.md` to understand constitutional requirements.
 
-4. Execute the implementation plan template:
+4. Read the architectural decision records at `decision-records.md` (from repo root) to understand key technology choices and design constraints that must be followed.
+
+5. Execute the implementation plan template:
    - Load `.specify/templates/plan-template.md` (already copied to IMPL_PLAN path)
    - Set Input path to FEATURE_SPEC
    - Run the Execution Flow (main) function steps 1-9
@@ -33,16 +35,16 @@ Given the implementation details provided as an argument, do this:
    - Incorporate user-provided details from arguments into Technical Context: $ARGUMENTS
    - Update Progress Tracking as you complete each phase
 
-5. Verify execution completed:
+6. Verify execution completed:
    - Check Progress Tracking shows all phases complete
    - Ensure all required artifacts were generated
    - Confirm no ERROR states in execution
 
-6. Check for enabled extensions:
+7. Check for enabled extensions:
    - Read `.specify/config.json` and parse the JSON
    - For each feature where `features[feature-name].plan === true`:
      - If the feature is enabled, read and execute the instructions from `.specify/extensions/[feature-name]/plan.md`
      - Include any outputs from extension execution in the final report
-7. Report results with branch name, file paths, generated artifacts, and any generated extension outputs.
+8. Report results with branch name, file paths, generated artifacts, and any generated extension outputs.
 
 Use absolute paths with the repository root for all file operations to avoid path issues.

@@ -7,6 +7,10 @@ A distributed multi-agent system. Nexus enables coordinated AI agents to work to
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
+## Documentation
+
+For architectural decisions and design rationale, see [decision-records.md](decision-records.md).
+
 ## Developer Workflow
 
 This project uses `uv` for dependency management and provides a comprehensive Makefile for development tasks.

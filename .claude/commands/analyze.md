@@ -27,6 +27,7 @@ Execution steps:
    - Parse plan.md: Architecture/stack choices, Data Model references, Phases, Technical constraints.
    - Parse tasks.md: Task IDs, descriptions, phase grouping, parallel markers [P], referenced file paths.
    - Load constitution `.specify/memory/constitution.md` for principle validation.
+   - Load `decision-records.md` (from repo root) for architectural decision compliance.
 
 3. Build internal semantic models:
    - Requirements inventory: Each functional + non-functional requirement with a stable key (derive slug based on imperative phrase; e.g., "User can upload file" -> `user-can-upload-file`).
@@ -44,9 +45,10 @@ Execution steps:
       - Requirements with verbs but missing object or measurable outcome.
       - User stories missing acceptance criteria alignment.
       - Tasks referencing files or components not defined in spec/plan.
-   D. Constitution alignment:
+   D. Constitution and architectural decision alignment:
       - Any requirement or plan element conflicting with a MUST principle.
       - Missing mandated sections or quality gates from constitution.
+      - Technology or architecture choices that contradict documented decisions in decision-records.md.
    E. Coverage gaps:
       - Requirements with zero associated tasks.
       - Tasks with no mapped requirement/story.
