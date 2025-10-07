@@ -6,23 +6,33 @@
   "files": [
     "dist"
   ],
-  "main": "./dist/genie-ui-framework.umd.cjs",
-  "module": "./dist/genie-ui-framework.js",
+  "main": "./dist/genie-ui-framework.umd.js",
+  "module": "./dist/genie-ui-framework.es.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/genie-ui-framework.js",
-      "require": "./dist/genie-ui-framework.umd.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/genie-ui-framework.es.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/genie-ui-framework.umd.js"
+      }
     },
     "./style.css": "./dist/genie-ui-framework.css"
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && tsc --project tsconfig.app.json",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
-    "clsx": "^2.1.1",
+    "clsx": "^2.1.1"
+  },
+  "peerDependencies": {
+    "@base-ui-components/react": "^1.0.0-beta.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

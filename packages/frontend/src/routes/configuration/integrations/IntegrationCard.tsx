@@ -1,4 +1,4 @@
-import { Menu } from "genie-ui-framework";
+import { Menu, MenuItem, MenuItems, MenuTrigger } from "genie-ui-framework";
 import { EllipsisVerticalIcon } from "lucide-react";
 
 export function IntegrationCard(props: {
@@ -13,10 +13,14 @@ export function IntegrationCard(props: {
       <div>
         <div className="flex items-center justify-between">
           <div className="font-bold text-lg">{props.name}</div>
-          <button className="-mr-3 -mt-0">
-            <EllipsisVerticalIcon />
-          </button>
-          <Menu></Menu>
+          <Menu>
+            <MenuTrigger>
+              <EllipsisVerticalIcon />
+            </MenuTrigger>
+            <MenuItems>
+              <MenuItem>Hello</MenuItem>
+            </MenuItems>
+          </Menu>
         </div>
         {props.type && (
           <div id="type" className="text-sm text-white/50">
