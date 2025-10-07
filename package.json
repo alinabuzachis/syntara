@@ -6,7 +6,9 @@
   "scripts": {
     "start": "concurrently npm:start:* -c auto",
     "start:frontend": "npm run start --prefix packages/frontend",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build:genie-ui-framework && npm run build:frontend",
+    "build:genie-ui-framework": "npm run build --workspace=packages/genie-ui-framework",
+    "build:frontend": "npm run build --workspace=packages/frontend",
     "test": "npm run test --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",
     "docker:build": "docker compose build",

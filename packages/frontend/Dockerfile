@@ -5,8 +5,7 @@ COPY package*.json ./
 COPY packages/frontend/package*.json ./packages/frontend/
 RUN npm ci
 COPY packages ./packages
-RUN npm run build --workspace=packages/genie-ui-framework
-RUN npm run build --workspace=packages/frontend
+RUN npm run build
 
 # Production stage
 FROM --platform=$TARGETPLATFORM nginx:alpine
