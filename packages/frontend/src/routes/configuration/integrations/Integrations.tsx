@@ -70,7 +70,7 @@ export default function Integrations() {
       </AppPageHeader>
       {view !== "cards" ? (
         // <div className="roundedgrow overflow-hidden flex flex-col">
-        <div className="rounded-4xl grow flex flex-col overflow-hidden ring-2 ring-black/50">
+        <div className="rounded-4xl grow flex flex-col overflow-hidden border-2 border-violet-300/20">
           <Scrollable className="grow">
             <table className="w-full border-separate border-spacing-0 h-full">
               <thead
