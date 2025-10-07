@@ -3,6 +3,17 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/genie-ui-framework.umd.cjs",
+  "module": "./dist/genie-ui-framework.js",
+  "exports": {
+    ".": {
+      "import": "./dist/genie-ui-framework.js",
+      "require": "./dist/genie-ui-framework.umd.cjs"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
