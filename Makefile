@@ -9,7 +9,7 @@ help: ## Show this help message
 # UV environment setup
 # ========================================================
 .PHONY: install
-install: _deps-install-dev ## Complete setup from scratch
+install: _deps-install-dev _deps-install-pre-commit ## Complete setup from scratch
 	@echo ""
 	@echo "🎉 Nexus setup complete!"
 	@echo ""
@@ -24,6 +24,8 @@ _deps-install-dev: _check-dependency-binaries
 	@echo "📦 Installing development dependencies with uv..."
 	uv sync --extra dev
 	@echo "✅ Development dependencies installed successfully"
+
+_deps-install-pre-commit:
 	@echo "🪝 Installing pre-commit hooks..."
 	uv run pre-commit install --hook-type commit-msg
 	@echo "✅ Pre-commit hooks installed successfully"
@@ -93,11 +95,14 @@ check-path-sequence: ## Validate numbering sequence under specs/
 	python tools/ci/check_path_sequence.py specs/ --strict
 
 .PHONY: format
-format: ## Format code with ruff
+format: ## Format code
 	@echo "🎨 Formatting code..."
+	uv run pre-commit run trailing-whitespace --all-files
+	uv run pre-commit run end-of-file-fixer --all-files
+	uv run pre-commit run mixed-line-ending --all-files
 	uv run ruff format .
-	@find . -type f \( -name "*.yml" -o -name "*.yaml" \) -print0 | xargs -0 -r uv run yamlfmt -w
 	uv run ruff check . --fix
+	@find . -type f \( -name "*.yml" -o -name "*.yaml" \) -print0 | xargs -0 -r uvx yamlfmt -w
 	@echo "✅ Code formatting completed"
 
 .PHONY: lint
