@@ -3,9 +3,11 @@ import Fuse from "fuse.js";
 import {
   Menu,
   MenuGroup,
+  MenuItem,
   MenuItems,
   MenuRadioGroup,
   MenuRadioItem,
+  MenuSeparator,
   MenuTrigger,
 } from "genie-ui-framework";
 import { EllipsisVerticalIcon } from "lucide-react";
@@ -118,12 +120,21 @@ export default function Integrations() {
                           <EllipsisVerticalIcon />
                         </MenuTrigger>
                         <MenuItems>
-                          <MenuGroup label="View">
-                            <MenuRadioGroup>
-                              <MenuRadioItem value="table">Table</MenuRadioItem>
-                              <MenuRadioItem value="cards">Cards</MenuRadioItem>
-                            </MenuRadioGroup>
-                          </MenuGroup>
+                          <MenuItem>Stop server</MenuItem>
+                          <MenuItem>Restart server</MenuItem>
+                          <MenuSeparator />
+                          <MenuItem>View and enable/disable tools</MenuItem>
+                          <MenuSeparator />
+                          <MenuItem>Show output</MenuItem>
+                          <MenuItem>Show configuration</MenuItem>
+                          <MenuItem>Show configuration (JSON)</MenuItem>
+                          <MenuSeparator />
+                          <MenuItem>Configure model access</MenuItem>
+                          <MenuItem>Show sampling requests</MenuItem>
+                          <MenuSeparator />
+                          <MenuItem>Browser resources</MenuItem>
+                          <MenuSeparator />
+                          <MenuItem>Uninstall</MenuItem>
                         </MenuItems>
                       </Menu>
                     </td>
@@ -139,7 +150,7 @@ export default function Integrations() {
                     colSpan={4}
                     className="px-6 border-t border-violet-300/20"
                   >
-                    Count: {results.length} integrations
+                    {results.length} integrations
                   </td>
                 </tr>
               </tfoot>
