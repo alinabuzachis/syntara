@@ -1,3 +1,4 @@
+import { Menu } from "genie-ui-framework";
 import { EllipsisVerticalIcon } from "lucide-react";
 
 export function IntegrationCard(props: {
@@ -15,6 +16,7 @@ export function IntegrationCard(props: {
           <button className="-mr-3 -mt-0">
             <EllipsisVerticalIcon />
           </button>
+          <Menu></Menu>
         </div>
         {props.type && (
           <div id="type" className="text-sm text-white/50">
