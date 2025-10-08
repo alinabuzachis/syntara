@@ -1,0 +1,464 @@
+openapi: 3.0.3
+info:
+  title: Tool Provider Management API
+  description: API for registering and managing external Tool Providers
+  version: 1.0.0
+
+servers:
+- url: http://localhost:8000/api/v1
+  description: Development server
+
+paths:
+  /tool-providers:
+    get:
+      summary: List all registered Tool Providers
+      description: Retrieve list of all Tool Providers with optional filtering
+      parameters:
+      - name: field[operator]
+        in: query
+        description: |
+          Generic field filtering with operators. Syntax: field[operator]=value
+
+          Supported operators:
+          - eq: equals
+          - ne: not equals
+          - in: in array (comma-separated values)
+          - contains: string contains
+          - startswith: string starts with
+          - endswith: string ends with
+          - gt: greater than
+          - gte: greater than or equal
+          - lt: less than
+          - lte: less than or equal
+          - between: between two values (comma-separated)
+
+          Examples:
+          - ?status[eq]=available
+          - ?name[contains]=widget
+          - ?created_at[lte]=2025-10-03
+          - ?status[in]=available,validating
+          - ?created_at[between]=2025-01-01,2025-12-31
+        schema:
+          type: object
+          additionalProperties:
+            type: string
+        style: deepObject
+        explode: true
+      - name: limit
+        in: query
+        description: Maximum number of providers to return
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: cursor
+        in: query
+        description: Cursor for keyset pagination (provider ID to start after)
+        schema:
+          type: string
+          format: uuid
+      - name: include_total
+        in: query
+        description: Include total count in response (may impact performance)
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: List of Tool Providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ToolProvider'
+                  limit:
+                    type: integer
+                    description: Maximum number of items requested
+                  next_cursor:
+                    type: string
+                    format: uuid
+                    description: Cursor for the next page (null if no more pages)
+                    nullable: true
+                  has_more:
+                    type: boolean
+                    description: Whether there are more items available
+                  total:
+                    type: integer
+                    description: Total count (only included if include_total=true)
+                required:
+                - providers
+                - limit
+                - has_more
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Register new Tool Provider
+      description: Register a new external Tool Provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolProviderCreate'
+      responses:
+        '201':
+          description: Provider registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProvider'
+        '400':
+          description: Invalid provider configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Provider name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tool-providers/{provider_id}:
+    get:
+      summary: Get Tool Provider details
+      description: Retrieve detailed information about specific Tool Provider
+      parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Provider details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProvider'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update Tool Provider configuration
+      description: Update configuration of existing Tool Provider
+      parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolProviderUpdate'
+      responses:
+        '200':
+          description: Provider updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProvider'
+        '400':
+          description: Invalid provider configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Remove Tool Provider
+      description: Remove Tool Provider and all associated tools
+      parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Provider removed successfully
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tool-providers/{provider_id}/validate:
+    post:
+      summary: Validate Tool Provider connection
+      description: Test connection and validate Tool Provider compatibility
+      parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Provider validation successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  provider_type:
+                    type: string
+                  protocol_version:
+                    type: string
+                  capabilities:
+                    type: array
+                    items:
+                      type: string
+                  validated_at:
+                    type: string
+                    format: date-time
+        '400':
+          description: Provider validation failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                  validated_at:
+                    type: string
+                    format: date-time
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tool-providers/{provider_id}/refresh-tools:
+    post:
+      summary: Refresh tools from Tool Provider
+      description: Connect to Tool Provider and refresh available tools
+      parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Tool refresh completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  refreshed_count:
+                    type: integer
+                  updated_count:
+                    type: integer
+                  disabled_count:
+                    type: integer
+                  refreshed_at:
+                    type: string
+                    format: date-time
+        '400':
+          description: Tool refresh failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ToolProvider:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        provider_type:
+          type: string
+          description: Type of Tool Provider (e.g., mcp, python, rest_api, etc.)
+        configuration:
+          type: object
+          description: Provider-specific configuration
+          additionalProperties: true
+        enabled:
+          type: boolean
+        status:
+          type: string
+          enum: [available, error, validating]
+        last_validated_at:
+          type: string
+          format: date-time
+        validation_error:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          format: uuid
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_by:
+          type: string
+          format: uuid
+          nullable: true
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+        deleted_by:
+          type: string
+          format: uuid
+          nullable: true
+        tool_count:
+          type: integer
+      required:
+      - id
+      - name
+      - provider_type
+      - configuration
+      - enabled
+      - status
+      - created_at
+      - created_by
+
+    ToolProviderCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        provider_type:
+          type: string
+          description: Type of Tool Provider (e.g., mcp, python, rest_api, etc.)
+        configuration:
+          type: object
+          description: Provider-specific configuration
+          additionalProperties: true
+      required:
+      - name
+      - provider_type
+      - configuration
+
+    ToolProviderUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        configuration:
+          type: object
+          description: Provider-specific configuration including provider_type
+          properties:
+            provider_type:
+              type: string
+              description: Type of Tool Provider (e.g., mcp, python, rest_api, etc.)
+          required:
+          - provider_type
+          additionalProperties: true
+        enabled:
+          type: boolean
+        status:
+          type: string
+          enum: [available, error]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+      required:
+      - error
+      - message
