@@ -11,7 +11,7 @@ export function MenuTrigger(props: BaseMenu.Trigger.Props) {
 export function MenuItems({ children }: { children?: React.ReactNode }) {
   return (
     <BaseMenu.Portal>
-      <BaseMenu.Backdrop className="menu-backdrop" />
+      {/* <BaseMenu.Backdrop className="menu-backdrop" /> */}
       <BaseMenu.Positioner>
         <BaseMenu.Popup className="p-1 glass rounded-xl shadow-lg shadow-black/50">
           {children}

@@ -19,17 +19,14 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/genie-ui-framework.umd.js"
       }
-    },
-    "./style.css": "./dist/genie-ui-framework.css"
+    }
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build && tsc --project tsconfig.app.json",
+    "start": "vite build --watch",
+    "dev": "vite --open",
+    "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
-  },
-  "dependencies": {
-    "clsx": "^2.1.1"
   },
   "peerDependencies": {
     "@base-ui-components/react": "^1.0.0-beta.3",
@@ -37,6 +34,7 @@
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "clsx": "^2.1.1",
     "@eslint/js": "^9.36.0",
     "@types/node": "^24.6.0",
     "@types/react": "^19.1.16",
@@ -49,9 +47,8 @@
     "globals": "^16.4.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.45.0",
-    "vite": "npm:rolldown-vite@7.1.14"
-  },
-  "overrides": {
-    "vite": "npm:rolldown-vite@7.1.14"
+    "vite": "^7.1.9",
+    "vite-plugin-dts": "^4.5.4",
+    "vite-plugin-externalize-deps": "^0.10.0"
   }
 }

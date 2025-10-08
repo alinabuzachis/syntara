@@ -9,7 +9,7 @@ export function AppNavigation() {
     item.path.startsWith("/" + activeTopLevel + "/")
   );
   return (
-    <div className="flex flex-col gap-2 items-center">
+    <div className="flex flex-col gap-2 items-center z-10">
       <div className="flex justify-center glass px-6 rounded-full py-1">
         {navigationItems.map((item) => (
           <NavItem
