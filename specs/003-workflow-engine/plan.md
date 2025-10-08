@@ -295,6 +295,40 @@ stateDiagram-v2
 - **Scale/Scope**: Multi-tenant platform supporting thousands of workflows with comprehensive audit trails
 - **External Dependencies**: MCP Server Integration and Tool Management feature for connector definitions and external tool server management
 
+## Existing Infrastructure
+*Tracking what is already configured in the project*
+
+### Python Namespace
+- **Package name**: `nexus` (defined in `pyproject.toml`)
+- **Source packages**: `src/nexus_api` (configured in hatchling build targets)
+- **Python version**: 3.12+ (specified in `pyproject.toml`)
+
+### Tooling Configuration
+The following development tools are already configured and integrated:
+
+- **Linting & Formatting**:
+  - Ruff (format + lint) - configured in `pyproject.toml` [tool.ruff], accessible via `make format` and `make lint`
+  - YAMLlint & yamlfmt - configured in `pyproject.toml` dev dependencies, integrated in `make format` and `make lint`
+
+- **Type Checking**:
+  - MyPy with strict mode - configured in `pyproject.toml` [tool.mypy], accessible via `make typecheck`
+
+- **Testing**:
+  - pytest with coverage, asyncio, and xdist - configured in `pyproject.toml` [tool.pytest.ini_options]
+  - Multiple test targets available: `make test`, `make test-unit`, `make test-integration`, `make test-coverage`, `make test-all-parallel`
+
+- **Pre-commit Hooks**:
+  - Configured in `.pre-commit-config.yaml` with local hooks for ruff format, mypy, and path sequence checking
+  - Includes conventional commit message validation
+  - Installed via `make install` (runs `uv run pre-commit install --hook-type commit-msg`)
+
+### Build System
+- **Build backend**: hatchling
+- **Package manager**: uv (for dependency management and virtual environments)
+- **Development setup**: Makefile targets for install, format, lint, typecheck, test, clean
+
+**Note**: New code for this feature should follow the established patterns and leverage these existing configurations.
+
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 

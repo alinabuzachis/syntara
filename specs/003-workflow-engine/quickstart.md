@@ -339,8 +339,6 @@ workflow:
           print('{"approval_status": "approved"}')
       outputs:
         approvalStatus: $.approval_status
-    dependsOn:
-    - validate_expense
 
   - id: process_payment
     name: Process Payment
@@ -358,8 +356,6 @@ workflow:
       outputs:
         paymentId: $.payment_id
         transactionStatus: $.status
-    dependsOn:
-    - manager_approval
 ```
 
 Then submit the workflow:
@@ -506,8 +502,6 @@ workflow:
       outputs:
         solution: $.generated_solution
         solutionType: $.solution_type
-    dependsOn:
-    - analyze_requirements
 
   - id: validate_solution
     name: Validate Solution
@@ -527,8 +521,6 @@ workflow:
           print('{"validation_status": "validated"}')
       outputs:
         validationStatus: $.validation_status
-    dependsOn:
-    - generate_solution
 ```
 
 Then submit to the API:
@@ -802,8 +794,6 @@ workflow:
       outputs:
         cleanupStatus: $.status
         cleanedResources: $.resources
-    dependsOn:
-    - unstable_operation
 ```
 
 Then submit the workflow:
