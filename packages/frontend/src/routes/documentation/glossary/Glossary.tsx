@@ -1,8 +1,8 @@
 import Fuse from "fuse.js";
 import { useState } from "react";
+import { Scrollable } from "ui-framework";
 import { AppPage } from "../../../app/AppPage";
 import { AppPageHeader } from "../../../app/AppPageHeader";
-import { Scrollable } from "../../../components/Scrollable";
 import { useGlossaryTerms } from "./useGlossaryTerms";
 
 export default function Glossary() {

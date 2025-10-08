@@ -6,7 +6,12 @@ import { externalizeDeps } from "vite-plugin-externalize-deps";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), dts(), externalizeDeps()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    dts({ rollupTypes: true, tsconfigPath: "./tsconfig.app.json" }),
+    externalizeDeps(),
+  ],
   build: {
     lib: {
       entry: "src/index.tsx",

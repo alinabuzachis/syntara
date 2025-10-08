@@ -11,13 +11,13 @@ import {
   MenuRadioItem,
   MenuSeparator,
   MenuTrigger,
+  Scrollable,
 } from "ui-framework";
 import { useLocation } from "wouter";
 import { AppPage } from "../../../app/AppPage";
 import { AppPageHeader } from "../../../app/AppPageHeader";
 import { AppRoute } from "../../../app/AppRoute";
 import { ChatInput } from "../../../components/chat/ChatInput";
-import { Scrollable } from "../../../components/Scrollable";
 import { IntegrationCard } from "./IntegrationCard";
 import { useIntegrations } from "./useIntegrations";
 

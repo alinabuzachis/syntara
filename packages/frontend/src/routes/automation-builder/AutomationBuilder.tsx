@@ -10,7 +10,6 @@ import {
 import "@xyflow/react/dist/style.css";
 import {
   ExpandIcon,
-  FullscreenIcon,
   MoveHorizontalIcon,
   MoveVerticalIcon,
   ZoomInIcon,
@@ -162,12 +161,8 @@ function AutomationBuilderInternal() {
         <div>Test</div>
       </AppPageHeader>
       <AutomationBuilderFlow />
-      <div className="relative">
-        <div className="absolute glass gap-4 flex p-4 rounded-4xl top-2 right-0">
-          <ControlsBar />
-        </div>
-        <ChatInput />
-      </div>
+
+      <ChatInput />
     </AppPage>
   );
 }
@@ -228,7 +223,10 @@ function AutomationBuilderFlow() {
             <div>Test</div>
           </div>
         </Panel> */}
-      <Panel position="top-right" className="flex gap-4">
+      <Panel
+        position="bottom-left"
+        className="flex gap-4 p-4 bg-black/80 bg-linear-0 from-violet-500/20 to-violet-400/20 border border-white/10 rounded-4xl shadow-lg shadow-black/50"
+      >
         <ControlsBar />
       </Panel>
     </ReactFlow>
@@ -256,9 +254,9 @@ function ControlsBar() {
       <button onClick={() => setFlowDirection("LR")}>
         <MoveHorizontalIcon />
       </button>
-      <button onClick={() => fitView()}>
+      {/* <button onClick={() => fitView()}>
         <FullscreenIcon />
-      </button>
+      </button> */}
     </>
   );
 }

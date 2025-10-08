@@ -1,4 +1,5 @@
 import "./index.css";
 
-export * from "./components/button/Button";
-export * from "./components/menu/Menu";
+export * from "./Button";
+export * from "./Menu";
+export * from "./Scrollable";
