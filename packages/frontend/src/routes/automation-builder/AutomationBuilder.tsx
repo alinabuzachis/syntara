@@ -1,6 +1,5 @@
 import Dagre from "@dagrejs/dagre";
 import {
-  Controls,
   Panel,
   ReactFlow,
   ReactFlowProvider,
@@ -9,7 +8,15 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useCallback, useEffect, useState } from "react";
+import {
+  ExpandIcon,
+  FullscreenIcon,
+  MoveHorizontalIcon,
+  MoveVerticalIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from "lucide-react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { AppPage } from "../../app/AppPage";
 import { AppPageHeader } from "../../app/AppPageHeader";
 import { ChatInput } from "../../components/chat/ChatInput";
@@ -133,6 +140,17 @@ const getLayoutedElements = (
 };
 
 export default function AutomationBuilder() {
+  const flowDirectionState = useState<"TB" | "LR">("LR");
+  return (
+    <FlowDirectionContext.Provider value={flowDirectionState}>
+      <ReactFlowProvider>
+        <AutomationBuilderInternal />
+      </ReactFlowProvider>
+    </FlowDirectionContext.Provider>
+  );
+}
+
+function AutomationBuilderInternal() {
   return (
     <AppPage>
       <AppPageHeader title="Automation Builder">
@@ -143,17 +161,19 @@ export default function AutomationBuilder() {
         <div>Run</div>
         <div>Test</div>
       </AppPageHeader>
-      <ReactFlowProvider>
-        <AutomationBuilderFlow />
-      </ReactFlowProvider>
-      <ChatInput />
+      <AutomationBuilderFlow />
+      <div className="relative">
+        <div className="absolute glass gap-4 flex p-4 rounded-4xl top-2 right-0">
+          <ControlsBar />
+        </div>
+        <ChatInput />
+      </div>
     </AppPage>
   );
 }
 
 function AutomationBuilderFlow() {
   const { fitView } = useReactFlow();
-  const [flowDirection, setFlowDirection] = useState<"TB" | "LR">("LR");
   const [isInitialized, setIsInitialized] = useState(false);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -168,6 +188,8 @@ function AutomationBuilderFlow() {
     },
     [nodes, edges, setNodes, setEdges, fitView]
   );
+
+  const [flowDirection] = useContext(FlowDirectionContext);
 
   // Apply initial layout after nodes are measured
   useEffect(() => {
@@ -184,21 +206,20 @@ function AutomationBuilderFlow() {
   }, [flowDirection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <FlowDirectionContext.Provider value={flowDirection}>
-      <ReactFlow<NodeType, EdgeType>
-        className="glass border rounded-4xl"
-        colorMode="dark"
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        // onConnect={onConnect}
-        proOptions={{ hideAttribution: true }}
-        fitView
-      >
-        <Controls />
-        {/* <Panel position="bottom-center">
+    <ReactFlow<NodeType, EdgeType>
+      className="glass border rounded-4xl"
+      colorMode="dark"
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      // onConnect={onConnect}
+      proOptions={{ hideAttribution: true }}
+      fitView
+    >
+      {/* <Controls /> */}
+      {/* <Panel position="bottom-center">
           <div className="bg-white/5 rounded-full px-8 py-4 flex gap-8 border border-white/10 mb-4">
             <div>Add node</div>
             <div>Add notation</div>
@@ -207,23 +228,37 @@ function AutomationBuilderFlow() {
             <div>Test</div>
           </div>
         </Panel> */}
-        <Panel position="top-right" className="flex gap-4">
-          <button
-            onClick={() => {
-              setFlowDirection("TB");
-            }}
-          >
-            vertical
-          </button>
-          <button
-            onClick={() => {
-              setFlowDirection("LR");
-            }}
-          >
-            horizontal
-          </button>
-        </Panel>
-      </ReactFlow>
-    </FlowDirectionContext.Provider>
+      <Panel position="top-right" className="flex gap-4">
+        <ControlsBar />
+      </Panel>
+    </ReactFlow>
+  );
+}
+
+function ControlsBar() {
+  const [flowDirection, setFlowDirection] = useContext(FlowDirectionContext);
+  const { fitView, zoomIn, zoomOut } = useReactFlow();
+
+  return (
+    <>
+      <button onClick={() => zoomIn()}>
+        <ZoomInIcon />
+      </button>
+      <button onClick={() => zoomOut()}>
+        <ZoomOutIcon />
+      </button>
+      <button onClick={() => fitView()}>
+        <ExpandIcon />
+      </button>
+      <button onClick={() => setFlowDirection("TB")}>
+        <MoveVerticalIcon />
+      </button>
+      <button onClick={() => setFlowDirection("LR")}>
+        <MoveHorizontalIcon />
+      </button>
+      <button onClick={() => fitView()}>
+        <FullscreenIcon />
+      </button>
+    </>
   );
 }

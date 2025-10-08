@@ -1,3 +1,6 @@
 import { createContext } from "react";
 
-export const FlowDirectionContext = createContext<"TB" | "LR">("TB");
+type FlowDirection = "TB" | "LR";
+export const FlowDirectionContext = createContext<
+  [FlowDirection, React.Dispatch<React.SetStateAction<FlowDirection>>]
+>(["TB", () => {}]);
