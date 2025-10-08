@@ -80,41 +80,27 @@ export default function Integrations() {
                   "shadow-lg shadow-black/50": false,
                 })}
               >
-                <tr className="text-left *:border-b *:border-violet-300/20 *:h-16 bg-white/5">
-                  <th className="w-1 min-w-12 text-center">
+                <tr className="text-left *:border-b *:border-violet-300/20 *:h-16 bg-white/5 *:px-8">
+                  {/* <th className="w-1 min-w-12 text-center">
                     <input type="checkbox" />
-                  </th>
+                  </th> */}
                   <th>Name</th>
                   <th>Type</th>
-                  <th className="w-1 min-w-12 text-center">
-                    <Menu>
-                      <MenuTrigger>
-                        <EllipsisVerticalIcon />
-                      </MenuTrigger>
-                      <MenuItems>
-                        <MenuGroup label="View">
-                          <MenuRadioGroup>
-                            <MenuRadioItem value="table">Table</MenuRadioItem>
-                            <MenuRadioItem value="cards">Cards</MenuRadioItem>
-                          </MenuRadioGroup>
-                        </MenuGroup>
-                      </MenuItems>
-                    </Menu>
-                  </th>
+                  <th className="w-1 min-w-12 text-center"></th>
                 </tr>
               </thead>
               <tbody className="glass">
                 {results.map((integration) => (
                   <tr
                     key={integration.id}
-                    className="text-left *:border-b *:border-violet-300/20 *:h-12"
+                    className="text-left *:border-b *:border-violet-300/20 *:h-12 *:px-8"
                   >
-                    <td className="w-1 min-w-12 text-center">
+                    {/* <td className="w-1 min-w-12 text-center">
                       <input type="checkbox" />
-                    </td>
+                    </td> */}
                     <td>{integration.name}</td>
                     <td>{integration.type}</td>
-                    <td className="w-1 min-w-12 text-center">
+                    <td className="w-1 min-w-12 text-center pt-1.5">
                       <Menu>
                         <MenuTrigger>
                           <EllipsisVerticalIcon />
