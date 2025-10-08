@@ -11,12 +11,12 @@ export default defineConfig({
     lib: {
       entry: "src/index.tsx",
       name: "GenieUIFramework",
-      fileName: (format) => `genie-ui-framework.${format}.js`,
+      fileName: (format) => `ui-framework.${format}.js`,
     },
     rollupOptions: {
       output: {
         globals: {
-          "react": "React",
+          react: "React",
           "react/jsx-runtime": "jsxRuntime",
           "react-dom": "ReactDOM",
           "@base-ui-components/react": "BaseUI",

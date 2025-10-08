@@ -1,16 +1,13 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
-
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   @apply bg-gray-800 text-white/90;
 }
 
-
-
 @utility glass {
   @apply bg-white/10 backdrop-blur-3xl border border-white/10;
 }
 
-@import './components/menu/menu.css';
+/* @import './components/menu/menu.css'; */

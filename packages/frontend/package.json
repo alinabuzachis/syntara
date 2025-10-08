@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-beta.4",
-    "genie-ui-framework": "file:../genie-ui-framework",
+    "ui-framework": "file:../ui-framework",
     "@dagrejs/dagre": "^1.1.5",
     "@tailwindcss/vite": "^4.1.14",
     "@xyflow/react": "^12.8.6",

@@ -6,9 +6,9 @@
   "scripts": {
     "start": "concurrently npm:start:* -c auto",
     "start:frontend": "npm run start --prefix packages/frontend",
-    "start:genie-ui-framework": "npm run start --prefix packages/genie-ui-framework",
-    "build": "npm run build:genie-ui-framework && npm run build:frontend",
-    "build:genie-ui-framework": "npm run build --workspace=packages/genie-ui-framework",
+    "start:ui-framework": "npm run start --prefix packages/ui-framework",
+    "build": "npm run build:ui-framework && npm run build:frontend",
+    "build:ui-framework": "npm run build --workspace=packages/ui-framework",
     "build:frontend": "npm run build --workspace=packages/frontend",
     "test": "npm run test --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",

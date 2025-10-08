@@ -1,5 +1,7 @@
 import clsx from "clsx";
 import Fuse from "fuse.js";
+import { EllipsisVerticalIcon } from "lucide-react";
+import { useState } from "react";
 import {
   Menu,
   MenuGroup,
@@ -9,9 +11,7 @@ import {
   MenuRadioItem,
   MenuSeparator,
   MenuTrigger,
-} from "genie-ui-framework";
-import { EllipsisVerticalIcon } from "lucide-react";
-import { useState } from "react";
+} from "ui-framework";
 import { useLocation } from "wouter";
 import { AppPage } from "../../../app/AppPage";
 import { AppPageHeader } from "../../../app/AppPageHeader";

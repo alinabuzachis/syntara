@@ -1,25 +1,26 @@
 {
-  "name": "genie-ui-framework",
+  "name": "ui-framework",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "files": [
     "dist"
   ],
-  "main": "./dist/genie-ui-framework.umd.js",
-  "module": "./dist/genie-ui-framework.es.js",
+  "main": "./dist/ui-framework.umd.js",
+  "module": "./dist/ui-framework.es.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": {
         "types": "./dist/index.d.ts",
-        "default": "./dist/genie-ui-framework.es.js"
+        "default": "./dist/ui-framework.es.js"
       },
       "require": {
         "types": "./dist/index.d.ts",
-        "default": "./dist/genie-ui-framework.umd.js"
+        "default": "./dist/ui-framework.umd.js"
       }
-    }
+    },
+    "./style.css": "./dist/ui-framework.css"
   },
   "scripts": {
     "start": "vite build --watch",

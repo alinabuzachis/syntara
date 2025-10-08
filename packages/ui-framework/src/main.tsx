@@ -11,7 +11,7 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from ".";
-import "./main.css";
+import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
