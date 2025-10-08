@@ -8,7 +8,7 @@ COPY packages ./packages
 RUN npm run build
 
 # Production stage
-FROM --platform=$TARGETPLATFORM nginx:alpine
+FROM nginx:alpine
 COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html
 COPY packages/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY packages/frontend/.htpasswd /etc/nginx/.htpasswd

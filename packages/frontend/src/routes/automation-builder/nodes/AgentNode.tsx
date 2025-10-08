@@ -14,7 +14,7 @@ export type AgentNode = { type: "agent" } & Node<{
   }[];
 }>;
 export function AgentNodeComponent(props: NodeProps<AgentNode>) {
-  const flowDirection = useContext(FlowDirectionContext);
+  const [flowDirection] = useContext(FlowDirectionContext);
 
   return (
     <>

@@ -10,7 +10,7 @@ export type OutputNode = { type: "result" } & Node<{
 }>;
 
 export function OutputNodeComponent(props: NodeProps<OutputNode>) {
-  const flowDirection = useContext(FlowDirectionContext);
+  const [flowDirection] = useContext(FlowDirectionContext);
   return (
     <>
       <div>

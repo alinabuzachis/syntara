@@ -9,7 +9,7 @@ export type TriggerNode = { type: "trigger" } & Node<{
   integrations?: Array<string>;
 }>;
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
-  const flowDirection = useContext(FlowDirectionContext);
+  const [flowDirection] = useContext(FlowDirectionContext);
   return (
     <>
       <div>

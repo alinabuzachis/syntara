@@ -234,7 +234,7 @@ function AutomationBuilderFlow() {
 }
 
 function ControlsBar() {
-  const [flowDirection, setFlowDirection] = useContext(FlowDirectionContext);
+  const [_flowDirection, setFlowDirection] = useContext(FlowDirectionContext);
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
   return (
