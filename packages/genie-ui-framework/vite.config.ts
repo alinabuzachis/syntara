@@ -10,8 +10,18 @@ export default defineConfig({
   build: {
     lib: {
       entry: "src/index.tsx",
-      name: "genie-ui-framework",
+      name: "GenieUIFramework",
       fileName: (format) => `genie-ui-framework.${format}.js`,
+    },
+    rollupOptions: {
+      output: {
+        globals: {
+          "react": "React",
+          "react/jsx-runtime": "jsxRuntime",
+          "react-dom": "ReactDOM",
+          "@base-ui-components/react": "BaseUI",
+        },
+      },
     },
   },
 });
