@@ -15,7 +15,7 @@ Nexus is a distributed multi-agent system that enables coordinated AI agents to 
 1. **After making changes**: All changes must pass:
    - `make format` - Code formatting
    - `make lint` - Linting checks (includes pre-commit hooks)
-   - `make test` - All tests
+   - `make test-all` - All tests
    - `make typecheck` - Type checking (mypy strict mode)
 
 2. **Documentation**: Update [README.md](README.md) if changes affect:
