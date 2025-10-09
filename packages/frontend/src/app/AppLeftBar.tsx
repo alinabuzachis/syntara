@@ -4,24 +4,28 @@ import {
   SquarePlusIcon,
   Volume2Icon,
 } from "lucide-react";
+import { IconButton } from "ui-framework";
 
 export function AppLeftBar() {
   return (
     <div className="grow-0 self-center flex flex-col py-1 text-white/60 glass rounded-full border mx-8">
-      <button className="p-3">
+      <IconButton>
         <SquarePlusIcon />
-      </button>
+      </IconButton>
 
-      <button className="p-3">
+      <IconButton>
         <GalleryVerticalEndIcon />
-      </button>
+      </IconButton>
+
       <div className="m-3 w-6 h-6 rounded-full flex items-center justify-center ai-shadow" />
-      <button className="p-3">
+
+      <IconButton>
         <Volume2Icon />
-      </button>
-      <button className="p-3">
+      </IconButton>
+
+      <IconButton>
         <ClosedCaptionIcon />
-      </button>
+      </IconButton>
     </div>
   );
 }

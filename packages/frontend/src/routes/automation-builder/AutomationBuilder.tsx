@@ -16,6 +16,7 @@ import {
   ZoomOutIcon,
 } from "lucide-react";
 import { useCallback, useContext, useEffect, useState } from "react";
+import { IconButton } from "ui-framework";
 import { AppPage } from "../../app/AppPage";
 import { AppPageHeader } from "../../app/AppPageHeader";
 import { ChatInput } from "../../components/chat/ChatInput";
@@ -239,21 +240,21 @@ function ControlsBar() {
 
   return (
     <>
-      <button onClick={() => zoomIn()}>
+      <IconButton onClick={() => zoomIn()}>
         <ZoomInIcon />
-      </button>
-      <button onClick={() => zoomOut()}>
+      </IconButton>
+      <IconButton onClick={() => zoomOut()}>
         <ZoomOutIcon />
-      </button>
-      <button onClick={() => fitView()}>
+      </IconButton>
+      <IconButton onClick={() => fitView()}>
         <ExpandIcon />
-      </button>
-      <button onClick={() => setFlowDirection("TB")}>
+      </IconButton>
+      <IconButton onClick={() => setFlowDirection("TB")}>
         <MoveVerticalIcon />
-      </button>
-      <button onClick={() => setFlowDirection("LR")}>
+      </IconButton>
+      <IconButton onClick={() => setFlowDirection("LR")}>
         <MoveHorizontalIcon />
-      </button>
+      </IconButton>
       {/* <button onClick={() => fitView()}>
         <FullscreenIcon />
       </button> */}
