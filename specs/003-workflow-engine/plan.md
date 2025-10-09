@@ -357,10 +357,15 @@ specs/[###-feature]/
 ### Source Code (repository root)
 ```
 src/
-├── models/          # Data models and entities
-├── services/        # Business logic and orchestration
-├── api/             # FastAPI REST endpoints
-└── workflows/       # Temporal workflow definitions
+└── nexus_api/
+    ├── models/          # Data models and entities
+    ├── services/        # Business logic and orchestration
+    ├── api/             # FastAPI REST endpoints
+    ├── workflows/       # Temporal workflow definitions
+    └── alembic/         # Database migrations (part of nexus_api package)
+        ├── versions/    # Migration scripts
+        ├── env.py       # Alembic environment configuration
+        └── script.py.mako  # Migration template
 
 tests/
 ├── contract/        # Contract tests for API and workflows
@@ -432,25 +437,134 @@ tests/
 ## Phase 2: Task Planning Approach
 *This section describes what the /tasks command will do - DO NOT execute during /plan*
 
+**Implementation Strategy**: The workflow engine will be delivered in 4 parts with self-contained tickets. Each ticket includes both data models and API endpoints for cohesive feature delivery. See [jira-issues.md](./jira-issues.md) for detailed breakdown.
+
+### Part 1: Core Workflow & Execution Foundation (34 points)
+
+**Ticket 1: Workflow Management (Models + API)** - 13 points
+- User, Workflow, WorkflowVersion models with soft delete
+- Complete REST API for workflow CRUD operations
+- Version history tracking and basic YAML validation
+- Database migrations with Alembic (setup as subpackage at `/src/nexus_api/alembic/`)
+- OpenAPI contract specification and contract tests
+- 80%+ test coverage, <200ms API response time
+
+**Ticket 2: YAML Workflow Execution Engine - Bash Script Activities** - 8 points
+- YAML parser converting workflows to Temporal workflows
+- Support for bash script activities (executor: script, language: bash)
+- Sequential and parallel activity execution
+- Loop support (repeat/forEach) and conditional execution
+- Activity timeout and retry configuration
+- Workflow state persistence and ActivityExecution tracking
+- Integration tests with Temporal testserver
+
+**Ticket 3: YAML Workflow Execution Engine - Additional Activity Types** - 5 points
+- Python script activities (executor: script, language: python)
+- REST API activities (executor: api, HTTP requests)
+- Common retry/timeout logic for all activity types
+- Integration tests covering all activity types
+
+**Ticket 4: Execution Management (Models + API)** - 13 points
+- Execution, ActivityExecution, Approval, AuditLog models
+- Temporal client configuration and worker setup
+- Complete REST API for execution management
+- Real-time status updates and cancellation support
+- Activity retry and filtering capabilities
+- OpenAPI contract specification and contract tests
+- 80%+ test coverage, <200ms API response time
+
+### Part 2: Enhanced Validation & Deployment (13 points)
+
+**Ticket 5: Enhanced Workflow Validation** - 5 points
+- JSON Schema for YAML workflow definitions
+- Pydantic validation models for workflow parsing
+- Activity type validation (agentic, connector, script, api)
+- Dependency graph validation with cycle detection
+- Integration with workflow API and temporal engine
+
+**Ticket 6: Containerization & Deployment** - 8 points
+- Multi-stage Containerfile for workflow engine API (<500MB)
+- podman-compose for local development (API, PostgreSQL, Temporal, Redis)
+- Kubernetes manifests (Deployment, Service, ConfigMap, Secret)
+- Health check endpoints and CI/CD pipeline integration
+- Rolling updates without downtime
+- Deployment documentation
+
+### Part 3: Advanced Features (24 points)
+
+**Ticket 7: Human-in-the-Loop Approvals** - 8 points
+- Approval workflow for activities requiring human approval
+- Temporal workflow pause/resume on approval requirements
+- REST API for approval management (approve, reject, list)
+- Timeout handling for expired approvals
+- Integration tests for full approval flow
+
+**Ticket 8: Activity Type Discovery API** - 3 points
+- GET /api/v1/activity-types endpoint
+- Return type name, description, and JSON schema
+- Examples for each activity type (script, api, agentic, connector)
+- OpenAPI contract specification
+
+**Ticket 9: External Tool Integration (Agentic & Connector Activities)** - 13 points
+- MCP server connectivity validation for agentic activities
+- Agentic activity execution calling MCP tools (executor: agentic)
+- Connector activity execution for enterprise systems (executor: connector)
+- Tool/connector parameter mapping and response handling
+- Integration with Tool Management API
+- Integration tests with mock MCP servers and connectors
+
+### Part 4: Observability & Polish (16 points)
+
+**Ticket 10: Advanced Features & Polish** - 8 points
+- Scheduled workflow execution via Temporal Schedules
+- Label-based filtering and organization
+- Input data validation using JSON Schema
+- Error recovery and partial retry mechanisms
+- Workflow execution statistics
+- Performance optimization (query tuning, caching)
+- Rate limiting for API endpoints
+- Pause/resume execution endpoints
+- Optimistic locking for concurrent workflow updates
+
+**Ticket 11: Audit Logging & Observability** - 5 points
+- Comprehensive audit logging for all workflow operations
+- Structured logging with correlation IDs
+- Metrics collection for workflow execution
+- OpenTelemetry tracing integration
+- GET /api/v1/audit-logs endpoint
+- Performance metrics dashboard data
+
+**Ticket 12: Documentation & Quickstart** - 3 points
+- README with architecture overview
+- Auto-generated API documentation from OpenAPI
+- Workflow YAML schema reference
+- 5+ example workflows (simple, approval, agentic)
+- Quickstart tutorial with sample data
+- Deployment guide (Podman, Kubernetes)
+- Troubleshooting and performance tuning guides
+
 **Task Generation Strategy**:
 - Load `.specify/templates/tasks-template.md` as base
-- Generate tasks from Phase 1 design docs (contracts, data model, quickstart)
-- Each contract → contract test task [P]
-- Each entity → model creation task [P]
-- Each user story → integration test task
-- Implementation tasks to make tests pass
-- **Soft delete specific tasks**:
-  - Implement soft delete middleware/interceptor for ORM queries
-  - Create database migration for soft delete fields
-  - Implement soft delete audit trail tracking
+- Generate tasks following the phased approach above
+- Prioritize Part 1 tickets for initial delivery
+- Each ticket becomes a major task with subtasks for:
+  - Data model implementation with unit tests
+  - Database migrations
+  - API endpoint implementation with contract tests
+  - Integration tests
+  - Documentation updates
+- Mark [P] for parallel execution within same part
+- Ensure dependencies between parts are respected
 
 **Ordering Strategy**:
 - TDD order: Tests before implementation
-- Dependency order: Models before services before UI
-- Mark [P] for parallel execution (independent files)
+- Dependency order: Part 1 → Part 2 → Part 3 → Part 4
+- Within each part, tickets can be parallelized where independent
 - Soft delete infrastructure before entity implementations
+- Contract tests before implementation
+- Integration tests after unit tests pass
 
-**Estimated Output**: 25-30 numbered, ordered tasks in tasks.md
+**Estimated Output**: ~50-60 numbered, ordered tasks in tasks.md (12 major tickets × 4-5 subtasks each)
 
 **IMPORTANT**: This phase is executed by the /tasks command, NOT by /plan
 

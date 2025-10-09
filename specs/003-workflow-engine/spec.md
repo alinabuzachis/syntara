@@ -40,7 +40,7 @@
 As an automation professional, I want to create, execute, and monitor complex workflows that combine AI agents, traditional automation tools, and human decision points, so that I can orchestrate end-to-end business processes with appropriate oversight and governance controls.
 
 ### Acceptance Scenarios
-1. **Given** I am a non-technical user with access to the platform, **When** I create a simple workflow using the drag-and-drop designer and launch it, **Then** I should complete this process within 30 minutes and see real-time execution status
+1. **Given** I am a non-technical user with access to the platform, **When** I create a simple workflow using the drag-and-drop designer *(future feature - Part 1 validates via REST API)* and launch it, **Then** I should complete this process within 30 minutes and see real-time execution status
 2. **Given** I have a workflow that requires human approval, **When** the workflow reaches the approval step, **Then** the system should pause execution, notify the designated approver through the user interface, and wait for human approval.
 3. **Given** I am using the Nexus service to generate a workflow, **When** Nexus outputs a YAML workflow definition which is accepted by the user**Then** the workflow engine should automatically validate and execute/save/schedule the workflow without manual intervention
 4. **Given** I am monitoring multiple concurrent workflows, **When** I access the unified control plane, **Then** I should see live status of all workflows
@@ -53,6 +53,7 @@ As an automation professional, I want to create, execute, and monitor complex wo
 - What occurs when a human-in-the-loop step times out without response? (System provides configurable timeout and retry options)
 - How does the system manage workflows when external enterprise systems become unavailable? (System retries with exponential backoff)
 - What happens when the maximum concurrent automation job limit is exceeded? (System alerts administrators and continues best-effort)
+- How does the system handle MCP Server Integration feature (spec 001) being partially implemented during parallel development with uncertain timing? (System design allows flexible integration with available basic implementation and iterates as both features evolve together; Part 3 timing may adjust based on spec 001 readiness)
 
 ## Requirements *(mandatory)*
 
@@ -63,7 +64,7 @@ As an automation professional, I want to create, execute, and monitor complex wo
 - **FR-004**: System MUST support both sequential and parallel execution of workflow activities
 - **FR-005**: System MUST support conditional branching within workflows based on activity outcomes or user inputs
 - **FR-006**: System MUST implement human-in-the-loop capabilities at any point in a workflow
-- **FR-007**: System MUST provide role-based access control for workflow creation, modification, and execution
+- **FR-007**: System MUST provide role-based access control for workflow creation, modification, and execution *(Implementation: Future Work - see Future Work section)*
 - **FR-008**: System MUST support workflow versioning to track changes over time
 - **FR-009**: System MUST allow users to pause, resume, cancel, and terminate active workflow executions
 - **FR-010**: System MUST provide real-time monitoring and status updates for all workflow executions
@@ -72,20 +73,22 @@ As an automation professional, I want to create, execute, and monitor complex wo
 - **FR-013**: System MUST provide retry mechanisms for failed workflow activities
 - **FR-014**: System MUST maintain workflow execution state for recovery after system failures
 - **FR-015**: System MUST must be able to scale to handle increased load of automation jobs
-- **FR-016**: System MUST provide a unified dashboard for monitoring workflows across different domains
-- **FR-017**: System MUST generate compliance and usage reports within 5 minutes
+- **FR-016**: System MUST provide a unified dashboard for monitoring workflows across different domains *(Implementation: Future Work - UI development deferred)*
+- **FR-017**: System MUST generate compliance and usage reports within 5 minutes *(Implementation: Part 4 - Audit Logging & Observability)*
 - **FR-018**: System MUST apply consistent governance policies across different business domains
 - **FR-019**: System MUST provide REST API endpoints for all workflow management operations
 - **FR-020**: Users MUST be able to approve or reject human-in-the-loop requests through conversational or visual interfaces
 - **FR-021**: System MUST notify users when workflows require human intervention
 - **FR-022**: System MUST allow users to configure timeout and retry behavior for human-in-the-loop steps
-- **FR-023**: System MUST allow customization of workflows through both UI and chat interfaces
+- **FR-023**: System MUST allow customization of workflows through both UI and chat interfaces *(Implementation: Future Work - UI/chat interfaces deferred)*
 - **FR-024**: System MUST provide detailed execution history and logs for individual workflow activities
 - **FR-025**: System MUST support connectors for external agentic tool servers such as MCPs and traditional enterprise systems
 - **FR-026**: System MUST support distributed execution across multiple nodes
 - **FR-027**: System MUST provide configurable data retention periods for workflow execution data and logs with system defaults
 - **FR-028**: System MUST reject conflicting changes when multiple users attempt to modify the same workflow simultaneously
 - **FR-029**: System MUST retry failed external system connections with exponential backoff strategy
+- **FR-030**: System MUST deliver working end-to-end execution for simple workflows in initial release, with advanced features (approvals, external tools, scheduling) delivered incrementally in subsequent releases
+- **FR-031**: System MUST use Podman container runtime and podman-compose for container orchestration in development and deployment environments
 
 ## Clarifications
 
@@ -98,6 +101,52 @@ As an automation professional, I want to create, execute, and monitor complex wo
 - Q: When external enterprise systems become unavailable during workflow execution, what should happen? → A: Retry with exponential backoff
 - Q: What is the behavior if an approval is rejected? → A: The workflow should define how to respond to the rejection via the rejection path
 - Q: What happens to workflows when they are updated? → A: The system should ask the user for expected behaviors, continue, terminate, or restart the running workflows.
+
+### Session 2025-10-09
+- Q: Should Part 1 deliver a complete working end-to-end workflow execution or just the foundational infrastructure pieces? → A: Hybrid: Part 1 delivers working execution for simple workflows; advanced features in later parts
+- Q: For Part 3 Ticket 9 (External Tool Integration), what is the expected readiness status of the MCP Server Integration and Tool Management feature (spec 001) dependency? → A: Basic implementation expected to be available; however, parallel development in chunks means exact timing is uncertain at this point
+- Q: For Part 1 development and testing, what is the required deployment environment? → A: Podman containers required from start using podman-compose (not Docker)
+
+### Clarification Process Visualization
+
+```mermaid
+graph TB
+    subgraph "Implementation Strategy Clarifications"
+        Q1[Q1: Part 1 Scope<br/>Status: RESOLVED]
+        Q2[Q2: MCP Dependency<br/>Status: RESOLVED]
+        Q3[Q3: Deployment Env<br/>Status: RESOLVED]
+    end
+
+    subgraph "Impact on Specification"
+        FR30[FR-030: Incremental<br/>Delivery Strategy]
+        FR31[FR-031: Podman<br/>Container Runtime]
+        Edge[Edge Cases: Parallel<br/>Development Handling]
+    end
+
+    subgraph "Affected Implementation Areas"
+        Part1[Part 1: Core<br/>Foundation<br/>Simple workflows only]
+        Part2[Part 2: Deployment<br/>Podman from start]
+        Part3[Part 3: External Tools<br/>Flexible integration]
+    end
+
+    Q1 --> FR30
+    Q1 --> Part1
+    Q2 --> Edge
+    Q2 --> Part3
+    Q3 --> FR31
+    Q3 --> Part2
+
+    FR30 -.->|Guides| Part1
+    FR31 -.->|Requires| Part2
+    Edge -.->|Informs| Part3
+
+    style Q1 fill:#90EE90
+    style Q2 fill:#90EE90
+    style Q3 fill:#90EE90
+    style FR30 fill:#87CEEB
+    style FR31 fill:#87CEEB
+    style Edge fill:#FFD700
+```
 
 ### Key Entities *(include if feature involves data)*
 - **Workflow**: Represents a complete automation process with multiple activities, including metadata, version information, schedule, and execution parameters

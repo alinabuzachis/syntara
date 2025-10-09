@@ -9,6 +9,7 @@ This document breaks down the Workflow Engine implementation plan into self-cont
 
 **Package Namespace**: `nexus` (Python 3.12+)
 **Source Directory**: `src/nexus_api/` (configured in `pyproject.toml` with hatchling)
+**Database Migrations**: All alembic migration code must be located at `src/nexus_api/alembic/` as a subpackage of `nexus_api`
 
 **Existing Tooling** (already configured, use via Makefile):
 - **Package Manager**: `uv` for fast dependency management and virtual environments
@@ -50,7 +51,7 @@ Implement complete workflow management functionality including database models, 
 - User, Workflow, and WorkflowVersion models
 - PostgreSQL database schema with SQLAlchemy 2.0
 - Soft delete implementation (deleted_at, deleted_by fields)
-- Database migrations using Alembic
+- Database migrations using Alembic (setup at `src/nexus_api/alembic/` as a subpackage of `nexus_api`)
 - Soft delete query middleware/interceptor
 - Unit tests for all models
 
@@ -247,12 +248,12 @@ Add comprehensive YAML workflow definition parsing, validation using JSON Schema
 **Story Points**: 8
 
 ### Description
-Create Docker containers, docker-compose configuration, Kubernetes manifests, and deployment documentation for the workflow engine.
+Create Podman containers, podman-compose configuration, Kubernetes manifests, and deployment documentation for the workflow engine.
 
 ### Scope
-- Dockerfile for workflow engine API
-- Docker image optimization (multi-stage build)
-- docker-compose.yml or kind for local development (API, PostgreSQL, Temporal, Redis)
+- Containerfile for workflow engine API
+- Container image optimization (multi-stage build)
+- podman-compose.yml for local development (API, PostgreSQL, Temporal, Redis)
 - Kubernetes manifests (Deployment, Service, ConfigMap, Secret)
 - Environment variable configuration
 - Health check endpoints
@@ -260,9 +261,9 @@ Create Docker containers, docker-compose configuration, Kubernetes manifests, an
 - Deployment documentation
 
 ### Acceptance Criteria
-- ✅ Docker image builds successfully
+- ✅ Podman container image builds successfully
 - ✅ Image size optimized (<500MB)
-- ✅ docker-compose starts all services locally
+- ✅ podman-compose starts all services locally
 - ✅ Kubernetes manifests deploy successfully
 - ✅ Health checks pass in container
 - ✅ CI/CD pipeline builds and pushes images
@@ -458,7 +459,7 @@ Create comprehensive documentation, examples, and quickstart guide for the workf
 - Workflow YAML schema reference
 - Example workflows (simple, approval, agentic)
 - Quickstart tutorial with sample data
-- Deployment guide (Docker, Kubernetes)
+- Deployment guide (Podman, Kubernetes)
 - Troubleshooting guide
 - Performance tuning guide
 
