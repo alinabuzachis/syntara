@@ -1,0 +1,486 @@
+openapi: 3.0.3
+info:
+  title: Agent Orchestrator API
+  version: 1.0.0
+  description: |
+    REST API for the Agent Orchestrator - the central agentic intelligence layer of the Automation Nexus System.
+
+    ## Overview
+    The Agent Orchestrator provides an async-only API that returns invocation IDs immediately and streams all progress and results via Server-Sent Events (SSE). This design provides better scalability and a simpler architecture for all clients.
+
+    ## Key Features
+    - Async-only POST /invoke endpoint (returns invocation ID immediately)
+    - Interactive messaging: POST /invoke/{id}/message for multi-turn conversations
+    - Process control: POST /invoke/{id}/pause and POST /invoke/{id}/cancel
+    - Real-time progress and results: GET /invoke/{id}/stream (SSE)
+
+    ## Authentication
+    All endpoints require authentication. Include user credentials in headers.
+
+  contact:
+    name: API Support
+    email: support@syntara-orchestration.example.com
+
+servers:
+- url: https://api.syntara-orchestration.example.com/api/v1
+  description: Production
+- url: https://staging-api.syntara-orchestration.example.com/api/v1
+  description: Staging
+- url: http://localhost:8000/api/v1
+  description: Local development
+
+paths:
+  /invoke:
+    post:
+      summary: Invoke Agent Orchestrator
+      description: |
+        Async-only endpoint to invoke the Agent Orchestrator. Returns invocation_id immediately.
+
+        Use GET /invoke/{id}/stream to monitor progress and receive results via Server-Sent Events (SSE).
+
+      operationId: invokeAgent
+      tags:
+      - Invocation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvokeRequest'
+            examples:
+              workflowGeneration:
+                summary: Workflow generation request
+                value:
+                  prompt: Create a workflow to deploy customer service app to production
+                    with health checks
+                  user_id: user-123
+                  context:
+                    environment: production
+                    app_id: customer-svc
+              toolAnalysis:
+                summary: Tool analysis request
+                value:
+                  prompt: What tools are available for deployment?
+                  user_id: user-123
+      responses:
+        '202':
+          description: Invocation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvokeResponse'
+              examples:
+                invocationAccepted:
+                  summary: Invocation accepted
+                  value:
+                    invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
+                    status: running
+                    created_at: '2025-10-08T10:30:00Z'
+                    stream_url: /invoke/inv-550e8400-e29b-41d4-a716-446655440000/stream
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /invoke/{invocation_id}/stream:
+    get:
+      summary: Stream progress events (SSE)
+      description: |
+        Server-Sent Events (SSE) endpoint for real-time progress updates in async mode.
+
+        Event types:
+        - progress: Agent is making progress
+        - log: Agent log message
+        - status_change: Invocation status changed
+        - message: Agent requesting clarification or providing update
+        - completion: Agent completed successfully
+        - error: Agent encountered error
+
+      operationId: streamProgress
+      tags:
+      - Invocation
+      parameters:
+      - name: invocation_id
+        in: path
+        required: true
+        description: Invocation ID from POST /invoke response
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: SSE stream of progress events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: progress
+                data: {"event_type":"progress","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:01Z","data":{"phase":"tool_assessment","message":"Evaluating deployment tools","progress_percentage":45}}
+
+                event: completion
+                data: {"event_type":"completion","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:15Z","data":{"result_type":"workflow","workflow_id":"wf-abc123","workflow_url":"/workflows/wf-abc123"}}
+
+        '404':
+          description: Invocation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /invoke/{invocation_id}/message:
+    post:
+      summary: Send message to running agent
+      description: |
+        Inject a message into a running agent invocation's conversation.
+        Enables interactive multi-turn conversations for clarifications and guidance.
+
+        Message is added to conversation history and agent resumes processing with new context.
+
+      operationId: sendMessage
+      tags:
+      - Interaction
+      parameters:
+      - name: invocation_id
+        in: path
+        required: true
+        description: Invocation ID of running agent
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+            example:
+              message: Use blue-green deployment strategy instead
+              context:
+                deployment_strategy: blue-green
+      responses:
+        '202':
+          description: Message accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
+                message_id: msg-770e8400-e29b-41d4-a716-446655440002
+                status: accepted
+                acknowledged_at: '2025-10-08T10:35:00Z'
+        '400':
+          description: Invalid request (invocation not running or message invalid)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Invocation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /invoke/{invocation_id}/pause:
+    post:
+      summary: Pause running agent
+      description: |
+        Pause a running agent invocation. Agent saves current state to checkpoint and enters paused state.
+        Agent can be resumed via POST /invoke/{id}/message (resume with message) or explicitly resumed.
+
+      operationId: pauseAgent
+      tags:
+      - Control
+      parameters:
+      - name: invocation_id
+        in: path
+        required: true
+        description: Invocation ID of running agent
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Pause signal acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlResponse'
+              example:
+                invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
+                action: pause
+                status: acknowledged
+                current_state: paused
+                acknowledged_at: '2025-10-08T10:35:00Z'
+        '400':
+          description: Invalid state transition (already paused/completed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Invocation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /invoke/{invocation_id}/cancel:
+    post:
+      summary: Cancel running agent
+      description: |
+        Cancel a running or paused agent invocation. Agent performs cleanup and transitions to cancelled state.
+        Cancellation is irreversible - invocation cannot be resumed after cancellation.
+
+      operationId: cancelAgent
+      tags:
+      - Control
+      parameters:
+      - name: invocation_id
+        in: path
+        required: true
+        description: Invocation ID of agent to cancel
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Cancel signal acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlResponse'
+              example:
+                invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
+                action: cancel
+                status: completed
+                current_state: cancelled
+                acknowledged_at: '2025-10-08T10:35:00Z'
+                message: Agent cancelled successfully, cleanup completed
+        '400':
+          description: Invalid state (already cancelled/completed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Invocation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    InvokeRequest:
+      type: object
+      required:
+      - prompt
+      - user_id
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          description: Natural language request describing desired automation task
+        user_id:
+          type: string
+          description: User identifier for authentication and policy evaluation
+        context:
+          type: object
+          additionalProperties: true
+          description: Optional additional context for the request
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Client-specific metadata for tracking and audit
+
+    InvokeResponse:
+      type: object
+      required:
+      - invocation_id
+      - status
+      - created_at
+      - stream_url
+      properties:
+        invocation_id:
+          type: string
+          format: uuid
+          description: Unique identifier for this invocation
+        status:
+          type: string
+          enum: [running, paused, cancelled, completed, failed]
+          description: Current invocation status
+        created_at:
+          type: string
+          format: date-time
+          description: When invocation was created
+        stream_url:
+          type: string
+          description: SSE stream URL for progress and results
+
+    MessageRequest:
+      type: object
+      required:
+      - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: User message to inject into agent conversation
+        context:
+          type: object
+          additionalProperties: true
+          description: Additional context for the message
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Client-specific metadata
+
+    MessageResponse:
+      type: object
+      required:
+      - invocation_id
+      - message_id
+      - status
+      - acknowledged_at
+      properties:
+        invocation_id:
+          type: string
+          format: uuid
+          description: Invocation ID that received the message
+        message_id:
+          type: string
+          format: uuid
+          description: Unique identifier for this message
+        status:
+          type: string
+          enum: [accepted, rejected]
+          description: Whether message was accepted for processing
+        acknowledged_at:
+          type: string
+          format: date-time
+          description: When message was acknowledged
+        error:
+          type: string
+          description: Error message (if status=rejected)
+
+    ProgressEvent:
+      type: object
+      required:
+      - event_type
+      - invocation_id
+      - timestamp
+      - data
+      properties:
+        event_type:
+          type: string
+          enum: [progress, log, status_change, message, completion, error]
+          description: Type of progress event
+        invocation_id:
+          type: string
+          format: uuid
+          description: Invocation ID this event belongs to
+        timestamp:
+          type: string
+          format: date-time
+          description: When this event occurred
+        data:
+          type: object
+          additionalProperties: true
+          description: Event-specific data (structure varies by event_type)
+        sequence_number:
+          type: integer
+          description: Sequence number for event ordering
+
+    ControlResponse:
+      type: object
+      required:
+      - invocation_id
+      - action
+      - status
+      - current_state
+      - acknowledged_at
+      properties:
+        invocation_id:
+          type: string
+          format: uuid
+          description: Invocation ID that received control signal
+        action:
+          type: string
+          enum: [pause, cancel, resume]
+          description: Control action requested
+        status:
+          type: string
+          enum: [acknowledged, completed, rejected]
+          description: Control signal processing status
+        current_state:
+          type: string
+          enum: [running, paused, cancelled, completed]
+          description: Current invocation state after control signal
+        acknowledged_at:
+          type: string
+          format: date-time
+          description: When control signal was acknowledged
+        message:
+          type: string
+          description: Human-readable message about control signal processing
+        error:
+          type: string
+          description: Error message (if status=rejected)
+
+    Error:
+      type: object
+      required:
+      - error
+      - message
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error details
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+- BearerAuth: []
+- ApiKeyAuth: []
+
+tags:
+- name: Invocation
+  description: Agent invocation operations
+- name: Interaction
+  description: Interactive messaging with running agents
+- name: Control
+  description: Process control (pause/cancel)

@@ -1,7 +1,7 @@
 # Feature Specification: Core Agent
 
-**Feature Branch**: `002-core-agent`  
-**Created**: 2025-09-25  
+**Feature Branch**: `002-agent-orchestrator`
+**Created**: 2025-09-25
 **Status**: Draft
 
 ## Overview
@@ -19,12 +19,14 @@ The Core Agent functions as the central workflow generation engine of the Automa
 **Guidance Integration**: The Core Agent consults an external Guidance component that provides contextual intelligence for tool selection and workflow generation. The Guidance component delivers hierarchical recommendations based on organizational policies, domain expertise, and user preferences, enabling the Core Agent to make informed workflow generation decisions while maintaining consistency and compliance.
 
 **Dynamic Workflow Generation**: The Core Agent creates complex multi-phase workflows:
+
 - **Phase 1: Request Analysis** - Analyzes user requests, identifies required capabilities, and gathers context
 - **Phase 2: Tool Assessment** - Evaluates available tools and determines optimal combinations with policy evaluation
 - **Phase 3: Workflow Creation** - Generates structured workflows with defined steps, dependencies, and approval gates
 - **Phase 4: Visual Documentation** - Generates mermaid diagrams that visualize workflow structure, component relationships, and execution flow for stakeholder review and documentation
 
 **Human-in-the-Loop Integration**: The Core Agent designs workflows with human oversight capabilities:
+
 - **Approval Gates**: Strategic points where human review and authorization are required
 - **Policy Enforcement**: Integration with organizational policies for configurable approval requirements
 - **Interactive Elements**: Workflow components that support real-time user interaction and intervention
@@ -35,6 +37,7 @@ The Core Agent functions as the central workflow generation engine of the Automa
 **Tool Integration**: The Core Agent identifies and selects appropriate external tools for workflow generation including development platforms, service management systems, monitoring tools, directory services, and custom integrations. Tool selection follows guidance patterns with contextual instruction resolution.
 
 ## Execution Flow (main)
+
 ```
 1. Parse user description from Input
    � If empty: ERROR "No feature description provided"
@@ -57,23 +60,27 @@ The Core Agent functions as the central workflow generation engine of the Automa
 ---
 
 ## � Quick Guidelines
+
 - Focus on WHAT users need and WHY
 - Avoid HOW to implement (no tech stack, APIs, code structure)
 - Written for business stakeholders, not developers
 
 ### Section Requirements
+
 - **Mandatory sections**: Must be completed for every feature
 - **Optional sections**: Include only when relevant to the feature
 - When a section doesn't apply, remove it entirely (don't leave as "N/A")
 
 ### For AI Generation
+
 When creating this spec from a user prompt:
+
 1. **Mark all ambiguities**: Use [NEEDS CLARIFICATION: specific question] for any assumption you'd need to make
 2. **Don't guess**: If the prompt doesn't specify something (e.g., "login system" without auth method), mark it
 3. **Think like a tester**: Every vague requirement should fail the "testable and unambiguous" checklist item
 4. **Common underspecified areas**:
    - User types and permissions
-   - Data retention/deletion policies  
+   - Data retention/deletion policies
    - Performance targets and scale
    - Error handling behaviors
    - Integration requirements
@@ -84,9 +91,11 @@ When creating this spec from a user prompt:
 ## User Scenarios & Testing
 
 ### Primary User Story
+
 A system administrator or business user wants to accomplish complex automation tasks by providing natural language instructions. They describe what they want to achieve, and the Core Agent interprets their request, determines which tools are needed, creates an executable workflow definition, and allows the user to review and approve the workflow before it is handed off to execution systems.
 
 ### Acceptance Scenarios
+
 1. **Given** a user provides a natural language prompt "Deploy the customer service application to production with health checks", **When** the Core Agent processes the request with available guidance and policies, **Then** the system generates a workflow with deployment steps, validation checks, and approval gates that the user can review and modify.
 
 2. **Given** the Core Agent has identified required tools and created a workflow, **When** the user reviews the proposed workflow, **Then** the user can edit workflow steps, add approval points, modify tool parameters, or reject the workflow entirely.
@@ -94,6 +103,7 @@ A system administrator or business user wants to accomplish complex automation t
 3. **Given** the Core Agent encounters multiple possible tool combinations for a task, **When** the Guidance component provides recommendations and constraints, **Then** the agent selects the most appropriate tools while respecting the guidance provided.
 
 ### Edge Cases
+
 - What happens when user prompt is ambiguous or contradicts existing policies?
 - How does the system handle situations where no suitable tools are available for the requested task?
 - How does the Core Agent design workflows that handle execution failures and recovery scenarios?
@@ -103,6 +113,7 @@ A system administrator or business user wants to accomplish complex automation t
 ## Requirements
 
 ### Functional Requirements
+
 - **FR-001**: System MUST accept natural language user prompts describing desired automation tasks
 - **FR-002**: Core Agent MUST consult external Guidance component when interpreting user prompts
 - **FR-003**: Core Agent MUST utilize Context Manager component for maintaining decision context and historical patterns
@@ -122,6 +133,7 @@ A system administrator or business user wants to accomplish complex automation t
 - **FR-017**: Core Agent MUST NOT execute write operations. Write operations are handled by the Workflow.
 
 ### Key Entities
+
 - **User Prompt**: Natural language instruction describing desired automation task, including context and constraints
 - **Core Agent**: An agent capable of doing research, creating and/or using other specialized agents and building workflows including agentic nodes with agentic loops.
 - **Specialized Agent**: Focused capability for specific domains (workflow creator, monitoring, deployment, analysis, etc)
@@ -136,20 +148,24 @@ A system administrator or business user wants to accomplish complex automation t
 - **Activity**: Individual tasks within a workflow that can be agentic (AI-driven), non-agentic (traditional automation), or human-interactive
 - **Approval Gate**: Human intervention point where user review and authorization is required before proceeding
 - **Audit Record**: Immutable log of decisions, approvals, and execution outcomes for compliance tracking and organizational learning
+
 ---
 
 ## Review & Acceptance Checklist
-*GATE: Automated checks run during main() execution*
+
+_GATE: Automated checks run during main() execution_
 
 ### Content Quality
+
 - [x] No implementation details (languages, frameworks, APIs)
 - [x] Focused on user value and business needs
 - [x] Written for non-technical stakeholders
 - [x] All mandatory sections completed
 
 ### Requirement Completeness
+
 - [x] No [NEEDS CLARIFICATION] markers remain
-- [x] Requirements are testable and unambiguous  
+- [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Scope is clearly bounded
 - [x] Dependencies and assumptions identified
@@ -157,7 +173,8 @@ A system administrator or business user wants to accomplish complex automation t
 ---
 
 ## Execution Status
-*Updated by main() during processing*
+
+_Updated by main() during processing_
 
 - [x] User description parsed
 - [x] Key concepts extracted
