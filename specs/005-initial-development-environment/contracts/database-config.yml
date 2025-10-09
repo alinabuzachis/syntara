@@ -1,0 +1,321 @@
+contract_version: 1.0.0
+feature: initial-development-environment
+created: '2025-10-08'
+status: draft
+
+# Environment Variable Schema
+environment_variables:
+- name: NEXUS_DB_HOST
+  type: string
+  required: true
+  default: localhost
+  description: Database server hostname or IP address
+  validation:
+    pattern: ^[a-zA-Z0-9._-]+$
+    examples:
+    - localhost
+    - 127.0.0.1
+    - db.example.com
+
+- name: NEXUS_DB_PORT
+  type: integer
+  required: true
+  default: 5432
+  description: Database server port number
+  validation:
+    min: 1024
+    max: 65535
+    examples:
+    - 5432
+    - 5433
+    - 15432
+
+- name: NEXUS_DB_USER
+  type: string
+  required: true
+  default: admin
+  description: Database authentication username
+  validation:
+    min_length: 1
+    max_length: 63
+    pattern: ^[a-zA-Z][a-zA-Z0-9_]*$
+    examples:
+    - admin
+    - postgres
+    - nexus_user
+
+- name: NEXUS_DB_PASSWORD
+  type: string
+  required: true
+  default: admin
+  description: Database authentication password
+  validation:
+    min_length: 1
+    max_length: 100
+    examples:
+    - admin
+    - dev_password_123
+    security_note: Simple password acceptable for local development only
+
+- name: NEXUS_DB_NAME
+  type: string
+  required: true
+  default: nexus_api
+  description: Initial database name
+  validation:
+    min_length: 1
+    max_length: 63
+    pattern: ^[a-z][a-z0-9_]*$
+    examples:
+    - nexus_api
+    - nexus_dev
+    - test_db
+
+# Container Configuration Schema
+container_configuration:
+  image:
+    value: postgres:17
+    immutable: true
+    description: PostgreSQL official Docker image version 17
+
+  ports:
+    host_port:
+      source: ${NEXUS_DB_PORT:-5432}
+      type: environment_variable
+    container_port:
+      value: 5432
+      immutable: true
+
+  volumes:
+  - name: nexus_postgres_data
+    type: named_volume
+    mount_path: /var/lib/postgresql/data
+    persistence: true
+    description: PostgreSQL data directory for persistence
+
+  environment:
+    POSTGRES_USER:
+      source: ${NEXUS_DB_USER:-admin}
+      type: environment_variable
+    POSTGRES_PASSWORD:
+      source: ${NEXUS_DB_PASSWORD:-admin}
+      type: environment_variable
+    POSTGRES_DB:
+      source: ${NEXUS_DB_NAME:-nexus_api}
+      type: environment_variable
+
+  healthcheck:
+    test: pg_isready -U ${NEXUS_DB_USER:-admin}
+    interval: 5s
+    timeout: 5s
+    retries: 5
+    start_period: 10s
+
+# Connection String Schema
+connection_string:
+  format: postgresql://{user}:{password}@{host}:{port}/{database}
+  components:
+    user:
+      source: NEXUS_DB_USER
+    password:
+      source: NEXUS_DB_PASSWORD
+    host:
+      source: NEXUS_DB_HOST
+    port:
+      source: NEXUS_DB_PORT
+    database:
+      source: NEXUS_DB_NAME
+  examples:
+  - postgresql://admin:admin@localhost:5432/nexus_api
+  - postgresql://admin:admin@localhost:5433/nexus_api
+
+# Validation Rules
+validation_rules:
+- rule_id: VAL-001
+  description: All required environment variables must be defined
+  severity: error
+  condition: All NEXUS_DB_* variables must have values
+
+- rule_id: VAL-002
+  description: Port must be in valid unprivileged range
+  severity: error
+  condition: NEXUS_DB_PORT >= 1024 AND NEXUS_DB_PORT <= 65535
+
+- rule_id: VAL-003
+  description: Database name must follow PostgreSQL identifier rules
+  severity: error
+  condition: NEXUS_DB_NAME matches ^[a-z][a-z0-9_]*$
+
+- rule_id: VAL-004
+  description: Username must follow PostgreSQL identifier rules
+  severity: error
+  condition: NEXUS_DB_USER matches ^[a-zA-Z][a-zA-Z0-9_]*$
+
+- rule_id: VAL-005
+  description: Password must not be empty
+  severity: error
+  condition: NEXUS_DB_PASSWORD length >= 1
+
+- rule_id: VAL-006
+  description: Volume name must match specification
+  severity: error
+  condition: Volume name == 'nexus_postgres_data'
+
+- rule_id: VAL-007
+  description: PostgreSQL image version must be 17
+  severity: error
+  condition: Container image == 'postgres:17'
+
+- rule_id: VAL-008
+  description: Health check must use pg_isready
+  severity: error
+  condition: Healthcheck test contains 'pg_isready'
+
+# Test Scenarios
+test_scenarios:
+- scenario_id: TS-001
+  description: Default configuration loads successfully
+  preconditions:
+  - No .env file exists
+  expected_outcome:
+  - All NEXUS_DB_* variables use documented defaults
+  - Connection string uses admin:admin@localhost:5432/nexus_api
+
+- scenario_id: TS-002
+  description: Custom port configuration via environment variable
+  preconditions:
+  - NEXUS_DB_PORT=5433 in .env file
+  expected_outcome:
+  - Container port mapping uses 5433:5432
+  - Connection string includes port 5433
+
+- scenario_id: TS-003
+  description: Invalid port value rejected
+  preconditions:
+  - NEXUS_DB_PORT=80 in .env file
+  expected_outcome:
+  - Validation error raised for port < 1024
+
+- scenario_id: TS-004
+  description: Invalid database name rejected
+  preconditions:
+  - NEXUS_DB_NAME=Invalid-Name in .env file
+  expected_outcome:
+  - Validation error raised for name not matching pattern
+
+- scenario_id: TS-005
+  description: Connection string generation with custom values
+  preconditions:
+  - NEXUS_DB_USER=custom_user in .env
+  - NEXUS_DB_PASSWORD=custom_pass in .env
+  - NEXUS_DB_NAME=custom_db in .env
+  expected_outcome:
+  - Connection string == postgresql://custom_user:custom_pass@localhost:5432/custom_db
+
+# CI Configuration Schema
+ci_configuration:
+  github_actions:
+    service_name: database
+    image: postgres:17
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: nexus_api
+    ports:
+    - 5432:5432
+    health_check:
+      cmd: pg_isready -U admin
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    validation:
+    - Service name must be 'database'
+    - Environment must match local defaults
+    - Port must be 5432 (no conflicts in CI)
+
+# Make Command Interface
+make_commands:
+- command: db-run
+  description: Start PostgreSQL database container
+  expected_behavior:
+  - Container starts in detached mode
+  - Health check passes within 30 seconds
+  - Connection string displayed to user
+
+- command: db-stop
+  description: Stop PostgreSQL database container (preserves data)
+  expected_behavior:
+  - Container stops gracefully
+  - Volume nexus_postgres_data preserved
+  - Confirmation message displayed
+
+- command: db-clean
+  description: Stop database and remove all data (destructive)
+  expected_behavior:
+  - Container stopped and removed
+  - Volume nexus_postgres_data deleted
+  - Warning message about data loss
+
+- command: db-logs
+  description: View PostgreSQL database logs
+  expected_behavior:
+  - Container logs displayed in follow mode
+  - User can exit with Ctrl+C
+
+- command: dev-run
+  description: Start full development stack (currently database only)
+  expected_behavior:
+  - All services in docker-compose.yml started
+  - Connection information displayed for each service
+
+# Contract Test Requirements
+contract_tests:
+- test_id: CT-001
+  description: Validate environment variable defaults
+  assertion: All NEXUS_DB_* variables have correct default values
+  test_file: tests/contract/test_database_config.py::test_env_defaults
+
+- test_id: CT-002
+  description: Validate port range constraints
+  assertion: Port validation rejects values <1024 or >65535
+  test_file: tests/contract/test_database_config.py::test_port_validation
+
+- test_id: CT-003
+  description: Validate database name pattern
+  assertion: Database name must match PostgreSQL identifier rules
+  test_file: tests/contract/test_database_config.py::test_database_name_validation
+
+- test_id: CT-004
+  description: Validate connection string generation
+  assertion: Connection string correctly formats all components
+  test_file: tests/contract/test_database_config.py::test_connection_string_generation
+
+- test_id: CT-005
+  description: Validate container configuration schema
+  assertion: Container config matches specified image, ports, volumes
+  test_file: tests/contract/test_database_config.py::test_container_configuration
+
+# Compliance Checklist
+compliance:
+  constitution:
+    explicit_configuration: true
+    no_magic_values: true
+    environment_agnostic: true
+    versioned: true
+    auditable: true
+  security:
+    no_hardcoded_credentials: true
+    env_file_gitignored: true
+    simple_password_acceptable_for_dev: true
+  documentation:
+    all_variables_documented: true
+    defaults_specified: true
+    examples_provided: true
+
+# Contract Change Log
+changes:
+- version: 1.0.0
+  date: '2025-10-08'
+  author: System
+  description: Initial contract definition for database configuration
+  breaking: false

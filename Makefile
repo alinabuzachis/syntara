@@ -6,6 +6,12 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 
+# Container runtime detection
+# ========================================================
+# Use podman-compose for container orchestration (via uv)
+COMPOSE_CMD := uv run podman-compose
+
+
 # UV environment setup
 # ========================================================
 .PHONY: install
@@ -85,6 +91,24 @@ test-all-parallel: check-deps ## Run tests in parallel
 dev: check-deps ## Run the hello world application
 	@echo "🚀 Running hello world application..."
 	uv run python src/api/main.py
+
+
+# Database
+# ========================================================
+.PHONY: db-run
+db-run: ## Start PostgreSQL database container (foreground, Ctrl+C to stop)
+	@echo "🚀 Starting PostgreSQL database..."
+	@echo "📍 Connection: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	$(COMPOSE_CMD) -f podman-compose.yml up database
+
+.PHONY: db-clean
+db-clean: ## Stop database and remove all data (destructive)
+	@echo "🧹 Stopping database and removing data..."
+	@echo "⚠️  WARNING: This will delete all database data!"
+	$(COMPOSE_CMD) -f podman-compose.yml down -v
+	@echo "✅ Database stopped and data purged"
 
 
 # Tools

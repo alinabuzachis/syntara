@@ -1,0 +1,21 @@
+services:
+  database:
+    image: postgres:17
+    restart: unless-stopped
+    ports:
+    - ${NEXUS_DB_PORT:-5432}:5432
+    environment:
+      POSTGRES_USER: ${NEXUS_DB_USER:-admin}
+      POSTGRES_PASSWORD: ${NEXUS_DB_PASSWORD:-admin}
+      POSTGRES_DB: ${NEXUS_DB_NAME:-nexus_api}
+    volumes:
+    - nexus_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U $${POSTGRES_USER:-admin} -d $${POSTGRES_DB:-nexus_api}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  nexus_postgres_data:
+    driver: local

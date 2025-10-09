@@ -19,6 +19,7 @@ This project uses `uv` for dependency management and provides a comprehensive Ma
 
 - Python 3.12 (strict version requirement)
 - `uv` package manager
+- [Podman](https://podman.io/docs/installation) (for rootless containers)
 
 ### Installation
 
@@ -40,6 +41,9 @@ This project uses `uv` for dependency management and provides a comprehensive Ma
 # Install dependencies and setup project
 make install
 
+# Start the database
+make db-run
+
 # Start the development server
 make dev
 
@@ -49,6 +53,26 @@ make test-all
 # Check code quality
 make lint
 ```
+
+### Database Setup
+
+The project includes a PostgreSQL 17 database for local development.
+
+**Start database** (runs in foreground):
+```bash
+make db-run
+# Press Ctrl+C to stop
+```
+
+**Reset database** (removes all data):
+```bash
+make db-clean
+```
+
+**Troubleshooting**:
+- **Port conflict**: Copy `.env.example` to `.env` and change `NEXUS_DB_PORT` to another value (e.g., 5433)
+- **Container won't start**: Check the logs in the terminal where `make db-run` is running
+- **Reset everything**: Stop the running database (Ctrl+C), then run `make db-clean`
 
 ### Development Commands
 
