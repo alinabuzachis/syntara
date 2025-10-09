@@ -52,6 +52,14 @@ Represents a Tool Provider with type-specific configuration and registration met
 - Failed connection/validation → "error" with validation_error message
 - Admin can toggle enabled independently of status
 
+**Update Operations:**
+- **PUT**: Complete replacement of provider configuration (requires provider_type in configuration)
+- **PATCH**: Partial updates using JSON Merge Patch (RFC 7396)
+  - Only provided fields are updated
+  - Configuration object is merged with existing values
+  - Uses `application/merge-patch+json` content type
+  - No required fields (unlike PUT)
+
 ### Tool
 Represents an individual capability exposed by a Tool Provider with enablement control.
 

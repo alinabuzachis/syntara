@@ -161,7 +161,58 @@ curl -X GET "http://localhost:8000/api/v1/metrics/executions?tool_id[eq]=$TOOL_I
 # Verify: Logs include timestamp, duration, status, user_id
 ```
 
-### Scenario 6: Provider Management and Tool Lifecycle
+### Scenario 6: Provider Configuration Updates
+**Validates**: Configuration management with PUT and PATCH operations
+
+```bash
+# Step 1: Update provider configuration using PUT (complete replacement)
+curl -X PUT http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin-token>" \
+  -d '{
+    "name": "updated-mcp-provider",
+    "description": "Updated MCP Tool Provider",
+    "configuration": {
+      "provider_type": "mcp",
+      "host": "localhost",
+      "port": 3001,
+      "protocol": "http",
+      "authentication_type": "none",
+      "connection_timeout": 10,
+      "read_timeout": 15
+    },
+    "enabled": true
+  }'
+
+# Expected: 200 OK with completely updated provider
+# Verify: All configuration fields are replaced
+
+# Step 2: Partially update provider using PATCH (JSON Merge Patch)
+curl -X PATCH http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
+  -H "Content-Type: application/merge-patch+json" \
+  -H "Authorization: Bearer <admin-token>" \
+  -d '{
+    "description": "Partially updated MCP provider",
+    "configuration": {
+      "port": 3002,
+      "connection_timeout": 8
+    }
+  }'
+
+# Expected: 200 OK with merged configuration
+# Verify: Only specified fields updated, others preserved
+
+# Step 3: Disable provider with minimal PATCH
+curl -X PATCH http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
+  -H "Content-Type: application/merge-patch+json" \
+  -H "Authorization: Bearer <admin-token>" \
+  -d '{"enabled": false}'
+
+# Expected: 200 OK with provider disabled
+# Verify: Only enabled field changed, configuration preserved
+```
+
+### Scenario 7: Provider Management and Tool Lifecycle
 **Validates**: FR-008, FR-026 (Provider removal and missing Tool handling)
 
 ```bash
@@ -188,7 +239,7 @@ curl -X DELETE http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
 # Verify: Provider and all associated tools are removed from system
 ```
 
-### Scenario 7: Error Handling and Validation
+### Scenario 8: Error Handling and Validation
 **Validates**: FR-003, FR-009 (Error handling and graceful failures)
 
 ```bash
@@ -227,7 +278,7 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
 # Verify: Duplicate names are rejected with appropriate error
 ```
 
-### Scenario 8: Advanced Filtering with Bracket Notation
+### Scenario 9: Advanced Filtering with Bracket Notation
 **Validates**: Advanced query filtering and search capabilities
 
 ```bash
