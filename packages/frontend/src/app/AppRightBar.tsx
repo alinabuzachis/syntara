@@ -1,20 +1,23 @@
 import { BellIcon, CircleQuestionMarkIcon, ListTodoIcon } from "lucide-react";
-import { IconButton } from "ui-framework";
+import { Toolbar, ToolbarButton } from "ui-framework";
 
 export function AppRightBar() {
   return (
-    <div className="grow-0 self-center flex flex-col py-1 text-white/60 glass rounded-full border mx-8">
-      <IconButton>
+    <Toolbar
+      orientation="vertical"
+      className="glass rounded-full border mx-8 grow-0 self-center py-1"
+    >
+      <ToolbarButton>
         <BellIcon />
-      </IconButton>
+      </ToolbarButton>
 
-      <IconButton>
+      <ToolbarButton>
         <ListTodoIcon />
-      </IconButton>
+      </ToolbarButton>
 
-      <IconButton>
+      <ToolbarButton>
         <CircleQuestionMarkIcon />
-      </IconButton>
-    </div>
+      </ToolbarButton>
+    </Toolbar>
   );
 }
