@@ -56,6 +56,4 @@ tmp
 *.md
 LICENSE
 .editorconfig
-.prettierrc*
-.eslintrc*
 tsconfig.tsbuildinfo
