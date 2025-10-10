@@ -56,9 +56,9 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          scp -i ~/.ssh/deploy_key compose.yml "$SSH_USER@$SSH_HOST:/home/ec2-user/"
+          scp -i ~/.ssh/deploy_key compose.yml "$SSH_USER@$SSH_HOST:/home/ubuntu/"
           ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" << EOF
-          cd /home/ec2-user
+          cd /home/ubuntu
 
           # Install docker and docker-compose if not present
           if ! command -v podman &> /dev/null; then
