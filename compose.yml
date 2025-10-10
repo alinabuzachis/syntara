@@ -43,6 +43,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - nexus-net
+    depends_on:
+      - nginx-proxy
 
 volumes:
   certs:
