@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "concurrently npm:start:* -c auto",
+    "start": "npm run build:nexus-ui-framework && concurrently npm:start:* -c auto",
     "start:nexus-ui": "npm run start --prefix packages/nexus-ui",
     "start:nexus-ui-framework": "npm run start --prefix packages/nexus-ui-framework",
     "build": "npm run build:nexus-ui-framework && npm run build:nexus-ui",
@@ -13,8 +13,7 @@
     "test": "npm run test --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",
     "podman:build": "podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest -t ghcr.io/syntara-orchestration/syntara-ui:latest .",
-    "podman:push": "podman push ghcr.io/syntara-orchestration/syntara-ui:latest",
-    "podman:run": "podman run -d -p 4000:80 --name nexus-ui ghcr.io/syntara-orchestration/syntara-ui:latest"
+    "podman:run": "podman run --rm -p 4000:80 --name nexus-ui ghcr.io/syntara-orchestration/syntara-ui:latest"
   },
   "workspaces": [
     "packages/*"

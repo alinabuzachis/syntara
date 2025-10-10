@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "clean": "rm -rf dist node_modules",
     "start": "vite --open",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

@@ -23,6 +23,7 @@
     "./style.css": "./dist/nexus-ui-framework.css"
   },
   "scripts": {
+    "clean": "rm -rf dist node_modules",
     "start": "vite build --watch",
     "dev": "vite --open",
     "build": "vite build",
