@@ -12,9 +12,9 @@
     "build:nexus-ui": "npm run build --workspace=packages/nexus-ui",
     "test": "npm run test --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",
-    "podman:compose": "podman-compose build",
-    "podman:build": "podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest .",
-    "podman:run": "podman-compose up "
+    "podman:build": "podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest -t ghcr.io/syntara-orchestration/syntara-ui:latest .",
+    "podman:push": "podman push ghcr.io/syntara-orchestration/syntara-ui:latest",
+    "podman:run": "podman run -d -p 4000:80 --name nexus-ui ghcr.io/syntara-orchestration/syntara-ui:latest"
   },
   "workspaces": [
     "packages/*"

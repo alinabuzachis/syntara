@@ -1,7 +1,7 @@
 services:
   nexus-ui:
     container_name: nexus-ui
-    image: nexus-ui:latest
+    image: ghcr.io/syntara-orchestration/syntara-ui:latest
     ports:
       - 4000:80
     environment:
