@@ -14,16 +14,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image
+      - name: Install Podman
         run: |
-          docker build -f packages/frontend/Dockerfile -t nexus-ui:latest .
+          sudo apt-get update
+          sudo apt-get -y install podman
 
-      - name: Export Docker image
+      - name: Build image
         run: |
-          docker save nexus-ui:latest | gzip > nexus-ui.tar.gz
+          podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest .
+
+      - name: Export Podman image
+        run: |
+          podman save nexus-ui:latest | gzip > nexus-ui.tar.gz
 
       - name: Configure SSH
         env:
@@ -36,24 +38,24 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
-      - name: Upload Docker image and docker-compose.yml
+      - name: Upload image and compose.yml
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           scp -i ~/.ssh/deploy_key nexus-ui.tar.gz "$SSH_USER@$SSH_HOST:/home/ec2-user/"
-          scp -i ~/.ssh/deploy_key docker-compose.yml "$SSH_USER@$SSH_HOST:/home/ec2-user/"
+          scp -i ~/.ssh/deploy_key compose.yml "$SSH_USER@$SSH_HOST:/home/ec2-user/"
 
-      - name: Load Docker image and start services
+      - name: Load Podman image and start services
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" << 'EOF'
           cd /home/ec2-user
-          gunzip -c nexus-ui.tar.gz | docker load
-          docker-compose up -d
+          gunzip -c nexus-ui.tar.gz | podman load
           rm nexus-ui.tar.gz
+          podman-compose up -d
           EOF
 
       - name: Cleanup SSH key
