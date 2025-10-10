@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -7,7 +7,7 @@
 }
 
 @utility glass {
-  @apply bg-white/10 backdrop-blur-3xl border border-white/10;
+  @apply border border-white/10 bg-white/10 backdrop-blur-3xl;
 }
 
 /* @import './components/menu/menu.css'; */

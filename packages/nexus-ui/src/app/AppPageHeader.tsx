@@ -1,11 +1,8 @@
-export function AppPageHeader(props: {
-  title: string;
-  children?: React.ReactNode;
-}) {
+export function AppPageHeader(props: { title: string; children?: React.ReactNode }) {
   return (
-    <div className="flex items-center px-8 py-6 glass rounded-4xl border gap-8">
-      <span className="text-white text-xl font-bold">{props.title}</span>
+    <div className="glass flex items-center gap-8 rounded-4xl border px-8 py-6">
+      <span className="text-xl font-bold text-white">{props.title}</span>
       {props.children}
     </div>
-  );
+  )
 }

@@ -1,23 +1,18 @@
-import {
-  Menu,
-  MenuItem,
-  MenuItems,
-  MenuTrigger,
-} from "@ansible/nexus-ui-framework";
-import { EllipsisVerticalIcon } from "lucide-react";
+import { Menu, MenuItem, MenuItems, MenuTrigger } from '@ansible/nexus-ui-framework'
+import { EllipsisVerticalIcon } from 'lucide-react'
 
 export function IntegrationCard(props: {
-  name: string;
-  type: string;
-  description?: string;
-  status?: "connected" | "disconnected";
-  url?: string;
+  name: string
+  type: string
+  description?: string
+  status?: 'connected' | 'disconnected'
+  url?: string
 }) {
   return (
-    <div className="p-8 glass rounded-2xl border flex flex-col gap-4">
+    <div className="glass flex flex-col gap-4 rounded-2xl border p-8">
       <div>
         <div className="flex items-center justify-between">
-          <div className="font-bold text-lg">{props.name}</div>
+          <div className="text-lg font-bold">{props.name}</div>
           <Menu>
             <MenuTrigger>
               <EllipsisVerticalIcon />
@@ -32,7 +27,7 @@ export function IntegrationCard(props: {
             {props.type}
           </div>
         )}
-        <div id="description" className="text-white/70 mt-4">
+        <div id="description" className="mt-4 text-white/70">
           {props.description}
         </div>
       </div>
@@ -40,12 +35,12 @@ export function IntegrationCard(props: {
       <dl className="details">
         <dt>Status</dt>
         <dd>
-          {props.status === "connected" ? (
-            <div className="bg-green-400 rounded-full w-2.5 h-2.5 inline-block mr-2" />
+          {props.status === 'connected' ? (
+            <div className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-green-400" />
           ) : (
-            <div className="bg-red-400 rounded-full w-2.5 h-2.5 inline-block mr-2" />
+            <div className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-red-400" />
           )}
-          {props.status === "connected" ? "Connected" : "Disconnected"}
+          {props.status === 'connected' ? 'Connected' : 'Disconnected'}
         </dd>
         {props.url && (
           <>
@@ -55,5 +50,5 @@ export function IntegrationCard(props: {
         )}
       </dl>
     </div>
-  );
+  )
 }

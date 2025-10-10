@@ -109,6 +109,7 @@ npm run docker:run
 ### MCP Server Configuration
 
 The backend connects to multiple MCP servers defined in [index.ts](packages/backend/src/index.ts):
+
 - AAP server (port 3003)
 - Dashboard server (port 3002)
 - Additional servers can be enabled by uncommenting
@@ -116,6 +117,7 @@ The backend connects to multiple MCP servers defined in [index.ts](packages/back
 ### Environment Variables
 
 Backend requires a `.env` file (see [.env.example](packages/backend/.env.example)):
+
 - `OPENAI_API_KEY`: Optional OpenAI key
 - `ANTHROPIC_API_KEY`: Optional Anthropic key
 - `PORT`: Server port (default: 3000)

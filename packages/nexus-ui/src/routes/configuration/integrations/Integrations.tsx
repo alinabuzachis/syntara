@@ -8,35 +8,33 @@ import {
   MenuSeparator,
   MenuTrigger,
   Scrollable,
-} from "@ansible/nexus-ui-framework";
-import clsx from "clsx";
-import Fuse from "fuse.js";
-import { EllipsisVerticalIcon } from "lucide-react";
-import { useState } from "react";
-import { useLocation } from "wouter";
-import { AppPage } from "../../../app/AppPage";
-import { AppPageHeader } from "../../../app/AppPageHeader";
-import { AppRoute } from "../../../app/AppRoute";
-import { ChatInput } from "../../../components/chat/ChatInput";
-import { IntegrationCard } from "./IntegrationCard";
-import { useIntegrations } from "./useIntegrations";
+} from '@ansible/nexus-ui-framework'
+import clsx from 'clsx'
+import Fuse from 'fuse.js'
+import { EllipsisVerticalIcon } from 'lucide-react'
+import { useState } from 'react'
+import { useLocation } from 'wouter'
+import { AppPage } from '../../../app/AppPage'
+import { AppPageHeader } from '../../../app/AppPageHeader'
+import { AppRoute } from '../../../app/AppRoute'
+import { ChatInput } from '../../../components/chat/ChatInput'
+import { IntegrationCard } from './IntegrationCard'
+import { useIntegrations } from './useIntegrations'
 
 export default function Integrations() {
-  const [, navigate] = useLocation();
-  const [search, setSearch] = useState("");
-  const { resources: integrations } = useIntegrations();
+  const [, navigate] = useLocation()
+  const [search, setSearch] = useState('')
+  const { resources: integrations } = useIntegrations()
   const fuse = new Fuse(integrations, {
     keys: [
-      { name: "name", weight: 0.5 },
-      { name: "type", weight: 0.3 },
-      { name: "description", weight: 0.2 },
+      { name: 'name', weight: 0.5 },
+      { name: 'type', weight: 0.3 },
+      { name: 'description', weight: 0.2 },
     ],
     threshold: 0.7,
-  });
-  const results = search
-    ? fuse.search(search).map((result) => result.item)
-    : integrations;
-  const [view, setView] = useState<"table" | "cards">("table");
+  })
+  const results = search ? fuse.search(search).map((result) => result.item) : integrations
+  const [view, setView] = useState<'table' | 'cards'>('table')
   return (
     <AppPage>
       <AppPageHeader title="Integrations">
@@ -48,10 +46,8 @@ export default function Integrations() {
           onChange={(e) => setSearch(e.target.value)}
         />
         <button
-          className="bg-blue-400/70 px-4 py-1 rounded-full"
-          onClick={() =>
-            navigate(AppRoute.Configuration.Integrations.Configure)
-          }
+          className="rounded-full bg-blue-400/70 px-4 py-1"
+          onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}
         >
           Add Integration
         </button>
@@ -70,17 +66,17 @@ export default function Integrations() {
         </Menu>
         {/* <ExampleToggleGroup /> */}
       </AppPageHeader>
-      {view !== "cards" ? (
+      {view !== 'cards' ? (
         // <div className="roundedgrow overflow-hidden flex flex-col">
-        <div className="rounded-4xl grow flex flex-col overflow-hidden border-2 border-violet-300/20">
+        <div className="flex grow flex-col overflow-hidden rounded-4xl border-2 border-violet-300/20">
           <Scrollable className="grow">
-            <table className="w-full border-separate border-spacing-0 h-full">
+            <table className="h-full w-full border-separate border-spacing-0">
               <thead
-                className={clsx("sticky top-0 glass z-10 ", {
-                  "shadow-lg shadow-black/50": false,
+                className={clsx('glass sticky top-0 z-10', {
+                  'shadow-lg shadow-black/50': false,
                 })}
               >
-                <tr className="text-left *:border-b *:border-violet-300/20 *:h-16 bg-white/5 *:px-8">
+                <tr className="bg-white/5 text-left *:h-16 *:border-b *:border-violet-300/20 *:px-8">
                   {/* <th className="w-1 min-w-12 text-center">
                     <input type="checkbox" />
                   </th> */}
@@ -91,16 +87,13 @@ export default function Integrations() {
               </thead>
               <tbody className="glass">
                 {results.map((integration) => (
-                  <tr
-                    key={integration.id}
-                    className="text-left *:border-b *:border-violet-300/20 *:h-12 *:px-8"
-                  >
+                  <tr key={integration.id} className="text-left *:h-12 *:border-b *:border-violet-300/20 *:px-8">
                     {/* <td className="w-1 min-w-12 text-center">
                       <input type="checkbox" />
                     </td> */}
                     <td>{integration.name}</td>
                     <td>{integration.type}</td>
-                    <td className="w-1 min-w-12 text-center pt-1.5">
+                    <td className="w-1 min-w-12 pt-1.5 text-center">
                       <Menu>
                         <MenuTrigger>
                           <EllipsisVerticalIcon />
@@ -130,12 +123,9 @@ export default function Integrations() {
                   <td colSpan={4} />
                 </tr>
               </tbody>
-              <tfoot className="sticky bottom-0 glass z-10 min-h-12 h-16">
+              <tfoot className="glass sticky bottom-0 z-10 h-16 min-h-12">
                 <tr className="bg-white/5">
-                  <td
-                    colSpan={4}
-                    className="px-6 border-t border-violet-300/20"
-                  >
+                  <td colSpan={4} className="border-t border-violet-300/20 px-6">
                     {results.length} integrations
                   </td>
                 </tr>
@@ -144,10 +134,8 @@ export default function Integrations() {
           </Scrollable>
         </div>
       ) : (
-        <Scrollable className="glass rounded-4xl border grow">
-          <div
-            className={`p-8 grid gap-4 grid-cols-[repeat(auto-fit,minmax(350px,1fr))]`}
-          >
+        <Scrollable className="glass grow rounded-4xl border">
+          <div className={`grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4 p-8`}>
             {results.map((integration) => (
               <IntegrationCard key={integration.id} {...integration} />
             ))}
@@ -156,5 +144,5 @@ export default function Integrations() {
       )}
       <ChatInput />
     </AppPage>
-  );
+  )
 }

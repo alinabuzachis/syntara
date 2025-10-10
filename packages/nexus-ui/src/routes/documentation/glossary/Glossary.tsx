@@ -1,23 +1,21 @@
-import { Scrollable } from "@ansible/nexus-ui-framework";
-import Fuse from "fuse.js";
-import { useState } from "react";
-import { AppPage } from "../../../app/AppPage";
-import { AppPageHeader } from "../../../app/AppPageHeader";
-import { useGlossaryTerms } from "./useGlossaryTerms";
+import { Scrollable } from '@ansible/nexus-ui-framework'
+import Fuse from 'fuse.js'
+import { useState } from 'react'
+import { AppPage } from '../../../app/AppPage'
+import { AppPageHeader } from '../../../app/AppPageHeader'
+import { useGlossaryTerms } from './useGlossaryTerms'
 
 export default function Glossary() {
-  const glossaryTerms = useGlossaryTerms();
-  const [search, setSearch] = useState("");
+  const glossaryTerms = useGlossaryTerms()
+  const [search, setSearch] = useState('')
   const fuse = new Fuse(glossaryTerms, {
     keys: [
-      { name: "term", weight: 0.7 },
-      { name: "definition", weight: 0.3 },
+      { name: 'term', weight: 0.7 },
+      { name: 'definition', weight: 0.3 },
     ],
     threshold: 0.7,
-  });
-  const results = search
-    ? fuse.search(search).map((result) => result.item)
-    : glossaryTerms;
+  })
+  const results = search ? fuse.search(search).map((result) => result.item) : glossaryTerms
 
   return (
     <AppPage>
@@ -29,8 +27,8 @@ export default function Glossary() {
           onChange={(e) => setSearch(e.target.value)}
         />
       </AppPageHeader>
-      <Scrollable className="glass rounded-4xl border grow">
-        <dl className=" px-8 py-8 grid gap-6">
+      <Scrollable className="glass grow rounded-4xl border">
+        <dl className="grid gap-6 px-8 py-8">
           {results.map((result) => (
             <div key={result.term} className="detail">
               <dt className="font-bold text-white">{result.term}</dt>
@@ -40,5 +38,5 @@ export default function Glossary() {
         </dl>
       </Scrollable>
     </AppPage>
-  );
+  )
 }

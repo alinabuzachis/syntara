@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -16,11 +16,11 @@
 }
 
 body {
-  @apply w-lvw h-lvh relative;
+  @apply relative h-lvh w-lvw;
 }
 
 #root {
-  @apply w-full h-full;
+  @apply h-full w-full;
   @apply flex flex-col;
   @apply max-h-lvh;
   @apply isolate;
@@ -35,7 +35,7 @@ body {
   }
 
   .details > dt {
-    @apply text-white/60 mb-0.5;
+    @apply mb-0.5 text-white/60;
   }
 
   .details > dd {
@@ -50,7 +50,7 @@ body {
 
   .input {
     @apply bg-black/30;
-    @apply border-white/20 border;
+    @apply border border-white/20;
     @apply text-white;
     @apply placeholder-white/60;
     @apply focus:border-white/30 focus:ring-0;
@@ -60,7 +60,7 @@ body {
 
   .search {
     @apply bg-black/40;
-    @apply border-white/10 border;
+    @apply border border-white/10;
     @apply text-white;
     @apply placeholder-white/60;
     @apply focus:border-white/30 focus:ring-0;
@@ -69,8 +69,10 @@ body {
   }
 
   .ai-shadow {
-    box-shadow: -2px -2px 4px var(--color-violet-800),
-      2px 2px 4px var(--color-sky-700), -2px 2px 4px var(--color-pink-800),
+    box-shadow:
+      -2px -2px 4px var(--color-violet-800),
+      2px 2px 4px var(--color-sky-700),
+      -2px 2px 4px var(--color-pink-800),
       2px -2px 4px var(--color-pink-800);
   }
 }

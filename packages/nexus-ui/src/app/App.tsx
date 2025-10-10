@@ -1,6 +1,6 @@
-import { AppHeader } from "./AppHeader";
-import { AppLogin } from "./AppLogin";
-import { AppRouter } from "./AppRouter";
+import { AppHeader } from './AppHeader'
+import { AppLogin } from './AppLogin'
+import { AppRouter } from './AppRouter'
 
 export default function App() {
   return (
@@ -8,5 +8,5 @@ export default function App() {
       <AppHeader />
       <AppRouter />
     </AppLogin>
-  );
+  )
 }

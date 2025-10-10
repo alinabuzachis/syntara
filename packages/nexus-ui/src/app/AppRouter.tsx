@@ -1,6 +1,6 @@
-import { Suspense } from "react";
-import { Route, Switch } from "wouter";
-import { navigationItems } from "./navigationItems";
+import { Suspense } from 'react'
+import { Route, Switch } from 'wouter'
+import { navigationItems } from './navigationItems'
 
 export function AppRouter() {
   return (
@@ -34,5 +34,5 @@ export function AppRouter() {
         </Route>
       </Switch>
     </Suspense>
-  );
+  )
 }

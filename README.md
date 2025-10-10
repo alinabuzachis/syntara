@@ -52,6 +52,7 @@ npm run docker:run     # Run with Docker Compose
 ## Technology Stack
 
 ### Frontend
+
 - React 19 with TypeScript
 - Vite (Rolldown bundler)
 - TailwindCSS 4

@@ -16,7 +16,7 @@ services:
     container_name: nginx-proxy
     image: docker.io/nginxproxy/nginx-proxy:1.7-alpine
     environment:
-      TRUST_DOWNSTREAM_PROXY: "false"
+      TRUST_DOWNSTREAM_PROXY: 'false'
       NGINX_ENTRYPOINT_QUIET_LOGS: 1
     ports:
       - 80:80
@@ -49,7 +49,7 @@ services:
 volumes:
   certs:
   acme:
-  html:      
+  html:
 
 networks:
   nexus-net:

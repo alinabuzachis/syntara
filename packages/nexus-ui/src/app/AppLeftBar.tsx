@@ -1,17 +1,9 @@
-import { Toolbar, ToolbarButton } from "@ansible/nexus-ui-framework";
-import {
-  ClosedCaptionIcon,
-  GalleryVerticalEndIcon,
-  SquarePlusIcon,
-  Volume2Icon,
-} from "lucide-react";
+import { Toolbar, ToolbarButton } from '@ansible/nexus-ui-framework'
+import { ClosedCaptionIcon, GalleryVerticalEndIcon, SquarePlusIcon, Volume2Icon } from 'lucide-react'
 
 export function AppLeftBar() {
   return (
-    <Toolbar
-      orientation="vertical"
-      className="glass rounded-full border mx-8 grow-0 self-center py-1"
-    >
+    <Toolbar orientation="vertical" className="glass mx-8 grow-0 self-center rounded-full border py-1">
       <ToolbarButton>
         <SquarePlusIcon />
       </ToolbarButton>
@@ -21,7 +13,7 @@ export function AppLeftBar() {
       </ToolbarButton>
 
       <ToolbarButton>
-        <div className="w-6 h-6 rounded-full flex items-center justify-center ai-shadow" />
+        <div className="ai-shadow flex h-6 w-6 items-center justify-center rounded-full" />
       </ToolbarButton>
 
       <ToolbarButton>
@@ -32,5 +24,5 @@ export function AppLeftBar() {
         <ClosedCaptionIcon />
       </ToolbarButton>
     </Toolbar>
-  );
+  )
 }
