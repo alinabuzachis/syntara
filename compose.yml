@@ -10,7 +10,7 @@ services:
       LETSENCRYPT_HOST: ansibledev.com
     restart: always
     networks:
-      - proxy-net
+      - nexus-net
 
   nginx-proxy:
     container_name: nginx-proxy
@@ -26,7 +26,7 @@ services:
       - html:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
     networks:
-      - proxy-net
+      - nexus-net
 
   nginx-acme:
     container_name: nginx-acme
@@ -42,7 +42,7 @@ services:
       - acme:/etc/acme.sh
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - proxy-net
+      - nexus-net
 
 volumes:
   certs:
@@ -50,5 +50,5 @@ volumes:
   html:      
 
 networks:
-  proxy-net:
+  nexus-net:
     driver: bridge
