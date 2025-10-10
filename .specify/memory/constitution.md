@@ -54,19 +54,19 @@ may change without notice.
 
 ### Code Quality Requirements
 
-- All code MUST pass linting and type checking before merge
-- Code coverage must maintain a minimum of 80% for unit tests
+- All code MUST pass linting, formatters, type checking and tests before merge
+- When ignoring a rule for linters or typecheckers a justification must be provided.
+- Code coverage must maintain a minimum of 90% for tests
 - Integration tests required for all inter-service communication
 - Security scanning must pass without high/critical vulnerabilities
+- CI checks must pass.
 
 ### Code Style Standards
 
 - All variable, function, class, and module names MUST be self-descriptive
 - Single letter variables are NOT allowed (except for standard loop counters: i, j, k in simple iterations)
-
 - Constants must be UPPER_CASE_WITH_UNDERSCORES
 - No magic numbers - all numeric literals must be named constants or have inline comments
-- Maximum line length of 100 characters (120 for documentation)
 - Consistent naming conventions per language (camelCase for JS/TS, snake_case for Python, etc.)
 
 ### Documentation Standards
