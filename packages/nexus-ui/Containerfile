@@ -6,6 +6,7 @@ COPY packages/nexus-ui/package*.json ./packages/nexus-ui/
 COPY packages/nexus-ui-framework/package*.json ./packages/nexus-ui-framework/
 RUN npm ci
 COPY . .
+RUN npm run test
 RUN npm run build
 
 # Production stage

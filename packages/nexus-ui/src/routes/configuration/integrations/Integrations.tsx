@@ -22,7 +22,7 @@ import { IntegrationCard } from "./IntegrationCard";
 import { useIntegrations } from "./useIntegrations";
 
 export default function Integrations() {
-  const [_, navigate] = useLocation();
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const { resources: integrations } = useIntegrations();
   const fuse = new Fuse(integrations, {

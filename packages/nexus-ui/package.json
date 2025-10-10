@@ -6,9 +6,10 @@
   "scripts": {
     "clean": "rm -rf dist node_modules",
     "start": "vite --open",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build": "vite build",
+    "test": "concurrently npm:eslint npm:tsc",
+    "tsc": "tsc --noEmit",
+    "eslint": "eslint ."
   },
   "dependencies": {
     "ui-framework": "file:../ui-framework",
@@ -31,7 +32,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "babel-plugin-react-compiler": "^19.1.0-rc.3",
     "eslint": "^9.37.0",
-    "eslint-plugin-react-hooks": "^6.1.1",
+    "eslint-plugin-react-hooks": "^7.0.0",
     "eslint-plugin-react-refresh": "^0.4.23",
     "globals": "^16.4.0",
     "typescript": "~5.9.3",

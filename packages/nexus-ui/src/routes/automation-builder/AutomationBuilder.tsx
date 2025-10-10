@@ -190,8 +190,11 @@ function AutomationBuilderFlow() {
   // Apply initial layout after nodes are measured
   useEffect(() => {
     if (!isInitialized && nodes.every((node) => node.measured)) {
-      setIsInitialized(true);
-      onLayout(flowDirection);
+      // Schedule state update to avoid cascading renders
+      queueMicrotask(() => {
+        setIsInitialized(true);
+        onLayout(flowDirection);
+      });
     }
   }, [nodes, isInitialized, flowDirection, onLayout]);
 
@@ -235,7 +238,7 @@ function AutomationBuilderFlow() {
 }
 
 function ControlsBar() {
-  const [_flowDirection, setFlowDirection] = useContext(FlowDirectionContext);
+  const [, setFlowDirection] = useContext(FlowDirectionContext);
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
   return (
