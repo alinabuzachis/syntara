@@ -14,7 +14,7 @@ services:
 
   nginx-proxy:
     container_name: nginx-proxy
-    image: nginxproxy/nginx-proxy:1.7-alpine
+    image: docker.io/nginxproxy/nginx-proxy:1.7-alpine
     environment:
       TRUST_DOWNSTREAM_PROXY: false
       NGINX_ENTRYPOINT_QUIET_LOGS: 1
@@ -30,7 +30,7 @@ services:
 
   nginx-acme:
     container_name: nginx-acme
-    image: nginxproxy/acme-companion:latest
+    image: docker.io/nginxproxy/acme-companion:latest
     environment:
       DEFAULT_EMAIL: 6277895+jamestalton@users.noreply.github.com
       NGINX_PROXY_CONTAINER: nginx-proxy
