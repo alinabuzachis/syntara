@@ -13,50 +13,52 @@
 **Rationale**:
 
 - Simpler API surface - single async endpoint serves all clients (UI, Workflow Engine, etc.)
-- Non-blocking design - all operations return immediately and stream progress via SSE
+- Non-blocking design - all operations return immediately and stream progress via WebSocket
 - Consistent invocation IDs across all operations (pause, cancel, message, streaming)
 - Better scalability - no long-running HTTP connections blocking server resources
-- Cleaner architecture - separation of invocation (POST) from result retrieval (SSE stream)
+- Cleaner architecture - separation of invocation (POST) from result retrieval (WebSocket stream)
 
 **Implementation Approach**:
 
 - FastAPI endpoint with Pydantic model validation
 - `InvokeRequest` model without mode parameter (always async)
-- Immediately return `{"invocation_id": "uuid", "stream_url": "/invoke/{id}/stream"}` and process in background
-- Clients use SSE stream to monitor progress and receive results
+- Immediately return `{"invocation_id": "uuid", "ws_url": "ws://.../ws/invoke/{id}"}` and process in background
+- Clients use WebSocket connection to monitor progress and receive results
 - Background task queue handles agent processing
 
 **Alternatives Considered**:
 
 - Dual mode API (async and sync) - Rejected to simplify API and avoid blocking operations
 - Separate endpoints for different clients - Rejected due to artificial separation
-- Polling instead of SSE - Rejected due to inefficiency and added latency
+- Polling instead of WebSocket - Rejected due to inefficiency and added latency
 
 ---
 
-### 2. Server-Sent Events (SSE) for Progress Streaming
+### 2. WebSocket for Progress Streaming
 
-**Decision**: Use FastAPI's StreamingResponse with SSE for async mode progress updates
+**Decision**: Use FastAPI's WebSocket support for async mode progress updates
 
 **Rationale**:
 
-- SSE provides unidirectional real-time updates from server to client
-- Built-in browser support, no need for WebSocket complexity
-- Automatic reconnection handling in browsers
-- Simple implementation with FastAPI's async generators
-- Efficient for progress updates, logs, and status changes
+- WebSocket provides real-time bidirectional communication between server and client
+- Built-in browser support with robust connection management
+- Supports both server→client progress streaming and future client→server control signals
+- Simple implementation with FastAPI's WebSocket endpoint support
+- Efficient for progress updates, logs, and status changes with JSON message format
+- Better support for connection state management and error handling
 
 **Implementation Approach**:
 
-- GET /invoke/:id/stream endpoint returns SSE stream
+- WS /ws/invoke/{id} endpoint establishes WebSocket connection
 - Agents emit progress events to a pub/sub mechanism (Redis Streams or in-memory queue)
-- FastAPI async generator reads from queue and yields SSE events
-- Event types: progress, log, status_change, completion, error
-- Client library handles reconnection and event parsing
+- FastAPI WebSocket handler reads from queue and sends JSON events
+- Event types: progress, log, status_change, completion, error, message
+- Client library handles reconnection and JSON message parsing
+- All messages include sequence_number for ordering and deduplication
 
 **Alternatives Considered**:
 
-- WebSockets - Rejected as bidirectional communication not needed for progress streaming
+- Server-Sent Events (SSE) - Previously used but replaced with WebSocket for bidirectional capability
 - Long polling - Rejected due to inefficiency and added server load
 - HTTP/2 Server Push - Rejected due to limited browser support and complexity
 
@@ -78,7 +80,7 @@
 - POST /invoke/:id/message accepts user message
 - Message injected into agent's conversation history via LangGraph checkpoint
 - Agent resumes from last checkpoint with new message in context
-- Response delivered via SSE stream (async) or synchronous return
+- Response delivered via WebSocket stream (async)
 - Conversation history persisted in Context Manager
 
 **Alternatives Considered**:
@@ -211,9 +213,9 @@
 
 ### Supporting Technologies
 
-- **SSE-Starlette** or **FastAPI StreamingResponse**: Server-Sent Events for progress streaming
-- **Redis**: Caching for sync mode results and pub/sub for SSE events
-- **Uvicorn**: ASGI server for FastAPI
+- **FastAPI WebSocket**: WebSocket support for progress streaming
+- **Redis**: Pub/sub for WebSocket event broadcasting to multiple clients
+- **Uvicorn**: ASGI server for FastAPI with WebSocket support
 - **pytest**: Testing framework with async support
 - **httpx**: Async HTTP client for external component integration
 
@@ -231,10 +233,10 @@
 ### API Response Times
 
 - **Invocation acceptance**: <200ms p95 for POST /invoke (immediate return with ID)
-- **Streaming**: <100ms p95 latency from agent event to client delivery via SSE
+- **Streaming**: <100ms p95 latency from agent event to client delivery via WebSocket
 - **Control signals**: <500ms p95 for pause/cancel acknowledgment
 - **Message injection**: <500ms p95 for message routing to agent
-- **Agent processing**: Variable based on task complexity (reported via SSE progress events)
+- **Agent processing**: Variable based on task complexity (reported via WebSocket progress events)
 
 ### Optimization Strategies
 
@@ -300,7 +302,7 @@
 
 1. **How to provide a simple, scalable API for all clients?**
 
-   - **Resolution**: Async-only POST /invoke endpoint that returns invocation ID immediately. All clients use SSE streaming for progress and results. This provides better scalability and simpler architecture.
+   - **Resolution**: Async-only POST /invoke endpoint that returns invocation ID immediately. All clients use WebSocket streaming for progress and results. This provides better scalability and simpler architecture.
 
 2. **How to enable interactive chat with running agents?**
 

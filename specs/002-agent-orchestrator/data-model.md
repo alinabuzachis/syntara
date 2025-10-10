@@ -11,7 +11,7 @@ The Agent Orchestrator data model defines entities for the async-only REST API t
 - Async-only invocation mode (returns invocation ID immediately)
 - Interactive multi-turn conversations with running agents
 - Pause/cancel control signals
-- Real-time progress streaming via SSE
+- Real-time progress streaming via WebSocket
 - Integration with external components (Guidance, Context Manager, Tools Registry, Workflow System)
 
 **Key Design Principles:**
@@ -19,7 +19,7 @@ The Agent Orchestrator data model defines entities for the async-only REST API t
 - **Read-only operations**: Agent Orchestrator does NOT store workflows or tool metadata (FR-016, FR-017)
 - **External storage**: All persistence handled by Context Manager, Workflow System, and Tools Registry
 - **Stateless invocations**: Invocation state maintained in Context Manager for horizontal scaling
-- **Async-only API**: Single POST /invoke endpoint returns immediately; all clients use SSE for progress/results
+- **Async-only API**: Single POST /invoke endpoint returns immediately; all clients use WebSocket for progress/results
 
 ---
 
@@ -27,7 +27,7 @@ The Agent Orchestrator data model defines entities for the async-only REST API t
 
 ### Invocation
 
-Runtime instance of an agent request with current state and conversation history. Stored in Context Manager (external component). All invocations are async - they return immediately and stream progress via SSE.
+Runtime instance of an agent request with current state and conversation history. Stored in Context Manager (external component). All invocations are async - they return immediately and stream progress via WebSocket.
 
 **Fields:**
 
@@ -104,7 +104,7 @@ Individual message in agent conversation history for an invocation.
 
 ### ProgressEvent
 
-Real-time progress update emitted during agent execution. Streamed via SSE to all clients.
+Real-time progress update emitted during agent execution. Streamed via WebSocket to all clients.
 
 **Fields:**
 
@@ -458,7 +458,7 @@ paused → cancelled
 
 - TTL-based automatic cleanup of working memory in Context Manager
 - Connection pooling for external component API calls (Guidance, Context Manager, Tool Manager, Workflow System)
-- Redis pub/sub for SSE event streaming
+- WebSocket connection management for real-time event streaming
 - LangGraph checkpointing for efficient pause/resume
 - Async I/O throughout the stack for non-blocking operations
 

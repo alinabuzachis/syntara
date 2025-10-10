@@ -33,7 +33,7 @@
 
 ## Summary
 
-The Agent Orchestrator is the central agentic intelligence layer of the Automation Nexus System. It interprets natural language requests and performs agentic activities by leveraging the Guidance component for policy recommendations, the Context Manager for decision context, and the Tools Registry for tool discovery. The implementation exposes a **REST API with async-only invocation** that returns an invocation ID immediately and streams progress via Server-Sent Events (SSE). The orchestrator leverages LangChain's Agent Protocol and LangGraph for internal routing, integrates with external components (Guidance, Context Manager, Tools Registry, Workflow System), and supports interactive multi-turn conversations with pause/cancel control signals.
+The Agent Orchestrator is the central agentic intelligence layer of the Automation Nexus System. It interprets natural language requests and performs agentic activities by leveraging the Guidance component for policy recommendations, the Context Manager for decision context, and the Tools Registry for tool discovery. The implementation exposes a **REST API with async-only invocation** that returns an invocation ID immediately and streams progress via WebSocket. The orchestrator leverages LangChain's Agent Protocol and LangGraph for internal routing, integrates with external components (Guidance, Context Manager, Tools Registry, Workflow System), and supports interactive multi-turn conversations with pause/cancel control signals.
 
 **User Requirement**: Remove sync mode from the API - only async API calls are needed.
 
@@ -48,7 +48,7 @@ graph TB
 
     subgraph "Agent Orchestrator API"
         INVOKE[POST /invoke<br/>Async-only]
-        STREAM[GET /invoke/:id/stream<br/>SSE]
+        STREAM[WS /ws/invoke/:id<br/>WebSocket]
         MESSAGE[POST /invoke/:id/message]
         PAUSE[POST /invoke/:id/pause]
         CANCEL[POST /invoke/:id/cancel]
@@ -165,7 +165,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 ✅ **PASS** - Observability integrated:
 
 - Structured logging with correlation IDs throughout
-- Progress events emitted via SSE for real-time visibility
+- Progress events emitted via WebSocket for real-time visibility
 - Metrics for API latency, agent performance, external component calls
 - All critical paths instrumented (invocation, routing, control signals)
 
@@ -249,7 +249,7 @@ tests/
 2. **Research areas completed**:
 
    - ✅ Async-only API design with unified POST /invoke endpoint
-   - ✅ Server-Sent Events (SSE) for progress streaming
+   - ✅ WebSocket for progress streaming
    - ✅ Interactive messaging architecture (message injection)
    - ✅ Pause/cancel control signal mechanism
    - ✅ LangChain Agent Protocol for internal orchestration
@@ -279,7 +279,7 @@ _Prerequisites: research.md complete_
 
    - ✅ REST API contract: agent-orchestrator-api.yaml (OpenAPI 3.0.3)
    - ✅ Async-only mode: POST /invoke returns invocation_id immediately
-   - ✅ SSE streaming: GET /invoke/{id}/stream for progress
+   - ✅ WebSocket streaming: WS /ws/invoke/{id} for progress
    - ✅ Interactive messaging: POST /invoke/{id}/message
    - ✅ Control signals: POST /invoke/{id}/pause, POST /invoke/{id}/cancel
 
@@ -326,7 +326,7 @@ _This section describes what the /tasks command will do - DO NOT execute during 
 1. **Contract Tests** (Phase 1 - tests that fail initially):
 
    - Test POST /invoke with async mode
-   - Test GET /invoke/{id}/stream (SSE)
+   - Test WS /ws/invoke/{id} (WebSocket)
    - Test POST /invoke/{id}/message
    - Test POST /invoke/{id}/pause
    - Test POST /invoke/{id}/cancel
@@ -350,12 +350,12 @@ _This section describes what the /tasks command will do - DO NOT execute during 
    - OrchestratorService (routing logic via LangGraph)
    - WorkflowGeneratorAgent (specialized agent)
    - GenericAgent (specialized agent)
-   - SSE streaming service
+   - WebSocket streaming service
 
 5. **API Routes**:
 
    - POST /invoke endpoint
-   - GET /invoke/{id}/stream endpoint
+   - WS /ws/invoke/{id} endpoint
    - POST /invoke/{id}/message endpoint
    - POST /invoke/{id}/pause endpoint
    - POST /invoke/{id}/cancel endpoint

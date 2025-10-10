@@ -8,7 +8,7 @@
 
 This guide demonstrates practical usage of the Agent Orchestrator REST API. The API provides an async-only endpoint for invoking agentic intelligence with support for:
 
-- **Async invocation**: Submit request, receive invocation ID immediately, stream progress via SSE
+- **Async invocation**: Submit request, receive invocation ID immediately, stream progress via WebSocket
 - **Interactive messaging**: Multi-turn conversations with running agents
 - **Process control**: Pause and cancel running agents
 
@@ -16,7 +16,7 @@ This guide demonstrates practical usage of the Agent Orchestrator REST API. The 
 
 - API endpoint: `http://localhost:8000/api/v1` (development) or production URL
 - Authentication: Bearer token or API key
-- HTTP client with SSE support for streaming progress events
+- WebSocket client for streaming progress events
 
 ## Base URL
 
@@ -28,7 +28,7 @@ All examples use this development URL. Replace with your environment's URL.
 
 ---
 
-## Example 1: Async Workflow Generation with SSE Streaming
+## Example 1: Async Workflow Generation with WebSocket Streaming
 
 **Use Case**: UI submits workflow creation request and displays real-time progress
 
@@ -56,62 +56,63 @@ curl -X POST http://localhost:8000/api/v1/invoke \
   "invocation_id": "inv-550e8400-e29b-41d4-a716-446655440000",
   "status": "running",
   "created_at": "2025-10-08T10:30:00Z",
-  "stream_url": "/invoke/inv-550e8400-e29b-41d4-a716-446655440000/stream"
+  "ws_url": "ws://localhost:8000/api/v1/ws/invoke/inv-550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
-### Step 2: Stream Progress Events (SSE)
+### Step 2: Stream Progress Events (WebSocket)
 
-```bash
-curl -N http://localhost:8000/api/v1/invoke/inv-550e8400-e29b-41d4-a716-446655440000/stream \
-  -H "Authorization: Bearer YOUR_TOKEN"
+```javascript
+const ws = new WebSocket("ws://localhost:8000/api/v1/ws/invoke/inv-550e8400-e29b-41d4-a716-446655440000");
+
+ws.onmessage = (event) => {
+  const progressEvent = JSON.parse(event.data);
+  console.log(progressEvent);
+};
 ```
 
-**SSE Stream Output**:
+**WebSocket Stream Output**:
 
-```
-event: progress
-data: {"event_type":"progress","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:01Z","data":{"message":"Analyzing deployment request","progress_percentage":10}}
+```json
+{"event_type":"progress","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:01Z","data":{"message":"Analyzing deployment request","progress_percentage":10},"sequence_number":1}
 
-event: progress
-data: {"event_type":"progress","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:03Z","data":{"message":"Evaluating deployment tools and strategies","progress_percentage":35}}
+{"event_type":"progress","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:03Z","data":{"message":"Evaluating deployment tools and strategies","progress_percentage":35},"sequence_number":2}
 
-event: log
-data: {"event_type":"log","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:05Z","data":{"level":"info","message":"Selected blue-green deployment strategy based on context"}}
+{"event_type":"log","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:05Z","data":{"level":"info","message":"Selected blue-green deployment strategy based on context"},"sequence_number":3}
 
-event: progress
-data: {"event_type":"progress","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:08Z","data":{"message":"Generating deployment workflow","progress_percentage":70}}
+{"event_type":"progress","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:08Z","data":{"message":"Generating deployment workflow","progress_percentage":70},"sequence_number":4}
 
-event: completion
-data: {"event_type":"completion","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:15Z","data":{"result_type":"workflow","workflow_id":"wf-abc123","workflow_url":"/workflows/wf-abc123"}}
+{"event_type":"completion","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:15Z","data":{"result_type":"workflow","workflow_id":"wf-abc123","workflow_url":"/workflows/wf-abc123"},"sequence_number":5}
 ```
 
 **Client Implementation (JavaScript)**:
 
 ```javascript
-const eventSource = new EventSource(
-  "http://localhost:8000/api/v1/invoke/inv-550e8400-e29b-41d4-a716-446655440000/stream",
-  { headers: { Authorization: "Bearer YOUR_TOKEN" } }
+const ws = new WebSocket(
+  "ws://localhost:8000/api/v1/ws/invoke/inv-550e8400-e29b-41d4-a716-446655440000"
 );
 
-eventSource.addEventListener("progress", (event) => {
+ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  console.log(
-    `[${data.data.phase}] ${data.data.message} - ${data.data.progress_percentage}%`
-  );
-});
 
-eventSource.addEventListener("completion", (event) => {
-  const data = JSON.parse(event.data);
-  console.log(`Workflow created: ${data.data.workflow_id}`);
-  eventSource.close();
-});
+  switch(data.event_type) {
+    case "progress":
+      console.log(`[${data.data.phase || 'processing'}] ${data.data.message} - ${data.data.progress_percentage}%`);
+      break;
+    case "completion":
+      console.log(`Workflow created: ${data.data.workflow_id}`);
+      ws.close();
+      break;
+    case "error":
+      console.error(`Error: ${data.data.error_message}`);
+      ws.close();
+      break;
+  }
+};
 
-eventSource.addEventListener("error", (event) => {
-  const data = JSON.parse(event.data);
-  console.error(`Error: ${data.data.error_message}`);
-  eventSource.close();
-});
+ws.onerror = (error) => {
+  console.error("WebSocket error:", error);
+};
 ```
 
 ---
@@ -120,11 +121,10 @@ eventSource.addEventListener("error", (event) => {
 
 **Use Case**: Agent requests clarification, user provides additional context
 
-### Step 1: Agent Requests Clarification (via SSE)
+### Step 1: Agent Requests Clarification (via WebSocket)
 
-```
-event: message
-data: {"event_type":"message","invocation_id":"inv-770e8400","timestamp":"2025-10-08T10:40:05Z","data":{"message":"Should I use canary deployment or blue-green deployment for this service?","requires_response":true,"context":{"available_strategies":["canary","blue-green","rolling"]}}}
+```json
+{"event_type":"message","invocation_id":"inv-770e8400","timestamp":"2025-10-08T10:40:05Z","data":{"message":"Should I use canary deployment or blue-green deployment for this service?","requires_response":true,"context":{"available_strategies":["canary","blue-green","rolling"]}},"sequence_number":8}
 ```
 
 ### Step 2: User Responds with Message
@@ -154,14 +154,12 @@ curl -X POST http://localhost:8000/api/v1/invoke/inv-770e8400-e29b-41d4-a716-446
 }
 ```
 
-### Step 3: Agent Resumes with New Context (via SSE)
+### Step 3: Agent Resumes with New Context (via WebSocket)
 
-```
-event: log
-data: {"event_type":"log","invocation_id":"inv-770e8400","timestamp":"2025-10-08T10:40:31Z","data":{"level":"info","message":"User selected canary deployment strategy, resuming workflow generation"}}
+```json
+{"event_type":"log","invocation_id":"inv-770e8400","timestamp":"2025-10-08T10:40:31Z","data":{"level":"info","message":"User selected canary deployment strategy, resuming workflow generation"},"sequence_number":9}
 
-event: progress
-data: {"event_type":"progress","invocation_id":"inv-770e8400","timestamp":"2025-10-08T10:40:32Z","data":{"message":"Generating canary deployment workflow","progress_percentage":75}}
+{"event_type":"progress","invocation_id":"inv-770e8400","timestamp":"2025-10-08T10:40:32Z","data":{"message":"Generating canary deployment workflow","progress_percentage":75},"sequence_number":10}
 ```
 
 ---
@@ -189,11 +187,10 @@ curl -X POST http://localhost:8000/api/v1/invoke/inv-550e8400-e29b-41d4-a716-446
 }
 ```
 
-**SSE Event**:
+**WebSocket Event**:
 
-```
-event: status_change
-data: {"event_type":"status_change","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:45:00Z","data":{"previous_status":"running","new_status":"paused","checkpoint_phase":"tool_assessment"}}
+```json
+{"event_type":"status_change","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:45:00Z","data":{"previous_status":"running","new_status":"paused","checkpoint_phase":"tool_assessment"},"sequence_number":15}
 ```
 
 ### Step 2: Resume Agent (via Message)
@@ -212,11 +209,10 @@ curl -X POST http://localhost:8000/api/v1/invoke/inv-550e8400-e29b-41d4-a716-446
   }'
 ```
 
-**Agent Resumes** (SSE):
+**Agent Resumes** (WebSocket):
 
-```
-event: status_change
-data: {"event_type":"status_change","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:46:00Z","data":{"previous_status":"paused","new_status":"running","resumed_from_phase":"tool_assessment"}}
+```json
+{"event_type":"status_change","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:46:00Z","data":{"previous_status":"paused","new_status":"running","resumed_from_phase":"tool_assessment"},"sequence_number":16}
 ```
 
 ---
@@ -245,11 +241,10 @@ curl -X POST http://localhost:8000/api/v1/invoke/inv-550e8400-e29b-41d4-a716-446
 }
 ```
 
-**SSE Event**:
+**WebSocket Event**:
 
-```
-event: status_change
-data: {"event_type":"status_change","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:50:00Z","data":{"previous_status":"running","new_status":"cancelled","phase_at_cancellation":"workflow_generation"}}
+```json
+{"event_type":"status_change","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:50:00Z","data":{"previous_status":"running","new_status":"cancelled","phase_at_cancellation":"workflow_generation"},"sequence_number":20}
 ```
 
 ---
@@ -300,11 +295,10 @@ curl -X POST http://localhost:8000/api/v1/invoke/inv-nonexistent/message \
 }
 ```
 
-### Agent Error (via SSE)
+### Agent Error (via WebSocket)
 
-```
-event: error
-data: {"event_type":"error","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:55:00Z","data":{"error_message":"Failed to connect to Tools Registry","error_code":"external_service_unavailable","phase":"tool_assessment","retryable":true}}
+```json
+{"event_type":"error","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:55:00Z","data":{"error_message":"Failed to connect to Tools Registry","error_code":"external_service_unavailable","phase":"tool_assessment","retryable":true},"sequence_number":8}
 ```
 
 ---
@@ -316,7 +310,7 @@ data: {"event_type":"error","invocation_id":"inv-550e8400","timestamp":"2025-10-
 1. User enters prompt in UI
 2. UI sends POST /invoke
 3. UI receives invocation_id (202 Accepted)
-4. UI opens SSE stream to /invoke/{id}/stream
+4. UI opens WebSocket connection to /ws/invoke/{id}
 5. UI displays progress updates in real-time
 6. On completion event, UI navigates to workflow detail page
 7. On message event (clarification needed), UI shows dialog for user input
@@ -328,15 +322,15 @@ data: {"event_type":"error","invocation_id":"inv-550e8400","timestamp":"2025-10-
 1. Workflow Engine executes agent node
 2. Engine sends POST /invoke
 3. Engine receives invocation_id (202 Accepted)
-4. Engine opens SSE stream to monitor progress
+4. Engine opens WebSocket connection to monitor progress
 5. On completion event, extract result and use in workflow
 6. On error event, retry or fail workflow based on configuration
 
 ### Pattern 3: Long-Running Agent with User Monitoring
 
 1. User submits workflow generation request
-2. User receives invocation_id and opens SSE stream
-3. User monitors progress via SSE events
+2. User receives invocation_id and opens WebSocket connection
+3. User monitors progress via WebSocket events
 4. User pauses agent to review tool selection (POST /invoke/{id}/pause)
 5. User reviews agent's planned tools in UI
 6. User decides to modify: sends message with updated tool selection
@@ -350,18 +344,18 @@ data: {"event_type":"error","invocation_id":"inv-550e8400","timestamp":"2025-10-
 ### Response Time Expectations
 
 - **Invocation acceptance**: <200ms p95 (POST /invoke returns immediately)
-- **SSE event delivery**: <100ms p95 from agent event to client
+- **WebSocket event delivery**: <100ms p95 from agent event to client
 - **Control signal acknowledgment**: <500ms p95 (pause/cancel)
 - **Message injection**: <500ms p95
-- **Agent processing**: Variable based on task complexity (reported via SSE)
+- **Agent processing**: Variable based on task complexity (reported via WebSocket)
 
 ### Best Practices
 
-1. **Always use SSE streaming**: All clients should open SSE streams to receive progress and results
-2. **Handle SSE reconnection**: Implement exponential backoff for SSE reconnection on connection loss
+1. **Always use WebSocket streaming**: All clients should open WebSocket connections to receive progress and results
+2. **Handle WebSocket reconnection**: Implement exponential backoff for WebSocket reconnection on connection loss
 3. **Correlation IDs**: Include metadata.correlation_id for request tracking across systems
-4. **Graceful error handling**: Monitor error events in SSE stream and handle appropriately
-5. **Connection management**: Close SSE connections when invocation completes or is cancelled
+4. **Graceful error handling**: Monitor error events in WebSocket stream and handle appropriately
+5. **Connection management**: Close WebSocket connections when invocation completes or is cancelled
 
 ---
 

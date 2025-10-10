@@ -3,16 +3,16 @@ info:
   title: Agent Orchestrator API
   version: 1.0.0
   description: |
-    REST API for the Agent Orchestrator - the central agentic intelligence layer of the Automation Nexus System.
+    REST and WebSocket API for the Agent Orchestrator - the central agentic intelligence layer of the Automation Nexus System.
 
     ## Overview
-    The Agent Orchestrator provides an async-only API that returns invocation IDs immediately and streams all progress and results via Server-Sent Events (SSE). This design provides better scalability and a simpler architecture for all clients.
+    The Agent Orchestrator provides an async-only API that returns invocation IDs immediately and streams all progress and results via WebSocket. This design provides better scalability, lower latency, and bidirectional communication capabilities.
 
     ## Key Features
     - Async-only POST /invoke endpoint (returns invocation ID immediately)
     - Interactive messaging: POST /invoke/{id}/message for multi-turn conversations
     - Process control: POST /invoke/{id}/pause and POST /invoke/{id}/cancel
-    - Real-time progress and results: GET /invoke/{id}/stream (SSE)
+    - Real-time progress and results: WS /ws/invoke/{id} (WebSocket)
 
     ## Authentication
     All endpoints require authentication. Include user credentials in headers.
@@ -36,7 +36,7 @@ paths:
       description: |
         Async-only endpoint to invoke the Agent Orchestrator. Returns invocation_id immediately.
 
-        Use GET /invoke/{id}/stream to monitor progress and receive results via Server-Sent Events (SSE).
+        Connect to WS /ws/invoke/{id} to monitor progress and receive results via WebSocket.
 
       operationId: invokeAgent
       tags:
@@ -76,7 +76,7 @@ paths:
                     invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
                     status: running
                     created_at: '2025-10-08T10:30:00Z'
-                    stream_url: /invoke/inv-550e8400-e29b-41d4-a716-446655440000/stream
+                    ws_url: ws://localhost:8000/api/v1/ws/invoke/inv-550e8400-e29b-41d4-a716-446655440000
         '400':
           description: Invalid request
           content:
@@ -96,13 +96,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /invoke/{invocation_id}/stream:
+  /ws/invoke/{invocation_id}:
     get:
-      summary: Stream progress events (SSE)
+      summary: Stream progress events (WebSocket)
       description: |
-        Server-Sent Events (SSE) endpoint for real-time progress updates in async mode.
+        WebSocket endpoint for real-time bidirectional progress updates.
 
-        Event types:
+        **Connection:** Upgrade HTTP connection to WebSocket using standard WebSocket handshake.
+
+        **Server→Client Event Types:**
         - progress: Agent is making progress
         - log: Agent log message
         - status_change: Invocation status changed
@@ -110,7 +112,16 @@ paths:
         - completion: Agent completed successfully
         - error: Agent encountered error
 
-      operationId: streamProgress
+        **Message Format:** All messages are JSON objects matching the ProgressEvent schema.
+
+        **Connection Management:**
+        - Ping/pong frames sent automatically for health monitoring
+        - Connection closes gracefully on completion
+        - Client should implement reconnection with exponential backoff
+
+        **Note:** This is a WebSocket endpoint. OpenAPI 3.0 has limited WebSocket support - see implementation for full WebSocket protocol details.
+
+      operationId: streamProgressWebSocket
       tags:
       - Invocation
       parameters:
@@ -122,25 +133,45 @@ paths:
           type: string
           format: uuid
       responses:
-        '200':
-          description: SSE stream of progress events
-          content:
-            text/event-stream:
-              schema:
-                type: string
-              example: |
-                event: progress
-                data: {"event_type":"progress","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:01Z","data":{"phase":"tool_assessment","message":"Evaluating deployment tools","progress_percentage":45}}
-
-                event: completion
-                data: {"event_type":"completion","invocation_id":"inv-550e8400","timestamp":"2025-10-08T10:30:15Z","data":{"result_type":"workflow","workflow_id":"wf-abc123","workflow_url":"/workflows/wf-abc123"}}
-
+        '101':
+          description: Switching Protocols - WebSocket connection established
         '404':
           description: Invocation not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '400':
+          description: WebSocket upgrade failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-websocket-messages:
+        description: WebSocket message examples
+        examples:
+          progressMessage:
+            summary: Progress event
+            value:
+              event_type: progress
+              invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
+              timestamp: '2025-10-08T10:30:01Z'
+              data:
+                phase: tool_assessment
+                message: Evaluating deployment tools
+                progress_percentage: 45
+              sequence_number: 5
+          completionMessage:
+            summary: Completion event
+            value:
+              event_type: completion
+              invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
+              timestamp: '2025-10-08T10:30:15Z'
+              data:
+                result_type: workflow
+                workflow_id: wf-abc123
+                workflow_url: /workflows/wf-abc123
+              sequence_number: 42
 
   /invoke/{invocation_id}/message:
     post:
@@ -317,7 +348,7 @@ components:
       - invocation_id
       - status
       - created_at
-      - stream_url
+      - ws_url
       properties:
         invocation_id:
           type: string
@@ -331,9 +362,9 @@ components:
           type: string
           format: date-time
           description: When invocation was created
-        stream_url:
+        ws_url:
           type: string
-          description: SSE stream URL for progress and results
+          description: WebSocket URL for progress and results
 
     MessageRequest:
       type: object
