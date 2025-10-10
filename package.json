@@ -11,7 +11,7 @@
     "build:nexus-ui-framework": "npm run build --workspace=packages/nexus-ui-framework",
     "build:nexus-ui": "npm run build --workspace=packages/nexus-ui",
     "test": "concurrently npm:test:* -c auto",
-    "test:fomat": "npm run format:check",
+    "test:format": "npm run format:check",
     "test:nexus-ui": "npm run test --prefix packages/nexus-ui",
     "test:nexus-ui-framework": "npm run test --prefix packages/nexus-ui-framework",
     "clean": "npm run clean --workspaces --if-present",
