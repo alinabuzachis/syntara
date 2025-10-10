@@ -48,13 +48,14 @@
 
 ## Tool Provider Integration Libraries and Adapters
 
-**Decision**: Pluggable adapter architecture with MCP Python SDK as primary example
+**Decision**: Pluggable adapter architecture with MCP Python SDK supporting dual-protocol transport
 
 **Rationale**:
 - Adapter pattern allows support for multiple provider types (MCP, REST API, Python decorators, etc.)
-- Official `modelcontextprotocol/python-sdk` provides standardized MCP implementation as initial adapter
+- Official `modelcontextprotocol/python-sdk` provides standardized MCP implementation with SSE and Streaming HTTP transport support
 - OpenAI and Google DeepMind adopted MCP in 2025, ensuring long-term viability
 - FastMCP 2.0 adds enterprise authentication and deployment tools for admin-only systems
+- MCP supports both SSE and Streaming HTTP protocols with automatic negotiation and fallback
 - Architecture supports adding new provider types without core system changes
 
 **Alternatives considered**:

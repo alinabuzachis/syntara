@@ -11,22 +11,22 @@ This quickstart guide demonstrates the key workflows for Tool Provider Integrati
 
 ## Test Scenarios
 
-### Scenario 1: Tool Provider Registration
+### Scenario 1: Tool Provider Registration (SSE Protocol)
 **Validates**: FR-001, FR-002, FR-003 (Provider registration and validation)
 
 ```bash
-# Step 1: Register a new MCP Tool Provider
+# Step 1: Register a new MCP Tool Provider with SSE protocol
 curl -X POST http://localhost:8000/api/v1/tool-providers \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <admin-token>" \
   -d '{
-    "name": "test-mcp-provider",
-    "description": "Test MCP Tool Provider for validation",
+    "name": "test-mcp-provider-sse",
+    "description": "Test MCP Tool Provider with SSE protocol",
     "provider_type": "mcp",
     "configuration": {
       "host": "localhost",
       "port": 3000,
-      "protocol": "http",
+      "protocol": "sse",
       "authentication_type": "none",
       "connection_timeout": 5,
       "read_timeout": 10
@@ -45,7 +45,60 @@ curl -X POST http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID/validate \
 # Verify: Provider status should change to "active" if validation succeeds
 ```
 
-### Scenario 2: Tool Refresh and Management
+### Scenario 2: MCP Streaming HTTP Protocol Support
+**Validates**: MCP dual-protocol support with automatic negotiation and fallback
+
+```bash
+# Step 1: Register MCP Tool Provider with Streaming HTTP protocol
+curl -X POST http://localhost:8000/api/v1/tool-providers \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin-token>" \
+  -d '{
+    "name": "test-mcp-provider-streaming",
+    "description": "Test MCP Tool Provider with Streaming HTTP protocol",
+    "provider_type": "mcp",
+    "configuration": {
+      "host": "localhost",
+      "port": 3001,
+      "protocol": "streaming_http",
+      "authentication_type": "none",
+      "connection_timeout": 5,
+      "read_timeout": 10
+    }
+  }'
+
+# Expected: 201 Created with provider details
+# Verify: Provider uses Streaming HTTP transport
+
+STREAMING_PROVIDER_ID=$(echo $RESPONSE | jq -r '.id')
+
+# Step 2: Test protocol negotiation and fallback
+curl -X POST http://localhost:8000/api/v1/tool-providers/$STREAMING_PROVIDER_ID/validate \
+  -H "Authorization: Bearer <admin-token>"
+
+# Expected: 200 OK with validation results showing negotiated protocol
+# Verify: System successfully negotiates Streaming HTTP or falls back to SSE
+
+# Step 3: Test tool refresh with Streaming HTTP
+curl -X POST http://localhost:8000/api/v1/tool-providers/$STREAMING_PROVIDER_ID/refresh-tools \
+  -H "Authorization: Bearer <admin-token>"
+
+# Expected: 200 OK with refreshed tools using Streaming HTTP transport
+# Verify: Tools discovered successfully via Streaming HTTP protocol
+
+# Step 4: Test concurrent operations with mixed protocols
+# Simultaneously refresh tools from both SSE and Streaming HTTP providers
+curl -X POST http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID/refresh-tools \
+  -H "Authorization: Bearer <admin-token>" &
+curl -X POST http://localhost:8000/api/v1/tool-providers/$STREAMING_PROVIDER_ID/refresh-tools \
+  -H "Authorization: Bearer <admin-token>" &
+wait
+
+# Expected: Both requests complete successfully
+# Verify: Mixed protocol operations work without conflicts
+```
+
+### Scenario 3: Tool Refresh and Management
 **Validates**: FR-004, FR-005, FR-006 (Tool refresh and metadata caching)
 
 ```bash
@@ -72,7 +125,7 @@ curl -X GET http://localhost:8000/api/v1/tools/$TOOL_ID \
 # Verify: Tool metadata includes name, description, parameters array
 ```
 
-### Scenario 3: Tool Enablement Control
+### Scenario 4: Tool Enablement Control
 **Validates**: FR-021, FR-022, FR-023 (Tool enablement without removal)
 
 ```bash
@@ -102,7 +155,7 @@ curl -X PATCH http://localhost:8000/api/v1/tools/$TOOL_ID \
 # Verify: Tool appears in enabled Tools list again
 ```
 
-### Scenario 4: Rate Limiting Configuration
+### Scenario 5: Rate Limiting Configuration
 **Validates**: FR-018, FR-020 (Rate limiting and alert generation)
 
 ```bash
@@ -133,7 +186,7 @@ wait
 # Verify: Rate limit exceeded error after limit reached
 ```
 
-### Scenario 5: Usage Metrics Collection
+### Scenario 6: Usage Metrics Collection
 **Validates**: FR-016, FR-017, FR-019 (Metrics tracking and querying)
 
 ```bash
@@ -161,7 +214,7 @@ curl -X GET "http://localhost:8000/api/v1/metrics/executions?tool_id[eq]=$TOOL_I
 # Verify: Logs include timestamp, duration, status, user_id
 ```
 
-### Scenario 6: Provider Configuration Updates
+### Scenario 7: Provider Configuration Updates
 **Validates**: Configuration management with PUT and PATCH operations
 
 ```bash
@@ -176,7 +229,7 @@ curl -X PUT http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
       "provider_type": "mcp",
       "host": "localhost",
       "port": 3001,
-      "protocol": "http",
+      "protocol": "sse",
       "authentication_type": "none",
       "connection_timeout": 10,
       "read_timeout": 15
@@ -212,7 +265,7 @@ curl -X PATCH http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
 # Verify: Only enabled field changed, configuration preserved
 ```
 
-### Scenario 7: Provider Management and Tool Lifecycle
+### Scenario 8: Provider Management and Tool Lifecycle
 **Validates**: FR-008, FR-026 (Provider removal and missing Tool handling)
 
 ```bash
@@ -239,7 +292,7 @@ curl -X DELETE http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
 # Verify: Provider and all associated tools are removed from system
 ```
 
-### Scenario 8: Error Handling and Validation
+### Scenario 9: Error Handling and Validation
 **Validates**: FR-003, FR-009 (Error handling and graceful failures)
 
 ```bash
@@ -253,7 +306,7 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
     "configuration": {
       "host": "nonexistent.example.com",
       "port": 9999,
-      "protocol": "http"
+      "protocol": "sse"
     }
   }'
 
@@ -270,7 +323,7 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
     "configuration": {
       "host": "localhost",
       "port": 3001,
-      "protocol": "http"
+      "protocol": "sse"
     }
   }'
 
@@ -278,7 +331,7 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
 # Verify: Duplicate names are rejected with appropriate error
 ```
 
-### Scenario 9: Advanced Filtering with Bracket Notation
+### Scenario 10: Advanced Filtering with Bracket Notation
 **Validates**: Advanced query filtering and search capabilities
 
 ```bash

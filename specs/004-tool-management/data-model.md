@@ -233,14 +233,14 @@ The `configuration` JSON field contains provider-specific settings (provider_typ
 {
   "host": "localhost",
   "port": 3000,
-  "protocol": "http",
+  "protocol": "sse",
   "authentication_type": "none",
   "authentication_config": {},
   "connection_timeout": 5,
   "read_timeout": 10
 }
 ```
-Note: MCP protocol options are "stdio", "sse", or "http"
+Note: MCP protocol options are "sse" or "streaming_http" (stdio not supported)
 
 #### Python Tool Provider
 ```json

@@ -1,7 +1,7 @@
 
 # Implementation Plan: Tool Provider Integration and Tool Management
 
-**Branch**: `004-mcp-tool-registration` | **Date**: 2025-10-02 | **Spec**: [spec.md](./spec.md)
+**Branch**: `004-tool-management` | **Date**: 2025-10-02 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/004-tool-management/spec.md`
 
 ## Execution Flow (/plan command scope)
@@ -31,7 +31,14 @@
 - Phase 3-4: Implementation execution (manual or via tools)
 
 ## Summary
-Implement admin-only Tool Provider Integration and Tool Management backend API enabling administrators to register external Tool providers (MCP servers, Python Tools, REST APIs, etc.), refresh and manage their Tools, collect usage metrics, and control Tool availability through RESTful API endpoints with keyset pagination and generic bracket notation filtering. The backend uses PostgreSQL with SQLAlchemy 2.0 for persistent storage, Redis for distributed caching and rate limiting, and pluggable adapters for provider integration. Architecture is scalable to support heavy loads. Frontend implementation is handled in a separate repository.
+Backend API for administrators to register and manage external tool providers (MCP, Python, REST APIs). Key capabilities:
+- Register providers and auto-discover their tools
+- Control tool availability (enable/disable)
+- Track usage metrics and rate limits
+- Pluggable adapter architecture for multiple provider types
+
+**Tech Stack**: FastAPI, PostgreSQL, SQLAlchemy 2.0, Redis
+**Frontend**: Separate repository
 
 ## Implementation Architecture
 
@@ -338,6 +345,103 @@ sequenceDiagram
     end
 ```
 
+## Provider Abstraction Architecture
+
+### Class Diagram: Pluggable Provider Pattern
+
+```mermaid
+classDiagram
+    %% Abstract Base
+    class ToolProviderAdapter {
+        <<Protocol/ABC>>
+        +validate_connection() ValidationResult
+        +refresh_tools() List~ToolMetadata~
+        +get_tool_schema(tool_name) ToolSchema
+        +invoke_tool(tool_name, params) ToolResult
+    }
+
+    %% Concrete Implementations
+    class MCPProvider {
+        -mcp_client: MCPClient
+        -config: MCPConfig
+        +validate_connection() ValidationResult
+        +refresh_tools() List~ToolMetadata~
+        +get_tool_schema(tool_name) ToolSchema
+        +invoke_tool(tool_name, params) ToolResult
+    }
+
+    class PythonProvider {
+        -module_path: str
+        -class_name: str
+        +validate_connection() ValidationResult
+        +refresh_tools() List~ToolMetadata~
+        +get_tool_schema(tool_name) ToolSchema
+        +invoke_tool(tool_name, params) ToolResult
+    }
+
+    class RESTAPIProvider {
+        -base_url: str
+        -auth_config: Dict
+        +validate_connection() ValidationResult
+        +refresh_tools() List~ToolMetadata~
+        +get_tool_schema(tool_name) ToolSchema
+        +invoke_tool(tool_name, params) ToolResult
+    }
+
+    %% Factory
+    class ProviderFactory {
+        +create_provider(provider_type, config) ToolProviderAdapter
+        -_registry: Dict~str, Type~
+    }
+
+    %% Core Tool Management
+    class ToolCore {
+        -provider_factory: ProviderFactory
+        +register_provider(config) ProviderID
+        +refresh_tools(provider_id) List~Tool~
+        +list_tools(filters) List~Tool~
+        +execute_tool(tool_id, params) Result
+    }
+
+    %% Relationships
+    ToolProviderAdapter <|-- MCPProvider : implements
+    ToolProviderAdapter <|-- PythonProvider : implements
+    ToolProviderAdapter <|-- RESTAPIProvider : implements
+    ProviderFactory ..> ToolProviderAdapter : creates
+    ToolCore --> ProviderFactory : uses
+
+    %% Styling
+    classDef abstract fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#0d47a1
+    classDef implementation fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
+    classDef factory fill:#fff8e1,stroke:#f57c00,stroke-width:2px,color:#e65100
+    classDef core fill:#e8f5e8,stroke:#388e3c,stroke-width:2px,color:#1b5e20
+
+    class ToolProviderAdapter abstract
+    class MCPProvider implementation
+    class PythonProvider implementation
+    class RESTAPIProvider implementation
+    class ProviderFactory factory
+    class ToolCore core
+```
+
+**Key Design Principles:**
+- **Protocol/ABC**: `ToolProviderAdapter` defines the contract all providers must implement
+- **Factory Pattern**: `ProviderFactory` routes `provider_type` string → concrete implementation
+- **Extensibility**: New provider types (gRPC, GraphQL, etc.) can be added without modifying core
+- **MCP as Example**: MCP is ONE implementation, not the only one
+
+**File Structure:**
+```
+src/nexus_tool_manager/lib/
+├── tool_core.py              # Generic tool management (provider-agnostic)
+└── providers/
+    ├── base.py               # ToolProviderAdapter Protocol/ABC
+    ├── factory.py            # ProviderFactory (type routing)
+    ├── mcp_provider.py       # MCP implementation (uses MCP SDK)
+    ├── python_provider.py    # Python function provider
+    └── rest_api_provider.py  # REST API provider
+```
+
 ## Technical Context
 **Language/Version**: Python 3.12+ \
 **Primary Dependencies**: FastAPI, uvicorn, pytest, SQLAlchemy 2.0, asyncpg, Redis, pluggable provider adapters \
@@ -387,14 +491,15 @@ specs/[###-feature]/
 src/
 ├── models/          # SQLAlchemy data models
 ├── services/        # Business logic and provider integration
-├── adapters/        # Provider-specific adapters (MCP, Python, REST, etc.)
 ├── api/            # FastAPI routers and endpoints
-└── lib/            # Shared utilities and helpers
+└── lib/            # Shared utilities and helpers (includes providers/)
 
 tests/
 ├── contract/       # API contract tests
 ├── integration/    # Integration tests with Tool providers
-└── unit/          # Unit tests for services and models
+├── unit/          # Unit tests for services and models
+├── e2e/            # End-to-end tests with real providers
+└── fixtures/       # Test fixtures and mock servers
 ```
 
 **Structure Decision**: Backend API service only (frontend handled in separate repository)
