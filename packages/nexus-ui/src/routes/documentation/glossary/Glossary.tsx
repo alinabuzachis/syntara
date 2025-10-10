@@ -1,6 +1,6 @@
+import { Scrollable } from "@ansible/nexus-ui-framework";
 import Fuse from "fuse.js";
 import { useState } from "react";
-import { Scrollable } from "ui-framework";
 import { AppPage } from "../../../app/AppPage";
 import { AppPageHeader } from "../../../app/AppPageHeader";
 import { useGlossaryTerms } from "./useGlossaryTerms";

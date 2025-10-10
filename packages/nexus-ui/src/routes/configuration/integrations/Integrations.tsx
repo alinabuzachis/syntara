@@ -1,7 +1,3 @@
-import clsx from "clsx";
-import Fuse from "fuse.js";
-import { EllipsisVerticalIcon } from "lucide-react";
-import { useState } from "react";
 import {
   Menu,
   MenuGroup,
@@ -12,7 +8,11 @@ import {
   MenuSeparator,
   MenuTrigger,
   Scrollable,
-} from "ui-framework";
+} from "@ansible/nexus-ui-framework";
+import clsx from "clsx";
+import Fuse from "fuse.js";
+import { EllipsisVerticalIcon } from "lucide-react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { AppPage } from "../../../app/AppPage";
 import { AppPageHeader } from "../../../app/AppPageHeader";

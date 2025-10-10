@@ -1,5 +1,10 @@
+import {
+  Menu,
+  MenuItem,
+  MenuItems,
+  MenuTrigger,
+} from "@ansible/nexus-ui-framework";
 import { EllipsisVerticalIcon } from "lucide-react";
-import { Menu, MenuItem, MenuItems, MenuTrigger } from "ui-framework";
 
 export function IntegrationCard(props: {
   name: string;

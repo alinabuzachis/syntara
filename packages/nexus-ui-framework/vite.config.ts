@@ -15,8 +15,8 @@ export default defineConfig({
   build: {
     lib: {
       entry: "src/index.tsx",
-      name: "GenieUIFramework",
-      fileName: (format) => `ui-framework.${format}.js`,
+      name: "NexusUIFramework",
+      fileName: (format) => `nexus-ui-framework.${format}.js`,
     },
     rollupOptions: {
       output: {

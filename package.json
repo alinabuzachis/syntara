@@ -1,19 +1,20 @@
 {
-  "name": "next-ui",
+  "name": "@ansible/nexus",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "start": "concurrently npm:start:* -c auto",
-    "start:frontend": "npm run start --prefix packages/frontend",
-    "start:ui-framework": "npm run start --prefix packages/ui-framework",
-    "build": "npm run build:ui-framework && npm run build:frontend",
-    "build:ui-framework": "npm run build --workspace=packages/ui-framework",
-    "build:frontend": "npm run build --workspace=packages/frontend",
+    "start:nexus-ui": "npm run start --prefix packages/nexus-ui",
+    "start:nexus-ui-framework": "npm run start --prefix packages/nexus-ui-framework",
+    "build": "npm run build:nexus-ui-framework && npm run build:nexus-ui",
+    "build:nexus-ui-framework": "npm run build --workspace=packages/nexus-ui-framework",
+    "build:nexus-ui": "npm run build --workspace=packages/nexus-ui",
     "test": "npm run test --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",
-    "docker:build": "docker compose build",
-    "docker:run": "docker compose up frontend"
+    "podman:compose": "podman-compose build",
+    "podman:build": "podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest .",
+    "podman:run": "podman-compose up "
   },
   "workspaces": [
     "packages/*"

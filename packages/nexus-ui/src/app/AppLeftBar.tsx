@@ -1,10 +1,10 @@
+import { Toolbar, ToolbarButton } from "@ansible/nexus-ui-framework";
 import {
   ClosedCaptionIcon,
   GalleryVerticalEndIcon,
   SquarePlusIcon,
   Volume2Icon,
 } from "lucide-react";
-import { Toolbar, ToolbarButton } from "ui-framework";
 
 export function AppLeftBar() {
   return (

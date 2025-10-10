@@ -1,4 +1,10 @@
-import { Button, Field, Form, Input, Select } from "ui-framework";
+import {
+  Button,
+  Field,
+  Form,
+  Input,
+  Select,
+} from "@ansible/nexus-ui-framework";
 import { navigate } from "wouter/use-browser-location";
 import { AppPage } from "../../../../app/AppPage";
 import { AppPageHeader } from "../../../../app/AppPageHeader";

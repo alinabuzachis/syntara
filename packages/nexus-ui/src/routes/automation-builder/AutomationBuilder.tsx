@@ -1,3 +1,4 @@
+import { IconButton } from "@ansible/nexus-ui-framework";
 import Dagre from "@dagrejs/dagre";
 import {
   Panel,
@@ -16,7 +17,6 @@ import {
   ZoomOutIcon,
 } from "lucide-react";
 import { useCallback, useContext, useEffect, useState } from "react";
-import { IconButton } from "ui-framework";
 import { AppPage } from "../../app/AppPage";
 import { AppPageHeader } from "../../app/AppPageHeader";
 import { ChatInput } from "../../components/chat/ChatInput";

@@ -1,5 +1,5 @@
+import { Toolbar, ToolbarButton } from "@ansible/nexus-ui-framework";
 import { BellIcon, CircleQuestionMarkIcon, ListTodoIcon } from "lucide-react";
-import { Toolbar, ToolbarButton } from "ui-framework";
 
 export function AppRightBar() {
   return (

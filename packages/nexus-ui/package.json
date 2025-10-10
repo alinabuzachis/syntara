@@ -1,5 +1,5 @@
 {
-  "name": "next-ui",
+  "name": "@ansible/nexus-ui",
   "private": true,
   "version": "0.0.0",
   "type": "module",

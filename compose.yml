@@ -1,7 +1,7 @@
 services:
-  frontend:
-    container_name: frontend
-    image: next-ui-frontend:latest
+  nexus-ui:
+    container_name: nexus-ui
+    image: nexus-ui:latest
     ports:
       - 4000:80
     environment:

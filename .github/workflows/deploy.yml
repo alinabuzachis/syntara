@@ -19,11 +19,11 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -f packages/frontend/Dockerfile -t next-ui-frontend:latest .
+          docker build -f packages/frontend/Dockerfile -t nexus-ui:latest .
 
       - name: Export Docker image
         run: |
-          docker save next-ui-frontend:latest | gzip > next-ui-frontend.tar.gz
+          docker save nexus-ui:latest | gzip > nexus-ui.tar.gz
 
       - name: Configure SSH
         env:
@@ -41,7 +41,7 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
-          scp -i ~/.ssh/deploy_key next-ui-frontend.tar.gz "$SSH_USER@$SSH_HOST:/home/ec2-user/"
+          scp -i ~/.ssh/deploy_key nexus-ui.tar.gz "$SSH_USER@$SSH_HOST:/home/ec2-user/"
           scp -i ~/.ssh/deploy_key docker-compose.yml "$SSH_USER@$SSH_HOST:/home/ec2-user/"
 
       - name: Load Docker image and start services
@@ -51,9 +51,9 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" << 'EOF'
           cd /home/ec2-user
-          gunzip -c next-ui-frontend.tar.gz | docker load
+          gunzip -c nexus-ui.tar.gz | docker load
           docker-compose up -d
-          rm next-ui-frontend.tar.gz
+          rm nexus-ui.tar.gz
           EOF
 
       - name: Cleanup SSH key
