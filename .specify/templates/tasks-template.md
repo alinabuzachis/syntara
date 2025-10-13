@@ -55,6 +55,13 @@
 - [ ] T007 [P] Integration test auth flow in tests/integration/test_auth.py
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
+**Architecture Reminders**:
+- Apply DRY principle - extract reusable functions/classes
+- Follow SOLID principles - single responsibility per class
+- Use dependency injection - inject dependencies via constructors
+- Prefer composition over inheritance
+- Maintain clear separation of concerns
+
 - [ ] T008 [P] User model in src/models/user.py
 - [ ] T009 [P] UserService CRUD in src/services/user_service.py
 - [ ] T010 [P] CLI --create-user in src/cli/user_commands.py
@@ -73,7 +80,7 @@
 - [ ] T019 [P] Unit tests for validation in tests/unit/test_validation.py
 - [ ] T020 Performance tests (<200ms)
 - [ ] T021 [P] Update docs/api.md
-- [ ] T022 Remove duplication
+- [ ] T022 Refactor: Remove duplication (DRY), ensure SOLID compliance
 - [ ] T023 Run manual-testing.md
 
 ## Dependencies

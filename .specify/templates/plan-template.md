@@ -49,6 +49,13 @@
 
 [Gates determined based on constitution file]
 
+### Code Architecture Compliance
+- [ ] **DRY Principle**: Design avoids code duplication through proper abstraction
+- [ ] **SOLID Principles**: Design follows Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, and Dependency Inversion
+- [ ] **Separation of Concerns**: Clear boundaries between layers (presentation, business logic, data access)
+- [ ] **Dependency Injection**: Dependencies are explicitly injected via constructors
+- [ ] **Composition vs Inheritance**: Design uses composition over inheritance unless clear "is-a" relationship exists
+
 ## Project Structure
 
 ### Documentation (this feature)
@@ -209,4 +216,4 @@ ios/ or android/
 - [ ] Complexity deviations documented
 
 ---
-*Based on Constitution v1.0.0 - See `.specify/memory/constitution.md`*
+*Based on Constitution v1.1.0 - See `.specify/memory/constitution.md`*

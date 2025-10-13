@@ -1,14 +1,14 @@
 <!-- Sync Impact Report
-Version Change: 0.0.0 → 1.0.0 (Initial constitution ratification)
-Modified Principles: N/A (Initial creation)
-Added Sections: All sections (initial creation)
+Version Change: 1.0.0 → 1.1.0 (Code Architecture Principles added)
+Modified Principles: Development Standards (added Code Architecture Principles section)
+Added Sections: Code Architecture Principles (DRY, SOLID, Separation of Concerns, Dependency Injection, Composition vs Inheritance)
 Removed Sections: N/A
-Templates Requiring Updates:
-  ✅ .specify/templates/plan-template.md (to be reviewed)
-  ✅ .specify/templates/spec-template.md (to be reviewed)
-  ✅ .specify/templates/tasks-template.md (to be reviewed)
-  ✅ .specify/templates/agent-file-template.md (to be reviewed)
-Follow-up TODOs: None
+Templates Updated:
+  ✅ .specify/templates/plan-template.md (added Code Architecture Compliance checklist)
+  ✅ .specify/templates/spec-template.md (no changes needed - business-focused document)
+  ✅ .specify/templates/tasks-template.md (added Architecture Reminders section)
+  ✅ .specify/templates/agent-file-template.md (added Code Architecture Principles section)
+Follow-up TODOs: Review existing code for compliance with new architecture principles
 -->
 
 # Nexus System Constitution
@@ -53,6 +53,22 @@ least one minor version before removal. Internal APIs should be clearly marked a
 may change without notice.
 
 ## Development Standards
+
+### Code Architecture Principles
+
+- **DRY Principle**: Code duplication MUST be avoided through proper abstraction and encapsulation. Repeated logic must be extracted into reusable functions, classes, or modules. Each piece of knowledge should have a single, unambiguous representation.
+- **SOLID Principles**: All code MUST adhere to SOLID design principles:
+  - Single Responsibility: Each class/module has one reason to change
+  - Open/Closed: Open for extension, closed for modification
+  - Liskov Substitution: Subtypes must be substitutable for base types
+  - Interface Segregation: Clients should not depend on interfaces they don't use
+  - Dependency Inversion: Depend on abstractions, not concretions
+- **Separation of Concerns**: Clear boundaries MUST exist between different layers (presentation, business logic, data access). No layer should have knowledge of implementation details of other layers.
+- **Dependency Injection**: Dependencies MUST be explicitly injected rather than instantiated within classes. Use constructor injection as the primary pattern. This enables testability, flexibility, and loose coupling.
+- **Composition vs Inheritance**: Favor composition over inheritance. Use inheritance only when there is a clear "is-a" relationship and shared behavior. Analyze carefully:
+  - Use composition when components need to be reused independently
+  - Use inheritance when extending behavior of a base class with shared contract
+  - Prefer interfaces/protocols over abstract base classes when defining contracts
 
 ### Code Quality Requirements
 
@@ -127,4 +143,4 @@ process. All team members are responsible for upholding these principles.
 - Exceptions require explicit documentation and time bounds
 - Regular audits to ensure ongoing compliance
 
-**Version**: 1.0.0 | **Ratified**: 2025-09-23 | **Last Amended**: 2025-09-23
+**Version**: 1.1.0 | **Ratified**: 2025-09-23 | **Last Amended**: 2025-10-13
