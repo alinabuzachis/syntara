@@ -2,7 +2,7 @@ import './index.css'
 
 export * from './components/Button'
 export * from './components/IconButton'
-export * from './components/Menu'
+export * from './components/menu'
 export * from './components/Scrollable'
 export * from './components/Toolbar'
 export * from './forms/Field'

@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+/* @reference '../../nexus-ui-framework/src/index.css'; */
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -27,12 +29,6 @@ body {
 }
 
 @layer utilities {
-  .glass {
-    @apply bg-black/20;
-    @apply backdrop-blur-2xl;
-    @apply border-white/10;
-    @apply bg-linear-0 from-violet-400/10 via-purple-400/10 to-sky-400/10;
-  }
 
   .details > dt {
     @apply mb-0.5 text-white/60;

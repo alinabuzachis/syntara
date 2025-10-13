@@ -1,0 +1,9 @@
+@layer components {
+  .menu-items {
+    @apply glass rounded-xl p-1 shadow-lg shadow-black/50;
+  }
+
+  .menu-item {
+    @apply rounded-lg px-3 py-1.5 hover:bg-white/10;
+  }
+}

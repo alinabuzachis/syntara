@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@import './components/menu/menu.css';
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -7,7 +9,12 @@
 }
 
 @utility glass {
-  @apply border border-white/10 bg-white/10 backdrop-blur-3xl;
+  @apply bg-black/20;
+  @apply backdrop-blur-3xl;
+  @apply border-white/10;
+  @apply bg-linear-to-t from-violet-400/10 via-purple-400/10 to-sky-400/10;
 }
 
-/* @import './components/menu/menu.css'; */
+.glass {
+  @apply glass;
+}
