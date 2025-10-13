@@ -163,19 +163,19 @@ async def create_workflow(
 @router.get("")
 async def list_workflows(
     db: Annotated[AsyncSession, Depends(get_db)],
-    created_by: Annotated[str | None, Query(description="Filter by creator user ID")] = None,
+    created_by: Annotated[UUID | None, Query(description="Filter by creator user ID")] = None,
     is_enabled: Annotated[bool | None, Query(description="Filter by enabled status")] = None,
     labels: Annotated[str | None, Query(description="Filter by labels (JSON string)")] = None,
-    limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of results")] = 50,
+    limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of results")] = 20,
     offset: Annotated[int, Query(ge=0, description="Number of results to skip")] = 0,
 ) -> WorkflowListResponse:
     """List workflows with optional filtering and pagination.
 
     Args:
-        created_by: Filter by creator
+        created_by: Filter by creator (FastAPI validates UUID format)
         is_enabled: Filter by enabled status
         labels: Filter by labels (JSON)
-        limit: Maximum results
+        limit: Maximum results (default 20, max 100)
         offset: Pagination offset
         db: Database session
 
@@ -187,12 +187,7 @@ async def list_workflows(
     query = select(Workflow).filter(Workflow.deleted_at.is_(None))
 
     if created_by:
-        # Try to parse as UUID, skip filter if invalid
-        try:
-            created_by_uuid = UUID(created_by)
-            query = query.filter(Workflow.created_by == created_by_uuid)
-        except ValueError:
-            pass  # Invalid UUID, skip filter
+        query = query.filter(Workflow.created_by == created_by)
 
     if is_enabled is not None:
         query = query.filter(Workflow.is_enabled == is_enabled)
