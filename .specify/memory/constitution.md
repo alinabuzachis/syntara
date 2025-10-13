@@ -22,6 +22,8 @@ boundaries and well-defined interfaces. No component shall have hidden dependenc
 or undocumented side effects. This ensures maintainability, testability, and the
 ability to evolve individual components without cascading changes.
 
+Every top-level component should be in its own sub-folder of `/src/`; e.g. `/src/nexus_api`, `/src/nexus_agents`, `/src/nexus_tool_registry`.
+
 ### II. Test-Driven Development
 
 All new features and bug fixes MUST follow test-driven development practices. Tests
