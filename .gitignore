@@ -51,6 +51,7 @@ pytest-results.xml
 .hypothesis/
 .pytest_cache/
 cover/
+pytest-results*
 
 # Translations
 *.mo

@@ -69,6 +69,19 @@ make db-run
 make db-clean
 ```
 
+**Database Configuration**:
+The application uses these environment variables (with defaults):
+- `NEXUS_DB_USER` (default: `admin`)
+- `NEXUS_DB_PASSWORD` (default: `admin`)
+- `NEXUS_DB_HOST` (default: `localhost`)
+- `NEXUS_DB_PORT` (default: `5432`)
+- `NEXUS_DB_NAME` (default: `nexus_api`)
+
+You can override individual variables or set `DATABASE_URL` directly:
+```bash
+export DATABASE_URL="postgresql+asyncpg://user:pass@host:port/dbname"
+```
+
 **Troubleshooting**:
 - **Port conflict**: Copy `.env.example` to `.env` and change `NEXUS_DB_PORT` to another value (e.g., 5433)
 - **Container won't start**: Check the logs in the terminal where `make db-run` is running
@@ -95,6 +108,13 @@ tests/
 ```
 
 ### Running Tests
+
+**Prerequisites**: PostgreSQL must be running (use `make db-run` in a separate terminal)
+
+Tests use a PostgreSQL test database. Configure with the `TEST_DATABASE_URL` environment variable if needed:
+```bash
+export TEST_DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/nexus_test"
+```
 
 ```bash
 # Run all tests

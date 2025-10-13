@@ -187,7 +187,6 @@ erDiagram
         integer version
         string schema_version
         text yaml_definition
-        json schedule_config
         uuid created_by FK
         timestamp created_at
         text change_description
@@ -286,8 +285,8 @@ stateDiagram-v2
 
 - **Language/Version**: Python 3.12+
 - **Primary Dependencies**: Temporal Python SDK, FastAPI, SQLAlchemy, Pydantic, PyYAML, (Redis/Valkey)
-- **Storage**: PostgreSQL for workflow metadata, Temporal server for workflow execution state
-- **Testing**: pytest, pytest-asyncio, testcontainers for integration tests
+- **Storage**: PostgreSQL 17 for workflow metadata (REQUIRED - no SQLite), Temporal server for workflow execution state
+- **Testing**: pytest, pytest-asyncio, PostgreSQL test database (no SQLite - tests must use real PostgreSQL)
 - **Target Platform**: Linux server (containerized deployment with Temporal cluster)
 - **Project Type**: web (API backend with potential future frontend)
 - **Performance Goals**: Support 1000 concurrent automation jobs, <5 minute report generation
@@ -444,10 +443,28 @@ tests/
 **Ticket 1: Workflow Management (Models + API)** - 13 points
 - User, Workflow, WorkflowVersion models with soft delete
 - Complete REST API for workflow CRUD operations
+- **Automatic versioning**: PATCH with yaml_definition auto-creates new WorkflowVersion
+- GET /workflows/{id} returns workflow with current active version data
+- WorkflowVersion entities are read-only (managed automatically by system)
 - Version history tracking and basic YAML validation
 - Database migrations with Alembic (setup as subpackage at `/src/nexus_api/alembic/`)
 - OpenAPI contract specification and contract tests
-- 80%+ test coverage, <200ms API response time
+- 80%+ test coverage (unit tests + integration tests), <200ms API response time
+- Alembic migrations must run automatically on `make dev`
+- **Code Architecture**: Follow DRY principle and proper encapsulation
+  - No code duplication across modules
+  - Shared utilities in dedicated modules (e.g., auth dependencies, validators)
+  - Clear separation of concerns between API, models, services, and utilities
+
+**Versioning Design Decision**:
+- WorkflowVersion entities are **read-only** and managed automatically
+- PATCH /workflows/{id} with `yaml_definition` field automatically creates new version **only if the YAML content has changed**
+  - Compare incoming yaml_definition with current version's yaml_definition (exact match required)
+  - Skip version creation if YAML is exactly identical (no-op optimization)
+  - Create new version when YAML differs from current version (including whitespace differences)
+- PATCH /workflows/{id} with only metadata (name, description, labels, is_enabled) does NOT create version
+- GET /workflows/{id} always returns the current active version specified by `current_version` field
+- Explicit version endpoints (/workflows/{id}/versions) are for read-only access to version history
 
 **Ticket 2: YAML Workflow Execution Engine - Bash Script Activities** - 8 points
 - YAML parser converting workflows to Temporal workflows

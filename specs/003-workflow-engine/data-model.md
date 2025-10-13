@@ -1,5 +1,8 @@
 # Data Model: Workflow Engine
 
+**Database**: PostgreSQL 17 (REQUIRED - SQLite is not supported)
+**Note**: This data model uses PostgreSQL-specific features including JSONB type and GIN indexes. All development and testing must use PostgreSQL.
+
 ## Core Entities
 
 ### Workflow
@@ -48,8 +51,7 @@ Maintains complete version history of workflow definitions, enabling rollback an
 - `workflow_id`: UUID (Foreign Key to Workflow) - **Required**
 - `version`: Integer - **Auto-incremented** (Version number, auto-incremented per workflow starting from 1)
 - `schema_version`: String - **Required** (Schema version from YAML `schemaVersion` field, e.g., "1.0.0", "1.1.0", "2.0.0")
-- `yaml_definition`: Text - **Required** (YAML workflow definition from Nexus)
-- `schedule_config`: JSON - **Optional** (defaults to null, scheduling configuration for this version)
+- `yaml_definition`: Text - **Required** (YAML workflow definition from Nexus, includes scheduling config)
 - `created_by`: UUID (Foreign Key to User) - **Required** (Set from authenticated user context)
 - `created_at`: Timestamp - **Auto-generated** (Set on creation)
 - `change_description`: Text - **Optional** (defaults to null, description of changes in this version)
@@ -67,7 +69,6 @@ Maintains complete version history of workflow definitions, enabling rollback an
 - `schema_version` must match semver format (e.g., "1.0.0") and be supported by the workflow engine
 - `schema_version` must match the `schemaVersion` field in the `yaml_definition`
 - `version` must be unique within a workflow and auto-increment
-- `schedule_config` must contain valid cron expression if present
 - `version` must be immutable once created
 - `deleted_by` must be set when `deleted_at` is set
 - Cannot soft delete a version that is currently in use by running executions

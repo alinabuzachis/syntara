@@ -88,9 +88,12 @@ test-all-parallel: check-deps ## Run tests in parallel
 # Development workflow
 # ========================================================
 .PHONY: dev
-dev: check-deps ## Run the hello world application
-	@echo "🚀 Running hello world application..."
-	uv run python src/api/main.py
+dev: check-deps ## Run development server with auto-reload
+	@echo "🔄 Running database migrations..."
+	@uv run alembic upgrade head
+	@echo "✅ Migrations complete"
+	@echo "🚀 Starting development server..."
+	uv run python -m nexus_api.main
 
 
 # Database

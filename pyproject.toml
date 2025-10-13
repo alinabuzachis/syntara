@@ -23,6 +23,12 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "asyncpg>=0.29.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0.0",
+    "alembic>=1.12.0",
+    "python-multipart>=0.0.6",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +40,7 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.6.0",
     "httpx>=0.25.0",  # for testing FastAPI
+    "types-pyyaml>=6.0.12",  # type stubs for PyYAML
     "yamllint>=1.35.1",
     "yamlfmt>=1.1.1",
     "ruamel.yaml>=0.17.40",
@@ -70,11 +77,15 @@ ignore = [
     "D203",  # one-blank-line-before-class (conflicts with D211)
     "D213",  # multi-line-summary-second-line (conflicts with D212)
     "COM812",  # missing-trailing-comma (conflicts with formatter)
+    "PLR0913",  # Allow more than 5 arguments in FastAPI
+    "TRY300",  # Standard exception handling pattern
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]
-"tests/**/*.py" = ["S101"]  # Allow assert statements in tests
+"__init__.py" = ["F401", "D104"]
+"tests/**/*.py" = ["S101", "PLR2004", "TD002", "TD003", "FIX002", "ARG001"]  # Allow assert, magic values, TODO formatting, and unused fixtures
+"src/nexus_api/alembic/**/*.py" = ["INP001", "D400", "D415"]  # Alembic files
+"src/nexus_api/main.py" = ["S104"]  # Binding to all interfaces for development
 
 
 # MyPy configuration
