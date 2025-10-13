@@ -1,0 +1,987 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://syntara-orchestration.io/schemas/workflow-definition/v1.0.0",
+  "title": "Workflow Definition Schema",
+  "description": "JSON Schema for workflow YAML definitions in the Nexus Workflow Engine",
+  "type": "object",
+  "required": ["schemaVersion", "version", "metadata", "workflow"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Schema version that this workflow definition conforms to (semver format)",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "examples": ["1.0.0", "1.1.0", "2.0.0"]
+    },
+    "version": {
+      "type": "integer",
+      "description": "Workflow definition version number (increments with each change)",
+      "minimum": 1,
+      "examples": [1, 2, 3]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Workflow metadata and configuration",
+      "required": ["name", "description"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique name for the workflow",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the workflow purpose",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "tags": {
+          "type": "array",
+          "description": "Tags for categorization and search",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "uniqueItems": true
+        },
+        "owner": {
+          "type": "string",
+          "description": "User or team responsible for the workflow",
+          "minLength": 1
+        },
+        "timeout": {
+          "type": "string",
+          "description": "Maximum workflow execution time (ISO 8601 duration) - applies to entire workflow",
+          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
+          "examples": ["PT1H", "P1D", "PT30M"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "triggers": {
+      "type": "array",
+      "description": "Workflow trigger configuration - manual, scheduled, or event-driven",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/definitions/manualTrigger"
+          },
+          {
+            "$ref": "#/definitions/scheduledTrigger"
+          },
+          {
+            "$ref": "#/definitions/eventTrigger"
+          }
+        ]
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "description": "Input parameter definitions for the workflow",
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "$ref": "#/definitions/parameter"
+        }
+      },
+      "additionalProperties": false
+    },
+    "variables": {
+      "type": "object",
+      "description": "Workflow-level variables that can be referenced throughout the workflow",
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "description": "Variable value (can be string, number, boolean, object, array, or null)",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "number" },
+            { "type": "boolean" },
+            { "type": "null" },
+            { "type": "object" },
+            { "type": "array" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "secrets": {
+      "type": "object",
+      "description": "Secret references for credentials and sensitive data (values stored securely, not in workflow definition)",
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "type": "object",
+          "required": ["secretId"],
+          "properties": {
+            "secretId": {
+              "type": "string",
+              "description": "Reference to secret stored in secret manager",
+              "minLength": 1
+            },
+            "type": {
+              "type": "string",
+              "enum": ["api_key", "bearer_token", "basic_auth", "oauth2", "custom"],
+              "description": "Type of secret for validation",
+              "default": "custom"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "description": "The workflow execution definition",
+      "required": ["activities"],
+      "properties": {
+        "activities": {
+          "type": "array",
+          "description": "List of activities to execute in the workflow",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/activity"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "manualTrigger": {
+      "type": "object",
+      "description": "Manual trigger - user initiates workflow execution",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "manual"
+        },
+        "requiresApproval": {
+          "type": "boolean",
+          "description": "Whether manual execution requires approval",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "scheduledTrigger": {
+      "type": "object",
+      "description": "Scheduled trigger - time-based or continuous execution",
+      "required": ["type", "schedule"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "scheduled"
+        },
+        "schedule": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Cron-based scheduling",
+              "required": ["cron"],
+              "properties": {
+                "cron": {
+                  "type": "string",
+                  "description": "Cron expression for scheduling (standard 5-field format or special strings)",
+                  "pattern": "^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\\d+(ns|us|µs|ms|s|m|h))+)|(((\\d+|\\*|\\*/\\d+|\\d+-\\d+|\\d+(,\\d+)+)\\s+){4}(\\d+|\\*|\\*/\\d+|\\d+-\\d+|\\d+(,\\d+)+))$",
+                  "examples": ["0 0 * * *", "@daily", "*/5 * * * *", "0 */6 * * *"]
+                },
+                "timezone": {
+                  "type": "string",
+                  "description": "IANA timezone for cron execution",
+                  "default": "UTC",
+                  "examples": ["America/New_York", "UTC", "Europe/London"]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Interval-based scheduling",
+              "required": ["interval"],
+              "properties": {
+                "interval": {
+                  "type": "string",
+                  "description": "Execution interval (ISO 8601 duration)",
+                  "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
+                  "examples": ["PT15M", "PT1H", "P1D"]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Continuous execution",
+              "required": ["continuous"],
+              "properties": {
+                "continuous": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Run workflow continuously (restart on completion)"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "startTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start time for scheduled execution (ISO 8601)"
+        },
+        "endTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "End time for scheduled execution (ISO 8601)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "eventTrigger": {
+      "type": "object",
+      "description": "Event-driven trigger - external events initiate workflow",
+      "required": ["type", "event"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "event"
+        },
+        "event": {
+          "type": "object",
+          "required": ["source", "eventType"],
+          "properties": {
+            "source": {
+              "type": "string",
+              "description": "Event source identifier (e.g., webhook, message queue, external system)",
+              "minLength": 1,
+              "examples": ["webhook", "kafka", "rabbitmq", "sqs"]
+            },
+            "eventType": {
+              "type": "string",
+              "description": "Type of event to trigger on",
+              "minLength": 1,
+              "examples": ["order.created", "user.registered", "payment.completed"]
+            },
+            "filter": {
+              "type": "object",
+              "description": "Filter conditions for event matching (JSONPath or similar)",
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "parameter": {
+      "type": "object",
+      "description": "Parameter definition with type and validation",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "integer", "boolean", "object", "array"],
+          "description": "Parameter data type"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable parameter description"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the parameter is required"
+        },
+        "default": {
+          "description": "Default value if not provided"
+        },
+        "enum": {
+          "type": "array",
+          "description": "Allowed values for the parameter",
+          "minItems": 1
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Regex pattern for string validation"
+        },
+        "minimum": {
+          "type": "number",
+          "description": "Minimum value for numeric parameters"
+        },
+        "maximum": {
+          "type": "number",
+          "description": "Maximum value for numeric parameters"
+        }
+      },
+      "additionalProperties": false
+    },
+    "activity": {
+      "type": "object",
+      "description": "A single activity/task in the workflow",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the activity within the workflow",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for the activity",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "description": "Activity type: task, parallel, sequence, condition, loop, join",
+          "enum": ["task", "parallel", "sequence", "condition", "loop", "join"]
+        },
+        "condition": {
+          "type": "string",
+          "description": "Conditional expression (only for condition type or conditional execution)",
+          "minLength": 1,
+          "examples": ["${output.status == 'success'}", "${input.amount > 1000}"]
+        },
+        "requiresApproval": {
+          "type": "boolean",
+          "description": "Whether this activity requires human approval before execution",
+          "default": false
+        },
+        "approval": {
+          "$ref": "#/definitions/approvalDefinition",
+          "description": "Human approval configuration (required if requiresApproval is true)"
+        },
+        "retryPolicy": {
+          "$ref": "#/definitions/retryPolicy"
+        },
+        "timeout": {
+          "type": "string",
+          "description": "Activity timeout (ISO 8601 duration)",
+          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$"
+        },
+        "outputs": {
+          "type": "object",
+          "description": "Output schema definition for this activity",
+          "patternProperties": {
+            "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["string", "number", "integer", "boolean", "object", "array"],
+                  "description": "Expected output type"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Description of this output"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "task"
+              }
+            }
+          },
+          "then": {
+            "required": ["task"],
+            "properties": {
+              "task": {
+                "$ref": "#/definitions/taskDefinition"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "parallel"
+              }
+            }
+          },
+          "then": {
+            "required": ["branches"],
+            "properties": {
+              "branches": {
+                "type": "array",
+                "description": "Activities to execute in parallel",
+                "minItems": 2,
+                "items": {
+                  "$ref": "#/definitions/activity"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "sequence"
+              }
+            }
+          },
+          "then": {
+            "required": ["steps"],
+            "properties": {
+              "steps": {
+                "type": "array",
+                "description": "Activities to execute sequentially",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/definitions/activity"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "condition"
+              }
+            }
+          },
+          "then": {
+            "required": ["condition", "then"],
+            "properties": {
+              "then": {
+                "type": "array",
+                "description": "Activities to execute if condition is true",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/definitions/activity"
+                }
+              },
+              "else": {
+                "type": "array",
+                "description": "Activities to execute if condition is false",
+                "items": {
+                  "$ref": "#/definitions/activity"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "loop"
+              }
+            }
+          },
+          "then": {
+            "required": ["loop"],
+            "properties": {
+              "loop": {
+                "$ref": "#/definitions/loopDefinition"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "join"
+              }
+            }
+          },
+          "then": {
+            "required": ["join"],
+            "properties": {
+              "join": {
+                "$ref": "#/definitions/joinDefinition"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "taskDefinition": {
+      "type": "object",
+      "description": "Definition for an executable task",
+      "required": ["executor"],
+      "properties": {
+        "executor": {
+          "type": "string",
+          "description": "Task executor type",
+          "enum": ["agentic", "script", "api", "connector"],
+          "examples": ["agentic", "script", "api", "connector"]
+        },
+        "config": {
+          "type": "object",
+          "description": "Executor-specific configuration",
+          "additionalProperties": true
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Input mapping for the task (can reference workflow inputs or previous outputs)",
+          "additionalProperties": true
+        },
+        "outputs": {
+          "type": "object",
+          "description": "Output mapping from the task",
+          "patternProperties": {
+            "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+              "type": "string",
+              "description": "JSONPath or expression to extract output value"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "executor": {
+                "const": "agentic"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "type": "object",
+                "required": ["agent"],
+                "properties": {
+                  "agent": {
+                    "type": "string",
+                    "description": "Agent identifier or MCP server endpoint",
+                    "minLength": 1
+                  },
+                  "tools": {
+                    "type": "array",
+                    "description": "List of tools available to the agent",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "description": "Natural language prompt for the agent"
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "LLM model to use",
+                    "examples": ["gpt-4", "claude-3-opus", "gemini-pro"]
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "executor": {
+                "const": "script"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "type": "object",
+                "required": ["language", "code"],
+                "properties": {
+                  "language": {
+                    "type": "string",
+                    "enum": ["python", "javascript", "bash", "powershell"],
+                    "description": "Script language"
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "Script code to execute",
+                    "minLength": 1
+                  },
+                  "environment": {
+                    "type": "object",
+                    "description": "Environment variables for script execution",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "executor": {
+                "const": "api"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "type": "object",
+                "required": ["method", "url"],
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+                    "description": "HTTP method"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "API endpoint URL"
+                  },
+                  "headers": {
+                    "type": "object",
+                    "description": "HTTP headers",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "queryParams": {
+                    "type": "object",
+                    "description": "URL query parameters",
+                    "additionalProperties": true
+                  },
+                  "body": {
+                    "description": "Request body (can use template expressions)"
+                  },
+                  "authentication": {
+                    "type": "object",
+                    "description": "Authentication configuration",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": ["basic", "bearer", "apiKey", "oauth2"],
+                        "description": "Authentication type"
+                      },
+                      "credentials": {
+                        "type": "string",
+                        "description": "Reference to stored credentials",
+                        "pattern": "^\\$\\{secrets\\.[a-zA-Z0-9_]+\\}$"
+                      }
+                    },
+                    "required": ["type"],
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "executor": {
+                "const": "connector"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "type": "object",
+                "required": ["connectorId", "operation"],
+                "properties": {
+                  "connectorId": {
+                    "type": "string",
+                    "description": "Registered connector identifier",
+                    "minLength": 1
+                  },
+                  "operation": {
+                    "type": "string",
+                    "description": "Operation to execute on the connector",
+                    "minLength": 1
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "description": "Connector operation parameters",
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "loopDefinition": {
+      "type": "object",
+      "description": "Loop configuration for iterating over items or conditions",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["forEach", "while", "count"],
+          "description": "Loop type"
+        },
+        "do": {
+          "type": "array",
+          "description": "Activities to execute in each iteration",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/activity"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "forEach"
+              }
+            }
+          },
+          "then": {
+            "required": ["items", "do"],
+            "properties": {
+              "items": {
+                "type": "string",
+                "description": "Expression referencing array to iterate over",
+                "examples": ["${input.users}", "${output.results}"]
+              },
+              "itemVariable": {
+                "type": "string",
+                "description": "Variable name for current item",
+                "default": "item",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+              },
+              "indexVariable": {
+                "type": "string",
+                "description": "Variable name for current index",
+                "default": "index",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "while"
+              }
+            }
+          },
+          "then": {
+            "required": ["condition", "do"],
+            "properties": {
+              "condition": {
+                "type": "string",
+                "description": "Condition expression to evaluate before each iteration",
+                "minLength": 1,
+                "examples": ["${counter < 10}", "${!completed}"]
+              },
+              "maxIterations": {
+                "type": "integer",
+                "description": "Maximum number of iterations to prevent infinite loops",
+                "minimum": 1,
+                "maximum": 10000,
+                "default": 1000
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "count"
+              }
+            }
+          },
+          "then": {
+            "required": ["count", "do"],
+            "properties": {
+              "count": {
+                "type": "integer",
+                "description": "Number of iterations to execute",
+                "minimum": 1,
+                "maximum": 10000
+              },
+              "indexVariable": {
+                "type": "string",
+                "description": "Variable name for iteration counter",
+                "default": "index",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "approvalDefinition": {
+      "type": "object",
+      "description": "Human approval configuration",
+      "required": ["approvers", "prompt"],
+      "properties": {
+        "approvers": {
+          "type": "array",
+          "description": "List of users or roles who can approve",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Approval prompt/question to display",
+          "minLength": 1
+        },
+        "timeout": {
+          "type": "string",
+          "description": "Time to wait for approval (ISO 8601 duration)",
+          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
+          "examples": ["PT1H", "P1D"]
+        },
+        "onTimeout": {
+          "type": "string",
+          "enum": ["approve", "reject", "fail"],
+          "description": "Action to take if approval times out",
+          "default": "fail"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional context to display to approvers",
+          "additionalProperties": true
+        },
+        "outputs": {
+          "type": "object",
+          "description": "Output values from approval (e.g., approved, rejected, approver, timestamp)",
+          "properties": {
+            "approved": {
+              "type": "boolean",
+              "description": "Whether the approval was granted"
+            },
+            "approver": {
+              "type": "string",
+              "description": "User who approved or rejected"
+            },
+            "timestamp": {
+              "type": "string",
+              "description": "When approval/rejection occurred"
+            },
+            "comments": {
+              "type": "string",
+              "description": "Optional comments from approver"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "retryPolicy": {
+      "type": "object",
+      "description": "Retry configuration for failed activities",
+      "properties": {
+        "maxAttempts": {
+          "type": "integer",
+          "description": "Maximum number of retry attempts",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 3
+        },
+        "backoff": {
+          "type": "string",
+          "enum": ["fixed", "exponential", "linear"],
+          "description": "Backoff strategy between retries",
+          "default": "exponential"
+        },
+        "initialInterval": {
+          "type": "string",
+          "description": "Initial retry interval (ISO 8601 duration)",
+          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
+          "default": "PT1S",
+          "examples": ["PT1S", "PT5S", "PT10S"]
+        },
+        "maxInterval": {
+          "type": "string",
+          "description": "Maximum retry interval (ISO 8601 duration)",
+          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
+          "examples": ["PT1M", "PT5M"]
+        },
+        "multiplier": {
+          "type": "number",
+          "description": "Backoff multiplier for exponential strategy",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 2
+        },
+        "retryableErrors": {
+          "type": "array",
+          "description": "List of error types or codes that should trigger retry",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["TIMEOUT", "NETWORK_ERROR", "RATE_LIMIT"]]
+        }
+      },
+      "additionalProperties": false
+    },
+    "joinDefinition": {
+      "type": "object",
+      "description": "Join pattern configuration - waits for specific activities to complete before proceeding",
+      "required": ["branches"],
+      "properties": {
+        "branches": {
+          "type": "array",
+          "description": "List of activity IDs to wait for",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["all", "any", "majority", "count"],
+          "description": "Join strategy: 'all' waits for all specified branches, 'any' waits for first completion, 'majority' waits for >50%, 'count' waits for specific number",
+          "default": "all"
+        },
+        "count": {
+          "type": "integer",
+          "description": "Required number of completed branches (only for 'count' strategy)",
+          "minimum": 1
+        },
+        "timeout": {
+          "type": "string",
+          "description": "Maximum time to wait for join condition (ISO 8601 duration)",
+          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
+          "examples": ["PT5M", "PT30M", "PT1H"]
+        },
+        "onTimeout": {
+          "type": "string",
+          "enum": ["continue", "fail"],
+          "description": "Action to take if timeout is reached before join condition is met",
+          "default": "fail"
+        },
+        "aggregateOutputs": {
+          "type": "boolean",
+          "description": "Whether to aggregate outputs from completed branches into an object keyed by activity ID",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

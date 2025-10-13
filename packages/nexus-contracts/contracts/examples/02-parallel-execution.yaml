@@ -1,0 +1,176 @@
+# Example 2: Parallel Execution Workflow
+# Demonstrates: Parallel execution, multiple data sources, scheduled trigger
+
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: parallel-data-aggregation
+  description: Fetch data from multiple sources in parallel and aggregate results
+  tags:
+  - aggregation
+  - parallel
+  - example
+  owner: analytics-team
+  timeout: PT2H
+
+triggers:
+- type: scheduled
+  schedule:
+    cron: 0 */6 * * *      # Every 6 hours
+    timezone: America/New_York
+  startTime: '2025-10-01T00:00:00Z'
+
+inputs:
+  includeArchived:
+    type: boolean
+    description: Whether to include archived data
+    default: false
+
+workflow:
+  activities:
+  - id: fetch_from_sources
+    name: Fetch from Multiple Sources in Parallel
+    type: parallel
+    branches:
+    - id: fetch_database
+      name: Fetch from Database
+      type: task
+      task:
+        executor: connector
+        config:
+          connectorId: postgres-db
+          operation: query
+          parameters:
+            query: SELECT * FROM records WHERE archived = $1
+            params:
+            - ${input.includeArchived}
+        outputs:
+          dbRecords: $.rows
+      timeout: PT5M
+      retryPolicy:
+        maxAttempts: 3
+        backoff: exponential
+        initialInterval: PT2S
+
+    - id: fetch_api_a
+      name: Fetch from API A
+      type: task
+      task:
+        executor: api
+        config:
+          method: GET
+          url: https://api-a.example.com/data
+          headers:
+            Accept: application/json
+          authentication:
+            type: apiKey
+            credentials: ${secrets.api_a_key}
+        outputs:
+          apiARecords: $.data
+      timeout: PT5M
+      retryPolicy:
+        maxAttempts: 3
+        backoff: exponential
+        initialInterval: PT2S
+
+    - id: fetch_api_b
+      name: Fetch from API B
+      type: task
+      task:
+        executor: api
+        config:
+          method: GET
+          url: https://api-b.example.com/records
+          headers:
+            Accept: application/json
+          authentication:
+            type: bearer
+            credentials: ${secrets.api_b_token}
+        outputs:
+          apiBRecords: $.records
+      timeout: PT5M
+      retryPolicy:
+        maxAttempts: 3
+        backoff: exponential
+        initialInterval: PT2S
+
+    - id: fetch_s3
+      name: Fetch from S3
+      type: task
+      task:
+        executor: connector
+        config:
+          connectorId: aws-s3
+          operation: getObject
+          parameters:
+            bucket: data-lake
+            key: exports/latest.json
+        outputs:
+          s3Records: $.content
+      timeout: PT10M
+      retryPolicy:
+        maxAttempts: 2
+        backoff: linear
+        initialInterval: PT5S
+
+  - id: aggregate_results
+    name: Aggregate All Results
+    type: task
+    task:
+      executor: script
+      config:
+        language: python
+        code: |
+          import json
+          from datetime import datetime
+
+          db_data = json.loads(db_records)
+          api_a_data = json.loads(api_a_records)
+          api_b_data = json.loads(api_b_records)
+          s3_data = json.loads(s3_records)
+
+          all_records = db_data + api_a_data + api_b_data + s3_data
+
+          output = {
+            'total_count': len(all_records),
+            'aggregated_data': all_records,
+            'timestamp': datetime.utcnow().isoformat(),
+            'sources': {
+              'database': len(db_data),
+              'api_a': len(api_a_data),
+              'api_b': len(api_b_data),
+              's3': len(s3_data)
+            }
+          }
+          print(json.dumps(output))
+      inputs:
+        db_records: ${fetch_database.output.dbRecords}
+        api_a_records: ${fetch_api_a.output.apiARecords}
+        api_b_records: ${fetch_api_b.output.apiBRecords}
+        s3_records: ${fetch_s3.output.s3Records}
+      outputs:
+        totalCount: $.total_count
+        aggregatedData: $.aggregated_data
+        timestamp: $.timestamp
+    timeout: PT10M
+
+  - id: store_results
+    name: Store Aggregated Results
+    type: task
+    task:
+      executor: connector
+      config:
+        connectorId: postgres-db
+        operation: bulkInsert
+        parameters:
+          table: aggregated_records
+          data: ${aggregate_results.output.aggregatedData}
+      outputs:
+        insertedCount: $.rows_affected
+    timeout: PT15M
+    retryPolicy:
+      maxAttempts: 5
+      backoff: exponential
+      initialInterval: PT10S
+      maxInterval: PT2M

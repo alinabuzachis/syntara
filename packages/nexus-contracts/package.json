@@ -1,0 +1,34 @@
+{
+  "name": "nexus-contracts",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/nexus-contracts.umd.js",
+  "module": "./dist/nexus-contracts.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/nexus-ui-framework.es.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/nexus-ui-framework.umd.js"
+      }
+    },
+    "./style.css": "./dist/nexus-ui-framework.css"
+  },
+  "scripts": {
+    "clean": "rm -rf dist node_modules",
+    "start": "vite build --watch",
+    "build": "vite build",
+    "gen": "concurrently npm:gen:* -c auto",
+    "gen:tools": "npx openapi-typescript ./contracts/tools.yaml --output ./src/tools.ts",
+    "gen:tool-providers": "npx openapi-typescript ./contracts/tool-providers.yaml --output ./src/tool-providers.ts",
+    "gen:workflow": "npx openapi-typescript ./contracts/workflow-api.yaml --output ./src/workflow-api.ts"
+  }
+}
