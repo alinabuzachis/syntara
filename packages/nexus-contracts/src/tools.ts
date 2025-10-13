@@ -4,352 +4,352 @@
  */
 
 export interface paths {
-    "/tools": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List all tools
-         * @description Retrieve list of tools from all Tool Providers with filtering
-         */
-        get: {
-            parameters: {
-                query?: {
-                    /** @description Generic field filtering with operators. Syntax: field[operator]=value
-                     *
-                     *     Supported operators:
-                     *     - eq: equals
-                     *     - ne: not equals
-                     *     - in: in array (comma-separated values)
-                     *     - contains: string contains
-                     *     - startswith: string starts with
-                     *     - endswith: string ends with
-                     *     - gt: greater than
-                     *     - gte: greater than or equal
-                     *     - lt: less than
-                     *     - lte: less than or equal
-                     *     - between: between two values (comma-separated)
-                     *
-                     *     Examples:
-                     *     - ?status[eq]=available
-                     *     - ?name[contains]=search
-                     *     - ?enabled[eq]=true
-                     *     - ?execution_count[gte]=10
-                     *     - ?created_at[between]=2025-01-01,2025-12-31
-                     *      */
-                    "field[operator]"?: {
-                        [key: string]: string;
-                    };
-                    /** @description Maximum number of tools to return */
-                    limit?: number;
-                    /** @description Cursor for keyset pagination (tool ID to start after) */
-                    cursor?: string;
-                    /** @description Include total count in response (may impact performance) */
-                    include_total?: boolean;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description List of tools */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            tools: components["schemas"]["Tool"][];
-                            /** @description Maximum number of items requested */
-                            limit: number;
-                            /**
-                             * Format: uuid
-                             * @description Cursor for the next page (null if no more pages)
-                             */
-                            next_cursor?: string | null;
-                            /** @description Whether there are more items available */
-                            has_more: boolean;
-                            /** @description Total count (only included if include_total=true) */
-                            total?: number;
-                        };
-                    };
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/tools/{tool_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get tool details
-         * @description Retrieve detailed information about specific tool
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tool_id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Tool details */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ToolDetail"];
-                    };
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Tool not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update tool configuration
-         * @description Update tool enablement status and configuration
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tool_id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ToolUpdate"];
-                };
-            };
-            responses: {
-                /** @description Tool updated successfully */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Tool"];
-                    };
-                };
-                /** @description Invalid tool configuration */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Tool not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        trace?: never;
-    };
-    "/tools/bulk-update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Bulk update tool enablement
-         * @description Enable or disable multiple tools at once
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        tool_ids: string[];
-                        enabled: boolean;
-                    };
-                };
-            };
-            responses: {
-                /** @description Tools updated successfully */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            updated_count?: number;
-                            skipped_count?: number;
-                            /** Format: date-time */
-                            updated_at?: string;
-                        };
-                    };
-                };
-                /** @description Invalid request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        trace?: never;
-    };
+  '/tools': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List all tools
+     * @description Retrieve list of tools from all Tool Providers with filtering
+     */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Generic field filtering with operators. Syntax: field[operator]=value
+           *
+           *     Supported operators:
+           *     - eq: equals
+           *     - ne: not equals
+           *     - in: in array (comma-separated values)
+           *     - contains: string contains
+           *     - startswith: string starts with
+           *     - endswith: string ends with
+           *     - gt: greater than
+           *     - gte: greater than or equal
+           *     - lt: less than
+           *     - lte: less than or equal
+           *     - between: between two values (comma-separated)
+           *
+           *     Examples:
+           *     - ?status[eq]=available
+           *     - ?name[contains]=search
+           *     - ?enabled[eq]=true
+           *     - ?execution_count[gte]=10
+           *     - ?created_at[between]=2025-01-01,2025-12-31
+           *      */
+          'field[operator]'?: {
+            [key: string]: string
+          }
+          /** @description Maximum number of tools to return */
+          limit?: number
+          /** @description Cursor for keyset pagination (tool ID to start after) */
+          cursor?: string
+          /** @description Include total count in response (may impact performance) */
+          include_total?: boolean
+        }
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description List of tools */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': {
+              tools: components['schemas']['Tool'][]
+              /** @description Maximum number of items requested */
+              limit: number
+              /**
+               * Format: uuid
+               * @description Cursor for the next page (null if no more pages)
+               */
+              next_cursor?: string | null
+              /** @description Whether there are more items available */
+              has_more: boolean
+              /** @description Total count (only included if include_total=true) */
+              total?: number
+            }
+          }
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/tools/{tool_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get tool details
+     * @description Retrieve detailed information about specific tool
+     */
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          tool_id: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Tool details */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ToolDetail']
+          }
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Tool not found */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Update tool configuration
+     * @description Update tool enablement status and configuration
+     */
+    patch: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          tool_id: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ToolUpdate']
+        }
+      }
+      responses: {
+        /** @description Tool updated successfully */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Tool']
+          }
+        }
+        /** @description Invalid tool configuration */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Tool not found */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    trace?: never
+  }
+  '/tools/bulk-update': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Bulk update tool enablement
+     * @description Enable or disable multiple tools at once
+     */
+    patch: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': {
+            tool_ids: string[]
+            enabled: boolean
+          }
+        }
+      }
+      responses: {
+        /** @description Tools updated successfully */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': {
+              updated_count?: number
+              skipped_count?: number
+              /** Format: date-time */
+              updated_at?: string
+            }
+          }
+        }
+        /** @description Invalid request */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    trace?: never
+  }
 }
-export type webhooks = Record<string, never>;
+export type webhooks = Record<string, never>
 export interface components {
-    schemas: {
-        Tool: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            provider_id: string;
-            name: string;
-            namespaced_name: string;
-            description: string;
-            enabled: boolean;
-            /** @enum {string} */
-            status: "available" | "missing" | "error";
-            execution_count: number;
-            /** Format: date-time */
-            last_executed_at?: string;
-            /** Format: date-time */
-            last_refreshed_at?: string;
-            refresh_error?: string;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: uuid */
-            created_by: string;
-            /** Format: date-time */
-            updated_at?: string | null;
-            /** Format: uuid */
-            updated_by?: string | null;
-            /** Format: date-time */
-            deleted_at?: string | null;
-            /** Format: uuid */
-            deleted_by?: string | null;
-        };
-        ToolDetail: components["schemas"]["Tool"] & {
-            parameters?: components["schemas"]["ToolParameter"][];
-            schema?: Record<string, never>;
-            recent_metrics?: {
-                last_24h_executions?: number;
-                /** Format: float */
-                last_24h_success_rate?: number;
-                avg_duration_ms?: number;
-            };
-        };
-        ToolParameter: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            /** @enum {string} */
-            type: "string" | "number" | "boolean" | "object" | "array";
-            description: string;
-            required: boolean;
-            default_value?: Record<string, never>;
-            example_value?: Record<string, never>;
-        };
-        ToolUpdate: {
-            enabled: boolean;
-        };
-        Error: {
-            error: string;
-            message: string;
-            details?: Record<string, never>;
-        };
-    };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+  schemas: {
+    Tool: {
+      /** Format: uuid */
+      id: string
+      /** Format: uuid */
+      provider_id: string
+      name: string
+      namespaced_name: string
+      description: string
+      enabled: boolean
+      /** @enum {string} */
+      status: 'available' | 'missing' | 'error'
+      execution_count: number
+      /** Format: date-time */
+      last_executed_at?: string
+      /** Format: date-time */
+      last_refreshed_at?: string
+      refresh_error?: string
+      /** Format: date-time */
+      created_at: string
+      /** Format: uuid */
+      created_by: string
+      /** Format: date-time */
+      updated_at?: string | null
+      /** Format: uuid */
+      updated_by?: string | null
+      /** Format: date-time */
+      deleted_at?: string | null
+      /** Format: uuid */
+      deleted_by?: string | null
+    }
+    ToolDetail: components['schemas']['Tool'] & {
+      parameters?: components['schemas']['ToolParameter'][]
+      schema?: Record<string, never>
+      recent_metrics?: {
+        last_24h_executions?: number
+        /** Format: float */
+        last_24h_success_rate?: number
+        avg_duration_ms?: number
+      }
+    }
+    ToolParameter: {
+      /** Format: uuid */
+      id: string
+      name: string
+      /** @enum {string} */
+      type: 'string' | 'number' | 'boolean' | 'object' | 'array'
+      description: string
+      required: boolean
+      default_value?: Record<string, never>
+      example_value?: Record<string, never>
+    }
+    ToolUpdate: {
+      enabled: boolean
+    }
+    Error: {
+      error: string
+      message: string
+      details?: Record<string, never>
+    }
+  }
+  responses: never
+  parameters: never
+  requestBodies: never
+  headers: never
+  pathItems: never
 }
-export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export type $defs = Record<string, never>
+export type operations = Record<string, never>

@@ -29,7 +29,6 @@ body {
 }
 
 @layer utilities {
-
   .details > dt {
     @apply mb-0.5 text-white/60;
   }

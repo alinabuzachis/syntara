@@ -5,7 +5,9 @@ This directory contains example workflow definitions that demonstrate the capabi
 ## Examples Overview
 
 ### 1. Simple Sequential Workflow (`01-simple-sequential.yaml`)
+
 **Demonstrates:**
+
 - Sequential task execution with dependencies
 - Manual trigger
 - Basic task types (API calls, scripts, connectors)
@@ -17,7 +19,9 @@ This directory contains example workflow definitions that demonstrate the capabi
 ---
 
 ### 2. Parallel Execution Workflow (`02-parallel-execution.yaml`)
+
 **Demonstrates:**
+
 - Parallel execution of independent tasks
 - Scheduled trigger (cron-based)
 - Multiple data sources aggregation
@@ -29,7 +33,9 @@ This directory contains example workflow definitions that demonstrate the capabi
 ---
 
 ### 3. Conditional Branching Workflow (`03-conditional-branching.yaml`)
+
 **Demonstrates:**
+
 - Conditional logic based on runtime values
 - Event-driven trigger (webhook)
 - Human approval workflow with timeout handling
@@ -41,7 +47,9 @@ This directory contains example workflow definitions that demonstrate the capabi
 ---
 
 ### 4. Looping Workflow (`04-looping.yaml`)
+
 **Demonstrates:**
+
 - `forEach` loop for iterating over collections
 - `while` loop for retry logic
 - Nested loops and conditions
@@ -53,7 +61,9 @@ This directory contains example workflow definitions that demonstrate the capabi
 ---
 
 ### 5. Agentic Workflow (`05-agentic-workflow.yaml`)
+
 **Demonstrates:**
+
 - AI/agentic task execution
 - MCP server integration
 - Multiple AI models (Claude, GPT-4)
@@ -66,7 +76,9 @@ This directory contains example workflow definitions that demonstrate the capabi
 ---
 
 ### 6. Error Handling and Join Patterns (`06-error-handling-joins.yaml`)
+
 **Demonstrates:**
+
 - Error handling via conditional branching
 - Join patterns (waiting for multiple parallel branches)
 - Workflow-level variables
@@ -78,6 +90,7 @@ This directory contains example workflow definitions that demonstrate the capabi
 **Use Case:** Multi-source data sync with comprehensive error handling, fallback mechanisms, and join patterns for coordinating parallel fetches.
 
 **Key Features:**
+
 - **Variables**: Workflow-level configuration values (`maxRetries`, `batchSize`, `syncTimeout`)
 - **Secrets**: Secure credential references for databases, APIs, and cloud storage
 - **Join Pattern**: Waits for all parallel source fetches (`fetch_database`, `fetch_api`, `fetch_s3`) with timeout handling
@@ -93,41 +106,41 @@ This directory contains example workflow definitions that demonstrate the capabi
 
 ## Schema Features Demonstrated
 
-| Feature | Example(s) |
-|---------|------------|
-| **Triggers** | |
-| - Manual | 1, 6 |
-| - Scheduled (cron) | 2, 5 |
-| - Scheduled (interval) | 4 |
-| - Event-driven | 3 |
-| **Execution Patterns** | |
-| - Sequential | 1, 3, 4, 5, 6 |
-| - Parallel | 2, 5, 6 |
-| - Conditional | 3, 5, 6 |
-| - Loops (forEach) | 4 |
-| - Loops (while) | 4 |
-| - Join | 6 |
-| **Activity Types** | |
-| - Task (API) | 1, 2, 3, 5, 6 |
-| - Task (Script) | 1, 2, 4, 6 |
-| - Task (Connector) | 1, 2, 4, 5, 6 |
-| - Task (Agentic) | 5 |
-| - Human Approval | 3, 5 |
-| **Resilience** | |
-| - Timeouts | All |
-| - Retry policies | All |
-| - Exponential backoff | 1, 2, 5, 6 |
-| - Fixed backoff | 1, 6 |
-| - Linear backoff | 2, 6 |
-| - Error handling via conditions | 6 |
-| - Fallback strategies | 6 |
-| **Data Flow** | |
-| - Input parameters | All |
-| - Output mapping | All |
-| - Expression syntax | 3, 4, 5, 6 |
-| - Secret references | 1, 3, 5, 6 |
-| - Workflow variables | 6 |
-| - Join output aggregation | 6 |
+| Feature                         | Example(s)    |
+| ------------------------------- | ------------- |
+| **Triggers**                    |               |
+| - Manual                        | 1, 6          |
+| - Scheduled (cron)              | 2, 5          |
+| - Scheduled (interval)          | 4             |
+| - Event-driven                  | 3             |
+| **Execution Patterns**          |               |
+| - Sequential                    | 1, 3, 4, 5, 6 |
+| - Parallel                      | 2, 5, 6       |
+| - Conditional                   | 3, 5, 6       |
+| - Loops (forEach)               | 4             |
+| - Loops (while)                 | 4             |
+| - Join                          | 6             |
+| **Activity Types**              |               |
+| - Task (API)                    | 1, 2, 3, 5, 6 |
+| - Task (Script)                 | 1, 2, 4, 6    |
+| - Task (Connector)              | 1, 2, 4, 5, 6 |
+| - Task (Agentic)                | 5             |
+| - Human Approval                | 3, 5          |
+| **Resilience**                  |               |
+| - Timeouts                      | All           |
+| - Retry policies                | All           |
+| - Exponential backoff           | 1, 2, 5, 6    |
+| - Fixed backoff                 | 1, 6          |
+| - Linear backoff                | 2, 6          |
+| - Error handling via conditions | 6             |
+| - Fallback strategies           | 6             |
+| **Data Flow**                   |               |
+| - Input parameters              | All           |
+| - Output mapping                | All           |
+| - Expression syntax             | 3, 4, 5, 6    |
+| - Secret references             | 1, 3, 5, 6    |
+| - Workflow variables            | 6             |
+| - Join output aggregation       | 6             |
 
 ---
 
@@ -169,6 +182,7 @@ The examples use a template expression syntax for dynamic values:
 - `${variables.variableName}` - Reference workflow-level variables
 
 Conditional expressions support standard operators:
+
 - Comparison: `>`, `<`, `>=`, `<=`, `==`, `!=`
 - Logical: `&&`, `||`, `!`
 - Examples: `${input.amount > 1000}`, `${status == 'success' && count > 0}`

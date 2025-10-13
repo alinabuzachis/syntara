@@ -5,8 +5,8 @@ info:
   version: 1.0.0
 
 servers:
-- url: http://localhost:8000/api/v1
-  description: Development server
+  - url: http://localhost:8000/api/v1
+    description: Development server
 
 paths:
   /tool-providers:
@@ -14,56 +14,56 @@ paths:
       summary: List all registered Tool Providers
       description: Retrieve list of all Tool Providers with optional filtering
       parameters:
-      - name: field[operator]
-        in: query
-        description: |
-          Generic field filtering with operators. Syntax: field[operator]=value
+        - name: field[operator]
+          in: query
+          description: |
+            Generic field filtering with operators. Syntax: field[operator]=value
 
-          Supported operators:
-          - eq: equals
-          - ne: not equals
-          - in: in array (comma-separated values)
-          - contains: string contains
-          - startswith: string starts with
-          - endswith: string ends with
-          - gt: greater than
-          - gte: greater than or equal
-          - lt: less than
-          - lte: less than or equal
-          - between: between two values (comma-separated)
+            Supported operators:
+            - eq: equals
+            - ne: not equals
+            - in: in array (comma-separated values)
+            - contains: string contains
+            - startswith: string starts with
+            - endswith: string ends with
+            - gt: greater than
+            - gte: greater than or equal
+            - lt: less than
+            - lte: less than or equal
+            - between: between two values (comma-separated)
 
-          Examples:
-          - ?status[eq]=available
-          - ?name[contains]=widget
-          - ?created_at[lte]=2025-10-03
-          - ?status[in]=available,validating
-          - ?created_at[between]=2025-01-01,2025-12-31
-        schema:
-          type: object
-          additionalProperties:
+            Examples:
+            - ?status[eq]=available
+            - ?name[contains]=widget
+            - ?created_at[lte]=2025-10-03
+            - ?status[in]=available,validating
+            - ?created_at[between]=2025-01-01,2025-12-31
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+          style: deepObject
+          explode: true
+        - name: limit
+          in: query
+          description: Maximum number of providers to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          description: Cursor for keyset pagination (provider ID to start after)
+          schema:
             type: string
-        style: deepObject
-        explode: true
-      - name: limit
-        in: query
-        description: Maximum number of providers to return
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: cursor
-        in: query
-        description: Cursor for keyset pagination (provider ID to start after)
-        schema:
-          type: string
-          format: uuid
-      - name: include_total
-        in: query
-        description: Include total count in response (may impact performance)
-        schema:
-          type: boolean
-          default: false
+            format: uuid
+        - name: include_total
+          in: query
+          description: Include total count in response (may impact performance)
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: List of Tool Providers
@@ -91,9 +91,9 @@ paths:
                     type: integer
                     description: Total count (only included if include_total=true)
                 required:
-                - providers
-                - limit
-                - has_more
+                  - providers
+                  - limit
+                  - has_more
         '403':
           description: Admin access required
           content:
@@ -141,12 +141,12 @@ paths:
       summary: Get Tool Provider details
       description: Retrieve detailed information about specific Tool Provider
       parameters:
-      - name: provider_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Provider details
@@ -171,12 +171,12 @@ paths:
       summary: Update Tool Provider configuration
       description: Update configuration of existing Tool Provider
       parameters:
-      - name: provider_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -214,12 +214,12 @@ paths:
       description: Partially update configuration of existing Tool Provider using
         JSON Merge Patch (RFC 7396)
       parameters:
-      - name: provider_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -256,12 +256,12 @@ paths:
       summary: Remove Tool Provider
       description: Remove Tool Provider and all associated tools
       parameters:
-      - name: provider_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '204':
           description: Provider removed successfully
@@ -283,12 +283,12 @@ paths:
       summary: Validate Tool Provider connection
       description: Test connection and validate Tool Provider compatibility
       parameters:
-      - name: provider_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Provider validation successful
@@ -343,12 +343,12 @@ paths:
       summary: Refresh tools from Tool Provider
       description: Connect to Tool Provider and refresh available tools
       parameters:
-      - name: provider_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Tool refresh completed
@@ -440,14 +440,14 @@ components:
         tool_count:
           type: integer
       required:
-      - id
-      - name
-      - provider_type
-      - configuration
-      - enabled
-      - status
-      - created_at
-      - created_by
+        - id
+        - name
+        - provider_type
+        - configuration
+        - enabled
+        - status
+        - created_at
+        - created_by
 
     ToolProviderCreate:
       type: object
@@ -465,9 +465,9 @@ components:
           description: Provider-specific configuration
           additionalProperties: true
       required:
-      - name
-      - provider_type
-      - configuration
+        - name
+        - provider_type
+        - configuration
 
     ToolProviderUpdate:
       type: object
@@ -485,7 +485,7 @@ components:
               type: string
               description: Type of Tool Provider (e.g., mcp, python, rest_api, etc.)
           required:
-          - provider_type
+            - provider_type
           additionalProperties: true
         enabled:
           type: boolean
@@ -524,5 +524,5 @@ components:
         details:
           type: object
       required:
-      - error
-      - message
+        - error
+        - message

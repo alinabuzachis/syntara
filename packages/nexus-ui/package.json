@@ -7,7 +7,10 @@
     "clean": "rm -rf dist node_modules",
     "start": "vite --open",
     "build": "vite build",
-    "test": "concurrently npm:eslint npm:tsc",
+    "test": "concurrently npm:eslint npm:tsc npm:vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "vitest": "vitest run",
     "tsc": "tsc --noEmit",
     "eslint": "eslint ."
   },
@@ -30,16 +33,22 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.1",
     "@vitejs/plugin-react": "^5.0.4",
+    "@vitest/ui": "^3.2.4",
     "babel-plugin-react-compiler": "^19.1.0-rc.3",
     "eslint": "^9.37.0",
     "eslint-plugin-react-hooks": "^7.0.0",
     "eslint-plugin-react-refresh": "^0.4.23",
     "globals": "^16.4.0",
+    "jsdom": "^27.0.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.0",
-    "vite": "^7.1.9"
+    "vite": "^7.1.9",
+    "vitest": "^3.2.4"
   }
 }

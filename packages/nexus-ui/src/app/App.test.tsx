@@ -1,0 +1,15 @@
+import { render } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import App from './App'
+
+describe('App', () => {
+  it('renders without crashing', () => {
+    render(<App />)
+    expect(document.body).toBeInTheDocument()
+  })
+
+  it('renders AppLogin component', () => {
+    const { container } = render(<App />)
+    expect(container.firstChild).toBeTruthy()
+  })
+})

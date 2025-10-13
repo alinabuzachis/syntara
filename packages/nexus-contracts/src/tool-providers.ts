@@ -4,602 +4,602 @@
  */
 
 export interface paths {
-    "/tool-providers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List all registered Tool Providers
-         * @description Retrieve list of all Tool Providers with optional filtering
-         */
-        get: {
-            parameters: {
-                query?: {
-                    /** @description Generic field filtering with operators. Syntax: field[operator]=value
-                     *
-                     *     Supported operators:
-                     *     - eq: equals
-                     *     - ne: not equals
-                     *     - in: in array (comma-separated values)
-                     *     - contains: string contains
-                     *     - startswith: string starts with
-                     *     - endswith: string ends with
-                     *     - gt: greater than
-                     *     - gte: greater than or equal
-                     *     - lt: less than
-                     *     - lte: less than or equal
-                     *     - between: between two values (comma-separated)
-                     *
-                     *     Examples:
-                     *     - ?status[eq]=available
-                     *     - ?name[contains]=widget
-                     *     - ?created_at[lte]=2025-10-03
-                     *     - ?status[in]=available,validating
-                     *     - ?created_at[between]=2025-01-01,2025-12-31
-                     *      */
-                    "field[operator]"?: {
-                        [key: string]: string;
-                    };
-                    /** @description Maximum number of providers to return */
-                    limit?: number;
-                    /** @description Cursor for keyset pagination (provider ID to start after) */
-                    cursor?: string;
-                    /** @description Include total count in response (may impact performance) */
-                    include_total?: boolean;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description List of Tool Providers */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            providers: components["schemas"]["ToolProvider"][];
-                            /** @description Maximum number of items requested */
-                            limit: number;
-                            /**
-                             * Format: uuid
-                             * @description Cursor for the next page (null if no more pages)
-                             */
-                            next_cursor?: string | null;
-                            /** @description Whether there are more items available */
-                            has_more: boolean;
-                            /** @description Total count (only included if include_total=true) */
-                            total?: number;
-                        };
-                    };
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        /**
-         * Register new Tool Provider
-         * @description Register a new external Tool Provider
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ToolProviderCreate"];
-                };
-            };
-            responses: {
-                /** @description Provider registered successfully */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ToolProvider"];
-                    };
-                };
-                /** @description Invalid provider configuration */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Provider name already exists */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/tool-providers/{provider_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Tool Provider details
-         * @description Retrieve detailed information about specific Tool Provider
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    provider_id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Provider details */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ToolProvider"];
-                    };
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Provider not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        /**
-         * Update Tool Provider configuration
-         * @description Update configuration of existing Tool Provider
-         */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    provider_id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ToolProviderUpdate"];
-                };
-            };
-            responses: {
-                /** @description Provider updated successfully */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ToolProvider"];
-                    };
-                };
-                /** @description Invalid provider configuration */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Provider not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        /**
-         * Remove Tool Provider
-         * @description Remove Tool Provider and all associated tools
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    provider_id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Provider removed successfully */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Provider not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        /**
-         * Partially update Tool Provider configuration
-         * @description Partially update configuration of existing Tool Provider using JSON Merge Patch (RFC 7396)
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    provider_id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/merge-patch+json": components["schemas"]["ToolProviderPatch"];
-                };
-            };
-            responses: {
-                /** @description Provider updated successfully */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ToolProvider"];
-                    };
-                };
-                /** @description Invalid provider configuration */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Provider not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        trace?: never;
-    };
-    "/tool-providers/{provider_id}/validate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Validate Tool Provider connection
-         * @description Test connection and validate Tool Provider compatibility
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    provider_id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Provider validation successful */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            valid?: boolean;
-                            provider_type?: string;
-                            protocol_version?: string;
-                            capabilities?: string[];
-                            /** Format: date-time */
-                            validated_at?: string;
-                        };
-                    };
-                };
-                /** @description Provider validation failed */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @example false */
-                            valid?: boolean;
-                            error?: string;
-                            /** Format: date-time */
-                            validated_at?: string;
-                        };
-                    };
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Provider not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/tool-providers/{provider_id}/refresh-tools": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Refresh tools from Tool Provider
-         * @description Connect to Tool Provider and refresh available tools
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    provider_id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Tool refresh completed */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            refreshed_count?: number;
-                            updated_count?: number;
-                            disabled_count?: number;
-                            /** Format: date-time */
-                            refreshed_at?: string;
-                        };
-                    };
-                };
-                /** @description Tool refresh failed */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Admin access required */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Provider not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+  '/tool-providers': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List all registered Tool Providers
+     * @description Retrieve list of all Tool Providers with optional filtering
+     */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Generic field filtering with operators. Syntax: field[operator]=value
+           *
+           *     Supported operators:
+           *     - eq: equals
+           *     - ne: not equals
+           *     - in: in array (comma-separated values)
+           *     - contains: string contains
+           *     - startswith: string starts with
+           *     - endswith: string ends with
+           *     - gt: greater than
+           *     - gte: greater than or equal
+           *     - lt: less than
+           *     - lte: less than or equal
+           *     - between: between two values (comma-separated)
+           *
+           *     Examples:
+           *     - ?status[eq]=available
+           *     - ?name[contains]=widget
+           *     - ?created_at[lte]=2025-10-03
+           *     - ?status[in]=available,validating
+           *     - ?created_at[between]=2025-01-01,2025-12-31
+           *      */
+          'field[operator]'?: {
+            [key: string]: string
+          }
+          /** @description Maximum number of providers to return */
+          limit?: number
+          /** @description Cursor for keyset pagination (provider ID to start after) */
+          cursor?: string
+          /** @description Include total count in response (may impact performance) */
+          include_total?: boolean
+        }
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description List of Tool Providers */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': {
+              providers: components['schemas']['ToolProvider'][]
+              /** @description Maximum number of items requested */
+              limit: number
+              /**
+               * Format: uuid
+               * @description Cursor for the next page (null if no more pages)
+               */
+              next_cursor?: string | null
+              /** @description Whether there are more items available */
+              has_more: boolean
+              /** @description Total count (only included if include_total=true) */
+              total?: number
+            }
+          }
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    put?: never
+    /**
+     * Register new Tool Provider
+     * @description Register a new external Tool Provider
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ToolProviderCreate']
+        }
+      }
+      responses: {
+        /** @description Provider registered successfully */
+        201: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ToolProvider']
+          }
+        }
+        /** @description Invalid provider configuration */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Provider name already exists */
+        409: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/tool-providers/{provider_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Tool Provider details
+     * @description Retrieve detailed information about specific Tool Provider
+     */
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          provider_id: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Provider details */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ToolProvider']
+          }
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Provider not found */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    /**
+     * Update Tool Provider configuration
+     * @description Update configuration of existing Tool Provider
+     */
+    put: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          provider_id: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ToolProviderUpdate']
+        }
+      }
+      responses: {
+        /** @description Provider updated successfully */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ToolProvider']
+          }
+        }
+        /** @description Invalid provider configuration */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Provider not found */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    post?: never
+    /**
+     * Remove Tool Provider
+     * @description Remove Tool Provider and all associated tools
+     */
+    delete: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          provider_id: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Provider removed successfully */
+        204: {
+          headers: {
+            [name: string]: unknown
+          }
+          content?: never
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Provider not found */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    options?: never
+    head?: never
+    /**
+     * Partially update Tool Provider configuration
+     * @description Partially update configuration of existing Tool Provider using JSON Merge Patch (RFC 7396)
+     */
+    patch: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          provider_id: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          'application/merge-patch+json': components['schemas']['ToolProviderPatch']
+        }
+      }
+      responses: {
+        /** @description Provider updated successfully */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['ToolProvider']
+          }
+        }
+        /** @description Invalid provider configuration */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Provider not found */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    trace?: never
+  }
+  '/tool-providers/{provider_id}/validate': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Validate Tool Provider connection
+     * @description Test connection and validate Tool Provider compatibility
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          provider_id: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Provider validation successful */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': {
+              valid?: boolean
+              provider_type?: string
+              protocol_version?: string
+              capabilities?: string[]
+              /** Format: date-time */
+              validated_at?: string
+            }
+          }
+        }
+        /** @description Provider validation failed */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': {
+              /** @example false */
+              valid?: boolean
+              error?: string
+              /** Format: date-time */
+              validated_at?: string
+            }
+          }
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Provider not found */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/tool-providers/{provider_id}/refresh-tools': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Refresh tools from Tool Provider
+     * @description Connect to Tool Provider and refresh available tools
+     */
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          provider_id: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Tool refresh completed */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': {
+              refreshed_count?: number
+              updated_count?: number
+              disabled_count?: number
+              /** Format: date-time */
+              refreshed_at?: string
+            }
+          }
+        }
+        /** @description Tool refresh failed */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Admin access required */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+        /** @description Provider not found */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
-export type webhooks = Record<string, never>;
+export type webhooks = Record<string, never>
 export interface components {
-    schemas: {
-        ToolProvider: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            description?: string;
-            /** @description Type of Tool Provider (e.g., mcp, python, rest_api, etc.) */
-            provider_type: string;
-            /** @description Provider-specific configuration */
-            configuration: {
-                [key: string]: unknown;
-            };
-            enabled: boolean;
-            /** @enum {string} */
-            status: "available" | "error" | "validating";
-            /** Format: date-time */
-            last_validated_at?: string;
-            validation_error?: string;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: uuid */
-            created_by: string;
-            /** Format: date-time */
-            updated_at?: string | null;
-            /** Format: uuid */
-            updated_by?: string | null;
-            /** Format: date-time */
-            deleted_at?: string | null;
-            /** Format: uuid */
-            deleted_by?: string | null;
-            tool_count?: number;
-        };
-        ToolProviderCreate: {
-            name: string;
-            description?: string;
-            /** @description Type of Tool Provider (e.g., mcp, python, rest_api, etc.) */
-            provider_type: string;
-            /** @description Provider-specific configuration */
-            configuration: {
-                [key: string]: unknown;
-            };
-        };
-        ToolProviderUpdate: {
-            name?: string;
-            description?: string;
-            /** @description Provider-specific configuration including provider_type */
-            configuration?: {
-                /** @description Type of Tool Provider (e.g., mcp, python, rest_api, etc.) */
-                provider_type: string;
-            } & {
-                [key: string]: unknown;
-            };
-            enabled?: boolean;
-            /** @enum {string} */
-            status?: "available" | "error";
-        };
-        /** @description JSON Merge Patch for partial updates (RFC 7396). Only provided fields will be updated. */
-        ToolProviderPatch: {
-            name?: string;
-            description?: string;
-            /** @description Provider-specific configuration (will be merged with existing configuration) */
-            configuration?: {
-                [key: string]: unknown;
-            };
-            enabled?: boolean;
-            /** @enum {string} */
-            status?: "available" | "error";
-        };
-        Error: {
-            error: string;
-            message: string;
-            details?: Record<string, never>;
-        };
-    };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+  schemas: {
+    ToolProvider: {
+      /** Format: uuid */
+      id: string
+      name: string
+      description?: string
+      /** @description Type of Tool Provider (e.g., mcp, python, rest_api, etc.) */
+      provider_type: string
+      /** @description Provider-specific configuration */
+      configuration: {
+        [key: string]: unknown
+      }
+      enabled: boolean
+      /** @enum {string} */
+      status: 'available' | 'error' | 'validating'
+      /** Format: date-time */
+      last_validated_at?: string
+      validation_error?: string
+      /** Format: date-time */
+      created_at: string
+      /** Format: uuid */
+      created_by: string
+      /** Format: date-time */
+      updated_at?: string | null
+      /** Format: uuid */
+      updated_by?: string | null
+      /** Format: date-time */
+      deleted_at?: string | null
+      /** Format: uuid */
+      deleted_by?: string | null
+      tool_count?: number
+    }
+    ToolProviderCreate: {
+      name: string
+      description?: string
+      /** @description Type of Tool Provider (e.g., mcp, python, rest_api, etc.) */
+      provider_type: string
+      /** @description Provider-specific configuration */
+      configuration: {
+        [key: string]: unknown
+      }
+    }
+    ToolProviderUpdate: {
+      name?: string
+      description?: string
+      /** @description Provider-specific configuration including provider_type */
+      configuration?: {
+        /** @description Type of Tool Provider (e.g., mcp, python, rest_api, etc.) */
+        provider_type: string
+      } & {
+        [key: string]: unknown
+      }
+      enabled?: boolean
+      /** @enum {string} */
+      status?: 'available' | 'error'
+    }
+    /** @description JSON Merge Patch for partial updates (RFC 7396). Only provided fields will be updated. */
+    ToolProviderPatch: {
+      name?: string
+      description?: string
+      /** @description Provider-specific configuration (will be merged with existing configuration) */
+      configuration?: {
+        [key: string]: unknown
+      }
+      enabled?: boolean
+      /** @enum {string} */
+      status?: 'available' | 'error'
+    }
+    Error: {
+      error: string
+      message: string
+      details?: Record<string, never>
+    }
+  }
+  responses: never
+  parameters: never
+  requestBodies: never
+  headers: never
+  pathItems: never
 }
-export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export type $defs = Record<string, never>
+export type operations = Record<string, never>

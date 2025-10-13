@@ -5,8 +5,8 @@ info:
   version: 1.0.0
 
 servers:
-- url: http://localhost:8000/api/v1
-  description: Development server
+  - url: http://localhost:8000/api/v1
+    description: Development server
 
 paths:
   /metrics/tools:
@@ -14,55 +14,55 @@ paths:
       summary: Get tool usage metrics
       description: Retrieve usage statistics for tools and providers
       parameters:
-      - name: field[operator]
-        in: query
-        description: |
-          Generic field filtering with operators. Syntax: field[operator]=value
+        - name: field[operator]
+          in: query
+          description: |
+            Generic field filtering with operators. Syntax: field[operator]=value
 
-          Supported operators:
-          - eq: equals
-          - ne: not equals
-          - in: in array (comma-separated values)
-          - contains: string contains
-          - startswith: string starts with
-          - endswith: string ends with
-          - gt: greater than
-          - gte: greater than or equal
-          - lt: less than
-          - lte: less than or equal
-          - between: between two values (comma-separated)
+            Supported operators:
+            - eq: equals
+            - ne: not equals
+            - in: in array (comma-separated values)
+            - contains: string contains
+            - startswith: string starts with
+            - endswith: string ends with
+            - gt: greater than
+            - gte: greater than or equal
+            - lt: less than
+            - lte: less than or equal
+            - between: between two values (comma-separated)
 
-          Examples:
-          - ?time_window[eq]=day
-          - ?start_date[gte]=2025-01-01
-          - ?provider_id[in]=uuid1,uuid2,uuid3
-          - ?user_id[contains]=agent
-        schema:
-          type: object
-          additionalProperties:
+            Examples:
+            - ?time_window[eq]=day
+            - ?start_date[gte]=2025-01-01
+            - ?provider_id[in]=uuid1,uuid2,uuid3
+            - ?user_id[contains]=agent
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+          style: deepObject
+          explode: true
+        - name: limit
+          in: query
+          description: Maximum number of metric records to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          description: Cursor for keyset pagination (metric ID to start after)
+          schema:
             type: string
-        style: deepObject
-        explode: true
-      - name: limit
-        in: query
-        description: Maximum number of metric records to return
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: cursor
-        in: query
-        description: Cursor for keyset pagination (metric ID to start after)
-        schema:
-          type: string
-          format: uuid
-      - name: include_total
-        in: query
-        description: Include total count in response (may impact performance)
-        schema:
-          type: boolean
-          default: false
+            format: uuid
+        - name: include_total
+          in: query
+          description: Include total count in response (may impact performance)
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Tool usage metrics
@@ -100,10 +100,10 @@ paths:
                     type: integer
                     description: Total count (only included if include_total=true)
                 required:
-                - metrics
-                - summary
-                - limit
-                - has_more
+                  - metrics
+                  - summary
+                  - limit
+                  - has_more
         '403':
           description: Admin access required
           content:
@@ -116,55 +116,55 @@ paths:
       summary: Get detailed execution logs
       description: Retrieve detailed execution logs for troubleshooting
       parameters:
-      - name: field[operator]
-        in: query
-        description: |
-          Generic field filtering with operators. Syntax: field[operator]=value
+        - name: field[operator]
+          in: query
+          description: |
+            Generic field filtering with operators. Syntax: field[operator]=value
 
-          Supported operators:
-          - eq: equals
-          - ne: not equals
-          - in: in array (comma-separated values)
-          - contains: string contains
-          - startswith: string starts with
-          - endswith: string ends with
-          - gt: greater than
-          - gte: greater than or equal
-          - lt: less than
-          - lte: less than or equal
-          - between: between two values (comma-separated)
+            Supported operators:
+            - eq: equals
+            - ne: not equals
+            - in: in array (comma-separated values)
+            - contains: string contains
+            - startswith: string starts with
+            - endswith: string ends with
+            - gt: greater than
+            - gte: greater than or equal
+            - lt: less than
+            - lte: less than or equal
+            - between: between two values (comma-separated)
 
-          Examples:
-          - ?status[eq]=success
-          - ?execution_start[gte]=2025-01-01T00:00:00Z
-          - ?duration_ms[between]=100,5000
-          - ?user_id[contains]=agent
-        schema:
-          type: object
-          additionalProperties:
+            Examples:
+            - ?status[eq]=success
+            - ?execution_start[gte]=2025-01-01T00:00:00Z
+            - ?duration_ms[between]=100,5000
+            - ?user_id[contains]=agent
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+          style: deepObject
+          explode: true
+        - name: limit
+          in: query
+          description: Maximum number of executions to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          description: Cursor for keyset pagination (execution ID to start after)
+          schema:
             type: string
-        style: deepObject
-        explode: true
-      - name: limit
-        in: query
-        description: Maximum number of executions to return
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 50
-      - name: cursor
-        in: query
-        description: Cursor for keyset pagination (execution ID to start after)
-        schema:
-          type: string
-          format: uuid
-      - name: include_total
-        in: query
-        description: Include total count in response (may impact performance)
-        schema:
-          type: boolean
-          default: false
+            format: uuid
+        - name: include_total
+          in: query
+          description: Include total count in response (may impact performance)
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Execution logs
@@ -192,9 +192,9 @@ paths:
                     type: integer
                     description: Total count (only included if include_total=true)
                 required:
-                - executions
-                - limit
-                - has_more
+                  - executions
+                  - limit
+                  - has_more
         '403':
           description: Admin access required
           content:
@@ -207,55 +207,55 @@ paths:
       summary: List rate limit configurations
       description: Retrieve all rate limit configurations
       parameters:
-      - name: field[operator]
-        in: query
-        description: |
-          Generic field filtering with operators. Syntax: field[operator]=value
+        - name: field[operator]
+          in: query
+          description: |
+            Generic field filtering with operators. Syntax: field[operator]=value
 
-          Supported operators:
-          - eq: equals
-          - ne: not equals
-          - in: in array (comma-separated values)
-          - contains: string contains
-          - startswith: string starts with
-          - endswith: string ends with
-          - gt: greater than
-          - gte: greater than or equal
-          - lt: less than
-          - lte: less than or equal
-          - between: between two values (comma-separated)
+            Supported operators:
+            - eq: equals
+            - ne: not equals
+            - in: in array (comma-separated values)
+            - contains: string contains
+            - startswith: string starts with
+            - endswith: string ends with
+            - gt: greater than
+            - gte: greater than or equal
+            - lt: less than
+            - lte: less than or equal
+            - between: between two values (comma-separated)
 
-          Examples:
-          - ?target_type[eq]=tool
-          - ?enabled[eq]=true
-          - ?requests_per_window[gte]=100
-          - ?created_at[between]=2025-01-01,2025-12-31
-        schema:
-          type: object
-          additionalProperties:
+            Examples:
+            - ?target_type[eq]=tool
+            - ?enabled[eq]=true
+            - ?requests_per_window[gte]=100
+            - ?created_at[between]=2025-01-01,2025-12-31
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+          style: deepObject
+          explode: true
+        - name: limit
+          in: query
+          description: Maximum number of rate limits to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          description: Cursor for keyset pagination (rate limit ID to start after)
+          schema:
             type: string
-        style: deepObject
-        explode: true
-      - name: limit
-        in: query
-        description: Maximum number of rate limits to return
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: cursor
-        in: query
-        description: Cursor for keyset pagination (rate limit ID to start after)
-        schema:
-          type: string
-          format: uuid
-      - name: include_total
-        in: query
-        description: Include total count in response (may impact performance)
-        schema:
-          type: boolean
-          default: false
+            format: uuid
+        - name: include_total
+          in: query
+          description: Include total count in response (may impact performance)
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Rate limit configurations
@@ -283,9 +283,9 @@ paths:
                     type: integer
                     description: Total count (only included if include_total=true)
                 required:
-                - rate_limits
-                - limit
-                - has_more
+                  - rate_limits
+                  - limit
+                  - has_more
         '403':
           description: Admin access required
           content:
@@ -327,12 +327,12 @@ paths:
       summary: Get rate limit details
       description: Retrieve specific rate limit configuration
       parameters:
-      - name: limit_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: limit_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Rate limit details
@@ -357,12 +357,12 @@ paths:
       summary: Update rate limit configuration
       description: Update existing rate limit configuration
       parameters:
-      - name: limit_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: limit_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -399,12 +399,12 @@ paths:
       summary: Delete rate limit configuration
       description: Remove rate limit configuration
       parameters:
-      - name: limit_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: limit_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '204':
           description: Rate limit deleted successfully
@@ -461,16 +461,16 @@ components:
           type: string
           format: date-time
       required:
-      - tool_id
-      - tool_name
-      - provider_name
-      - total_executions
-      - successful_executions
-      - failed_executions
-      - success_rate
-      - time_period
-      - period_start
-      - period_end
+        - tool_id
+        - tool_name
+        - provider_name
+        - total_executions
+        - successful_executions
+        - failed_executions
+        - success_rate
+        - time_period
+        - period_start
+        - period_end
 
     MetricsSummary:
       type: object
@@ -523,13 +523,13 @@ components:
         error_code:
           type: string
       required:
-      - id
-      - tool_id
-      - tool_name
-      - provider_name
-      - user_id
-      - execution_start
-      - status
+        - id
+        - tool_id
+        - tool_name
+        - provider_name
+        - user_id
+        - execution_start
+        - status
 
     RateLimit:
       type: object
@@ -583,15 +583,15 @@ components:
           format: uuid
           nullable: true
       required:
-      - id
-      - target_type
-      - target_id
-      - requests_per_window
-      - window_duration_seconds
-      - burst_allowance
-      - enabled
-      - created_at
-      - created_by
+        - id
+        - target_type
+        - target_id
+        - requests_per_window
+        - window_duration_seconds
+        - burst_allowance
+        - enabled
+        - created_at
+        - created_by
 
     RateLimitCreate:
       type: object
@@ -615,10 +615,10 @@ components:
           type: boolean
           default: true
       required:
-      - target_type
-      - target_id
-      - requests_per_window
-      - window_duration_seconds
+        - target_type
+        - target_id
+        - requests_per_window
+        - window_duration_seconds
 
     RateLimitUpdate:
       type: object
@@ -645,5 +645,5 @@ components:
         details:
           type: object
       required:
-      - error
-      - message
+        - error
+        - message

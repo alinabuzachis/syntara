@@ -8,19 +8,19 @@ metadata:
   name: ai-content-analysis-pipeline
   description: Analyze customer feedback using AI agents and generate insights
   tags:
-  - ai
-  - agentic
-  - nlp
-  - analysis
-  - example
+    - ai
+    - agentic
+    - nlp
+    - analysis
+    - example
   owner: ml-team
   timeout: PT3H
 
 triggers:
-- type: scheduled
-  schedule:
-    cron: 0 2 * * *      # Daily at 2 AM
-    timezone: UTC
+  - type: scheduled
+    schedule:
+      cron: 0 2 * * * # Daily at 2 AM
+      timezone: UTC
 
 inputs:
   analysisDate:
@@ -31,296 +31,295 @@ inputs:
     type: string
     description: Source of feedback to analyze
     enum:
-    - support-tickets
-    - customer-surveys
-    - social-media
-    - product-reviews
+      - support-tickets
+      - customer-surveys
+      - social-media
+      - product-reviews
     default: support-tickets
-
 
 workflow:
   activities:
-  - id: fetch_feedback
-    name: Fetch Customer Feedback
-    type: task
-    task:
-      executor: connector
-      config:
-        connectorId: feedback-db
-        operation: query
-        parameters:
-          query: |
-            SELECT id, content, metadata, created_at
-            FROM feedback
-            WHERE source = $1
-            AND DATE(created_at) = $2
-            ORDER BY created_at DESC
-          params:
-          - ${input.feedbackSource}
-          - ${input.analysisDate}
-      outputs:
-        feedbackItems: $.rows
-        totalCount: $.row_count
-    timeout: PT10M
-    retryPolicy:
-      maxAttempts: 3
-      backoff: exponential
-      initialInterval: PT5S
-
-  - id: sentiment_analysis
-    name: AI Sentiment Analysis
-    type: task
-    task:
-      executor: agentic
-      config:
-        agent: mcp://sentiment-analysis-server
-        tools:
-        - analyze_sentiment
-        model: claude-3-opus
-        prompt: |
-          Analyze the sentiment of the following customer feedback items.
-          For each item, provide:
-          1. Sentiment score (-1 to 1, where -1 is very negative, 0 is neutral, 1 is very positive)
-          2. Sentiment category (positive, negative, neutral, mixed)
-          3. Key emotional indicators
-
-          Feedback items:
-          ${fetch_feedback.output.feedbackItems}
-      inputs:
-        feedbackData: ${fetch_feedback.output.feedbackItems}
-      outputs:
-        sentimentResults: $.analysis_results
-        overallSentiment: $.overall_score
-        emotionalThemes: $.themes
-    timeout: PT30M
-    retryPolicy:
-      maxAttempts: 2
-      backoff: exponential
-      initialInterval: PT1M
-
-  - id: topic_extraction
-    name: AI Topic Extraction
-    type: task
-    task:
-      executor: agentic
-      config:
-        agent: mcp://nlp-analysis-server
-        tools:
-        - extract_topics
-        model: gpt-4
-        prompt: |
-          Extract main topics and themes from customer feedback.
-          Identify:
-          1. Product features mentioned
-          2. Common pain points
-          3. Feature requests
-          4. Recurring issues
-
-          Group similar topics together and rank by frequency.
-      inputs:
-        feedbackData: ${fetch_feedback.output.feedbackItems}
-      outputs:
-        extractedTopics: $.topics
-        topicFrequency: $.frequency
-        keyPainPoints: $.pain_points
-    timeout: PT30M
-    retryPolicy:
-      maxAttempts: 2
-      backoff: exponential
-      initialInterval: PT1M
-
-  - id: generate_insights
-    name: Generate AI Insights
-    type: task
-    task:
-      executor: agentic
-      config:
-        agent: mcp://insight-generation-server
-        tools:
-        - generate_insights
-        model: claude-3-opus
-        prompt: |
-          Based on the sentiment analysis and topic extraction results,
-          generate actionable business insights.
-
-          Sentiment Data:
-          ${sentiment_analysis.output.sentimentResults}
-
-          Topics Data:
-          ${topic_extraction.output.extractedTopics}
-
-          Provide:
-          1. Executive summary (2-3 paragraphs)
-          2. Top 5 actionable recommendations
-          3. Risk areas requiring immediate attention
-          4. Positive trends to amplify
-          5. Comparison with previous period if data available
-      inputs:
-        sentimentData: ${sentiment_analysis.output.sentimentResults}
-        topicsData: ${topic_extraction.output.extractedTopics}
-        emotionalThemes: ${sentiment_analysis.output.emotionalThemes}
-        painPoints: ${topic_extraction.output.keyPainPoints}
-      outputs:
-        executiveSummary: $.summary
-        recommendations: $.recommendations
-        riskAreas: $.risks
-        positiveTrends: $.positive_trends
-    timeout: PT20M
-    retryPolicy:
-      maxAttempts: 2
-      backoff: fixed
-      initialInterval: PT2M
-
-  - id: human_review
-    name: Request Human Review
-    type: condition
-    condition: ${sentiment_analysis.output.overallSentiment < -0.5 || generate_insights.output.riskAreas.length
-      > 3}
-    then:
-    - id: request_manager_review
-      name: Request Manager Review for High-Risk Insights
-      type: task
-      requiresApproval: true
-      approval:
-        approvers:
-        - product-manager
-        - customer-success-lead
-        prompt: |
-          The AI analysis has identified concerning trends in customer feedback.
-
-          Overall Sentiment: ${sentiment_analysis.output.overallSentiment}
-          Risk Areas: ${generate_insights.output.riskAreas}
-
-          Please review the insights and decide on next steps:
-          - Approve to proceed with automated report distribution
-          - Reject to trigger manual escalation process
-        timeout: PT4H
-        onTimeout: approve
-        metadata:
-          overallSentiment: ${sentiment_analysis.output.overallSentiment}
-          riskCount: ${generate_insights.output.riskAreas.length}
-          analysisDate: ${input.analysisDate}
-      task:
-        executor: script
-        config:
-          language: python
-          code: |
-            print('{"review_approved": true, "reviewer": "manager"}')
-        outputs:
-          reviewApproved: $.review_approved
-          reviewer: $.reviewer
-
-    else:
-    - id: auto_approve
-      name: Auto-Approve Standard Insights
-      type: task
-      task:
-        executor: script
-        config:
-          language: python
-          code: |
-            print('{"approved": true, "reason": "Standard insights - no concerns"}')
-        outputs:
-          approved: $.approved
-
-  - id: create_report
-    name: Create Detailed Report
-    type: task
-    task:
-      executor: api
-      config:
-        method: POST
-        url: https://reporting.example.com/api/reports
-        headers:
-          Content-Type: application/json
-        authentication:
-          type: bearer
-          credentials: ${secrets.reporting_api_token}
-        body:
-          reportType: customer-feedback-analysis
-          date: ${input.analysisDate}
-          source: ${input.feedbackSource}
-          data:
-            feedbackCount: ${fetch_feedback.output.totalCount}
-            sentimentScore: ${sentiment_analysis.output.overallSentiment}
-            topics: ${topic_extraction.output.extractedTopics}
-            insights: ${generate_insights.output.executiveSummary}
-            recommendations: ${generate_insights.output.recommendations}
-            riskAreas: ${generate_insights.output.riskAreas}
-            positiveTrends: ${generate_insights.output.positiveTrends}
-      outputs:
-        reportId: $.report_id
-        reportUrl: $.url
-    timeout: PT5M
-    retryPolicy:
-      maxAttempts: 3
-      backoff: exponential
-      initialInterval: PT5S
-
-  - id: distribute_report
-    name: Distribute Report to Stakeholders
-    type: parallel
-    branches:
-    - id: email_stakeholders
-      name: Email Report to Stakeholders
+    - id: fetch_feedback
+      name: Fetch Customer Feedback
       type: task
       task:
         executor: connector
         config:
-          connectorId: email-service
-          operation: sendEmail
+          connectorId: feedback-db
+          operation: query
           parameters:
-            to:
-            - product-team@example.com
-            - customer-success@example.com
-            - executives@example.com
-            subject: Daily Customer Feedback Analysis - ${input.analysisDate}
-            template: feedback-analysis-report
-            data:
-              reportUrl: ${create_report.output.reportUrl}
-              summary: ${generate_insights.output.executiveSummary}
-              sentimentScore: ${sentiment_analysis.output.overallSentiment}
-      timeout: PT2M
+            query: |
+              SELECT id, content, metadata, created_at
+              FROM feedback
+              WHERE source = $1
+              AND DATE(created_at) = $2
+              ORDER BY created_at DESC
+            params:
+              - ${input.feedbackSource}
+              - ${input.analysisDate}
+        outputs:
+          feedbackItems: $.rows
+          totalCount: $.row_count
+      timeout: PT10M
+      retryPolicy:
+        maxAttempts: 3
+        backoff: exponential
+        initialInterval: PT5S
 
-    - id: post_to_slack
-      name: Post Summary to Slack
+    - id: sentiment_analysis
+      name: AI Sentiment Analysis
+      type: task
+      task:
+        executor: agentic
+        config:
+          agent: mcp://sentiment-analysis-server
+          tools:
+            - analyze_sentiment
+          model: claude-3-opus
+          prompt: |
+            Analyze the sentiment of the following customer feedback items.
+            For each item, provide:
+            1. Sentiment score (-1 to 1, where -1 is very negative, 0 is neutral, 1 is very positive)
+            2. Sentiment category (positive, negative, neutral, mixed)
+            3. Key emotional indicators
+
+            Feedback items:
+            ${fetch_feedback.output.feedbackItems}
+        inputs:
+          feedbackData: ${fetch_feedback.output.feedbackItems}
+        outputs:
+          sentimentResults: $.analysis_results
+          overallSentiment: $.overall_score
+          emotionalThemes: $.themes
+      timeout: PT30M
+      retryPolicy:
+        maxAttempts: 2
+        backoff: exponential
+        initialInterval: PT1M
+
+    - id: topic_extraction
+      name: AI Topic Extraction
+      type: task
+      task:
+        executor: agentic
+        config:
+          agent: mcp://nlp-analysis-server
+          tools:
+            - extract_topics
+          model: gpt-4
+          prompt: |
+            Extract main topics and themes from customer feedback.
+            Identify:
+            1. Product features mentioned
+            2. Common pain points
+            3. Feature requests
+            4. Recurring issues
+
+            Group similar topics together and rank by frequency.
+        inputs:
+          feedbackData: ${fetch_feedback.output.feedbackItems}
+        outputs:
+          extractedTopics: $.topics
+          topicFrequency: $.frequency
+          keyPainPoints: $.pain_points
+      timeout: PT30M
+      retryPolicy:
+        maxAttempts: 2
+        backoff: exponential
+        initialInterval: PT1M
+
+    - id: generate_insights
+      name: Generate AI Insights
+      type: task
+      task:
+        executor: agentic
+        config:
+          agent: mcp://insight-generation-server
+          tools:
+            - generate_insights
+          model: claude-3-opus
+          prompt: |
+            Based on the sentiment analysis and topic extraction results,
+            generate actionable business insights.
+
+            Sentiment Data:
+            ${sentiment_analysis.output.sentimentResults}
+
+            Topics Data:
+            ${topic_extraction.output.extractedTopics}
+
+            Provide:
+            1. Executive summary (2-3 paragraphs)
+            2. Top 5 actionable recommendations
+            3. Risk areas requiring immediate attention
+            4. Positive trends to amplify
+            5. Comparison with previous period if data available
+        inputs:
+          sentimentData: ${sentiment_analysis.output.sentimentResults}
+          topicsData: ${topic_extraction.output.extractedTopics}
+          emotionalThemes: ${sentiment_analysis.output.emotionalThemes}
+          painPoints: ${topic_extraction.output.keyPainPoints}
+        outputs:
+          executiveSummary: $.summary
+          recommendations: $.recommendations
+          riskAreas: $.risks
+          positiveTrends: $.positive_trends
+      timeout: PT20M
+      retryPolicy:
+        maxAttempts: 2
+        backoff: fixed
+        initialInterval: PT2M
+
+    - id: human_review
+      name: Request Human Review
+      type: condition
+      condition: ${sentiment_analysis.output.overallSentiment < -0.5 || generate_insights.output.riskAreas.length
+        > 3}
+      then:
+        - id: request_manager_review
+          name: Request Manager Review for High-Risk Insights
+          type: task
+          requiresApproval: true
+          approval:
+            approvers:
+              - product-manager
+              - customer-success-lead
+            prompt: |
+              The AI analysis has identified concerning trends in customer feedback.
+
+              Overall Sentiment: ${sentiment_analysis.output.overallSentiment}
+              Risk Areas: ${generate_insights.output.riskAreas}
+
+              Please review the insights and decide on next steps:
+              - Approve to proceed with automated report distribution
+              - Reject to trigger manual escalation process
+            timeout: PT4H
+            onTimeout: approve
+            metadata:
+              overallSentiment: ${sentiment_analysis.output.overallSentiment}
+              riskCount: ${generate_insights.output.riskAreas.length}
+              analysisDate: ${input.analysisDate}
+          task:
+            executor: script
+            config:
+              language: python
+              code: |
+                print('{"review_approved": true, "reviewer": "manager"}')
+            outputs:
+              reviewApproved: $.review_approved
+              reviewer: $.reviewer
+
+      else:
+        - id: auto_approve
+          name: Auto-Approve Standard Insights
+          type: task
+          task:
+            executor: script
+            config:
+              language: python
+              code: |
+                print('{"approved": true, "reason": "Standard insights - no concerns"}')
+            outputs:
+              approved: $.approved
+
+    - id: create_report
+      name: Create Detailed Report
       type: task
       task:
         executor: api
         config:
           method: POST
-          url: https://slack.com/api/chat.postMessage
+          url: https://reporting.example.com/api/reports
           headers:
             Content-Type: application/json
-            Authorization: Bearer ${secrets.slack_token}
+          authentication:
+            type: bearer
+            credentials: ${secrets.reporting_api_token}
           body:
-            channel: '#customer-insights'
-            text: |
-              📊 Daily Feedback Analysis Complete
-
-              Date: ${input.analysisDate}
-              Feedback Items: ${fetch_feedback.output.totalCount}
-              Sentiment: ${sentiment_analysis.output.overallSentiment}
-
-              View full report: ${create_report.output.reportUrl}
-      timeout: PT2M
-
-    - id: update_dashboard
-      name: Update Analytics Dashboard
-      type: task
-      task:
-        executor: connector
-        config:
-          connectorId: analytics-db
-          operation: upsert
-          parameters:
-            table: daily_feedback_metrics
+            reportType: customer-feedback-analysis
+            date: ${input.analysisDate}
+            source: ${input.feedbackSource}
             data:
-              analysis_date: ${input.analysisDate}
-              source: ${input.feedbackSource}
-              feedback_count: ${fetch_feedback.output.totalCount}
-              sentiment_score: ${sentiment_analysis.output.overallSentiment}
-              report_url: ${create_report.output.reportUrl}
-              risk_count: ${generate_insights.output.riskAreas.length}
-              created_at: ${workflow.currentTime}
-      timeout: PT2M
+              feedbackCount: ${fetch_feedback.output.totalCount}
+              sentimentScore: ${sentiment_analysis.output.overallSentiment}
+              topics: ${topic_extraction.output.extractedTopics}
+              insights: ${generate_insights.output.executiveSummary}
+              recommendations: ${generate_insights.output.recommendations}
+              riskAreas: ${generate_insights.output.riskAreas}
+              positiveTrends: ${generate_insights.output.positiveTrends}
+        outputs:
+          reportId: $.report_id
+          reportUrl: $.url
+      timeout: PT5M
+      retryPolicy:
+        maxAttempts: 3
+        backoff: exponential
+        initialInterval: PT5S
+
+    - id: distribute_report
+      name: Distribute Report to Stakeholders
+      type: parallel
+      branches:
+        - id: email_stakeholders
+          name: Email Report to Stakeholders
+          type: task
+          task:
+            executor: connector
+            config:
+              connectorId: email-service
+              operation: sendEmail
+              parameters:
+                to:
+                  - product-team@example.com
+                  - customer-success@example.com
+                  - executives@example.com
+                subject: Daily Customer Feedback Analysis - ${input.analysisDate}
+                template: feedback-analysis-report
+                data:
+                  reportUrl: ${create_report.output.reportUrl}
+                  summary: ${generate_insights.output.executiveSummary}
+                  sentimentScore: ${sentiment_analysis.output.overallSentiment}
+          timeout: PT2M
+
+        - id: post_to_slack
+          name: Post Summary to Slack
+          type: task
+          task:
+            executor: api
+            config:
+              method: POST
+              url: https://slack.com/api/chat.postMessage
+              headers:
+                Content-Type: application/json
+                Authorization: Bearer ${secrets.slack_token}
+              body:
+                channel: '#customer-insights'
+                text: |
+                  📊 Daily Feedback Analysis Complete
+
+                  Date: ${input.analysisDate}
+                  Feedback Items: ${fetch_feedback.output.totalCount}
+                  Sentiment: ${sentiment_analysis.output.overallSentiment}
+
+                  View full report: ${create_report.output.reportUrl}
+          timeout: PT2M
+
+        - id: update_dashboard
+          name: Update Analytics Dashboard
+          type: task
+          task:
+            executor: connector
+            config:
+              connectorId: analytics-db
+              operation: upsert
+              parameters:
+                table: daily_feedback_metrics
+                data:
+                  analysis_date: ${input.analysisDate}
+                  source: ${input.feedbackSource}
+                  feedback_count: ${fetch_feedback.output.totalCount}
+                  sentiment_score: ${sentiment_analysis.output.overallSentiment}
+                  report_url: ${create_report.output.reportUrl}
+                  risk_count: ${generate_insights.output.riskAreas.length}
+                  created_at: ${workflow.currentTime}
+          timeout: PT2M

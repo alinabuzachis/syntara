@@ -52,7 +52,7 @@ npm run format
 npm run format:check
 
 # Test individual packages
-npm run test:nexus-ui              # ESLint + TypeScript check
+npm run test:nexus-ui              # ESLint + TypeScript check + Vitest
 npm run test:nexus-ui-framework    # ESLint + TypeScript check
 ```
 
@@ -62,7 +62,10 @@ npm run test:nexus-ui-framework    # ESLint + TypeScript check
 cd packages/nexus-ui
 npm start          # Vite dev server
 npm run build      # TypeScript check + Vite build
-npm run test       # ESLint + TypeScript check
+npm run test       # ESLint + TypeScript check + Vitest
+npm run vitest     # Run Vitest tests only
+npm run test:ui    # Run Vitest with UI
+npm run test:coverage  # Run Vitest with coverage report
 npm run eslint     # ESLint only
 npm run tsc        # TypeScript check only
 
@@ -94,6 +97,7 @@ The Containerfile creates a production build with Nginx and basic auth (demo/cof
 The nexus-ui-framework must be built before nexus-ui can run. The framework is consumed via a file dependency (`"ui-framework": "file:../ui-framework"` in nexus-ui's package.json, which is a symlink to nexus-ui-framework).
 
 When developing:
+
 1. Framework changes trigger automatic rebuild in watch mode (`npm start` or `npm run start:nexus-ui-framework`)
 2. Nexus-ui hot-reloads when framework dist changes
 3. Root `npm start` handles this orchestration automatically
@@ -108,12 +112,14 @@ When developing:
 - **Search**: Fuse.js for fuzzy search functionality
 - **React Compiler**: Enabled via babel-plugin-react-compiler for automatic memoization
 - **Styling**: TailwindCSS 4 via @tailwindcss/vite plugin
+- **Testing**: Vitest with React Testing Library, jsdom environment, and coverage support
 
 Route components live in `packages/nexus-ui/src/routes/` organized by feature area (automation-builder, configuration, documentation, welcome).
 
 ### Nexus UI Framework
 
 A library package providing:
+
 - Reusable UI components built on Base UI primitives
 - Components: Button, IconButton, Menu, Scrollable, Toolbar
 - Form components in `src/forms/`
@@ -127,5 +133,6 @@ Base UI components are peer dependencies, allowing nexus-ui to control the versi
 
 - **Frontend**: React 19, TypeScript, Wouter, TailwindCSS 4, Base UI, Vite, Lucide icons, Fuse.js, Zustand, ReactFlow/XYFlow
 - **Framework**: Base UI (headless components), TailwindCSS 4, Vite library mode
+- **Testing**: Vitest, React Testing Library, jsdom
 - **Build**: npm workspaces, Vite, TypeScript 5.9, ESLint 9, Prettier
 - **Deployment**: Podman/Docker with Nginx and basic auth
