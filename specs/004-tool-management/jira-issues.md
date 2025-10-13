@@ -1,7 +1,7 @@
 # Tool Provider Integration and Tool Management - JIRA Epic and Stories
 
 ## Jira Epic
-**Epic ID**: NEX-004
+**Epic ID**: AAP-54305
 **Epic Title**: Tool Provider Integration and Tool Management
 
 ## Overview
@@ -50,7 +50,7 @@ This approach mirrors the successful workflow engine implementation pattern, ena
 # Part 1: Core Features
 
 ## Ticket: Core Abstractions and Domain Logic
-**Jira Story ID**: NEX-004-001
+**Jira Story ID**: AAP-55729
 **Story Points**: 5
 
 ### Description
@@ -161,13 +161,13 @@ Establish the provider-agnostic architecture for tool management. This ticket de
 ---
 
 ## Ticket: Tool Provider Management (Service + API + Database)
-**Jira Story ID**: NEX-004-001B
+**Jira Story ID**: AAP-55730
 **Story Points**: 8
 
 ### Description
-Implement complete Tool Provider management including database persistence, service layer, and REST API endpoints for provider registration, configuration, validation, and tool discovery. This ticket bridges the gap between core abstractions (NEX-004-001) and tool management (NEX-004-002) by delivering the REST API layer that allows administrators to register and manage external Tool Providers through HTTP endpoints.
+Implement complete Tool Provider management including database persistence, service layer, and REST API endpoints for provider registration, configuration, validation, and tool discovery. This ticket bridges the gap between core abstractions (ticket AAP-55729) and tool management (ticket AAP-55731) by delivering the REST API layer that allows administrators to register and manage external Tool Providers through HTTP endpoints.
 
-**Note**: This ticket depends on NEX-004-001 (Core Abstractions and Domain Logic). It implements the database layer, service layer, and REST API for tool provider operations, following the OpenAPI contract defined in `tool-providers.yaml`. After this ticket, administrators can register MCP providers via REST API, validate connections, and refresh tools from providers.
+**Note**: This ticket depends on ticket AAP-55729 (Core Abstractions and Domain Logic). It implements the database layer, service layer, and REST API for tool provider operations, following the OpenAPI contract defined in `tool-providers.yaml`. After this ticket, administrators can register MCP providers via REST API, validate connections, and refresh tools from providers.
 
 ### Scope
 
@@ -303,13 +303,13 @@ Implement complete Tool Provider management including database persistence, serv
 ---
 
 ## Ticket: Tool Management & Control (Service + API)
-**Jira Story ID**: NEX-004-002
+**Jira Story ID**: AAP-55731
 **Story Points**: 6
 
 ### Description
 Implement complete tool management and testing functionality including service layer for tool operations, REST API endpoints for tool CRUD and testing. This ticket delivers end-to-end capabilities for managing discovered tools, controlling their enablement, and testing their functionality without actually invoking them.
 
-**Note**: This ticket depends on NEX-004-001B (Tool Provider Management Service + API). It adds the tool-specific business logic and API endpoints to work with tools discovered from providers. Tools are tested to validate connectivity and functionality, but not invoked for actual execution. Filtering and pagination use basic implementations; advanced utilities come in NEX-004-006.
+**Note**: This ticket depends on ticket AAP-55730 (Tool Provider Management Service + API). It adds the tool-specific business logic and API endpoints to work with tools discovered from providers. Tools are tested to validate connectivity and functionality, but not invoked for actual execution. Filtering and pagination use basic implementations; advanced utilities come in ticket AAP-55736.
 
 ### Scope
 
@@ -391,13 +391,13 @@ Implement complete tool management and testing functionality including service l
 ---
 
 ## Ticket: SSE Transport & Protocol Negotiation
-**Jira Story ID**: NEX-004-003
+**Jira Story ID**: AAP-55732
 **Story Points**: 5
 
 ### Description
 Add SSE (Server-Sent Events) transport support to the MCP provider and implement the foundation for protocol negotiation. This ticket delivers the first MCP transport implementation, enabling the system to work with MCP servers using SSE, and establishes the architecture for future transport support.
 
-**Note**: This ticket depends on NEX-004-001B (Tool Provider Management Service + API). It implements the first MCP transport protocol and establishes the transport architecture. Comprehensive integration and E2E testing validates SSE transport works correctly.
+**Note**: This ticket depends on ticket AAP-55730 (Tool Provider Management Service + API). It implements the first MCP transport protocol and establishes the transport architecture. Comprehensive integration and E2E testing validates SSE transport works correctly.
 
 ### Scope
 
@@ -461,13 +461,13 @@ Add SSE (Server-Sent Events) transport support to the MCP provider and implement
 ---
 
 ## Ticket: Streaming HTTP Transport & Protocol Negotiation
-**Jira Story ID**: NEX-004-003B
+**Jira Story ID**: AAP-55733
 **Story Points**: 5
 
 ### Description
 Add Streaming HTTP transport support to the MCP provider and implement comprehensive protocol negotiation with automatic fallback. This ticket delivers complete multi-protocol support enabling the system to work with MCP servers using either SSE or Streaming HTTP, with automatic protocol selection and fallback capabilities.
 
-**Note**: This ticket depends on NEX-004-001B (Tool Provider Management Service + API) and NEX-004-003 (SSE Transport). It extends the MCP provider to support a second transport protocol and adds full protocol negotiation. Comprehensive integration and E2E testing validates both protocols work correctly with automatic fallback.
+**Note**: This ticket depends on ticket AAP-55730 (Tool Provider Management Service + API) and ticket AAP-55732 (SSE Transport). It extends the MCP provider to support a second transport protocol and adds full protocol negotiation. Comprehensive integration and E2E testing validates both protocols work correctly with automatic fallback.
 
 ### Scope
 
@@ -542,13 +542,13 @@ Add Streaming HTTP transport support to the MCP provider and implement comprehen
 # Part 2: Observability & Control
 
 ## Ticket: Usage Metrics & Analytics (Models + API)
-**Jira Story ID**: NEX-004-004
+**Jira Story ID**: AAP-55734
 **Story Points**: 8
 
 ### Description
 Implement comprehensive usage tracking and analytics including database models for metrics, aggregation service layer, and REST API endpoints for querying usage statistics. This ticket delivers complete observability into tool testing patterns, test execution history, and performance characteristics.
 
-**Note**: This ticket depends on NEX-004-001B (Tool Provider Management Service + API) and NEX-004-002 (Tool Management & Control). It adds a parallel feature for tracking and analyzing tool test executions without modifying existing tool functionality.
+**Note**: This ticket depends on ticket AAP-55730 (Tool Provider Management Service + API) and ticket AAP-55731 (Tool Management & Control). It adds a parallel feature for tracking and analyzing tool test executions without modifying existing tool functionality.
 
 ### Scope
 
@@ -639,13 +639,13 @@ Implement comprehensive usage tracking and analytics including database models f
 ---
 
 ## Ticket: Rate Limiting System (Models + Core + API)
-**Jira Story ID**: NEX-004-005
+**Jira Story ID**: AAP-55735
 **Story Points**: 8
 
 ### Description
 Implement comprehensive rate limiting system including database models for rate limit configurations, Redis-backed sliding window enforcement, service layer for rate limit management, and REST API endpoints for administrators to configure rate limits. This ticket delivers complete rate limiting capabilities at provider, tool, and user levels.
 
-**Note**: This ticket depends on NEX-004-001B (Tool Provider Management Service + API) and NEX-004-002 (Tool Management & Control). It adds rate limiting enforcement to tool testing and provides administrative controls for configuring limits.
+**Note**: This ticket depends on ticket AAP-55730 (Tool Provider Management Service + API) and ticket AAP-55731 (Tool Management & Control). It adds rate limiting enforcement to tool testing and provides administrative controls for configuring limits.
 
 ### Scope
 
@@ -759,13 +759,13 @@ Implement comprehensive rate limiting system including database models for rate 
 # Part 3: Developer Experience
 
 ## Ticket: Filtering & Pagination Framework
-**Jira Story ID**: NEX-004-006
+**Jira Story ID**: AAP-55736
 **Story Points**: 3
 
 ### Description
 Implement advanced filtering and pagination utilities and integrate them across all existing API endpoints. This ticket enhances the developer experience by providing powerful, consistent query capabilities across all list operations with bracket filter notation and efficient keyset pagination.
 
-**Note**: This ticket depends on NEX-004-001B, NEX-004-002, NEX-004-004, and NEX-004-005. It enhances existing endpoints with advanced filtering and pagination without breaking existing functionality. This is a cross-cutting utility feature that improves all list endpoints.
+**Note**: This ticket depends on tickets AAP-55730, AAP-55731, AAP-55734, and AAP-55735. It enhances existing endpoints with advanced filtering and pagination without breaking existing functionality. This is a cross-cutting utility feature that improves all list endpoints.
 
 ### Scope
 
@@ -835,7 +835,7 @@ Implement advanced filtering and pagination utilities and integrate them across 
 ---
 
 ## Ticket: Performance Validation & Documentation
-**Jira Story ID**: NEX-004-007
+**Jira Story ID**: AAP-55737
 **Story Points**: 5
 
 ### Description
@@ -886,7 +886,7 @@ Validate system performance against targets, optimize database queries, and comp
 **Final Validation**:
 - Run complete end-to-end workflow:
   - Register MCP provider → validate → refresh tools → list tools with filters → enable tools → test tool → check metrics → configure rate limit → verify enforcement
-- Verify all acceptance criteria from all tickets (NEX-004-001 through NEX-004-006)
+- Verify all acceptance criteria from all tickets (AAP-55729 through AAP-55736)
 - Confirm test coverage ≥80% for entire codebase
 - Validate all tests pass with zero failures
 - Generate final coverage report
@@ -913,7 +913,7 @@ Validate system performance against targets, optimize database queries, and comp
 - ✅ OpenAPI schema complete and accurate for all 19 endpoints
 - ✅ API documentation accessible at `/docs` with working examples
 - ✅ Full end-to-end workflow validated and documented
-- ✅ All acceptance criteria from tickets NEX-004-001 through NEX-004-006 verified
+- ✅ All acceptance criteria from tickets AAP-55729 through AAP-55736 verified
 - ✅ Test coverage ≥80% for entire codebase
 - ✅ Coverage report generated and reviewed
 - ✅ **ALL TESTS PASS** - zero test failures allowed
@@ -923,8 +923,8 @@ Validate system performance against targets, optimize database queries, and comp
 
 ## Summary
 
-**Jira Epic**: NEX-004 - Tool Provider Integration and Tool Management
-**Total Tickets**: 9 tickets (includes new NEX-004-001B for Tool Provider REST API)
+**Jira Epic**: AAP-54305 - Tool Provider Integration and Tool Management
+**Total Tickets**: 9 tickets (includes AAP-55730 for Tool Provider REST API)
 **Total Story Points**: 63 points
 
 ### Comparison: Vertical vs Horizontal Slicing
@@ -941,87 +941,87 @@ Validate system performance against targets, optimize database queries, and comp
 ### Tickets Overview:
 
 **Part 1: Core Features**
-1. **NEX-004-001: Core Abstractions and Domain Logic** (5 points)
+1. **AAP-55729: Core Abstractions and Domain Logic** (5 points)
    - Provider-agnostic architecture foundation
    - Includes: Abstractions, domain models, mock provider, core functions (pure logic, no DB/API)
    - **Delivers**: Working domain logic with testable abstractions
 
-2. **NEX-004-001B: Tool Provider Management (Service + API + Database)** (8 points)
+2. **AAP-55730: Tool Provider Management (Service + API + Database)** (8 points)
    - Complete provider REST API implementation
    - Includes: Database models, service layer, FastAPI infrastructure, API (7 endpoints)
    - **Delivers**: Working Tool Provider REST API for registration and management
 
-3. **NEX-004-002: Tool Management & Control** (6 points)
+3. **AAP-55731: Tool Management & Control** (6 points)
    - Complete tool management, enablement, and testing
    - Includes: Tool core functions, service layer, API (5 endpoints)
    - **Delivers**: Working tool management and testing system
 
-4. **NEX-004-003: SSE Transport & Foundation** (5 points)
+4. **AAP-55732: SSE Transport & Foundation** (5 points)
    - First MCP transport implementation and architecture foundation
    - Includes: SSE transport, transport abstraction, comprehensive testing
    - **Delivers**: Working SSE transport for MCP
 
-5. **NEX-004-003B: Streaming HTTP Transport & Protocol Negotiation** (5 points)
+5. **AAP-55733: Streaming HTTP Transport & Protocol Negotiation** (5 points)
    - Complete multi-protocol support with auto-negotiation
    - Includes: Streaming HTTP transport, protocol fallback, comprehensive testing
    - **Delivers**: Complete dual-protocol support for MCP
 
 **Part 2: Observability & Control**
-6. **NEX-004-004: Usage Metrics & Analytics** (8 points)
+6. **AAP-55734: Usage Metrics & Analytics** (8 points)
    - Complete usage tracking and analytics
    - Includes: Metrics models, service layer, API (2 endpoints)
    - **Delivers**: Working metrics and analytics system
 
-7. **NEX-004-005: Rate Limiting System** (8 points)
+7. **AAP-55735: Rate Limiting System** (8 points)
    - Complete rate limiting with Redis-backed enforcement
    - Includes: Rate limit model, sliding window algorithm, service layer, API (5 endpoints)
    - **Delivers**: Working rate limiting system
 
 **Part 3: Developer Experience**
-8. **NEX-004-006: Filtering & Pagination Framework** (3 points)
+8. **AAP-55736: Filtering & Pagination Framework** (3 points)
    - Advanced query capabilities across all endpoints
    - Includes: Bracket filters, keyset pagination, integration across all APIs
    - **Delivers**: Enhanced developer experience
 
-9. **NEX-004-007: Performance & Documentation** (5 points)
+9. **AAP-55737: Performance & Documentation** (5 points)
    - Production readiness validation
    - Includes: Performance tests, optimization, comprehensive documentation
    - **Delivers**: Production-ready system
 
 ### Critical Path:
 ```
-Ticket 1 (Core) → Ticket 1B (Provider API) → Ticket 2 (Tool Mgmt) → Ticket 3 (SSE) → Ticket 3B (Streaming HTTP)
-                                           ↓                                              ↓
-                                           Ticket 4 (Metrics) → Ticket 6 (Filters)
-                                           ↓                           ↓
-                                           Ticket 5 (Rate Limiting) → Ticket 7 (Performance)
+AAP-55729 (Core) → AAP-55730 (Provider API) → AAP-55731 (Tool Mgmt) → AAP-55732 (SSE) → AAP-55733 (Streaming HTTP)
+                                              ↓                                              ↓
+                                              AAP-55734 (Metrics) → AAP-55736 (Filters)
+                                              ↓                           ↓
+                                              AAP-55735 (Rate Limiting) → AAP-55737 (Performance)
 ```
 
 ### Key Benefits:
-- ✅ **Early Value**: Working REST API after second ticket (NEX-004-001B)
+- ✅ **Early Value**: Working REST API after second ticket (AAP-55730)
 - ✅ **Reduced Risk**: Integration validated incrementally with clear separation of concerns
 - ✅ **Clear Priorities**: Business features over technical layers
 - ✅ **Faster Feedback**: Working software enables user feedback early
 - ✅ **Simpler Testing**: End-to-end tests with real components
 - ✅ **Better Increments**: Each ticket is a potentially shippable increment
-- ✅ **Proper Layering**: Clean separation between domain logic (001) and infrastructure (001B)
+- ✅ **Proper Layering**: Clean separation between domain logic (AAP-55729) and infrastructure (AAP-55730)
 
 ### Sprint Planning Suggestion:
-- **Sprint 1**: Ticket 1 (Core Abstractions) - 5 points
-- **Sprint 2**: Ticket 1B (Provider API) - 8 points
-- **Sprint 3**: Ticket 2 (Tool Management & Control) - 6 points
-- **Sprint 4**: Ticket 3 (SSE Transport) + Ticket 3B (Streaming HTTP) - 5 + 5 = 10 points
-- **Sprint 5**: Ticket 4 (Metrics) - 8 points
-- **Sprint 6**: Ticket 5 (Rate Limiting) - 8 points
-- **Sprint 7**: Ticket 6 (Filtering) + Ticket 7 (Performance) - 3 + 5 = 8 points
+- **Sprint 1**: AAP-55729 (Core Abstractions) - 5 points
+- **Sprint 2**: AAP-55730 (Provider API) - 8 points
+- **Sprint 3**: AAP-55731 (Tool Management & Control) - 6 points
+- **Sprint 4**: AAP-55732 (SSE Transport) + AAP-55733 (Streaming HTTP) - 5 + 5 = 10 points
+- **Sprint 5**: AAP-55734 (Metrics) - 8 points
+- **Sprint 6**: AAP-55735 (Rate Limiting) - 8 points
+- **Sprint 7**: AAP-55736 (Filtering) + AAP-55737 (Performance) - 3 + 5 = 8 points
 
 ### Key Milestones:
-1. **Core Architecture**: After Ticket 1 (provider-agnostic abstractions and domain logic)
-2. **Working Provider REST API**: After Ticket 1B (can register and manage providers via HTTP)
-3. **Working Tool System**: After Ticket 2 (can discover, manage, and test tools)
-4. **First Protocol**: After Ticket 3 (SSE transport working)
-5. **Complete Protocols**: After Ticket 3B (full dual-protocol support for enterprise deployments)
-6. **Complete Observability**: After Ticket 4 (full usage tracking and analytics)
-7. **Complete Control**: After Ticket 5 (rate limiting enforcement operational)
-8. **Enhanced UX**: After Ticket 6 (powerful filtering and pagination)
-9. **Production Ready**: After Ticket 7 (validated performance, complete documentation)
+1. **Core Architecture**: After AAP-55729 (provider-agnostic abstractions and domain logic)
+2. **Working Provider REST API**: After AAP-55730 (can register and manage providers via HTTP)
+3. **Working Tool System**: After AAP-55731 (can discover, manage, and test tools)
+4. **First Protocol**: After AAP-55732 (SSE transport working)
+5. **Complete Protocols**: After AAP-55733 (full dual-protocol support for enterprise deployments)
+6. **Complete Observability**: After AAP-55734 (full usage tracking and analytics)
+7. **Complete Control**: After AAP-55735 (rate limiting enforcement operational)
+8. **Enhanced UX**: After AAP-55736 (powerful filtering and pagination)
+9. **Production Ready**: After AAP-55737 (validated performance, complete documentation)
