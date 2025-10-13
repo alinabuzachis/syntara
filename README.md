@@ -1,6 +1,6 @@
 # Nexus UI
 
-A modern full-stack application with AI-powered features.
+A modern React application with a shared UI component library for building automation workflows.
 
 ## Quick Start
 
@@ -8,54 +8,81 @@ A modern full-stack application with AI-powered features.
 # Install dependencies
 npm ci
 
-# Start
+# Start development (builds framework + runs dev server)
 npm start
 ```
 
-The frontend will be available at http://localhost:5173.
+The application will be available at http://localhost:5173.
 
 ## Project Structure
+
+This is a monorepo using npm workspaces:
 
 ```
 next-ui/
 ├── packages/
-│   └── frontend/    # React 19 + Vite application
-streaming
-├── package.json     # Root workspace configuration
-└── docker-compose.yml
+│   ├── nexus-ui/            # Main React 19 application
+│   └── nexus-ui-framework/  # Shared UI component library
+├── package.json             # Root workspace configuration
+└── Containerfile            # Production deployment
 ```
 
 ## Development
 
 ### Prerequisites
 
-- Node.js (see package.json for version requirements)
+- Node.js 22+ (see package.json for exact requirements)
 - npm (comes with Node.js)
 
 ### Available Commands
 
 ```bash
 # Development
-npm start
+npm start                      # Start both packages (framework watch + UI dev server)
+npm run start:nexus-ui         # Start UI only (requires framework to be built)
+npm run start:nexus-ui-framework  # Start framework in watch mode
 
 # Building
-npm run build
+npm run build                  # Build all packages
+npm run build:nexus-ui         # Build UI only
+npm run build:nexus-ui-framework  # Build framework only
 
-# Testing
-npm test               # Run tests in all packages
+# Testing & Linting
+npm test                       # Run all tests (format check + ESLint + TypeScript)
+npm run format                 # Format code with Prettier
+npm run format:check           # Check code formatting
 
-# Docker
-npm run docker:build   # Build Docker images
-npm run docker:run     # Run with Docker Compose
+# Deployment
+npm run podman:build           # Build container image
+npm run podman:run             # Run container (serves on port 4000)
 ```
 
 ## Technology Stack
 
-### Frontend
+### Nexus UI (Application)
 
 - React 19 with TypeScript
-- Vite (Rolldown bundler)
+- Vite build tool
 - TailwindCSS 4
-- Base UI components
+- Base UI headless components
 - Wouter (routing)
-- Fuse.js (search)
+- Zustand (state management)
+- Fuse.js (fuzzy search)
+- ReactFlow/XYFlow (workflow diagrams)
+- Lucide icons
+
+### Nexus UI Framework (Component Library)
+
+- Base UI primitives
+- TailwindCSS 4
+- Vite library mode
+- TypeScript declarations
+- ESM + UMD builds
+
+### Build & Deployment
+
+- npm workspaces
+- Vite
+- TypeScript 5.9
+- ESLint 9 + Prettier
+- Podman/Docker with Nginx

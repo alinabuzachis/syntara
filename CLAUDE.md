@@ -6,125 +6,126 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a monorepo using npm workspaces with two packages:
 
-- **packages/frontend**: React 19 + TypeScript + Vite application with TailwindCSS 4 and Base UI components
-- **packages/backend**: Express + TypeScript server providing AI streaming endpoints with Model Context Protocol (MCP) integration
+- **packages/nexus-ui**: React 19 + TypeScript + Vite application using TailwindCSS 4 and Base UI components
+- **packages/nexus-ui-framework**: Shared UI component library built as a Vite library package with Base UI, consumed by nexus-ui
 
 ## Development Commands
 
-### Starting Development Servers
+### Starting Development
 
 ```bash
-# Start both frontend and backend concurrently
+# Start both packages concurrently (builds framework in watch mode, runs nexus-ui dev server)
 npm start
 
-# Start frontend only (Vite dev server on port 5173)
-npm run frontend
+# Start nexus-ui only (requires framework to be built first)
+npm run start:nexus-ui
 
-# Start backend only (tsx watch mode on port 3000)
-npm run backend
+# Start framework in watch mode only
+npm run start:nexus-ui-framework
 ```
+
+The nexus-ui dev server runs on port 5173.
 
 ### Building
 
 ```bash
-# Build all packages
+# Build all packages (builds framework first, then nexus-ui)
 npm run build
 
-# Build frontend only
-npm run build --prefix packages/frontend
+# Build framework only
+npm run build:nexus-ui-framework
 
-# Build backend only
-npm run build --prefix packages/backend
+# Build nexus-ui only
+npm run build:nexus-ui
 ```
 
-### Frontend-Specific Commands
+### Testing and Linting
 
 ```bash
-cd packages/frontend
-
-# Development server
-npm start
-
-# Type checking + production build
-npm run build
-
-# Lint
-npm run lint
-
-# Preview production build
-npm run preview
-```
-
-### Backend-Specific Commands
-
-```bash
-cd packages/backend
-
-# Development with watch mode
-npm start
-
-# Type checking + build
-npm run build
-```
-
-### Testing
-
-```bash
-# Run tests in all packages
+# Run all tests (format check + package tests)
 npm test
+
+# Format code with Prettier
+npm run format
+
+# Check formatting
+npm run format:check
+
+# Test individual packages
+npm run test:nexus-ui              # ESLint + TypeScript check
+npm run test:nexus-ui-framework    # ESLint + TypeScript check
 ```
 
-### Docker
+### Per-Package Commands
 
 ```bash
-# Build Docker images
-npm run docker:build
+cd packages/nexus-ui
+npm start          # Vite dev server
+npm run build      # TypeScript check + Vite build
+npm run test       # ESLint + TypeScript check
+npm run eslint     # ESLint only
+npm run tsc        # TypeScript check only
 
-# Run frontend and backend containers
-npm run docker:run
+cd packages/nexus-ui-framework
+npm start          # Vite build in watch mode
+npm run dev        # Vite dev server for component development
+npm run build      # Vite library build
+npm run test       # ESLint + TypeScript check
+npm run eslint     # ESLint only
+npm run tsc        # TypeScript check only
 ```
+
+### Deployment
+
+```bash
+# Build Podman/Docker image
+npm run podman:build
+
+# Run container locally (serves on port 4000)
+npm run podman:run
+```
+
+The Containerfile creates a production build with Nginx and basic auth (demo/coffee).
 
 ## Architecture
 
-### Frontend Architecture
+### Package Dependencies
 
-- **Router**: Uses Wouter for client-side routing
-- **Navigation**: Centralized route definitions in [navigationItems.tsx](packages/frontend/src/app/navigationItems.tsx), with lazy-loaded route components
-- **Layout**: App uses a login wrapper ([AppLogin](packages/frontend/src/app/AppLogin.tsx)), header ([AppHeader](packages/frontend/src/app/AppHeader.tsx)), and router ([AppRouter](packages/frontend/src/app/AppRouter.tsx))
-- **Route Definitions**: All routes are defined in [AppRoute.tsx](packages/frontend/src/app/AppRoute.tsx) with nested structure for sections like Configuration and Support
-- **UI Components**: Uses Base UI (headless components) with TailwindCSS 4 for styling
-- **Build Tool**: Uses Rolldown (next-gen bundler) via the `rolldown-vite` package for faster builds
+The nexus-ui-framework must be built before nexus-ui can run. The framework is consumed via a file dependency (`"ui-framework": "file:../ui-framework"` in nexus-ui's package.json, which is a symlink to nexus-ui-framework).
+
+When developing:
+1. Framework changes trigger automatic rebuild in watch mode (`npm start` or `npm run start:nexus-ui-framework`)
+2. Nexus-ui hot-reloads when framework dist changes
+3. Root `npm start` handles this orchestration automatically
+
+### Nexus UI Application
+
+- **Router**: Wouter for client-side routing
+- **Route Structure**: Nested route definitions in [AppRoute.tsx](packages/nexus-ui/src/app/AppRoute.tsx)
+- **Navigation**: Centralized navigation tree in [navigationItems.tsx](packages/nexus-ui/src/app/navigationItems.tsx) with lazy-loaded components
+- **Layout**: Main app wrapper in [App.tsx](packages/nexus-ui/src/app/App.tsx) with header ([AppHeader](packages/nexus-ui/src/app/AppHeader.tsx)) and router ([AppRouter](packages/nexus-ui/src/app/AppRouter.tsx))
+- **State Management**: Zustand for global state
+- **Search**: Fuse.js for fuzzy search functionality
 - **React Compiler**: Enabled via babel-plugin-react-compiler for automatic memoization
+- **Styling**: TailwindCSS 4 via @tailwindcss/vite plugin
 
-### Backend Architecture
+Route components live in `packages/nexus-ui/src/routes/` organized by feature area (automation-builder, configuration, documentation, welcome).
 
-- **AI Integration**: Uses Vercel AI SDK with Ollama provider for streaming AI responses
-- **MCP Integration**: Connects to multiple MCP (Model Context Protocol) servers to provide tools for the AI agent
-  - MCP clients are created in [createMCPClient.ts](packages/backend/src/createMCPClient.ts) using SSE or StreamableHTTP transports
-  - Tools from MCP servers are converted to AI SDK format in [getMCPClientTools.ts](packages/backend/src/getMCPClientTools.ts)
-- **Main Endpoint**: `POST /api/ai/stream` accepts UIMessage arrays and streams AI responses with tool execution
-- **Tool Execution**: Tools can be called directly via `POST /api/tools/:toolName` endpoint
-- **System Prompt**: Configured to help users interact with Ansible Automation Platform using available MCP tools
+### Nexus UI Framework
 
-### MCP Server Configuration
+A library package providing:
+- Reusable UI components built on Base UI primitives
+- Components: Button, IconButton, Menu, Scrollable, Toolbar
+- Form components in `src/forms/`
+- Exports both ESM and UMD builds via Vite library mode
+- Includes TypeScript declarations generated by vite-plugin-dts
+- Uses vite-plugin-externalize-deps to exclude peer dependencies from bundle
 
-The backend connects to multiple MCP servers defined in [index.ts](packages/backend/src/index.ts):
-
-- AAP server (port 3003)
-- Dashboard server (port 3002)
-- Additional servers can be enabled by uncommenting
-
-### Environment Variables
-
-Backend requires a `.env` file (see [.env.example](packages/backend/.env.example)):
-
-- `OPENAI_API_KEY`: Optional OpenAI key
-- `ANTHROPIC_API_KEY`: Optional Anthropic key
-- `PORT`: Server port (default: 3000)
-- `MCP_URL`: Override URL for MCP servers
+Base UI components are peer dependencies, allowing nexus-ui to control the version.
 
 ## Key Technologies
 
-- **Frontend**: React 19, TypeScript, Wouter, TailwindCSS 4, Base UI, Vite/Rolldown, Lucide icons, Fuse.js
-- **Backend**: Express 5, TypeScript, Vercel AI SDK, Ollama, MCP SDK, tsx
-- **Build**: npm workspaces, Docker multi-stage builds
+- **Frontend**: React 19, TypeScript, Wouter, TailwindCSS 4, Base UI, Vite, Lucide icons, Fuse.js, Zustand, ReactFlow/XYFlow
+- **Framework**: Base UI (headless components), TailwindCSS 4, Vite library mode
+- **Build**: npm workspaces, Vite, TypeScript 5.9, ESLint 9, Prettier
+- **Deployment**: Podman/Docker with Nginx and basic auth
