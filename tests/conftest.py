@@ -28,10 +28,41 @@ TEST_DB_USER = os.getenv("NEXUS_DB_USER", "admin")
 TEST_DB_PASSWORD = os.getenv("NEXUS_DB_PASSWORD", "admin")
 TEST_DB_HOST = os.getenv("NEXUS_DB_HOST", "localhost")
 TEST_DB_PORT = os.getenv("NEXUS_DB_PORT", "5432")
-TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    f"postgresql+asyncpg://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/nexus_test",
-)
+
+
+def get_test_database_url(worker_id: str = "master") -> str:
+    """Get test database URL, with per-worker database for parallel execution.
+
+    Args:
+        worker_id: pytest-xdist worker ID (e.g., 'gw0', 'gw1', or 'master' for non-parallel)
+
+    Returns:
+        Database URL string
+
+    """
+    # Use worker-specific database for parallel execution
+    db_name = f"nexus_test_{worker_id}" if worker_id != "master" else "nexus_test"
+
+    return os.getenv(
+        "TEST_DATABASE_URL",
+        f"postgresql+asyncpg://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/{db_name}",
+    )
+
+
+@pytest.fixture(scope="session")
+def worker_id(request: pytest.FixtureRequest) -> str:
+    """Get pytest-xdist worker ID.
+
+    Args:
+        request: pytest request fixture
+
+    Returns:
+        Worker ID ('master' for non-parallel, 'gw0', 'gw1', etc. for parallel)
+
+    """
+    if hasattr(request.config, "workerinput"):
+        return request.config.workerinput["workerid"]  # type: ignore[no-any-return]
+    return "master"
 
 
 @pytest.fixture(scope="session")
@@ -48,13 +79,20 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 
 
 @pytest_asyncio.fixture(scope="session")
-async def test_db_engine() -> AsyncGenerator[AsyncEngine, None]:
+async def test_db_engine(worker_id: str) -> AsyncGenerator[AsyncEngine, None]:
     """Create a test database engine.
+
+    Args:
+        worker_id: pytest-xdist worker ID
 
     Yields:
         Async engine for test database
 
     """
+    # Get worker-specific database URL
+    test_database_url = get_test_database_url(worker_id)
+    db_name = f"nexus_test_{worker_id}" if worker_id != "master" else "nexus_test"
+
     # First, connect to the default database to create test database if needed
     default_db_url = f"postgresql+asyncpg://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/postgres"
     temp_engine = create_async_engine(default_db_url, isolation_level="AUTOCOMMIT", poolclass=NullPool)
@@ -62,18 +100,22 @@ async def test_db_engine() -> AsyncGenerator[AsyncEngine, None]:
     try:
         async with temp_engine.connect() as conn:
             # Check if test database exists
-            result = await conn.execute(sqlalchemy.text("SELECT 1 FROM pg_database WHERE datname = 'nexus_test'"))
+            result = await conn.execute(
+                sqlalchemy.text("SELECT 1 FROM pg_database WHERE datname = :db_name"),
+                {"db_name": db_name},
+            )
             exists = result.scalar() is not None
 
             if not exists:
-                # Create test database
-                await conn.execute(sqlalchemy.text("CREATE DATABASE nexus_test"))
+                # Create test database - database names cannot be parameterized
+                # db_name is constructed from trusted sources only (worker_id fixture)
+                await conn.execute(sqlalchemy.text(f"CREATE DATABASE {db_name}"))
     finally:
         await temp_engine.dispose()
 
     # Now connect to the test database
     engine = create_async_engine(
-        TEST_DATABASE_URL,
+        test_database_url,
         echo=False,
         poolclass=NullPool,
     )
