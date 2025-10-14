@@ -1,0 +1,40 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: foreach-loop-test
+  description: Test forEach loop with bash
+
+inputs:
+  item_list:
+    type: array
+    description: List of items to process
+    default: [apple, banana, cherry]
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: process_items
+    name: Process Items
+    type: loop
+    loop:
+      type: forEach
+      items: ${input.item_list}
+      itemVariable: item
+      do:
+      - id: process_item
+        name: Process Item
+        type: task
+        task:
+          executor: script
+          config:
+            language: bash
+            code: |
+              echo "Processing item: $INPUT_ITEM"
+              echo "Item value: $INPUT_ITEM"
+          inputs:
+            item: ${item}
+          outputs:
+            processed: $.stdout

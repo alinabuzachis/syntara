@@ -1,0 +1,30 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: tagged-workflow
+  description: Workflow demonstrating tags for categorization
+  tags:
+  - data-processing
+  - production
+  - critical
+  owner: data-engineering-team
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: process_data
+    name: Process Data
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Processing data with tags: data-processing, production, critical"
+          echo "Owner: data-engineering-team"
+          echo '{"status": "success", "processed": 100}'
+      outputs:
+        result: $.stdout

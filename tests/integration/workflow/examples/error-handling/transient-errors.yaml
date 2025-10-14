@@ -1,0 +1,35 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: transient-error-test
+  description: Test retry on transient errors
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: transient_task
+    name: Transient Task
+    type: task
+    retryPolicy:
+      maxAttempts: 5
+      backoff: exponential
+      multiplier: 2
+      initialInterval: PT1S
+      maxInterval: PT10S
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          # Simulate transient failure (e.g., network timeout)
+          RANDOM_VAL=$((RANDOM % 10))
+          if [ $RANDOM_VAL -lt 7 ]; then
+            echo "Transient failure occurred"
+            exit 1
+          else
+            echo "Success after retries"
+            exit 0
+          fi

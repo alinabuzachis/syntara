@@ -1,0 +1,35 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: condition-no-else-test
+  description: Test condition with only then branch (no else)
+
+inputs:
+  enable_feature:
+    type: boolean
+    description: Whether to enable the feature
+    default: true
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: feature_check
+    name: Check Feature Flag
+    type: condition
+    condition: ${input.enable_feature}
+    then:
+    - id: enable_feature
+      name: Enable Feature
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Feature enabled"
+            echo "Initializing feature..."
+        outputs:
+          status: $.stdout

@@ -1,0 +1,27 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: error-handling-test
+  description: Test error handling
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: failing_task
+    name: Failing Task
+    type: task
+    retryPolicy:
+      maxAttempts: 3
+      backoff: fixed
+      initialInterval: PT1S
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Attempting task..."
+          echo "ERROR: Something went wrong" >&2
+          exit 1

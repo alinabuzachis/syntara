@@ -29,6 +29,7 @@ dependencies = [
     "pyyaml>=6.0.0",
     "alembic>=1.12.0",
     "python-multipart>=0.0.6",
+    "temporalio>=1.5.0",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +48,9 @@ dev = [
     "pre-commit>=3.5.0",
     "yamlfmt",
     "podman-compose>=1.5.0",  # for container orchestration
+    "jsonschema>=4.0.0",  # for schema validation tests
+    "types-PyYAML>=6.0.0",  # for mypy type stubs
+    "types-jsonschema>=4.0.0",  # for mypy type stubs
 ]
 
 [project.urls]
@@ -129,6 +133,7 @@ omit = [
     "*/tests/*",
     "*/test_*",
     "*/__init__.py",
+    "tools/*",  # Manual utilities, not production code
 ]
 
 [tool.coverage.report]

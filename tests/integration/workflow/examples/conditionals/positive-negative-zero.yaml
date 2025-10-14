@@ -1,0 +1,65 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: conditional-test
+  description: Test conditional branching with positive/negative/zero values
+
+triggers:
+- type: manual
+
+inputs:
+  number:
+    type: integer
+    description: Number to check (positive, negative, or zero)
+    default: 10
+
+workflow:
+  activities:
+  - id: check_value
+    name: Check Value
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Value is: $INPUT_VALUE"
+          echo "{\"value\": $INPUT_VALUE}"
+      inputs:
+        value: ${input.number}
+      outputs:
+        result: $.stdout
+
+  - id: positive_branch
+    name: Positive Branch
+    type: task
+    condition: ${input.number} > 0
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Value is positive"
+
+  - id: negative_branch
+    name: Negative Branch
+    type: task
+    condition: ${input.number} < 0
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Value is negative"
+
+  - id: zero_branch
+    name: Zero Branch
+    type: task
+    condition: ${input.number} == 0
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Value is zero"

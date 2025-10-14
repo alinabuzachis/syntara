@@ -1,0 +1,93 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: join-post-activities-test
+  description: Test join with activities that execute after join completes
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  # Parallel tasks that will be joined
+  - id: parallel_work
+    type: parallel
+    branches:
+    - id: fetch_data_a
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Fetching data A"
+            sleep 0.1
+            echo '{"source": "A", "count": 10}'
+        outputs:
+          data: $.stdout
+
+    - id: fetch_data_b
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Fetching data B"
+            sleep 0.3
+            echo '{"source": "B", "count": 20}'
+        outputs:
+          data: $.stdout
+
+    - id: fetch_data_c
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Fetching data C"
+            sleep 0.1
+            echo '{"source": "C", "count": 30}'
+        outputs:
+          data: $.stdout
+
+  # Join waits for all parallel tasks to complete
+  - id: aggregate_data
+    type: join
+    join:
+      branches:
+      - fetch_data_a
+      - fetch_data_b
+      - fetch_data_c
+      strategy: all
+      aggregateOutputs: true
+
+  # These activities should NOT start until the join completes
+  - id: process_aggregated_data
+    name: Process Aggregated Data
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Processing aggregated data from all sources"
+          echo "All parallel tasks have completed"
+          echo "Total sources: 3"
+      outputs:
+        result: $.stdout
+
+  - id: send_notification
+    name: Send Completion Notification
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Notification: All data fetching and aggregation complete"
+          echo "Ready for next stage"
+      outputs:
+        status: $.stdout

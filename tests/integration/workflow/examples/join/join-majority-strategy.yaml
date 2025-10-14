@@ -1,0 +1,57 @@
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: join-majority-test
+  description: Test join with majority strategy
+triggers:
+- type: manual
+workflow:
+  activities:
+  - id: parallel_majority
+    type: parallel
+    branches:
+    - id: task_a
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Task A"
+    - id: task_b
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Task B"
+    - id: task_c
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Task C"
+    - id: task_d
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Task D"
+    - id: task_e
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Task E"
+  - id: join_majority
+    type: join
+    join:
+      branches:
+      - task_a
+      - task_b
+      - task_c
+      - task_d
+      - task_e
+      strategy: majority

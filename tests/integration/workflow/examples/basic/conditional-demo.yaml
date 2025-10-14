@@ -1,0 +1,102 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: conditional-demo
+  description: Demonstrates conditional branching based on activity outputs
+
+triggers:
+- type: manual
+
+inputs:
+  temperature:
+    type: number
+    description: Temperature in Celsius
+    default: 25
+
+workflow:
+  activities:
+  - id: check_temperature
+    name: Check Temperature
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Current temperature: ${INPUT_TEMP}°C"
+          echo "Checked at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "$INPUT_TEMP"
+      inputs:
+        temp: ${input.temperature}
+      outputs:
+        temp_value: $.stdout
+
+  - id: hot_weather
+    name: Hot Weather Action
+    type: task
+    condition: ${input.temperature} > 30
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "🌡️  Hot weather detected!"
+          echo "Recommended actions:"
+          echo "  - Turn on air conditioning"
+          echo "  - Stay hydrated"
+          echo "  - Avoid outdoor activities during peak hours"
+
+  - id: cold_weather
+    name: Cold Weather Action
+    type: task
+    condition: ${input.temperature} < 15
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "❄️  Cold weather detected!"
+          echo "Recommended actions:"
+          echo "  - Turn on heating"
+          echo "  - Dress warmly"
+          echo "  - Check for frost warnings"
+
+  - id: mild_weather
+    name: Mild Weather Action
+    type: task
+    condition: ${input.temperature} >= 15
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          # Check if temperature is in mild range (15-30)
+          if [ "$INPUT_TEMP" -le 30 ]; then
+            echo "☀️  Pleasant weather conditions!"
+            echo "Temperature is just right: ${INPUT_TEMP}°C"
+            echo "  - Enjoy outdoor activities"
+            echo "  - No special precautions needed"
+          fi
+      inputs:
+        temp: ${input.temperature}
+
+  - id: summary
+    name: Weather Summary
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo ""
+          echo "=== Weather Check Complete ==="
+          echo "Temperature assessed: ${INPUT_TEMP}°C"
+          echo ""
+          echo "Conditional activities executed based on temperature:"
+          echo "  • Hot weather (>30°C): Shows AC recommendations"
+          echo "  • Cold weather (<15°C): Shows heating recommendations"
+          echo "  • Mild weather (15-30°C): Shows pleasant weather message"
+          echo "=============================="
+      inputs:
+        temp: ${input.temperature}

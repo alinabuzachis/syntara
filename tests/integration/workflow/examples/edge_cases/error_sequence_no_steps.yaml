@@ -1,0 +1,16 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: error-sequence-no-steps
+  description: Test error when sequence activity has no steps
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: invalid_sequence
+    name: Sequence Without Steps
+    type: sequence
+      # Missing 'steps' field - should raise ValueError
