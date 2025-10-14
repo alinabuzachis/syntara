@@ -616,6 +616,7 @@ components:
       contentType: application/json
       payload:
         allOf:
+        - $ref: '#/components/schemas/WebSocketMessage'
         - type: object
           properties:
             message_type:
@@ -655,6 +656,7 @@ components:
       contentType: application/json
       payload:
         allOf:
+        - $ref: '#/components/schemas/WebSocketMessage'
         - type: object
           properties:
             message_type:
@@ -708,6 +710,7 @@ components:
       contentType: application/json
       payload:
         allOf:
+        - $ref: '#/components/schemas/WebSocketMessage'
         - type: object
           properties:
             message_type:
@@ -770,6 +773,7 @@ components:
       contentType: application/json
       payload:
         allOf:
+        - $ref: '#/components/schemas/WebSocketMessage'
         - type: object
           properties:
             message_type:
@@ -846,6 +850,7 @@ components:
       contentType: application/json
       payload:
         allOf:
+        - $ref: '#/components/schemas/WebSocketMessage'
         - type: object
           properties:
             message_type:
@@ -901,6 +906,7 @@ components:
       contentType: application/json
       payload:
         allOf:
+        - $ref: '#/components/schemas/WebSocketMessage'
         - type: object
           properties:
             message_type:
@@ -970,6 +976,7 @@ components:
       contentType: application/json
       payload:
         allOf:
+        - $ref: '#/components/schemas/WebSocketCommand'
         - type: object
           properties:
             command:
@@ -1002,6 +1009,7 @@ components:
       contentType: application/json
       payload:
         allOf:
+        - $ref: '#/components/schemas/WebSocketCommand'
         - type: object
           properties:
             command:
@@ -1033,6 +1041,7 @@ components:
       contentType: application/json
       payload:
         allOf:
+        - $ref: '#/components/schemas/WebSocketCommand'
         - type: object
           properties:
             command:
@@ -1065,17 +1074,19 @@ components:
       summary: Client subscribes to filtered execution updates
       contentType: application/json
       payload:
-        type: object
-        properties:
-          command:
-            type: string
-            const: subscribe
-          api_version:
-            type: string
-            description: API version (optional, defaults to connection version)
-            example: v1
-          subscription_filter:
-            $ref: '#/components/schemas/SubscriptionFilterPayload'
+        allOf:
+        - $ref: '#/components/schemas/WebSocketCommand'
+        - type: object
+          properties:
+            command:
+              type: string
+              const: subscribe
+            api_version:
+              type: string
+              description: API version (optional, defaults to connection version)
+              example: v1
+            subscription_filter:
+              $ref: '#/components/schemas/SubscriptionFilterPayload'
       examples:
       - name: Subscribe to Production Workflows
         summary: Subscribe to all production workflow executions
@@ -1109,17 +1120,19 @@ components:
       summary: Client unsubscribes from specific execution updates
       contentType: application/json
       payload:
-        type: object
-        properties:
-          command:
-            type: string
-            const: unsubscribe
-          api_version:
-            type: string
-            description: API version (optional, defaults to connection version)
-            example: v1
-          subscription_filter:
-            $ref: '#/components/schemas/SubscriptionFilterPayload'
+        allOf:
+        - $ref: '#/components/schemas/WebSocketCommand'
+        - type: object
+          properties:
+            command:
+              type: string
+              const: unsubscribe
+            api_version:
+              type: string
+              description: API version (optional, defaults to connection version)
+              example: v1
+            subscription_filter:
+              $ref: '#/components/schemas/SubscriptionFilterPayload'
       examples:
       - name: Unsubscribe from Production
         summary: Stop receiving production workflow updates
