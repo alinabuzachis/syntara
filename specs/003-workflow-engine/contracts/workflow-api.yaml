@@ -564,125 +564,24 @@ paths:
 
 components:
   schemas:
+    # Import shared schemas
     BaseResource:
-      type: object
-      title: Base Resource
-      description: Base fields common to all resources including unique identifier,
-        labels for categorization, and audit timestamps
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: Unique resource identifier
-        labels:
-          type: object
-          additionalProperties:
-            type: string
-          description: Key-value labels for categorization and filtering (e.g., {"environment":"production",
-            "team":"data-platform"})
-          example:
-            environment: production
-            team: data-platform
-            priority: high
-        created_at:
-          type: string
-          format: date-time
-          description: Timestamp when resource was created
-        updated_at:
-          type: string
-          format: date-time
-          description: Timestamp when resource was last updated
+      $ref: ./shared-schemas.yaml#/components/schemas/BaseResource
 
     NamedResource:
-      allOf:
-      - $ref: '#/components/schemas/BaseResource'
-      - type: object
-        title: Named Resource
-        description: Extension of BaseResource with human-readable name and optional
-          description
-        properties:
-          name:
-            type: string
-            description: Human-readable name
-          description:
-            type: string
-            description: Optional description
-            nullable: true
+      $ref: ./shared-schemas.yaml#/components/schemas/NamedResource
 
     SoftDeletableResource:
-      type: object
-      title: Soft Deletable Resource
-      description: Mixin fields for resources that support soft deletion with audit
-        trail (deleted_at timestamp and deleted_by user)
-      properties:
-        deleted_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: Timestamp when resource was soft deleted
-        deleted_by:
-          type: string
-          format: uuid
-          nullable: true
-          description: User who soft deleted the resource
+      $ref: ./shared-schemas.yaml#/components/schemas/SoftDeletableResource
 
     UserOwnedResource:
-      type: object
-      title: User Owned Resource
-      description: Mixin fields for resources with user ownership tracking (created_by
-        user reference)
-      properties:
-        created_by:
-          type: string
-          format: uuid
-          description: User who created the resource
+      $ref: ./shared-schemas.yaml#/components/schemas/UserOwnedResource
 
     Workflow:
-      allOf:
-      - $ref: '#/components/schemas/NamedResource'
-      - $ref: '#/components/schemas/SoftDeletableResource'
-      - $ref: '#/components/schemas/UserOwnedResource'
-      - type: object
-        title: Workflow
-        description: A complete automation process with versioned definitions, combining
-          named resource, soft delete, and user ownership capabilities. Note that
-          deleted_at and deleted_by are always null in API responses since soft-deleted
-          workflows are excluded from queries.
-        properties:
-          current_version:
-            type: integer
-            description: Current active version number
-          is_enabled:
-            type: boolean
-            description: Whether workflow is enabled and available for execution
+      $ref: ./shared-schemas.yaml#/components/schemas/Workflow
 
     WorkflowWithVersion:
-      allOf:
-      - $ref: '#/components/schemas/Workflow'
-      - type: object
-        title: Workflow With Version
-        description: Workflow combined with a specific version's details including
-          YAML definition, schema version, and change history
-        properties:
-          version:
-            type: object
-            description: Specific version details
-            properties:
-              version:
-                type: integer
-              schema_version:
-                type: string
-              yaml_definition:
-                type: string
-              created_by:
-                type: string
-                format: uuid
-              created_at:
-                type: string
-                format: date-time
-              change_description:
-                type: string
-                nullable: true
+      $ref: ./shared-schemas.yaml#/components/schemas/WorkflowWithVersion
 
     WorkflowVersionResponse:
       type: object
@@ -758,268 +657,37 @@ components:
           description: Array of workflow versions
 
     Execution:
-      allOf:
-      - $ref: '#/components/schemas/BaseResource'
-      - type: object
-        title: Execution
-        description: Runtime instance of a workflow execution with current state,
-          activity tracking, and execution history
-        properties:
-          workflow_id:
-            type: string
-            format: uuid
-            description: ID of the workflow being executed
-          temporal_workflow_id:
-            type: string
-            description: Temporal workflow execution ID
-          status:
-            $ref: '#/components/schemas/ExecutionStatus'
-          started_by:
-            type: string
-            format: uuid
-            description: User who started the execution
-          started_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: When execution transitioned from pending to running status
-              (null if still pending)
-          completed_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: When execution reached terminal state (completed, failed,
-              or cancelled)
-          input_data:
-            type: object
-            description: Input parameters for the execution
-          error_details:
-            type: string
-            nullable: true
-            description: Error information if execution failed
-          current_activities:
-            type: array
-            description: Currently executing activities
-            items:
-              type: object
-              properties:
-                activity_name:
-                  type: string
-                temporal_activity_id:
-                  type: string
-                iteration:
-                  type: integer
-                  nullable: true
+      $ref: ./shared-schemas.yaml#/components/schemas/Execution
 
     ActivityExecution:
-      allOf:
-      - $ref: '#/components/schemas/BaseResource'
-      - type: object
-        title: Activity Execution
-        description: Individual activity execution within a workflow with runtime
-          state, retry tracking, and activity definition snapshot
-        properties:
-          execution_id:
-            type: string
-            format: uuid
-            description: Parent execution ID
-          activity_name:
-            type: string
-            description: Activity ID from YAML workflow definition
-          activity_definition:
-            type: object
-            description: Snapshot of the activity configuration from YAML at execution
-              time, including executor, config, retry policy, timeout, approval settings
-          temporal_activity_id:
-            type: string
-            description: Temporal activity execution ID
-          status:
-            $ref: '#/components/schemas/ActivityStatus'
-          started_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: When activity transitioned from pending to running status
-              (null if still pending)
-          completed_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: When activity reached terminal state (completed, failed)
-          input_data:
-            type: object
-            description: Runtime input parameters
-          output_data:
-            type: object
-            nullable: true
-            description: Activity results
-          error_details:
-            type: string
-            nullable: true
-            description: Error information if failed
-          retry_count:
-            type: integer
-            description: Number of retry attempts
-          iteration:
-            type: integer
-            nullable: true
-            description: Iteration number if activity is within a loop (0-indexed)
+      $ref: ./shared-schemas.yaml#/components/schemas/ActivityExecution
 
     Approval:
-      allOf:
-      - $ref: '#/components/schemas/BaseResource'
-      - type: object
-        title: Approval
-        description: Human-in-the-loop decision point that pauses workflow execution
-          pending approver response
-        properties:
-          activity_execution_id:
-            type: string
-            format: uuid
-            description: Activity requiring approval
-          approver_id:
-            type: string
-            format: uuid
-            description: User assigned to review this approval
-          status:
-            $ref: '#/components/schemas/ApprovalStatus'
-          request_data:
-            type: object
-            description: Data presented for approval
-          response_data:
-            type: object
-            nullable: true
-            description: Approver's response including reason and comments
-          requested_at:
-            type: string
-            format: date-time
-            description: When approval was requested
-          responded_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: When approver responded
-          expires_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: Approval timeout deadline
+      $ref: ./shared-schemas.yaml#/components/schemas/Approval
 
     ExecutionStatus:
-      type: string
-      title: Execution Status
-      description: Current state of a workflow execution lifecycle
-      enum: [pending, running, paused, completed, failed, cancelled]
+      $ref: ./shared-schemas.yaml#/components/schemas/ExecutionStatus
 
     ActivityStatus:
-      type: string
-      title: Activity Status
-      description: Current state of an individual activity execution
-      enum: [pending, running, completed, failed, retrying]
+      $ref: ./shared-schemas.yaml#/components/schemas/ActivityStatus
 
     ApprovalStatus:
-      type: string
-      title: Approval Status
-      description: Current state of a human approval request
-      enum: [pending, approved, rejected, expired]
+      $ref: ./shared-schemas.yaml#/components/schemas/ApprovalStatus
 
     CreateWorkflowRequest:
-      type: object
-      title: Create Workflow Request
-      description: Request payload for creating a new workflow from YAML definition
-      required:
-      - name
-      - yaml_definition
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-        yaml_definition:
-          type: string
-        is_enabled:
-          type: boolean
-          default: true
-          description: Enable workflow for execution (defaults to true if not specified)
+      $ref: ./shared-schemas.yaml#/components/schemas/CreateWorkflowRequest
 
     PatchWorkflowRequest:
-      type: object
-      title: Patch Workflow Request
-      description: |
-        Request payload for updating workflow fields. Behavior depends on which fields are provided:
-        - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-        - With yaml_definition: Validates YAML, compares with current version, and creates new WorkflowVersion only if YAML differs (change detection)
-
-        Note: WorkflowVersion entities are read-only and managed automatically by the system.
-      properties:
-        name:
-          type: string
-          description: Update workflow name (metadata only, no version created)
-        description:
-          type: string
-          description: Update workflow description (metadata only, no version created)
-        is_enabled:
-          type: boolean
-          description: Enable or disable workflow for execution (metadata only, no
-            version created)
-        labels:
-          type: object
-          additionalProperties:
-            type: string
-          description: Update workflow labels (metadata only, no version created)
-        yaml_definition:
-          type: string
-          description: New YAML workflow definition - creates new version only if
-            YAML differs from current version (change detection)
-        change_description:
-          type: string
-          description: Description of changes (used when creating new version via
-            yaml_definition)
+      $ref: ./shared-schemas.yaml#/components/schemas/PatchWorkflowRequest
 
     CreateExecutionRequest:
-      type: object
-      title: Create Execution Request
-      description: Request payload for starting a new workflow execution with optional
-        input parameters
-      required:
-      - workflow_id
-      properties:
-        workflow_id:
-          type: string
-          format: uuid
-          description: ID of the workflow to execute
-        input_data:
-          type: object
-          description: Input parameters for the workflow execution
+      $ref: ./shared-schemas.yaml#/components/schemas/CreateExecutionRequest
 
     ExecutionControlRequest:
-      type: object
-      title: Execution Control Request
-      description: Request payload for controlling workflow execution state (pause,
-        resume, cancel)
-      required:
-      - action
-      properties:
-        action:
-          type: string
-          enum: [pause, resume, cancel]
+      $ref: ./shared-schemas.yaml#/components/schemas/ExecutionControlRequest
 
     ApprovalResponseRequest:
-      type: object
-      title: Approval Response Request
-      description: Request payload for approver to approve or reject an approval request
-        with reason
-      required:
-      - status
-      - response_data
-      properties:
-        status:
-          type: string
-          enum: [approved, rejected]
-        response_data:
-          type: object
-          description: Approver's response including reason, comments, and any additional
-            structured data
+      $ref: ./shared-schemas.yaml#/components/schemas/ApprovalResponseRequest
 
     StreamEvent:
       type: object
@@ -1041,87 +709,10 @@ components:
           format: date-time
 
     ActivityType:
-      type: object
-      title: Activity Type
-      description: Definition of an available activity executor type with its configuration
-        schema
-      required:
-      - type
-      - name
-      - description
-      - config_schema
-      properties:
-        type:
-          type: string
-          description: Unique identifier for the executor type
-          example: agentic
-          enum: [agentic, connector, script, api]
-        name:
-          type: string
-          description: Human-readable name of the executor type
-          example: Agentic Tool Execution
-        description:
-          type: string
-          description: Detailed description of what this executor type does
-          example: Execute tasks using external agentic tool servers (MCP) with AI
-            model integration
-        config_schema:
-          type: object
-          description: JSON Schema defining the valid configuration structure for
-            this executor type
-          example:
-            type: object
-            required: [agent, tools, model]
-            properties:
-              agent:
-                type: string
-                description: MCP server URI
-                pattern: ^mcp://.+
-              tools:
-                type: array
-                description: List of tool names to invoke
-                items:
-                  type: string
-              model:
-                type: string
-                description: AI model to use
-                enum: [claude-3-opus, claude-3-sonnet, gpt-4, gpt-4-turbo]
-        examples:
-          type: array
-          description: Example configurations for this executor type
-          items:
-            type: object
-            properties:
-              name:
-                type: string
-                description: Name of the example
-              description:
-                type: string
-                description: What this example demonstrates
-              config:
-                type: object
-                description: Example configuration object
-          example:
-          - name: Sentiment Analysis
-            description: Analyze text sentiment using MCP tool
-            config:
-              agent: mcp://sentiment-server
-              tools: [analyze_sentiment]
-              model: claude-3-opus
-              prompt: Analyze the sentiment of the following text
+      $ref: ./shared-schemas.yaml#/components/schemas/ActivityType
 
     Error:
-      type: object
-      title: Error Response
-      description: Standard error response format with error code, message, and optional
-        details
-      properties:
-        error:
-          type: string
-        message:
-          type: string
-        details:
-          type: object
+      $ref: ./shared-schemas.yaml#/components/schemas/Error
 
   parameters:
     SessionId:
