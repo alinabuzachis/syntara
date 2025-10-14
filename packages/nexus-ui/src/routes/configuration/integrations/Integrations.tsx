@@ -17,14 +17,18 @@ import { useLocation } from 'wouter'
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
+import { toolsClient } from '../../../client'
 import { ChatInput } from '../../../components/chat/ChatInput'
+import { useQueryState } from '../../../components/states/useQueryState'
 import { IntegrationCard } from './IntegrationCard'
-import { useIntegrations } from './useIntegrations'
 
 export default function Integrations() {
   const [, navigate] = useLocation()
   const [search, setSearch] = useState('')
-  const { resources: integrations } = useIntegrations()
+
+  const query = toolsClient.useQuery('get', '/tools', {})
+  const integrations = query.data?.tools ?? []
+
   const fuse = new Fuse(integrations, {
     keys: [
       { name: 'name', weight: 0.5 },
@@ -35,6 +39,10 @@ export default function Integrations() {
   })
   const results = search ? fuse.search(search).map((result) => result.item) : integrations
   const [view, setView] = useState<'table' | 'cards'>('table')
+
+  const queryState = useQueryState(query, 'Error loading integrations')
+  if (queryState) return queryState
+
   return (
     <AppPage>
       <AppPageHeader title="Integrations">
@@ -92,7 +100,7 @@ export default function Integrations() {
                       <input type="checkbox" />
                     </td> */}
                     <td>{integration.name}</td>
-                    <td>{integration.type}</td>
+                    {/* <td>{integration.type}</td> */}
                     <td className="w-1 min-w-12 pt-1.5 text-center">
                       <Menu>
                         <MenuTrigger>
@@ -137,7 +145,7 @@ export default function Integrations() {
         <Scrollable className="glass grow rounded-4xl border">
           <div className={`grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4 p-8`}>
             {results.map((integration) => (
-              <IntegrationCard key={integration.id} {...integration} />
+              <IntegrationCard key={integration.id} integration={integration} />
             ))}
           </div>
         </Scrollable>

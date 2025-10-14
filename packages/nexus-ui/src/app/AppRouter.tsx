@@ -1,10 +1,11 @@
 import { Suspense } from 'react'
 import { Route, Switch } from 'wouter'
+import { LoadingState } from '../components/states/LoadingState'
 import { navigationItems } from './navigationItems'
 
 export function AppRouter() {
   return (
-    <Suspense fallback={<div className="p-4">Loading...</div>}>
+    <Suspense fallback={<LoadingState />}>
       <Switch>
         {navigationItems.map((item) => (
           <>

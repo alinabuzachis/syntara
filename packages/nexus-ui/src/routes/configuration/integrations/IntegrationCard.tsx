@@ -1,18 +1,13 @@
 import { Menu, MenuItem, MenuItems, MenuTrigger } from '@ansible/nexus-ui-framework'
 import { EllipsisVerticalIcon } from 'lucide-react'
+import type { Tools } from 'nexus-contracts'
 
-export function IntegrationCard(props: {
-  name: string
-  type: string
-  description?: string
-  status?: 'connected' | 'disconnected'
-  url?: string
-}) {
+export function IntegrationCard(props: { integration: Tools.components['schemas']['Tool'] }) {
   return (
     <div className="glass flex flex-col gap-4 rounded-2xl border p-8">
       <div>
         <div className="flex items-center justify-between">
-          <div className="text-lg font-bold">{props.name}</div>
+          <div className="text-lg font-bold">{props.integration.name}</div>
           <Menu>
             <MenuTrigger>
               <EllipsisVerticalIcon />
@@ -22,17 +17,17 @@ export function IntegrationCard(props: {
             </MenuItems>
           </Menu>
         </div>
-        {props.type && (
+        {/* {props.integration.type && (
           <div id="type" className="text-sm text-white/50">
-            {props.type}
+            {props.integration.type}
           </div>
-        )}
+        )} */}
         <div id="description" className="mt-4 text-white/70">
-          {props.description}
+          {props.integration.description}
         </div>
       </div>
 
-      <dl className="details">
+      {/* <dl className="details">
         <dt>Status</dt>
         <dd>
           {props.status === 'connected' ? (
@@ -48,7 +43,7 @@ export function IntegrationCard(props: {
             <dd>{props.url}</dd>
           </>
         )}
-      </dl>
+      </dl> */}
     </div>
   )
 }
