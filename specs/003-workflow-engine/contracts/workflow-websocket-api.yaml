@@ -622,17 +622,6 @@ components:
             message_type:
               type: string
               const: connection_ack
-            api_version:
-              type: string
-              description: API version for this connection
-              example: v1
-            protocol_version:
-              type: string
-              description: Protocol version
-              example: 1.0.0
-            timestamp:
-              type: string
-              format: date-time
         - $ref: '#/components/schemas/ConnectionAckPayload'
       examples:
       - name: Successful Connection
@@ -662,17 +651,6 @@ components:
             message_type:
               type: string
               const: execution_update
-            api_version:
-              type: string
-              description: API version
-              example: v1
-            event_id:
-              type: string
-            session_id:
-              type: string
-            timestamp:
-              type: string
-              format: date-time
         - $ref: '#/components/schemas/ExecutionUpdatePayload'
       examples:
       - name: Execution Running
@@ -716,17 +694,6 @@ components:
             message_type:
               type: string
               const: activity_update
-            api_version:
-              type: string
-              description: API version
-              example: v1
-            event_id:
-              type: string
-            session_id:
-              type: string
-            timestamp:
-              type: string
-              format: date-time
         - $ref: '#/components/schemas/ActivityUpdatePayload'
       examples:
       - name: Activity Completed Successfully
@@ -779,17 +746,6 @@ components:
             message_type:
               type: string
               const: approval_notification
-            api_version:
-              type: string
-              description: API version
-              example: v1
-            event_id:
-              type: string
-            session_id:
-              type: string
-            timestamp:
-              type: string
-              format: date-time
         - $ref: '#/components/schemas/ApprovalNotificationPayload'
       examples:
       - name: New Approval Request
@@ -856,17 +812,6 @@ components:
             message_type:
               type: string
               const: subscription
-            api_version:
-              type: string
-              description: API version
-              example: v1
-            event_id:
-              type: string
-            session_id:
-              type: string
-            timestamp:
-              type: string
-              format: date-time
         - $ref: '#/components/schemas/SubscriptionConfirmationPayload'
       examples:
       - name: Workflow-specific Subscription
@@ -912,17 +857,6 @@ components:
             message_type:
               type: string
               const: error
-            api_version:
-              type: string
-              description: API version
-              example: v1
-            event_id:
-              type: string
-            session_id:
-              type: string
-            timestamp:
-              type: string
-              format: date-time
         - $ref: '#/components/schemas/ErrorPayload'
       examples:
       - name: Activity Failed Error
@@ -982,10 +916,6 @@ components:
             command:
               type: string
               const: pause
-            api_version:
-              type: string
-              description: API version (optional, defaults to connection version)
-              example: v1
         - $ref: '#/components/schemas/ExecutionCommandPayload'
       examples:
       - name: Pause with Reason
@@ -1015,10 +945,6 @@ components:
             command:
               type: string
               const: resume
-            api_version:
-              type: string
-              description: API version (optional, defaults to connection version)
-              example: v1
         - $ref: '#/components/schemas/ExecutionCommandPayload'
       examples:
       - name: Resume After Validation
@@ -1047,10 +973,6 @@ components:
             command:
               type: string
               const: cancel
-            api_version:
-              type: string
-              description: API version (optional, defaults to connection version)
-              example: v1
         - $ref: '#/components/schemas/ExecutionCommandPayload'
       examples:
       - name: Cancel with Business Reason
@@ -1081,10 +1003,6 @@ components:
             command:
               type: string
               const: subscribe
-            api_version:
-              type: string
-              description: API version (optional, defaults to connection version)
-              example: v1
             subscription_filter:
               $ref: '#/components/schemas/SubscriptionFilterPayload'
       examples:
@@ -1127,10 +1045,6 @@ components:
             command:
               type: string
               const: unsubscribe
-            api_version:
-              type: string
-              description: API version (optional, defaults to connection version)
-              example: v1
             subscription_filter:
               $ref: '#/components/schemas/SubscriptionFilterPayload'
       examples:

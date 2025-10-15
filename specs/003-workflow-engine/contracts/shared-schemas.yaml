@@ -502,10 +502,18 @@ components:
           - execution_update
           - activity_update
           - approval_notification
-          - command
           - subscription
           - error
           - connection_ack
+        api_version:
+          type: string
+          description: API version for this message (optional, defaults to connection
+            version)
+          example: v1
+        protocol_version:
+          type: string
+          description: Protocol version for this message
+          example: 1.0.0
         event_id:
           type: string
           description: Unique event identifier for message replay and deduplication
@@ -557,6 +565,10 @@ components:
           - subscribe
           - unsubscribe
           description: Command to execute
+        api_version:
+          type: string
+          description: API version (optional, defaults to connection version)
+          example: v1
         execution_id:
           type: string
           format: uuid
