@@ -26,7 +26,7 @@ install: _deps-install-dev _deps-install-pre-commit ## Complete setup from scrat
 .PHONY: check-deps
 check-deps: _check-dependency-binaries ## Check if all dependencies are available
 
-_deps-install-dev: _check-dependency-binaries
+_deps-install-dev: _check-uv
 	@echo "📦 Installing development dependencies with uv..."
 	uv sync --extra dev
 	@echo "✅ Development dependencies installed successfully"
@@ -38,13 +38,15 @@ _deps-install-pre-commit:
 	@echo "  To bypass hooks: git commit --no-verify"
 	@echo "  To update hooks: make update-hooks"
 
-_check-dependency-binaries:
+_check-uv:
 	@if ! command -v uv >/dev/null 2>&1; then \
 		echo "❌ uv not found. Please install uv first: https://github.com/astral-sh/uv"; \
 		exit 1; \
 	fi
+
+_check-dependency-binaries: _check-uv
 	@if ! python -c "import src" 2>/dev/null; then \
-		echo "❌ nexus package not installed. Run 'make deps-install-dev' first"; \
+		echo "❌ nexus package not installed. Run 'make install' first"; \
 		exit 1; \
 	fi
 
@@ -127,7 +129,7 @@ install-cursor-commands: ## Sync Claude commands to Cursor format
 .PHONY: check-path-sequence
 check-path-sequence: ## Validate numbering sequence under specs/
 	@echo "🔢 Validating numbered entries in specs/..."
-	python tools/ci/check_path_sequence.py specs/ --strict
+	uv run python tools/ci/check_path_sequence.py specs/ --strict
 
 .PHONY: format
 format: ## Format code
