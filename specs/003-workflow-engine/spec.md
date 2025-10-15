@@ -6,6 +6,7 @@
 **Input**: User description: "Build an application to enable me to execute and manage dynamic workflows, comprised of agentic and non-agentic tasks. Use the contents of 'Feature Description.md' for the full feature description. This works alongside the Nexus service (spec 001), which will output a workflow dynamically which must be executable by this workflow engine"
 
 ## Execution Flow (main)
+
 ```
 1. Parse user description from Input
    ✓ Feature description parsed: workflow engine for agentic and non-agentic tasks
@@ -27,20 +28,23 @@
 
 ---
 
-##  Quick Guidelines
+## Quick Guidelines
+
 - Focus on WHAT users need and WHY
 - Avoid HOW to implement (no tech stack, APIs, code structure)
 - Written for business stakeholders, not developers
 
 ---
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### Primary User Story
+
 As an automation professional, I want to create, execute, and monitor complex workflows that combine AI agents, traditional automation tools, and human decision points, so that I can orchestrate end-to-end business processes with appropriate oversight and governance controls.
 
 ### Acceptance Scenarios
-1. **Given** I am a non-technical user with access to the platform, **When** I create a simple workflow using the drag-and-drop designer *(future feature - Part 1 validates via REST API)* and launch it, **Then** I should complete this process within 30 minutes and see real-time execution status
+
+1. **Given** I am a non-technical user with access to the platform, **When** I create a simple workflow using the drag-and-drop designer _(future feature - Part 1 validates via REST API)_ and launch it, **Then** I should complete this process within 30 minutes and see real-time execution status
 2. **Given** I have a workflow that requires human approval, **When** the workflow reaches the approval step, **Then** the system should pause execution, notify the designated approver through the user interface, and wait for human approval.
 3. **Given** I am using the Nexus service to generate a workflow, **When** Nexus outputs a YAML workflow definition which is accepted by the user**Then** the workflow engine should automatically validate and execute/save/schedule the workflow without manual intervention
 4. **Given** I am monitoring multiple concurrent workflows, **When** I access the unified control plane, **Then** I should see live status of all workflows
@@ -48,6 +52,7 @@ As an automation professional, I want to create, execute, and monitor complex wo
 6. **Given** a workflow fails during execution, **When** the system encounters the failure, **Then** it should automatically retry according to defined policies and maintain execution state for recovery
 
 ### Edge Cases
+
 - What happens when a workflow has been running for an extended period and the system needs to restart? (The workflow will maintain its status and resume its progress when an available worker comes back online)
 - How does the system handle concurrent modifications to the same workflow definition? (System rejects conflicting changes with error message)
 - What occurs when a human-in-the-loop step times out without response? (System provides configurable timeout and retry options)
@@ -55,16 +60,17 @@ As an automation professional, I want to create, execute, and monitor complex wo
 - What happens when the maximum concurrent automation job limit is exceeded? (System alerts administrators and continues best-effort)
 - How does the system handle MCP Server Integration feature (spec 001) being partially implemented during parallel development with uncertain timing? (System design allows flexible integration with available basic implementation and iterates as both features evolve together; Part 3 timing may adjust based on spec 001 readiness)
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
+
 - **FR-001**: System MUST allow users to create, read, update, and delete workflows
-- **FR-002**: System MUST accept workflow definitions which match the workflow-definition schema
+- **FR-002**: System MUST accept workflow definitions that match the workflow-definition schema, in YAML or JSON format
 - **FR-003**: System MUST validate workflow definitions against a defined versioned schema before execution
 - **FR-004**: System MUST support both sequential and parallel execution of workflow activities
 - **FR-005**: System MUST support conditional branching within workflows based on activity outcomes or user inputs
 - **FR-006**: System MUST implement human-in-the-loop capabilities at any point in a workflow
-- **FR-007**: System MUST provide role-based access control for workflow creation, modification, and execution *(Implementation: Future Work - see Future Work section)*
+- **FR-007**: System MUST provide role-based access control for workflow creation, modification, and execution _(Implementation: Future Work - see Future Work section)_
 - **FR-008**: System MUST support workflow versioning to track changes over time
 - **FR-009**: System MUST allow users to pause, resume, cancel, and terminate active workflow executions
 - **FR-010**: System MUST provide real-time monitoring and status updates for all workflow executions
@@ -72,15 +78,15 @@ As an automation professional, I want to create, execute, and monitor complex wo
 - **FR-012**: System MUST support scheduled workflow execution (manual, continuous, time-based triggers, and event-driven triggers)
 - **FR-013**: System MUST provide retry mechanisms for failed workflow activities
 - **FR-014**: System MUST maintain workflow execution state for recovery after system failures
-- **FR-015**: System MUST must be able to scale to handle increased load of automation jobs
-- **FR-016**: System MUST provide a unified dashboard for monitoring workflows across different domains *(Implementation: Future Work - UI development deferred)*
-- **FR-017**: System MUST generate compliance and usage reports within 5 minutes *(Implementation: Part 4 - Audit Logging & Observability)*
+- **FR-015**: System MUST must be aware of its capacity and can either scale when capacity is available or inform users when capacity limits are reached
+- **FR-016**: System MUST provide a unified dashboard for monitoring workflows across different domains _(Implementation: Future Work - UI development deferred)_
+- **FR-017**: System MUST generate compliance and usage reports within 5 minutes _(Implementation: Part 4 - Audit Logging & Observability)_
 - **FR-018**: System MUST apply consistent governance policies across different business domains
 - **FR-019**: System MUST provide REST API endpoints for all workflow management operations
 - **FR-020**: Users MUST be able to approve or reject human-in-the-loop requests through conversational or visual interfaces
 - **FR-021**: System MUST notify users when workflows require human intervention
 - **FR-022**: System MUST allow users to configure timeout and retry behavior for human-in-the-loop steps
-- **FR-023**: System MUST allow customization of workflows through both UI and chat interfaces *(Implementation: Future Work - UI/chat interfaces deferred)*
+- **FR-023**: System MUST allow customization of workflows through both UI and chat interfaces _(Implementation: Future Work - UI/chat interfaces deferred)_
 - **FR-024**: System MUST provide detailed execution history and logs for individual workflow activities
 - **FR-025**: System MUST support connectors for external agentic tool servers such as MCPs and traditional enterprise systems
 - **FR-026**: System MUST support distributed execution across multiple nodes
@@ -93,6 +99,7 @@ As an automation professional, I want to create, execute, and monitor complex wo
 ## Clarifications
 
 ### Session 2025-09-25
+
 - Q: When a human approval step times out without response, what should the system do? → A: User configurable timeout behavior
 - Q: What types of external systems should connectors support? → A: External agentic tool servers such as MCPs
 - Q: When the system approaches or exceeds concurrent automation job limit, what should happen? → A: Alert administrators and continue best-effort
@@ -103,6 +110,7 @@ As an automation professional, I want to create, execute, and monitor complex wo
 - Q: What happens to workflows when they are updated? → A: The system should ask the user for expected behaviors, continue, terminate, or restart the running workflows.
 
 ### Session 2025-10-09
+
 - Q: Should Part 1 deliver a complete working end-to-end workflow execution or just the foundational infrastructure pieces? → A: Hybrid: Part 1 delivers working execution for simple workflows; advanced features in later parts
 - Q: For Part 3 Ticket 9 (External Tool Integration), what is the expected readiness status of the MCP Server Integration and Tool Management feature (spec 001) dependency? → A: Basic implementation expected to be available; however, parallel development in chunks means exact timing is uncertain at this point
 - Q: For Part 1 development and testing, what is the required deployment environment? → A: Podman containers required from start using podman-compose (not Docker)
@@ -148,7 +156,8 @@ graph TB
     style Edge fill:#FFD700
 ```
 
-### Key Entities *(include if feature involves data)*
+### Key Entities _(include if feature involves data)_
+
 - **Workflow**: Represents a complete automation process with multiple activities, including metadata, version information, schedule, and execution parameters
 - **Activity**: Individual tasks within a workflow that can be agentic (AI-driven), non-agentic (traditional automation), or human-interactive
 - **Execution**: Runtime instance of a workflow with current state, execution history, logs, and status information
@@ -174,15 +183,18 @@ This work will be addressed in more detail in another spec/plan
 ---
 
 ## Review & Acceptance Checklist
-*GATE: Automated checks run during main() execution*
+
+_GATE: Automated checks run during main() execution_
 
 ### Content Quality
+
 - [x] No implementation details (languages, frameworks, APIs)
 - [x] Focused on user value and business needs
 - [x] Written for non-technical stakeholders
 - [x] All mandatory sections completed
 
 ### Requirement Completeness
+
 - [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
@@ -192,7 +204,8 @@ This work will be addressed in more detail in another spec/plan
 ---
 
 ## Execution Status
-*Updated by main() during processing*
+
+_Updated by main() during processing_
 
 - [x] User description parsed
 - [x] Key concepts extracted

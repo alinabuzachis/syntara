@@ -137,8 +137,8 @@ A system administrator or business user wants to accomplish complex automation t
 - **User Prompt**: Natural language instruction describing desired automation task, including context and constraints
 - **Core Agent**: An agent capable of doing research, creating and/or using other specialized agents and building workflows including agentic nodes with agentic loops.
 - **Specialized Agent**: Focused capability for specific domains (workflow creator, monitoring, deployment, analysis, etc)
-- **Guidance component**: Service that provides contextual recommendations for tool selection and workflow generation
-- **Guidance Recommendation**: Contextual advice from Guidance component about appropriate tools and workflow patterns for specific requests
+- **Guidance component**: External service that acts as an intelligent advisor to the Core Agent, providing contextual recommendations for tool selection and workflow generation. It delivers hierarchical recommendations based on organizational policies, domain expertise, and user preferences to help the Core Agent make informed, compliant, and consistent workflow generation decisions. This component ensures that tool selection and workflow patterns align with organizational standards and best practices.
+- **Guidance Recommendation**: Contextual advice from Guidance component about appropriate tools and workflow patterns for specific requests, including policy-based constraints and domain-specific best practices
 - **Context Manager component**: Service that maintains working memory, short-term patterns, and long-term historical data for informed decision making
 - **Tool Registry**: Centralized catalog containing information about available tools, their capabilities, and usage requirements
 - **Tool**: External service, application, or capability that can be invoked to perform specific automation tasks
