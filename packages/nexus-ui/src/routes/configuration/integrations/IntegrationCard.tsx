@@ -1,8 +1,8 @@
 import { Menu, MenuItem, MenuItems, MenuTrigger } from '@ansible/nexus-ui-framework'
 import { EllipsisVerticalIcon } from 'lucide-react'
-import type { Tools } from 'nexus-contracts'
+import type { ToolProvider } from '../../../client'
 
-export function IntegrationCard(props: { integration: Tools.components['schemas']['Tool'] }) {
+export function IntegrationCard(props: { integration: ToolProvider }) {
   return (
     <div className="glass flex flex-col gap-4 rounded-2xl border p-8">
       <div>
