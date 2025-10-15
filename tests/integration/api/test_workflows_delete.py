@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexus_api.models import Workflow
+from tests.helpers import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio
@@ -21,11 +22,11 @@ async def test_delete_workflow_success(test_client: AsyncClient) -> None:
     # Create workflow
     workflow = {
         "name": "workflow-to-delete",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: to-delete
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="to-delete",
+            description="Workflow to delete",
+            activity_id="delete_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -46,11 +47,11 @@ async def test_delete_workflow_sets_deleted_at(test_client: AsyncClient) -> None
     # Create workflow
     workflow = {
         "name": "soft-delete-test",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: soft-delete
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="soft-delete",
+            description="Soft delete test",
+            activity_id="soft_delete_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -74,20 +75,20 @@ async def test_delete_workflow_excluded_from_list(test_client: AsyncClient) -> N
     # Create two workflows
     workflow1 = {
         "name": "workflow-1",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: workflow-1
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="workflow-1",
+            description="First workflow",
+            activity_id="activity_1",
+        ),
     }
 
     workflow2 = {
         "name": "workflow-2",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: workflow-2
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="workflow-2",
+            description="Second workflow",
+            activity_id="activity_2",
+        ),
     }
 
     create_response1 = await test_client.post("/api/v1/workflows", json=workflow1)
@@ -131,11 +132,11 @@ async def test_delete_already_deleted_workflow(test_client: AsyncClient) -> None
     # Create and delete workflow
     workflow = {
         "name": "double-delete",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: double-delete
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="double-delete",
+            description="Double delete test",
+            activity_id="double_delete_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -162,11 +163,11 @@ async def test_delete_workflow_is_soft_delete_not_hard(
     """
     workflow = {
         "name": "soft-not-hard",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: soft-not-hard
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="soft-not-hard",
+            description="Soft not hard delete test",
+            activity_id="soft_not_hard_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)

@@ -125,7 +125,7 @@ def upgrade() -> None:
         sa.Column("workflow_id", sa.Uuid(), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("schema_version", sa.String(length=50), nullable=False),
-        sa.Column("yaml_definition", sa.Text(), nullable=False),
+        sa.Column("workflow_definition", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("created_by", sa.Uuid(), nullable=False),
         sa.Column("change_description", sa.Text(), nullable=True),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),

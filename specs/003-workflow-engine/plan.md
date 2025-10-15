@@ -186,7 +186,7 @@ erDiagram
         uuid workflow_id FK
         integer version
         string schema_version
-        text yaml_definition
+        jsonb workflow_definition
         uuid created_by FK
         timestamp created_at
         text change_description
@@ -443,7 +443,7 @@ tests/
 **Ticket 1: Workflow Management (Models + API)** - 13 points
 - User, Workflow, WorkflowVersion models with soft delete
 - Complete REST API for workflow CRUD operations
-- **Automatic versioning**: PATCH with yaml_definition auto-creates new WorkflowVersion
+- **Automatic versioning**: PATCH with workflow_definition auto-creates new WorkflowVersion
 - GET /workflows/{id} returns workflow with current active version data
 - WorkflowVersion entities are read-only (managed automatically by system)
 - Version history tracking and basic YAML validation
@@ -458,10 +458,11 @@ tests/
 
 **Versioning Design Decision**:
 - WorkflowVersion entities are **read-only** and managed automatically
-- PATCH /workflows/{id} with `yaml_definition` field automatically creates new version **only if the YAML content has changed**
-  - Compare incoming yaml_definition with current version's yaml_definition (exact match required)
-  - Skip version creation if YAML is exactly identical (no-op optimization)
-  - Create new version when YAML differs from current version (including whitespace differences)
+- PATCH /workflows/{id} with `workflow_definition` field automatically creates new version **only if the workflow definition content has changed**
+  - Compare incoming workflow_definition with current version's workflow_definition (normalized JSON comparison)
+  - Skip version creation if workflow definition is semantically identical (no-op optimization)
+  - Create new version when workflow definition structure differs from current version
+  - API accepts workflow definition objects; both are validated and stored as JSON in JSONB column
 - PATCH /workflows/{id} with only metadata (name, description, labels, is_enabled) does NOT create version
 - GET /workflows/{id} always returns the current active version specified by `current_version` field
 - Explicit version endpoints (/workflows/{id}/versions) are for read-only access to version history

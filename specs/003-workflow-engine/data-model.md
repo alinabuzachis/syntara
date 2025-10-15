@@ -50,8 +50,8 @@ Maintains complete version history of workflow definitions, enabling rollback an
 - `id`: UUID (Primary Key) - **Auto-generated**
 - `workflow_id`: UUID (Foreign Key to Workflow) - **Required**
 - `version`: Integer - **Auto-incremented** (Version number, auto-incremented per workflow starting from 1)
-- `schema_version`: String - **Required** (Schema version from YAML `schemaVersion` field, e.g., "1.0.0", "1.1.0", "2.0.0")
-- `yaml_definition`: Text - **Required** (YAML workflow definition from Nexus, includes scheduling config)
+- `schema_version`: String - **Required** (Schema version from workflow definition `schemaVersion` field, e.g., "1.0.0", "1.1.0", "2.0.0")
+- `workflow_definition`: JSONB - **Required** (Workflow definition stored as JSON; API accepts JSON objects which are validated and normalized to JSON for storage in JSONB column)
 - `created_by`: UUID (Foreign Key to User) - **Required** (Set from authenticated user context)
 - `created_at`: Timestamp - **Auto-generated** (Set on creation)
 - `change_description`: Text - **Optional** (defaults to null, description of changes in this version)
@@ -65,9 +65,9 @@ Maintains complete version history of workflow definitions, enabling rollback an
 - `executions` ← Execution (One-to-Many, tracks which version was executed)
 
 **Validation Rules:**
-- `yaml_definition` must be valid YAML and conform to workflow schema
+- `workflow_definition` must conform to workflow schema (API accepts JSON objects; validated and stored as JSON in JSONB column)
 - `schema_version` must match semver format (e.g., "1.0.0") and be supported by the workflow engine
-- `schema_version` must match the `schemaVersion` field in the `yaml_definition`
+- `schema_version` must match the `schemaVersion` field in the `workflow_definition`
 - `version` must be unique within a workflow and auto-increment
 - `version` must be immutable once created
 - `deleted_by` must be set when `deleted_at` is set

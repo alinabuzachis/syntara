@@ -4,11 +4,12 @@ Tests cover:
 - WorkflowVersion creation with required fields
 - Soft delete behavior
 - Unique (workflow_id, version) constraint
-- YAML definition storage
+- Workflow definition storage
 - change_description field
 - Relationships with Workflow and User
 """
 
+import json
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -20,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexus_api.models.user import User, UserRole
 from nexus_api.models.workflow import Workflow
 from nexus_api.models.workflow_version import WorkflowVersion
+from tests.helpers.workflow_fixtures import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio
@@ -46,16 +48,12 @@ async def test_create_workflow_version_with_required_fields(
     await test_db_session.refresh(workflow)
 
     # Create version
-    yaml_def = """schemaVersion: "1.0.0"
-name: test-workflow
-activities: []
-"""
     version = WorkflowVersion(
         id=uuid4(),
         workflow_id=workflow.id,
         version=1,
         schema_version="1.0.0",
-        yaml_definition=yaml_def,
+        workflow_definition=json.dumps(create_minimal_workflow_definition(name="test-workflow")),
         created_by=user.id,
     )
     test_db_session.add(version)
@@ -66,7 +64,7 @@ activities: []
     assert version.workflow_id == workflow.id
     assert version.version == 1
     assert version.schema_version == "1.0.0"
-    assert version.yaml_definition == yaml_def
+    assert version.workflow_definition is not None
     assert version.created_by == user.id
     assert version.change_description is None
     assert version.deleted_at is None
@@ -96,16 +94,12 @@ async def test_create_workflow_version_with_all_fields(
     await test_db_session.refresh(user)
     await test_db_session.refresh(workflow)
 
-    yaml_def = """schemaVersion: "1.0.0"
-name: full-workflow
-activities: []
-"""
     version = WorkflowVersion(
         id=uuid4(),
         workflow_id=workflow.id,
         version=1,
         schema_version="1.0.0",
-        yaml_definition=yaml_def,
+        workflow_definition=json.dumps(create_minimal_workflow_definition(name="full-workflow")),
         created_by=user.id,
         change_description="Initial version",
     )
@@ -149,7 +143,7 @@ async def test_workflow_version_soft_delete(test_db_session: AsyncSession) -> No
         workflow_id=workflow.id,
         version=1,
         schema_version="1.0.0",
-        yaml_definition="schemaVersion: '1.0.0'\nname: test\nactivities: []",
+        workflow_definition=json.dumps(create_minimal_workflow_definition(name="test")),
         created_by=creator.id,
     )
     test_db_session.add(version)
@@ -195,7 +189,7 @@ async def test_workflow_version_unique_workflow_version_constraint(
         workflow_id=workflow.id,
         version=1,
         schema_version="1.0.0",
-        yaml_definition="schemaVersion: '1.0.0'\nname: v1\nactivities: []",
+        workflow_definition=json.dumps(create_minimal_workflow_definition(name="v1")),
         created_by=user.id,
     )
     test_db_session.add(version1)
@@ -207,7 +201,7 @@ async def test_workflow_version_unique_workflow_version_constraint(
         workflow_id=workflow.id,
         version=1,  # Same version number
         schema_version="1.0.0",
-        yaml_definition="schemaVersion: '1.0.0'\nname: v1-duplicate\nactivities: []",
+        workflow_definition=json.dumps(create_minimal_workflow_definition(name="v1-duplicate")),
         created_by=user.id,
     )
     test_db_session.add(version2)
@@ -247,7 +241,7 @@ async def test_workflow_version_multiple_versions_same_workflow(
             workflow_id=workflow.id,
             version=i,
             schema_version="1.0.0",
-            yaml_definition=f"schemaVersion: '1.0.0'\nname: v{i}\nactivities: []",
+            workflow_definition=json.dumps(create_minimal_workflow_definition(name=f"v{i}")),
             created_by=user.id,
             change_description=f"Version {i}",
         )
@@ -295,7 +289,7 @@ async def test_workflow_version_relationship_with_workflow(
         workflow_id=workflow.id,
         version=1,
         schema_version="1.0.0",
-        yaml_definition="schemaVersion: '1.0.0'\nname: test\nactivities: []",
+        workflow_definition=json.dumps(create_minimal_workflow_definition(name="test")),
         created_by=user.id,
     )
     test_db_session.add(version)
@@ -339,7 +333,7 @@ async def test_workflow_version_relationship_with_user(
         workflow_id=workflow.id,
         version=1,
         schema_version="1.0.0",
-        yaml_definition="schemaVersion: '1.0.0'\nname: test\nactivities: []",
+        workflow_definition=json.dumps(create_minimal_workflow_definition(name="test")),
         created_by=user.id,
     )
     test_db_session.add(version)
@@ -377,7 +371,7 @@ async def test_workflow_version_repr(test_db_session: AsyncSession) -> None:
         workflow_id=workflow.id,
         version=2,
         schema_version="1.0.0",
-        yaml_definition="schemaVersion: '1.0.0'\nname: test\nactivities: []",
+        workflow_definition=json.dumps(create_minimal_workflow_definition(name="test")),
         created_by=user.id,
     )
 
@@ -389,10 +383,10 @@ async def test_workflow_version_repr(test_db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_workflow_version_yaml_definition_storage(
+async def test_workflow_version_workflow_definition_storage(
     test_db_session: AsyncSession,
 ) -> None:
-    """Test that large YAML definitions are stored correctly."""
+    """Test that large workflow definitions are stored correctly."""
     user = User(
         id=uuid4(),
         username="creator9",
@@ -410,40 +404,24 @@ async def test_workflow_version_yaml_definition_storage(
     await test_db_session.refresh(user)
     await test_db_session.refresh(workflow)
 
-    # Create a larger YAML definition
-    large_yaml = """schemaVersion: "1.0.0"
-name: large-workflow
-description: A workflow with many activities
-activities:
-  - id: activity_1
-    name: Activity 1
-    type: task
-    config:
-      param1: value1
-      param2: value2
-  - id: activity_2
-    name: Activity 2
-    type: task
-    config:
-      param1: value1
-      param2: value2
-transitions:
-  - from: activity_1
-    to: activity_2
-"""
+    # Create a larger workflow definition
+    large_definition = create_minimal_workflow_definition(
+        name="large-workflow",
+        description="A workflow with many activities",
+    )
 
     version = WorkflowVersion(
         id=uuid4(),
         workflow_id=workflow.id,
         version=1,
         schema_version="1.0.0",
-        yaml_definition=large_yaml,
+        workflow_definition=json.dumps(large_definition),
         created_by=user.id,
     )
     test_db_session.add(version)
     await test_db_session.commit()
     await test_db_session.refresh(version)
 
-    assert version.yaml_definition == large_yaml
-    assert "activity_1" in version.yaml_definition
-    assert "activity_2" in version.yaml_definition
+    assert version.workflow_definition is not None
+    assert "large-workflow" in version.workflow_definition
+    assert "workflow" in version.workflow_definition

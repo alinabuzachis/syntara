@@ -9,6 +9,7 @@ Tests cover:
 - Relationships with User and WorkflowVersion
 """
 
+import json
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -18,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexus_api.models.user import User, UserRole
 from nexus_api.models.workflow import Workflow
 from nexus_api.models.workflow_version import WorkflowVersion
+from tests.helpers.workflow_fixtures import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio
@@ -317,7 +319,7 @@ async def test_workflow_relationship_with_versions(test_db_session: AsyncSession
         workflow_id=workflow.id,
         version=1,
         schema_version="1.0.0",
-        yaml_definition="schemaVersion: '1.0.0'\nname: v1\nactivities: []",
+        workflow_definition=json.dumps(create_minimal_workflow_definition(name="v1")),
         created_by=user.id,
     )
     version2 = WorkflowVersion(
@@ -325,7 +327,7 @@ async def test_workflow_relationship_with_versions(test_db_session: AsyncSession
         workflow_id=workflow.id,
         version=2,
         schema_version="1.0.0",
-        yaml_definition="schemaVersion: '1.0.0'\nname: v2\nactivities: []",
+        workflow_definition=json.dumps(create_minimal_workflow_definition(name="v2")),
         created_by=user.id,
     )
     test_db_session.add_all([version1, version2])

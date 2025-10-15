@@ -7,6 +7,11 @@ Tests MUST FAIL before implementation (TDD approach).
 import pytest
 from httpx import AsyncClient
 
+from tests.helpers.workflow_fixtures import (
+    create_minimal_workflow_definition,
+    create_workflow_definition_with_activities,
+)
+
 
 @pytest.mark.asyncio
 async def test_get_workflow_versions_list(test_client: AsyncClient) -> None:
@@ -17,40 +22,59 @@ async def test_get_workflow_versions_list(test_client: AsyncClient) -> None:
     # Create workflow
     workflow = {
         "name": "multi-version-workflow",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: multi-version
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="multi-version",
+            description="Test workflow for multi-version",
+            activity_id="initial_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
     # Create additional versions using PATCH (versions are system-managed)
-    # Note: Each PATCH must have different YAML to trigger version creation (change detection)
+    # Note: Each PATCH must have different definition to trigger version creation (change detection)
     update_data_v2 = {
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: multi-version
-activities:
-  - id: step1
-    executor: script
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="multi-version",
+            description="Version 2",
+            activity_id="step1",
+        ),
         "change_description": "Version 2",
     }
     await test_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data_v2)
 
     update_data_v3 = {
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: multi-version
-activities:
-  - id: step1
-    executor: script
-  - id: step2
-    executor: api
-""",
+        "workflow_definition": create_workflow_definition_with_activities(
+            name="multi-version",
+            description="Version 3",
+            activities=[
+                {
+                    "id": "step1",
+                    "name": "Step 1",
+                    "type": "task",
+                    "task": {
+                        "executor": "script",
+                        "config": {
+                            "language": "python",
+                            "code": "print('step 1')",
+                        },
+                    },
+                },
+                {
+                    "id": "step2",
+                    "name": "Step 2",
+                    "type": "task",
+                    "task": {
+                        "executor": "script",
+                        "config": {
+                            "language": "python",
+                            "code": "print('step 2')",
+                        },
+                    },
+                },
+            ],
+        ),
         "change_description": "Version 3",
     }
     await test_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data_v3)
@@ -79,11 +103,11 @@ async def test_get_workflow_versions_empty_list(test_client: AsyncClient) -> Non
     # Create workflow
     workflow = {
         "name": "single-version-workflow",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: single-version
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="single-version",
+            description="Test workflow for single version",
+            activity_id="initial_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -122,11 +146,11 @@ async def test_get_workflow_versions_includes_metadata(test_client: AsyncClient)
     # Create workflow
     workflow = {
         "name": "metadata-test",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: metadata-test
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="metadata-test",
+            description="Test workflow for metadata",
+            activity_id="metadata_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)

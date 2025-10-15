@@ -7,24 +7,21 @@ Tests MUST FAIL before implementation (TDD approach).
 import pytest
 from httpx import AsyncClient
 
+from tests.helpers import create_minimal_workflow_definition
+
 
 @pytest.mark.asyncio
-async def test_post_workflow_valid_yaml(test_client: AsyncClient) -> None:
-    """Test creating a workflow with valid YAML definition.
+async def test_post_workflow_valid_definition(test_client: AsyncClient) -> None:
+    """Test creating a workflow with valid definition.
 
     Expected: 201 Created with workflow object
     """
     valid_workflow = {
         "name": "test-workflow",
         "description": "A test workflow",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: test-workflow
-activities:
-  - id: task1
-    name: Task 1
-    type: task
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="test-workflow", description="A test workflow", activity_id="task1", activity_type="task"
+        ),
     }
 
     response = await test_client.post("/api/v1/workflows", json=valid_workflow)
@@ -41,22 +38,25 @@ activities:
 
 
 @pytest.mark.asyncio
-async def test_post_workflow_invalid_yaml(test_client: AsyncClient) -> None:
-    """Test creating a workflow with invalid YAML syntax.
+async def test_post_workflow_invalid_definition(test_client: AsyncClient) -> None:
+    """Test creating a workflow with invalid definition structure.
 
-    Expected: 400 Bad Request with error details
+    Expected: 422 Unprocessable Entity (Pydantic validation error)
     """
     invalid_workflow = {
         "name": "invalid-workflow",
-        "yaml_definition": "invalid: yaml: syntax: [[[",
+        "workflow_definition": {
+            "schemaVersion": "1.0.0",
+            "version": 1,
+            # Missing required 'metadata' and 'workflow' fields
+        },
     }
 
     response = await test_client.post("/api/v1/workflows", json=invalid_workflow)
 
-    assert response.status_code == 400
+    assert response.status_code == 422
     data = response.json()
     assert "detail" in data
-    assert "yaml" in data["detail"].lower() or "invalid" in data["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -66,11 +66,10 @@ async def test_post_workflow_missing_name(test_client: AsyncClient) -> None:
     Expected: 422 Unprocessable Entity (validation error)
     """
     workflow_without_name = {
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: test
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="test",
+            description="Test workflow",
+        ),
     }
 
     response = await test_client.post("/api/v1/workflows", json=workflow_without_name)
@@ -88,11 +87,10 @@ async def test_post_workflow_duplicate_name(test_client: AsyncClient) -> None:
     """
     workflow = {
         "name": "duplicate-workflow",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: duplicate-workflow
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="duplicate-workflow",
+            description="Test workflow",
+        ),
     }
 
     # Create first workflow
@@ -108,26 +106,25 @@ activities: []
 
 
 @pytest.mark.asyncio
-async def test_post_workflow_missing_required_yaml_fields(test_client: AsyncClient) -> None:
-    """Test creating a workflow with YAML missing required fields.
+async def test_post_workflow_missing_required_fields(test_client: AsyncClient) -> None:
+    """Test creating a workflow with definition missing required fields.
 
-    Expected: 400 Bad Request with validation error
+    Expected: 422 Unprocessable Entity (Pydantic validation error)
     """
     workflow_missing_fields = {
         "name": "incomplete-workflow",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-# Missing 'name' and 'activities' fields
-""",
+        "workflow_definition": {
+            "schemaVersion": "1.0.0",
+            "version": 1,
+            # Missing required 'metadata' and 'workflow' fields
+        },
     }
 
     response = await test_client.post("/api/v1/workflows", json=workflow_missing_fields)
 
-    assert response.status_code == 400
+    assert response.status_code == 422
     data = response.json()
     assert "detail" in data
-    # Should mention missing required fields
-    assert any(keyword in data["detail"].lower() for keyword in ["name", "activities", "required", "missing"])
 
 
 @pytest.mark.asyncio
@@ -139,14 +136,9 @@ async def test_post_workflow_response_schema(test_client: AsyncClient) -> None:
     workflow = {
         "name": "schema-test-workflow",
         "description": "Testing response schema",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: schema-test
-activities:
-  - id: test_activity
-    name: Test Activity
-    type: task
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="schema-test", description="Testing response schema", activity_id="test_activity", activity_type="task"
+        ),
     }
 
     response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -185,11 +177,10 @@ async def test_post_workflow_with_labels(test_client: AsyncClient) -> None:
     """
     workflow_with_labels = {
         "name": "labeled-workflow",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: labeled-workflow
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="labeled-workflow",
+            description="Workflow with labels",
+        ),
         "labels": {
             "environment": "test",
             "team": "engineering",

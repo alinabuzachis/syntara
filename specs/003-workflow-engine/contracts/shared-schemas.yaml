@@ -99,7 +99,7 @@ components:
       - type: object
         title: Workflow With Version
         description: Workflow combined with a specific version's details including
-          YAML definition, schema version, and change history
+          workflow definition (stored as JSON), schema version, and change history
         properties:
           version:
             type: object
@@ -109,8 +109,8 @@ components:
                 type: integer
               schema_version:
                 type: string
-              yaml_definition:
-                type: string
+              workflow_definition:
+                $ref: ./workflow-definition.schema.json
               created_by:
                 type: string
                 format: uuid
@@ -189,11 +189,12 @@ components:
             description: Parent execution ID
           activity_name:
             type: string
-            description: Activity ID from YAML workflow definition
+            description: Activity ID from workflow definition
           activity_definition:
             type: object
-            description: Snapshot of the activity configuration from YAML at execution
-              time, including executor, config, retry policy, timeout, approval settings
+            description: Snapshot of the activity configuration from workflow definition
+              at execution time, including executor, config, retry policy, timeout,
+              approval settings
           temporal_activity_id:
             type: string
             description: Temporal activity execution ID
@@ -361,17 +362,17 @@ components:
     CreateWorkflowRequest:
       type: object
       title: Create Workflow Request
-      description: Request payload for creating a new workflow from YAML definition
+      description: Request payload for creating a new workflow from workflow definition
       required:
       - name
-      - yaml_definition
+      - workflow_definition
       properties:
         name:
           type: string
         description:
           type: string
-        yaml_definition:
-          type: string
+        workflow_definition:
+          $ref: ./workflow-definition.schema.json
         is_enabled:
           type: boolean
           default: true
@@ -382,15 +383,15 @@ components:
       title: Update Workflow Request
       description: Request payload for full workflow replacement creating a new version
       required:
-      - yaml_definition
+      - workflow_definition
       properties:
         name:
           type: string
         description:
           type: string
-        yaml_definition:
-          type: string
-          description: New YAML definition (creates new version)
+        workflow_definition:
+          $ref: ./workflow-definition.schema.json
+          description: New workflow definition (creates new version)
 
     PatchWorkflowRequest:
       type: object
@@ -398,9 +399,10 @@ components:
       description: |
         Request payload for updating workflow fields. Behavior depends on which fields are provided:
         - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-        - With yaml_definition: Validates YAML, compares with current version, and creates new WorkflowVersion only if YAML differs (change detection)
+        - With workflow_definition: Validates workflow definition, compares with current version, and creates new WorkflowVersion only if definition differs (change detection)
 
         Note: WorkflowVersion entities are read-only and managed automatically by the system.
+        API accepts JSON objects for workflow_definition field.
       properties:
         name:
           type: string
@@ -417,14 +419,14 @@ components:
           additionalProperties:
             type: string
           description: Update workflow labels (metadata only, no version created)
-        yaml_definition:
-          type: string
-          description: New YAML workflow definition - creates new version only if
-            YAML differs from current version (change detection)
+        workflow_definition:
+          $ref: ./workflow-definition.schema.json
+          description: New workflow definition - creates new version only if definition
+            differs from current version (change detection)
         change_description:
           type: string
           description: Description of changes (used when creating new version via
-            yaml_definition)
+            workflow_definition)
 
     CreateExecutionRequest:
       type: object

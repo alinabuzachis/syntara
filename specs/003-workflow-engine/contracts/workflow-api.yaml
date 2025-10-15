@@ -114,7 +114,8 @@ paths:
                 $ref: '#/components/schemas/StreamEvent'
     post:
       summary: Create workflow
-      description: Create a new workflow from YAML definition
+      description: Create a new workflow entity with its initial version. The workflow
+        definition is validated and stored as version 1.
       requestBody:
         required: true
         content:
@@ -171,7 +172,7 @@ paths:
       description: |
         Update workflow fields. Supports both metadata updates and workflow definition updates:
         - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-        - With yaml_definition: Validates YAML, compares with current version, and creates new version only if YAML differs (change detection)
+        - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
       parameters:
       - name: workflowId
         in: path
@@ -187,7 +188,7 @@ paths:
               $ref: '#/components/schemas/PatchWorkflowRequest'
       responses:
         '200':
-          description: Workflow updated successfully (may include new version if yaml_definition
+          description: Workflow updated successfully (may include new version if workflow_definition
             changed)
           content:
             application/json:
@@ -264,7 +265,7 @@ paths:
     get:
       summary: Get workflow version
       description: Retrieve a specific version of a workflow by version number. Returns
-        the complete YAML definition for that version.
+        the complete workflow definition for that version.
       parameters:
       - name: workflowId
         in: path
@@ -586,7 +587,7 @@ components:
     WorkflowVersionResponse:
       type: object
       title: Workflow Version Response
-      description: Complete details of a specific workflow version including YAML
+      description: Complete details of a specific workflow version including workflow
         definition. Note that deleted_at and deleted_by are always null since soft-deleted
         versions are excluded from queries.
       required:
@@ -594,7 +595,7 @@ components:
       - workflow_id
       - version
       - schema_version
-      - yaml_definition
+      - workflow_definition
       - created_by
       - created_at
       - updated_at
@@ -613,9 +614,9 @@ components:
         schema_version:
           type: string
           description: YAML schema version (e.g., "1.0.0")
-        yaml_definition:
-          type: string
-          description: Complete YAML workflow definition
+        workflow_definition:
+          $ref: ./workflow-definition.schema.json
+          description: Workflow definition object conforming to workflow-definition.schema.json
         created_by:
           type: string
           format: uuid

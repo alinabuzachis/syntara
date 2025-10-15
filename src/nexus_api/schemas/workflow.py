@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from nexus_api.workflows.models.workflow_definition import WorkflowDefinition
+
 
 class WorkflowBase(BaseModel):
     """Base schema for Workflow."""
@@ -16,9 +18,12 @@ class WorkflowBase(BaseModel):
 
 
 class CreateWorkflowRequest(WorkflowBase):
-    """Schema for creating a new workflow."""
+    """Schema for creating a new workflow.
 
-    yaml_definition: str = Field(..., min_length=1, description="YAML workflow definition")
+    Accepts workflow_definition as a dict/object that will be validated against the WorkflowDefinition schema.
+    """
+
+    workflow_definition: WorkflowDefinition = Field(..., description="Workflow definition object")
     is_enabled: bool = Field(default=True, description="Enable workflow for execution (defaults to True)")
 
 
@@ -27,8 +32,8 @@ class UpdateWorkflowRequest(BaseModel):
 
     Supports both metadata-only updates and workflow definition updates:
     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-    - With yaml_definition: Validates YAML, compares with current version, creates new WorkflowVersion
-      only if YAML differs (change detection optimization)
+    - With workflow_definition: Validates definition, compares with current version, creates new WorkflowVersion
+      only if definition differs (change detection optimization)
 
     Note: WorkflowVersion entities are read-only and managed automatically by the system.
     """
@@ -37,7 +42,9 @@ class UpdateWorkflowRequest(BaseModel):
     description: str | None = Field(None, description="Update workflow description")
     labels: dict[str, Any] | None = Field(None, description="Update workflow labels")
     is_enabled: bool | None = Field(None, description="Enable/disable workflow")
-    yaml_definition: str | None = Field(None, min_length=1, description="New YAML definition (auto-creates version)")
+    workflow_definition: WorkflowDefinition | None = Field(
+        None, description="New workflow definition object (auto-creates version)"
+    )
     change_description: str | None = Field(None, description="Description of changes (for version history)")
 
 
@@ -64,7 +71,7 @@ class WorkflowWithVersionResponse(WorkflowResponse):
     """Schema for workflow response including current version details.
 
     Used when retrieving a single workflow to provide complete information
-    including the active YAML definition specified by current_version.
+    including the active workflow definition specified by current_version.
     """
 
     version: "WorkflowVersionResponse" = Field(..., description="Current active version details")
@@ -92,7 +99,7 @@ class WorkflowVersionResponse(BaseModel):
     workflow_id: UUID
     version: int
     schema_version: str
-    yaml_definition: str
+    workflow_definition: WorkflowDefinition
     change_description: str | None = None
     created_by: UUID
     created_at: datetime

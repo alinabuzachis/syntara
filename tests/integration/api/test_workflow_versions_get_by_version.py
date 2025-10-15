@@ -7,37 +7,38 @@ Tests MUST FAIL before implementation (TDD approach).
 import pytest
 from httpx import AsyncClient
 
+from tests.helpers.workflow_fixtures import (
+    create_minimal_workflow_definition,
+    create_workflow_definition_with_activities,
+)
+
 
 @pytest.mark.asyncio
 async def test_get_workflow_version_by_number(test_client: AsyncClient) -> None:
     """Test retrieving a specific version by number.
 
-    Expected: 200 OK with version details including YAML definition
+    Expected: 200 OK with version details including workflow definition
     """
     # Create workflow
     workflow = {
         "name": "versioned-workflow",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: versioned-workflow
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="versioned-workflow",
+            description="Test workflow for versioning",
+            activity_id="initial_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
     # Create version 2 using PATCH (versions are system-managed)
-    version2_yaml = """
-schemaVersion: "1.1.0"
-name: versioned-workflow
-activities:
-  - id: activity_1
-    name: Activity 1
-    type: task
-"""
     update_data = {
-        "yaml_definition": version2_yaml,
+        "workflow_definition": create_minimal_workflow_definition(
+            name="versioned-workflow",
+            description="Added activity",
+            activity_id="activity_1",
+        ),
         "change_description": "Added activity",
     }
 
@@ -50,8 +51,9 @@ activities:
     data = response.json()
     assert data["version"] == 2
     assert data["workflow_id"] == workflow_id
-    assert "yaml_definition" in data
-    assert "activity_1" in data["yaml_definition"]
+    assert "workflow_definition" in data
+    workflow_def = data["workflow_definition"]
+    assert workflow_def["workflow"]["activities"][0]["id"] == "activity_1"
 
 
 @pytest.mark.asyncio
@@ -63,11 +65,11 @@ async def test_get_workflow_version_1(test_client: AsyncClient) -> None:
     # Create workflow
     workflow = {
         "name": "version-1-test",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: version-1-test
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="version-1-test",
+            description="Test workflow for version 1",
+            activity_id="v1_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -79,7 +81,7 @@ activities: []
     assert response.status_code == 200
     data = response.json()
     assert data["version"] == 1
-    assert "yaml_definition" in data
+    assert "workflow_definition" in data
 
 
 @pytest.mark.asyncio
@@ -93,11 +95,11 @@ async def test_get_workflow_version_nonexistent_version(
     # Create workflow
     workflow = {
         "name": "test-workflow",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: test-workflow
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="test-workflow",
+            description="Test workflow for nonexistent version",
+            activity_id="test_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -132,11 +134,11 @@ async def test_get_workflow_version_response_schema(test_client: AsyncClient) ->
     # Create workflow
     workflow = {
         "name": "schema-test",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: schema-test
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="schema-test",
+            description="Test workflow for schema validation",
+            activity_id="schema_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -153,7 +155,7 @@ activities: []
         "workflow_id",
         "version",
         "schema_version",
-        "yaml_definition",
+        "workflow_definition",
         "created_at",
     ]
 
@@ -162,25 +164,45 @@ activities: []
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_version_includes_full_yaml(test_client: AsyncClient) -> None:
-    """Test that response includes full YAML definition.
+async def test_get_workflow_version_includes_full_definition(test_client: AsyncClient) -> None:
+    """Test that response includes complete workflow definition.
 
-    Expected: yaml_definition field contains complete YAML
+    Expected: workflow_definition field contains complete definition with all activities
     """
-    # Create workflow with detailed YAML
-    detailed_yaml = """
-schemaVersion: "1.0.0"
-name: detailed-workflow
-description: A workflow with detailed configuration
-activities:
-  - id: task_1
-    name: Task 1
-    type: task
-  - id: task_2
-    name: Task 2
-    type: task
-"""
-    workflow = {"name": "detailed-workflow", "yaml_definition": detailed_yaml}
+    # Create workflow with detailed definition
+    workflow = {
+        "name": "detailed-workflow",
+        "workflow_definition": create_workflow_definition_with_activities(
+            name="detailed-workflow",
+            description="A workflow with detailed configuration",
+            activities=[
+                {
+                    "id": "task_1",
+                    "name": "Task 1",
+                    "type": "task",
+                    "task": {
+                        "executor": "script",
+                        "config": {
+                            "language": "python",
+                            "code": "print('task 1')",
+                        },
+                    },
+                },
+                {
+                    "id": "task_2",
+                    "name": "Task 2",
+                    "type": "task",
+                    "task": {
+                        "executor": "script",
+                        "config": {
+                            "language": "python",
+                            "code": "print('task 2')",
+                        },
+                    },
+                },
+            ],
+        ),
+    }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
@@ -190,6 +212,9 @@ activities:
 
     assert response.status_code == 200
     data = response.json()
-    assert "task_1" in data["yaml_definition"]
-    assert "task_2" in data["yaml_definition"]
-    assert "detailed-workflow" in data["yaml_definition"]
+    workflow_def = data["workflow_definition"]
+    activities = workflow_def["workflow"]["activities"]
+    assert len(activities) == 2
+    assert activities[0]["id"] == "task_1"
+    assert activities[1]["id"] == "task_2"
+    assert workflow_def["metadata"]["name"] == "detailed-workflow"

@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexus_api.api.v1.utils import deserialize_workflow_version
 from nexus_api.auth import get_current_user
 from nexus_api.db import get_db
 from nexus_api.models import User, Workflow, WorkflowVersion
@@ -18,7 +19,7 @@ from nexus_api.schemas import (
     WorkflowResponse,
     WorkflowWithVersionResponse,
 )
-from nexus_api.validators import ValidationError, WorkflowYAMLValidator
+from nexus_api.validators import ValidationError, WorkflowDefinitionValidator
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
@@ -119,9 +120,9 @@ async def create_workflow(
         HTTPException: 400 if validation fails or name already exists
 
     """
-    # Validate YAML definition
+    # Validate workflow definition
     try:
-        _, schema_version = WorkflowYAMLValidator.validate(request.yaml_definition)
+        _, schema_version, workflow_dict = WorkflowDefinitionValidator.validate(request.workflow_definition)
     except ValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -145,7 +146,7 @@ async def create_workflow(
         workflow_id=workflow.id,
         version=1,
         schema_version=schema_version,
-        yaml_definition=request.yaml_definition,
+        workflow_definition=workflow_dict,
         created_by=current_user.id,
         change_description="Initial version",
     )
@@ -272,8 +273,7 @@ async def get_workflow(
             detail=f"Current version {workflow.current_version} not found",
         )
 
-    # Return workflow with version data
-    # Use model_validate to convert ORM objects to Pydantic models
+    # Return workflow with version data - deserialize workflow_definition from JSON
     return WorkflowWithVersionResponse.model_validate(
         {
             "id": workflow.id,
@@ -287,7 +287,7 @@ async def get_workflow(
             "updated_at": workflow.updated_at,
             "deleted_at": workflow.deleted_at,
             "deleted_by": workflow.deleted_by,
-            "version": current_version,
+            "version": deserialize_workflow_version(current_version),
         }
     )
 
@@ -330,25 +330,25 @@ async def _create_new_version(
     current_user: User,
     db: AsyncSession,
 ) -> bool:
-    """Create new workflow version from yaml_definition.
+    """Create new workflow version from workflow_definition.
 
     Returns:
-        True if new version was created, False if YAML unchanged (no-op)
+        True if new version was created, False if definition unchanged (no-op)
 
     """
-    # Validate YAML
-    if not request.yaml_definition:
+    # Validate workflow definition
+    if not request.workflow_definition:
         return False
 
     try:
-        _, schema_version = WorkflowYAMLValidator.validate(request.yaml_definition)
+        _, schema_version, workflow_dict = WorkflowDefinitionValidator.validate(request.workflow_definition)
     except ValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
         ) from e
 
-    # Fetch current version to compare YAML
+    # Fetch current version to compare definitions
     current_version_result = await db.execute(
         select(WorkflowVersion).filter(
             WorkflowVersion.workflow_id == workflow.id,
@@ -358,8 +358,8 @@ async def _create_new_version(
     )
     current_version = current_version_result.scalar_one_or_none()
 
-    # Compare YAML definitions (change detection - exact match required)
-    if current_version and current_version.yaml_definition == request.yaml_definition:
+    # Compare workflow definitions (change detection - dict comparison)
+    if current_version and current_version.workflow_definition == workflow_dict:
         # No change detected - skip version creation
         return False
 
@@ -376,7 +376,7 @@ async def _create_new_version(
         workflow_id=workflow.id,
         version=next_version,
         schema_version=schema_version,
-        yaml_definition=request.yaml_definition,
+        workflow_definition=workflow_dict,
         change_description=request.change_description or f"Update to version {next_version}",
         created_by=current_user.id,
     )
@@ -399,8 +399,8 @@ async def update_workflow(
 
     Supports both metadata-only updates and workflow definition updates:
     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-    - With yaml_definition: Validates YAML, compares with current version, creates new WorkflowVersion
-      only if YAML differs (change detection optimization)
+    - With workflow_definition: Validates definition, compares with current version, creates new WorkflowVersion
+      only if definition differs (change detection optimization)
 
     Args:
         workflow_id: Workflow UUID
@@ -428,8 +428,8 @@ async def update_workflow(
     # Update metadata fields
     await _update_metadata(workflow, request)
 
-    # Handle yaml_definition - creates new version
-    if request.yaml_definition is not None:
+    # Handle workflow_definition - creates new version
+    if request.workflow_definition is not None:
         await _create_new_version(workflow, request, current_user, db)
 
     # Commit changes with duplicate name check (use workflow.name since it's been updated)
@@ -452,8 +452,7 @@ async def update_workflow(
             detail=f"Current version {workflow.current_version} not found",
         )
 
-    # Return workflow with version data
-    # Use model_validate to convert ORM objects to Pydantic models
+    # Return workflow with version data - deserialize workflow_definition from JSON
     return WorkflowWithVersionResponse.model_validate(
         {
             "id": workflow.id,
@@ -467,7 +466,7 @@ async def update_workflow(
             "updated_at": workflow.updated_at,
             "deleted_at": workflow.deleted_at,
             "deleted_by": workflow.deleted_by,
-            "version": current_version,
+            "version": deserialize_workflow_version(current_version),
         }
     )
 

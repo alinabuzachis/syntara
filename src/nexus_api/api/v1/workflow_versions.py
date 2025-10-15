@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexus_api.api.v1.utils import deserialize_workflow_version
 from nexus_api.db import get_db
 from nexus_api.models import Workflow, WorkflowVersion
 from nexus_api.schemas import (
@@ -18,7 +19,7 @@ router = APIRouter(prefix="/workflows", tags=["workflow-versions"])
 
 
 # NOTE: WorkflowVersion entities are READ-ONLY and system-managed.
-# Versions are created automatically via PATCH /workflows/{id} with yaml_definition.
+# Versions are created automatically via PATCH /workflows/{id} with workflow_definition.
 # No POST endpoint for manual version creation - this ensures version integrity.
 
 
@@ -63,9 +64,11 @@ async def list_workflow_versions(
     )
     versions = list(result.scalars().all())
 
-    # Return ORM objects - FastAPI auto-converts to WorkflowVersionResponse list
-    # Pydantic's from_attributes=True handles ORM → Pydantic conversion
-    return WorkflowVersionListResponse(versions=versions)  # type: ignore[arg-type]
+    # Deserialize workflow_definition from JSON strings to dicts
+    version_dicts = [deserialize_workflow_version(v) for v in versions]
+
+    # Manually construct response with deserialized versions
+    return WorkflowVersionListResponse(versions=[WorkflowVersionResponse.model_validate(v) for v in version_dicts])
 
 
 @router.get("/{workflow_id}/versions/{version}")
@@ -116,6 +119,5 @@ async def get_workflow_version(
             detail=f"Version {version} not found for this workflow",
         )
 
-    # Return ORM object - FastAPI auto-converts to WorkflowVersionResponse
-    # Pydantic's from_attributes=True handles ORM → Pydantic conversion
-    return workflow_version  # type: ignore[return-value]
+    # Deserialize workflow_definition from JSON string to dict and return
+    return WorkflowVersionResponse.model_validate(deserialize_workflow_version(workflow_version))

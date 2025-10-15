@@ -59,7 +59,7 @@ As an automation professional, I want to create, execute, and monitor complex wo
 
 ### Functional Requirements
 - **FR-001**: System MUST allow users to create, read, update, and delete workflows
-- **FR-002**: System MUST accept workflow definitions in YAML format
+- **FR-002**: System MUST accept workflow definitions which match the workflow-definition schema
 - **FR-003**: System MUST validate workflow definitions against a defined versioned schema before execution
 - **FR-004**: System MUST support both sequential and parallel execution of workflow activities
 - **FR-005**: System MUST support conditional branching within workflows based on activity outcomes or user inputs

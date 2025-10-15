@@ -1,9 +1,10 @@
 """WorkflowVersion model for workflow version history."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import ForeignKey, Index, Integer, String, Text
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
@@ -21,8 +22,8 @@ class WorkflowVersion(Base, TimestampMixin, SoftDeleteMixin):
         id: Primary key UUID
         workflow_id: Foreign key to Workflow
         version: Version number (auto-incremented per workflow)
-        schema_version: YAML schema version (e.g., "1.0.0")
-        yaml_definition: Complete YAML workflow definition (includes scheduling config)
+        schema_version: Workflow schema version (e.g., "1.0.0")
+        workflow_definition: Complete workflow definition as dict (stored in JSONB column)
         created_by: Foreign key to User who created this version
         created_at: Timestamp of version creation
         change_description: Optional description of changes in this version
@@ -60,8 +61,8 @@ class WorkflowVersion(Base, TimestampMixin, SoftDeleteMixin):
         nullable=False,
     )
 
-    yaml_definition: Mapped[str] = mapped_column(
-        Text,
+    workflow_definition: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB(astext_type=Text()),
         nullable=False,
     )
 

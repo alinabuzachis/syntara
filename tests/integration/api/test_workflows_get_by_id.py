@@ -7,6 +7,8 @@ Tests MUST FAIL before implementation (TDD approach).
 import pytest
 from httpx import AsyncClient
 
+from tests.helpers import create_minimal_workflow_definition
+
 
 @pytest.mark.asyncio
 async def test_get_workflow_by_valid_id(test_client: AsyncClient) -> None:
@@ -18,11 +20,11 @@ async def test_get_workflow_by_valid_id(test_client: AsyncClient) -> None:
     workflow = {
         "name": "test-workflow-get",
         "description": "Test workflow for GET by ID",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: test-workflow-get
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="test-workflow-get",
+            description="Test workflow for GET by ID",
+            activity_id="get_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -61,11 +63,11 @@ async def test_get_workflow_includes_current_version(test_client: AsyncClient) -
     """
     workflow = {
         "name": "workflow-with-version",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: workflow-with-version
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="workflow-with-version",
+            description="Workflow with version",
+            activity_id="version_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -88,11 +90,11 @@ async def test_get_soft_deleted_workflow_returns_404(test_client: AsyncClient) -
     # Create and then delete a workflow
     workflow = {
         "name": "workflow-to-delete",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: workflow-to-delete
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="workflow-to-delete",
+            description="Workflow to delete",
+            activity_id="delete_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -116,11 +118,11 @@ async def test_get_workflow_response_schema(test_client: AsyncClient) -> None:
     """
     workflow = {
         "name": "schema-test",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: schema-test
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="schema-test",
+            description="Schema test workflow",
+            activity_id="schema_activity",
+        ),
     }
 
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
@@ -153,7 +155,7 @@ activities: []
         "workflow_id",
         "version",
         "schema_version",
-        "yaml_definition",
+        "workflow_definition",
         "created_by",
         "created_at",
     ]
@@ -165,4 +167,5 @@ activities: []
     assert version["workflow_id"] == workflow_id
     assert version["version"] == 1
     assert version["schema_version"] == "1.0.0"
-    assert "activities" in version["yaml_definition"]
+    assert "workflow" in version["workflow_definition"]
+    assert "activities" in version["workflow_definition"]["workflow"]

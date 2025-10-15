@@ -7,6 +7,8 @@ Tests MUST FAIL before implementation (TDD approach).
 import pytest
 from httpx import AsyncClient
 
+from tests.helpers import create_minimal_workflow_definition
+
 
 @pytest.mark.asyncio
 async def test_get_workflows_empty_list(test_client: AsyncClient) -> None:
@@ -35,11 +37,11 @@ async def test_get_workflows_list_all(test_client: AsyncClient) -> None:
     workflows_to_create = [
         {
             "name": f"workflow-{i}",
-            "yaml_definition": f"""
-schemaVersion: "1.0.0"
-name: workflow-{i}
-activities: []
-""",
+            "workflow_definition": create_minimal_workflow_definition(
+                name=f"workflow-{i}",
+                description=f"Workflow {i}",
+                activity_id=f"activity_{i}",
+            ),
         }
         for i in range(3)
     ]
@@ -67,11 +69,11 @@ async def test_get_workflows_filter_by_created_by(test_client: AsyncClient) -> N
     # Create first workflow (uses default test user)
     workflow1 = {
         "name": "workflow-creator-1",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: workflow-creator-1
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="workflow-creator-1",
+            description="Creator test workflow 1",
+            activity_id="activity_1",
+        ),
     }
     response1 = await test_client.post("/api/v1/workflows", json=workflow1)
     assert response1.status_code == 201
@@ -80,11 +82,11 @@ activities: []
     # Create second workflow (same creator)
     workflow2 = {
         "name": "workflow-creator-2",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: workflow-creator-2
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="workflow-creator-2",
+            description="Creator test workflow 2",
+            activity_id="activity_2",
+        ),
     }
     response2 = await test_client.post("/api/v1/workflows", json=workflow2)
     assert response2.status_code == 201
@@ -139,11 +141,11 @@ async def test_get_workflows_pagination(test_client: AsyncClient) -> None:
     for i in range(10):
         workflow = {
             "name": f"paginated-workflow-{i}",
-            "yaml_definition": f"""
-schemaVersion: "1.0.0"
-name: paginated-workflow-{i}
-activities: []
-""",
+            "workflow_definition": create_minimal_workflow_definition(
+                name=f"paginated-workflow-{i}",
+                description=f"Paginated workflow {i}",
+                activity_id=f"activity_{i}",
+            ),
         }
         response = await test_client.post("/api/v1/workflows", json=workflow)
         assert response.status_code == 201
@@ -173,11 +175,11 @@ async def test_get_workflows_excludes_soft_deleted(test_client: AsyncClient) -> 
     # Create workflow
     workflow = {
         "name": "to-be-deleted",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: to-be-deleted
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="to-be-deleted",
+            description="Workflow to be deleted",
+            activity_id="activity_delete",
+        ),
     }
     create_response = await test_client.post("/api/v1/workflows", json=workflow)
     assert create_response.status_code == 201
@@ -205,21 +207,21 @@ async def test_get_workflows_filter_by_labels(test_client: AsyncClient) -> None:
     # Create workflows with different labels
     workflow1 = {
         "name": "prod-workflow",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: prod-workflow
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="prod-workflow",
+            description="Production workflow",
+            activity_id="activity_prod",
+        ),
         "labels": {"environment": "production"},
     }
 
     workflow2 = {
         "name": "dev-workflow",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: dev-workflow
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="dev-workflow",
+            description="Development workflow",
+            activity_id="activity_dev",
+        ),
         "labels": {"environment": "development"},
     }
 
@@ -250,11 +252,11 @@ async def test_get_workflows_default_page_size(test_client: AsyncClient) -> None
     for i in range(25):
         workflow = {
             "name": f"workflow-page-{i}",
-            "yaml_definition": f"""
-schemaVersion: "1.0.0"
-name: workflow-page-{i}
-activities: []
-""",
+            "workflow_definition": create_minimal_workflow_definition(
+                name=f"workflow-page-{i}",
+                description=f"Workflow page {i}",
+                activity_id=f"activity_page_{i}",
+            ),
         }
         response = await test_client.post("/api/v1/workflows", json=workflow)
         assert response.status_code == 201
@@ -279,22 +281,22 @@ async def test_get_workflows_filter_by_label_key_only(test_client: AsyncClient) 
     # Create workflow with label
     workflow1 = {
         "name": "workflow-with-label",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: workflow-with-label
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="workflow-with-label",
+            description="Workflow with experimental label",
+            activity_id="activity_with_label",
+        ),
         "labels": {"feature": "experimental", "team": "platform"},
     }
 
     # Create workflow without that label
     workflow2 = {
         "name": "workflow-without-label",
-        "yaml_definition": """
-schemaVersion: "1.0.0"
-name: workflow-without-label
-activities: []
-""",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="workflow-without-label",
+            description="Workflow without experimental label",
+            activity_id="activity_without_label",
+        ),
         "labels": {"team": "platform"},
     }
 

@@ -250,7 +250,7 @@ graph TB
   - Expected: 204 No Content, 404 Not Found
 
 - [X] ~~**T010 [P]** Integration test: POST /api/v1/workflows/{id}/versions~~ **REMOVED**
-  - **Reason**: WorkflowVersion is READ-ONLY. Versions are created automatically via PATCH /workflows/{id} with yaml_definition
+  - **Reason**: WorkflowVersion is READ-ONLY. Versions are created automatically via PATCH /workflows/{id} with workflow_definition
   - See: T008 (PATCH test) now covers version creation behavior
 
 - [X] **T011 [P]** Integration test: GET /api/v1/workflows/{id}/versions
@@ -281,7 +281,7 @@ graph TB
 
 - [X] ** [P]** Implement WorkflowVersion model with soft delete
   - File: `src/nexus_api/models/workflow_version.py`
-  - Fields: id, workflow_id (FK), version (auto-increment), schema_version, yaml_definition (Text), created_by (FK), created_at, change_description, deleted_at, deleted_by (FK)
+  - Fields: id, workflow_id (FK), version (auto-increment), schema_version, workflow_definition (Text), created_by (FK), created_at, change_description, deleted_at, deleted_by (FK)
   - Relationships: workflow (Many-to-One), executions (One-to-Many)
   - Validation: Unique (workflow_id, version), immutable version after creation
   - Indexes: (workflow_id, version) unique, (workflow_id, created_at)
@@ -318,7 +318,7 @@ graph TB
   - Schemas: CreateWorkflowRequest, WorkflowResponse, WorkflowWithVersionResponse, WorkflowListResponse, UpdateWorkflowRequest
   - Schemas: WorkflowVersionResponse, WorkflowVersionListResponse
   - ~~CreateWorkflowVersionRequest~~ **REMOVED** (versions are system-managed)
-  - UpdateWorkflowRequest: Supports both metadata-only updates and yaml_definition (auto-creates version)
+  - UpdateWorkflowRequest: Supports both metadata-only updates and workflow_definition (auto-creates version)
   - WorkflowWithVersionResponse: Combines workflow metadata with current version data
   - Include: Label validation, YAML structure validation helpers
 
@@ -358,10 +358,10 @@ graph TB
   - Handler: update_workflow(workflow_id, request: UpdateWorkflowRequest, db)
   - Logic:
     * Metadata only (name, description, labels, is_enabled): Update without creating version
-    * With yaml_definition:
+    * With workflow_definition:
       - Validate YAML
-      - Fetch current version's yaml_definition
-      - Compare with incoming yaml_definition using exact match (including whitespace)
+      - Fetch current version's workflow_definition
+      - Compare with incoming workflow_definition using exact match (including whitespace)
       - Auto-create new WorkflowVersion only if YAML differs
       - Increment current_version only when new version created
   - Response: 200 OK with WorkflowWithVersionResponse, 404 if not found, 400 for validation errors
@@ -376,7 +376,7 @@ graph TB
 
 - [X] ~~**T026** Implement POST /api/v1/workflows/{id}/versions endpoint~~ **REMOVED**
   - **Reason**: WorkflowVersion is READ-ONLY and system-managed
-  - **Alternative**: Versions are created automatically via PATCH /workflows/{id} with yaml_definition (see T025)
+  - **Alternative**: Versions are created automatically via PATCH /workflows/{id} with workflow_definition (see T025)
   - No manual version creation endpoint exists - this ensures version integrity and automatic tracking
 
 - [X] **** Implement GET /api/v1/workflows/{id}/versions endpoint
@@ -388,7 +388,7 @@ graph TB
 - [X] **** Implement GET /api/v1/workflows/{id}/versions/{version} endpoint
   - File: `src/nexus_api/api/v1/workflow_versions.py` (add handler)
   - Handler: get_version(workflow_id: UUID, version: int, db: AsyncSession)
-  - Logic: Fetch specific version with yaml_definition
+  - Logic: Fetch specific version with workflow_definition
   - Response: 200 OK with WorkflowVersion object, 404 if not found
 
 - [X] **** Register all workflow routes in FastAPI app
@@ -523,19 +523,19 @@ Task: "Unit tests for WorkflowVersion model in tests/unit/models/test_workflow_v
 ### Workflow Versioning Design
 **Key Design Decision**: WorkflowVersion entities are **read-only** and managed automatically by the system:
 
-- **Automatic Version Creation with Change Detection**: PATCH /workflows/{id} with `yaml_definition` field:
+- **Automatic Version Creation with Change Detection**: PATCH /workflows/{id} with `workflow_definition` field:
   1. Validates the YAML definition
-  2. Fetches the current version's yaml_definition
+  2. Fetches the current version's workflow_definition
   3. Compares incoming YAML with current version YAML (exact match, including whitespace)
   4. **Only creates new version if YAML differs** (change detection optimization)
   5. If changed: Creates new WorkflowVersion record and increments workflow's `current_version`
   6. If exactly identical: Skips version creation (no-op)
 
-- **Metadata-Only Updates**: PATCH /workflows/{id} without `yaml_definition` updates metadata only (name, description, labels, is_enabled) and does NOT create a new version
+- **Metadata-Only Updates**: PATCH /workflows/{id} without `workflow_definition` updates metadata only (name, description, labels, is_enabled) and does NOT create a new version
 
 - **Reading Workflows**: GET /workflows/{id} always returns `WorkflowWithVersionResponse` which includes:
   - Workflow metadata (id, name, description, current_version, etc.)
-  - Current active version data (yaml_definition, schema_version, etc.) as specified by `current_version`
+  - Current active version data (workflow_definition, schema_version, etc.) as specified by `current_version`
 
 - **Version History**: /workflows/{id}/versions endpoints provide read-only access to historical versions
 

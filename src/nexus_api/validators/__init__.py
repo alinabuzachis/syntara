@@ -1,13 +1,13 @@
 """Validators for workflow definitions and requests."""
 
-from nexus_api.validators.workflow_yaml import (
+from nexus_api.validators.workflow_definition import (
     ValidationError,
-    WorkflowYAMLValidationResult,
-    WorkflowYAMLValidator,
+    WorkflowDefinitionValidationResult,
+    WorkflowDefinitionValidator,
 )
 
 __all__ = [
     "ValidationError",
-    "WorkflowYAMLValidationResult",
-    "WorkflowYAMLValidator",
+    "WorkflowDefinitionValidationResult",
+    "WorkflowDefinitionValidator",
 ]
