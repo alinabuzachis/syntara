@@ -18,7 +18,8 @@ export interface paths {
     get: {
       parameters: {
         query?: {
-          /** @description Generic field filtering with operators. Syntax: field[operator]=value
+          /**
+           * @description Generic field filtering with operators. Syntax: field[operator]=value
            *
            *     Supported operators:
            *     - eq: equals
@@ -39,7 +40,7 @@ export interface paths {
            *     - ?created_at[lte]=2025-10-03
            *     - ?status[in]=available,validating
            *     - ?created_at[between]=2025-01-01,2025-12-31
-           *      */
+           */
           'field[operator]'?: {
             [key: string]: string
           }
