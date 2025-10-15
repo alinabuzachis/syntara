@@ -30,6 +30,8 @@ dependencies = [
     "alembic>=1.12.0",
     "python-multipart>=0.0.6",
     "temporalio>=1.5.0",
+    "redis>=5.0.0",
+    "httpx>=0.25.0",
 ]
 
 [project.optional-dependencies]
@@ -60,11 +62,12 @@ Issues = "https://github.com/syntara-orchestration/syntara/issues"
 
 # Hatchling configuration for multiple modules
 [tool.hatch.build.targets.wheel]
-packages = ["src/nexus_api"]
+packages = ["src/nexus_api", "src/nexus_tool_manager"]
 
 [tool.hatch.build.targets.sdist]
 include = [
     "src/nexus_api/**",
+    "src/nexus_tool_manager/**",
     "README.md",
     "LICENSE",
     "uv.lock",

@@ -2,6 +2,8 @@
 
 import json
 import sys
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -14,6 +16,30 @@ from sqlalchemy import text
 
 from nexus_api.api.v1 import workflow_versions, workflows
 from nexus_api.db import get_db
+from nexus_tool_manager.lib.providers.factory import ProviderFactory
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
+    """Manage FastAPI application lifespan events.
+
+    Handles initialization and cleanup of application-scoped resources
+    like the provider factory.
+
+    Args:
+        app: FastAPI application instance
+
+    """
+    # Startup: Initialize provider factory in app.state
+    app.state.provider_factory = ProviderFactory()
+
+    # Register provider types here as they are implemented
+
+    yield
+
+    # Shutdown: Clean up provider factory
+    app.state.provider_factory = None
+
 
 # Create FastAPI application
 app = FastAPI(
@@ -23,6 +49,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+    lifespan=lifespan,
 )
 
 # Configure CORS middleware

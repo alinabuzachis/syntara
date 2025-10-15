@@ -25,7 +25,7 @@ This approach mirrors the successful workflow engine implementation pattern, ena
 ## Project Infrastructure
 - **Package Namespace**: `nexus_tool_manager`
 - **Source Directory**: `./src/nexus_tool_manager/`
-- **API Routers**: `./src/nexus_tool_manager/api/`
+- **API Routers**: `./src/nexus_api/api/v1`
 - **Services**: `./src/nexus_tool_manager/services/`
 - **Models**: `./src/nexus_tool_manager/models/`
 - **Lib/Shared**: `./src/nexus_tool_manager/lib/`
