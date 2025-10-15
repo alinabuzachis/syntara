@@ -26,7 +26,7 @@
     "clean": "rm -rf dist node_modules",
     "start": "vite build --watch",
     "build": "vite build",
-    "gen": "npm run nexus:checkout && concurrently npm:gen:* -c auto && npm run nexus:clean && cd ../.. && npm run format",
+    "gen": "npm run nexus:checkout && concurrently npm:gen:* -c auto && npm run nexus:clean && npm run build && cd ../.. && npm run format",
     "nexus:checkout": "git clone https://github.com/syntara-orchestration/syntara",
     "gen:tools": "npx openapi-typescript ./nexus/specs/004-tool-management/contracts/tools.yaml --output ./src/tools.ts",
     "gen:tool-providers": "npx openapi-typescript ./nexus/specs/004-tool-management/contracts/tool-providers.yaml --output ./src/tool-providers.ts",
