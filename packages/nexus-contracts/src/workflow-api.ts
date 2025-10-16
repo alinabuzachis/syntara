@@ -4,1507 +4,1674 @@
  */
 
 export interface paths {
-  '/activity-types': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List available activity types
-     * @description Retrieve all available activity executor types that can be used in workflow definitions.
-     *     This endpoint is used for workflow validation, UI tooling, and documentation.
-     */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of available activity types with their configuration schemas */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': {
-              activity_types?: components['schemas']['ActivityType'][]
-            }
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/workflows': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List workflows
-     * @description Retrieve a list of workflows with filtering and pagination. Supports streaming via Accept text/event-stream header.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Filter by creator user ID */
-          created_by?: string
-          /** @description Filter by enabled status */
-          is_enabled?: boolean
-          /**
-           * @description Filter by labels (format "key=value,key2=value2" or "key" for existence check)
-           * @example environment=production,team=data-platform
-           */
-          labels?: string
-          limit?: number
-          offset?: number
-          /** @description Session ID for resumable streaming (used with Accept text/event-stream) */
-          session_id?: components['parameters']['SessionId']
-          /** @description Last received event ID for resuming stream (used with Accept text/event-stream) */
-          last_event_id?: components['parameters']['LastEventId']
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of workflows */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': {
-              workflows?: components['schemas']['Workflow'][]
-              total?: number
-              limit?: number
-              offset?: number
-            }
-            'text/event-stream': components['schemas']['StreamEvent']
-          }
-        }
-      }
-    }
-    put?: never
-    /**
-     * Create workflow
-     * @description Create a new workflow entity with its initial version. The workflow definition is validated and stored as version 1.
-     */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['CreateWorkflowRequest']
-        }
-      }
-      responses: {
-        /** @description Workflow created successfully */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Workflow']
-          }
-        }
-        /** @description Invalid workflow definition */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/workflows/{workflowId}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Get workflow
-     * @description Retrieve a specific workflow by ID including its current active version. Returns workflow metadata along with the version specified by current_version field. Supports streaming via Accept text/event-stream header.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Session ID for resumable streaming (used with Accept text/event-stream) */
-          session_id?: components['parameters']['SessionId']
-          /** @description Last received event ID for resuming stream (used with Accept text/event-stream) */
-          last_event_id?: components['parameters']['LastEventId']
-        }
-        header?: never
-        path: {
-          workflowId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Workflow details including current version information */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['WorkflowWithVersion']
-            'text/event-stream': components['schemas']['StreamEvent']
-          }
-        }
-        /** @description Workflow not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    /**
-     * Delete workflow (soft delete)
-     * @description Soft delete a workflow by setting deleted_at and deleted_by fields. The workflow remains in the database for audit purposes but is excluded from normal queries.
-     */
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          workflowId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Workflow soft deleted successfully */
-        204: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description Workflow not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-        /** @description Workflow cannot be deleted (has running executions) */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    options?: never
-    head?: never
-    /**
-     * Update workflow
-     * @description Update workflow fields. Supports both metadata updates and workflow definition updates:
-     *     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-     *     - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
-     */
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          workflowId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['PatchWorkflowRequest']
-        }
-      }
-      responses: {
-        /** @description Workflow updated successfully (may include new version if workflow_definition changed) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['WorkflowWithVersion']
-          }
-        }
-        /** @description Invalid workflow definition or validation error */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-        /** @description Workflow not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    trace?: never
-  }
-  '/workflows/{workflowId}/versions': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List workflow versions
-     * @description Retrieve all versions for a workflow ordered by version number descending. WorkflowVersion entities are read-only and managed automatically by the system.
-     */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          workflowId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of workflow versions */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['WorkflowVersionListResponse']
-          }
-        }
-        /** @description Workflow not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/workflows/{workflowId}/versions/{version}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Get workflow version
-     * @description Retrieve a specific version of a workflow by version number. Returns the complete workflow definition for that version.
-     */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          workflowId: string
-          /** @description Version number to retrieve */
-          version: number
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Workflow version details */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['WorkflowVersionResponse']
-          }
-        }
-        /** @description Workflow or version not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/executions': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List executions
-     * @description Retrieve executions with filtering and pagination. Supports streaming via Accept text/event-stream header.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Filter by workflow ID */
-          workflow_id?: string
-          /** @description Filter by user who started the execution */
-          started_by?: string
-          /** @description Filter by execution status */
-          status?: components['schemas']['ExecutionStatus']
-          /**
-           * @description Filter by labels (format "key=value,key2=value2" or "key" for existence check)
-           * @example priority=high,env=production
-           */
-          labels?: string
-          limit?: number
-          offset?: number
-          /** @description Session ID for resumable streaming (used with Accept text/event-stream) */
-          session_id?: components['parameters']['SessionId']
-          /** @description Last received event ID for resuming stream (used with Accept text/event-stream) */
-          last_event_id?: components['parameters']['LastEventId']
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of executions */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': {
-              executions?: components['schemas']['Execution'][]
-              total?: number
-              limit?: number
-              offset?: number
-            }
-            'text/event-stream': components['schemas']['StreamEvent']
-          }
-        }
-      }
-    }
-    put?: never
-    /**
-     * Create execution
-     * @description Start a new workflow execution
-     */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['CreateExecutionRequest']
-        }
-      }
-      responses: {
-        /** @description Execution started */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Execution']
-          }
-        }
-        /** @description Workflow not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/executions/{executionId}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Get execution
-     * @description Retrieve details of a specific execution. Supports streaming via Accept text/event-stream header for real-time updates.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Session ID for resumable streaming (used with Accept text/event-stream) */
-          session_id?: components['parameters']['SessionId']
-          /** @description Last received event ID for resuming stream (used with Accept text/event-stream) */
-          last_event_id?: components['parameters']['LastEventId']
-        }
-        header?: never
-        path: {
-          executionId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Execution details */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Execution']
-            'text/event-stream': components['schemas']['StreamEvent']
-          }
-        }
-        /** @description Execution not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    /**
-     * Control execution
-     * @description Pause, resume, or cancel a workflow execution
-     */
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          executionId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['ExecutionControlRequest']
-        }
-      }
-      responses: {
-        /** @description Execution control applied */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Execution']
-          }
-        }
-        /** @description Execution not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    trace?: never
-  }
-  '/executions/{executionId}/activities': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List activity executions
-     * @description Retrieve activity executions for a workflow execution. Supports streaming via Accept text/event-stream header for real-time updates.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Session ID for resumable streaming (used with Accept text/event-stream) */
-          session_id?: components['parameters']['SessionId']
-          /** @description Last received event ID for resuming stream (used with Accept text/event-stream) */
-          last_event_id?: components['parameters']['LastEventId']
-        }
-        header?: never
-        path: {
-          executionId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of activity executions */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['ActivityExecution'][]
-            'text/event-stream': components['schemas']['StreamEvent']
-          }
-        }
-        /** @description Execution not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/approvals': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List pending approvals
-     * @description Retrieve pending approvals for the current user. Supports streaming via Accept text/event-stream header for real-time updates.
-     */
-    get: {
-      parameters: {
-        query?: {
-          status?: components['schemas']['ApprovalStatus']
-          activity_execution_id?: string
-          /** @description Session ID for resumable streaming (used with Accept text/event-stream) */
-          session_id?: components['parameters']['SessionId']
-          /** @description Last received event ID for resuming stream (used with Accept text/event-stream) */
-          last_event_id?: components['parameters']['LastEventId']
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of approvals */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Approval'][]
-            'text/event-stream': components['schemas']['StreamEvent']
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/approvals/{approvalId}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Get approval
-     * @description Retrieve details of a specific approval request. Supports streaming via Accept text/event-stream header for real-time updates.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Session ID for resumable streaming (used with Accept text/event-stream) */
-          session_id?: components['parameters']['SessionId']
-          /** @description Last received event ID for resuming stream (used with Accept text/event-stream) */
-          last_event_id?: components['parameters']['LastEventId']
-        }
-        header?: never
-        path: {
-          approvalId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Approval details */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Approval']
-            'text/event-stream': components['schemas']['StreamEvent']
-          }
-        }
-        /** @description Approval not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    /**
-     * Respond to approval
-     * @description Approve or reject an approval request
-     */
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          approvalId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['ApprovalResponseRequest']
-        }
-      }
-      responses: {
-        /** @description Approval response recorded */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Approval']
-          }
-        }
-        /** @description Approval not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    trace?: never
-  }
+    "/activity-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List available activity types
+         * @description Retrieve all available activity executor types that can be used in workflow definitions.
+         *     This endpoint is used for workflow validation, UI tooling, and documentation.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of available activity types with their configuration schemas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            activity_types?: components["schemas"]["ActivityType"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List workflows
+         * @description Retrieve a list of workflows with filtering and pagination.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Filter by creator user ID */
+                    created_by?: string;
+                    /** @description Filter by enabled status */
+                    is_enabled?: boolean;
+                    /**
+                     * @description Filter by labels (format "key=value,key2=value2" or "key" for existence check)
+                     * @example environment=production,team=data-platform
+                     */
+                    labels?: string;
+                    limit?: number;
+                    offset?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of workflows */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            workflows?: components["schemas"]["Workflow"][];
+                            total?: number;
+                            limit?: number;
+                            offset?: number;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create workflow
+         * @description Create a new workflow entity with its initial version. The workflow definition is validated and stored as version 1.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateWorkflowRequest"];
+                };
+            };
+            responses: {
+                /** @description Workflow created successfully */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Workflow"];
+                    };
+                };
+                /** @description Invalid workflow definition */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflows/{workflowId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get workflow
+         * @description Retrieve a specific workflow by ID including its current active version. Returns workflow metadata along with the version specified by current_version field.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    workflowId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Workflow details including current version information */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkflowWithVersion"];
+                    };
+                };
+                /** @description Workflow not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete workflow (soft delete)
+         * @description Soft delete a workflow by setting deleted_at and deleted_by fields. The workflow remains in the database for audit purposes but is excluded from normal queries.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    workflowId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Workflow soft deleted successfully */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Workflow not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Workflow cannot be deleted (has running executions) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Update workflow
+         * @description Update workflow fields. Supports both metadata updates and workflow definition updates:
+         *     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
+         *     - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    workflowId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PatchWorkflowRequest"];
+                };
+            };
+            responses: {
+                /** @description Workflow updated successfully (may include new version if workflow_definition changed) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkflowWithVersion"];
+                    };
+                };
+                /** @description Invalid workflow definition or validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Workflow not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/workflows/{workflowId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List workflow versions
+         * @description Retrieve all versions for a workflow ordered by version number descending. WorkflowVersion entities are read-only and managed automatically by the system.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    workflowId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of workflow versions */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkflowVersionListResponse"];
+                    };
+                };
+                /** @description Workflow not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflows/{workflowId}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get workflow version
+         * @description Retrieve a specific version of a workflow by version number. Returns the complete workflow definition for that version.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    workflowId: string;
+                    /** @description Version number to retrieve */
+                    version: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Workflow version details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkflowVersionResponse"];
+                    };
+                };
+                /** @description Workflow or version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List executions
+         * @description Retrieve executions with filtering and pagination.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Filter by workflow ID */
+                    workflow_id?: string;
+                    /** @description Filter by user who started the execution */
+                    started_by?: string;
+                    /** @description Filter by execution status */
+                    status?: components["schemas"]["ExecutionStatus"];
+                    /**
+                     * @description Filter by labels (format "key=value,key2=value2" or "key" for existence check)
+                     * @example priority=high,env=production
+                     */
+                    labels?: string;
+                    limit?: number;
+                    offset?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of executions */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            executions?: components["schemas"]["Execution"][];
+                            total?: number;
+                            limit?: number;
+                            offset?: number;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create execution
+         * @description Start a new workflow execution
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateExecutionRequest"];
+                };
+            };
+            responses: {
+                /** @description Execution started */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Execution"];
+                    };
+                };
+                /** @description Workflow not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/executions/{executionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get execution
+         * @description Retrieve details of a specific execution.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    executionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Execution details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Execution"];
+                    };
+                };
+                /** @description Execution not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Control execution
+         * @description Pause, resume, or cancel a workflow execution
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    executionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExecutionControlRequest"];
+                };
+            };
+            responses: {
+                /** @description Execution control applied */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Execution"];
+                    };
+                };
+                /** @description Execution not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/executions/{executionId}/activities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List activity executions
+         * @description Retrieve activity executions for a workflow execution.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    executionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of activity executions */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ActivityExecution"][];
+                    };
+                };
+                /** @description Execution not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List pending approvals
+         * @description Retrieve pending approvals for the current user.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    status?: components["schemas"]["ApprovalStatus"];
+                    activity_execution_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of approvals */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Approval"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/approvals/{approvalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get approval
+         * @description Retrieve details of a specific approval request.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    approvalId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Approval details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Approval"];
+                    };
+                };
+                /** @description Approval not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Respond to approval
+         * @description Approve or reject an approval request
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    approvalId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ApprovalResponseRequest"];
+                };
+            };
+            responses: {
+                /** @description Approval response recorded */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Approval"];
+                    };
+                };
+                /** @description Approval not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
 }
-export type webhooks = Record<string, never>
+export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /**
-     * Base Resource
-     * @description Base fields common to all resources including unique identifier, labels for categorization, and audit timestamps
-     */
-    BaseResource: {
-      /**
-       * Format: uuid
-       * @description Unique resource identifier
-       */
-      id?: string
-      /**
-       * @description Key-value labels for categorization and filtering (e.g., {"environment":"production", "team":"data-platform"})
-       * @example {
-       *       "environment": "production",
-       *       "team": "data-platform",
-       *       "priority": "high"
-       *     }
-       */
-      labels?: {
-        [key: string]: string
-      }
-      /**
-       * Format: date-time
-       * @description Timestamp when resource was created
-       */
-      created_at?: string
-      /**
-       * Format: date-time
-       * @description Timestamp when resource was last updated
-       */
-      updated_at?: string
-    }
-    NamedResource: components['schemas']['BaseResource'] & {
-      /** @description Human-readable name */
-      name?: string
-      /** @description Optional description */
-      description?: string | null
-    }
-    /**
-     * Soft Deletable Resource
-     * @description Mixin fields for resources that support soft deletion with audit trail (deleted_at timestamp and deleted_by user)
-     */
-    SoftDeletableResource: {
-      /**
-       * Format: date-time
-       * @description Timestamp when resource was soft deleted
-       */
-      deleted_at?: string | null
-      /**
-       * Format: uuid
-       * @description User who soft deleted the resource
-       */
-      deleted_by?: string | null
-    }
-    /**
-     * User Owned Resource
-     * @description Mixin fields for resources with user ownership tracking (created_by user reference)
-     */
-    UserOwnedResource: {
-      /**
-       * Format: uuid
-       * @description User who created the resource
-       */
-      created_by?: string
-    }
-    Workflow: components['schemas']['NamedResource'] &
-      components['schemas']['SoftDeletableResource'] &
-      components['schemas']['UserOwnedResource'] & {
-        /** @description Current active version number */
-        current_version?: number
-        /** @description Whether workflow is enabled and available for execution */
-        is_enabled?: boolean
-      }
-    WorkflowWithVersion: components['schemas']['Workflow'] & {
-      /** @description Specific version details */
-      version?: {
-        version?: number
-        schema_version?: string
-        workflow_definition?: components['schemas']['workflow-definition.schema']
-        /** Format: uuid */
-        created_by?: string
-        /** Format: date-time */
-        created_at?: string
-        change_description?: string | null
-      }
-    }
-    /**
-     * Workflow Version Response
-     * @description Complete details of a specific workflow version including workflow definition. Note that deleted_at and deleted_by are always null since soft-deleted versions are excluded from queries.
-     */
-    WorkflowVersionResponse: {
-      /**
-       * Format: uuid
-       * @description Version unique identifier
-       */
-      id: string
-      /**
-       * Format: uuid
-       * @description Parent workflow ID
-       */
-      workflow_id: string
-      /** @description Version number */
-      version: number
-      /** @description YAML schema version (e.g., "1.0.0") */
-      schema_version: string
-      /** @description Workflow definition object conforming to workflow-definition.schema.json */
-      workflow_definition: components['schemas']['workflow-definition.schema']
-      /**
-       * Format: uuid
-       * @description User who created this version
-       */
-      created_by: string
-      /**
-       * Format: date-time
-       * @description Version creation timestamp
-       */
-      created_at: string
-      /**
-       * Format: date-time
-       * @description Last update timestamp
-       */
-      updated_at: string
-      /** @description Description of changes in this version */
-      change_description?: string | null
-      /**
-       * Format: date-time
-       * @description Soft delete timestamp (always null in responses)
-       */
-      deleted_at?: string | null
-      /**
-       * Format: uuid
-       * @description User who soft deleted the version (always null in responses)
-       */
-      deleted_by?: string | null
-    }
-    /**
-     * Workflow Version List Response
-     * @description List of workflow versions ordered by version number descending
-     */
-    WorkflowVersionListResponse: {
-      /** @description Array of workflow versions */
-      versions: components['schemas']['WorkflowVersionResponse'][]
-    }
-    Execution: components['schemas']['BaseResource'] & {
-      /**
-       * Format: uuid
-       * @description ID of the workflow being executed
-       */
-      workflow_id?: string
-      /** @description Temporal workflow execution ID */
-      temporal_workflow_id?: string
-      status?: components['schemas']['ExecutionStatus']
-      /**
-       * Format: uuid
-       * @description User who started the execution
-       */
-      started_by?: string
-      /**
-       * Format: date-time
-       * @description When execution transitioned from pending to running status (null if still pending)
-       */
-      started_at?: string | null
-      /**
-       * Format: date-time
-       * @description When execution reached terminal state (completed, failed, or cancelled)
-       */
-      completed_at?: string | null
-      /** @description Input parameters for the execution */
-      input_data?: Record<string, never>
-      /** @description Error information if execution failed */
-      error_details?: string | null
-      /** @description Currently executing activities */
-      current_activities?: {
-        activity_name?: string
-        temporal_activity_id?: string
-        iteration?: number | null
-      }[]
-    }
-    ActivityExecution: components['schemas']['BaseResource'] & {
-      /**
-       * Format: uuid
-       * @description Parent execution ID
-       */
-      execution_id?: string
-      /** @description Activity ID from workflow definition */
-      activity_name?: string
-      /** @description Snapshot of the activity configuration from workflow definition at execution time, including executor, config, retry policy, timeout, approval settings */
-      activity_definition?: Record<string, never>
-      /** @description Temporal activity execution ID */
-      temporal_activity_id?: string
-      status?: components['schemas']['ActivityStatus']
-      /**
-       * Format: date-time
-       * @description When activity transitioned from pending to running status (null if still pending)
-       */
-      started_at?: string | null
-      /**
-       * Format: date-time
-       * @description When activity reached terminal state (completed, failed)
-       */
-      completed_at?: string | null
-      /** @description Runtime input parameters */
-      input_data?: Record<string, never>
-      /** @description Activity results */
-      output_data?: Record<string, never> | null
-      /** @description Error information if failed */
-      error_details?: string | null
-      /** @description Number of retry attempts */
-      retry_count?: number
-      /** @description Iteration number if activity is within a loop (0-indexed) */
-      iteration?: number | null
-    }
-    Approval: components['schemas']['BaseResource'] & {
-      /**
-       * Format: uuid
-       * @description Activity requiring approval
-       */
-      activity_execution_id?: string
-      /**
-       * Format: uuid
-       * @description User assigned to review this approval
-       */
-      approver_id?: string
-      status?: components['schemas']['ApprovalStatus']
-      /** @description Data presented for approval */
-      request_data?: Record<string, never>
-      /** @description Approver's response including reason and comments */
-      response_data?: Record<string, never> | null
-      /**
-       * Format: date-time
-       * @description When approval was requested
-       */
-      requested_at?: string
-      /**
-       * Format: date-time
-       * @description When approver responded
-       */
-      responded_at?: string | null
-      /**
-       * Format: date-time
-       * @description Approval timeout deadline
-       */
-      expires_at?: string | null
-    }
-    /**
-     * Execution Status
-     * @description Current state of a workflow execution lifecycle
-     * @enum {string}
-     */
-    ExecutionStatus: 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'
-    /**
-     * Activity Status
-     * @description Current state of an individual activity execution
-     * @enum {string}
-     */
-    ActivityStatus: 'pending' | 'running' | 'completed' | 'failed' | 'retrying'
-    /**
-     * Approval Status
-     * @description Current state of a human approval request
-     * @enum {string}
-     */
-    ApprovalStatus: 'pending' | 'approved' | 'rejected' | 'expired'
-    /**
-     * Create Workflow Request
-     * @description Request payload for creating a new workflow from workflow definition
-     */
-    CreateWorkflowRequest: {
-      name: string
-      description?: string
-      workflow_definition: components['schemas']['workflow-definition.schema']
-      /**
-       * @description Enable workflow for execution (defaults to true if not specified)
-       * @default true
-       */
-      is_enabled: boolean
-    }
-    /**
-     * Patch Workflow Request
-     * @description Request payload for updating workflow fields. Behavior depends on which fields are provided:
-     *     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-     *     - With workflow_definition: Validates workflow definition, compares with current version, and creates new WorkflowVersion only if definition differs (change detection)
-     *
-     *     Note: WorkflowVersion entities are read-only and managed automatically by the system.
-     *     API accepts JSON objects for workflow_definition field.
-     */
-    PatchWorkflowRequest: {
-      /** @description Update workflow name (metadata only, no version created) */
-      name?: string
-      /** @description Update workflow description (metadata only, no version created) */
-      description?: string
-      /** @description Enable or disable workflow for execution (metadata only, no version created) */
-      is_enabled?: boolean
-      /** @description Update workflow labels (metadata only, no version created) */
-      labels?: {
-        [key: string]: string
-      }
-      /** @description New workflow definition - creates new version only if definition differs from current version (change detection) */
-      workflow_definition?: components['schemas']['workflow-definition.schema']
-      /** @description Description of changes (used when creating new version via workflow_definition) */
-      change_description?: string
-    }
-    /**
-     * Create Execution Request
-     * @description Request payload for starting a new workflow execution with optional input parameters
-     */
-    CreateExecutionRequest: {
-      /**
-       * Format: uuid
-       * @description ID of the workflow to execute
-       */
-      workflow_id: string
-      /** @description Input parameters for the workflow execution */
-      input_data?: Record<string, never>
-    }
-    /**
-     * Execution Control Request
-     * @description Request payload for controlling workflow execution state (pause, resume, cancel)
-     */
-    ExecutionControlRequest: {
-      /** @enum {string} */
-      action: 'pause' | 'resume' | 'cancel'
-    }
-    /**
-     * Approval Response Request
-     * @description Request payload for approver to approve or reject an approval request with reason
-     */
-    ApprovalResponseRequest: {
-      /** @enum {string} */
-      status: 'approved' | 'rejected'
-      /** @description Approver's response including reason, comments, and any additional structured data */
-      response_data: Record<string, never>
-    }
-    /**
-     * Stream Event
-     * @description Server-sent event for real-time workflow execution updates via text/event-stream
-     */
-    StreamEvent: {
-      event_id?: string
-      event_type?: string
-      /** Format: uuid */
-      execution_id?: string
-      data?: Record<string, never>
-      /** Format: date-time */
-      timestamp?: string
-    }
-    /**
-     * Activity Type
-     * @description Definition of an available activity executor type with its configuration schema
-     */
-    ActivityType: {
-      /**
-       * @description Unique identifier for the executor type
-       * @example agentic
-       * @enum {string}
-       */
-      type: 'agentic' | 'connector' | 'script' | 'api'
-      /**
-       * @description Human-readable name of the executor type
-       * @example Agentic Tool Execution
-       */
-      name: string
-      /**
-       * @description Detailed description of what this executor type does
-       * @example Execute tasks using external agentic tool servers (MCP) with AI model integration
-       */
-      description: string
-      /**
-       * @description JSON Schema defining the valid configuration structure for this executor type
-       * @example {
-       *       "type": "object",
-       *       "required": [
-       *         "agent",
-       *         "tools",
-       *         "model"
-       *       ],
-       *       "properties": {
-       *         "agent": {
-       *           "type": "string",
-       *           "description": "MCP server URI",
-       *           "pattern": "^mcp://.+"
-       *         },
-       *         "tools": {
-       *           "type": "array",
-       *           "description": "List of tool names to invoke",
-       *           "items": {
-       *             "type": "string"
-       *           }
-       *         },
-       *         "model": {
-       *           "type": "string",
-       *           "description": "AI model to use",
-       *           "enum": [
-       *             "claude-3-opus",
-       *             "claude-3-sonnet",
-       *             "gpt-4",
-       *             "gpt-4-turbo"
-       *           ]
-       *         }
-       *       }
-       *     }
-       */
-      config_schema: Record<string, never>
-      /**
-       * @description Example configurations for this executor type
-       * @example [
-       *       {
-       *         "name": "Sentiment Analysis",
-       *         "description": "Analyze text sentiment using MCP tool",
-       *         "config": {
-       *           "agent": "mcp://sentiment-server",
-       *           "tools": [
-       *             "analyze_sentiment"
-       *           ],
-       *           "model": "claude-3-opus",
-       *           "prompt": "Analyze the sentiment of the following text"
-       *         }
-       *       }
-       *     ]
-       */
-      examples?: {
-        /** @description Name of the example */
-        name?: string
-        /** @description What this example demonstrates */
-        description?: string
-        /** @description Example configuration object */
-        config?: Record<string, never>
-      }[]
-    }
-    /**
-     * Error Response
-     * @description Standard error response format with error code, message, and optional details
-     */
-    Error: {
-      error?: string
-      message?: string
-      details?: Record<string, never>
-    }
-    /** @description Manual trigger - user initiates workflow execution */
-    manualTrigger: {
-      /** @constant */
-      type: 'manual'
-      /**
-       * @description Whether manual execution requires approval
-       * @default false
-       */
-      requiresApproval: boolean
-    }
-    /** @description Scheduled trigger - time-based or continuous execution */
-    scheduledTrigger: {
-      /** @constant */
-      type: 'scheduled'
-      schedule:
-        | {
+    schemas: {
+        /**
+         * Base Resource
+         * @description Base fields common to all resources including unique identifier, labels for categorization, and audit timestamps
+         */
+        BaseResource: {
             /**
-             * @description Cron expression for scheduling (standard 5-field format or special strings)
-             * @example 0 0 * * *
-             * @example @daily
-             * @example *\/5 * * * *
-             * @example 0 *\/6 * * *
+             * Format: uuid
+             * @description Unique resource identifier
              */
-            cron: string
+            id?: string;
             /**
-             * @description IANA timezone for cron execution
-             * @default UTC
-             * @example America/New_York
-             * @example UTC
-             * @example Europe/London
+             * @description Key-value labels for categorization and filtering (e.g., {"environment":"production", "team":"data-platform"})
+             * @example {
+             *       "environment": "production",
+             *       "team": "data-platform",
+             *       "priority": "high"
+             *     }
              */
-            timezone: string
-          }
-        | {
+            labels?: {
+                [key: string]: string;
+            };
             /**
-             * @description Execution interval (ISO 8601 duration)
-             * @example PT15M
+             * Format: date-time
+             * @description Timestamp when resource was created
+             */
+            created_at?: string;
+            /**
+             * Format: date-time
+             * @description Timestamp when resource was last updated
+             */
+            updated_at?: string;
+        };
+        NamedResource: components["schemas"]["BaseResource"] & {
+            /** @description Human-readable name */
+            name?: string;
+            /** @description Optional description */
+            description?: string | null;
+        };
+        /**
+         * Soft Deletable Resource
+         * @description Mixin fields for resources that support soft deletion with audit trail (deleted_at timestamp and deleted_by user)
+         */
+        SoftDeletableResource: {
+            /**
+             * Format: date-time
+             * @description Timestamp when resource was soft deleted
+             */
+            deleted_at?: string | null;
+            /**
+             * Format: uuid
+             * @description User who soft deleted the resource
+             */
+            deleted_by?: string | null;
+        };
+        /**
+         * User Owned Resource
+         * @description Mixin fields for resources with user ownership tracking (created_by user reference)
+         */
+        UserOwnedResource: {
+            /**
+             * Format: uuid
+             * @description User who created the resource
+             */
+            created_by?: string;
+        };
+        Workflow: components["schemas"]["NamedResource"] & components["schemas"]["SoftDeletableResource"] & components["schemas"]["UserOwnedResource"] & {
+            /** @description Current active version number */
+            current_version?: number;
+            /** @description Whether workflow is enabled and available for execution */
+            is_enabled?: boolean;
+        };
+        WorkflowWithVersion: components["schemas"]["Workflow"] & {
+            /** @description Specific version details */
+            version?: {
+                version?: number;
+                schema_version?: string;
+                workflow_definition?: components["schemas"]["workflow-definition.schema"];
+                /** Format: uuid */
+                created_by?: string;
+                /** Format: date-time */
+                created_at?: string;
+                change_description?: string | null;
+            };
+        };
+        /**
+         * Workflow Version Response
+         * @description Complete details of a specific workflow version including workflow definition. Note that deleted_at and deleted_by are always null since soft-deleted versions are excluded from queries.
+         */
+        WorkflowVersionResponse: {
+            /**
+             * Format: uuid
+             * @description Version unique identifier
+             */
+            id: string;
+            /**
+             * Format: uuid
+             * @description Parent workflow ID
+             */
+            workflow_id: string;
+            /** @description Version number */
+            version: number;
+            /** @description YAML schema version (e.g., "1.0.0") */
+            schema_version: string;
+            /** @description Workflow definition object conforming to workflow-definition.schema.json */
+            workflow_definition: components["schemas"]["workflow-definition.schema"];
+            /**
+             * Format: uuid
+             * @description User who created this version
+             */
+            created_by: string;
+            /**
+             * Format: date-time
+             * @description Version creation timestamp
+             */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description Last update timestamp
+             */
+            updated_at: string;
+            /** @description Description of changes in this version */
+            change_description?: string | null;
+            /**
+             * Format: date-time
+             * @description Soft delete timestamp (always null in responses)
+             */
+            deleted_at?: string | null;
+            /**
+             * Format: uuid
+             * @description User who soft deleted the version (always null in responses)
+             */
+            deleted_by?: string | null;
+        };
+        /**
+         * Workflow Version List Response
+         * @description List of workflow versions ordered by version number descending
+         */
+        WorkflowVersionListResponse: {
+            /** @description Array of workflow versions */
+            versions: components["schemas"]["WorkflowVersionResponse"][];
+        };
+        Execution: components["schemas"]["BaseResource"] & {
+            /**
+             * Format: uuid
+             * @description ID of the workflow being executed
+             */
+            workflow_id?: string;
+            /** @description Temporal workflow execution ID */
+            temporal_workflow_id?: string;
+            status?: components["schemas"]["ExecutionStatus"];
+            /**
+             * Format: uuid
+             * @description User who started the execution
+             */
+            started_by?: string;
+            /**
+             * Format: date-time
+             * @description When execution transitioned from pending to running status (null if still pending)
+             */
+            started_at?: string | null;
+            /**
+             * Format: date-time
+             * @description When execution reached terminal state (completed, failed, or cancelled)
+             */
+            completed_at?: string | null;
+            /** @description Input parameters for the execution */
+            input_data?: Record<string, never>;
+            /** @description Error information if execution failed */
+            error_details?: string | null;
+            /** @description Currently executing activities */
+            current_activities?: {
+                activity_name?: string;
+                temporal_activity_id?: string;
+                iteration?: number | null;
+            }[];
+        };
+        ActivityExecution: components["schemas"]["BaseResource"] & {
+            /**
+             * Format: uuid
+             * @description Parent execution ID
+             */
+            execution_id?: string;
+            /** @description Activity ID from workflow definition */
+            activity_name?: string;
+            /** @description Snapshot of the activity configuration from workflow definition at execution time, including executor, config, retry policy, timeout, approval settings */
+            activity_definition?: Record<string, never>;
+            /** @description Temporal activity execution ID */
+            temporal_activity_id?: string;
+            status?: components["schemas"]["ActivityStatus"];
+            /**
+             * Format: date-time
+             * @description When activity transitioned from pending to running status (null if still pending)
+             */
+            started_at?: string | null;
+            /**
+             * Format: date-time
+             * @description When activity reached terminal state (completed, failed)
+             */
+            completed_at?: string | null;
+            /** @description Runtime input parameters */
+            input_data?: Record<string, never>;
+            /** @description Activity results */
+            output_data?: Record<string, never> | null;
+            /** @description Error information if failed */
+            error_details?: string | null;
+            /** @description Number of retry attempts */
+            retry_count?: number;
+            /** @description Iteration number if activity is within a loop (0-indexed) */
+            iteration?: number | null;
+        };
+        Approval: components["schemas"]["BaseResource"] & {
+            /**
+             * Format: uuid
+             * @description Activity requiring approval
+             */
+            activity_execution_id?: string;
+            /**
+             * Format: uuid
+             * @description User assigned to review this approval
+             */
+            approver_id?: string;
+            status?: components["schemas"]["ApprovalStatus"];
+            /** @description Data presented for approval */
+            request_data?: Record<string, never>;
+            /** @description Approver's response including reason and comments */
+            response_data?: Record<string, never> | null;
+            /**
+             * Format: date-time
+             * @description When approval was requested
+             */
+            requested_at?: string;
+            /**
+             * Format: date-time
+             * @description When approver responded
+             */
+            responded_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Approval timeout deadline
+             */
+            expires_at?: string | null;
+        };
+        /**
+         * Execution Status
+         * @description Current state of a workflow execution lifecycle
+         * @enum {string}
+         */
+        ExecutionStatus: "pending" | "running" | "paused" | "completed" | "failed" | "cancelled";
+        /**
+         * Activity Status
+         * @description Current state of an individual activity execution
+         * @enum {string}
+         */
+        ActivityStatus: "pending" | "running" | "completed" | "failed" | "retrying";
+        /**
+         * Approval Status
+         * @description Current state of a human approval request
+         * @enum {string}
+         */
+        ApprovalStatus: "pending" | "approved" | "rejected" | "expired";
+        /**
+         * Create Workflow Request
+         * @description Request payload for creating a new workflow from workflow definition
+         */
+        CreateWorkflowRequest: {
+            name: string;
+            description?: string;
+            workflow_definition: components["schemas"]["workflow-definition.schema"];
+            /**
+             * @description Enable workflow for execution (defaults to true if not specified)
+             * @default true
+             */
+            is_enabled?: boolean;
+        };
+        /**
+         * Patch Workflow Request
+         * @description Request payload for updating workflow fields. Behavior depends on which fields are provided:
+         *     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
+         *     - With workflow_definition: Validates workflow definition, compares with current version, and creates new WorkflowVersion only if definition differs (change detection)
+         *
+         *     Note: WorkflowVersion entities are read-only and managed automatically by the system.
+         *     API accepts JSON objects for workflow_definition field.
+         */
+        PatchWorkflowRequest: {
+            /** @description Update workflow name (metadata only, no version created) */
+            name?: string;
+            /** @description Update workflow description (metadata only, no version created) */
+            description?: string;
+            /** @description Enable or disable workflow for execution (metadata only, no version created) */
+            is_enabled?: boolean;
+            /** @description Update workflow labels (metadata only, no version created) */
+            labels?: {
+                [key: string]: string;
+            };
+            /** @description New workflow definition - creates new version only if definition differs from current version (change detection) */
+            workflow_definition?: components["schemas"]["workflow-definition.schema"];
+            /** @description Description of changes (used when creating new version via workflow_definition) */
+            change_description?: string;
+        };
+        /**
+         * Create Execution Request
+         * @description Request payload for starting a new workflow execution with optional input parameters
+         */
+        CreateExecutionRequest: {
+            /**
+             * Format: uuid
+             * @description ID of the workflow to execute
+             */
+            workflow_id: string;
+            /** @description Input parameters for the workflow execution */
+            input_data?: Record<string, never>;
+        };
+        /**
+         * Execution Control Request
+         * @description Request payload for controlling workflow execution state (pause, resume, cancel)
+         */
+        ExecutionControlRequest: {
+            /** @enum {string} */
+            action: "pause" | "resume" | "cancel";
+        };
+        /**
+         * Approval Response Request
+         * @description Request payload for approver to approve or reject an approval request with reason
+         */
+        ApprovalResponseRequest: {
+            /** @enum {string} */
+            status: "approved" | "rejected";
+            /** @description Approver's response including reason, comments, and any additional structured data */
+            response_data: Record<string, never>;
+        };
+        /**
+         * Activity Type
+         * @description Definition of an available activity executor type with its configuration schema
+         */
+        ActivityType: {
+            /**
+             * @description Unique identifier for the executor type
+             * @example agentic
+             * @enum {string}
+             */
+            type: "agentic" | "connector" | "script" | "api";
+            /**
+             * @description Human-readable name of the executor type
+             * @example Agentic Tool Execution
+             */
+            name: string;
+            /**
+             * @description Detailed description of what this executor type does
+             * @example Execute tasks using external agentic tool servers (MCP) with AI model integration
+             */
+            description: string;
+            /**
+             * @description JSON Schema defining the valid configuration structure for this executor type
+             * @example {
+             *       "type": "object",
+             *       "required": [
+             *         "agent",
+             *         "tools",
+             *         "model"
+             *       ],
+             *       "properties": {
+             *         "agent": {
+             *           "type": "string",
+             *           "description": "MCP server URI",
+             *           "pattern": "^mcp://.+"
+             *         },
+             *         "tools": {
+             *           "type": "array",
+             *           "description": "List of tool names to invoke",
+             *           "items": {
+             *             "type": "string"
+             *           }
+             *         },
+             *         "model": {
+             *           "type": "string",
+             *           "description": "AI model to use",
+             *           "enum": [
+             *             "claude-3-opus",
+             *             "claude-3-sonnet",
+             *             "gpt-4",
+             *             "gpt-4-turbo"
+             *           ]
+             *         }
+             *       }
+             *     }
+             */
+            config_schema: Record<string, never>;
+            /**
+             * @description Example configurations for this executor type
+             * @example [
+             *       {
+             *         "name": "Sentiment Analysis",
+             *         "description": "Analyze text sentiment using MCP tool",
+             *         "config": {
+             *           "agent": "mcp://sentiment-server",
+             *           "tools": [
+             *             "analyze_sentiment"
+             *           ],
+             *           "model": "claude-3-opus",
+             *           "prompt": "Analyze the sentiment of the following text"
+             *         }
+             *       }
+             *     ]
+             */
+            examples?: {
+                /** @description Name of the example */
+                name?: string;
+                /** @description What this example demonstrates */
+                description?: string;
+                /** @description Example configuration object */
+                config?: Record<string, never>;
+            }[];
+        };
+        /**
+         * Error Response
+         * @description Standard error response format with error code, message, and optional details
+         */
+        Error: {
+            error?: string;
+            message?: string;
+            details?: Record<string, never>;
+        };
+        /** @description Manual trigger - user initiates workflow execution */
+        manualTrigger: {
+            /** @constant */
+            type: "manual";
+            /**
+             * @description Whether manual execution requires approval
+             * @default false
+             */
+            requiresApproval?: boolean;
+        };
+        /** @description Scheduled trigger - time-based or continuous execution */
+        scheduledTrigger: {
+            /** @constant */
+            type: "scheduled";
+            schedule: {
+                /** @constant */
+                type?: "cron";
+                /**
+                 * @description Cron expression for scheduling (standard 5-field format or special strings)
+                 * @example 0 0 * * *
+                 * @example @daily
+                 * @example *\/5 * * * *
+                 * @example 0 *\/6 * * *
+                 */
+                cron: string;
+                /**
+                 * @description IANA timezone for cron execution
+                 * @default UTC
+                 * @example America/New_York
+                 * @example UTC
+                 * @example Europe/London
+                 */
+                timezone?: string;
+            } | {
+                /**
+                 * @description Execution interval (ISO 8601 duration)
+                 * @example PT15M
+                 * @example PT1H
+                 * @example P1D
+                 */
+                interval: string;
+            } | {
+                /**
+                 * @description Run workflow continuously (restart on completion)
+                 * @constant
+                 */
+                continuous: true;
+            };
+            /**
+             * Format: date-time
+             * @description Start time for scheduled execution (ISO 8601)
+             */
+            startTime?: string;
+            /**
+             * Format: date-time
+             * @description End time for scheduled execution (ISO 8601)
+             */
+            endTime?: string;
+        };
+        /** @description Event-driven trigger - external events initiate workflow */
+        eventTrigger: {
+            /** @constant */
+            type: "event";
+            event: {
+                /**
+                 * @description Event source identifier (e.g., webhook, message queue, external system)
+                 * @example webhook
+                 * @example kafka
+                 * @example rabbitmq
+                 * @example sqs
+                 */
+                source: string;
+                /**
+                 * @description Type of event to trigger on
+                 * @example order.created
+                 * @example user.registered
+                 * @example payment.completed
+                 */
+                eventType: string;
+                /** @description Filter conditions for event matching (JSONPath or similar) */
+                filter?: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        /** @description Human approval configuration */
+        approvalDefinition: {
+            /** @description List of users or roles who can approve */
+            approvers: string[];
+            /** @description Approval prompt/question to display */
+            prompt: string;
+            /**
+             * @description Time to wait for approval (ISO 8601 duration)
              * @example PT1H
              * @example P1D
              */
-            interval: string
-          }
-        | {
+            timeout?: string;
             /**
-             * @description Run workflow continuously (restart on completion)
+             * @description Action to take if approval times out
+             * @default fail
+             * @enum {string}
+             */
+            onTimeout?: "approve" | "reject" | "fail";
+            /** @description Additional context to display to approvers */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** @description Output values from approval (e.g., approved, rejected, approver, timestamp) */
+            outputs?: {
+                /** @description Whether the approval was granted */
+                approved?: boolean;
+                /** @description User who approved or rejected */
+                approver?: string;
+                /** @description When approval/rejection occurred */
+                timestamp?: string;
+                /** @description Optional comments from approver */
+                comments?: string;
+            };
+        };
+        /** @description Retry configuration for failed activities */
+        retryPolicy: {
+            /**
+             * @description Maximum number of retry attempts
+             * @default 3
+             */
+            maxAttempts?: number;
+            /**
+             * @description Backoff strategy between retries
+             * @default exponential
+             * @enum {string}
+             */
+            backoff?: "fixed" | "exponential" | "linear";
+            /**
+             * @description Initial retry interval (ISO 8601 duration)
+             * @default PT1S
+             * @example PT1S
+             * @example PT5S
+             * @example PT10S
+             */
+            initialInterval?: string;
+            /**
+             * @description Maximum retry interval (ISO 8601 duration)
+             * @example PT1M
+             * @example PT5M
+             */
+            maxInterval?: string;
+            /**
+             * @description Backoff multiplier for exponential strategy
+             * @default 2
+             */
+            multiplier?: number;
+            /**
+             * @description List of error types or codes that should trigger retry
+             * @example [
+             *       "TIMEOUT",
+             *       "NETWORK_ERROR",
+             *       "RATE_LIMIT"
+             *     ]
+             */
+            retryableErrors?: string[];
+        };
+        /** @description Base properties common to all activity types */
+        baseActivity: {
+            /** @description Unique identifier for the activity within the workflow */
+            id: string;
+            /** @description Human-readable name for the activity */
+            name?: string;
+            /**
+             * @description Whether this activity requires human approval before execution
+             * @default false
+             */
+            requiresApproval?: boolean;
+            /** @description Human approval configuration (required if requiresApproval is true) */
+            approval?: components["schemas"]["approvalDefinition"];
+            retryPolicy?: components["schemas"]["retryPolicy"];
+            /** @description Activity timeout (ISO 8601 duration) */
+            timeout?: string;
+            /** @description Output schema definition for this activity */
+            outputs?: {
+                [key: string]: {
+                    /**
+                     * @description Expected output type
+                     * @enum {string}
+                     */
+                    type?: "string" | "number" | "integer" | "boolean" | "object" | "array";
+                    /** @description Description of this output */
+                    description?: string;
+                };
+            };
+        };
+        /** @description Base properties common to all task executor types */
+        baseTaskDefinition: {
+            /** @description Input mapping for the task (can reference workflow inputs or previous outputs) */
+            inputs?: {
+                [key: string]: unknown;
+            };
+            /** @description Output mapping from the task */
+            outputs?: {
+                [key: string]: string;
+            };
+        };
+        agenticTask: components["schemas"]["baseTaskDefinition"] & {
+            /**
+             * @description Task executor type
              * @constant
              */
-            continuous: true
-          }
-      /**
-       * Format: date-time
-       * @description Start time for scheduled execution (ISO 8601)
-       */
-      startTime?: string
-      /**
-       * Format: date-time
-       * @description End time for scheduled execution (ISO 8601)
-       */
-      endTime?: string
-    }
-    /** @description Event-driven trigger - external events initiate workflow */
-    eventTrigger: {
-      /** @constant */
-      type: 'event'
-      event: {
+            executor: "agentic";
+            config: {
+                /** @description Agent identifier or MCP server endpoint */
+                agent: string;
+                /** @description List of tools available to the agent */
+                tools?: string[];
+                /** @description Natural language prompt for the agent */
+                prompt?: string;
+                /**
+                 * @description LLM model to use
+                 * @example gpt-4
+                 * @example claude-3-opus
+                 * @example gemini-pro
+                 */
+                model?: string;
+            } & {
+                [key: string]: unknown;
+            };
+        };
+        scriptTask: components["schemas"]["baseTaskDefinition"] & {
+            /**
+             * @description Task executor type
+             * @constant
+             */
+            executor: "script";
+            config: {
+                /**
+                 * @description Script language
+                 * @enum {string}
+                 */
+                language: "python" | "javascript" | "bash" | "powershell";
+                /** @description Script code to execute */
+                code: string;
+                /** @description Environment variables for script execution */
+                environment?: {
+                    [key: string]: string;
+                };
+            };
+        };
+        apiTask: components["schemas"]["baseTaskDefinition"] & {
+            /**
+             * @description Task executor type
+             * @constant
+             */
+            executor: "api";
+            config: {
+                /**
+                 * @description HTTP method
+                 * @enum {string}
+                 */
+                method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+                /**
+                 * Format: uri
+                 * @description API endpoint URL
+                 */
+                url: string;
+                /** @description HTTP headers */
+                headers?: {
+                    [key: string]: string;
+                };
+                /** @description URL query parameters */
+                queryParams?: {
+                    [key: string]: unknown;
+                };
+                /** @description Request body (can use template expressions) */
+                body?: unknown;
+                /** @description Authentication configuration */
+                authentication?: {
+                    /**
+                     * @description Authentication type
+                     * @enum {string}
+                     */
+                    type: "basic" | "bearer" | "apiKey" | "oauth2";
+                    /** @description Reference to stored credentials */
+                    credentials?: string;
+                } & {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        connectorTask: components["schemas"]["baseTaskDefinition"] & {
+            /**
+             * @description Task executor type
+             * @constant
+             */
+            executor: "connector";
+            config: {
+                /** @description Registered connector identifier */
+                connectorId: string;
+                /** @description Operation to execute on the connector */
+                operation: string;
+                /** @description Connector operation parameters */
+                parameters?: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        taskDefinition: components["schemas"]["agenticTask"] | components["schemas"]["scriptTask"] | components["schemas"]["apiTask"] | components["schemas"]["connectorTask"];
+        taskActivity: components["schemas"]["baseActivity"] & {
+            /** @constant */
+            type: "task";
+            /** @description Task definition */
+            task: components["schemas"]["taskDefinition"];
+        };
+        activity: components["schemas"]["taskActivity"] | components["schemas"]["parallelActivity"] | components["schemas"]["sequenceActivity"] | components["schemas"]["conditionActivity"] | components["schemas"]["loopActivity"] | components["schemas"]["joinActivity"];
+        parallelActivity: components["schemas"]["baseActivity"] & {
+            /** @constant */
+            type: "parallel";
+            /** @description Activities to execute in parallel */
+            branches: components["schemas"]["activity"][];
+        };
+        sequenceActivity: components["schemas"]["baseActivity"] & {
+            /** @constant */
+            type: "sequence";
+            /** @description Activities to execute sequentially */
+            steps: components["schemas"]["activity"][];
+        };
+        conditionActivity: components["schemas"]["baseActivity"] & {
+            /** @constant */
+            type: "condition";
+            /**
+             * @description Conditional expression
+             * @example ${output.status == 'success'}
+             * @example ${input.amount > 1000}
+             */
+            condition: string;
+            /** @description Activities to execute if condition is true */
+            then: components["schemas"]["activity"][];
+            /** @description Activities to execute if condition is false */
+            else?: components["schemas"]["activity"][];
+        };
+        /** @description Base properties common to all loop types */
+        baseLoop: {
+            /** @description Activities to execute in each iteration */
+            do: components["schemas"]["activity"][];
+        };
+        forEachLoop: components["schemas"]["baseLoop"] & {
+            /** @constant */
+            type: "forEach";
+            /**
+             * @description Expression referencing array to iterate over
+             * @example ${input.users}
+             * @example ${output.results}
+             */
+            items: string;
+            /**
+             * @description Variable name for current item
+             * @default item
+             */
+            itemVariable?: string;
+            /**
+             * @description Variable name for current index
+             * @default index
+             */
+            indexVariable?: string;
+        };
+        whileLoop: components["schemas"]["baseLoop"] & {
+            /** @constant */
+            type: "while";
+            /**
+             * @description Condition expression to evaluate before each iteration
+             * @example ${counter < 10}
+             * @example ${!completed}
+             */
+            condition: string;
+            /**
+             * @description Maximum number of iterations to prevent infinite loops
+             * @default 1000
+             */
+            maxIterations?: number;
+        };
+        countLoop: components["schemas"]["baseLoop"] & {
+            /** @constant */
+            type: "count";
+            /** @description Number of iterations to execute */
+            count: number;
+            /**
+             * @description Variable name for iteration counter
+             * @default index
+             */
+            indexVariable?: string;
+        };
+        loopDefinition: components["schemas"]["forEachLoop"] | components["schemas"]["whileLoop"] | components["schemas"]["countLoop"];
+        loopActivity: components["schemas"]["baseActivity"] & {
+            /** @constant */
+            type: "loop";
+            /** @description Loop definition */
+            loop: components["schemas"]["loopDefinition"];
+        };
+        /** @description Join pattern configuration - waits for specific activities to complete before proceeding */
+        joinDefinition: {
+            /** @description List of activity IDs to wait for */
+            branches: string[];
+            /**
+             * @description Join strategy: 'all' waits for all specified branches, 'any' waits for first completion, 'majority' waits for >50%, 'count' waits for specific number
+             * @default all
+             * @enum {string}
+             */
+            strategy?: "all" | "any" | "majority" | "count";
+            /** @description Required number of completed branches (only for 'count' strategy) */
+            count?: number;
+            /**
+             * @description Maximum time to wait for join condition (ISO 8601 duration)
+             * @example PT5M
+             * @example PT30M
+             * @example PT1H
+             */
+            timeout?: string;
+            /**
+             * @description Action to take if timeout is reached before join condition is met
+             * @default fail
+             * @enum {string}
+             */
+            onTimeout?: "continue" | "fail";
+            /**
+             * @description Whether to aggregate outputs from completed branches into an object keyed by activity ID
+             * @default true
+             */
+            aggregateOutputs?: boolean;
+        };
+        joinActivity: components["schemas"]["baseActivity"] & {
+            /** @constant */
+            type: "join";
+            /** @description Join definition */
+            join: components["schemas"]["joinDefinition"];
+        };
         /**
-         * @description Event source identifier (e.g., webhook, message queue, external system)
-         * @example webhook
-         * @example kafka
-         * @example rabbitmq
-         * @example sqs
+         * Workflow Definition Schema
+         * @description JSON Schema for workflow YAML definitions in the Nexus Workflow Engine
          */
-        source: string
-        /**
-         * @description Type of event to trigger on
-         * @example order.created
-         * @example user.registered
-         * @example payment.completed
-         */
-        eventType: string
-        /** @description Filter conditions for event matching (JSONPath or similar) */
-        filter?: {
-          [key: string]: unknown
-        }
-      }
-    }
-    /** @description Human approval configuration */
-    approvalDefinition: {
-      /** @description List of users or roles who can approve */
-      approvers: string[]
-      /** @description Approval prompt/question to display */
-      prompt: string
-      /**
-       * @description Time to wait for approval (ISO 8601 duration)
-       * @example PT1H
-       * @example P1D
-       */
-      timeout?: string
-      /**
-       * @description Action to take if approval times out
-       * @default fail
-       * @enum {string}
-       */
-      onTimeout: 'approve' | 'reject' | 'fail'
-      /** @description Additional context to display to approvers */
-      metadata?: {
-        [key: string]: unknown
-      }
-      /** @description Output values from approval (e.g., approved, rejected, approver, timestamp) */
-      outputs?: {
-        /** @description Whether the approval was granted */
-        approved?: boolean
-        /** @description User who approved or rejected */
-        approver?: string
-        /** @description When approval/rejection occurred */
-        timestamp?: string
-        /** @description Optional comments from approver */
-        comments?: string
-      }
-    }
-    /** @description Retry configuration for failed activities */
-    retryPolicy: {
-      /**
-       * @description Maximum number of retry attempts
-       * @default 3
-       */
-      maxAttempts: number
-      /**
-       * @description Backoff strategy between retries
-       * @default exponential
-       * @enum {string}
-       */
-      backoff: 'fixed' | 'exponential' | 'linear'
-      /**
-       * @description Initial retry interval (ISO 8601 duration)
-       * @default PT1S
-       * @example PT1S
-       * @example PT5S
-       * @example PT10S
-       */
-      initialInterval: string
-      /**
-       * @description Maximum retry interval (ISO 8601 duration)
-       * @example PT1M
-       * @example PT5M
-       */
-      maxInterval?: string
-      /**
-       * @description Backoff multiplier for exponential strategy
-       * @default 2
-       */
-      multiplier: number
-      /**
-       * @description List of error types or codes that should trigger retry
-       * @example [
-       *       "TIMEOUT",
-       *       "NETWORK_ERROR",
-       *       "RATE_LIMIT"
-       *     ]
-       */
-      retryableErrors?: string[]
-    }
-    /** @description A single activity/task in the workflow */
-    activity: {
-      /** @description Unique identifier for the activity within the workflow */
-      id: string
-      /** @description Human-readable name for the activity */
-      name?: string
-      /**
-       * @description Activity type: task, parallel, sequence, condition, loop, join
-       * @enum {string}
-       */
-      type: 'task' | 'parallel' | 'sequence' | 'condition' | 'loop' | 'join'
-      /**
-       * @description Conditional expression (only for condition type or conditional execution)
-       * @example ${output.status == 'success'}
-       * @example ${input.amount > 1000}
-       */
-      condition?: string
-      /**
-       * @description Whether this activity requires human approval before execution
-       * @default false
-       */
-      requiresApproval: boolean
-      /** @description Human approval configuration (required if requiresApproval is true) */
-      approval?: components['schemas']['approvalDefinition']
-      retryPolicy?: components['schemas']['retryPolicy']
-      /** @description Activity timeout (ISO 8601 duration) */
-      timeout?: string
-      /** @description Output schema definition for this activity */
-      outputs?: {
-        [key: string]: {
-          /**
-           * @description Expected output type
-           * @enum {string}
-           */
-          type?: 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array'
-          /** @description Description of this output */
-          description?: string
-        }
-      }
-    } & (unknown & unknown & unknown & unknown & unknown & unknown)
-    /**
-     * Workflow Definition Schema
-     * @description JSON Schema for workflow YAML definitions in the Nexus Workflow Engine
-     */
-    'workflow-definition.schema': {
-      /**
-       * @description Schema version that this workflow definition conforms to (semver format)
-       * @example 1.0.0
-       * @example 1.1.0
-       * @example 2.0.0
-       */
-      schemaVersion: string
-      /**
-       * @description Workflow definition version number (increments with each change)
-       * @example 1
-       * @example 2
-       * @example 3
-       */
-      version: number
-      /** @description Workflow metadata and configuration */
-      metadata: {
-        /** @description Unique name for the workflow */
-        name: string
-        /** @description Human-readable description of the workflow purpose */
-        description: string
-        /** @description Tags for categorization and search */
-        tags?: string[]
-        /** @description User or team responsible for the workflow */
-        owner?: string
-        /**
-         * @description Maximum workflow execution time (ISO 8601 duration) - applies to entire workflow
-         * @example PT1H
-         * @example P1D
-         * @example PT30M
-         */
-        timeout?: string
-      }
-      /** @description Workflow trigger configuration - manual, scheduled, or event-driven */
-      triggers?: (
-        | components['schemas']['manualTrigger']
-        | components['schemas']['scheduledTrigger']
-        | components['schemas']['eventTrigger']
-      )[]
-      /** @description Input parameter definitions for the workflow */
-      inputs?: {
-        [key: string]: definitions['parameter']
-      }
-      /** @description Workflow-level variables that can be referenced throughout the workflow */
-      variables?: {
-        [key: string]: string | number | boolean | null | Record<string, never> | unknown[]
-      }
-      /** @description Secret references for credentials and sensitive data (values stored securely, not in workflow definition) */
-      secrets?: {
-        [key: string]: {
-          /** @description Reference to secret stored in secret manager */
-          secretId: string
-          /**
-           * @description Type of secret for validation
-           * @default custom
-           * @enum {string}
-           */
-          type: 'api_key' | 'bearer_token' | 'basic_auth' | 'oauth2' | 'custom'
-        }
-      }
-      /** @description The workflow execution definition */
-      workflow: {
-        /** @description List of activities to execute in the workflow */
-        activities: components['schemas']['activity'][]
-      }
-    }
-  }
-  responses: never
-  parameters: {
-    /** @description Session ID for resumable streaming (used with Accept text/event-stream) */
-    SessionId: string
-    /** @description Last received event ID for resuming stream (used with Accept text/event-stream) */
-    LastEventId: string
-  }
-  requestBodies: never
-  headers: never
-  pathItems: never
+        "workflow-definition.schema": {
+            /**
+             * @description Schema version that this workflow definition conforms to (semver format)
+             * @example 1.0.0
+             * @example 1.1.0
+             * @example 2.0.0
+             */
+            schemaVersion: string;
+            /**
+             * @description Workflow definition version number (increments with each change)
+             * @example 1
+             * @example 2
+             * @example 3
+             */
+            version: number;
+            /** @description Workflow metadata and configuration */
+            metadata: {
+                /** @description Unique name for the workflow */
+                name: string;
+                /** @description Human-readable description of the workflow purpose */
+                description: string;
+                /** @description Tags for categorization and search */
+                tags?: string[];
+                /** @description User or team responsible for the workflow */
+                owner?: string;
+                /**
+                 * @description Maximum workflow execution time (ISO 8601 duration) - applies to entire workflow
+                 * @example PT1H
+                 * @example P1D
+                 * @example PT30M
+                 */
+                timeout?: string;
+            };
+            /** @description Workflow trigger configuration - manual, scheduled, or event-driven */
+            triggers?: (components["schemas"]["manualTrigger"] | components["schemas"]["scheduledTrigger"] | components["schemas"]["eventTrigger"])[];
+            /** @description Input parameter definitions for the workflow */
+            inputs?: {
+                [key: string]: definitions["parameter"];
+            };
+            /** @description Workflow-level variables that can be referenced throughout the workflow */
+            variables?: {
+                [key: string]: string | number | boolean | null | Record<string, never> | unknown[];
+            };
+            /** @description Secret references for credentials and sensitive data (values stored securely, not in workflow definition) */
+            secrets?: {
+                [key: string]: {
+                    /** @description Reference to secret stored in secret manager */
+                    secretId: string;
+                    /**
+                     * @description Type of secret for validation
+                     * @default custom
+                     * @enum {string}
+                     */
+                    type?: "api_key" | "bearer_token" | "basic_auth" | "oauth2" | "custom";
+                };
+            };
+            /** @description The workflow execution definition */
+            workflow: {
+                /** @description List of activities to execute in the workflow */
+                activities: components["schemas"]["activity"][];
+            };
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
-export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export type $defs = Record<string, never>;
+export type operations = Record<string, never>;

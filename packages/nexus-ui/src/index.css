@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@xyflow/react/dist/style.css'
 
 /* @reference '../../nexus-ui-framework/src/index.css'; */
 
@@ -71,3 +72,25 @@ body {
       2px -2px 4px var(--color-pink-800);
   }
 }
+
+
+
+.react-flow.dark {
+  background: transparent;
+  --xy-controls-button-background-color-default: transparent;
+  --xy-edge-stroke-default: #fff8;
+  --xy-edge-stroke-width-default: 2px;
+}
+
+.react-flow__node {
+  background: #fff1;
+  color: #fffe;
+  border-radius: 24px;
+  border: 1px solid #fff2;
+  padding: 24px;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+

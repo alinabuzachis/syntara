@@ -1,10 +1,10 @@
 import { lazy } from 'react'
 import type { INavigationItem } from '../components/nav/NavItem'
-import AutomationBuilder from '../routes/automation-builder/AutomationBuilder'
+import Automation from '../routes/automations/Automation'
+import Automations from '../routes/automations/Automations'
 import { IntegrationForm } from '../routes/configuration/integrations/form/IntegrationForm'
 import { AppRoute } from './AppRoute'
 
-// use react lazy
 const Integrations = lazy(() => import('../routes/configuration/integrations/Integrations'))
 
 const Glossary = lazy(() => import('../routes/documentation/glossary/Glossary'))
@@ -20,8 +20,19 @@ export const navigationItems: INavigationItem[] = [
   },
   {
     label: 'Automations',
-    path: AppRoute.Automations,
-    element: <AutomationBuilder />,
+    path: AppRoute.Automations.Root,
+    children: [
+      {
+        label: 'Automations',
+        path: AppRoute.Automations.Root,
+        element: <Automations />,
+      },
+      {
+        label: 'Automation',
+        path: AppRoute.Automations.Automation,
+        element: <Automation />,
+      },
+    ],
   },
   {
     label: 'Approvals',

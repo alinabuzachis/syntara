@@ -1,15 +1,12 @@
 import {
   Menu,
   MenuGroup,
-  MenuItem,
   MenuItems,
   MenuRadioGroup,
   MenuRadioItem,
-  MenuSeparator,
   MenuTrigger,
   Scrollable,
 } from '@ansible/nexus-ui-framework'
-import clsx from 'clsx'
 import Fuse from 'fuse.js'
 import { EllipsisVerticalIcon } from 'lucide-react'
 import { useState } from 'react'
@@ -20,6 +17,7 @@ import { AppRoute } from '../../../app/AppRoute'
 import { toolProvidersClient } from '../../../client'
 import { ChatInput } from '../../../components/chat/ChatInput'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { Table } from '../../../components/table/Table'
 import { IntegrationCard } from './IntegrationCard'
 
 export default function Integrations() {
@@ -77,69 +75,26 @@ export default function Integrations() {
       {view !== 'cards' ? (
         // <div className="roundedgrow overflow-hidden flex flex-col">
         <div className="flex grow flex-col overflow-hidden rounded-4xl border-2 border-violet-300/20">
-          <Scrollable className="grow">
-            <table className="h-full w-full border-separate border-spacing-0">
-              <thead
-                className={clsx('glass sticky top-0 z-10', {
-                  'shadow-lg shadow-black/50': false,
-                })}
-              >
-                <tr className="bg-white/5 text-left *:h-16 *:border-b *:border-violet-300/20 *:px-8">
-                  {/* <th className="w-1 min-w-12 text-center">
-                    <input type="checkbox" />
-                  </th> */}
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th className="w-1 min-w-12 text-center"></th>
-                </tr>
-              </thead>
-              <tbody className="glass">
-                {results.map((integration) => (
-                  <tr key={integration.id} className="text-left *:h-12 *:border-b *:border-violet-300/20 *:px-8">
-                    {/* <td className="w-1 min-w-12 text-center">
-                      <input type="checkbox" />
-                    </td> */}
-                    <td>{integration.name}</td>
-                    {/* <td>{integration.type}</td> */}
-                    <td className="w-1 min-w-12 pt-1.5 text-center">
-                      <Menu>
-                        <MenuTrigger>
-                          <EllipsisVerticalIcon />
-                        </MenuTrigger>
-                        <MenuItems>
-                          <MenuItem>Stop server</MenuItem>
-                          <MenuItem>Restart server</MenuItem>
-                          <MenuSeparator />
-                          <MenuItem>View and enable/disable tools</MenuItem>
-                          <MenuSeparator />
-                          <MenuItem>Show output</MenuItem>
-                          <MenuItem>Show configuration</MenuItem>
-                          <MenuItem>Show configuration (JSON)</MenuItem>
-                          <MenuSeparator />
-                          <MenuItem>Configure model access</MenuItem>
-                          <MenuItem>Show sampling requests</MenuItem>
-                          <MenuSeparator />
-                          <MenuItem>Browser resources</MenuItem>
-                          <MenuSeparator />
-                          <MenuItem>Uninstall</MenuItem>
-                        </MenuItems>
-                      </Menu>
-                    </td>
-                  </tr>
-                ))}
-                <tr>
-                  <td colSpan={4} />
-                </tr>
-              </tbody>
-              <tfoot className="glass sticky bottom-0 z-10 h-16 min-h-12">
-                <tr className="bg-white/5">
-                  <td colSpan={4} className="border-t border-violet-300/20 px-6">
-                    {results.length} integrations
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </Scrollable>
+          <Table
+            items={results}
+            columns={[
+              {
+                id: 'name',
+                label: 'Name',
+                render: (item) => item.name,
+              },
+              {
+                id: 'provider_type',
+                label: 'Type',
+                render: (item) => item.provider_type || '-',
+              },
+              {
+                id: 'description',
+                label: 'Description',
+                render: (item) => item.description || '-',
+              },
+            ]}
+          />
         </div>
       ) : (
         <Scrollable className="glass grow rounded-4xl border">

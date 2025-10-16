@@ -16,6 +16,7 @@
     "clean": "npm run clean --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "gen": "npm run gen --prefix packages/nexus-contracts",
     "podman:build": "podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest -t ghcr.io/syntara-orchestration/syntara-ui:latest .",
     "podman:run": "podman run --rm -p 4000:80 --name nexus-ui ghcr.io/syntara-orchestration/syntara-ui:latest"
   },

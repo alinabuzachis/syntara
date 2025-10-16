@@ -1,25 +1,16 @@
 import { http, HttpResponse } from 'msw'
-import type { ToolProvider } from '../client'
-
-const providers: ToolProvider[] = [
-  {
-    id: '3',
-    name: 'Ansible Automation Platform',
-    description:
-      'Ansible Automation Platform is an enterprise framework for building and operating IT automation at scale.',
-    provider_type: 'ansible-automation-platform',
-    configuration: {},
-    status: 'available',
-    enabled: true,
-    created_at: '2023-10-01T12:00:00Z',
-    updated_at: '2023-10-10T12:00:00Z',
-    created_by: 'admin',
-  },
-]
+import type { ToolProvider, ToolProvidersResponse, WorkflowsResponse } from '../client'
+import { providers } from './providers'
+import { workflows } from './workflows'
 
 export const handlers = [
   http.get('/api/tool-providers', () => {
-    return HttpResponse.json({ providers })
+    const body: ToolProvidersResponse = {
+      providers,
+      limit: 20,
+      has_more: false,
+    }
+    return HttpResponse.json(body)
   }),
   http.post('/api/tool-providers', async (req) => {
     const newTool = (await req.request.json()) as ToolProvider
@@ -28,5 +19,17 @@ export const handlers = [
     newTool.updated_at = newTool.created_at
     providers.push(newTool)
     return HttpResponse.json(newTool, { status: 201 })
+  }),
+
+  http.get('/api/workflows', () => {
+    const body: WorkflowsResponse = { workflows }
+    return HttpResponse.json(body)
+  }),
+
+  http.get('/api/workflows/:workflowId', (request) => {
+    const workflowId = request.params.workflowId
+    const body = workflows.find((w) => w.id === workflowId)
+    if (!body) return HttpResponse.json({ error: 'Workflow not found' }, { status: 404 })
+    return HttpResponse.json(body)
   }),
 ]

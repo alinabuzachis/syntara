@@ -1,15 +1,12 @@
 import { IconButton } from '@ansible/nexus-ui-framework'
 import Dagre from '@dagrejs/dagre'
 import { Panel, ReactFlow, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
 import { ExpandIcon, MoveHorizontalIcon, MoveVerticalIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react'
 import { useCallback, useContext, useEffect, useState } from 'react'
-import { AppPage } from '../../app/AppPage'
-import { AppPageHeader } from '../../app/AppPageHeader'
+import type { WorkflowWithVersion } from '../../client'
 import { ChatInput } from '../../components/chat/ChatInput'
 import { FlowDirectionContext } from './FlowDirectionContext'
 import { nodeTypes, type NodeType } from './nodes/NodeType'
-import './react-flow.css'
 
 const initialNodes: NodeType[] = [
   {
@@ -120,7 +117,7 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
   }
 }
 
-export default function AutomationBuilder() {
+export function AutomationFlow(props: { workflow: WorkflowWithVersion }) {
   const flowDirectionState = useState<'TB' | 'LR'>('LR')
   return (
     <FlowDirectionContext.Provider value={flowDirectionState}>
@@ -133,19 +130,11 @@ export default function AutomationBuilder() {
 
 function AutomationBuilderInternal() {
   return (
-    <AppPage>
-      <AppPageHeader title="Automation Builder">
-        <div className="grow" />
-        <div>Add node</div>
-        <div>Add notation</div>
-        <div>Save</div>
-        <div>Run</div>
-        <div>Test</div>
-      </AppPageHeader>
+    <>
       <AutomationBuilderFlow />
 
       <ChatInput />
-    </AppPage>
+    </>
   )
 }
 
@@ -183,7 +172,7 @@ function AutomationBuilderFlow() {
     if (isInitialized) {
       onLayout(flowDirection)
     }
-  }, [flowDirection]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [flowDirection])
 
   return (
     <ReactFlow<NodeType, EdgeType>

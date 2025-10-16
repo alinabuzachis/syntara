@@ -1,0 +1,160 @@
+import type { WorkflowWithVersion } from '../client'
+
+export const workflows: WorkflowWithVersion[] = [
+  {
+    id: '1',
+    name: 'Sample Workflow 1',
+    description: 'This is a sample workflow for demonstration purposes.',
+    created_at: '2023-10-01T12:00:00Z',
+    updated_at: '2023-10-05T12:00:00Z',
+    created_by: 'admin',
+    version: {
+      workflow_definition: {
+        schemaVersion: '1.0.0',
+        version: 1,
+        metadata: {
+          name: 'simple-data-processing',
+          description: 'A simple workflow that processes data sequentially',
+          tags: ['data-processing', 'example'],
+          owner: 'data-team',
+          timeout: 'PT1H',
+        },
+        triggers: [
+          {
+            type: 'manual',
+          },
+        ],
+        inputs: {
+          dataSource: {
+            type: 'string',
+            description: 'Source of data to process',
+            required: true,
+          },
+          batchSize: {
+            type: 'integer',
+            description: 'Number of records to process',
+            default: 100,
+            minimum: 1,
+            maximum: 10000,
+          },
+        },
+        workflow: {
+          activities: [
+            {
+              id: 'main_sequence',
+              name: 'Data Processing Pipeline',
+              type: 'sequence',
+              steps: [
+                {
+                  id: 'fetch_data',
+                  name: 'Fetch Data from Source',
+                  type: 'task',
+                  task: {
+                    executor: 'api',
+                    config: {
+                      method: 'GET',
+                      url: 'https://api.example.com/data',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      authentication: {
+                        type: 'bearer',
+                        credentials: '${secrets.api_token}',
+                      },
+                    },
+                    inputs: {
+                      source: '${input.dataSource}',
+                      limit: '${input.batchSize}',
+                    },
+                    outputs: {
+                      records: '$.data.records',
+                      count: '$.data.count',
+                    },
+                  },
+                  timeout: 'PT5M',
+                  retryPolicy: {
+                    maxAttempts: 3,
+                    backoff: 'exponential',
+                    initialInterval: 'PT5S',
+                    retryableErrors: ['NETWORK_ERROR', 'TIMEOUT'],
+                  },
+                },
+                {
+                  id: 'validate_data',
+                  name: 'Validate Data Quality',
+                  type: 'task',
+                  task: {
+                    executor: 'script',
+                    config: {
+                      language: 'python',
+                      code: "import json\nrecords = json.loads(input_data)\nvalid_records = [r for r in records if r.get('id') and r.get('value')]\noutput = {\n  'valid_count': len(valid_records),\n  'invalid_count': len(records) - len(valid_records),\n  'valid_records': valid_records\n}\nprint(json.dumps(output))\n",
+                    },
+                    inputs: {
+                      input_data: '${fetch_data.output.records}',
+                    },
+                    outputs: {
+                      validRecords: '$.valid_records',
+                      validCount: '$.valid_count',
+                    },
+                  },
+                  timeout: 'PT10M',
+                },
+                {
+                  id: 'process_records',
+                  name: 'Process Valid Records',
+                  type: 'task',
+                  task: {
+                    executor: 'connector',
+                    config: {
+                      connectorId: 'data-processor',
+                      operation: 'transform',
+                      parameters: {
+                        records: '${validate_data.output.validRecords}',
+                        transformationType: 'standardize',
+                      },
+                    },
+                    outputs: {
+                      processedData: '$.result',
+                    },
+                  },
+                  timeout: 'PT15M',
+                  retryPolicy: {
+                    maxAttempts: 2,
+                    backoff: 'fixed',
+                    initialInterval: 'PT30S',
+                  },
+                },
+                {
+                  id: 'generate_report',
+                  name: 'Generate Processing Report',
+                  type: 'task',
+                  task: {
+                    executor: 'api',
+                    config: {
+                      method: 'POST',
+                      url: 'https://reporting.example.com/reports',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: {
+                        data: '${process_records.output.processedData}',
+                        metadata: {
+                          workflow: '${metadata.name}',
+                          timestamp: '${workflow.startTime}',
+                        },
+                      },
+                    },
+                    outputs: {
+                      reportUrl: '$.report_url',
+                    },
+                  },
+                  timeout: 'PT5M',
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+  },
+]

@@ -1,7 +1,10 @@
 export const AppRoute = {
   Dashboard: '/dashboard',
   AutomationBuilder: '/automation-builder',
-  Automations: '/automations',
+  Automations: {
+    Root: '/automations',
+    Automation: '/automations/:workflowId',
+  },
   Approvals: '/approvals',
   Configuration: {
     Overview: '/configuration',
