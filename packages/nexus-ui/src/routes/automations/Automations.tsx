@@ -1,6 +1,7 @@
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
+import { useQueryState } from '../../components/states/useQueryState'
 import { DateCell } from '../../components/table/DateCell'
 import { LabelsCell } from '../../components/table/LabelsCell'
 import { LinkCell } from '../../components/table/LinkCell'
@@ -9,6 +10,9 @@ import { Table } from '../../components/table/Table'
 export default function Automations() {
   const workflowsQuery = workflowClient.useQuery('get', '/workflows')
   const workflows = workflowsQuery.data?.workflows ?? []
+
+  const queryState = useQueryState(workflowsQuery, 'Error loading workflows')
+  if (queryState) return queryState
 
   return (
     <AppPage>
