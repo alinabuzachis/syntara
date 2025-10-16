@@ -6,7 +6,7 @@
   "files": [
     "dist"
   ],
-  "main": "./src/tools.ts",
+  "main": "./src/index.ts",
   "scripts": {
     "gen": "npm run nexus:checkout && concurrently npm:gen:* -c auto && npm run nexus:clean && npm run build && cd ../.. && npm run format",
     "nexus:checkout": "git clone https://github.com/syntara-orchestration/syntara",

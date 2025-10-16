@@ -12,6 +12,7 @@ export type Approval = WorkflowAPI.components['schemas']['Approval']
 export type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
 export type ApprovalStatus = WorkflowAPI.components['schemas']['ApprovalStatus']
 export type ActivityType = WorkflowAPI.components['schemas']['ActivityType']
+export type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
 
 const toolsFetchClient = createFetchClient<Tools.paths>({ baseUrl: '/api/' })
 export const toolsClient = createClient(toolsFetchClient)
