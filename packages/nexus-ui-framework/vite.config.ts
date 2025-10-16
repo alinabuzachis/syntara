@@ -19,7 +19,6 @@ export default defineConfig({
           react: 'React',
           'react/jsx-runtime': 'jsxRuntime',
           'react-dom': 'ReactDOM',
-          '@base-ui-components/react': 'BaseUI',
         },
       },
     },
