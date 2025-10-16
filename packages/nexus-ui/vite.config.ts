@@ -18,7 +18,7 @@ export default defineConfig({
         'graphql',
         'headers-polyfill',
         /^@mswjs\//,
-        /^msw/,
+        /^msw($|\/)/,
       ],
     },
   },
