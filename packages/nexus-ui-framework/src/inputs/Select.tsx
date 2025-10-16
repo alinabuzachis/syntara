@@ -1,9 +1,13 @@
 import { Select as BaseSelect } from '@base-ui-components/react'
 import { CheckIcon, ChevronDown } from 'lucide-react'
 
-export function Select(props: { options: { label: string; value: string }[] }) {
+export function Select<T = unknown>(props: {
+  options: { label: string; value: T }[]
+  value: T
+  onValueChange?: (value: T) => void
+}) {
   return (
-    <BaseSelect.Root items={props.options}>
+    <BaseSelect.Root items={props.options} value={props.value} onValueChange={props.onValueChange}>
       <BaseSelect.Trigger className="flex w-full cursor-default items-center justify-between rounded-lg bg-black/20 px-3 py-1.5 text-white/90 ring ring-white/10 focus:outline-blue-800">
         <BaseSelect.Value />
         <BaseSelect.Icon>

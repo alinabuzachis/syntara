@@ -17,7 +17,7 @@ import { useLocation } from 'wouter'
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
-import { toolsClient } from '../../../client'
+import { toolProvidersClient } from '../../../client'
 import { ChatInput } from '../../../components/chat/ChatInput'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { IntegrationCard } from './IntegrationCard'
@@ -26,8 +26,8 @@ export default function Integrations() {
   const [, navigate] = useLocation()
   const [search, setSearch] = useState('')
 
-  const query = toolsClient.useQuery('get', '/tools', {})
-  const integrations = query.data?.tools ?? []
+  const query = toolProvidersClient.useQuery('get', '/tool-providers', {})
+  const integrations = query.data?.providers ?? []
 
   const fuse = new Fuse(integrations, {
     keys: [
