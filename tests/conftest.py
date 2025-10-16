@@ -26,10 +26,14 @@ from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
+from nexus_api.auth.dependencies import get_current_user
 from nexus_api.db import get_db
 from nexus_api.main import app
 from nexus_api.models import invocation, user, workflow, workflow_version
 from nexus_api.models.base import Base
+from nexus_api.models.user import User, UserRole
+from nexus_api.models.workflow import Workflow
+from nexus_api.models.workflow_version import WorkflowVersion
 from nexus_api.workflows.activities.script_activity import execute_bash_script
 from nexus_api.workflows.dynamic_workflow import DynamicWorkflow
 from nexus_api.workflows.models.workflow_definition import WorkflowDefinition
@@ -235,14 +239,14 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
 
 
 @pytest_asyncio.fixture
-async def test_client(test_db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
-    """Create a test client with database session override.
+async def base_client(test_db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """Create a base test client with database session override (no authentication).
 
     Args:
         test_db_session: Test database session
 
     Yields:
-        AsyncClient for API testing
+        AsyncClient for API testing without authentication
 
     """
 
@@ -258,6 +262,89 @@ async def test_client(test_db_session: AsyncSession) -> AsyncGenerator[AsyncClie
         yield client
 
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def test_user(test_db_session: AsyncSession) -> "User":
+    """Create a test user.
+
+    Args:
+        test_db_session: Test database session
+
+    Returns:
+        User: Test user instance
+
+    """
+    user = User(
+        username="testuser",
+        email="testuser@example.com",
+        full_name="Test User",
+        role=UserRole.CREATOR,
+    )
+    test_db_session.add(user)
+    await test_db_session.commit()
+    await test_db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def test_workflow(test_db_session: AsyncSession, test_user: "User") -> "Workflow":
+    """Create a test workflow with version.
+
+    Args:
+        test_db_session: Test database session
+        test_user: Test user
+
+    Returns:
+        Workflow: Test workflow instance
+
+    """
+    workflow = Workflow(
+        name="test-workflow",
+        description="Test workflow for execution tests",
+        created_by=test_user.id,
+        is_enabled=True,
+        current_version=1,
+    )
+    test_db_session.add(workflow)
+    await test_db_session.flush()
+
+    version = WorkflowVersion(
+        workflow_id=workflow.id,
+        version=1,
+        schema_version="1.0.0",
+        workflow_definition={
+            "schemaVersion": "1.0.0",
+            "name": "test-workflow",
+            "description": "Test workflow",
+            "activities": [],
+        },
+        created_by=test_user.id,
+    )
+    test_db_session.add(version)
+    await test_db_session.commit()
+    await test_db_session.refresh(workflow)
+    return workflow
+
+
+@pytest_asyncio.fixture
+async def auth_client(base_client: AsyncClient, test_user: "User") -> AsyncClient:
+    """Create an authenticated test client with test_user.
+
+    Args:
+        base_client: Base test client without authentication
+        test_user: Test user for authentication
+
+    Returns:
+        AsyncClient: Authenticated test client
+
+    """
+
+    async def override_get_current_user() -> User:
+        return test_user
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    return base_client
 
 
 @pytest.fixture

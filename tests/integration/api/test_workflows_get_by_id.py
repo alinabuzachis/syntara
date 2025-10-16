@@ -11,7 +11,7 @@ from tests.helpers import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_by_valid_id(test_client: AsyncClient) -> None:
+async def test_get_workflow_by_valid_id(base_client: AsyncClient) -> None:
     """Test retrieving a workflow by valid ID.
 
     Expected: 200 OK with workflow object
@@ -27,12 +27,12 @@ async def test_get_workflow_by_valid_id(test_client: AsyncClient) -> None:
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     assert create_response.status_code == 201
     workflow_id = create_response.json()["id"]
 
     # Get the workflow by ID
-    response = await test_client.get(f"/api/v1/workflows/{workflow_id}")
+    response = await base_client.get(f"/api/v1/workflows/{workflow_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -42,13 +42,13 @@ async def test_get_workflow_by_valid_id(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_by_nonexistent_id(test_client: AsyncClient) -> None:
+async def test_get_workflow_by_nonexistent_id(base_client: AsyncClient) -> None:
     """Test retrieving a workflow with non-existent ID.
 
     Expected: 404 Not Found
     """
     fake_id = "00000000-0000-0000-0000-000000000000"
-    response = await test_client.get(f"/api/v1/workflows/{fake_id}")
+    response = await base_client.get(f"/api/v1/workflows/{fake_id}")
 
     assert response.status_code == 404
     data = response.json()
@@ -56,7 +56,7 @@ async def test_get_workflow_by_nonexistent_id(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_includes_current_version(test_client: AsyncClient) -> None:
+async def test_get_workflow_includes_current_version(base_client: AsyncClient) -> None:
     """Test that response includes current version details.
 
     Expected: 200 OK with version information
@@ -70,10 +70,10 @@ async def test_get_workflow_includes_current_version(test_client: AsyncClient) -
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
-    response = await test_client.get(f"/api/v1/workflows/{workflow_id}")
+    response = await base_client.get(f"/api/v1/workflows/{workflow_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -82,7 +82,7 @@ async def test_get_workflow_includes_current_version(test_client: AsyncClient) -
 
 
 @pytest.mark.asyncio
-async def test_get_soft_deleted_workflow_returns_404(test_client: AsyncClient) -> None:
+async def test_get_soft_deleted_workflow_returns_404(base_client: AsyncClient) -> None:
     """Test that soft-deleted workflows return 404.
 
     Expected: 404 Not Found for soft-deleted workflow
@@ -97,21 +97,21 @@ async def test_get_soft_deleted_workflow_returns_404(test_client: AsyncClient) -
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
     # Soft delete the workflow
-    delete_response = await test_client.delete(f"/api/v1/workflows/{workflow_id}")
+    delete_response = await base_client.delete(f"/api/v1/workflows/{workflow_id}")
     assert delete_response.status_code == 204
 
     # Try to get the deleted workflow
-    get_response = await test_client.get(f"/api/v1/workflows/{workflow_id}")
+    get_response = await base_client.get(f"/api/v1/workflows/{workflow_id}")
 
     assert get_response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_response_schema(test_client: AsyncClient) -> None:
+async def test_get_workflow_response_schema(base_client: AsyncClient) -> None:
     """Test that the response matches expected schema including version data.
 
     Expected: All required fields present with correct types, including version object
@@ -125,10 +125,10 @@ async def test_get_workflow_response_schema(test_client: AsyncClient) -> None:
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
-    response = await test_client.get(f"/api/v1/workflows/{workflow_id}")
+    response = await base_client.get(f"/api/v1/workflows/{workflow_id}")
 
     assert response.status_code == 200
     data = response.json()

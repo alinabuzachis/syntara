@@ -20,7 +20,7 @@ from tests.helpers.workflow_fixtures import (
 
 
 @pytest.mark.asyncio
-async def test_workflow_complete_lifecycle(test_client: AsyncClient) -> None:  # noqa: PLR0915
+async def test_workflow_complete_lifecycle(base_client: AsyncClient) -> None:  # noqa: PLR0915
     """Test complete workflow lifecycle from creation to deletion.
 
     This test verifies that all workflow operations work together correctly:
@@ -42,7 +42,7 @@ async def test_workflow_complete_lifecycle(test_client: AsyncClient) -> None:  #
         ),
     }
 
-    create_response = await test_client.post(
+    create_response = await base_client.post(
         "/api/v1/workflows",
         json=create_payload,
     )
@@ -57,7 +57,7 @@ async def test_workflow_complete_lifecycle(test_client: AsyncClient) -> None:  #
 
     # Note: POST returns WorkflowResponse (no version data)
     # Use GET to retrieve version data
-    get_workflow_response = await test_client.get(f"/api/v1/workflows/{workflow_id}")
+    get_workflow_response = await base_client.get(f"/api/v1/workflows/{workflow_id}")
     assert get_workflow_response.status_code == 200
     workflow_with_version = get_workflow_response.json()
 
@@ -78,7 +78,7 @@ async def test_workflow_complete_lifecycle(test_client: AsyncClient) -> None:  #
         "change_description": "Added activity_1",
     }
 
-    update_v2_response = await test_client.patch(
+    update_v2_response = await base_client.patch(
         f"/api/v1/workflows/{workflow_id}",
         json=update_v2_payload,
     )
@@ -127,7 +127,7 @@ async def test_workflow_complete_lifecycle(test_client: AsyncClient) -> None:  #
         "change_description": "Added activity_2",
     }
 
-    update_v3_response = await test_client.patch(
+    update_v3_response = await base_client.patch(
         f"/api/v1/workflows/{workflow_id}",
         json=update_v3_payload,
     )
@@ -141,7 +141,7 @@ async def test_workflow_complete_lifecycle(test_client: AsyncClient) -> None:  #
     assert v3_def["workflow"]["activities"][1]["id"] == "activity_2"
 
     # Step 4: List all versions
-    list_versions_response = await test_client.get(
+    list_versions_response = await base_client.get(
         f"/api/v1/workflows/{workflow_id}/versions",
     )
     assert list_versions_response.status_code == 200
@@ -157,7 +157,7 @@ async def test_workflow_complete_lifecycle(test_client: AsyncClient) -> None:  #
     assert versions[2]["version"] == 1
 
     # Step 5: Get specific version (version 2)
-    get_v2_response = await test_client.get(
+    get_v2_response = await base_client.get(
         f"/api/v1/workflows/{workflow_id}/versions/2",
     )
     assert get_v2_response.status_code == 200
@@ -177,7 +177,7 @@ async def test_workflow_complete_lifecycle(test_client: AsyncClient) -> None:  #
         "is_enabled": False,
     }
 
-    metadata_update_response = await test_client.patch(
+    metadata_update_response = await base_client.patch(
         f"/api/v1/workflows/{workflow_id}",
         json=metadata_update_payload,
     )
@@ -195,7 +195,7 @@ async def test_workflow_complete_lifecycle(test_client: AsyncClient) -> None:  #
     assert workflow_metadata["is_enabled"] is False
 
     # Verify GET returns updated metadata
-    get_workflow_response = await test_client.get(
+    get_workflow_response = await base_client.get(
         f"/api/v1/workflows/{workflow_id}",
     )
     assert get_workflow_response.status_code == 200
@@ -206,19 +206,19 @@ async def test_workflow_complete_lifecycle(test_client: AsyncClient) -> None:  #
     assert workflow_updated["current_version"] == 3
 
     # Step 7: Soft delete workflow
-    delete_response = await test_client.delete(
+    delete_response = await base_client.delete(
         f"/api/v1/workflows/{workflow_id}",
     )
     assert delete_response.status_code == 204
 
     # Step 8: Verify soft delete prevents access
-    get_deleted_response = await test_client.get(
+    get_deleted_response = await base_client.get(
         f"/api/v1/workflows/{workflow_id}",
     )
     assert get_deleted_response.status_code == 404
 
     # Verify workflow not in list
-    list_response = await test_client.get("/api/v1/workflows")
+    list_response = await base_client.get("/api/v1/workflows")
     assert list_response.status_code == 200
     workflows = list_response.json()["workflows"]
 
@@ -227,14 +227,14 @@ async def test_workflow_complete_lifecycle(test_client: AsyncClient) -> None:  #
     assert workflow_id not in workflow_ids
 
     # Verify versions endpoint returns 404 for deleted workflow
-    versions_deleted_response = await test_client.get(
+    versions_deleted_response = await base_client.get(
         f"/api/v1/workflows/{workflow_id}/versions",
     )
     assert versions_deleted_response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_workflow_version_immutability(test_client: AsyncClient) -> None:
+async def test_workflow_version_immutability(base_client: AsyncClient) -> None:
     """Test that workflow versions are read-only and immutable."""
     # Create workflow
     create_payload = {
@@ -246,7 +246,7 @@ async def test_workflow_version_immutability(test_client: AsyncClient) -> None:
         ),
     }
 
-    create_response = await test_client.post(
+    create_response = await base_client.post(
         "/api/v1/workflows",
         json=create_payload,
     )
@@ -263,17 +263,17 @@ async def test_workflow_version_immutability(test_client: AsyncClient) -> None:
         ),
     }
 
-    await test_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_payload)
+    await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_payload)
 
     # Get version 1
-    v1_response = await test_client.get(
+    v1_response = await base_client.get(
         f"/api/v1/workflows/{workflow_id}/versions/1",
     )
     assert v1_response.status_code == 200
     v1_original = v1_response.json()
 
     # Get version 1 again to verify it hasn't changed
-    v1_again_response = await test_client.get(
+    v1_again_response = await base_client.get(
         f"/api/v1/workflows/{workflow_id}/versions/1",
     )
     assert v1_again_response.status_code == 200
@@ -285,7 +285,7 @@ async def test_workflow_version_immutability(test_client: AsyncClient) -> None:
     assert v1_original["version"] == 1
 
     # Verify current version is 2 but version 1 still accessible
-    workflow_response = await test_client.get(f"/api/v1/workflows/{workflow_id}")
+    workflow_response = await base_client.get(f"/api/v1/workflows/{workflow_id}")
     assert workflow_response.status_code == 200
     current_workflow = workflow_response.json()
 

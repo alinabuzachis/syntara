@@ -11,7 +11,7 @@ from tests.helpers import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio
-async def test_post_workflow_valid_definition(test_client: AsyncClient) -> None:
+async def test_post_workflow_valid_definition(base_client: AsyncClient) -> None:
     """Test creating a workflow with valid definition.
 
     Expected: 201 Created with workflow object
@@ -24,7 +24,7 @@ async def test_post_workflow_valid_definition(test_client: AsyncClient) -> None:
         ),
     }
 
-    response = await test_client.post("/api/v1/workflows", json=valid_workflow)
+    response = await base_client.post("/api/v1/workflows", json=valid_workflow)
 
     assert response.status_code == 201
     data = response.json()
@@ -38,7 +38,7 @@ async def test_post_workflow_valid_definition(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_post_workflow_invalid_definition(test_client: AsyncClient) -> None:
+async def test_post_workflow_invalid_definition(base_client: AsyncClient) -> None:
     """Test creating a workflow with invalid definition structure.
 
     Expected: 422 Unprocessable Entity (Pydantic validation error)
@@ -52,7 +52,7 @@ async def test_post_workflow_invalid_definition(test_client: AsyncClient) -> Non
         },
     }
 
-    response = await test_client.post("/api/v1/workflows", json=invalid_workflow)
+    response = await base_client.post("/api/v1/workflows", json=invalid_workflow)
 
     assert response.status_code == 422
     data = response.json()
@@ -60,7 +60,7 @@ async def test_post_workflow_invalid_definition(test_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def test_post_workflow_missing_name(test_client: AsyncClient) -> None:
+async def test_post_workflow_missing_name(base_client: AsyncClient) -> None:
     """Test creating a workflow without a name.
 
     Expected: 422 Unprocessable Entity (validation error)
@@ -72,7 +72,7 @@ async def test_post_workflow_missing_name(test_client: AsyncClient) -> None:
         ),
     }
 
-    response = await test_client.post("/api/v1/workflows", json=workflow_without_name)
+    response = await base_client.post("/api/v1/workflows", json=workflow_without_name)
 
     assert response.status_code == 422
     data = response.json()
@@ -80,7 +80,7 @@ async def test_post_workflow_missing_name(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_post_workflow_duplicate_name(test_client: AsyncClient) -> None:
+async def test_post_workflow_duplicate_name(base_client: AsyncClient) -> None:
     """Test creating a workflow with a duplicate name.
 
     Expected: 400 Bad Request with conflict error
@@ -94,11 +94,11 @@ async def test_post_workflow_duplicate_name(test_client: AsyncClient) -> None:
     }
 
     # Create first workflow
-    response1 = await test_client.post("/api/v1/workflows", json=workflow)
+    response1 = await base_client.post("/api/v1/workflows", json=workflow)
     assert response1.status_code == 201
 
     # Try to create duplicate
-    response2 = await test_client.post("/api/v1/workflows", json=workflow)
+    response2 = await base_client.post("/api/v1/workflows", json=workflow)
     assert response2.status_code == 400
     data = response2.json()
     assert "detail" in data
@@ -106,7 +106,7 @@ async def test_post_workflow_duplicate_name(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_post_workflow_missing_required_fields(test_client: AsyncClient) -> None:
+async def test_post_workflow_missing_required_fields(base_client: AsyncClient) -> None:
     """Test creating a workflow with definition missing required fields.
 
     Expected: 422 Unprocessable Entity (Pydantic validation error)
@@ -120,7 +120,7 @@ async def test_post_workflow_missing_required_fields(test_client: AsyncClient) -
         },
     }
 
-    response = await test_client.post("/api/v1/workflows", json=workflow_missing_fields)
+    response = await base_client.post("/api/v1/workflows", json=workflow_missing_fields)
 
     assert response.status_code == 422
     data = response.json()
@@ -128,7 +128,7 @@ async def test_post_workflow_missing_required_fields(test_client: AsyncClient) -
 
 
 @pytest.mark.asyncio
-async def test_post_workflow_response_schema(test_client: AsyncClient) -> None:
+async def test_post_workflow_response_schema(base_client: AsyncClient) -> None:
     """Test that the response matches the expected schema.
 
     Expected: Response contains all required fields with correct types
@@ -141,7 +141,7 @@ async def test_post_workflow_response_schema(test_client: AsyncClient) -> None:
         ),
     }
 
-    response = await test_client.post("/api/v1/workflows", json=workflow)
+    response = await base_client.post("/api/v1/workflows", json=workflow)
 
     assert response.status_code == 201
     data = response.json()
@@ -170,7 +170,7 @@ async def test_post_workflow_response_schema(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_post_workflow_with_labels(test_client: AsyncClient) -> None:
+async def test_post_workflow_with_labels(base_client: AsyncClient) -> None:
     """Test creating a workflow with labels.
 
     Expected: 201 Created with labels included
@@ -187,7 +187,7 @@ async def test_post_workflow_with_labels(test_client: AsyncClient) -> None:
         },
     }
 
-    response = await test_client.post("/api/v1/workflows", json=workflow_with_labels)
+    response = await base_client.post("/api/v1/workflows", json=workflow_with_labels)
 
     assert response.status_code == 201
     data = response.json()

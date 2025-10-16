@@ -11,7 +11,7 @@ from tests.helpers import create_minimal_workflow_definition, create_workflow_de
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_name(test_client: AsyncClient) -> None:
+async def test_patch_workflow_name(base_client: AsyncClient) -> None:
     """Test updating workflow name.
 
     Expected: 200 OK with updated workflow
@@ -26,12 +26,12 @@ async def test_patch_workflow_name(test_client: AsyncClient) -> None:
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
     # Update name
     update_data = {"name": "updated-name"}
-    response = await test_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+    response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -40,7 +40,7 @@ async def test_patch_workflow_name(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_description(test_client: AsyncClient) -> None:
+async def test_patch_workflow_description(base_client: AsyncClient) -> None:
     """Test updating workflow description.
 
     Expected: 200 OK with updated description
@@ -55,12 +55,12 @@ async def test_patch_workflow_description(test_client: AsyncClient) -> None:
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
     # Update description
     update_data = {"description": "Updated description"}
-    response = await test_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+    response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -68,7 +68,7 @@ async def test_patch_workflow_description(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_is_enabled_toggle(test_client: AsyncClient) -> None:
+async def test_patch_workflow_is_enabled_toggle(base_client: AsyncClient) -> None:
     """Test toggling workflow enabled status.
 
     Expected: 200 OK with updated is_enabled status
@@ -82,19 +82,19 @@ async def test_patch_workflow_is_enabled_toggle(test_client: AsyncClient) -> Non
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
     assert create_response.json()["is_enabled"] is True
 
     # Disable workflow
-    response = await test_client.patch(f"/api/v1/workflows/{workflow_id}", json={"is_enabled": False})
+    response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json={"is_enabled": False})
 
     assert response.status_code == 200
     assert response.json()["is_enabled"] is False
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_labels(test_client: AsyncClient) -> None:
+async def test_patch_workflow_labels(base_client: AsyncClient) -> None:
     """Test updating workflow labels.
 
     Expected: 200 OK with updated labels
@@ -109,12 +109,12 @@ async def test_patch_workflow_labels(test_client: AsyncClient) -> None:
         "labels": {"env": "dev"},
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
     # Update labels
     update_data = {"labels": {"env": "prod", "team": "engineering"}}
-    response = await test_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+    response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -123,7 +123,7 @@ async def test_patch_workflow_labels(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_updates_timestamp(test_client: AsyncClient) -> None:
+async def test_patch_workflow_updates_timestamp(base_client: AsyncClient) -> None:
     """Test that PATCH updates the updated_at timestamp.
 
     Expected: updated_at changes after update
@@ -137,12 +137,12 @@ async def test_patch_workflow_updates_timestamp(test_client: AsyncClient) -> Non
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
     original_updated_at = create_response.json()["updated_at"]
 
     # Update workflow
-    response = await test_client.patch(f"/api/v1/workflows/{workflow_id}", json={"description": "New description"})
+    response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json={"description": "New description"})
 
     assert response.status_code == 200
     new_updated_at = response.json()["updated_at"]
@@ -150,19 +150,19 @@ async def test_patch_workflow_updates_timestamp(test_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def test_patch_nonexistent_workflow(test_client: AsyncClient) -> None:
+async def test_patch_nonexistent_workflow(base_client: AsyncClient) -> None:
     """Test updating a non-existent workflow.
 
     Expected: 404 Not Found
     """
     fake_id = "00000000-0000-0000-0000-000000000000"
-    response = await test_client.patch(f"/api/v1/workflows/{fake_id}", json={"name": "new-name"})
+    response = await base_client.patch(f"/api/v1/workflows/{fake_id}", json={"name": "new-name"})
 
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_validation_errors(test_client: AsyncClient) -> None:
+async def test_patch_workflow_validation_errors(base_client: AsyncClient) -> None:
     """Test validation errors on invalid update data.
 
     Expected: 400 Bad Request for invalid data
@@ -176,17 +176,17 @@ async def test_patch_workflow_validation_errors(test_client: AsyncClient) -> Non
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
     # Try to set name to empty string
-    response = await test_client.patch(f"/api/v1/workflows/{workflow_id}", json={"name": ""})
+    response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json={"name": ""})
 
     assert response.status_code in [400, 422]
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_with_workflow_definition_creates_version(test_client: AsyncClient) -> None:
+async def test_patch_workflow_with_workflow_definition_creates_version(base_client: AsyncClient) -> None:
     """Test that PATCH with workflow_definition creates a new version.
 
     Expected: 200 OK, current_version incremented, new version created
@@ -200,7 +200,7 @@ async def test_patch_workflow_with_workflow_definition_creates_version(test_clie
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
     assert create_response.json()["current_version"] == 1
 
@@ -226,7 +226,7 @@ async def test_patch_workflow_with_workflow_definition_creates_version(test_clie
         ),
         "change_description": "Added step1 activity",
     }
-    response = await test_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+    response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -238,7 +238,7 @@ async def test_patch_workflow_with_workflow_definition_creates_version(test_clie
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_metadata_only_does_not_create_version(test_client: AsyncClient) -> None:
+async def test_patch_workflow_metadata_only_does_not_create_version(base_client: AsyncClient) -> None:
     """Test that PATCH with only metadata does NOT create a new version.
 
     Expected: 200 OK, current_version unchanged
@@ -252,13 +252,13 @@ async def test_patch_workflow_metadata_only_does_not_create_version(test_client:
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
     assert create_response.json()["current_version"] == 1
 
     # Update only metadata fields
     update_data = {"name": "metadata-test-updated", "description": "Updated description"}
-    response = await test_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+    response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -268,7 +268,7 @@ async def test_patch_workflow_metadata_only_does_not_create_version(test_client:
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_returns_version_data(test_client: AsyncClient) -> None:
+async def test_patch_workflow_returns_version_data(base_client: AsyncClient) -> None:
     """Test that PATCH response includes version object with current version data.
 
     Expected: 200 OK with version object containing current active version
@@ -282,12 +282,12 @@ async def test_patch_workflow_returns_version_data(test_client: AsyncClient) -> 
         ),
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
     # Update metadata
     update_data = {"description": "Testing version response"}
-    response = await test_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+    response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -302,7 +302,7 @@ async def test_patch_workflow_returns_version_data(test_client: AsyncClient) -> 
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_with_unchanged_yaml_skips_version(test_client: AsyncClient) -> None:
+async def test_patch_workflow_with_unchanged_yaml_skips_version(base_client: AsyncClient) -> None:
     """Test that PATCH with identical definition does NOT create new version (change detection).
 
     Expected: 200 OK, current_version unchanged when definition is exactly identical.
@@ -331,7 +331,7 @@ async def test_patch_workflow_with_unchanged_yaml_skips_version(test_client: Asy
         "workflow_definition": workflow_definition,
     }
 
-    create_response = await test_client.post("/api/v1/workflows", json=workflow)
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
     assert create_response.json()["current_version"] == 1
 
@@ -340,7 +340,7 @@ async def test_patch_workflow_with_unchanged_yaml_skips_version(test_client: Asy
         "workflow_definition": workflow_definition,
         "change_description": "Testing change detection",
     }
-    response = await test_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+    response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -381,7 +381,7 @@ async def test_patch_workflow_with_unchanged_yaml_skips_version(test_client: Asy
         "workflow_definition": updated_definition,
         "change_description": "Added step2",
     }
-    response2 = await test_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data_changed)
+    response2 = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data_changed)
 
     assert response2.status_code == 200
     data2 = response2.json()
@@ -392,7 +392,7 @@ async def test_patch_workflow_with_unchanged_yaml_skips_version(test_client: Asy
 
 
 @pytest.mark.asyncio
-async def test_patch_workflow_duplicate_name_error(test_client: AsyncClient) -> None:
+async def test_patch_workflow_duplicate_name_error(base_client: AsyncClient) -> None:
     """Test that renaming to an existing workflow name returns 400 error.
 
     Expected: 400 Bad Request (not 500 IntegrityError)
@@ -416,21 +416,21 @@ async def test_patch_workflow_duplicate_name_error(test_client: AsyncClient) -> 
         ),
     }
 
-    response1 = await test_client.post("/api/v1/workflows", json=workflow1)
+    response1 = await base_client.post("/api/v1/workflows", json=workflow1)
     workflow1_id = response1.json()["id"]
 
-    response2 = await test_client.post("/api/v1/workflows", json=workflow2)
+    response2 = await base_client.post("/api/v1/workflows", json=workflow2)
     workflow2_id = response2.json()["id"]
 
     # Try to rename workflow2 to workflow1's name (should fail)
     update_data = {"name": "workflow-one"}
-    response = await test_client.patch(f"/api/v1/workflows/{workflow2_id}", json=update_data)
+    response = await base_client.patch(f"/api/v1/workflows/{workflow2_id}", json=update_data)
 
     # Should return 400 Bad Request (user error), not 500 (server error)
     assert response.status_code == 400
     assert "already exists" in response.json()["detail"].lower()
 
     # Verify workflow1 is unchanged
-    get_response = await test_client.get(f"/api/v1/workflows/{workflow1_id}")
+    get_response = await base_client.get(f"/api/v1/workflows/{workflow1_id}")
     assert get_response.status_code == 200
     assert get_response.json()["name"] == "workflow-one"
