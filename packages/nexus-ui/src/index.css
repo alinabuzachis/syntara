@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import '@xyflow/react/dist/style.css'
+@import '@xyflow/react/dist/style.css';
 
 /* @reference '../../nexus-ui-framework/src/index.css'; */
 
@@ -73,8 +73,6 @@ body {
   }
 }
 
-
-
 .react-flow.dark {
   background: transparent;
   --xy-controls-button-background-color-default: transparent;
@@ -93,4 +91,3 @@ body {
   flex-direction: column;
   gap: 16px;
 }
-
