@@ -2,7 +2,7 @@ import { IconButton } from '@ansible/nexus-ui-framework'
 import Dagre from '@dagrejs/dagre'
 import { Panel, ReactFlow, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow } from '@xyflow/react'
 import { ExpandIcon, MoveHorizontalIcon, MoveVerticalIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react'
-import { useCallback, useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { WorkflowWithVersion } from '../../client'
 import { ChatInput } from '../../components/chat/ChatInput'
 import { FlowDirectionContext } from './FlowDirectionContext'
@@ -119,31 +119,77 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
 
 export function AutomationFlow(props: { workflow: WorkflowWithVersion }) {
   const flowDirectionState = useState<'TB' | 'LR'>('LR')
+
+  const { nodes, edges } = useMemo(() => {
+    const nodes: NodeType[] = []
+    const edges: EdgeType[] = []
+    for (const trigger of props.workflow.version?.workflow_definition?.triggers ?? []) {
+      switch (trigger.type) {
+        case 'manual':
+          nodes.push({
+            id: 'manual',
+            type: 'trigger',
+            position: { x: 0, y: 0 },
+            data: {
+              label: 'Manual',
+            },
+          })
+          break
+      }
+    }
+    let previousId = ''
+    for (const activity of props.workflow.version?.workflow_definition?.workflow.activities ?? []) {
+      switch (activity.type) {
+        case 'sequence':
+          for (const step of activity.steps ?? []) {
+            switch (step.type) {
+              case 'task':
+                nodes.push({
+                  id: step.id,
+                  type: 'task',
+                  position: { x: 0, y: 0 },
+                  data: step,
+                })
+                if (!previousId) {
+                  edges.push({
+                    id: `trigger-${step.id}`,
+                    source: 'manual',
+                    target: step.id,
+                  })
+                } else {
+                  edges.push({
+                    id: `${previousId}-${step.id}`,
+                    source: previousId,
+                    target: step.id,
+                  })
+                }
+                previousId = step.id
+                break
+            }
+          }
+
+          break
+      }
+    }
+    return { nodes, edges }
+  }, [props.workflow.version?.workflow_definition])
+
   return (
     <FlowDirectionContext.Provider value={flowDirectionState}>
       <ReactFlowProvider>
-        <AutomationBuilderInternal />
+        <AutomationBuilderFlow initialNodes={nodes} initialEdges={edges} />
+        <ChatInput />
       </ReactFlowProvider>
     </FlowDirectionContext.Provider>
   )
 }
 
-function AutomationBuilderInternal() {
-  return (
-    <>
-      <AutomationBuilderFlow />
-
-      <ChatInput />
-    </>
-  )
-}
-
-function AutomationBuilderFlow() {
+function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: EdgeType[] }) {
   const { fitView } = useReactFlow()
   const [isInitialized, setIsInitialized] = useState(false)
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+  const [nodes, setNodes, onNodesChange] = useNodesState(props.initialNodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState(props.initialEdges)
 
   const onLayout = useCallback(
     (direction: 'TB' | 'LR') => {

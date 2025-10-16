@@ -14,12 +14,7 @@ export default defineConfig({
   ],
   build: {
     rollupOptions: {
-      external: [
-        'graphql',
-        'headers-polyfill',
-        /^@mswjs\//,
-        /^msw($|\/)/,
-      ],
+      external: ['graphql', 'headers-polyfill', /^@mswjs\//, /^msw($|\/)/],
     },
   },
   server: {
