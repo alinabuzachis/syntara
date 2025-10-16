@@ -4,6 +4,7 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 RUN printf "demo:$(openssl passwd -apr1 coffee)\n" > /app/.htpasswd
 COPY package*.json ./
+COPY packages/nexus-contracts/package*.json ./packages/nexus-contracts/
 COPY packages/nexus-ui/package*.json ./packages/nexus-ui/
 COPY packages/nexus-ui-framework/package*.json ./packages/nexus-ui-framework/
 RUN npm ci
