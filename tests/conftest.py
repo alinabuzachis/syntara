@@ -28,7 +28,7 @@ from temporalio.worker import Worker
 
 from nexus_api.db import get_db
 from nexus_api.main import app
-from nexus_api.models import user, workflow, workflow_version
+from nexus_api.models import invocation, user, workflow, workflow_version
 from nexus_api.models.base import Base
 from nexus_api.workflows.activities.script_activity import execute_bash_script
 from nexus_api.workflows.dynamic_workflow import DynamicWorkflow
@@ -36,7 +36,7 @@ from nexus_api.workflows.models.workflow_definition import WorkflowDefinition
 from nexus_api.workflows.yaml_workflow_parser import parse_workflow_yaml
 
 # Ensure models are registered with SQLAlchemy metadata
-_ = (user, workflow, workflow_version)
+_ = (invocation, user, workflow, workflow_version)
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,4 @@
-"""Main FastAPI application module for Nexus Workflow Engine."""
+"""Main FastAPI application module for Nexus."""
 
 import json
 import sys
@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from nexus_api.api.v1 import workflow_versions, workflows
+from nexus_api.api.v1.invocation import router as invoke_router
 from nexus_api.db import get_db
 from nexus_tool_manager.lib.providers.factory import ProviderFactory
 
@@ -26,8 +27,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     Handles initialization and cleanup of application-scoped resources
     like the provider factory.
 
+    Database connections are managed by SQLAlchemy via the get_db() dependency.
+    Migrations should be run via Alembic before starting the application:
+        uv run alembic upgrade head
+
     Args:
         app: FastAPI application instance
+
+    Yields:
+        None
 
     """
     # Startup: Initialize provider factory in app.state
@@ -43,7 +51,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
 
 # Create FastAPI application
 app = FastAPI(
-    title="Nexus Workflow Engine API",
+    title="Nexus API",
     description="A distributed multi-agent workflow orchestration system",
     version="0.1.0",
     docs_url="/docs",
@@ -64,11 +72,12 @@ app.add_middleware(
 # Register API routers
 app.include_router(workflows.router, prefix="/api/v1")
 app.include_router(workflow_versions.router, prefix="/api/v1")
+app.include_router(invoke_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])
 async def health_check() -> dict[str, Any]:
-    """Health check endpoint.
+    """Health check endpoint with database connectivity test.
 
     Returns:
         dict: Health status with database connectivity check
@@ -99,9 +108,8 @@ async def health_check() -> dict[str, Any]:
     # Check database connectivity
     db_status = "unknown"
     try:
-        async for db in get_db():
-            # Execute a simple query to verify connection
-            result = await db.execute(text("SELECT 1"))
+        async for session in get_db():
+            result = await session.execute(text("SELECT 1"))
             result.scalar()
             db_status = "ok"
             break
@@ -153,7 +161,7 @@ async def root() -> dict[str, str]:
 
     """
     return {
-        "message": "Nexus Workflow Engine API",
+        "message": "Nexus API",
         "version": "0.1.0",
         "docs": "/docs",
     }

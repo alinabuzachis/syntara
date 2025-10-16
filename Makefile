@@ -94,7 +94,11 @@ dev: check-deps ## Run development server with auto-reload
 	@echo "🔄 Running database migrations..."
 	@uv run alembic upgrade head
 	@echo "✅ Migrations complete"
-	@echo "🚀 Starting development server..."
+	@echo "🚀 Starting Nexus API server..."
+	@echo "📍 API URL: http://localhost:8000"
+	@echo "📍 API Docs: http://localhost:8000/docs"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
 	uv run python -m nexus_api.main
 
 
