@@ -6,26 +6,8 @@
   "files": [
     "dist"
   ],
-  "main": "./dist/nexus-contracts.umd.js",
-  "module": "./dist/nexus-contracts.es.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/nexus-ui-framework.es.js"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/nexus-ui-framework.umd.js"
-      }
-    },
-    "./style.css": "./dist/nexus-ui-framework.css"
-  },
+  "main": "./src/tools.ts",
   "scripts": {
-    "clean": "rm -rf dist node_modules",
-    "start": "vite build --watch",
-    "build": "vite build",
     "gen": "npm run nexus:checkout && concurrently npm:gen:* -c auto && npm run nexus:clean && npm run build && cd ../.. && npm run format",
     "nexus:checkout": "git clone https://github.com/syntara-orchestration/syntara",
     "gen:tools": "npx openapi-typescript ./nexus/specs/004-tool-management/contracts/tools.yaml --output ./src/tools.ts",

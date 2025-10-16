@@ -102,7 +102,7 @@ export interface paths {
     put?: never
     /**
      * Create workflow
-     * @description Create a new workflow from YAML definition
+     * @description Create a new workflow entity with its initial version. The workflow definition is validated and stored as version 1.
      */
     post: {
       parameters: {
@@ -241,7 +241,7 @@ export interface paths {
      * Update workflow
      * @description Update workflow fields. Supports both metadata updates and workflow definition updates:
      *     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-     *     - With yaml_definition: Validates YAML, compares with current version, and creates new version only if YAML differs (change detection)
+     *     - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
      */
     patch: {
       parameters: {
@@ -258,7 +258,7 @@ export interface paths {
         }
       }
       responses: {
-        /** @description Workflow updated successfully (may include new version if yaml_definition changed) */
+        /** @description Workflow updated successfully (may include new version if workflow_definition changed) */
         200: {
           headers: {
             [name: string]: unknown
@@ -348,7 +348,7 @@ export interface paths {
     }
     /**
      * Get workflow version
-     * @description Retrieve a specific version of a workflow by version number. Returns the complete YAML definition for that version.
+     * @description Retrieve a specific version of a workflow by version number. Returns the complete workflow definition for that version.
      */
     get: {
       parameters: {
@@ -863,7 +863,7 @@ export interface components {
       version?: {
         version?: number
         schema_version?: string
-        yaml_definition?: string
+        workflow_definition?: components['schemas']['workflow-definition.schema']
         /** Format: uuid */
         created_by?: string
         /** Format: date-time */
@@ -873,7 +873,7 @@ export interface components {
     }
     /**
      * Workflow Version Response
-     * @description Complete details of a specific workflow version including YAML definition. Note that deleted_at and deleted_by are always null since soft-deleted versions are excluded from queries.
+     * @description Complete details of a specific workflow version including workflow definition. Note that deleted_at and deleted_by are always null since soft-deleted versions are excluded from queries.
      */
     WorkflowVersionResponse: {
       /**
@@ -890,8 +890,8 @@ export interface components {
       version: number
       /** @description YAML schema version (e.g., "1.0.0") */
       schema_version: string
-      /** @description Complete YAML workflow definition */
-      yaml_definition: string
+      /** @description Workflow definition object conforming to workflow-definition.schema.json */
+      workflow_definition: components['schemas']['workflow-definition.schema']
       /**
        * Format: uuid
        * @description User who created this version
@@ -969,9 +969,9 @@ export interface components {
        * @description Parent execution ID
        */
       execution_id?: string
-      /** @description Activity ID from YAML workflow definition */
+      /** @description Activity ID from workflow definition */
       activity_name?: string
-      /** @description Snapshot of the activity configuration from YAML at execution time, including executor, config, retry policy, timeout, approval settings */
+      /** @description Snapshot of the activity configuration from workflow definition at execution time, including executor, config, retry policy, timeout, approval settings */
       activity_definition?: Record<string, never>
       /** @description Temporal activity execution ID */
       temporal_activity_id?: string
@@ -1049,12 +1049,12 @@ export interface components {
     ApprovalStatus: 'pending' | 'approved' | 'rejected' | 'expired'
     /**
      * Create Workflow Request
-     * @description Request payload for creating a new workflow from YAML definition
+     * @description Request payload for creating a new workflow from workflow definition
      */
     CreateWorkflowRequest: {
       name: string
       description?: string
-      yaml_definition: string
+      workflow_definition: components['schemas']['workflow-definition.schema']
       /**
        * @description Enable workflow for execution (defaults to true if not specified)
        * @default true
@@ -1065,9 +1065,10 @@ export interface components {
      * Patch Workflow Request
      * @description Request payload for updating workflow fields. Behavior depends on which fields are provided:
      *     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-     *     - With yaml_definition: Validates YAML, compares with current version, and creates new WorkflowVersion only if YAML differs (change detection)
+     *     - With workflow_definition: Validates workflow definition, compares with current version, and creates new WorkflowVersion only if definition differs (change detection)
      *
      *     Note: WorkflowVersion entities are read-only and managed automatically by the system.
+     *     API accepts JSON objects for workflow_definition field.
      */
     PatchWorkflowRequest: {
       /** @description Update workflow name (metadata only, no version created) */
@@ -1080,9 +1081,9 @@ export interface components {
       labels?: {
         [key: string]: string
       }
-      /** @description New YAML workflow definition - creates new version only if YAML differs from current version (change detection) */
-      yaml_definition?: string
-      /** @description Description of changes (used when creating new version via yaml_definition) */
+      /** @description New workflow definition - creates new version only if definition differs from current version (change detection) */
+      workflow_definition?: components['schemas']['workflow-definition.schema']
+      /** @description Description of changes (used when creating new version via workflow_definition) */
       change_description?: string
     }
     /**
@@ -1220,6 +1221,278 @@ export interface components {
       error?: string
       message?: string
       details?: Record<string, never>
+    }
+    /** @description Manual trigger - user initiates workflow execution */
+    manualTrigger: {
+      /** @constant */
+      type: 'manual'
+      /**
+       * @description Whether manual execution requires approval
+       * @default false
+       */
+      requiresApproval: boolean
+    }
+    /** @description Scheduled trigger - time-based or continuous execution */
+    scheduledTrigger: {
+      /** @constant */
+      type: 'scheduled'
+      schedule:
+        | {
+            /**
+             * @description Cron expression for scheduling (standard 5-field format or special strings)
+             * @example 0 0 * * *
+             * @example @daily
+             * @example *\/5 * * * *
+             * @example 0 *\/6 * * *
+             */
+            cron: string
+            /**
+             * @description IANA timezone for cron execution
+             * @default UTC
+             * @example America/New_York
+             * @example UTC
+             * @example Europe/London
+             */
+            timezone: string
+          }
+        | {
+            /**
+             * @description Execution interval (ISO 8601 duration)
+             * @example PT15M
+             * @example PT1H
+             * @example P1D
+             */
+            interval: string
+          }
+        | {
+            /**
+             * @description Run workflow continuously (restart on completion)
+             * @constant
+             */
+            continuous: true
+          }
+      /**
+       * Format: date-time
+       * @description Start time for scheduled execution (ISO 8601)
+       */
+      startTime?: string
+      /**
+       * Format: date-time
+       * @description End time for scheduled execution (ISO 8601)
+       */
+      endTime?: string
+    }
+    /** @description Event-driven trigger - external events initiate workflow */
+    eventTrigger: {
+      /** @constant */
+      type: 'event'
+      event: {
+        /**
+         * @description Event source identifier (e.g., webhook, message queue, external system)
+         * @example webhook
+         * @example kafka
+         * @example rabbitmq
+         * @example sqs
+         */
+        source: string
+        /**
+         * @description Type of event to trigger on
+         * @example order.created
+         * @example user.registered
+         * @example payment.completed
+         */
+        eventType: string
+        /** @description Filter conditions for event matching (JSONPath or similar) */
+        filter?: {
+          [key: string]: unknown
+        }
+      }
+    }
+    /** @description Human approval configuration */
+    approvalDefinition: {
+      /** @description List of users or roles who can approve */
+      approvers: string[]
+      /** @description Approval prompt/question to display */
+      prompt: string
+      /**
+       * @description Time to wait for approval (ISO 8601 duration)
+       * @example PT1H
+       * @example P1D
+       */
+      timeout?: string
+      /**
+       * @description Action to take if approval times out
+       * @default fail
+       * @enum {string}
+       */
+      onTimeout: 'approve' | 'reject' | 'fail'
+      /** @description Additional context to display to approvers */
+      metadata?: {
+        [key: string]: unknown
+      }
+      /** @description Output values from approval (e.g., approved, rejected, approver, timestamp) */
+      outputs?: {
+        /** @description Whether the approval was granted */
+        approved?: boolean
+        /** @description User who approved or rejected */
+        approver?: string
+        /** @description When approval/rejection occurred */
+        timestamp?: string
+        /** @description Optional comments from approver */
+        comments?: string
+      }
+    }
+    /** @description Retry configuration for failed activities */
+    retryPolicy: {
+      /**
+       * @description Maximum number of retry attempts
+       * @default 3
+       */
+      maxAttempts: number
+      /**
+       * @description Backoff strategy between retries
+       * @default exponential
+       * @enum {string}
+       */
+      backoff: 'fixed' | 'exponential' | 'linear'
+      /**
+       * @description Initial retry interval (ISO 8601 duration)
+       * @default PT1S
+       * @example PT1S
+       * @example PT5S
+       * @example PT10S
+       */
+      initialInterval: string
+      /**
+       * @description Maximum retry interval (ISO 8601 duration)
+       * @example PT1M
+       * @example PT5M
+       */
+      maxInterval?: string
+      /**
+       * @description Backoff multiplier for exponential strategy
+       * @default 2
+       */
+      multiplier: number
+      /**
+       * @description List of error types or codes that should trigger retry
+       * @example [
+       *       "TIMEOUT",
+       *       "NETWORK_ERROR",
+       *       "RATE_LIMIT"
+       *     ]
+       */
+      retryableErrors?: string[]
+    }
+    /** @description A single activity/task in the workflow */
+    activity: {
+      /** @description Unique identifier for the activity within the workflow */
+      id: string
+      /** @description Human-readable name for the activity */
+      name?: string
+      /**
+       * @description Activity type: task, parallel, sequence, condition, loop, join
+       * @enum {string}
+       */
+      type: 'task' | 'parallel' | 'sequence' | 'condition' | 'loop' | 'join'
+      /**
+       * @description Conditional expression (only for condition type or conditional execution)
+       * @example ${output.status == 'success'}
+       * @example ${input.amount > 1000}
+       */
+      condition?: string
+      /**
+       * @description Whether this activity requires human approval before execution
+       * @default false
+       */
+      requiresApproval: boolean
+      /** @description Human approval configuration (required if requiresApproval is true) */
+      approval?: components['schemas']['approvalDefinition']
+      retryPolicy?: components['schemas']['retryPolicy']
+      /** @description Activity timeout (ISO 8601 duration) */
+      timeout?: string
+      /** @description Output schema definition for this activity */
+      outputs?: {
+        [key: string]: {
+          /**
+           * @description Expected output type
+           * @enum {string}
+           */
+          type?: 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array'
+          /** @description Description of this output */
+          description?: string
+        }
+      }
+    } & (unknown & unknown & unknown & unknown & unknown & unknown)
+    /**
+     * Workflow Definition Schema
+     * @description JSON Schema for workflow YAML definitions in the Nexus Workflow Engine
+     */
+    'workflow-definition.schema': {
+      /**
+       * @description Schema version that this workflow definition conforms to (semver format)
+       * @example 1.0.0
+       * @example 1.1.0
+       * @example 2.0.0
+       */
+      schemaVersion: string
+      /**
+       * @description Workflow definition version number (increments with each change)
+       * @example 1
+       * @example 2
+       * @example 3
+       */
+      version: number
+      /** @description Workflow metadata and configuration */
+      metadata: {
+        /** @description Unique name for the workflow */
+        name: string
+        /** @description Human-readable description of the workflow purpose */
+        description: string
+        /** @description Tags for categorization and search */
+        tags?: string[]
+        /** @description User or team responsible for the workflow */
+        owner?: string
+        /**
+         * @description Maximum workflow execution time (ISO 8601 duration) - applies to entire workflow
+         * @example PT1H
+         * @example P1D
+         * @example PT30M
+         */
+        timeout?: string
+      }
+      /** @description Workflow trigger configuration - manual, scheduled, or event-driven */
+      triggers?: (
+        | components['schemas']['manualTrigger']
+        | components['schemas']['scheduledTrigger']
+        | components['schemas']['eventTrigger']
+      )[]
+      /** @description Input parameter definitions for the workflow */
+      inputs?: {
+        [key: string]: definitions['parameter']
+      }
+      /** @description Workflow-level variables that can be referenced throughout the workflow */
+      variables?: {
+        [key: string]: string | number | boolean | null | Record<string, never> | unknown[]
+      }
+      /** @description Secret references for credentials and sensitive data (values stored securely, not in workflow definition) */
+      secrets?: {
+        [key: string]: {
+          /** @description Reference to secret stored in secret manager */
+          secretId: string
+          /**
+           * @description Type of secret for validation
+           * @default custom
+           * @enum {string}
+           */
+          type: 'api_key' | 'bearer_token' | 'basic_auth' | 'oauth2' | 'custom'
+        }
+      }
+      /** @description The workflow execution definition */
+      workflow: {
+        /** @description List of activities to execute in the workflow */
+        activities: components['schemas']['activity'][]
+      }
     }
   }
   responses: never
