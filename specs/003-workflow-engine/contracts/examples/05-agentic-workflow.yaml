@@ -19,6 +19,7 @@ metadata:
 triggers:
 - type: scheduled
   schedule:
+    scheduleType: cron
     cron: 0 2 * * *      # Daily at 2 AM
     timezone: UTC
 

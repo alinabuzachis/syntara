@@ -18,6 +18,7 @@ metadata:
 triggers:
 - type: scheduled
   schedule:
+    scheduleType: interval
     interval: PT1H    # Every hour
 
 inputs:

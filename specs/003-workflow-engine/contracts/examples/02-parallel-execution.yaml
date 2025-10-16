@@ -17,6 +17,7 @@ metadata:
 triggers:
 - type: scheduled
   schedule:
+    scheduleType: cron
     cron: 0 */6 * * *      # Every 6 hours
     timezone: America/New_York
   startTime: '2025-10-01T00:00:00Z'

@@ -58,8 +58,7 @@ paths:
   /workflows:
     get:
       summary: List workflows
-      description: Retrieve a list of workflows with filtering and pagination. Supports
-        streaming via Accept text/event-stream header.
+      description: Retrieve a list of workflows with filtering and pagination.
       parameters:
       - name: created_by
         in: query
@@ -89,8 +88,6 @@ paths:
         schema:
           type: integer
           default: 0
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/LastEventId'
       responses:
         '200':
           description: List of workflows
@@ -109,9 +106,6 @@ paths:
                     type: integer
                   offset:
                     type: integer
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/StreamEvent'
     post:
       summary: Create workflow
       description: Create a new workflow entity with its initial version. The workflow
@@ -141,7 +135,7 @@ paths:
       summary: Get workflow
       description: Retrieve a specific workflow by ID including its current active
         version. Returns workflow metadata along with the version specified by current_version
-        field. Supports streaming via Accept text/event-stream header.
+        field.
       parameters:
       - name: workflowId
         in: path
@@ -149,8 +143,6 @@ paths:
         schema:
           type: string
           format: uuid
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/LastEventId'
       responses:
         '200':
           description: Workflow details including current version information
@@ -158,9 +150,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkflowWithVersion'
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/StreamEvent'
         '404':
           description: Workflow not found
           content:
@@ -297,8 +286,7 @@ paths:
   /executions:
     get:
       summary: List executions
-      description: Retrieve executions with filtering and pagination. Supports streaming
-        via Accept text/event-stream header.
+      description: Retrieve executions with filtering and pagination.
       parameters:
       - name: workflow_id
         in: query
@@ -334,8 +322,6 @@ paths:
         schema:
           type: integer
           default: 0
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/LastEventId'
       responses:
         '200':
           description: List of executions
@@ -354,9 +340,6 @@ paths:
                     type: integer
                   offset:
                     type: integer
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/StreamEvent'
     post:
       summary: Create execution
       description: Start a new workflow execution
@@ -383,8 +366,7 @@ paths:
   /executions/{executionId}:
     get:
       summary: Get execution
-      description: Retrieve details of a specific execution. Supports streaming via
-        Accept text/event-stream header for real-time updates.
+      description: Retrieve details of a specific execution.
       parameters:
       - name: executionId
         in: path
@@ -392,8 +374,6 @@ paths:
         schema:
           type: string
           format: uuid
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/LastEventId'
       responses:
         '200':
           description: Execution details
@@ -401,9 +381,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Execution'
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/StreamEvent'
         '404':
           description: Execution not found
           content:
@@ -443,8 +420,7 @@ paths:
   /executions/{executionId}/activities:
     get:
       summary: List activity executions
-      description: Retrieve activity executions for a workflow execution. Supports
-        streaming via Accept text/event-stream header for real-time updates.
+      description: Retrieve activity executions for a workflow execution.
       parameters:
       - name: executionId
         in: path
@@ -452,8 +428,6 @@ paths:
         schema:
           type: string
           format: uuid
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/LastEventId'
       responses:
         '200':
           description: List of activity executions
@@ -463,9 +437,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ActivityExecution'
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/StreamEvent'
         '404':
           description: Execution not found
           content:
@@ -476,8 +447,7 @@ paths:
   /approvals:
     get:
       summary: List pending approvals
-      description: Retrieve pending approvals for the current user. Supports streaming
-        via Accept text/event-stream header for real-time updates.
+      description: Retrieve pending approvals for the current user.
       parameters:
       - name: status
         in: query
@@ -488,8 +458,6 @@ paths:
         schema:
           type: string
           format: uuid
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/LastEventId'
       responses:
         '200':
           description: List of approvals
@@ -499,15 +467,11 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Approval'
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/StreamEvent'
 
   /approvals/{approvalId}:
     get:
       summary: Get approval
-      description: Retrieve details of a specific approval request. Supports streaming
-        via Accept text/event-stream header for real-time updates.
+      description: Retrieve details of a specific approval request.
       parameters:
       - name: approvalId
         in: path
@@ -515,8 +479,6 @@ paths:
         schema:
           type: string
           format: uuid
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/LastEventId'
       responses:
         '200':
           description: Approval details
@@ -524,9 +486,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Approval'
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/StreamEvent'
         '404':
           description: Approval not found
           content:
@@ -690,47 +649,11 @@ components:
     ApprovalResponseRequest:
       $ref: ./shared-schemas.yaml#/components/schemas/ApprovalResponseRequest
 
-    StreamEvent:
-      type: object
-      title: Stream Event
-      description: Server-sent event for real-time workflow execution updates via
-        text/event-stream
-      properties:
-        event_id:
-          type: string
-        event_type:
-          type: string
-        execution_id:
-          type: string
-          format: uuid
-        data:
-          type: object
-        timestamp:
-          type: string
-          format: date-time
-
     ActivityType:
       $ref: ./shared-schemas.yaml#/components/schemas/ActivityType
 
     Error:
       $ref: ./shared-schemas.yaml#/components/schemas/Error
-
-  parameters:
-    SessionId:
-      name: session_id
-      in: query
-      required: false
-      schema:
-        type: string
-      description: Session ID for resumable streaming (used with Accept text/event-stream)
-
-    LastEventId:
-      name: last_event_id
-      in: query
-      required: false
-      schema:
-        type: string
-      description: Last received event ID for resuming stream (used with Accept text/event-stream)
 
   securitySchemes:
     bearerAuth:

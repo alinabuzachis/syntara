@@ -155,7 +155,6 @@
       "required": ["type"],
       "properties": {
         "type": {
-          "type": "string",
           "const": "manual"
         },
         "requiresApproval": {
@@ -172,7 +171,6 @@
       "required": ["type", "schedule"],
       "properties": {
         "type": {
-          "type": "string",
           "const": "scheduled"
         },
         "schedule": {
@@ -180,8 +178,11 @@
             {
               "type": "object",
               "description": "Cron-based scheduling",
-              "required": ["cron"],
+              "required": ["scheduleType", "cron"],
               "properties": {
+                "scheduleType": {
+                  "const": "cron"
+                },
                 "cron": {
                   "type": "string",
                   "description": "Cron expression for scheduling (standard 5-field format or special strings)",
@@ -200,8 +201,11 @@
             {
               "type": "object",
               "description": "Interval-based scheduling",
-              "required": ["interval"],
+              "required": ["scheduleType", "interval"],
               "properties": {
+                "scheduleType": {
+                  "const": "interval"
+                },
                 "interval": {
                   "type": "string",
                   "description": "Execution interval (ISO 8601 duration)",
@@ -214,8 +218,11 @@
             {
               "type": "object",
               "description": "Continuous execution",
-              "required": ["continuous"],
+              "required": ["scheduleType", "continuous"],
               "properties": {
+                "scheduleType": {
+                  "const": "continuous"
+                },
                 "continuous": {
                   "type": "boolean",
                   "const": true,
@@ -245,7 +252,6 @@
       "required": ["type", "event"],
       "properties": {
         "type": {
-          "type": "string",
           "const": "event"
         },
         "event": {
@@ -317,9 +323,9 @@
       },
       "additionalProperties": false
     },
-    "activity": {
+    "baseActivity": {
       "type": "object",
-      "description": "A single activity/task in the workflow",
+      "description": "Base properties common to all activity types",
       "required": ["id", "type"],
       "properties": {
         "id": {
@@ -331,17 +337,6 @@
           "type": "string",
           "description": "Human-readable name for the activity",
           "minLength": 1
-        },
-        "type": {
-          "type": "string",
-          "description": "Activity type: task, parallel, sequence, condition, loop, join",
-          "enum": ["task", "parallel", "sequence", "condition", "loop", "join"]
-        },
-        "condition": {
-          "type": "string",
-          "description": "Conditional expression (only for condition type or conditional execution)",
-          "minLength": 1,
-          "examples": ["${output.status == 'success'}", "${input.amount > 1000}"]
         },
         "requiresApproval": {
           "type": "boolean",
@@ -381,150 +376,156 @@
           },
           "additionalProperties": false
         }
-      },
+      }
+    },
+    "taskActivity": {
       "allOf": [
+        { "$ref": "#/definitions/baseActivity" },
         {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "task"
-              }
-            }
-          },
-          "then": {
-            "required": ["task"],
-            "properties": {
-              "task": {
-                "$ref": "#/definitions/taskDefinition"
-              }
+          "type": "object",
+          "required": ["type", "task"],
+          "properties": {
+            "type": {
+              "const": "task"
+            },
+            "task": {
+              "$ref": "#/definitions/taskDefinition",
+              "description": "Task definition"
             }
           }
-        },
+        }
+      ]
+    },
+    "parallelActivity": {
+      "allOf": [
+        { "$ref": "#/definitions/baseActivity" },
         {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "parallel"
-              }
-            }
-          },
-          "then": {
-            "required": ["branches"],
-            "properties": {
-              "branches": {
-                "type": "array",
-                "description": "Activities to execute in parallel",
-                "minItems": 2,
-                "items": {
-                  "$ref": "#/definitions/activity"
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "sequence"
-              }
-            }
-          },
-          "then": {
-            "required": ["steps"],
-            "properties": {
-              "steps": {
-                "type": "array",
-                "description": "Activities to execute sequentially",
-                "minItems": 1,
-                "items": {
-                  "$ref": "#/definitions/activity"
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "condition"
-              }
-            }
-          },
-          "then": {
-            "required": ["condition", "then"],
-            "properties": {
-              "then": {
-                "type": "array",
-                "description": "Activities to execute if condition is true",
-                "minItems": 1,
-                "items": {
-                  "$ref": "#/definitions/activity"
-                }
-              },
-              "else": {
-                "type": "array",
-                "description": "Activities to execute if condition is false",
-                "items": {
-                  "$ref": "#/definitions/activity"
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "loop"
-              }
-            }
-          },
-          "then": {
-            "required": ["loop"],
-            "properties": {
-              "loop": {
-                "$ref": "#/definitions/loopDefinition"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "join"
-              }
-            }
-          },
-          "then": {
-            "required": ["join"],
-            "properties": {
-              "join": {
-                "$ref": "#/definitions/joinDefinition"
+          "type": "object",
+          "required": ["type", "branches"],
+          "properties": {
+            "type": {
+              "const": "parallel"
+            },
+            "branches": {
+              "type": "array",
+              "description": "Activities to execute in parallel",
+              "minItems": 2,
+              "items": {
+                "$ref": "#/definitions/activity"
               }
             }
           }
         }
       ]
     },
-    "taskDefinition": {
+    "sequenceActivity": {
+      "allOf": [
+        { "$ref": "#/definitions/baseActivity" },
+        {
+          "type": "object",
+          "required": ["type", "steps"],
+          "properties": {
+            "type": {
+              "const": "sequence"
+            },
+            "steps": {
+              "type": "array",
+              "description": "Activities to execute sequentially",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/activity"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "conditionActivity": {
+      "allOf": [
+        { "$ref": "#/definitions/baseActivity" },
+        {
+          "type": "object",
+          "required": ["type", "condition", "then"],
+          "properties": {
+            "type": {
+              "const": "condition"
+            },
+            "condition": {
+              "type": "string",
+              "description": "Conditional expression",
+              "minLength": 1,
+              "examples": ["${output.status == 'success'}", "${input.amount > 1000}"]
+            },
+            "then": {
+              "type": "array",
+              "description": "Activities to execute if condition is true",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/activity"
+              }
+            },
+            "else": {
+              "type": "array",
+              "description": "Activities to execute if condition is false",
+              "items": {
+                "$ref": "#/definitions/activity"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "loopActivity": {
+      "allOf": [
+        { "$ref": "#/definitions/baseActivity" },
+        {
+          "type": "object",
+          "required": ["type", "loop"],
+          "properties": {
+            "type": {
+              "const": "loop"
+            },
+            "loop": {
+              "$ref": "#/definitions/loopDefinition",
+              "description": "Loop definition"
+            }
+          }
+        }
+      ]
+    },
+    "joinActivity": {
+      "allOf": [
+        { "$ref": "#/definitions/baseActivity" },
+        {
+          "type": "object",
+          "required": ["type", "join"],
+          "properties": {
+            "type": {
+              "const": "join"
+            },
+            "join": {
+              "$ref": "#/definitions/joinDefinition",
+              "description": "Join definition"
+            }
+          }
+        }
+      ]
+    },
+    "activity": {
+      "oneOf": [
+        { "$ref": "#/definitions/taskActivity" },
+        { "$ref": "#/definitions/parallelActivity" },
+        { "$ref": "#/definitions/sequenceActivity" },
+        { "$ref": "#/definitions/conditionActivity" },
+        { "$ref": "#/definitions/loopActivity" },
+        { "$ref": "#/definitions/joinActivity" }
+      ]
+    },
+    "baseTaskDefinition": {
       "type": "object",
-      "description": "Definition for an executable task",
+      "description": "Base properties common to all task executor types",
       "required": ["executor"],
       "properties": {
-        "executor": {
-          "type": "string",
-          "description": "Task executor type",
-          "enum": ["agentic", "script", "api", "connector"],
-          "examples": ["agentic", "script", "api", "connector"]
-        },
-        "config": {
-          "type": "object",
-          "description": "Executor-specific configuration",
-          "additionalProperties": true
-        },
         "inputs": {
           "type": "object",
           "description": "Input mapping for the task (can reference workflow inputs or previous outputs)",
@@ -541,197 +542,205 @@
           },
           "additionalProperties": false
         }
-      },
+      }
+    },
+    "agenticTask": {
       "allOf": [
+        { "$ref": "#/definitions/baseTaskDefinition" },
         {
-          "if": {
-            "properties": {
-              "executor": {
-                "const": "agentic"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "config": {
-                "type": "object",
-                "required": ["agent"],
-                "properties": {
-                  "agent": {
-                    "type": "string",
-                    "description": "Agent identifier or MCP server endpoint",
-                    "minLength": 1
-                  },
-                  "tools": {
-                    "type": "array",
-                    "description": "List of tools available to the agent",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "prompt": {
-                    "type": "string",
-                    "description": "Natural language prompt for the agent"
-                  },
-                  "model": {
-                    "type": "string",
-                    "description": "LLM model to use",
-                    "examples": ["gpt-4", "claude-3-opus", "gemini-pro"]
+          "type": "object",
+          "required": ["executor", "config"],
+          "properties": {
+            "executor": {
+              "const": "agentic",
+              "description": "Task executor type"
+            },
+            "config": {
+              "type": "object",
+              "required": ["agent"],
+              "properties": {
+                "agent": {
+                  "type": "string",
+                  "description": "Agent identifier or MCP server endpoint",
+                  "minLength": 1
+                },
+                "tools": {
+                  "type": "array",
+                  "description": "List of tools available to the agent",
+                  "items": {
+                    "type": "string"
                   }
                 },
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "executor": {
-                "const": "script"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "config": {
-                "type": "object",
-                "required": ["language", "code"],
-                "properties": {
-                  "language": {
-                    "type": "string",
-                    "enum": ["python", "javascript", "bash", "powershell"],
-                    "description": "Script language"
-                  },
-                  "code": {
-                    "type": "string",
-                    "description": "Script code to execute",
-                    "minLength": 1
-                  },
-                  "environment": {
-                    "type": "object",
-                    "description": "Environment variables for script execution",
-                    "additionalProperties": {
-                      "type": "string"
-                    }
-                  }
+                "prompt": {
+                  "type": "string",
+                  "description": "Natural language prompt for the agent"
                 },
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "executor": {
-                "const": "api"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "config": {
-                "type": "object",
-                "required": ["method", "url"],
-                "properties": {
-                  "method": {
-                    "type": "string",
-                    "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"],
-                    "description": "HTTP method"
-                  },
-                  "url": {
-                    "type": "string",
-                    "format": "uri",
-                    "description": "API endpoint URL"
-                  },
-                  "headers": {
-                    "type": "object",
-                    "description": "HTTP headers",
-                    "additionalProperties": {
-                      "type": "string"
-                    }
-                  },
-                  "queryParams": {
-                    "type": "object",
-                    "description": "URL query parameters",
-                    "additionalProperties": true
-                  },
-                  "body": {
-                    "description": "Request body (can use template expressions)"
-                  },
-                  "authentication": {
-                    "type": "object",
-                    "description": "Authentication configuration",
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "enum": ["basic", "bearer", "apiKey", "oauth2"],
-                        "description": "Authentication type"
-                      },
-                      "credentials": {
-                        "type": "string",
-                        "description": "Reference to stored credentials",
-                        "pattern": "^\\$\\{secrets\\.[a-zA-Z0-9_]+\\}$"
-                      }
-                    },
-                    "required": ["type"],
-                    "additionalProperties": true
-                  }
-                },
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "executor": {
-                "const": "connector"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "config": {
-                "type": "object",
-                "required": ["connectorId", "operation"],
-                "properties": {
-                  "connectorId": {
-                    "type": "string",
-                    "description": "Registered connector identifier",
-                    "minLength": 1
-                  },
-                  "operation": {
-                    "type": "string",
-                    "description": "Operation to execute on the connector",
-                    "minLength": 1
-                  },
-                  "parameters": {
-                    "type": "object",
-                    "description": "Connector operation parameters",
-                    "additionalProperties": true
-                  }
-                },
-                "additionalProperties": false
-              }
+                "model": {
+                  "type": "string",
+                  "description": "LLM model to use",
+                  "examples": ["gpt-4", "claude-3-opus", "gemini-pro"]
+                }
+              },
+              "additionalProperties": true
             }
           }
         }
-      ],
-      "additionalProperties": false
+      ]
     },
-    "loopDefinition": {
+    "scriptTask": {
+      "allOf": [
+        { "$ref": "#/definitions/baseTaskDefinition" },
+        {
+          "type": "object",
+          "required": ["executor", "config"],
+          "properties": {
+            "executor": {
+              "const": "script",
+              "description": "Task executor type"
+            },
+            "config": {
+              "type": "object",
+              "required": ["language", "code"],
+              "properties": {
+                "language": {
+                  "type": "string",
+                  "enum": ["python", "javascript", "bash", "powershell"],
+                  "description": "Script language"
+                },
+                "code": {
+                  "type": "string",
+                  "description": "Script code to execute",
+                  "minLength": 1
+                },
+                "environment": {
+                  "type": "object",
+                  "description": "Environment variables for script execution",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "apiTask": {
+      "allOf": [
+        { "$ref": "#/definitions/baseTaskDefinition" },
+        {
+          "type": "object",
+          "required": ["executor", "config"],
+          "properties": {
+            "executor": {
+              "const": "api",
+              "description": "Task executor type"
+            },
+            "config": {
+              "type": "object",
+              "required": ["method", "url"],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+                  "description": "HTTP method"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "API endpoint URL"
+                },
+                "headers": {
+                  "type": "object",
+                  "description": "HTTP headers",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "queryParams": {
+                  "type": "object",
+                  "description": "URL query parameters",
+                  "additionalProperties": true
+                },
+                "body": {
+                  "description": "Request body (can use template expressions)"
+                },
+                "authentication": {
+                  "type": "object",
+                  "description": "Authentication configuration",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["basic", "bearer", "apiKey", "oauth2"],
+                      "description": "Authentication type"
+                    },
+                    "credentials": {
+                      "type": "string",
+                      "description": "Reference to stored credentials",
+                      "pattern": "^\\$\\{secrets\\.[a-zA-Z0-9_]+\\}$"
+                    }
+                  },
+                  "required": ["type"],
+                  "additionalProperties": true
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "connectorTask": {
+      "allOf": [
+        { "$ref": "#/definitions/baseTaskDefinition" },
+        {
+          "type": "object",
+          "required": ["executor", "config"],
+          "properties": {
+            "executor": {
+              "const": "connector",
+              "description": "Task executor type"
+            },
+            "config": {
+              "type": "object",
+              "required": ["connectorId", "operation"],
+              "properties": {
+                "connectorId": {
+                  "type": "string",
+                  "description": "Registered connector identifier",
+                  "minLength": 1
+                },
+                "operation": {
+                  "type": "string",
+                  "description": "Operation to execute on the connector",
+                  "minLength": 1
+                },
+                "parameters": {
+                  "type": "object",
+                  "description": "Connector operation parameters",
+                  "additionalProperties": true
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "taskDefinition": {
+      "oneOf": [
+        { "$ref": "#/definitions/agenticTask" },
+        { "$ref": "#/definitions/scriptTask" },
+        { "$ref": "#/definitions/apiTask" },
+        { "$ref": "#/definitions/connectorTask" }
+      ]
+    },
+    "baseLoop": {
       "type": "object",
-      "description": "Loop configuration for iterating over items or conditions",
-      "required": ["type"],
+      "description": "Base properties common to all loop types",
+      "required": ["type", "do"],
       "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["forEach", "while", "count"],
-          "description": "Loop type"
-        },
         "do": {
           "type": "array",
           "description": "Activities to execute in each iteration",
@@ -740,92 +749,97 @@
             "$ref": "#/definitions/activity"
           }
         }
-      },
+      }
+    },
+    "forEachLoop": {
       "allOf": [
+        { "$ref": "#/definitions/baseLoop" },
         {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "forEach"
-              }
-            }
-          },
-          "then": {
-            "required": ["items", "do"],
-            "properties": {
-              "items": {
-                "type": "string",
-                "description": "Expression referencing array to iterate over",
-                "examples": ["${input.users}", "${output.results}"]
-              },
-              "itemVariable": {
-                "type": "string",
-                "description": "Variable name for current item",
-                "default": "item",
-                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-              },
-              "indexVariable": {
-                "type": "string",
-                "description": "Variable name for current index",
-                "default": "index",
-                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "while"
-              }
-            }
-          },
-          "then": {
-            "required": ["condition", "do"],
-            "properties": {
-              "condition": {
-                "type": "string",
-                "description": "Condition expression to evaluate before each iteration",
-                "minLength": 1,
-                "examples": ["${counter < 10}", "${!completed}"]
-              },
-              "maxIterations": {
-                "type": "integer",
-                "description": "Maximum number of iterations to prevent infinite loops",
-                "minimum": 1,
-                "maximum": 10000,
-                "default": 1000
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "count"
-              }
-            }
-          },
-          "then": {
-            "required": ["count", "do"],
-            "properties": {
-              "count": {
-                "type": "integer",
-                "description": "Number of iterations to execute",
-                "minimum": 1,
-                "maximum": 10000
-              },
-              "indexVariable": {
-                "type": "string",
-                "description": "Variable name for iteration counter",
-                "default": "index",
-                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-              }
+          "type": "object",
+          "required": ["type", "items"],
+          "properties": {
+            "type": {
+              "const": "forEach"
+            },
+            "items": {
+              "type": "string",
+              "description": "Expression referencing array to iterate over",
+              "examples": ["${input.users}", "${output.results}"]
+            },
+            "itemVariable": {
+              "type": "string",
+              "description": "Variable name for current item",
+              "default": "item",
+              "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+            },
+            "indexVariable": {
+              "type": "string",
+              "description": "Variable name for current index",
+              "default": "index",
+              "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
             }
           }
         }
+      ]
+    },
+    "whileLoop": {
+      "allOf": [
+        { "$ref": "#/definitions/baseLoop" },
+        {
+          "type": "object",
+          "required": ["type", "condition"],
+          "properties": {
+            "type": {
+              "const": "while"
+            },
+            "condition": {
+              "type": "string",
+              "description": "Condition expression to evaluate before each iteration",
+              "minLength": 1,
+              "examples": ["${counter < 10}", "${!completed}"]
+            },
+            "maxIterations": {
+              "type": "integer",
+              "description": "Maximum number of iterations to prevent infinite loops",
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1000
+            }
+          }
+        }
+      ]
+    },
+    "countLoop": {
+      "allOf": [
+        { "$ref": "#/definitions/baseLoop" },
+        {
+          "type": "object",
+          "required": ["type", "count"],
+          "properties": {
+            "type": {
+              "const": "count"
+            },
+            "count": {
+              "type": "integer",
+              "description": "Number of iterations to execute",
+              "minimum": 1,
+              "maximum": 10000
+            },
+            "indexVariable": {
+              "type": "string",
+              "description": "Variable name for iteration counter",
+              "default": "index",
+              "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          }
+        }
+      ]
+    },
+    "loopDefinition": {
+      "oneOf": [
+        { "$ref": "#/definitions/forEachLoop" },
+        { "$ref": "#/definitions/whileLoop" },
+        { "$ref": "#/definitions/countLoop" }
       ]
     },
     "approvalDefinition": {
