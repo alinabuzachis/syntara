@@ -12,6 +12,11 @@ export default defineConfig({
     }),
     tailwindcss(),
   ],
+  build: {
+    rollupOptions: {
+      external: ['graphql'],
+    },
+  },
   server: {
     host: true, // Listen on all addresses for Docker
     port: 5173,

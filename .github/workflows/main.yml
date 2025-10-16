@@ -85,7 +85,7 @@ jobs:
           # Logout
           docker logout ghcr.io
 
-          docker system prune -a -f
+          # docker system prune -a -f
           EOF
 
       - name: Cleanup SSH key
