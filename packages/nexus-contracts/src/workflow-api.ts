@@ -15,7 +15,6 @@ export interface paths {
      * List available activity types
      * @description Retrieve all available activity executor types that can be used in workflow definitions.
      *     This endpoint is used for workflow validation, UI tooling, and documentation.
-     *
      */
     get: {
       parameters: {
@@ -153,13 +152,11 @@ export interface paths {
     }
     /**
      * Get workflow
-     * @description Retrieve a specific workflow by ID and optionally a specific version. Returns the current version if no version parameter is provided. Supports streaming via Accept text/event-stream header.
+     * @description Retrieve a specific workflow by ID including its current active version. Returns workflow metadata along with the version specified by current_version field. Supports streaming via Accept text/event-stream header.
      */
     get: {
       parameters: {
         query?: {
-          /** @description Specific workflow version to retrieve. If omitted, returns the current version. */
-          version?: number
           /** @description Session ID for resumable streaming (used with Accept text/event-stream) */
           session_id?: components['parameters']['SessionId']
           /** @description Last received event ID for resuming stream (used with Accept text/event-stream) */
@@ -173,7 +170,7 @@ export interface paths {
       }
       requestBody?: never
       responses: {
-        /** @description Workflow details including version information */
+        /** @description Workflow details including current version information */
         200: {
           headers: {
             [name: string]: unknown
@@ -181,45 +178,6 @@ export interface paths {
           content: {
             'application/json': components['schemas']['WorkflowWithVersion']
             'text/event-stream': components['schemas']['StreamEvent']
-          }
-        }
-        /** @description Workflow or specified version not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    /**
-     * Update workflow (full replacement)
-     * @description Replace an existing workflow with new definition (creates new version)
-     */
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          workflowId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['UpdateWorkflowRequest']
-        }
-      }
-      responses: {
-        /** @description Workflow updated successfully */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Workflow']
           }
         }
         /** @description Workflow not found */
@@ -233,6 +191,7 @@ export interface paths {
         }
       }
     }
+    put?: never
     post?: never
     /**
      * Delete workflow (soft delete)
@@ -279,8 +238,10 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Partially update workflow
-     * @description Update specific workflow fields (name, description, is_active) without creating new version
+     * Update workflow
+     * @description Update workflow fields. Supports both metadata updates and workflow definition updates:
+     *     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
+     *     - With yaml_definition: Validates YAML, compares with current version, and creates new version only if YAML differs (change detection)
      */
     patch: {
       parameters: {
@@ -297,13 +258,22 @@ export interface paths {
         }
       }
       responses: {
-        /** @description Workflow patched successfully */
+        /** @description Workflow updated successfully (may include new version if yaml_definition changed) */
         200: {
           headers: {
             [name: string]: unknown
           }
           content: {
-            'application/json': components['schemas']['Workflow']
+            'application/json': components['schemas']['WorkflowWithVersion']
+          }
+        }
+        /** @description Invalid workflow definition or validation error */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
           }
         }
         /** @description Workflow not found */
@@ -317,6 +287,108 @@ export interface paths {
         }
       }
     }
+    trace?: never
+  }
+  '/workflows/{workflowId}/versions': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List workflow versions
+     * @description Retrieve all versions for a workflow ordered by version number descending. WorkflowVersion entities are read-only and managed automatically by the system.
+     */
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          workflowId: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description List of workflow versions */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['WorkflowVersionListResponse']
+          }
+        }
+        /** @description Workflow not found */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/workflows/{workflowId}/versions/{version}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get workflow version
+     * @description Retrieve a specific version of a workflow by version number. Returns the complete YAML definition for that version.
+     */
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          workflowId: string
+          /** @description Version number to retrieve */
+          version: number
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Workflow version details */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['WorkflowVersionResponse']
+          }
+        }
+        /** @description Workflow or version not found */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
     trace?: never
   }
   '/executions': {
@@ -792,13 +864,69 @@ export interface components {
         version?: number
         schema_version?: string
         yaml_definition?: string
-        schedule_config?: Record<string, never> | null
         /** Format: uuid */
         created_by?: string
         /** Format: date-time */
         created_at?: string
         change_description?: string | null
       }
+    }
+    /**
+     * Workflow Version Response
+     * @description Complete details of a specific workflow version including YAML definition. Note that deleted_at and deleted_by are always null since soft-deleted versions are excluded from queries.
+     */
+    WorkflowVersionResponse: {
+      /**
+       * Format: uuid
+       * @description Version unique identifier
+       */
+      id: string
+      /**
+       * Format: uuid
+       * @description Parent workflow ID
+       */
+      workflow_id: string
+      /** @description Version number */
+      version: number
+      /** @description YAML schema version (e.g., "1.0.0") */
+      schema_version: string
+      /** @description Complete YAML workflow definition */
+      yaml_definition: string
+      /**
+       * Format: uuid
+       * @description User who created this version
+       */
+      created_by: string
+      /**
+       * Format: date-time
+       * @description Version creation timestamp
+       */
+      created_at: string
+      /**
+       * Format: date-time
+       * @description Last update timestamp
+       */
+      updated_at: string
+      /** @description Description of changes in this version */
+      change_description?: string | null
+      /**
+       * Format: date-time
+       * @description Soft delete timestamp (always null in responses)
+       */
+      deleted_at?: string | null
+      /**
+       * Format: uuid
+       * @description User who soft deleted the version (always null in responses)
+       */
+      deleted_by?: string | null
+    }
+    /**
+     * Workflow Version List Response
+     * @description List of workflow versions ordered by version number descending
+     */
+    WorkflowVersionListResponse: {
+      /** @description Array of workflow versions */
+      versions: components['schemas']['WorkflowVersionResponse'][]
     }
     Execution: components['schemas']['BaseResource'] & {
       /**
@@ -927,30 +1055,35 @@ export interface components {
       name: string
       description?: string
       yaml_definition: string
-      schedule_config?: Record<string, never>
-    }
-    /**
-     * Update Workflow Request
-     * @description Request payload for full workflow replacement creating a new version
-     */
-    UpdateWorkflowRequest: {
-      name?: string
-      description?: string
-      /** @description New YAML definition (creates new version) */
-      yaml_definition: string
-      schedule_config?: Record<string, never>
+      /**
+       * @description Enable workflow for execution (defaults to true if not specified)
+       * @default true
+       */
+      is_enabled: boolean
     }
     /**
      * Patch Workflow Request
-     * @description Request payload for partial workflow updates without creating a new version (metadata only)
+     * @description Request payload for updating workflow fields. Behavior depends on which fields are provided:
+     *     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
+     *     - With yaml_definition: Validates YAML, compares with current version, and creates new WorkflowVersion only if YAML differs (change detection)
+     *
+     *     Note: WorkflowVersion entities are read-only and managed automatically by the system.
      */
     PatchWorkflowRequest: {
-      /** @description Update workflow name */
+      /** @description Update workflow name (metadata only, no version created) */
       name?: string
-      /** @description Update workflow description */
+      /** @description Update workflow description (metadata only, no version created) */
       description?: string
-      /** @description Enable or disable workflow for execution */
+      /** @description Enable or disable workflow for execution (metadata only, no version created) */
       is_enabled?: boolean
+      /** @description Update workflow labels (metadata only, no version created) */
+      labels?: {
+        [key: string]: string
+      }
+      /** @description New YAML workflow definition - creates new version only if YAML differs from current version (change detection) */
+      yaml_definition?: string
+      /** @description Description of changes (used when creating new version via yaml_definition) */
+      change_description?: string
     }
     /**
      * Create Execution Request
