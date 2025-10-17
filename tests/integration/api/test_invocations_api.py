@@ -10,9 +10,9 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_invoke_returns_202_accepted(test_client: AsyncClient) -> None:
+async def test_invoke_returns_202_accepted(base_client: AsyncClient) -> None:
     """Test that POST /api/v1/invocations returns 202 Accepted status."""
-    response = await test_client.post(
+    response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app to production",
@@ -25,9 +25,9 @@ async def test_invoke_returns_202_accepted(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invoke_response_schema(test_client: AsyncClient) -> None:
+async def test_invoke_response_schema(base_client: AsyncClient) -> None:
     """Test that response matches expected schema."""
-    response = await test_client.post(
+    response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app to production",
@@ -50,9 +50,9 @@ async def test_invoke_response_schema(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invoke_with_context(test_client: AsyncClient) -> None:
+async def test_invoke_with_context(base_client: AsyncClient) -> None:
     """Test invocation request with context and metadata."""
-    response = await test_client.post(
+    response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app",
@@ -67,9 +67,9 @@ async def test_invoke_with_context(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_empty_prompt(test_client: AsyncClient) -> None:
+async def test_invoke_validation_empty_prompt(base_client: AsyncClient) -> None:
     """Test validation error for empty prompt."""
-    response = await test_client.post(
+    response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "",
@@ -82,9 +82,9 @@ async def test_invoke_validation_empty_prompt(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_missing_user_id(test_client: AsyncClient) -> None:
+async def test_invoke_validation_missing_user_id(base_client: AsyncClient) -> None:
     """Test validation error for missing user_id."""
-    response = await test_client.post(
+    response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app",
@@ -95,11 +95,11 @@ async def test_invoke_validation_missing_user_id(test_client: AsyncClient) -> No
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_prompt_too_long(test_client: AsyncClient) -> None:
+async def test_invoke_validation_prompt_too_long(base_client: AsyncClient) -> None:
     """Test validation error for prompt exceeding max length."""
     long_prompt = "x" * 10001
 
-    response = await test_client.post(
+    response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": long_prompt,
@@ -112,17 +112,17 @@ async def test_invoke_validation_prompt_too_long(test_client: AsyncClient) -> No
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_returns_200(test_client: AsyncClient) -> None:
+async def test_list_invocations_returns_200(base_client: AsyncClient) -> None:
     """Test that GET /api/v1/invocations returns 200 OK."""
-    response = await test_client.get("/api/v1/invocations")
+    response = await base_client.get("/api/v1/invocations")
 
     assert response.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_response_schema(test_client: AsyncClient) -> None:
+async def test_list_invocations_response_schema(base_client: AsyncClient) -> None:
     """Test that list response matches expected schema."""
-    response = await test_client.get("/api/v1/invocations")
+    response = await base_client.get("/api/v1/invocations")
 
     data = response.json()
 
@@ -136,14 +136,14 @@ async def test_list_invocations_response_schema(test_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(test_client: AsyncClient) -> None:
+async def ***REMOVED***(base_client: AsyncClient) -> None:
     """Test filtering invocations by status.
 
     NOTE: After PR #53 merges, this will change to:
     /api/v1/invocations?status[eq]=running
     """
     # First create an invocation
-    await test_client.post(
+    await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app",
@@ -152,7 +152,7 @@ async def ***REMOVED***(test_client: AsyncClient) -> None:
         },
     )
 
-    response = await test_client.get("/api/v1/invocations?status=running")
+    response = await base_client.get("/api/v1/invocations?status=running")
 
     assert response.status_code == 200
 
@@ -165,12 +165,12 @@ async def ***REMOVED***(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_with_pagination(test_client: AsyncClient) -> None:
+async def test_list_invocations_with_pagination(base_client: AsyncClient) -> None:
     """Test pagination parameters.
 
     NOTE: Pagination conventions may change per PR #53 shared resources.
     """
-    response = await test_client.get("/api/v1/invocations?limit=10&offset=0")
+    response = await base_client.get("/api/v1/invocations?limit=10&offset=0")
 
     assert response.status_code == 200
 
@@ -179,16 +179,16 @@ async def test_list_invocations_with_pagination(test_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_invalid_limit(test_client: AsyncClient) -> None:
+async def test_list_invocations_invalid_limit(base_client: AsyncClient) -> None:
     """Test validation error for invalid limit."""
-    response = await test_client.get("/api/v1/invocations?limit=0")
+    response = await base_client.get("/api/v1/invocations?limit=0")
 
     assert response.status_code == 422  # Validation error
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_limit_too_large(test_client: AsyncClient) -> None:
+async def test_list_invocations_limit_too_large(base_client: AsyncClient) -> None:
     """Test validation error for limit exceeding maximum."""
-    response = await test_client.get("/api/v1/invocations?limit=2000")
+    response = await base_client.get("/api/v1/invocations?limit=2000")
 
     assert response.status_code == 422  # Validation error
