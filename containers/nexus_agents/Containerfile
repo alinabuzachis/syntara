@@ -1,0 +1,58 @@
+# Dockerfile for Nexus Agents
+# Builds all agent implementations (react, research, orchestrator, swarm, workflow-manager)
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies needed for agents
+# Note: Since pyproject.toml doesn't include agent deps yet, we install them explicitly
+RUN pip install --no-cache-dir \
+    "langchain>=0.1.0" \
+    "langchain-openai>=0.0.5" \
+    "langchain-community>=0.0.20" \
+    "langgraph>=0.0.20" \
+    "langgraph-checkpoint-postgres>=1.0.0" \
+    "psycopg[binary]>=3.1.0" \
+    "sqlalchemy>=2.0.0" \
+    "duckduckgo-search>=4.1.0" \
+    "ddgs>=0.3.0" \
+    "pydantic>=2.5.0" \
+    "python-dotenv>=1.0.0" \
+    "httpx>=0.26.0"
+
+# Install A2A SDK
+RUN pip install --no-cache-dir "a2a-sdk[http-server]>=0.3.0"
+
+# Install FastAPI and uvicorn
+RUN pip install --no-cache-dir \
+    "fastapi>=0.104.0" \
+    "uvicorn[standard]>=0.24.0"
+
+# Copy agent source code
+COPY src/nexus_agents/ /app/src/nexus_agents/
+
+# Set Python path
+ENV PYTHONPATH=/app
+
+# Set default environment variables
+ENV AGENT_NAME="" \
+    AGENT_HOST="0.0.0.0" \
+    AGENT_PORT="8001" \
+    POSTGRES_URI="postgresql://postgres:postgres@postgres:5432/nexus" \
+    LOG_LEVEL="INFO"
+
+# Health check endpoint (checks if A2A server is running)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:${AGENT_PORT}/agent-card || exit 1
+
+# Run agent server
+# Agent name is specified via AGENT_NAME environment variable
+CMD ["python", "-m", "src.nexus_agents"]

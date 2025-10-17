@@ -1,4 +1,5 @@
 services:
+  # PostgreSQL database - used by Makefile for local development
   database:
     image: public.ecr.aws/docker/library/postgres:17
     restart: unless-stopped
@@ -15,6 +16,36 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # ReAct Agent - General-purpose conversational agent with A2A protocol
+  # For E2E testing and development
+  generic-agent:
+    container_name: nexus-generic-agent
+    build:
+      context: .
+      dockerfile: containers/nexus_agents/Containerfile
+    image: nexus/nexus_agents:latest
+    ports:
+    - 8001:8001
+    environment:
+    - AGENT_NAME=generic-agent
+    - AGENT_HOST=0.0.0.0
+    - LOG_LEVEL=INFO
+    - AGENT_PORT=8001
+    - POSTGRES_URI=postgresql://${NEXUS_DB_USER:-admin}:${NEXUS_DB_PASSWORD:-admin}@database:5432/${NEXUS_DB_NAME:-nexus_api}
+    - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    - OPENAI_API_KEY=${OPENROUTER_API_KEY}
+    - OPENAI_API_BASE=https://openrouter.ai/api/v1
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, curl, -f, http://localhost:8001/.well-known/agent-card.json]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
 volumes:
   nexus_postgres_data:

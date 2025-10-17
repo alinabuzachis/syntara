@@ -67,24 +67,24 @@ test-integration: check-deps ## Run integration tests
 	uv run pytest tests/integration/ -v
 
 .PHONY: test-coverage
-test-coverage: check-deps ## Run tests with coverage report
+test-coverage: check-deps ## Run tests with coverage report (excludes e2e tests)
 	@echo "🧪 Running tests with coverage..."
-	uv run pytest tests/ --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --cov-report=xml --junitxml=pytest-results.xml
+	uv run pytest tests/ --ignore=tests/e2e --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --cov-report=xml --junitxml=pytest-results.xml
 
 .PHONY: test-fast
-test-fast: check-deps ## Run tests with fail-fast and short traceback
+test-fast: check-deps ## Run tests with fail-fast and short traceback (excludes e2e tests)
 	@echo "🧪 Running fast tests..."
-	uv run pytest tests/ -x --tb=short
+	uv run pytest tests/ --ignore=tests/e2e -x --tb=short
 
 .PHONY: test-all
-test-all: check-deps ## Run all tests
+test-all: check-deps ## Run all tests (excludes e2e tests)
 	@echo "🧪 Running all tests..."
-	uv run pytest tests/ -v
+	uv run pytest tests/ --ignore=tests/e2e -v
 
 .PHONY: test-all-parallel
-test-all-parallel: check-deps ## Run tests in parallel
+test-all-parallel: check-deps ## Run tests in parallel (excludes e2e tests)
 	@echo "🧪 Running tests in parallel..."
-	uv run pytest tests/ -n auto
+	uv run pytest tests/ --ignore=tests/e2e -n auto
 
 
 # Development workflow

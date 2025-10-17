@@ -54,6 +54,7 @@ dev = [
     "jsonschema>=4.0.0",  # for schema validation tests
     "types-PyYAML>=6.0.0",  # for mypy type stubs
     "types-jsonschema>=4.0.0",  # for mypy type stubs
+    "types-requests>=2.31.0",  # type stubs for requests library
 ]
 
 [project.urls]
@@ -63,12 +64,13 @@ Issues = "https://github.com/syntara-orchestration/syntara/issues"
 
 # Hatchling configuration for multiple modules
 [tool.hatch.build.targets.wheel]
-packages = ["src/nexus_api", "src/nexus_tool_manager"]
+packages = ["src/nexus_api", "src/nexus_tool_manager", "src/nexus_agents"]
 
 [tool.hatch.build.targets.sdist]
 include = [
     "src/nexus_api/**",
     "src/nexus_tool_manager/**",
+    "src/nexus_agents/**",
     "README.md",
     "LICENSE",
     "uv.lock",
@@ -167,4 +169,9 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
+]
+
+[dependency-groups]
+dev = [
+    "a2a-sdk[http-server]>=0.3.8",
 ]
