@@ -69,7 +69,7 @@ test-integration: check-deps ## Run integration tests
 .PHONY: test-coverage
 test-coverage: check-deps ## Run tests with coverage report (excludes e2e tests)
 	@echo "🧪 Running tests with coverage..."
-	uv run pytest tests/ --ignore=tests/e2e --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --cov-report=xml --junitxml=pytest-results.xml
+	uv run pytest tests/ -n auto --ignore=tests/e2e --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --cov-report=xml --junitxml=pytest-results.xml
 
 .PHONY: test-fast
 test-fast: check-deps ## Run tests with fail-fast and short traceback (excludes e2e tests)
