@@ -168,8 +168,3 @@ exclude_lines = [
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 ]
-
-[dependency-groups]
-dev = [
-    "a2a-sdk[http-server]>=0.3.8",
-]
