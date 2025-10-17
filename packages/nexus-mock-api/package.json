@@ -1,0 +1,13 @@
+{
+  "name": "nexus-mock-api",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts"
+  },
+  "devDependencies": {
+    "msw": "^2.11.5",
+    "tsx": "^4.20.6"
+  }
+}

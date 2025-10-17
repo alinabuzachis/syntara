@@ -1,9 +1,10 @@
 import { Button, Form, FormInput, FormSelect } from '@ansible/nexus-ui-framework'
+import type { ToolProvider } from 'nexus-contracts'
 import { navigate } from 'wouter/use-browser-location'
 import { AppPage } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
-import { toolProvidersClient, type ToolProvider } from '../../../../client'
+import { toolProvidersClient } from '../../../../client'
 import { ChatInput } from '../../../../components/chat/ChatInput'
 
 export function IntegrationForm() {

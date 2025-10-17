@@ -1,28 +1,12 @@
-import type { ToolProviders, Tools, WorkflowAPI } from 'nexus-contracts'
+import type { ToolProvidersAPI, ToolsAPI, WorkflowAPI } from 'nexus-contracts'
 import createFetchClient from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 
 const workflowFetchClient = createFetchClient<WorkflowAPI.paths>({ baseUrl: '/api/' })
 export const workflowClient = createClient(workflowFetchClient)
-export type Execution = WorkflowAPI.components['schemas']['Execution']
-export type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
-export type Approval = WorkflowAPI.components['schemas']['Approval']
-export type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
-export type ApprovalStatus = WorkflowAPI.components['schemas']['ApprovalStatus']
-export type ActivityType = WorkflowAPI.components['schemas']['ActivityType']
-export type Workflow = WorkflowAPI.components['schemas']['Workflow']
-export type WorkflowsResponse =
-  WorkflowAPI.paths['/workflows']['get']['responses']['200']['content']['application/json']
-export type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
-export type WorkflowWithVersionResponse =
-  WorkflowAPI.paths['/workflows/{workflowId}']['get']['responses']['200']['content']['application/json']
 
-const toolsFetchClient = createFetchClient<Tools.paths>({ baseUrl: '/api/' })
+const toolsFetchClient = createFetchClient<ToolsAPI.paths>({ baseUrl: '/api/' })
 export const toolsClient = createClient(toolsFetchClient)
-export type Tool = Tools.components['schemas']['Tool']
 
-const toolProvidersFetchClient = createFetchClient<ToolProviders.paths>({ baseUrl: '/api/' })
+const toolProvidersFetchClient = createFetchClient<ToolProvidersAPI.paths>({ baseUrl: '/api/' })
 export const toolProvidersClient = createClient(toolProvidersFetchClient)
-export type ToolProvider = ToolProviders.components['schemas']['ToolProvider']
-export type ToolProvidersResponse =
-  ToolProviders.paths['/tool-providers']['get']['responses']['200']['content']['application/json']
