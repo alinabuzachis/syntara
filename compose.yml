@@ -1,4 +1,15 @@
 services:
+  nexus-mock-api:
+    container_name: nexus-mock-api
+    image: ghcr.io/syntara-orchestration/syntara-mock-api:latest
+    ports:
+      - 3000:3000
+    environment:
+      PORT: 3000
+    restart: always
+    networks:
+      - nexus-net
+
   nexus-ui:
     container_name: nexus-ui
     image: ghcr.io/syntara-orchestration/syntara-ui:latest
@@ -11,6 +22,8 @@ services:
     restart: always
     networks:
       - nexus-net
+    depends_on:
+      - nexus-mock-api
 
   nginx-proxy:
     container_name: nginx-proxy

@@ -21,6 +21,13 @@ export default defineConfig({
     host: true, // Listen on all addresses for Docker
     port: 5173,
     strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   preview: {
     host: true,

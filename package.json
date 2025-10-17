@@ -6,6 +6,7 @@
   "scripts": {
     "start": "npm run build:nexus-ui-framework && concurrently npm:start:* -c auto",
     "start:nexus-ui": "npm run start --prefix packages/nexus-ui",
+    "start:nexus-mock-api": "npm run start --prefix packages/nexus-mock-api",
     "start:nexus-ui-framework": "npm run start --prefix packages/nexus-ui-framework",
     "build": "concurrently npm:build:nexus-ui-framework -c auto && concurrently npm:build:nexus-ui -c auto",
     "build:nexus-ui": "npm run build --workspace=packages/nexus-ui",
@@ -17,8 +18,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "gen": "npm run gen --prefix packages/nexus-contracts",
-    "podman:build": "podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest -t ghcr.io/syntara-orchestration/syntara-ui:latest .",
-    "podman:run": "podman run --rm -p 4000:80 --name nexus-ui ghcr.io/syntara-orchestration/syntara-ui:latest"
+    "podman:build": "concurrently npm:podman:build:* -c auto",
+    "podman:build:nexus-ui": "podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest -t ghcr.io/syntara-orchestration/syntara-ui:latest .",
+    "podman:build:nexus-mock-api": "podman build -f packages/nexus-mock-api/Containerfile -t nexus-mock-api:latest -t ghcr.io/syntara-orchestration/syntara-mock-api:latest .",
+    "podman:run": "concurrently npm:podman:run:* -c auto",
+    "podman:run:nexus-ui": "podman run --rm -p 4000:80 --name nexus-ui ghcr.io/syntara-orchestration/syntara-ui:latest",
+    "podman:run:nexus-mock-api": "podman run --rm -p 3000:3000 --name nexus-mock-api ghcr.io/syntara-orchestration/syntara-mock-api:latest"
   },
   "workspaces": [
     "packages/*"
