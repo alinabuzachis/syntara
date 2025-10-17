@@ -14,7 +14,7 @@ The factory is stored in `app.state` during FastAPI startup:
 
 ```python
 # main.py
-from nexus_tool_manager.lib.providers.factory import ProviderFactory
+from nexus.tool_manager.lib.providers.factory import ProviderFactory
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -38,7 +38,7 @@ app = FastAPI(lifespan=lifespan)
 FastAPI endpoints inject the factory instance using a dependency:
 
 ```python
-from nexus_api.dependencies import ProviderFactoryDep
+from nexus.api.dependencies import ProviderFactoryDep
 
 @router.get("/provider-types")
 async def list_provider_types(factory: ProviderFactoryDep) -> list[str]:
@@ -73,7 +73,7 @@ The `ProviderFactory` class provides the following methods:
 Register provider types during application startup in the `lifespan` function:
 
 ```python
-from nexus_tool_manager.lib.providers.factory import ProviderFactory
+from nexus.tool_manager.lib.providers.factory import ProviderFactory
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI):
 Use dependency injection to access the factory:
 
 ```python
-from nexus_api.dependencies import ProviderFactoryDep
+from nexus.api.dependencies import ProviderFactoryDep
 
 @router.post("/providers")
 async def create_provider(
@@ -118,7 +118,7 @@ async def create_provider(
 Create your own factory instance for scripts or non-web contexts:
 
 ```python
-from nexus_tool_manager.lib.providers.factory import ProviderFactory
+from nexus.tool_manager.lib.providers.factory import ProviderFactory
 
 # Create factory instance
 factory = ProviderFactory()
@@ -198,7 +198,7 @@ The dependency function is defined in `nexus_api/dependencies.py`:
 
 ```python
 from fastapi import Depends, Request
-from nexus_tool_manager.lib.providers.factory import ProviderFactory
+from nexus.tool_manager.lib.providers.factory import ProviderFactory
 
 def get_provider_factory(request: Request) -> ProviderFactory:
     """Get the provider factory from application state."""
@@ -220,4 +220,4 @@ This approach:
 
 ## Example Usage
 
-See `src/nexus_api/api/v1/tool_providers.py` (when implemented) for complete examples of using the dependency injection system in FastAPI endpoints.
+See `src/nexus/api/api/v1/tool_providers.py` (when implemented) for complete examples of using the dependency injection system in FastAPI endpoints.

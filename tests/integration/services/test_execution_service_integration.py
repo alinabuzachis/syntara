@@ -14,10 +14,10 @@ from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from nexus_api.services.execution_service import ExecutionService
-from nexus_api.workflows.activities.script_activity import execute_bash_script
-from nexus_api.workflows.dynamic_workflow import DynamicWorkflow
-from nexus_api.workflows.yaml_workflow_parser import WorkflowParseError
+from nexus.api.services.execution_service import ExecutionService
+from nexus.api.workflows.activities.script_activity import execute_bash_script
+from nexus.api.workflows.dynamic_workflow import DynamicWorkflow
+from nexus.api.workflows.yaml_workflow_parser import WorkflowParseError
 
 
 @pytest_asyncio.fixture

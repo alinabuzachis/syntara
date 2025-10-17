@@ -1,0 +1,346 @@
+"""Pydantic models for YAML workflow definitions.
+
+These models represent the structure of workflow definitions parsed from YAML.
+They are used for validation and type-safe access to workflow configuration.
+"""
+
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+
+from nexus.api.constants import MAX_LOOP_ITERATIONS
+
+
+class RetryPolicy(BaseModel):
+    """Retry policy configuration for activities."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    max_attempts: int = Field(
+        default=3, ge=0, le=100, description="Maximum number of retry attempts", alias="maxAttempts"
+    )
+    backoff: Literal["fixed", "exponential", "linear"] = Field(
+        default="exponential", description="Backoff strategy: fixed, exponential, linear"
+    )
+    multiplier: float | None = Field(default=2.0, ge=1.0, le=10.0, description="Multiplier for exponential backoff")
+    initial_interval: str = Field(
+        default="PT1S", description="Initial interval in ISO 8601 duration format", alias="initialInterval"
+    )
+    max_interval: str | None = Field(
+        default=None, description="Maximum interval in ISO 8601 duration format", alias="maxInterval"
+    )
+    retryable_errors: list[str] | None = Field(
+        default=None, description="List of error types or codes that should trigger retry", alias="retryableErrors"
+    )
+
+
+# Loop definitions
+class ForEachLoopDefinition(BaseModel):
+    """ForEach loop configuration."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: Literal["forEach"] = Field(description="Loop type")
+    items: str = Field(description="Expression referencing array to iterate over (e.g., ${input.users})")
+    item_variable: str = Field(default="item", description="Variable name for current item", alias="itemVariable")
+    index_variable: str = Field(default="index", description="Variable name for current index", alias="indexVariable")
+    do: list["Activity"] = Field(description="Activities to execute in each iteration", min_length=1)
+
+
+class WhileLoopDefinition(BaseModel):
+    """While loop configuration."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: Literal["while"] = Field(description="Loop type")
+    condition: str = Field(description="Condition expression to evaluate before each iteration", min_length=1)
+    max_iterations: int = Field(
+        default=1000,
+        ge=1,
+        le=MAX_LOOP_ITERATIONS,
+        description="Maximum number of iterations to prevent infinite loops",
+        alias="maxIterations",
+    )
+    do: list["Activity"] = Field(description="Activities to execute in each iteration", min_length=1)
+
+
+class CountLoopDefinition(BaseModel):
+    """Count loop configuration (executes N times)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: Literal["count"] = Field(description="Loop type")
+    count: int = Field(ge=1, le=MAX_LOOP_ITERATIONS, description="Number of iterations to execute")
+    index_variable: str = Field(
+        default="index", description="Variable name for iteration counter", alias="indexVariable"
+    )
+    do: list["Activity"] = Field(description="Activities to execute in each iteration", min_length=1)
+
+
+LoopDefinition = ForEachLoopDefinition | WhileLoopDefinition | CountLoopDefinition
+
+
+# Task definitions
+class TaskDefinition(BaseModel):
+    """Definition for an executable task."""
+
+    executor: Literal["agentic", "script", "api", "connector"] = Field(description="Task executor type")
+    config: dict[str, Any] = Field(description="Executor-specific configuration")
+    inputs: dict[str, Any] | None = Field(default=None, description="Input parameters for the task")
+    outputs: dict[str, str] | None = Field(
+        default=None, description="Output mapping from the task (JSONPath expressions)"
+    )
+
+
+class ApprovalDefinition(BaseModel):
+    """Human approval configuration."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    approvers: list[str] = Field(description="List of users or roles who can approve", min_length=1)
+    prompt: str = Field(description="Approval prompt/question to display", min_length=1)
+    timeout: str | None = Field(default=None, description="Time to wait for approval (ISO 8601 duration)")
+    on_timeout: Literal["approve", "reject", "fail"] = Field(
+        default="fail", description="Action to take if approval times out", alias="onTimeout"
+    )
+    metadata: dict[str, Any] | None = Field(default=None, description="Additional context to display to approvers")
+
+
+class JoinDefinition(BaseModel):
+    """Join pattern configuration - waits for specific activities to complete."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    branches: list[str] = Field(description="List of activity IDs to wait for", min_length=1)
+    strategy: Literal["all", "any", "majority", "count"] = Field(
+        default="all", description="Join strategy: all, any, majority, or count"
+    )
+    count: int | None = Field(
+        default=None, ge=1, description="Required number of completed branches (only for 'count' strategy)"
+    )
+    timeout: str | None = Field(default=None, description="Maximum time to wait for join condition")
+    on_timeout: Literal["continue", "fail"] = Field(
+        default="fail", description="Action to take if timeout is reached", alias="onTimeout"
+    )
+    aggregate_outputs: bool = Field(
+        default=True,
+        description="Whether to aggregate outputs from completed branches into an object keyed by activity ID",
+        alias="aggregateOutputs",
+    )
+
+
+# Activity definition (supports multiple types)
+class Activity(BaseModel):
+    """Workflow activity definition.
+
+    Activity types:
+    - task: Execute a task (script, API call, connector, agentic)
+    - parallel: Execute multiple activities in parallel
+    - sequence: Execute multiple activities sequentially
+    - condition: Conditional branching (if/then/else)
+    - loop: Loop execution (forEach, while, count)
+    - join: Wait for multiple activities to complete
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str = Field(description="Unique identifier for the activity", pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+    name: str | None = Field(default=None, description="Human-readable activity name")
+    type: Literal["task", "parallel", "sequence", "condition", "loop", "join"] = Field(description="Activity type")
+    condition: str | None = Field(
+        default=None, description="Conditional expression (for condition type or conditional execution)"
+    )
+    requires_approval: bool = Field(
+        default=False, description="Whether this activity requires human approval", alias="requiresApproval"
+    )
+    approval: ApprovalDefinition | None = Field(
+        default=None, description="Human approval configuration (required if requiresApproval is true)"
+    )
+    retry_policy: RetryPolicy | None = Field(
+        default=None, description="Retry policy for this activity", alias="retryPolicy"
+    )
+    timeout: str | None = Field(default=None, description="Activity timeout (ISO 8601 duration)")
+    outputs: dict[str, dict[str, Any]] | None = Field(
+        default=None, description="Output schema definition for this activity"
+    )
+
+    # Type-specific fields (conditionally required based on type)
+    task: TaskDefinition | None = Field(default=None, description="Task definition (required for type=task)")
+    branches: list["Activity"] | None = Field(
+        default=None, description="Activities to execute in parallel (required for type=parallel)", min_length=2
+    )
+    steps: list["Activity"] | None = Field(
+        default=None, description="Activities to execute sequentially (required for type=sequence)", min_length=1
+    )
+    then: list["Activity"] | None = Field(
+        default=None,
+        description="Activities to execute if condition is true (required for type=condition)",
+        min_length=1,
+    )
+    else_: list["Activity"] | None = Field(
+        default=None, alias="else", description="Activities to execute if condition is false (for type=condition)"
+    )
+    loop: LoopDefinition | None = Field(default=None, description="Loop definition (required for type=loop)")
+    join: JoinDefinition | None = Field(default=None, description="Join definition (required for type=join)")
+
+    @field_validator("task")
+    @classmethod
+    def validate_task_required(cls, v: TaskDefinition | None, info: ValidationInfo) -> TaskDefinition | None:
+        """Ensure task is provided when type=task."""
+        if info.data.get("type") == "task" and v is None:
+            msg = "task field is required when type='task'"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("branches")
+    @classmethod
+    def validate_branches_required(cls, v: list[Any] | None, info: ValidationInfo) -> list[Any] | None:
+        """Ensure branches is provided when type=parallel."""
+        if info.data.get("type") == "parallel" and v is None:
+            msg = "branches field is required when type='parallel'"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("steps")
+    @classmethod
+    def validate_steps_required(cls, v: list[Any] | None, info: ValidationInfo) -> list[Any] | None:
+        """Ensure steps is provided when type=sequence."""
+        if info.data.get("type") == "sequence" and v is None:
+            msg = "steps field is required when type='sequence'"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("then")
+    @classmethod
+    def validate_then_required(cls, v: list[Any] | None, info: ValidationInfo) -> list[Any] | None:
+        """Ensure then and condition are provided when type=condition."""
+        if info.data.get("type") == "condition":
+            if v is None:
+                msg = "then field is required when type='condition'"
+                raise ValueError(msg)
+            if not info.data.get("condition"):
+                msg = "condition field is required when type='condition'"
+                raise ValueError(msg)
+        return v
+
+    @field_validator("loop")
+    @classmethod
+    def validate_loop_required(cls, v: LoopDefinition | None, info: ValidationInfo) -> LoopDefinition | None:
+        """Ensure loop is provided when type=loop."""
+        if info.data.get("type") == "loop" and v is None:
+            msg = "loop field is required when type='loop'"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("join")
+    @classmethod
+    def validate_join_required(cls, v: JoinDefinition | None, info: ValidationInfo) -> JoinDefinition | None:
+        """Ensure join is provided when type=join."""
+        if info.data.get("type") == "join" and v is None:
+            msg = "join field is required when type='join'"
+            raise ValueError(msg)
+        return v
+
+
+class WorkflowSpec(BaseModel):
+    """Workflow specification containing activities."""
+
+    activities: list[Activity] = Field(description="List of workflow activities", min_length=1)
+
+
+class InputParameter(BaseModel):
+    """Workflow input parameter definition."""
+
+    type: Literal["string", "number", "integer", "boolean", "object", "array"] = Field(
+        description="Parameter data type"
+    )
+    description: str | None = Field(default=None, description="Parameter description")
+    required: bool = Field(default=False, description="Whether parameter is required")
+    default: Any | None = Field(default=None, description="Default value if not provided")
+    enum: list[Any] | None = Field(default=None, description="Allowed values for the parameter", min_length=1)
+    pattern: str | None = Field(default=None, description="Regex pattern for string validation")
+    minimum: float | None = Field(default=None, description="Minimum value for numeric parameters")
+    maximum: float | None = Field(default=None, description="Maximum value for numeric parameters")
+
+
+class ManualTrigger(BaseModel):
+    """Manual trigger - user initiates workflow execution."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: Literal["manual"] = Field(description="Trigger type")
+    requires_approval: bool = Field(
+        default=False, description="Whether manual execution requires approval", alias="requiresApproval"
+    )
+
+
+class ScheduledTrigger(BaseModel):
+    """Scheduled trigger - time-based execution."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: Literal["scheduled"] = Field(description="Trigger type")
+    schedule: dict[str, Any] = Field(description="Schedule configuration (cron, interval, or continuous)")
+    start_time: str | None = Field(
+        default=None, description="Start time for scheduled execution (ISO 8601)", alias="startTime"
+    )
+    end_time: str | None = Field(
+        default=None, description="End time for scheduled execution (ISO 8601)", alias="endTime"
+    )
+
+
+class EventTrigger(BaseModel):
+    """Event-driven trigger - external events initiate workflow."""
+
+    type: Literal["event"] = Field(description="Trigger type")
+    event: dict[str, Any] = Field(description="Event source and type configuration")
+
+
+Trigger = ManualTrigger | ScheduledTrigger | EventTrigger
+
+
+class Metadata(BaseModel):
+    """Workflow metadata."""
+
+    name: str = Field(description="Workflow name", pattern=r"^[a-zA-Z0-9_-]+$", min_length=1, max_length=255)
+    description: str = Field(description="Workflow description", min_length=1, max_length=1000)
+    tags: list[str] | None = Field(default=None, description="Workflow tags for categorization")
+    owner: str | None = Field(default=None, description="User or team responsible for the workflow")
+    timeout: str | None = Field(
+        default=None, description="Maximum workflow execution time (ISO 8601 duration) - applies to entire workflow"
+    )
+
+
+class WorkflowDefinition(BaseModel):
+    """Complete workflow definition parsed from YAML.
+
+    This is the root model representing a complete workflow configuration.
+    """
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        extra="forbid",  # Reject unknown fields
+        validate_assignment=True,
+    )
+
+    schema_version: str = Field(
+        description="Schema version (semver format)", pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$", alias="schemaVersion"
+    )
+    version: int = Field(ge=1, description="Workflow version number")
+    metadata: Metadata = Field(description="Workflow metadata")
+    triggers: list[Trigger] = Field(description="Workflow triggers", min_length=1)
+    inputs: dict[str, InputParameter] | None = Field(default=None, description="Workflow input parameters")
+    variables: dict[str, Any] | None = Field(
+        default=None, description="Workflow-level variables that can be referenced throughout the workflow"
+    )
+    secrets: dict[str, dict[str, Any]] | None = Field(
+        default=None, description="Secret references for credentials and sensitive data"
+    )
+    workflow: WorkflowSpec = Field(description="Workflow specification with activities")
+
+
+# Update forward references
+Activity.model_rebuild()
+ForEachLoopDefinition.model_rebuild()
+WhileLoopDefinition.model_rebuild()
+CountLoopDefinition.model_rebuild()

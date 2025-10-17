@@ -37,7 +37,7 @@ RUN pip install --no-cache-dir \
     "uvicorn[standard]>=0.24.0"
 
 # Copy agent source code
-COPY src/nexus_agents/ /app/src/nexus_agents/
+COPY src/nexus/agents/ /app/src/nexus/agents/
 
 # Set Python path
 ENV PYTHONPATH=/app
@@ -55,4 +55,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Run agent server
 # Agent name is specified via AGENT_NAME environment variable
-CMD ["python", "-m", "src.nexus_agents"]
+CMD ["python", "-m", "src.nexus.agents"]

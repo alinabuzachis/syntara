@@ -9,8 +9,8 @@ from temporalio.client import Client, WorkflowFailureError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from nexus_api.workflows.dynamic_workflow import DynamicWorkflow
-from nexus_api.workflows.yaml_workflow_parser import WorkflowParseError, parse_workflow_yaml
+from nexus.api.workflows.dynamic_workflow import DynamicWorkflow
+from nexus.api.workflows.yaml_workflow_parser import WorkflowParseError, parse_workflow_yaml
 
 
 class TestWorkflowMetadata:

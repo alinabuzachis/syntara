@@ -5,8 +5,8 @@ import time
 
 import pytest
 
-from nexus_tool_manager.lib.providers.base import ToolProviderAdapter
-from nexus_tool_manager.lib.providers.factory import ProviderFactory
+from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
+from nexus.tool_manager.lib.providers.factory import ProviderFactory
 from tests.fixtures.mock_provider import MockProvider
 
 # Test constants

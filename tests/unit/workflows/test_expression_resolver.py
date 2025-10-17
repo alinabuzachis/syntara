@@ -9,8 +9,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from nexus_api.workflows.expression_resolver import ComparisonOp, ExpressionResolver
-from nexus_api.workflows.models.workflow_definition import InputParameter
+from nexus.api.workflows.expression_resolver import ComparisonOp, ExpressionResolver
+from nexus.api.workflows.models.workflow_definition import InputParameter
 
 # Test constants
 TEST_USER_ID = 123

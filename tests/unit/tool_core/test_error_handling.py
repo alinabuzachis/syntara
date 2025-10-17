@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from nexus_tool_manager.lib.tool_core import (
+from nexus.tool_manager.lib.tool_core import (
     Provider,
     ProviderError,
     ProviderNotFoundError,

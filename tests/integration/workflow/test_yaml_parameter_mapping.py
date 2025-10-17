@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from nexus_api.workflows.models.workflow_definition import WorkflowDefinition
+from nexus.api.workflows.models.workflow_definition import WorkflowDefinition
 
 
 @pytest.mark.integration

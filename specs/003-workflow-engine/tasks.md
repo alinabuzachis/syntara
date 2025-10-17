@@ -27,7 +27,7 @@
 ## Format: `[ID] [P?] Description`
 - **[P]**: Can run in parallel (different files, no dependencies)
 - Include exact file paths in descriptions
-- Source code in `src/nexus_api/`
+- Source code in `src/nexus/api/`
 - Tests in `tests/`
 
 ## Task Dependencies & Execution Flow
@@ -188,20 +188,20 @@ graph TB
   - Verify: `uv pip list | grep -E "fastapi|sqlalchemy|alembic"`
 
 - [X] **T002** Configure Alembic for database migrations
-  - Files: `alembic.ini`, `src/nexus_api/alembic/env.py`, `src/nexus_api/alembic/versions/`
-  - Initialize: `alembic init src/nexus_api/alembic` (Alembic setup as subpackage within nexus_api)
+  - Files: `alembic.ini`, `src/nexus/api/alembic/env.py`, `src/nexus/api/alembic/versions/`
+  - Initialize: `alembic init src/nexus/api/alembic` (Alembic setup as subpackage within nexus.api)
   - Configure async PostgreSQL connection string support
   - Set up auto-import of models for migration generation
-  - Update `alembic.ini` to point to `src/nexus_api/alembic` directory
+  - Update `alembic.ini` to point to `src/nexus/api/alembic` directory
 
 - [X] **T003** Create database session management with async support
-  - File: `src/nexus_api/db/session.py`
+  - File: `src/nexus/api/db/session.py`
   - Implement: AsyncSession factory, get_db() dependency for FastAPI
   - Connection pooling configuration
   - Soft delete query interceptor/filter (exclude deleted_at IS NOT NULL by default)
 
 - [X] **T004** Set up FastAPI application structure
-  - Files: `src/nexus_api/main.py`, `src/nexus_api/api/__init__.py`
+  - Files: `src/nexus/api/main.py`, `src/nexus/api/api/__init__.py`
   - Initialize FastAPI app with OpenAPI metadata
   - Configure CORS, middleware stack
   - Health check endpoint: GET /health
@@ -266,28 +266,28 @@ graph TB
 ## Phase 3.3: Data Models (ONLY after tests are failing)
 
 - [X] ** [P]** Implement User model with soft delete
-  - File: `src/nexus_api/models/user.py`
+  - File: `src/nexus/api/models/user.py`
   - Fields: id, username, email, full_name, role (enum), is_active, created_at, last_login, preferences (JSON), deleted_at, deleted_by
   - Relationships: created_workflows, started_executions, approvals
   - Validation: Unique username/email across non-deleted users
   - Soft delete: Self-referencing deleted_by FK
 
 - [X] ** [P]** Implement Workflow model with soft delete
-  - File: `src/nexus_api/models/workflow.py`
+  - File: `src/nexus/api/models/workflow.py`
   - Fields: id, name, description, labels (JSONB), current_version, created_by (FK), created_at, updated_at, is_enabled, deleted_at, deleted_by (FK)
   - Relationships: versions (One-to-Many), executions (One-to-Many)
   - Validation: Unique name across non-deleted workflows
   - Indexes: GIN index on labels, (created_by, is_enabled), (name) unique
 
 - [X] ** [P]** Implement WorkflowVersion model with soft delete
-  - File: `src/nexus_api/models/workflow_version.py`
+  - File: `src/nexus/api/models/workflow_version.py`
   - Fields: id, workflow_id (FK), version (auto-increment), schema_version, workflow_definition (Text), created_by (FK), created_at, change_description, deleted_at, deleted_by (FK)
   - Relationships: workflow (Many-to-One), executions (One-to-Many)
   - Validation: Unique (workflow_id, version), immutable version after creation
   - Indexes: (workflow_id, version) unique, (workflow_id, created_at)
 
 - [X] **** Create Alembic migration for User, Workflow, WorkflowVersion tables
-  - File: `src/nexus_api/alembic/versions/001_create_workflow_tables.py`
+  - File: `src/nexus/api/alembic/versions/001_create_workflow_tables.py`
   - Generate: `alembic revision --autogenerate -m "create workflow tables"`
   - Verify: All fields, relationships, constraints, indexes created
   - Include: GIN indexes on JSONB labels, soft delete check constraints
@@ -314,7 +314,7 @@ graph TB
 ## Phase 3.4: API Implementation (ONLY after models & tests exist)
 
 - [X] **** Implement Pydantic schemas for request/response validation
-  - File: `src/nexus_api/schemas/workflow.py`
+  - File: `src/nexus/api/schemas/workflow.py`
   - Schemas: CreateWorkflowRequest, WorkflowResponse, WorkflowWithVersionResponse, WorkflowListResponse, UpdateWorkflowRequest
   - Schemas: WorkflowVersionResponse, WorkflowVersionListResponse
   - ~~CreateWorkflowVersionRequest~~ **REMOVED** (versions are system-managed)
@@ -323,7 +323,7 @@ graph TB
   - Include: Label validation, YAML structure validation helpers
 
 - [X] **** Implement YAML workflow definition validation
-  - File: `src/nexus_api/validators/workflow_yaml.py`
+  - File: `src/nexus/api/validators/workflow_yaml.py`
   - Validation scope (Ticket 1 - basic only):
     * Check 1: YAML is parseable (PyYAML.safe_load() succeeds without exception)
     * Check 2: Result is a dictionary (not a list, string, or scalar)
@@ -333,28 +333,28 @@ graph TB
   - Integration: Used in POST /workflows (T022) and POST /versions (T027) endpoints
 
 - [X] **** Implement POST /api/v1/workflows endpoint
-  - File: `src/nexus_api/api/v1/workflows.py`
+  - File: `src/nexus/api/api/v1/workflows.py`
   - Handler: create_workflow(request: CreateWorkflowRequest, db: AsyncSession)
   - Logic: Validate YAML, create Workflow + initial WorkflowVersion (version=1)
   - Response: 201 Created with Workflow object
   - Error handling: 400 for invalid YAML, duplicate name
 
 - [X] **** Implement GET /api/v1/workflows endpoint
-  - File: `src/nexus_api/api/v1/workflows.py` (add handler)
+  - File: `src/nexus/api/api/v1/workflows.py` (add handler)
   - Handler: list_workflows(created_by, is_enabled, labels, limit, offset, db)
   - Logic: Filter soft-deleted (deleted_at IS NULL), apply query filters
   - Pagination: limit/offset with total count
   - Response: 200 OK with workflows array
 
 - [X] **** Implement GET /api/v1/workflows/{id} endpoint
-  - File: `src/nexus_api/api/v1/workflows.py` (add handler)
+  - File: `src/nexus/api/api/v1/workflows.py` (add handler)
   - Handler: get_workflow(workflow_id: UUID, db: AsyncSession)
   - Logic: Fetch workflow, exclude soft-deleted, fetch current version (specified by current_version field)
   - Response: 200 OK with WorkflowWithVersionResponse (workflow + current version data), 404 if not found or deleted
   - Note: Always returns the active version as specified by workflow.current_version
 
 - [X] **** Implement PATCH /api/v1/workflows/{id} endpoint
-  - File: `src/nexus_api/api/v1/workflows.py` (add handler)
+  - File: `src/nexus/api/api/v1/workflows.py` (add handler)
   - Handler: update_workflow(workflow_id, request: UpdateWorkflowRequest, db)
   - Logic:
     * Metadata only (name, description, labels, is_enabled): Update without creating version
@@ -369,7 +369,7 @@ graph TB
   - Note: Change detection prevents unnecessary version creation when YAML is exactly identical
 
 - [X] **** Implement DELETE /api/v1/workflows/{id} endpoint (soft delete)
-  - File: `src/nexus_api/api/v1/workflows.py` (add handler)
+  - File: `src/nexus/api/api/v1/workflows.py` (add handler)
   - Handler: delete_workflow(workflow_id: UUID, current_user: User, db)
   - Logic: Set deleted_at = now(), deleted_by = current_user.id (NOT hard delete)
   - Response: 204 No Content, 404 if not found
@@ -380,19 +380,19 @@ graph TB
   - No manual version creation endpoint exists - this ensures version integrity and automatic tracking
 
 - [X] **** Implement GET /api/v1/workflows/{id}/versions endpoint
-  - File: `src/nexus_api/api/v1/workflow_versions.py` (add handler)
+  - File: `src/nexus/api/api/v1/workflow_versions.py` (add handler)
   - Handler: list_versions(workflow_id: UUID, db: AsyncSession)
   - Logic: Fetch all non-deleted versions for workflow, order by version DESC
   - Response: 200 OK with versions array
 
 - [X] **** Implement GET /api/v1/workflows/{id}/versions/{version} endpoint
-  - File: `src/nexus_api/api/v1/workflow_versions.py` (add handler)
+  - File: `src/nexus/api/api/v1/workflow_versions.py` (add handler)
   - Handler: get_version(workflow_id: UUID, version: int, db: AsyncSession)
   - Logic: Fetch specific version with workflow_definition
   - Response: 200 OK with WorkflowVersion object, 404 if not found
 
 - [X] **** Register all workflow routes in FastAPI app
-  - File: `src/nexus_api/main.py` (update)
+  - File: `src/nexus/api/main.py` (update)
   - Include routers: workflows_router, workflow_versions_router
   - Prefix: /api/v1
   - Verify: OpenAPI docs at /docs show all endpoints
@@ -416,7 +416,7 @@ graph TB
 - [X] **T033** Update Makefile dev target to run migrations
   - File: `Makefile`
   - Update: Change `dev` target to run `alembic upgrade head` before starting server
-  - Command sequence: `alembic upgrade head && uv run python -m nexus_api.main`
+  - Command sequence: `alembic upgrade head && uv run python -m nexus.api.main`
   - Verify: Migrations run automatically when executing `make dev`
   - Add: Echo statement to show migration status
   - **Status**: ✅ COMPLETED - Migrations run automatically on `make dev`
@@ -443,7 +443,7 @@ graph TB
 
 - [ ] **T037 [P]** Generate OpenAPI specification file
   - File: `docs/openapi.json`
-  - Generate from FastAPI app: `python -m src.nexus_api.main --export-openapi`
+  - Generate from FastAPI app: `python -m src.nexus.api.main --export-openapi`
   - Verify: Matches contracts/workflow-api.yaml structure
   - Automate: Add to pre-commit hook or CI pipeline
   - **Status**: ⏸️ DEFERRED - FastAPI auto-generates at /docs endpoint
@@ -508,9 +508,9 @@ Task: "Integration test GET /api/v1/workflows/{id}/versions in tests/integration
 Task: "Integration test GET /api/v1/workflows/{id}/versions/{version} in tests/integration/api/test_workflow_versions_get_by_version.py"
 
 # Phase 3.3: Launch all model implementations together
-Task: "Implement User model with soft delete in src/nexus_api/models/user.py"
-Task: "Implement Workflow model with soft delete in src/nexus_api/models/workflow.py"
-Task: "Implement WorkflowVersion model with soft delete in src/nexus_api/models/workflow_version.py"
+Task: "Implement User model with soft delete in src/nexus/api/models/user.py"
+Task: "Implement Workflow model with soft delete in src/nexus/api/models/workflow.py"
+Task: "Implement WorkflowVersion model with soft delete in src/nexus/api/models/workflow_version.py"
 
 # Phase 3.3: Launch all model unit tests together (after models exist)
 Task: "Unit tests for User model in tests/unit/models/test_user.py"

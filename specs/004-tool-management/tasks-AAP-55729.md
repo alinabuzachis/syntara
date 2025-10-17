@@ -8,8 +8,8 @@
 This ticket delivers the foundational abstraction layer for tool management, creating provider-agnostic architecture with core domain logic, and validates the design with a mock provider implementation. All functionality includes passing tests.
 
 **Tech Stack**: Python 3.12+, FastAPI, SQLAlchemy 2.0, pytest, Redis
-**Package**: `nexus_tool_manager`
-**Source Directory**: `./src/nexus_tool_manager/`
+**Package**: `nexus.tool_manager`
+**Source Directory**: `./src/nexus/tool_manager/`
 
 ## Implementation Dependencies
 
@@ -73,17 +73,17 @@ graph TD
 
 ## Phase 3.1: Package Setup and Configuration
 
-### T001: Create nexus_tool_manager package structure ✅ COMPLETED
-- [x] Create `src/nexus_tool_manager/` directory
-- [x] Create `src/nexus_tool_manager/__init__.py`
-- [x] Create `src/nexus_tool_manager/lib/` directory
-- [x] Create `src/nexus_tool_manager/lib/__init__.py`
-- [x] Create `src/nexus_tool_manager/lib/providers/` directory
-- [x] Create `src/nexus_tool_manager/lib/providers/__init__.py`
+### T001: Create nexus.tool_manager package structure ✅ COMPLETED
+- [x] Create `src/nexus/tool_manager/` directory
+- [x] Create `src/nexus/tool_manager/__init__.py`
+- [x] Create `src/nexus/tool_manager/lib/` directory
+- [x] Create `src/nexus/tool_manager/lib/__init__.py`
+- [x] Create `src/nexus/tool_manager/lib/providers/` directory
+- [x] Create `src/nexus/tool_manager/lib/providers/__init__.py`
 - [x] Verify package structure is properly organized
 
 ### T002: Configure package in pyproject.toml ✅ COMPLETED
-- [x] Add package directory mapping: `nexus_tool_manager = "src/nexus_tool_manager"`
+- [x] Ensure `src/nexus/tool_manager` is listed in hatch build targets
 - [x] Ensure proper Python package structure with `__init__.py` files
 - [x] Include package in build configuration and dependency management
 - [x] Add required dependencies: mcp library, httpx, Redis client
@@ -93,7 +93,7 @@ graph TD
 ## Phase 3.2: Core Abstractions
 
 ### T003 [P]: Define ToolProviderAdapter Protocol ✅ COMPLETED
-**File**: `./src/nexus_tool_manager/lib/providers/base.py`
+**File**: `./src/nexus/tool_manager/lib/providers/base.py`
 - [x] Define `ToolProviderAdapter` Protocol with complete type hints
 - [x] Method: `validate_connection() -> ValidationResult`
 - [x] Method: `refresh_tools() -> List[ToolMetadata]`
@@ -103,7 +103,7 @@ graph TD
 - [x] Include timeout handling specifications in protocol
 
 ### T004 [P]: Create domain models and exceptions ✅ COMPLETED
-**File**: `./src/nexus_tool_manager/lib/tool_core.py`
+**File**: `./src/nexus/tool_manager/lib/tool_core.py`
 - [x] Domain models (dataclasses): `Provider`, `Tool`, `ToolParameter`, `ToolExecution`
 - [x] All models with complete type hints and validation
 - [x] Exceptions: `ProviderError`, `ToolNotFoundError`, `ValidationError`, `ProviderNotFoundError`
@@ -112,7 +112,7 @@ graph TD
 - [x] Comprehensive docstrings for all domain types
 
 ### T005 [P]: Implement provider factory ✅ COMPLETED
-**File**: `./src/nexus_tool_manager/lib/providers/factory.py`
+**File**: `./src/nexus/tool_manager/lib/providers/factory.py`
 - [x] Registry pattern for provider type registration
 - [x] Factory method to instantiate providers by type: `create_provider(provider_type: str, config: Dict) -> ToolProviderAdapter`
 - [x] Thread-safe registration with proper locking
@@ -121,7 +121,7 @@ graph TD
 - [x] Support for dynamic provider registration
 
 ### T006: Implement core tool management functions ✅ COMPLETED
-**File**: `./src/nexus_tool_manager/lib/tool_core.py` (extends T004)
+**File**: `./src/nexus/tool_manager/lib/tool_core.py` (extends T004)
 - [x] **Provider Management Functions**:
   - [x] `register_provider(config: Dict) -> str`: Add new provider with validation
   - [x] `list_providers(filters: Dict, pagination: Dict) -> List[Provider]`: Query providers with filters and pagination
@@ -249,9 +249,9 @@ graph TD
 **Phase 3.2 Core Abstractions** (All can run in parallel):
 ```bash
 # Launch T003-T008 together:
-Task: "Define ToolProviderAdapter Protocol in ./src/nexus_tool_manager/lib/providers/base.py"
-Task: "Create domain models and exceptions in ./src/nexus_tool_manager/lib/tool_core.py"
-Task: "Implement provider factory in ./src/nexus_tool_manager/lib/providers/factory.py"
+Task: "Define ToolProviderAdapter Protocol in ./src/nexus/tool_manager/lib/providers/base.py"
+Task: "Create domain models and exceptions in ./src/nexus/tool_manager/lib/tool_core.py"
+Task: "Implement provider factory in ./src/nexus/tool_manager/lib/providers/factory.py"
 Task: "Create mock provider for testing in ./tests/fixtures/mock_provider.py"
 Task: "Create contract YAML templates in ./specs/004-tool-management/contracts/"
 ```
@@ -281,8 +281,8 @@ Task: "Unit test pagination logic in ./tests/unit/tool_core/test_pagination_logi
 ## Success Criteria
 
 ### Package Configuration ✅ COMPLETED
-- [x] New package `nexus_tool_manager` properly configured in pyproject.toml
-- [x] Package directory mapping: `nexus_tool_manager = "src/nexus_tool_manager"` added
+- [x] New package `nexus.tool_manager` properly configured in pyproject.toml
+- [x] Hatch build includes `src/nexus/tool_manager`
 - [x] All necessary `__init__.py` files created for proper Python package structure
 - [x] Package can be imported and installed correctly
 

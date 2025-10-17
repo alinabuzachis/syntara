@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus_api.models import Workflow
+from nexus.api.models import Workflow
 from tests.helpers import create_minimal_workflow_definition
 
 

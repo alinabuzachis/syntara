@@ -432,7 +432,7 @@ classDiagram
 
 **File Structure:**
 ```
-src/nexus_tool_manager/lib/
+src/nexus/tool_manager/lib/
 ├── tool_core.py              # Generic tool management (provider-agnostic)
 └── providers/
     ├── base.py               # ToolProviderAdapter Protocol/ABC

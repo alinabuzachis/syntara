@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from nexus_tool_manager.lib.tool_core import (
+from nexus.tool_manager.lib.tool_core import (
     ExecutionRepository,
     FilterParam,
     PaginationParams,

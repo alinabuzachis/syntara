@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from nexus_api.schemas.invocation import (
+from nexus.api.schemas.invocation import (
     InvocationListResponse,
     InvocationResponse,
     InvocationStatus,

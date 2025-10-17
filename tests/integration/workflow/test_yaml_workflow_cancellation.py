@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nexus_api.services.execution_service import ExecutionService
-from nexus_api.workflows.activities.script_activity import execute_bash_script
-from nexus_api.workflows.yaml_workflow_parser import parse_workflow_yaml
+from nexus.api.services.execution_service import ExecutionService
+from nexus.api.workflows.activities.script_activity import execute_bash_script
+from nexus.api.workflows.yaml_workflow_parser import parse_workflow_yaml
 
 
 @pytest.mark.integration

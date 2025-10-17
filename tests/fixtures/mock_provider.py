@@ -5,9 +5,9 @@ import random
 from datetime import UTC, datetime
 from typing import Any
 
-from nexus_tool_manager.lib.providers.base import ToolProviderAdapter
-from nexus_tool_manager.lib.tool_core import ProviderError, Tool, ToolNotFoundError, ToolParameter
-from nexus_tool_manager.models import (
+from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
+from nexus.tool_manager.lib.tool_core import ProviderError, Tool, ToolNotFoundError, ToolParameter
+from nexus.tool_manager.models import (
     ConnectionValidationResult,
     ToolSchema,
     ToolValidationResult,

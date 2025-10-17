@@ -8,35 +8,35 @@ This document describes the implementation of the YAML workflow execution engine
 
 ### Core Components
 
-1. **YAML Parser** (`src/nexus_api/workflows/yaml_workflow_parser.py`)
+1. **YAML Parser** (`src/nexus/api/workflows/yaml_workflow_parser.py`)
    - Parses YAML workflow definitions into Pydantic models
    - Validates against JSON schema
    - Returns `WorkflowDefinition` objects
 
-2. **Workflow Models** (`src/nexus_api/workflows/models/workflow_definition.py`)
+2. **Workflow Models** (`src/nexus/api/workflows/models/workflow_definition.py`)
    - Schema-aligned Pydantic v2 models
    - Activity types: task, parallel, sequence, condition, loop, join
    - Loop types: forEach, while, count
    - Full retry policy and timeout support
 
-3. **Dynamic Workflow** (`src/nexus_api/workflows/dynamic_workflow.py`)
+3. **Dynamic Workflow** (`src/nexus/api/workflows/dynamic_workflow.py`)
    - Temporal workflow that executes parsed YAML definitions
    - Type-based activity routing
    - Expression resolution (`${input.x}`, `${variables.x}`, `${activity.output}`)
    - State persistence and error handling
 
-4. **Bash Script Activity** (`src/nexus_api/workflows/activities/script_activity.py`)
+4. **Bash Script Activity** (`src/nexus/api/workflows/activities/script_activity.py`)
    - Async bash script executor using `asyncio.subprocess`
    - Input parameter passing via positional arguments
    - stdout/stderr capture
    - Error handling with ScriptExecutionError
 
-5. **Execution Service** (`src/nexus_api/services/execution_service.py`)
+5. **Execution Service** (`src/nexus/api/services/execution_service.py`)
    - High-level API for workflow operations
    - start_yaml_workflow, get_workflow_status, get_workflow_result
    - cancel_workflow, terminate_workflow
 
-6. **Worker Service** (`src/nexus_api/services/temporal_worker.py`)
+6. **Worker Service** (`src/nexus/api/services/temporal_worker.py`)
    - Temporal worker lifecycle management
    - Registers workflows and activities
    - Async context manager for clean startup/shutdown
@@ -58,7 +58,7 @@ YAML String → yaml.safe_load() → Dict → Pydantic Validation → WorkflowDe
 ### Example
 
 ```python
-from src.nexus_api.workflows.yaml_workflow_parser import parse_workflow_yaml
+from src.nexus.api.workflows.yaml_workflow_parser import parse_workflow_yaml
 
 yaml_content = """
 schemaVersion: "1.0.0"
@@ -533,7 +533,7 @@ async def temporal_env() -> AsyncGenerator[WorkflowEnvironment, None]:
 ### Current Implementation
 
 - **In-memory stub** for activity execution tracking
-- File: `src/nexus_api/workflows/activities/execution_tracker.py`
+- File: `src/nexus/api/workflows/activities/execution_tracker.py`
 - Uses `_activity_executions: dict[str, dict[str, Any]] = {}`
 
 ### Future Integration
@@ -578,9 +578,9 @@ import asyncio
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from src.nexus_api.services.execution_service import ExecutionService
-from src.nexus_api.workflows.activities.script_activity import execute_bash_script
-from src.nexus_api.workflows.dynamic_workflow import DynamicWorkflow
+from src.nexus.api.services.execution_service import ExecutionService
+from src.nexus.api.workflows.activities.script_activity import execute_bash_script
+from src.nexus.api.workflows.dynamic_workflow import DynamicWorkflow
 
 async def main():
     # Connect to Temporal

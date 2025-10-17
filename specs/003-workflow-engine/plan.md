@@ -299,7 +299,7 @@ stateDiagram-v2
 
 ### Python Namespace
 - **Package name**: `nexus` (defined in `pyproject.toml`)
-- **Source packages**: `src/nexus_api` (configured in hatchling build targets)
+- **Source packages**: `src/nexus/api` (configured in hatchling build targets)
 - **Python version**: 3.12+ (specified in `pyproject.toml`)
 
 ### Tooling Configuration
@@ -356,15 +356,15 @@ specs/[###-feature]/
 ### Source Code (repository root)
 ```
 src/
-└── nexus_api/
-    ├── models/          # Data models and entities
-    ├── services/        # Business logic and orchestration
-    ├── api/             # FastAPI REST endpoints
-    ├── workflows/       # Temporal workflow definitions
-    └── alembic/         # Database migrations (part of nexus_api package)
-        ├── versions/    # Migration scripts
-        ├── env.py       # Alembic environment configuration
-        └── script.py.mako  # Migration template
+└── nexus/
+    ├── api/             # FastAPI REST service (Temporal workflows, DB access)
+    │   ├── models/          # Data models and entities
+    │   ├── services/        # Business logic and orchestration
+    │   ├── api/             # API routers and dependencies
+    │   ├── workflows/       # Temporal workflow definitions
+    │   └── alembic/         # Database migrations (part of nexus.api package)
+    ├── agents/          # Agent implementations (generic, research, etc.)
+    └── tool_manager/    # Tool provider interfaces and adapters
 
 tests/
 ├── contract/        # Contract tests for API and workflows
@@ -447,7 +447,7 @@ tests/
 - GET /workflows/{id} returns workflow with current active version data
 - WorkflowVersion entities are read-only (managed automatically by system)
 - Version history tracking and basic YAML validation
-- Database migrations with Alembic (setup as subpackage at `/src/nexus_api/alembic/`)
+- Database migrations with Alembic (setup as subpackage at `/src/nexus/api/alembic/`)
 - OpenAPI contract specification and contract tests
 - 80%+ test coverage (unit tests + integration tests), <200ms API response time
 - Alembic migrations must run automatically on `make dev`

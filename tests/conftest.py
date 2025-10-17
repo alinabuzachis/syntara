@@ -26,18 +26,18 @@ from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from nexus_api.auth.dependencies import get_current_user
-from nexus_api.db import get_db
-from nexus_api.main import app
-from nexus_api.models import invocation, user, workflow, workflow_version
-from nexus_api.models.base import Base
-from nexus_api.models.user import User, UserRole
-from nexus_api.models.workflow import Workflow
-from nexus_api.models.workflow_version import WorkflowVersion
-from nexus_api.workflows.activities.script_activity import execute_bash_script
-from nexus_api.workflows.dynamic_workflow import DynamicWorkflow
-from nexus_api.workflows.models.workflow_definition import WorkflowDefinition
-from nexus_api.workflows.yaml_workflow_parser import parse_workflow_yaml
+from nexus.api.auth.dependencies import get_current_user
+from nexus.api.db import get_db
+from nexus.api.main import app
+from nexus.api.models import invocation, user, workflow, workflow_version
+from nexus.api.models.base import Base
+from nexus.api.models.user import User, UserRole
+from nexus.api.models.workflow import Workflow
+from nexus.api.models.workflow_version import WorkflowVersion
+from nexus.api.workflows.activities.script_activity import execute_bash_script
+from nexus.api.workflows.dynamic_workflow import DynamicWorkflow
+from nexus.api.workflows.models.workflow_definition import WorkflowDefinition
+from nexus.api.workflows.yaml_workflow_parser import parse_workflow_yaml
 
 # Ensure models are registered with SQLAlchemy metadata
 _ = (invocation, user, workflow, workflow_version)

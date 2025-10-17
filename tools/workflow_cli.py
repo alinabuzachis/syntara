@@ -36,9 +36,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from nexus_api.services.execution_service import ExecutionService
-from nexus_api.services.models import WorkflowResultResponse
-from nexus_api.services.temporal_worker import TemporalWorkerService
+from nexus.api.services.execution_service import ExecutionService
+from nexus.api.services.models import WorkflowResultResponse
+from nexus.api.services.temporal_worker import TemporalWorkerService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

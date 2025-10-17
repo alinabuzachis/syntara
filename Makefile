@@ -99,7 +99,7 @@ dev: check-deps ## Run development server with auto-reload
 	@echo "📍 API Docs: http://localhost:8000/docs"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	uv run python -m nexus_api.main
+	uv run python -m nexus.api.main
 
 
 # Database

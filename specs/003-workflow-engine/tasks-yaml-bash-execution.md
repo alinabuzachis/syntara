@@ -82,7 +82,7 @@ Implement the foundational workflow execution engine that reads YAML workflow de
 - PyYAML
 - pytest + pytest-asyncio + testcontainers
 
-**Source Directory**: `src/nexus_api/`
+**Source Directory**: `src/nexus/api/`
 
 ## Phase 1: Setup & Dependencies
 
@@ -150,14 +150,14 @@ Implement the foundational workflow execution engine that reads YAML workflow de
 ### YAML Parser Implementation
 
 - [x] **T010 [P]** Create YAML workflow parser module
-  - File: `src/nexus_api/workflows/yaml_workflow_parser.py`
+  - File: `src/nexus/api/workflows/yaml_workflow_parser.py`
   - Implement: `parse_workflow_yaml(yaml_str: str) -> WorkflowDefinition`
   - Parse: metadata, triggers, inputs, workflow.activities
   - Validate: Basic YAML structure (full validation in Phase 4 ticket)
   - Return: Pydantic model representing parsed workflow
 
 - [x] **T011 [P]** Create workflow definition Pydantic models
-  - File: `src/nexus_api/workflows/models/workflow_definition.py`
+  - File: `src/nexus/api/workflows/models/workflow_definition.py`
   - Models: WorkflowDefinition, Activity, TaskDefinition, RetryPolicy, LoopDefinition (forEach/while/count)
   - Support: All activity types (task, parallel, sequence, condition, loop, join)
   - Support: All executor types (script, api, connector, agentic) with bash language
@@ -167,7 +167,7 @@ Implement the foundational workflow execution engine that reads YAML workflow de
 ### Temporal Workflow Implementation
 
 - [x] **T012 [P]** Create bash script activity implementation
-  - File: `src/nexus_api/workflows/activities/script_activity.py`
+  - File: `src/nexus/api/workflows/activities/script_activity.py`
   - Implement: `async def execute_bash_script(script: str, inputs: dict) -> dict`
   - Execute: bash commands using asyncio.create_subprocess_exec with timeout
   - Capture: stdout, stderr, return code
@@ -175,34 +175,34 @@ Implement the foundational workflow execution engine that reads YAML workflow de
   - Error handling: Raise ScriptExecutionError on non-zero exit with full error details
 
 - [x] **T013** Create dynamic Temporal workflow generator
-  - File: `src/nexus_api/workflows/dynamic_workflow.py`
+  - File: `src/nexus/api/workflows/dynamic_workflow.py`
   - Implement: `@workflow.defn class DynamicWorkflow`
   - Generate: Temporal workflow from WorkflowDefinition at runtime
   - Support: All activity types via type-based routing (task, parallel, sequence, condition, loop, join)
   - **Schema-aligned**: Routes to appropriate handler based on activity.type
 
 - [x] **T014** Add parallel activity execution to dynamic workflow
-  - File: `src/nexus_api/workflows/dynamic_workflow.py` (extend T013)
+  - File: `src/nexus/api/workflows/dynamic_workflow.py` (extend T013)
   - Implement: Parallel execution using `asyncio.gather()` for activity.type="parallel"
   - Detect: Parallel branches from YAML activity.branches field
   - Execute: All branches concurrently and aggregate results
 
 - [x] **T015** Add loop support (forEach/while/count) to dynamic workflow
-  - File: `src/nexus_api/workflows/dynamic_workflow.py` (extend T013)
+  - File: `src/nexus/api/workflows/dynamic_workflow.py` (extend T013)
   - Implement: Loop constructs for activity.type="loop" with loop.type in [forEach, while, count]
   - Iterate: Over collections (forEach), conditions (while), or fixed counts (count)
   - Support: Loop variables (itemVariable, indexVariable) accessible in activity inputs
   - Track: Iteration index and item in workflow state
 
 - [x] **T016** Add conditional execution to dynamic workflow
-  - File: `src/nexus_api/workflows/dynamic_workflow.py` (extend T013)
+  - File: `src/nexus/api/workflows/dynamic_workflow.py` (extend T013)
   - Implement: Condition evaluation for activity.type="condition" and activity.condition on tasks
   - Evaluate: Boolean expressions with comparison operators (==, !=, >, <, >=, <=)
   - Execute: then/else branches based on condition result
   - Skip: Activities in non-executed branches
 
 - [x] **T017** Implement input/output parameter mapping
-  - File: `src/nexus_api/workflows/dynamic_workflow.py` (extend T013)
+  - File: `src/nexus/api/workflows/dynamic_workflow.py` (extend T013)
   - Implement: Expression resolution for `${...}` syntax
   - Support: ${input.field}, ${variables.field}, ${activity.field}, nested access
   - Support: Array indexing (e.g., ${activity.output.items.0})
@@ -210,7 +210,7 @@ Implement the foundational workflow execution engine that reads YAML workflow de
   - Store: Activity outputs in workflow_state["activity_outputs"] for later reference
 
 - [x] **T018** Add timeout and retry configuration
-  - File: `src/nexus_api/workflows/dynamic_workflow.py` (extend T013)
+  - File: `src/nexus/api/workflows/dynamic_workflow.py` (extend T013)
   - Implement: ISO 8601 duration parsing (PT5M, PT30S, PT2H) for timeouts
   - Implement: Apply timeout from YAML `timeout` field to activity execution
   - Implement: Build Temporal RetryPolicy from YAML `retryPolicy` with backoff strategies
@@ -220,7 +220,7 @@ Implement the foundational workflow execution engine that reads YAML workflow de
 ### Execution Service Integration
 
 - [x] **T019** Create Temporal worker service
-  - File: `src/nexus_api/services/temporal_worker.py`
+  - File: `src/nexus/api/services/temporal_worker.py`
   - Implement: `TemporalWorkerService` class with start/stop methods
   - Implement: Global `start_worker()` and `stop_worker()` functions for app lifecycle
   - Register: DynamicWorkflow and execute_bash_script activity with worker
@@ -228,21 +228,21 @@ Implement the foundational workflow execution engine that reads YAML workflow de
   - Support: Async context manager for clean lifecycle management
 
 - [x] **T020** Extend execution service for YAML workflow execution
-  - File: `src/nexus_api/services/execution_service.py`
+  - File: `src/nexus/api/services/execution_service.py`
   - Implement: ExecutionService class with start_yaml_workflow, get_workflow_status, get_workflow_result
   - Implement: cancel_workflow and terminate_workflow methods
   - Steps: Parse YAML, start Temporal workflow, return execution info (stub DB for now)
   - Error handling: Validation errors, Temporal connection errors with proper logging
 
 - [x] **T021** Implement ActivityExecution tracking during workflow
-  - File: `src/nexus_api/workflows/activities/execution_tracker.py`
+  - File: `src/nexus/api/workflows/activities/execution_tracker.py`
   - Implement: create_activity_execution, update_activity_execution, get_activity_execution
   - Implement: get_execution_activities, cancel_execution_activities
   - Store: Start time, end time, status, input/output, retry count, iteration
   - **Note**: Using in-memory stub - will connect to database once Phase 3 models available
 
 - [x] **T022** Add workflow cancellation support
-  - File: `src/nexus_api/services/execution_service.py` (T020)
+  - File: `src/nexus/api/services/execution_service.py` (T020)
   - Implement: cancel_workflow() and terminate_workflow() methods
   - Call: Temporal client to cancel/terminate workflow by workflow_id
   - Update: Cancellation status and timestamps
@@ -251,14 +251,14 @@ Implement the foundational workflow execution engine that reads YAML workflow de
 ### Error Handling and State Persistence
 
 - [x] **T023** Implement workflow state persistence
-  - File: `src/nexus_api/workflows/dynamic_workflow.py` (extend T013)
+  - File: `src/nexus/api/workflows/dynamic_workflow.py` (extend T013)
   - Store: Workflow state with status transitions (running → completed/failed/cancelled)
   - Update: State after each activity completion (persistence checkpoints)
   - Track: started_at, updated_at, completed_at timestamps
   - Use: Temporal's built-in state persistence for recovery
 
 - [x] **T024** Add error handling and recovery coordination
-  - File: `src/nexus_api/workflows/dynamic_workflow.py` (extend T013)
+  - File: `src/nexus/api/workflows/dynamic_workflow.py` (extend T013)
   - Capture: All exceptions in try/except blocks with proper error handling
   - Handle: CancelledError separately for clean cancellation
   - Populate: error field in workflow state with exception details
@@ -345,9 +345,9 @@ claude-code "Integration test: Conditional branching in tests/integration/test_y
 ### Launch parallel implementation tasks (T010-T012):
 ```bash
 # These create new independent files
-claude-code "Create YAML workflow parser module in src/nexus_api/workflows/yaml_workflow_parser.py"
-claude-code "Create workflow definition Pydantic models in src/nexus_api/workflows/models/workflow_definition.py"
-claude-code "Create bash script activity implementation in src/nexus_api/workflows/activities/script_activity.py"
+claude-code "Create YAML workflow parser module in src/nexus/api/workflows/yaml_workflow_parser.py"
+claude-code "Create workflow definition Pydantic models in src/nexus/api/workflows/models/workflow_definition.py"
+claude-code "Create bash script activity implementation in src/nexus/api/workflows/activities/script_activity.py"
 ```
 
 ### Launch unit test tasks (T027-T029):
@@ -390,7 +390,7 @@ Before marking this ticket complete:
 ## File Structure After Completion
 
 ```
-src/nexus_api/
+src/nexus/api/
   workflows/
     __init__.py                       # ✅ Created
     yaml_workflow_parser.py           # ✅ T010 - Complete (83 lines)

@@ -23,12 +23,12 @@ This approach mirrors the successful workflow engine implementation pattern, ena
 - Comprehensive metrics collection and rate limiting system
 
 ## Project Infrastructure
-- **Package Namespace**: `nexus_tool_manager`
-- **Source Directory**: `./src/nexus_tool_manager/`
-- **API Routers**: `./src/nexus_api/api/v1`
-- **Services**: `./src/nexus_tool_manager/services/`
-- **Models**: `./src/nexus_tool_manager/models/`
-- **Lib/Shared**: `./src/nexus_tool_manager/lib/`
+- **Package Namespace**: `nexus.tool_manager`
+- **Source Directory**: `./src/nexus/tool_manager/`
+- **API Routers**: `./src/nexus/api/api/v1`
+- **Services**: `./src/nexus/tool_manager/services/`
+- **Models**: `./src/nexus/tool_manager/models/`
+- **Lib/Shared**: `./src/nexus/tool_manager/lib/`
 - **Tests Root**: `./tests/`
 - **Contracts**: `./specs/004-tool-management/contracts/`
 
@@ -61,35 +61,35 @@ Establish the provider-agnostic architecture for tool management. This ticket de
 ### Scope
 
 **Package Setup and Configuration**:
-- Create new package entry in `pyproject.toml` for `nexus_tool_manager`
-  - Add package directory mapping: `nexus_tool_manager = "src/nexus_tool_manager"`
+- Create new package entry in `pyproject.toml` for `src/nexus/tool_manager`
+  - Ensure hatch build includes `src/nexus/tool_manager`
   - Ensure proper Python package structure with `__init__.py` files
   - Include package in build configuration and dependency management
   - Verify package can be imported and installed correctly
 
 **Core Abstractions (Provider-agnostic foundation)**:
-- Define `ToolProviderAdapter` Protocol in `./src/nexus_tool_manager/lib/providers/base.py`
+- Define `ToolProviderAdapter` Protocol in `./src/nexus/tool_manager/lib/providers/base.py`
   - Methods: `validate_connection`, `refresh_tools`, `get_tool_schema`, `test_tool`
   - Clear documentation for each method's contract
   - Type hints for all method signatures
-- Implement provider factory in `./src/nexus_tool_manager/lib/providers/factory.py`
+- Implement provider factory in `./src/nexus/tool_manager/lib/providers/factory.py`
   - Registry pattern for provider type registration
   - Factory method to instantiate providers by type
   - Thread-safe registration
   - Type validation
-- Create domain types in `./src/nexus_tool_manager/lib/tool_core.py`:
+- Create domain types in `./src/nexus/tool_manager/lib/tool_core.py`:
   - Domain models (dataclasses): `Provider`, `Tool`, `ToolParameter`, `ToolExecution`
   - Exceptions: `ProviderError`, `ToolNotFoundError`, `ValidationError`, `ProviderNotFoundError`
   - Repository interfaces (protocols) for data persistence abstraction
   - Cache adapter interfaces for future Redis integration
-- Implement core provider management functions in `./src/nexus_tool_manager/lib/tool_core.py`:
+- Implement core provider management functions in `./src/nexus/tool_manager/lib/tool_core.py`:
   - `register_provider`: Add new provider with validation
   - `list_providers`: Query providers with filters and pagination
   - `get_provider_detail`: Retrieve single provider with configuration
   - `update_provider`: Modify provider settings
   - `delete_provider`: Soft delete provider
   - `validate_provider_connection`: Test provider connectivity
-- Implement core tool management functions in `./src/nexus_tool_manager/lib/tool_core.py`:
+- Implement core tool management functions in `./src/nexus/tool_manager/lib/tool_core.py`:
   - `refresh_tools`: Discover/update tools from provider
   - `list_tools`: Query tools with filters and pagination
   - `get_tool_detail`: Retrieve single tool with schema
@@ -123,8 +123,8 @@ Establish the provider-agnostic architecture for tool management. This ticket de
   - Specify error response formats
 
 ### Acceptance Criteria
-- ✅ New package `nexus_tool_manager` properly configured in pyproject.toml
-- ✅ Package directory mapping: `nexus_tool_manager = "src/nexus_tool_manager"` added
+- ✅ New package `nexus.tool_manager` properly configured in pyproject.toml
+- ✅ Hatch build includes `src/nexus/tool_manager`
 - ✅ All necessary `__init__.py` files created for proper Python package structure
 - ✅ Package can be imported and installed correctly (validated with basic import test)
 - ✅ `ToolProviderAdapter` Protocol exists with all 4 required methods documented
@@ -171,13 +171,13 @@ Implement complete Tool Provider management including database persistence, serv
 
 ### Scope
 
-**Database Models** (`./src/nexus_tool_manager/models/`):
-- Create `ToolProvider` model in `./src/nexus_tool_manager/models/tool_provider.py`
+**Database Models** (`./src/nexus/tool_manager/models/`):
+- Create `ToolProvider` model in `./src/nexus/tool_manager/models/tool_provider.py`
   - Fields: id (UUID), name, description, provider_type, configuration (JSONB), enabled, status (enum: available/error/validating)
   - Audit fields: created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
   - Validation: unique name, provider_type must be valid
   - Indexes: (name), (provider_type), (status), (created_at, id) for pagination
-- Create `Tool` model in `./src/nexus_tool_manager/models/tool.py`
+- Create `Tool` model in `./src/nexus/tool_manager/models/tool.py`
   - Fields: id (UUID), provider_id (FK), name, namespaced_name, description, input_schema (JSONB), enabled
   - Audit fields: created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
   - Validation: unique namespaced_name, FK to ToolProvider with CASCADE
@@ -185,7 +185,7 @@ Implement complete Tool Provider management including database persistence, serv
 - Create alembic migrations for both models
 
 **Service Layer**:
-- Implement `ToolProviderService` in `./src/nexus_tool_manager/services/tool_provider_service.py`
+- Implement `ToolProviderService` in `./src/nexus/tool_manager/services/tool_provider_service.py`
   - Wrap tool_core provider functions with DB persistence
   - Handle provider registration with validation
   - Support provider updates (full and partial via JSON Merge Patch)
@@ -196,7 +196,7 @@ Implement complete Tool Provider management including database persistence, serv
   - Support keyset pagination (id[gt]/id[lt] cursors)
   - Transaction management for multi-step operations
 
-**REST API - Tool Providers Router** (`./src/nexus_tool_manager/api/tool_providers.py`):
+**REST API - Tool Providers Router** (`./src/nexus/tool_manager/api/tool_providers.py`):
 - GET /api/v1/tool-providers - List all registered Tool Providers
   - Query params: limit, cursor, include_total, field[operator] filters (status[eq], name[contains], etc.)
   - Response: 200 OK with providers array, pagination metadata
@@ -232,14 +232,14 @@ Implement complete Tool Provider management including database persistence, serv
   - Connects to provider, fetches tools, upserts to database
   - Error: 400 if refresh fails
 
-**Request/Response Models** (`./src/nexus_tool_manager/api/models/tool_provider_models.py`):
+**Request/Response Models** (`./src/nexus/tool_manager/api/models/tool_provider_models.py`):
 - `ToolProviderCreate`, `ToolProviderUpdate`, `ToolProviderPatch`
 - `ToolProviderResponse`, `ToolProviderListResponse`
 - `ValidationResultResponse`, `RefreshResultResponse`
 - All models use Pydantic v2 with validation
 
 **Infrastructure Setup**:
-- Configure FastAPI application in `./src/nexus_tool_manager/api/app.py`
+- Configure FastAPI application in `./src/nexus/tool_manager/api/app.py`
   - Mount tool_providers router at /api/v1
   - Configure CORS, middleware, exception handlers
   - Setup OpenAPI documentation
@@ -313,7 +313,7 @@ Implement complete tool management and testing functionality including service l
 
 ### Scope
 
-**Core Functions Extension** (`./src/nexus_tool_manager/lib/tool_core.py`):
+**Core Functions Extension** (`./src/nexus/tool_manager/lib/tool_core.py`):
 - `list_tools`: Query tools with filters and pagination
 - `get_tool_detail`: Retrieve single tool with full schema
 - `update_tool_enabled`: Enable/disable tool
@@ -321,14 +321,14 @@ Implement complete tool management and testing functionality including service l
 - `test_tool`: Test tool functionality and validate server communication
 
 **Service Layer**:
-- Implement `ToolService` in `./src/nexus_tool_manager/services/tool_service.py`
+- Implement `ToolService` in `./src/nexus/tool_manager/services/tool_service.py`
   - Wrap tool_core tool functions
   - Handle tool enablement logic
   - Support bulk update operations with transaction management
   - Apply basic filters to list queries
   - Handle tool testing with proper error mapping
 
-**REST API - Tools Router** (`./src/nexus_tool_manager/api/tools.py`):
+**REST API - Tools Router** (`./src/nexus/tool_manager/api/tools.py`):
 - GET /api/v1/tools - List all tools with basic filters
   - Query params: limit, id[gt]/id[lt] (cursor), name[contains], enabled[eq], provider_id[eq], namespaced_name[eq]
   - Response: 200 OK with tools array, next_cursor, has_more
@@ -347,7 +347,7 @@ Implement complete tool management and testing functionality including service l
   - Response: 200 OK with test result (success/failure, duration, status, message)
   - Error: 404 if tool not found, 503 if tool server unavailable
 
-**Request/Response Models** (`./src/nexus_tool_manager/api/models/tool_models.py`):
+**Request/Response Models** (`./src/nexus/tool_manager/api/models/tool_models.py`):
 - `ToolResponse`, `ToolListResponse`
 - `ToolUpdateRequest`, `BulkUpdateRequest`
 - `ToolTestRequest`, `ToolTestResponse`
@@ -402,7 +402,7 @@ Add SSE (Server-Sent Events) transport support to the MCP provider and implement
 ### Scope
 
 **SSE Transport Implementation**:
-- Implement SSE transport in `./src/nexus_tool_manager/lib/providers/mcp/sse_transport.py`:
+- Implement SSE transport in `./src/nexus/tool_manager/lib/providers/mcp/sse_transport.py`:
   - Server-sent events via HTTP streaming
   - Long-lived connection management
   - Event stream parsing
@@ -472,7 +472,7 @@ Add Streaming HTTP transport support to the MCP provider and implement comprehen
 ### Scope
 
 **Streaming HTTP Transport Implementation**:
-- Implement Streaming HTTP transport in `./src/nexus_tool_manager/lib/providers/mcp/streaming_http_transport.py`:
+- Implement Streaming HTTP transport in `./src/nexus/tool_manager/lib/providers/mcp/streaming_http_transport.py`:
   - HTTP chunked transfer encoding with streaming responses
   - Persistent connection management with keep-alive
   - Streaming request/response handling
@@ -553,23 +553,23 @@ Implement comprehensive usage tracking and analytics including database models f
 ### Scope
 
 **Database Models**:
-- Create `ToolMetric` model in `./src/nexus_tool_manager/models/tool_metric.py`
+- Create `ToolMetric` model in `./src/nexus/tool_manager/models/tool_metric.py`
   - Fields: id, tool_id (FK), provider_id (FK), user_id (FK), execution timestamps, duration_ms, status, input/output JSON
   - Audit fields and timestamps
   - Composite indexes: (created_at, id), (tool_id, created_at, id), (user_id, created_at, id)
-- Create `UsageCounter` model in `./src/nexus_tool_manager/models/usage_counter.py`
+- Create `UsageCounter` model in `./src/nexus/tool_manager/models/usage_counter.py`
   - Fields: id, counter_type, provider_id (FK), tool_id (FK), user_id (FK), time_window, counters
   - Audit fields and timestamps
   - Indexes for efficient counter queries
 - Create alembic migrations for these 2 metrics models
 
-**Core Functions** (`./src/nexus_tool_manager/lib/tool_core.py`):
+**Core Functions** (`./src/nexus/tool_manager/lib/tool_core.py`):
 - `record_tool_execution`: Record individual tool execution with metrics
 - `get_tool_metrics_summary`: Aggregate usage statistics by provider/tool/user
 - `list_executions`: Query execution history with filtering
 
 **Service Layer**:
-- Implement `MetricsService` in `./src/nexus_tool_manager/services/metrics_service.py`
+- Implement `MetricsService` in `./src/nexus/tool_manager/services/metrics_service.py`
   - Wrap tool_core metrics functions
   - Handle metrics aggregation queries with time-based filtering
   - Apply basic filters for execution logs
@@ -577,7 +577,7 @@ Implement comprehensive usage tracking and analytics including database models f
   - Calculate aggregated statistics (count, avg duration, success rate, etc.)
 - Update ToolService to record metrics on tool testing
 
-**REST API - Metrics Router** (`./src/nexus_tool_manager/api/metrics.py`):
+**REST API - Metrics Router** (`./src/nexus/tool_manager/api/metrics.py`):
 - GET /api/v1/metrics/summary - Get aggregated usage metrics
   - Query params: time_window (hour/day/week/month), provider_id, tool_id, user_id
   - Response: 200 OK with aggregated counts and statistics
@@ -588,7 +588,7 @@ Implement comprehensive usage tracking and analytics including database models f
   - Response: 200 OK with executions array, next_cursor, has_more
   - Includes: tool info, duration, status, timestamps, input/output summaries
 
-**Request/Response Models** (`./src/nexus_tool_manager/api/models/metrics_models.py`):
+**Request/Response Models** (`./src/nexus/tool_manager/api/models/metrics_models.py`):
 - `MetricsSummaryResponse`, `MetricsSummaryItem`
 - `ExecutionResponse`, `ExecutionListResponse`
 - All models use Pydantic v2 with validation
@@ -650,14 +650,14 @@ Implement comprehensive rate limiting system including database models for rate 
 ### Scope
 
 **Database Model**:
-- Create `RateLimitConfig` model in `./src/nexus_tool_manager/models/rate_limit_config.py`
+- Create `RateLimitConfig` model in `./src/nexus/tool_manager/models/rate_limit_config.py`
   - Fields: id, target_type (enum: provider/tool/user), target_id (UUID), requests_per_window, window_duration_seconds, burst_allowance, enabled
   - Audit fields: created_by, updated_by, deleted_by, timestamps
   - Indexes for efficient queries by target_type and target_id
   - Validation: requests_per_window > 0, window_duration_seconds > 0, burst_allowance >= 0
 - Create alembic migration for rate limit model
 
-**Core Functions** (`./src/nexus_tool_manager/lib/tool_core.py`):
+**Core Functions** (`./src/nexus/tool_manager/lib/tool_core.py`):
 - `create_rate_limit`: Create rate limit configuration
 - `update_rate_limit`: Update rate limit settings
 - `delete_rate_limit`: Remove rate limit configuration (soft delete)
@@ -667,7 +667,7 @@ Implement comprehensive rate limiting system including database models for rate 
 - `get_rate_limit_status`: Query current usage without incrementing
 
 **Service Layer**:
-- Implement `RateLimitService` in `./src/nexus_tool_manager/services/rate_limit_service.py`
+- Implement `RateLimitService` in `./src/nexus/tool_manager/services/rate_limit_service.py`
   - Wrap tool_core rate limit functions with DB persistence
   - Handle Redis counter operations with sliding window algorithm
   - Use Redis sorted sets to track requests within time window
@@ -678,7 +678,7 @@ Implement comprehensive rate limiting system including database models for rate 
   - Check applicable rate limits (provider-level, tool-level, user-level)
   - Return 429 with Retry-After header when rate limit exceeded
 
-**REST API - Rate Limits Router** (`./src/nexus_tool_manager/api/rate_limits.py`):
+**REST API - Rate Limits Router** (`./src/nexus/tool_manager/api/rate_limits.py`):
 - GET /api/v1/rate-limits - List rate limit configurations
   - Query params: limit, id[gt]/id[lt] (cursor), target_type[eq], enabled[eq]
   - Response: 200 OK with rate limits array, next_cursor, has_more
@@ -697,7 +697,7 @@ Implement comprehensive rate limiting system including database models for rate 
   - Response: 204 No Content
   - Soft delete: sets deleted_by and deleted_at
 
-**Request/Response Models** (`./src/nexus_tool_manager/api/models/rate_limit_models.py`):
+**Request/Response Models** (`./src/nexus/tool_manager/api/models/rate_limit_models.py`):
 - `RateLimitCreateRequest`, `RateLimitUpdateRequest`
 - `RateLimitResponse`, `RateLimitListResponse`
 - `RateLimitStatusResponse` (includes current usage)
@@ -769,7 +769,7 @@ Implement advanced filtering and pagination utilities and integrate them across 
 
 ### Scope
 
-**Filtering Utility** (`./src/nexus_tool_manager/lib/filters.py`):
+**Filtering Utility** (`./src/nexus/tool_manager/lib/filters.py`):
 - Implement bracket filter parser
   - Support 8 operators: eq, ne, contains, gt, gte, lt, lte, in
   - Parse filter syntax: `field[operator]=value`
@@ -778,7 +778,7 @@ Implement advanced filtering and pagination utilities and integrate them across 
   - Validate operator compatibility with field types
   - Support multiple filters combined (AND logic)
 
-**Pagination Utility** (`./src/nexus_tool_manager/lib/pagination.py`):
+**Pagination Utility** (`./src/nexus/tool_manager/lib/pagination.py`):
 - Implement advanced keyset pagination helper
   - Support `id[gt]`/`id[lt]` cursors with `limit` parameter
   - Generate SQLAlchemy order_by and filter clauses

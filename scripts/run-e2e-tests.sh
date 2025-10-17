@@ -60,5 +60,5 @@ echo ""
 # Run all E2E tests recursively
 # - tests/e2e/generic_agent/ contains HTTP protocol and A2A client tests
 # - Additional agent test suites can be added under tests/e2e/
-# Use --confcutdir to prevent loading parent conftest.py which requires nexus_api
+# Use --confcutdir to prevent loading parent conftest.py which requires nexus.api
 PYTHONPATH=src uv run pytest tests/e2e/ -v -s --confcutdir=tests/e2e "$@"

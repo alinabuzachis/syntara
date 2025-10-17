@@ -8,8 +8,8 @@ This document breaks down the Workflow Engine implementation plan into self-cont
 ## Project Infrastructure
 
 **Package Namespace**: `nexus` (Python 3.12+)
-**Source Directory**: `src/nexus_api/` (configured in `pyproject.toml` with hatchling)
-**Database Migrations**: All alembic migration code must be located at `src/nexus_api/alembic/` as a subpackage of `nexus_api`
+**Source Directory**: `src/nexus/api/` (configured in `pyproject.toml` with hatchling)
+**Database Migrations**: All alembic migration code must be located at `src/nexus/api/alembic/` as a subpackage of `nexus.api`
 
 **Existing Tooling** (already configured, use via Makefile):
 - **Package Manager**: `uv` for fast dependency management and virtual environments
@@ -38,7 +38,7 @@ This document breaks down the Workflow Engine implementation plan into self-cont
 ### Description
 Implement complete workflow management functionality including database models, REST API endpoints, and basic YAML validation for workflows and versions.
 
-**Note**: This project uses the `nexus` package namespace with source code in `src/nexus_api/`. Leverage existing tooling:
+**Note**: This project uses the `nexus` package namespace with source code in `src/nexus/api/`. Leverage existing tooling:
 - **Package Manager**: `uv` for dependency management
 - **Formatting/Linting**: `make format` and `make lint` (Ruff configured)
 - **Type Checking**: `make typecheck` (MyPy with strict mode)
@@ -51,7 +51,7 @@ Implement complete workflow management functionality including database models, 
 - User, Workflow, and WorkflowVersion models
 - PostgreSQL database schema with SQLAlchemy 2.0
 - Soft delete implementation (deleted_at, deleted_by fields)
-- Database migrations using Alembic (setup at `src/nexus_api/alembic/` as a subpackage of `nexus_api`)
+- Database migrations using Alembic (setup at `src/nexus/api/alembic/` as a subpackage of `nexus.api`)
 - Soft delete query middleware/interceptor
 - Unit tests for all models
 

@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus_api.models.invocation import Invocation
+from nexus.api.models.invocation import Invocation
 
 
 @pytest.mark.asyncio

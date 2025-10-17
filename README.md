@@ -97,14 +97,15 @@ export DATABASE_URL="postgresql+asyncpg://user:pass@host:port/dbname"
 
 ```
 src/
-└── api/          # Module example
-    ├── __init__.py
-    └── main.py
+└── nexus/
+    ├── api/             # FastAPI service, Temporal workflows, database models
+    ├── agents/          # Agent implementations (generic, research prototypes, etc.)
+    └── tool_manager/    # Tool provider interfaces, adapters, core domain logic
 
 tests/
-└── api/          # API tests
-    ├── __init__.py
-    └── test_api.py
+├── integration/
+├── unit/
+└── e2e/
 ```
 
 ### Running Tests
@@ -228,7 +229,7 @@ podman-compose up -d postgres
 sleep 10
 
 # 3. Start an agent (example: generic-agent)
-AGENT_NAME=generic-agent AGENT_PORT=8001 python -m src.nexus_agents
+AGENT_NAME=generic-agent AGENT_PORT=8001 python -m src.nexus.agents
 
 # In another terminal, test the agent:
 curl http://localhost:8001/.well-known/agent-card.json | jq
@@ -241,7 +242,7 @@ Send a message and get a response:
 ```bash
 # Start react agent
 export OPENROUTER_API_KEY="sk-or-v1-..."
-AGENT_NAME=generic-agent AGENT_PORT=8001 python -m src.nexus_agents
+AGENT_NAME=generic-agent AGENT_PORT=8001 python -m src.nexus.agents
 
 # Send message
 curl -X POST http://localhost:8001/ \

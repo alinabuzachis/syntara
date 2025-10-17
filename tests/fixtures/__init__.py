@@ -1,4 +1,4 @@
-"""Test fixtures for nexus_tool_manager."""
+"""Test fixtures for nexus.tool_manager."""
 
 from tests.fixtures.mock_cache_adapter import MockCacheAdapter
 from tests.fixtures.mock_execution_repository import MockExecutionRepository

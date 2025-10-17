@@ -15,9 +15,9 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus_api.models.user import User
-from nexus_api.models.workflow import Workflow
-from nexus_api.models.workflow_version import WorkflowVersion
+from nexus.api.models.user import User
+from nexus.api.models.workflow import Workflow
+from nexus.api.models.workflow_version import WorkflowVersion
 from tests.helpers.workflow_fixtures import create_minimal_workflow_definition
 
 
