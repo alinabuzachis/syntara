@@ -3,25 +3,19 @@ import '@xyflow/react/dist/style.css'
 import type { WorkflowAPI } from 'nexus-contracts'
 import { DirectionNodeComponent } from './DirectionNodeComponent'
 
-export type TaskActivity = WorkflowAPI.components['schemas']['taskActivity']
-export type TaskNode = { type: 'task' } & Node<TaskActivity>
+export type ConditionActivity = WorkflowAPI.components['schemas']['conditionActivity']
+export type ConditionNode = { type: 'condition' } & Node<ConditionActivity>
 
-export function TaskNodeComponent(props: NodeProps<TaskNode>) {
+export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
   return (
     <DirectionNodeComponent>
       <div>
         <label className="text-lg font-bold">{props.data.name}</label>
-        <div className="text-xs text-white/60">Task</div>
+        <div className="text-xs text-white/60">Condition</div>
       </div>
       <dl className="details">
-        <dt>Executor</dt>
-        <dd>{props.data.task.executor}</dd>
-        {'condition' in props.data && typeof props.data.condition === 'string' && (
-          <>
-            <dt>Condition</dt>
-            <dd>{props.data.condition}</dd>
-          </>
-        )}
+        <dt>Condition</dt>
+        <dd>{props.data.condition}</dd>
         {/* <dt className="font-mono text-xs text-white/50">JSON</dt>
         <dd className="font-mono text-sm">
           <pre>{JSON.stringify(props.data, undefined, 2)}</pre>

@@ -8,69 +8,6 @@ import { ChatInput } from '../../components/chat/ChatInput'
 import { FlowDirectionContext } from './FlowDirectionContext'
 import { nodeTypes, type NodeType } from './nodes/NodeType'
 
-const initialNodes: NodeType[] = [
-  {
-    id: 'trigger',
-    type: 'trigger',
-    position: { x: 0, y: 0 },
-    data: {
-      label: 'EDA Event',
-      description: 'Trigger event show need to create VM.',
-      integrations: ['Ansible Automation Platform'],
-    },
-  },
-  {
-    id: 'trigger-2',
-    type: 'trigger',
-    position: { x: 0, y: 0 },
-    data: {
-      label: 'Webhook',
-      description: 'Trigger event from webhook.',
-      integrations: ['GitHub', 'GitLab'],
-    },
-  },
-  {
-    id: 'agent',
-    type: 'agent',
-    position: { x: 0, y: 0 },
-    data: {
-      label: 'Analysis Agent',
-      description: 'Analyze region expenses, resource availability, and organizational policies.',
-      steps: [
-        {
-          label: 'Analyze region expenses',
-          description: 'Check the cost of resources in different regions.',
-          status: 'completed',
-        },
-        {
-          label: 'Check resource availability',
-          description: 'Ensure resources are available in the selected region.',
-          status: 'in-progress',
-        },
-        {
-          label: 'Review organizational policies',
-          description: 'Make sure the deployment complies with company policies.',
-          status: 'pending',
-        },
-      ],
-      model: 'Claude Opus 4',
-    },
-  },
-  {
-    id: 'result',
-    type: 'result',
-    position: { x: 0, y: 0 },
-    data: {
-      label: 'Playbook Run',
-      description: 'Create VM playbook.',
-      integrations: ['Ansible Automation Platform'],
-    },
-  },
-]
-// initialNodes.forEach((node, index) => {
-//   node.position = { x: index * 350 + 32, y: index * 0 + 32 };
-// });
-
 type EdgeType = {
   id: string
   source: string
@@ -78,11 +15,6 @@ type EdgeType = {
   sourceHandle?: string
   targetHandle?: string
 }
-const initialEdges: EdgeType[] = [
-  { id: 'trigger-agent', source: 'trigger', target: 'agent' },
-  { id: 'trigger2-agent', source: 'trigger-2', target: 'agent' },
-  { id: 'agent-result', source: 'agent', target: 'result' },
-]
 
 const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { direction: 'TB' | 'LR' }) => {
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}))
@@ -123,6 +55,9 @@ export function AutomationFlow(props: { workflow: WorkflowWithVersion }) {
   const { nodes, edges } = useMemo(() => {
     const nodes: NodeType[] = []
     const edges: EdgeType[] = []
+    let previousIds: string[] = []
+
+    // TRIGGERS
     for (const trigger of props.workflow.version?.workflow_definition?.triggers ?? []) {
       switch (trigger.type) {
         case 'manual':
@@ -130,47 +65,74 @@ export function AutomationFlow(props: { workflow: WorkflowWithVersion }) {
             id: 'manual',
             type: 'trigger',
             position: { x: 0, y: 0 },
-            data: {
-              label: 'Manual',
-            },
+            data: { label: 'Manual' },
           })
           break
       }
+      previousIds.push('manual')
     }
-    let previousId = ''
+
+    // ACTIVITIES
     for (const activity of props.workflow.version?.workflow_definition?.workflow.activities ?? []) {
       switch (activity.type) {
+        case 'task':
+          nodes.push({
+            id: activity.id,
+            type: 'task',
+            position: { x: 0, y: 0 },
+            data: activity,
+          })
+          for (const id of previousIds) {
+            edges.push({ id: `${id}-${activity.id}`, source: id, target: activity.id })
+          }
+          // previousIds.push(activity.id)
+          break
+        case 'condition':
+          nodes.push({
+            id: activity.id,
+            type: 'condition',
+            position: { x: 0, y: 0 },
+            data: activity,
+          })
+          for (const id of previousIds) {
+            edges.push({ id: `${id}-${activity.id}`, source: id, target: activity.id })
+          }
+          previousIds = [activity.id]
+          for (const then of activity.then) {
+            // let branchPreviousIds = [...previousIds]
+            switch (then.type) {
+              case 'task':
+                nodes.push({ id: then.id, type: 'task', position: { x: 0, y: 0 }, data: then })
+                for (const id of previousIds) {
+                  edges.push({ id: `${id}-${then.id}`, source: id, target: then.id })
+                }
+                // branchPreviousIds = [then.id]
+                break
+            }
+          }
+          break
+        case 'parallel':
+        case 'join':
+        case 'loop':
+          break
+
         case 'sequence':
           for (const step of activity.steps ?? []) {
             switch (step.type) {
               case 'task':
-                nodes.push({
-                  id: step.id,
-                  type: 'task',
-                  position: { x: 0, y: 0 },
-                  data: step,
-                })
-                if (!previousId) {
-                  edges.push({
-                    id: `trigger-${step.id}`,
-                    source: 'manual',
-                    target: step.id,
-                  })
-                } else {
-                  edges.push({
-                    id: `${previousId}-${step.id}`,
-                    source: previousId,
-                    target: step.id,
-                  })
+                nodes.push({ id: step.id, type: 'task', position: { x: 0, y: 0 }, data: step })
+                for (const id of previousIds) {
+                  edges.push({ id: `${id}-${activity.id}`, source: id, target: step.id })
                 }
-                previousId = step.id
+                previousIds = [step.id]
                 break
             }
           }
-
           break
       }
     }
+    console.log('nodes', nodes)
+    console.log('edges', edges)
     return { nodes, edges }
   }, [props.workflow.version?.workflow_definition])
 
@@ -229,20 +191,9 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
       nodeTypes={nodeTypes}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
-      // onConnect={onConnect}
       proOptions={{ hideAttribution: true }}
       fitView
     >
-      {/* <Controls /> */}
-      {/* <Panel position="bottom-center">
-          <div className="bg-white/5 rounded-full px-8 py-4 flex gap-8 border border-white/10 mb-4">
-            <div>Add node</div>
-            <div>Add notation</div>
-            <div>Save</div>
-            <div>Run</div>
-            <div>Test</div>
-          </div>
-        </Panel> */}
       <Panel
         position="bottom-left"
         className="flex gap-4 rounded-4xl border border-white/10 bg-black/80 bg-linear-0 from-violet-500/20 to-violet-400/20 p-4 shadow-lg shadow-black/50"
