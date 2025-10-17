@@ -1,0 +1,41 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: timeout-workflow
+  description: Workflow with workflow-level timeout that should enforce time limit
+  timeout: PT5S
+  owner: platform-team
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: quick_task
+    name: Quick Task
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Starting quick task"
+          sleep 1
+          echo "Quick task completed"
+      outputs:
+        result: $.stdout
+
+  - id: slow_task
+    name: Slow Task
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Starting slow task"
+          sleep 10
+          echo "This should not complete due to workflow timeout"
+      outputs:
+        result: $.stdout

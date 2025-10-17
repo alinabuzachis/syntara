@@ -1,160 +1,79 @@
-import type { WorkflowWithVersion } from '../client'
+import { WorkflowWithVersion } from 'nexus-contracts'
+import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
+import { convertYamlToWorkflow } from '../utils/convertYamlToWorkflow'
 
-export const workflows: WorkflowWithVersion[] = [
-  {
-    id: '1',
-    name: 'Sample Workflow 1',
-    description: 'This is a sample workflow for demonstration purposes.',
-    created_at: '2023-10-01T12:00:00Z',
-    updated_at: '2023-10-05T12:00:00Z',
-    created_by: 'admin',
-    version: {
-      workflow_definition: {
-        schemaVersion: '1.0.0',
-        version: 1,
-        metadata: {
-          name: 'simple-data-processing',
-          description: 'A simple workflow that processes data sequentially',
-          tags: ['data-processing', 'example'],
-          owner: 'data-team',
-          timeout: 'PT1H',
-        },
-        triggers: [
-          {
-            type: 'manual',
-          },
-        ],
-        inputs: {
-          dataSource: {
-            type: 'string',
-            description: 'Source of data to process',
-            required: true,
-          },
-          batchSize: {
-            type: 'integer',
-            description: 'Number of records to process',
-            default: 100,
-            minimum: 1,
-            maximum: 10000,
-          },
-        },
-        workflow: {
-          activities: [
-            {
-              id: 'main_sequence',
-              name: 'Data Processing Pipeline',
-              type: 'sequence',
-              steps: [
-                {
-                  id: 'fetch_data',
-                  name: 'Fetch Data from Source',
-                  type: 'task',
-                  task: {
-                    executor: 'api',
-                    config: {
-                      method: 'GET',
-                      url: 'https://api.example.com/data',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      authentication: {
-                        type: 'bearer',
-                        credentials: '${secrets.api_token}',
-                      },
-                    },
-                    inputs: {
-                      source: '${input.dataSource}',
-                      limit: '${input.batchSize}',
-                    },
-                    outputs: {
-                      records: '$.data.records',
-                      count: '$.data.count',
-                    },
-                  },
-                  timeout: 'PT5M',
-                  retryPolicy: {
-                    maxAttempts: 3,
-                    backoff: 'exponential',
-                    initialInterval: 'PT5S',
-                    retryableErrors: ['NETWORK_ERROR', 'TIMEOUT'],
-                  },
-                },
-                {
-                  id: 'validate_data',
-                  name: 'Validate Data Quality',
-                  type: 'task',
-                  task: {
-                    executor: 'script',
-                    config: {
-                      language: 'python',
-                      code: "import json\nrecords = json.loads(input_data)\nvalid_records = [r for r in records if r.get('id') and r.get('value')]\noutput = {\n  'valid_count': len(valid_records),\n  'invalid_count': len(records) - len(valid_records),\n  'valid_records': valid_records\n}\nprint(json.dumps(output))\n",
-                    },
-                    inputs: {
-                      input_data: '${fetch_data.output.records}',
-                    },
-                    outputs: {
-                      validRecords: '$.valid_records',
-                      validCount: '$.valid_count',
-                    },
-                  },
-                  timeout: 'PT10M',
-                },
-                {
-                  id: 'process_records',
-                  name: 'Process Valid Records',
-                  type: 'task',
-                  task: {
-                    executor: 'connector',
-                    config: {
-                      connectorId: 'data-processor',
-                      operation: 'transform',
-                      parameters: {
-                        records: '${validate_data.output.validRecords}',
-                        transformationType: 'standardize',
-                      },
-                    },
-                    outputs: {
-                      processedData: '$.result',
-                    },
-                  },
-                  timeout: 'PT15M',
-                  retryPolicy: {
-                    maxAttempts: 2,
-                    backoff: 'fixed',
-                    initialInterval: 'PT30S',
-                  },
-                },
-                {
-                  id: 'generate_report',
-                  name: 'Generate Processing Report',
-                  type: 'task',
-                  task: {
-                    executor: 'api',
-                    config: {
-                      method: 'POST',
-                      url: 'https://reporting.example.com/reports',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: {
-                        data: '${process_records.output.processedData}',
-                        metadata: {
-                          workflow: '${metadata.name}',
-                          timestamp: '${workflow.startTime}',
-                        },
-                      },
-                    },
-                    outputs: {
-                      reportUrl: '$.report_url',
-                    },
-                  },
-                  timeout: 'PT5M',
-                },
-              ],
-            },
-          ],
-        },
-      },
-    },
-  },
+// Get the directory of this module
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const examplesDir = join(__dirname, '../examples')
+
+// Import all YAML workflow files
+const yamlFiles = [
+  'basic/conditional-demo.yaml',
+  'basic/hello-world.yaml',
+  'basic/loop-demo.yaml',
+  'basic/parallel-demo.yaml',
+  'basic/retry-demo.yaml',
+  'condition/basic-condition-then-else.yaml',
+  'condition/condition-no-else-branch.yaml',
+  'condition/condition-with-multiple-branches.yaml',
+  'conditionals/nested-conditions.yaml',
+  'conditionals/positive-negative-zero.yaml',
+  'edge_cases/condition_comparisons.yaml',
+  'edge_cases/error_condition_no_condition.yaml',
+  'edge_cases/error_condition_no_then.yaml',
+  'edge_cases/error_foreach_not_list.yaml',
+  'edge_cases/error_invalid_duration.yaml',
+  'edge_cases/error_loop_no_definition.yaml',
+  'edge_cases/error_missing_task_definition.yaml',
+  'edge_cases/error_parallel_no_branches.yaml',
+  'edge_cases/error_sequence_no_steps.yaml',
+  'edge_cases/error_unsupported_duration.yaml',
+  'edge_cases/error_unsupported_executor.yaml',
+  'edge_cases/error_unsupported_language.yaml',
+  'edge_cases/expression_resolution.yaml',
+  'edge_cases/output_mapping_json.yaml',
+  'edge_cases/retry_policy.yaml',
+  'edge_cases/script_failure.yaml',
+  'error-handling/error-propagation.yaml',
+  'error-handling/failing-task.yaml',
+  'error-handling/transient-errors.yaml',
+  'join/join-aggregate-outputs.yaml',
+  'join/join-all-strategy.yaml',
+  'join/join-any-strategy.yaml',
+  'join/join-count-strategy.yaml',
+  'join/join-majority-strategy.yaml',
+  'join/join-missing-branch.yaml',
+  'join/join-nested-parallel.yaml',
+  'join/join-sequential.yaml',
+  'join/join-timeout-continue.yaml',
+  'join/join-timeout-fail.yaml',
+  'join/join-with-post-join-activities.yaml',
+  'loops/count-loop-basic.yaml',
+  'loops/count-loop-with-index.yaml',
+  'loops/foreach-items.yaml',
+  'loops/while-loop-basic.yaml',
+  'loops/while-loop-with-max-iterations.yaml',
+  'metadata/workflow-with-all-metadata.yaml',
+  'metadata/workflow-with-tags.yaml',
+  'metadata/workflow-with-timeout.yaml',
+  'parallel/parallel-tasks.yaml',
+  'parameters/activity-chaining.yaml',
+  'parameters/input-expressions.yaml',
+  'retry/linear-backoff-retry.yaml',
+  'sequence/basic-sequence.yaml',
+  'sequence/nested-sequence.yaml',
+  'sequence/sequence-with-data-passing.yaml',
+  'timeout-retry/activity-timeout.yaml',
+  'timeout-retry/retry-policy.yaml',
+  'timeout-retry/timeout-with-retry.yaml',
 ]
+
+// Convert all YAML files to WorkflowWithVersion objects
+export const workflows: WorkflowWithVersion[] = yamlFiles
+  .map((file, index) => {
+    const filePath = join(examplesDir, file)
+    return convertYamlToWorkflow(filePath, (index + 1).toString(), 'system')
+  })
+  .sort((a, b) => a.name.localeCompare(b.name))

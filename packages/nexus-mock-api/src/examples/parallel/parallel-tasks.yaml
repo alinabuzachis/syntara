@@ -1,0 +1,44 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: parallel-execution-test
+  description: Test parallel bash execution
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: task_1
+    name: Task 1
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          sleep 1
+          echo "Task 1 complete"
+
+  - id: task_2
+    name: Task 2
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          sleep 1
+          echo "Task 2 complete"
+
+  - id: task_3
+    name: Task 3
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          sleep 1
+          echo "Task 3 complete"

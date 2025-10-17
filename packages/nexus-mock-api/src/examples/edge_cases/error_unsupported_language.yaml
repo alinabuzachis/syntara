@@ -1,0 +1,21 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: error-unsupported-language
+  description: Test error when task uses unsupported script language
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: python_task
+    name: Task With Unsupported Language
+    type: task
+    task:
+      executor: script
+      config:
+        language: python
+        code: |
+          print("This should fail")

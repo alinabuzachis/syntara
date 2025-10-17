@@ -1,0 +1,24 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: error-condition-no-condition
+  description: Test error when condition activity has no condition field
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: invalid_condition
+    name: Condition Without Condition Field
+    type: condition
+      # Missing 'condition' field - should raise ValueError
+    then:
+    - id: then_task
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Then branch"

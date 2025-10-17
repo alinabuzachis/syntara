@@ -1,0 +1,17 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: error-condition-no-then
+  description: Test error when condition activity has no then branch
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: invalid_condition
+    name: Condition Without Then Branch
+    type: condition
+    condition: 'true'
+      # Missing 'then' field - should raise ValueError

@@ -1,0 +1,42 @@
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: join-aggregate-test
+  description: Test join with output aggregation from multiple branches
+triggers:
+- type: manual
+workflow:
+  activities:
+  - id: parallel_aggregate
+    type: parallel
+    branches:
+    - id: data_task1
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: "echo '{\"value\": 10}'"
+    - id: data_task2
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: "echo '{\"value\": 20}'"
+    - id: data_task3
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: "echo '{\"value\": 30}'"
+  - id: join_aggregate
+    type: join
+    join:
+      branches:
+      - data_task1
+      - data_task2
+      - data_task3
+      strategy: all
+      aggregateOutputs: true

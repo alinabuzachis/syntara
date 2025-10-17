@@ -1,0 +1,65 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: nested-sequence-test
+  description: Test sequence containing parallel activities
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: complex_pipeline
+    name: Complex Pipeline
+    type: sequence
+    steps:
+    - id: setup
+      name: Setup
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Setting up pipeline"
+        outputs:
+          status: $.stdout
+
+    - id: parallel_processing
+      name: Parallel Processing
+      type: parallel
+      branches:
+      - id: process_a
+        type: task
+        task:
+          executor: script
+          config:
+            language: bash
+            code: |
+              echo "Processing A"
+          outputs:
+            result: $.stdout
+
+      - id: process_b
+        type: task
+        task:
+          executor: script
+          config:
+            language: bash
+            code: |
+              echo "Processing B"
+          outputs:
+            result: $.stdout
+
+    - id: cleanup
+      name: Cleanup
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Cleaning up pipeline"
+        outputs:
+          status: $.stdout

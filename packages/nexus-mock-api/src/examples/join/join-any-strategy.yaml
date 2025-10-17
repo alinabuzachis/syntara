@@ -1,0 +1,33 @@
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: join-any-test
+  description: Test join with any strategy - completes when any branch finishes
+triggers:
+- type: manual
+workflow:
+  activities:
+  - id: parallel_tasks
+    type: parallel
+    branches:
+    - id: fast_task
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Fast task"
+    - id: slow_task
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: sleep 0.1 && echo "Slow task"
+  - id: join_any
+    type: join
+    join:
+      branches:
+      - fast_task
+      - slow_task
+      strategy: any

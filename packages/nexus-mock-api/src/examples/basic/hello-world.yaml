@@ -1,0 +1,27 @@
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: hello-world
+  description: Simple hello world workflow
+triggers:
+- type: manual
+workflow:
+  activities:
+  - id: say_hello
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Hello, World!"
+          echo "Current time: $(date)"
+
+  - id: say_goodbye
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Goodbye, World!"

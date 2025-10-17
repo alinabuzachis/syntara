@@ -1,0 +1,57 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: join-timeout-continue-test
+  description: Test join with timeout that continues when timeout is reached
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: parallel_tasks
+    name: Parallel Tasks
+    type: parallel
+    branches:
+    - id: fast_task
+      name: Fast Task
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Fast task completed"
+    - id: slow_task
+      name: Slow Task
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            sleep 3
+            echo "Slow task completed"
+
+  - id: join_with_timeout_continue
+    name: Join with Timeout (Continue)
+    type: join
+    join:
+      branches:
+      - fast_task
+      - slow_task
+      strategy: all
+      timeout: PT1S
+      onTimeout: continue
+      aggregateOutputs: true
+
+  - id: post_join_task
+    name: Post-Join Task
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Post-join task executed after timeout"
