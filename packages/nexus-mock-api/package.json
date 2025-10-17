@@ -4,10 +4,13 @@
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "podman:build": "podman build --platform linux/amd64,linux/arm64 --tag nexus-mock-api -f Containerfile ../..",
+    "podman:run": "podman run --rm -p 3000:3000 nexus-mock-api"
   },
-  "devDependencies": {
+  "dependencies": {
     "msw": "^2.11.5",
-    "tsx": "^4.20.6"
+    "tsx": "^4.20.6",
+    "@mswjs/http-middleware": "^0.10.3"
   }
 }

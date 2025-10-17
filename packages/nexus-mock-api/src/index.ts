@@ -1,20 +1,10 @@
-import { createServer } from 'http'
-import { setupServer } from 'msw/node'
+import { createServer } from '@mswjs/http-middleware'
 import { handlers } from './handlers.js'
 
-export const mswServer = setupServer(...handlers)
+const port = process.env.PORT ? parseInt(process.env.PORT) : 3000
 
-mswServer.listen({ onUnhandledRequest: 'bypass' })
+const server = createServer(...handlers)
 
-console.log('Mock API server is running...')
-
-const server = createServer().listen(3000, () => {
-  console.log('HTTP server is running on http://localhost:3000')
-})
-
-process.on('SIGINT', () => {
-  mswServer.close()
-  server.close()
-  console.log('Mock API server has been stopped.')
-  process.exit()
+server.listen(port, () => {
+  console.log(`Mock API server is running on http://localhost:${port}`)
 })
