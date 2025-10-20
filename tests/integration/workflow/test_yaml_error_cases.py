@@ -10,7 +10,7 @@ from temporalio.client import Client, WorkflowFailureError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from nexus.api.workflows.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.dynamic_workflow import DynamicWorkflow
 
 
 class TestValidationErrors:

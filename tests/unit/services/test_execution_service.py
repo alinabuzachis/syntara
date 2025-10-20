@@ -12,7 +12,7 @@ import pytest
 
 from nexus.api.constants import DEFAULT_TASK_QUEUE
 from nexus.api.services.execution_service import ExecutionService, create_execution_service
-from nexus.api.workflows.yaml_workflow_parser import WorkflowParseError
+from nexus.workflows.yaml_workflow_parser import WorkflowParseError
 
 
 class TestExecutionServiceInitialization:

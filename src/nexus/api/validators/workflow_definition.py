@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
-from nexus.api.workflows.models.workflow_definition import WorkflowDefinition
+from nexus.workflows.models.workflow_definition import WorkflowDefinition
 
 
 class ValidationError(Exception):

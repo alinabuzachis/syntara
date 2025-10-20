@@ -16,8 +16,8 @@ from temporalio.worker import Worker
 
 from nexus.api.services.execution_service import ExecutionService
 from nexus.api.services.temporal_worker import TemporalWorkerService
-from nexus.api.workflows.activities.script_activity import execute_bash_script
-from nexus.api.workflows.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.activities.script_activity import execute_bash_script
+from nexus.workflows.dynamic_workflow import DynamicWorkflow
 
 
 class MockWorkerService(TemporalWorkerService):

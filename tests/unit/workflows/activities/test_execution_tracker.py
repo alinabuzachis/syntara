@@ -10,7 +10,7 @@ import asyncio
 
 import pytest
 
-from nexus.api.workflows.activities.execution_tracker import (
+from nexus.workflows.activities.execution_tracker import (
     cancel_execution_activities,
     clear_tracking_data,
     create_activity_execution,

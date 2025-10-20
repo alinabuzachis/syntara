@@ -55,7 +55,7 @@ In `dynamic_workflow.py`, the workflow engine will call these functions to track
 activity execution:
 
 ```python
-from nexus.api.workflows.activities import (
+from nexus.workflows.activities import (
     create_activity_execution,
     update_activity_execution,
     cancel_execution_activities

@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from nexus.api.workflows.models.workflow_definition import WorkflowDefinition
+from nexus.workflows.models.workflow_definition import WorkflowDefinition
 
 
 class WorkflowBase(BaseModel):

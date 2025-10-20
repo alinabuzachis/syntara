@@ -7,7 +7,7 @@ references to inputs, variables, activity outputs, and loop iteration variables.
 import re
 from typing import Any, Literal, cast
 
-from nexus.api.workflows.models.workflow_definition import WorkflowDefinition
+from nexus.workflows.models.workflow_definition import WorkflowDefinition
 
 # Type alias for comparison operators
 ComparisonOp = Literal["==", "!=", ">=", "<=", ">", "<"]

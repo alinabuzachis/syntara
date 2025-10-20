@@ -34,10 +34,10 @@ from nexus.api.models.base import Base
 from nexus.api.models.user import User, UserRole
 from nexus.api.models.workflow import Workflow
 from nexus.api.models.workflow_version import WorkflowVersion
-from nexus.api.workflows.activities.script_activity import execute_bash_script
-from nexus.api.workflows.dynamic_workflow import DynamicWorkflow
-from nexus.api.workflows.models.workflow_definition import WorkflowDefinition
-from nexus.api.workflows.yaml_workflow_parser import parse_workflow_yaml
+from nexus.workflows.activities.script_activity import execute_bash_script
+from nexus.workflows.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.models.workflow_definition import WorkflowDefinition
+from nexus.workflows.yaml_workflow_parser import parse_workflow_yaml
 
 # Ensure models are registered with SQLAlchemy metadata
 _ = (invocation, user, workflow, workflow_version)

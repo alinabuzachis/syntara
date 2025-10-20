@@ -23,8 +23,8 @@ from nexus.api.services.models import (
     WorkflowStatusResponse,
     WorkflowTerminationResponse,
 )
-from nexus.api.workflows.dynamic_workflow import DynamicWorkflow
-from nexus.api.workflows.yaml_workflow_parser import parse_workflow_yaml
+from nexus.workflows.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.yaml_workflow_parser import parse_workflow_yaml
 
 logger = logging.getLogger(__name__)
 
