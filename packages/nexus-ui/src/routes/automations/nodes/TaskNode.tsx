@@ -1,14 +1,13 @@
 import { type Node, type NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import type { WorkflowAPI } from 'nexus-contracts'
+import type { TaskActivity } from 'nexus-contracts'
 import { DirectionNodeComponent } from './DirectionNodeComponent'
 
-export type TaskActivity = WorkflowAPI.components['schemas']['taskActivity']
 export type TaskNode = { type: 'task' } & Node<TaskActivity>
 
 export function TaskNodeComponent(props: NodeProps<TaskNode>) {
   return (
-    <DirectionNodeComponent>
+    <DirectionNodeComponent className="rounded-3xl">
       <div>
         <label className="text-lg font-bold">{props.data.name}</label>
         <div className="text-xs text-white/60">Task</div>

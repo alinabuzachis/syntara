@@ -1,14 +1,13 @@
 import { type Node, type NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import type { WorkflowAPI } from 'nexus-contracts'
+import type { ConditionActivity } from 'nexus-contracts'
 import { DirectionNodeComponent } from './DirectionNodeComponent'
 
-export type ConditionActivity = WorkflowAPI.components['schemas']['conditionActivity']
 export type ConditionNode = { type: 'condition' } & Node<ConditionActivity>
 
 export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
   return (
-    <DirectionNodeComponent>
+    <DirectionNodeComponent className="rounded-4xl">
       <div>
         <label className="text-lg font-bold">{props.data.name}</label>
         <div className="text-xs text-white/60">Condition</div>

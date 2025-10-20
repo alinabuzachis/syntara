@@ -20,3 +20,8 @@ export type Tool = ToolsAPI.components['schemas']['Tool']
 export type ToolProvider = ToolProvidersAPI.components['schemas']['ToolProvider']
 export type ToolProvidersResponse =
   ToolProvidersAPI.paths['/tool-providers']['get']['responses']['200']['content']['application/json']
+
+export type Activity = WorkflowAPI.components['schemas']['activity']
+export type ConditionActivity = WorkflowAPI.components['schemas']['conditionActivity']
+export type TaskActivity = WorkflowAPI.components['schemas']['taskActivity']
+export type SequenceActivity = WorkflowAPI.components['schemas']['sequenceActivity']

@@ -1,7 +1,6 @@
-import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
+import { type Node, type NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useContext } from 'react'
-import { FlowDirectionContext } from '../FlowDirectionContext'
+import { DirectionNodeComponent } from './DirectionNodeComponent'
 
 export type TriggerNode = { type: 'trigger' } & Node<{
   label: string
@@ -9,9 +8,8 @@ export type TriggerNode = { type: 'trigger' } & Node<{
   integrations?: Array<string>
 }>
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
-  const [flowDirection] = useContext(FlowDirectionContext)
   return (
-    <>
+    <DirectionNodeComponent disableTarget className="rounded-4xl rounded-l-[128px]">
       <div>
         <label className="text-lg font-bold">{props.data.label}</label>
         <div className="text-xs text-white/60">Trigger</div>
@@ -29,13 +27,6 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
           </ul>
         </div>
       )}
-      <Handle
-        type="source"
-        id="bottom"
-        position={Position.Bottom}
-        style={{ opacity: flowDirection === 'TB' ? 1 : 0 }}
-      />
-      <Handle type="source" id="right" position={Position.Right} style={{ opacity: flowDirection === 'LR' ? 1 : 0 }} />
-    </>
+    </DirectionNodeComponent>
   )
 }

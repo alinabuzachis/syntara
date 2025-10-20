@@ -2,7 +2,7 @@ import { IconButton } from '@ansible/nexus-ui-framework'
 import Dagre from '@dagrejs/dagre'
 import { Panel, ReactFlow, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow } from '@xyflow/react'
 import { ExpandIcon, MoveHorizontalIcon, MoveVerticalIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react'
-import type { WorkflowWithVersion } from 'nexus-contracts'
+import type { Activity, ConditionActivity, SequenceActivity, TaskActivity, WorkflowWithVersion } from 'nexus-contracts'
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { ChatInput } from '../../components/chat/ChatInput'
 import { FlowDirectionContext } from './FlowDirectionContext'
@@ -55,7 +55,7 @@ export function AutomationFlow(props: { workflow: WorkflowWithVersion }) {
   const { nodes, edges } = useMemo(() => {
     const nodes: NodeType[] = []
     const edges: EdgeType[] = []
-    let previousIds: string[] = []
+    const previousIds: string[] = []
 
     // TRIGGERS
     for (const trigger of props.workflow.version?.workflow_definition?.triggers ?? []) {
@@ -74,65 +74,8 @@ export function AutomationFlow(props: { workflow: WorkflowWithVersion }) {
 
     // ACTIVITIES
     for (const activity of props.workflow.version?.workflow_definition?.workflow.activities ?? []) {
-      switch (activity.type) {
-        case 'task':
-          nodes.push({
-            id: activity.id,
-            type: 'task',
-            position: { x: 0, y: 0 },
-            data: activity,
-          })
-          for (const id of previousIds) {
-            edges.push({ id: `${id}-${activity.id}`, source: id, target: activity.id })
-          }
-          // previousIds.push(activity.id)
-          break
-        case 'condition':
-          nodes.push({
-            id: activity.id,
-            type: 'condition',
-            position: { x: 0, y: 0 },
-            data: activity,
-          })
-          for (const id of previousIds) {
-            edges.push({ id: `${id}-${activity.id}`, source: id, target: activity.id })
-          }
-          previousIds = [activity.id]
-          for (const then of activity.then) {
-            // let branchPreviousIds = [...previousIds]
-            switch (then.type) {
-              case 'task':
-                nodes.push({ id: then.id, type: 'task', position: { x: 0, y: 0 }, data: then })
-                for (const id of previousIds) {
-                  edges.push({ id: `${id}-${then.id}`, source: id, target: then.id })
-                }
-                // branchPreviousIds = [then.id]
-                break
-            }
-          }
-          break
-        case 'parallel':
-        case 'join':
-        case 'loop':
-          break
-
-        case 'sequence':
-          for (const step of activity.steps ?? []) {
-            switch (step.type) {
-              case 'task':
-                nodes.push({ id: step.id, type: 'task', position: { x: 0, y: 0 }, data: step })
-                for (const id of previousIds) {
-                  edges.push({ id: `${id}-${activity.id}`, source: id, target: step.id })
-                }
-                previousIds = [step.id]
-                break
-            }
-          }
-          break
-      }
+      addActivity(activity, nodes, edges, previousIds)
     }
-    console.log('nodes', nodes)
-    console.log('edges', edges)
     return { nodes, edges }
   }, [props.workflow.version?.workflow_definition])
 
@@ -194,22 +137,17 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
       proOptions={{ hideAttribution: true }}
       fitView
     >
-      <Panel
-        position="bottom-left"
-        className="flex gap-4 rounded-4xl border border-white/10 bg-black/80 bg-linear-0 from-violet-500/20 to-violet-400/20 p-4 shadow-lg shadow-black/50"
-      >
-        <ControlsBar />
-      </Panel>
+      <CanvasControls />
     </ReactFlow>
   )
 }
 
-function ControlsBar() {
+function CanvasControls() {
   const [, setFlowDirection] = useContext(FlowDirectionContext)
   const { fitView, zoomIn, zoomOut } = useReactFlow()
 
   return (
-    <>
+    <Panel position="bottom-left" className="card flex rounded-full">
       <IconButton onClick={() => zoomIn()}>
         <ZoomInIcon />
       </IconButton>
@@ -228,6 +166,73 @@ function ControlsBar() {
       {/* <button onClick={() => fitView()}>
         <FullscreenIcon />
       </button> */}
-    </>
+    </Panel>
   )
+}
+
+function addActivity(activity: Activity, nodes: NodeType[], edges: EdgeType[], previousIds: string[]): boolean {
+  switch (activity.type) {
+    case 'task':
+      addTaskActivity(activity, nodes, edges, previousIds)
+      return true
+    case 'condition':
+      addConditionActivity(activity, nodes, edges, previousIds)
+      return true
+    case 'sequence':
+      addSequenceActivity(activity, nodes, edges, previousIds)
+      return true
+    case 'join':
+      // TODO
+      return true
+    case 'parallel':
+      // TODO
+      return true
+    case 'loop':
+      // TODO
+      return true
+  }
+}
+
+function addTaskActivity(taskActivity: TaskActivity, nodes: NodeType[], edges: EdgeType[], previousIds: string[]) {
+  nodes.push({
+    id: taskActivity.id,
+    type: 'task',
+    position: { x: 0, y: 0 },
+    data: taskActivity,
+  })
+  for (const id of previousIds) {
+    edges.push({ id: `${id}-${taskActivity.id}`, source: id, target: taskActivity.id })
+  }
+}
+
+function addConditionActivity(
+  conditionActivity: ConditionActivity,
+  nodes: NodeType[],
+  edges: EdgeType[],
+  previousIds: string[]
+) {
+  nodes.push({
+    id: conditionActivity.id,
+    type: 'condition',
+    position: { x: 0, y: 0 },
+    data: conditionActivity,
+  })
+  for (const id of previousIds) {
+    edges.push({ id: `${id}-${conditionActivity.id}`, source: id, target: conditionActivity.id })
+  }
+}
+
+function addSequenceActivity(
+  sequenceActivity: SequenceActivity,
+  nodes: NodeType[],
+  edges: EdgeType[],
+  previousIds: string[]
+) {
+  let seqPreviousIds = [...previousIds]
+  for (const step of sequenceActivity.steps ?? []) {
+    const added = addActivity(step, nodes, edges, seqPreviousIds)
+    if (added) {
+      seqPreviousIds = [step.id]
+    }
+  }
 }
