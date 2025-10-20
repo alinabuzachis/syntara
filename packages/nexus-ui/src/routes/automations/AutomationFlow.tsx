@@ -1,10 +1,9 @@
-import { IconButton } from '@ansible/nexus-ui-framework'
 import Dagre from '@dagrejs/dagre'
-import { Panel, ReactFlow, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow } from '@xyflow/react'
-import { ExpandIcon, MoveHorizontalIcon, MoveVerticalIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react'
+import { ReactFlow, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow } from '@xyflow/react'
 import type { Activity, ConditionActivity, SequenceActivity, TaskActivity, WorkflowWithVersion } from 'nexus-contracts'
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { ChatInput } from '../../components/chat/ChatInput'
+import { CanvasControls } from './CanvasControls'
 import { FlowDirectionContext } from './FlowDirectionContext'
 import { nodeTypes, type NodeType } from './nodes/NodeType'
 
@@ -139,34 +138,6 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
     >
       <CanvasControls />
     </ReactFlow>
-  )
-}
-
-function CanvasControls() {
-  const [, setFlowDirection] = useContext(FlowDirectionContext)
-  const { fitView, zoomIn, zoomOut } = useReactFlow()
-
-  return (
-    <Panel position="bottom-left" className="card flex rounded-full">
-      <IconButton onClick={() => zoomIn()}>
-        <ZoomInIcon />
-      </IconButton>
-      <IconButton onClick={() => zoomOut()}>
-        <ZoomOutIcon />
-      </IconButton>
-      <IconButton onClick={() => fitView()}>
-        <ExpandIcon />
-      </IconButton>
-      <IconButton onClick={() => setFlowDirection('TB')}>
-        <MoveVerticalIcon />
-      </IconButton>
-      <IconButton onClick={() => setFlowDirection('LR')}>
-        <MoveHorizontalIcon />
-      </IconButton>
-      {/* <button onClick={() => fitView()}>
-        <FullscreenIcon />
-      </button> */}
-    </Panel>
   )
 }
 
