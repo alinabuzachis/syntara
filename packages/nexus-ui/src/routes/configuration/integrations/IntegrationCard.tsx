@@ -13,7 +13,9 @@ export function IntegrationCard(props: { integration: ToolProvider }) {
               <EllipsisVerticalIcon />
             </MenuTrigger>
             <MenuItems>
-              <MenuItem>Hello</MenuItem>
+              <MenuItem>Start Server</MenuItem>
+              <MenuItem>Stop Server</MenuItem>
+              <MenuItem>Remove Server</MenuItem>
             </MenuItems>
           </Menu>
         </div>

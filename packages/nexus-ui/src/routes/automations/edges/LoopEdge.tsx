@@ -6,8 +6,6 @@ export function LoopEdge(props: EdgeProps) {
   //   return <BezierEdge {...props} />
   // }
 
-  console.log('GGG')
-
   const { sourceX, sourceY, targetX, targetY, markerEnd } = props
   const radiusX = (sourceX - targetX) * 0.7
   const radiusY = 50

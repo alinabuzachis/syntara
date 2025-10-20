@@ -6,7 +6,7 @@ export function DateCell(props: { dateString?: string | null }) {
   return (
     <div className="py-3">
       <span className="whitespace-nowrap">{date.toLocaleDateString()}</span>{' '}
-      <span className="whitespace-nowrap">{date.toLocaleTimeString()}</span>
+      <span className="whitespace-nowrap text-white/60">{date.toLocaleTimeString()}</span>
     </div>
   )
 }
