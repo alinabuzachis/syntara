@@ -74,28 +74,26 @@ export default function Integrations() {
       </AppPageHeader>
       {view !== 'cards' ? (
         // <div className="roundedgrow overflow-hidden flex flex-col">
-        <div className="flex grow flex-col overflow-hidden rounded-4xl border-2 border-violet-300/20">
-          <Table
-            items={results}
-            columns={[
-              {
-                id: 'name',
-                label: 'Name',
-                render: (item) => item.name,
-              },
-              {
-                id: 'provider_type',
-                label: 'Type',
-                render: (item) => item.provider_type || '-',
-              },
-              {
-                id: 'description',
-                label: 'Description',
-                render: (item) => item.description || '-',
-              },
-            ]}
-          />
-        </div>
+        <Table
+          items={results}
+          columns={[
+            {
+              id: 'name',
+              label: 'Name',
+              render: (item) => item.name,
+            },
+            {
+              id: 'provider_type',
+              label: 'Type',
+              render: (item) => item.provider_type || '-',
+            },
+            {
+              id: 'description',
+              label: 'Description',
+              render: (item) => item.description || '-',
+            },
+          ]}
+        />
       ) : (
         <Scrollable className="glass grow rounded-4xl border">
           <div className={`grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4 p-8`}>

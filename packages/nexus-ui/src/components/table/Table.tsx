@@ -5,7 +5,7 @@ import type { Column } from './Column'
 export function Table<T>(props: { items: T[]; columns: Column<T>[] }) {
   const { items, columns } = props
   return (
-    <div className="flex flex-col overflow-hidden rounded-4xl border-2 border-white/20">
+    <div className="flex grow flex-col overflow-hidden rounded-4xl border-2 border-white/20">
       <Scrollable className="grow">
         <table className="h-full w-full border-separate border-spacing-0">
           <thead
