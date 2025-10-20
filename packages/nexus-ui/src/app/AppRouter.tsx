@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { Route, Switch } from 'wouter'
+import { Redirect, Route, Switch } from 'wouter'
 import { LoadingState } from '../components/states/LoadingState'
 import { navigationItems } from './navigationItems'
 
@@ -31,7 +31,7 @@ export function AppRouter() {
           </>
         ))}
         <Route>
-          <div className="p-4">Under Construction</div>
+          <Redirect to="/automations" />
         </Route>
       </Switch>
     </Suspense>
