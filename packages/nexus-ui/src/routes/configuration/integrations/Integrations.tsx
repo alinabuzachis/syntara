@@ -17,6 +17,7 @@ import { AppRoute } from '../../../app/AppRoute'
 import { toolProvidersClient } from '../../../client'
 import { ChatInput } from '../../../components/chat/ChatInput'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { StringCell } from '../../../components/table/StringCell'
 import { Table } from '../../../components/table/Table'
 import { IntegrationCard } from './IntegrationCard'
 
@@ -80,17 +81,17 @@ export default function Integrations() {
             {
               id: 'name',
               label: 'Name',
-              render: (item) => item.name,
+              render: (item) => <StringCell>{item.name}</StringCell>,
             },
             {
               id: 'provider_type',
               label: 'Type',
-              render: (item) => item.provider_type || '-',
+              render: (item) => <StringCell>{item.provider_type}</StringCell>,
             },
             {
               id: 'description',
               label: 'Description',
-              render: (item) => item.description || '-',
+              render: (item) => <StringCell>{item.description}</StringCell>,
             },
           ]}
         />

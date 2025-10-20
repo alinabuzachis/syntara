@@ -5,6 +5,7 @@ import { useQueryState } from '../../components/states/useQueryState'
 import { DateCell } from '../../components/table/DateCell'
 import { LabelsCell } from '../../components/table/LabelsCell'
 import { LinkCell } from '../../components/table/LinkCell'
+import { StringCell } from '../../components/table/StringCell'
 import { Table } from '../../components/table/Table'
 
 export default function Automations() {
@@ -28,7 +29,7 @@ export default function Automations() {
           {
             id: 'description',
             label: 'Description',
-            render: (workflow) => workflow.description || 'No description provided',
+            render: (workflow) => <StringCell>{workflow.description}</StringCell>,
           },
           {
             id: 'created_at',
