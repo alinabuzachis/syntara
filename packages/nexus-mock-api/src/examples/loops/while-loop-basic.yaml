@@ -28,7 +28,7 @@ workflow:
     loop:
       type: while
       condition: ${initialize_counter.output.data.counter} < 5
-      max_iterations: 10
+      maxIterations: 10
       do:
       - id: loop_task
         type: task

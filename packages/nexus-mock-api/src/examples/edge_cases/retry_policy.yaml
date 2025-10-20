@@ -13,10 +13,10 @@ workflow:
   - id: task_with_retry
     name: Task With Retry Policy
     type: task
-    retry_policy:
-      max_attempts: 3
-      initial_interval: PT1S
-      max_interval: PT30S
+    retryPolicy:
+      maxAttempts: 3
+      initialInterval: PT1S
+      maxInterval: PT30S
       backoff: exponential
       multiplier: 2.0
     task:

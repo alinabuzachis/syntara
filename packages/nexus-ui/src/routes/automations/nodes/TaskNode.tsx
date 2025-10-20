@@ -15,7 +15,7 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
       <dl className="details">
         <dt>Executor</dt>
         <dd>{props.data.task.executor}</dd>
-        {'condition' in props.data && typeof props.data.condition === 'string' && (
+        {props.data.condition && (
           <>
             <dt>Condition</dt>
             <dd>{props.data.condition}</dd>

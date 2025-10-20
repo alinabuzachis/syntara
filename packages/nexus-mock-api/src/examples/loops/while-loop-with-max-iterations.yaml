@@ -16,7 +16,7 @@ workflow:
     loop:
       type: while
       condition: 'true'
-      max_iterations: 3
+      maxIterations: 3
       do:
       - id: iteration_task
         type: task

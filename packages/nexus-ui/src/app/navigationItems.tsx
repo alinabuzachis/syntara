@@ -1,12 +1,11 @@
 import { lazy } from 'react'
 import type { INavigationItem } from '../components/nav/NavItem'
-import Automation from '../routes/automations/Automation'
-import Automations from '../routes/automations/Automations'
-import { IntegrationForm } from '../routes/configuration/integrations/form/IntegrationForm'
 import { AppRoute } from './AppRoute'
 
+const Automation = lazy(() => import('../routes/automations/Automation'))
+const Automations = lazy(() => import('../routes/automations/Automations'))
+const IntegrationForm = lazy(() => import('../routes/configuration/integrations/form/IntegrationForm').then(m => ({ default: m.IntegrationForm })))
 const Integrations = lazy(() => import('../routes/configuration/integrations/Integrations'))
-
 const Glossary = lazy(() => import('../routes/documentation/glossary/Glossary'))
 
 export const navigationItems: INavigationItem[] = [
