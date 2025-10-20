@@ -79,13 +79,7 @@ test-fast: check-deps ## Run tests with fail-fast and short traceback
 .PHONY: test-all
 test-all: check-deps ## Run all tests
 	@echo "🧪 Running all tests..."
-	uv run pytest tests/ -v
-
-.PHONY: test-all-parallel
-test-all-parallel: check-deps ## Run tests in parallel
-	@echo "🧪 Running tests in parallel..."
-	uv run pytest tests/ -n auto
-
+	uv run pytest tests/ -v -n auto
 
 # Development workflow
 # ========================================================
