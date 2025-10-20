@@ -1,7 +1,7 @@
 import Dagre from '@dagrejs/dagre'
 import { ReactFlow, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow } from '@xyflow/react'
 import type { Activity, ConditionActivity, SequenceActivity, TaskActivity, WorkflowWithVersion } from 'nexus-contracts'
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { ChatInput } from '../../components/chat/ChatInput'
 import { CanvasControls } from './CanvasControls'
 import { FlowDirectionContext } from './FlowDirectionContext'
@@ -105,6 +105,12 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
     [nodes, edges, setNodes, setEdges, fitView]
   )
 
+  // Store latest onLayout in a ref to avoid it being a dependency
+  const onLayoutRef = useRef(onLayout)
+  useEffect(() => {
+    onLayoutRef.current = onLayout
+  }, [onLayout])
+
   const [flowDirection] = useContext(FlowDirectionContext)
 
   // Apply initial layout after nodes are measured
@@ -113,16 +119,16 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
       // Schedule state update to avoid cascading renders
       queueMicrotask(() => {
         setIsInitialized(true)
-        onLayout(flowDirection)
+        onLayoutRef.current(flowDirection)
       })
     }
-  }, [nodes, isInitialized, flowDirection, onLayout])
+  }, [nodes, isInitialized, flowDirection])
 
   useEffect(() => {
     if (isInitialized) {
-      onLayout(flowDirection)
+      onLayoutRef.current(flowDirection)
     }
-  }, [flowDirection])
+  }, [flowDirection, isInitialized])
 
   return (
     <ReactFlow<NodeType, EdgeType>
