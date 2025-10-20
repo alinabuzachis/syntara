@@ -1187,7 +1187,7 @@ export interface components {
       schedule:
         | {
             /** @constant */
-            type?: 'cron'
+            scheduleType: 'cron'
             /**
              * @description Cron expression for scheduling (standard 5-field format or special strings)
              * @example 0 0 * * *
@@ -1206,6 +1206,8 @@ export interface components {
             timezone?: string
           }
         | {
+            /** @constant */
+            scheduleType: 'interval'
             /**
              * @description Execution interval (ISO 8601 duration)
              * @example PT15M
@@ -1215,6 +1217,8 @@ export interface components {
             interval: string
           }
         | {
+            /** @constant */
+            scheduleType: 'continuous'
             /**
              * @description Run workflow continuously (restart on completion)
              * @constant

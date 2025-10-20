@@ -121,6 +121,7 @@ This clones the syntara-orchestration/syntara repository, generates TypeScript t
 ### Package Dependencies
 
 Package dependency graph:
+
 - **nexus-ui-framework** → standalone (no internal dependencies)
 - **nexus-contracts** → standalone (generates types from external OpenAPI specs)
 - **nexus-mock-api** → depends on nexus-contracts
