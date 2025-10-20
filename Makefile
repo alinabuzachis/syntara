@@ -45,7 +45,7 @@ _check-uv:
 	fi
 
 _check-dependency-binaries: _check-uv
-	@if ! python -c "import src" 2>/dev/null; then \
+	@if ! uv run python -c "import src" 2>/dev/null; then \
 		echo "❌ nexus package not installed. Run 'make install' first"; \
 		exit 1; \
 	fi
@@ -118,6 +118,79 @@ db-clean: ## Stop database and remove all data (destructive)
 	@echo "⚠️  WARNING: This will delete all database data!"
 	$(COMPOSE_CMD) -f podman-compose.yml down -v
 	@echo "✅ Database stopped and data purged"
+
+
+# Temporal
+# ========================================================
+.PHONY: temporal-run
+temporal-run: ## Start Temporal server, UI, and worker (foreground, Ctrl+C to stop)
+	@echo "🚀 Starting Temporal server, UI, and worker..."
+	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
+	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8080}"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	$(COMPOSE_CMD) -f podman-compose.yml up temporal temporal-ui temporal-worker
+
+.PHONY: temporal-clean
+temporal-clean: ## Stop Temporal and remove data
+	@echo "🧹 Stopping Temporal server and UI..."
+	$(COMPOSE_CMD) -f podman-compose.yml stop temporal temporal-ui
+	$(COMPOSE_CMD) -f podman-compose.yml rm -f temporal temporal-ui
+	@echo "✅ Temporal stopped"
+
+.PHONY: services-run
+services-run: ## Start all services (database + temporal + UI + worker) in background
+	@echo "🚀 Starting all services (database + temporal + UI + worker)..."
+	@echo "📍 Database: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
+	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
+	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8080}"
+	$(COMPOSE_CMD) -f podman-compose.yml up -d database temporal temporal-ui temporal-worker
+	@echo "✅ All services started in background"
+	@echo "   Use 'make services-logs' to view logs"
+	@echo "   Use 'make services-stop' to stop services"
+
+.PHONY: services-stop
+services-stop: ## Stop all services
+	@echo "🛑 Stopping all services..."
+	$(COMPOSE_CMD) -f podman-compose.yml stop
+	@echo "✅ All services stopped"
+
+.PHONY: services-logs
+services-logs: ## View logs from all services
+	@echo "📋 Viewing logs from all services..."
+	@echo "   Press Ctrl+C to exit"
+	@echo ""
+	podman ps -a --filter "name=nexus" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+	@echo ""
+	podman logs -f nexus_database_1 2>/dev/null & \
+	podman logs -f nexus_temporal_1 2>/dev/null & \
+	podman logs -f nexus_temporal-ui_1 2>/dev/null & \
+	podman logs -f nexus-temporal-worker 2>/dev/null & \
+	wait
+
+.PHONY: db-logs
+db-logs: ## View database logs only
+	@echo "📋 Viewing database logs..."
+	podman logs -f nexus_database_1
+
+.PHONY: temporal-logs
+temporal-logs: ## View Temporal server and worker logs
+	@echo "📋 Viewing Temporal server and worker logs..."
+	podman logs -f nexus_temporal_1 2>/dev/null & \
+	podman logs -f nexus-temporal-worker 2>/dev/null & \
+	wait
+
+.PHONY: temporal-ui-logs
+temporal-ui-logs: ## View Temporal UI logs only
+	@echo "📋 Viewing Temporal UI logs..."
+	podman logs -f nexus_temporal-ui_1
+
+.PHONY: services-clean
+services-clean: ## Stop all services and remove all data (destructive)
+	@echo "🧹 Stopping all services and removing data..."
+	@echo "⚠️  WARNING: This will delete all database and Temporal data!"
+	$(COMPOSE_CMD) -f podman-compose.yml down -v
+	@echo "✅ All services stopped and data purged"
 
 
 # Tools

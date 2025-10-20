@@ -16,6 +16,68 @@ services:
       timeout: 5s
       retries: 5
 
+  temporal:
+    image: temporalio/auto-setup:1.25.1
+    restart: unless-stopped
+    ports:
+    - ${NEXUS_TEMPORAL_PORT:-7233}:7233
+    environment:
+    # DB: Required by temporalio/auto-setup image (valid: postgres12, postgres12_pgx, mysql8, cassandra)
+    - DB=postgres12
+    - DB_PORT=5432
+    - POSTGRES_USER=${NEXUS_DB_USER:-admin}
+    - POSTGRES_PWD=${NEXUS_DB_PASSWORD:-admin}
+    - POSTGRES_SEEDS=database
+    - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    volumes:
+    - ./containers/temporal-server/temporal-config:/etc/temporal/config/dynamicconfig:z
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, tctl, --address, temporal:7233, cluster, health]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Temporal UI - Web interface for monitoring and debugging workflows, only for local development
+  temporal-ui:
+    image: temporalio/ui:2.31.2
+    restart: unless-stopped
+    ports:
+    - ${NEXUS_TEMPORAL_UI_PORT:-8080}:8080
+    environment:
+    - TEMPORAL_ADDRESS=temporal:7233
+    - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    depends_on:
+      temporal:
+        condition: service_healthy
+
+  # Temporal Worker - Executes workflow and activity tasks
+  temporal-worker:
+    container_name: nexus-temporal-worker
+    build:
+      context: .
+      dockerfile: containers/temporal_worker/Containerfile
+    image: nexus/temporal-worker:latest
+    restart: unless-stopped
+    environment:
+    - NEXUS_TEMPORAL_ADDRESS=temporal:7233
+    - NEXUS_TEMPORAL_NAMESPACE=default
+    - NEXUS_TASK_QUEUE=nexus-workflow-queue
+    - LOG_LEVEL=INFO
+    volumes:
+    - ./src:/app/src:z
+    depends_on:
+      temporal:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, pgrep, -f, nexus.workflows.worker]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
 volumes:
   nexus_postgres_data:
     driver: local

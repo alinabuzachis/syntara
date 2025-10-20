@@ -87,6 +87,60 @@ export DATABASE_URL="postgresql+asyncpg://user:pass@host:port/dbname"
 - **Container won't start**: Check the logs in the terminal where `make db-run` is running
 - **Reset everything**: Stop the running database (Ctrl+C), then run `make db-clean`
 
+### Temporal Workflow Engine Setup
+
+The project uses Temporal for workflow orchestration. You can run Temporal locally with PostgreSQL backend.
+
+**Start Temporal server and UI** (runs in foreground):
+```bash
+make temporal-run
+# Press Ctrl+C to stop
+```
+
+**Start all services** (database + temporal + temporal UI + worker in background - recommended):
+```bash
+make services-run
+# View logs: make services-logs
+# Stop services: make services-stop
+```
+
+**Run Temporal worker separately** (for development without containers):
+```bash
+uv run python -m nexus.workflows.worker
+# Or use: make worker-run
+```
+
+**Temporal Configuration**:
+The application uses these environment variables (with defaults):
+- `NEXUS_TEMPORAL_ADDRESS` (default: `localhost:7233`)
+- `NEXUS_TEMPORAL_NAMESPACE` (default: `default`)
+- `NEXUS_TEMPORAL_PORT` (default: `7233`)
+- `NEXUS_TEMPORAL_UI_PORT` (default: `8080`)
+- `NEXUS_TASK_QUEUE` (default: `nexus-workflow-queue`)
+
+**Access Temporal UI** (Development/Debugging Only):
+Once Temporal is running, access the web UI at: http://localhost:8080
+
+The UI is for **local development and debugging only**. The local UI allows you to:
+- Monitor workflow executions in real-time
+- View workflow history and activity details
+- Debug failed workflows
+- Query and filter workflows
+
+**View individual service logs**:
+```bash
+make db-logs          # Database logs
+make temporal-logs    # Temporal server logs
+make temporal-ui-logs # Temporal UI logs
+make worker-logs      # Temporal worker logs
+```
+
+**Clean up Temporal data**:
+```bash
+make temporal-clean  # Stop Temporal server and UI only
+make services-clean  # Stop and remove all data (database + temporal)
+```
+
 ### Development Commands
 
 | Command | Description |

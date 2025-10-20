@@ -1,6 +1,7 @@
 """Main FastAPI application module for Nexus."""
 
 import json
+import logging
 import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -18,6 +19,8 @@ from nexus.api.api.v1 import workflow_versions, workflows
 from nexus.api.api.v1.invocation import router as invoke_router
 from nexus.api.db import get_db
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -76,11 +79,11 @@ app.include_router(invoke_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])
-async def health_check() -> dict[str, Any]:
+async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
     """Health check endpoint with database connectivity test.
 
     Returns:
-        dict: Health status with database connectivity check
+        dict: Health status with database status
 
     Responses:
         200: Service is healthy and database is connected
@@ -127,7 +130,9 @@ async def health_check() -> dict[str, Any]:
     return {
         "status": "healthy",
         "timestamp": timestamp,
-        "checks": {"database": db_status},
+        "checks": {
+            "database": db_status,
+        },
     }
 
 
