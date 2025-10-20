@@ -1,6 +1,5 @@
 import type { JoinActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
 import { DirectionNodeComponent } from './DirectionNode'
 
 export type JoinNode = { type: 'join' } & Node<JoinActivity>

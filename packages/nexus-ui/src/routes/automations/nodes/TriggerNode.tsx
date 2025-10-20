@@ -1,5 +1,4 @@
 import { type Node, type NodeProps } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
 import { DirectionNodeComponent } from './DirectionNode'
 
 export type TriggerNode = { type: 'trigger' } & Node<{

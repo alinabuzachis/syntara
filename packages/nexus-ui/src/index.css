@@ -77,7 +77,7 @@ body {
 .react-flow.dark {
   background: transparent;
   --xy-controls-button-background-color-default: transparent;
-  --xy-edge-stroke-default: #fff8;
+  --xy-edge-stroke-default: #fff6;
   --xy-edge-stroke-width-default: 2px;
 }
 

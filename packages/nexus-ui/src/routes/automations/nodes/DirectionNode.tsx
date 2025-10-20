@@ -12,7 +12,7 @@ export function DirectionNodeComponent(props: {
   const [flowDirection] = useContext(FlowDirectionContext)
 
   return (
-    <div className={clsx('card flex flex-col gap-4 p-6', props.className)}>
+    <div className={clsx('glass card flex flex-col gap-4 border-2 p-6 shadow-md shadow-black/20', props.className)}>
       {props.children}
       {!props.disableTarget && (
         <>

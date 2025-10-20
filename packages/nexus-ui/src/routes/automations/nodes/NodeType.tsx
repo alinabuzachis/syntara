@@ -1,5 +1,4 @@
 import { type NodeTypes } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
 import { type AgentNode, AgentNodeComponent } from './AgentNode'
 import { type ConditionNode, ConditionNodeComponent } from './ConditionNode'
 import { type JoinNode, JoinNodeComponent } from './JoinNode'

@@ -141,7 +141,7 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
 
   return (
     <ReactFlow<NodeType, EdgeType>
-      className="glass rounded-4xl border"
+      className=""
       colorMode="dark"
       nodes={nodes}
       edges={edges}

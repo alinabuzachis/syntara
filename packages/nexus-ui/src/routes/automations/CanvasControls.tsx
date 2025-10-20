@@ -9,7 +9,7 @@ export function CanvasControls() {
   const { fitView, zoomIn, zoomOut } = useReactFlow()
 
   return (
-    <Panel position="bottom-left" className="card flex rounded-full">
+    <Panel position="bottom-left" className="glass card flex rounded-full border-2">
       <IconButton onClick={() => zoomIn()}>
         <ZoomInIcon />
       </IconButton>
