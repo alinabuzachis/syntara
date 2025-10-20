@@ -34,9 +34,9 @@
 [Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+**Language/Version**: [e.g., Python 3.12, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
+**Primary Dependencies**: [e.g., FastAPI, SQLModel (for unified data models), httpx or NEEDS CLARIFICATION]
+**Storage**: [if applicable, e.g., PostgreSQL with SQLModel ORM, CoreData, files or N/A]
 **Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
 **Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
 **Project Type**: [single/web/mobile - determines source structure]
@@ -48,6 +48,9 @@
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 [Gates determined based on constitution file]
+
+### Technology Standards Compliance
+- [ ] **SQLModel for Data Models**: All data models use SQLModel (not separate Pydantic + SQLAlchemy)
 
 ### Code Architecture Compliance
 - [ ] **DRY Principle**: Design avoids code duplication through proper abstraction

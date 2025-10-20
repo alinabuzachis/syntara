@@ -61,8 +61,9 @@
 - Use dependency injection - inject dependencies via constructors
 - Prefer composition over inheritance
 - Maintain clear separation of concerns
+- **Use SQLModel for all data models** - unified models for database tables and API schemas (not separate Pydantic + SQLAlchemy)
 
-- [ ] T008 [P] User model in src/models/user.py
+- [ ] T008 [P] User model in src/models/user.py (using SQLModel)
 - [ ] T009 [P] UserService CRUD in src/services/user_service.py
 - [ ] T010 [P] CLI --create-user in src/cli/user_commands.py
 - [ ] T011 POST /api/users endpoint
