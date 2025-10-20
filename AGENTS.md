@@ -16,8 +16,7 @@ Nexus is a distributed multi-agent system that enables coordinated AI agents to 
 
 ### Environment Setup
 
-- **Always activate the virtual environment first** before running any commands
-- Use `uv` to manage dependencies and run commands
+- Use always `uv` to manage dependencies and run commands.
 - The project includes a local development environment through make commands.
 
 ### Development Workflow
