@@ -1,3 +1,4 @@
+import { Scrollable } from '@ansible/nexus-ui-framework'
 import { useParams } from 'wouter'
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
@@ -19,7 +20,12 @@ export default function Automation() {
   return (
     <AppPage>
       <AppPageHeader title={workflow.name!} />
-      <AutomationFlow workflow={workflowQuery.data!} />
+      <div className="flex grow gap-4 overflow-hidden">
+        <AutomationFlow workflow={workflowQuery.data!} />
+        <Scrollable className="glass max-h-full rounded-4xl border text-xs">
+          <pre className="p-8">{JSON.stringify(workflow.version?.workflow_definition, null, 2)}</pre>
+        </Scrollable>
+      </div>
     </AppPage>
   )
 }

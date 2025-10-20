@@ -1,20 +1,24 @@
 import type {
   Activity,
   ConditionActivity,
+  JoinActivity,
+  LoopActivity,
+  ParallelActivity,
   SequenceActivity,
   TaskActivity,
   WorkflowWithVersion,
 } from '@ansible/nexus-contracts'
 import Dagre from '@dagrejs/dagre'
-import { ReactFlow, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow } from '@xyflow/react'
+import { ReactFlow, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow, type EdgeProps } from '@xyflow/react'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { ChatInput } from '../../components/chat/ChatInput'
 import { CanvasControls } from './CanvasControls'
+import { edgeTypes } from './edges/EdgeType'
 import { FlowDirectionContext } from './FlowDirectionContext'
 import { nodeTypes, type NodeType } from './nodes/NodeType'
 
-type EdgeType = {
+type EdgeType = Pick<EdgeProps, 'markerEnd'> & {
   id: string
+  type?: string
   source: string
   target: string
   sourceHandle?: string
@@ -88,7 +92,6 @@ export function AutomationFlow(props: { workflow: WorkflowWithVersion }) {
     <FlowDirectionContext.Provider value={flowDirectionState}>
       <ReactFlowProvider>
         <AutomationBuilderFlow initialNodes={nodes} initialEdges={edges} />
-        <ChatInput />
       </ReactFlowProvider>
     </FlowDirectionContext.Provider>
   )
@@ -143,6 +146,7 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       proOptions={{ hideAttribution: true }}
@@ -164,14 +168,14 @@ function addActivity(activity: Activity, nodes: NodeType[], edges: EdgeType[], p
     case 'sequence':
       addSequenceActivity(activity, nodes, edges, previousIds)
       return true
-    case 'join':
-      // TODO
-      return true
     case 'parallel':
-      // TODO
+      addParallelActivity(activity, nodes, edges, previousIds)
       return true
     case 'loop':
-      // TODO
+      addLoopActivity(activity, nodes, edges, previousIds)
+      return true
+    case 'join':
+      addJoinActivity(activity, nodes, edges, previousIds)
       return true
   }
 }
@@ -217,5 +221,46 @@ function addSequenceActivity(
     if (added) {
       seqPreviousIds = [step.id]
     }
+  }
+}
+
+function addParallelActivity(
+  parallelActivity: ParallelActivity,
+  nodes: NodeType[],
+  edges: EdgeType[],
+  previousIds: string[]
+) {
+  for (const branch of parallelActivity.branches ?? []) {
+    addActivity(branch, nodes, edges, previousIds)
+  }
+}
+
+function addLoopActivity(loopActivity: LoopActivity, nodes: NodeType[], edges: EdgeType[], previousIds: string[]) {
+  let firstId = ''
+  let loopPreviousId = ''
+  for (const step of loopActivity.loop.do ?? []) {
+    const added = addActivity(step, nodes, edges, loopPreviousId ? [loopPreviousId] : previousIds)
+    if (added) {
+      if (!firstId) {
+        firstId = step.id
+      }
+      loopPreviousId = step.id
+    }
+  }
+  if (loopPreviousId && firstId) {
+    edges.push({ id: `${loopPreviousId}-${firstId}`, source: loopPreviousId, target: firstId, type: 'loop' })
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function addJoinActivity(joinActivity: JoinActivity, nodes: NodeType[], edges: EdgeType[], previousIds: string[]) {
+  nodes.push({
+    id: joinActivity.id,
+    type: 'join',
+    position: { x: 0, y: 0 },
+    data: joinActivity,
+  })
+  for (const id of joinActivity.join.branches) {
+    edges.push({ id: `${id}-${joinActivity.id}`, source: id, target: joinActivity.id })
   }
 }
