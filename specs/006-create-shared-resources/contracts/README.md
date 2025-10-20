@@ -38,18 +38,36 @@ components:
               description: My custom field
 ```
 
-### In Your Python Code (Pydantic)
+### In Your Python Code (SQLModel)
 
-Import and extend base models:
+Import and extend base SQLModel classes:
 
 ```python
 from nexus_shared.models import Resource
-from pydantic import Field
+from sqlmodel import Field
 
-class MyResource(Resource):
-    """My custom resource extending shared Resource model."""
+class MyResource(Resource, table=True):
+    """My custom resource extending shared Resource SQLModel."""
+
+    __tablename__ = "my_resources"
 
     custom_field: str = Field(..., description="My custom field")
+
+    # Optional: Custom methods for business logic
+    def do_something(self) -> str:
+        return f"Processing {self.name}"
+```
+
+For API response models (without database table):
+
+```python
+from nexus_shared.models import Resource
+from sqlmodel import Field
+
+class MyResourceResponse(Resource, table=False):
+    """Response model for MyResource (no table=False for API responses)."""
+
+    computed_field: str = Field(..., description="Computed value")
 ```
 
 ## Schema Hierarchy
@@ -68,8 +86,9 @@ Choose the appropriate base schema:
 4. **UserOwnedResource**: BaseResource + ownership tracking
    - Use when: Resource needs audit trail
 
-5. **Resource** (Recommended): All capabilities combined
+5. **Resource** (Recommended): All capabilities combined (Abstract)
    - Use when: Standard resource needing naming, soft deletes, and ownership
+   - Note: This is abstract - you must create concrete subclasses with table=True
 
 ## Labels (Key-Value Pairs)
 
@@ -166,8 +185,8 @@ GET /resources?limit=20&cursor=eyJpZCI6InV1aWQifQ
 ```json
 {
   "resources": [...],
-  "next": "https://api.example.com/resources?cursor=next_token&limit=20",
-  "prev": "https://api.example.com/resources?cursor=prev_token&limit=20",
+  "next": "eyJpZCI6InV1aWQifQ==",
+  "prev": null,
   "total": 150
 }
 ```
@@ -182,13 +201,12 @@ response = PaginationHelper.generate_response(
     items=resources,
     limit=20,
     cursor=request_cursor,
-    base_url="https://api.example.com/resources",
     include_total=True,
     total_count=150
 )
 # Returns: {
-#   "next": "...",
-#   "prev": "...",
+#   "next": "eyJpZCI6InV1aWQifQ==",
+#   "prev": None,
 #   "total": 150
 # }
 ```
@@ -287,6 +305,121 @@ Fields marked `nullable: true` can be `null` or omitted:
 
 Use `Optional[T]` in Pydantic models.
 
+## SQLModel Specific Features
+
+### Database Table Configuration
+
+Base SQLModel classes are abstract - you must create concrete subclasses:
+
+```python
+from nexus_shared.models import Resource
+from sqlalchemy import create_engine
+from sqlmodel import SQLModel, Session
+
+# Create concrete subclass
+class MyResource(Resource, table=True):
+    __tablename__ = "my_resources"
+
+# Create database engine
+engine = create_engine("postgresql://...")
+
+# Create all tables
+SQLModel.metadata.create_all(engine)
+
+# Use in database session
+with Session(engine) as session:
+    resource = MyResource(
+        name="Test Resource",
+        created_by=user_id,
+        labels={"environment": "test"}
+    )
+    session.add(resource)
+    session.commit()
+```
+
+### Labels as JSON Column
+
+Labels are stored as JSON in the database for efficient querying:
+
+```python
+from sqlalchemy import JSON
+from nexus_shared.models import Resource
+
+# Create concrete subclass first
+class MyResource(Resource, table=True):
+    __tablename__ = "my_resources"
+
+# Query resources by label
+with Session(engine) as session:
+    # PostgreSQL JSON operator
+    resources = session.query(MyResource).filter(
+        MyResource.labels["environment"].astext == "production"
+    ).all()
+
+    # SQLAlchemy JSON contains
+    resources = session.query(MyResource).filter(
+        MyResource.labels.op("->>")("environment") == "production"
+    ).all()
+```
+
+### Soft Delete Patterns
+
+```python
+from nexus_shared.models import Resource
+from datetime import datetime
+
+# Create concrete subclass first
+class MyResource(Resource, table=True):
+    __tablename__ = "my_resources"
+
+# Soft delete a resource
+resource.soft_delete(user_id)
+session.commit()
+
+# Query only active resources
+active_resources = session.query(MyResource).filter(
+    MyResource.deleted_at.is_(None)
+).all()
+
+# Query deleted resources
+deleted_resources = session.query(MyResource).filter(
+    MyResource.deleted_at.is_not(None)
+).all()
+
+# Restore a resource
+resource.restore()
+session.commit()
+```
+
+### Inheritance and Relationships
+
+```python
+from nexus_shared.models import Resource, BaseResource
+from sqlmodel import Field, Relationship
+from typing import List
+from uuid import UUID
+
+class Project(Resource, table=True):
+    """Project resource with team relationship."""
+
+    __tablename__ = "projects"
+
+    # Custom fields
+    budget: float = Field(..., description="Project budget")
+
+    # Relationships to other tables
+    team_id: UUID = Field(foreign_key="teams.id")
+    team: "Team" = Relationship(back_populates="projects")
+
+class Team(BaseResource, table=True):
+    """Team resource."""
+
+    __tablename__ = "teams"
+
+    name: str = Field(..., description="Team name")
+    projects: List[Project] = Relationship(back_populates="team")
+```
+
 ## Example: Complete Resource Endpoint
 
 ```python
@@ -295,9 +428,13 @@ from typing import Optional
 from nexus_shared.models import Resource, ResourcesResponse
 from nexus_shared.utils import FilterParser, PaginationHelper, SortParser, LabelFilter
 
+# Create concrete resource class
+class MyResource(Resource, table=True):
+    __tablename__ = "my_resources"
+
 app = FastAPI()
 
-@app.get("/resources", response_model=ResourcesResponse[Resource])
+@app.get("/resources", response_model=ResourcesResponse[MyResource])
 async def list_resources(
     limit: int = Query(20, ge=1, le=100),
     sort: Optional[str] = None,
@@ -319,7 +456,7 @@ async def list_resources(
     )
 
     # Query database (pseudo-code)
-    query = db.query(Resource)
+    query = db.query(MyResource)
 
     # Apply filters
     for f in filters:
@@ -327,7 +464,9 @@ async def list_resources(
 
     # Apply label filters
     if labels:
-        query = query.filter(LabelFilter.sql_condition(labels))
+        # Note: Implementation depends on your database backend
+        for key, value in labels.items():
+            query = query.filter(MyResource.labels[key].astext == value)
 
     # Apply sort
     query = query.order_by(sort_field, sort_direction)
@@ -342,8 +481,8 @@ async def list_resources(
         items=resources[:limit],
         limit=limit,
         cursor=cursor,
-        base_url="https://api.example.com/resources",
-        include_total=include_total
+        include_total=include_total,
+        total_count=len(resources) if include_total else None
     )
 ```
 

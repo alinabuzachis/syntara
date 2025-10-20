@@ -239,8 +239,9 @@ class TestGetProviderDetail:
         """Test getting provider detail for non-existent provider."""
         repo = MockProviderRepository()
         non_existent_id = uuid4()
+        expected_msg = f"Provider with ID '{non_existent_id}' not found"
 
-        with pytest.raises(ProviderNotFoundError, match=f"Provider with ID '{non_existent_id}' not found"):
+        with pytest.raises(ProviderNotFoundError, match=expected_msg):
             await get_provider_detail(non_existent_id, repo)
 
 
@@ -282,8 +283,9 @@ class TestUpdateProvider:
         """Test updating non-existent provider."""
         repo = MockProviderRepository()
         non_existent_id = uuid4()
+        expected_msg = f"Provider with ID '{non_existent_id}' not found"
 
-        with pytest.raises(ProviderNotFoundError, match=f"Provider with ID '{non_existent_id}' not found"):
+        with pytest.raises(ProviderNotFoundError, match=expected_msg):
             await update_provider(non_existent_id, {"description": "Updated"}, repo)
 
     @pytest.mark.asyncio
@@ -406,8 +408,9 @@ class TestValidateProviderConnection:
         repo = MockProviderRepository()
         adapter = MockProvider()
         non_existent_id = uuid4()
+        expected_msg = f"Provider with ID '{non_existent_id}' not found"
 
-        with pytest.raises(ProviderNotFoundError, match=f"Provider with ID '{non_existent_id}' not found"):
+        with pytest.raises(ProviderNotFoundError, match=expected_msg):
             await validate_provider_connection(non_existent_id, repo, adapter)
 
     @pytest.mark.asyncio

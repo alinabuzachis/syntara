@@ -100,7 +100,8 @@ class TestFilterParam:
         invalid_operators = ["invalid", "like", "regex", "starts_with", "ends_with"]
 
         for operator in invalid_operators:
-            with pytest.raises(ValidationError, match=f"Invalid operator '{operator}'"):
+            expected_msg = f"Invalid operator '{operator}'"
+            with pytest.raises(ValidationError, match=expected_msg):
                 FilterParam(
                     field="test_field",
                     operator=operator,

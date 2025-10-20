@@ -26,6 +26,7 @@ dependencies = [
     "httpx>=0.28.1",
     "uvicorn[standard]>=0.24.0",
     "sqlalchemy[asyncio]>=2.0.0",
+    "sqlmodel>=0.0.14",
     "pydantic>=2.0.0",
     "pyyaml>=6.0.0",
     "alembic>=1.12.0",
@@ -103,7 +104,6 @@ ignore = [
 "src/nexus/api/repositories/*.py" = ["ANN401"]  # Allow Any for database row types
 "src/nexus/api/alembic/**/*.py" = ["INP001", "D400", "D415"]  # Alembic files
 "src/nexus/api/main.py" = ["S104"]  # Binding to all interfaces for development
-
 
 # MyPy configuration
 [tool.mypy]

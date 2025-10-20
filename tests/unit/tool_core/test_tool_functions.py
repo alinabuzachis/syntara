@@ -120,8 +120,9 @@ class TestRefreshTools:
         tool_repo = MockToolRepository()
         adapter = MockProvider()
         non_existent_id = uuid4()
+        expected_msg = f"Provider with ID '{non_existent_id}' not found"
 
-        with pytest.raises(ProviderNotFoundError, match=f"Provider with ID '{non_existent_id}' not found"):
+        with pytest.raises(ProviderNotFoundError, match=expected_msg):
             await refresh_tools(non_existent_id, provider_repo, tool_repo, adapter)
 
     @pytest.mark.asyncio
@@ -231,8 +232,9 @@ class TestGetToolDetail:
         """Test getting tool detail for non-existent tool."""
         tool_repo = MockToolRepository()
         non_existent_id = uuid4()
+        expected_msg = f"Tool with ID '{non_existent_id}' not found"
 
-        with pytest.raises(ToolNotFoundError, match=f"Tool with ID '{non_existent_id}' not found"):
+        with pytest.raises(ToolNotFoundError, match=expected_msg):
             await get_tool_detail(non_existent_id, tool_repo)
 
 
@@ -266,8 +268,9 @@ class TestUpdateToolEnabled:
         """Test updating enabled status for non-existent tool."""
         tool_repo = MockToolRepository()
         non_existent_id = uuid4()
+        expected_msg = f"Tool with ID '{non_existent_id}' not found"
 
-        with pytest.raises(ToolNotFoundError, match=f"Tool with ID '{non_existent_id}' not found"):
+        with pytest.raises(ToolNotFoundError, match=expected_msg):
             await update_tool_enabled(non_existent_id, enabled=False, tool_repo=tool_repo)
 
 
@@ -381,8 +384,9 @@ class TestValidateTool:
         tool_repo = MockToolRepository()
         adapter = MockProvider()
         non_existent_id = uuid4()
+        expected_msg = f"Tool with ID '{non_existent_id}' not found"
 
-        with pytest.raises(ToolNotFoundError, match=f"Tool with ID '{non_existent_id}' not found"):
+        with pytest.raises(ToolNotFoundError, match=expected_msg):
             await validate_tool(non_existent_id, {}, tool_repo, adapter)
 
     @pytest.mark.asyncio

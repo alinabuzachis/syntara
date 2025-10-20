@@ -88,6 +88,7 @@ class TestProviderFactory:
         # Mock class that raises error on construction
         class FailingProvider:
             def __init__(self) -> None:
+                """Initialize provider that always fails during construction."""
                 msg = "Construction failed"
                 raise RuntimeError(msg)
 
