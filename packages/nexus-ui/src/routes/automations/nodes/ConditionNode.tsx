@@ -1,6 +1,6 @@
+import type { ConditionActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import type { ConditionActivity } from 'nexus-contracts'
 import { DirectionNodeComponent } from './DirectionNode'
 
 export type ConditionNode = { type: 'condition' } & Node<ConditionActivity>

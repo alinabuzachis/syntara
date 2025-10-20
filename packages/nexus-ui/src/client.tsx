@@ -1,4 +1,4 @@
-import type { ToolProvidersAPI, ToolsAPI, WorkflowAPI } from 'nexus-contracts'
+import type { ToolProvidersAPI, ToolsAPI, WorkflowAPI } from '@ansible/nexus-contracts'
 import createFetchClient from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 

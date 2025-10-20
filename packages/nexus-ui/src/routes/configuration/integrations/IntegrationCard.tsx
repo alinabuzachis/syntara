@@ -1,6 +1,6 @@
+import type { ToolProvider } from '@ansible/nexus-contracts'
 import { Menu, MenuItem, MenuItems, MenuTrigger } from '@ansible/nexus-ui-framework'
 import { EllipsisVerticalIcon } from 'lucide-react'
-import type { ToolProvider } from 'nexus-contracts'
 
 export function IntegrationCard(props: { integration: ToolProvider }) {
   return (

@@ -9,7 +9,7 @@
     "podman:run": "podman run --rm -p 3000:3000 nexus-mock-api"
   },
   "dependencies": {
-    "nexus-contracts": "file:../nexus-contracts",
+    "@ansible/nexus-contracts": "file:../nexus-contracts",
     "@mswjs/http-middleware": "^0.10.3",
     "js-yaml": "^4.1.0",
     "msw": "^2.11.6",

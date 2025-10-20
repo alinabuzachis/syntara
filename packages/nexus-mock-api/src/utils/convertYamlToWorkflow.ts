@@ -1,7 +1,10 @@
-import type { WorkflowWithVersion, WorkflowDefinition } from 'nexus-contracts'
+import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { readFileSync } from 'fs'
 import yaml from 'js-yaml'
 import { basename } from 'path'
+
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
+type WorkflowDefinition = WorkflowAPI.components['schemas']['WorkflowDefinition']
 
 /**
  * Convert a YAML workflow definition file to a WorkflowWithVersion object

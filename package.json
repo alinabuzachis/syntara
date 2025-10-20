@@ -11,7 +11,7 @@
     "build": "concurrently npm:build:nexus-ui-framework -c auto && concurrently npm:build:nexus-ui -c auto",
     "build:nexus-ui": "npm run build --workspace=packages/nexus-ui",
     "build:nexus-ui-framework": "npm run build --workspace=packages/nexus-ui-framework",
-    "test": "concurrently npm:test:* npm:format:check -c auto",
+    "test": "npm run build && concurrently npm:test:* npm:format:check -c auto",
     "test:nexus-ui": "npm run test --prefix packages/nexus-ui",
     "test:nexus-ui-framework": "npm run test --prefix packages/nexus-ui-framework",
     "clean": "npm run clean --workspaces --if-present",

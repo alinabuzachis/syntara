@@ -1,4 +1,3 @@
-import { WorkflowWithVersion } from 'nexus-contracts'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { convertYamlToWorkflow } from '../utils/convertYamlToWorkflow'

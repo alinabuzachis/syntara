@@ -1,6 +1,12 @@
+import type {
+  Activity,
+  ConditionActivity,
+  SequenceActivity,
+  TaskActivity,
+  WorkflowWithVersion,
+} from '@ansible/nexus-contracts'
 import Dagre from '@dagrejs/dagre'
 import { ReactFlow, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow } from '@xyflow/react'
-import type { Activity, ConditionActivity, SequenceActivity, TaskActivity, WorkflowWithVersion } from 'nexus-contracts'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { ChatInput } from '../../components/chat/ChatInput'
 import { CanvasControls } from './CanvasControls'

@@ -1,5 +1,5 @@
+import type { ToolProvider } from '@ansible/nexus-contracts'
 import { Button, Form, FormInput, FormSelect } from '@ansible/nexus-ui-framework'
-import type { ToolProvider } from 'nexus-contracts'
 import { navigate } from 'wouter/use-browser-location'
 import { AppPage } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'

@@ -1,6 +1,6 @@
+import type { TaskActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import type { TaskActivity } from 'nexus-contracts'
 import { DirectionNodeComponent } from './DirectionNode'
 
 export type TaskNode = { type: 'task' } & Node<TaskActivity>
