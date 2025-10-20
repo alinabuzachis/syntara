@@ -4,7 +4,9 @@ import { AppRoute } from './AppRoute'
 
 const Automation = lazy(() => import('../routes/automations/Automation'))
 const Automations = lazy(() => import('../routes/automations/Automations'))
-const IntegrationForm = lazy(() => import('../routes/configuration/integrations/form/IntegrationForm').then(m => ({ default: m.IntegrationForm })))
+const IntegrationForm = lazy(() =>
+  import('../routes/configuration/integrations/form/IntegrationForm').then((m) => ({ default: m.IntegrationForm }))
+)
 const Integrations = lazy(() => import('../routes/configuration/integrations/Integrations'))
 const Glossary = lazy(() => import('../routes/documentation/glossary/Glossary'))
 
