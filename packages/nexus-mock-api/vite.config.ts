@@ -1,6 +1,6 @@
 // vite.config.js
 /* eslint-disable no-restricted-exports */
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [],
@@ -8,4 +8,4 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['vitest.setup.ts'],
   },
-});
+})

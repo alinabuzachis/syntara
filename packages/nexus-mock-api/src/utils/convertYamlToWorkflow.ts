@@ -6,11 +6,7 @@ import { basename } from 'path'
 /**
  * Convert a YAML workflow definition file to a WorkflowWithVersion object
  */
-export function convertYamlToWorkflow(
-  yamlFilePath: string,
-  id: string,
-  createdBy = 'system',
-): WorkflowWithVersion {
+export function convertYamlToWorkflow(yamlFilePath: string, id: string, createdBy = 'system'): WorkflowWithVersion {
   // Read and parse YAML file
   const yamlContent = readFileSync(yamlFilePath, 'utf-8')
   const workflowDefinition = yaml.load(yamlContent) as WorkflowDefinition

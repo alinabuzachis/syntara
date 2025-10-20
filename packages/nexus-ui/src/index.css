@@ -30,7 +30,6 @@ body {
 }
 
 @layer utilities {
-
   .label {
     @apply text-white/70;
     @apply mb-1;
@@ -82,10 +81,10 @@ body {
   --xy-edge-stroke-width-default: 2px;
 }
 
-  dt {
-    @apply mb-0.5 text-white/60;
-  }
+dt {
+  @apply mb-0.5 text-white/60;
+}
 
-  dd {
-    @apply text-white not-last:mb-6;
-  }
+dd {
+  @apply text-white not-last:mb-6;
+}
