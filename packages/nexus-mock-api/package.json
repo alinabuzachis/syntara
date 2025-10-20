@@ -1,5 +1,5 @@
 {
-  "name": "nexus-mock-api",
+  "name": "@ansible/nexus-mock-api",
   "version": "1.0.0",
   "main": "src/index.ts",
   "type": "module",
