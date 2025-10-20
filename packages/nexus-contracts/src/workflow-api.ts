@@ -1345,6 +1345,12 @@ export interface components {
       /** @description Human-readable name for the activity */
       name?: string
       /**
+       * @description Optional condition for executing this activity (activity is skipped if condition evaluates to false)
+       * @example ${output.status == 'success'}
+       * @example ${input.amount > 1000}
+       */
+      condition?: string
+      /**
        * @description Whether this activity requires human approval before execution
        * @default false
        */
@@ -1378,7 +1384,7 @@ export interface components {
         [key: string]: string
       }
     }
-    agenticTask: components['schemas']['baseTaskDefinition'] & {
+    agenticTask: {
       /**
        * @description Task executor type
        * @constant
@@ -1401,8 +1407,8 @@ export interface components {
       } & {
         [key: string]: unknown
       }
-    }
-    scriptTask: components['schemas']['baseTaskDefinition'] & {
+    } & components['schemas']['baseTaskDefinition']
+    scriptTask: {
       /**
        * @description Task executor type
        * @constant
@@ -1421,8 +1427,8 @@ export interface components {
           [key: string]: string
         }
       }
-    }
-    apiTask: components['schemas']['baseTaskDefinition'] & {
+    } & components['schemas']['baseTaskDefinition']
+    apiTask: {
       /**
        * @description Task executor type
        * @constant
@@ -1462,8 +1468,8 @@ export interface components {
           [key: string]: unknown
         }
       }
-    }
-    connectorTask: components['schemas']['baseTaskDefinition'] & {
+    } & components['schemas']['baseTaskDefinition']
+    connectorTask: {
       /**
        * @description Task executor type
        * @constant
@@ -1479,18 +1485,18 @@ export interface components {
           [key: string]: unknown
         }
       }
-    }
+    } & components['schemas']['baseTaskDefinition']
     taskDefinition:
       | components['schemas']['agenticTask']
       | components['schemas']['scriptTask']
       | components['schemas']['apiTask']
       | components['schemas']['connectorTask']
-    taskActivity: components['schemas']['baseActivity'] & {
+    taskActivity: {
       /** @constant */
       type: 'task'
       /** @description Task definition */
       task: components['schemas']['taskDefinition']
-    }
+    } & components['schemas']['baseActivity']
     activity:
       | components['schemas']['taskActivity']
       | components['schemas']['parallelActivity']
@@ -1498,19 +1504,19 @@ export interface components {
       | components['schemas']['conditionActivity']
       | components['schemas']['loopActivity']
       | components['schemas']['joinActivity']
-    parallelActivity: components['schemas']['baseActivity'] & {
+    parallelActivity: {
       /** @constant */
       type: 'parallel'
       /** @description Activities to execute in parallel */
       branches: components['schemas']['activity'][]
-    }
-    sequenceActivity: components['schemas']['baseActivity'] & {
+    } & components['schemas']['baseActivity']
+    sequenceActivity: {
       /** @constant */
       type: 'sequence'
       /** @description Activities to execute sequentially */
       steps: components['schemas']['activity'][]
-    }
-    conditionActivity: components['schemas']['baseActivity'] & {
+    } & components['schemas']['baseActivity']
+    conditionActivity: {
       /** @constant */
       type: 'condition'
       /**
@@ -1523,13 +1529,13 @@ export interface components {
       then: components['schemas']['activity'][]
       /** @description Activities to execute if condition is false */
       else?: components['schemas']['activity'][]
-    }
+    } & WithRequired<components['schemas']['baseActivity'], 'condition'>
     /** @description Base properties common to all loop types */
     baseLoop: {
       /** @description Activities to execute in each iteration */
       do: components['schemas']['activity'][]
     }
-    forEachLoop: components['schemas']['baseLoop'] & {
+    forEachLoop: {
       /** @constant */
       type: 'forEach'
       /**
@@ -1548,8 +1554,8 @@ export interface components {
        * @default index
        */
       indexVariable?: string
-    }
-    whileLoop: components['schemas']['baseLoop'] & {
+    } & components['schemas']['baseLoop']
+    whileLoop: {
       /** @constant */
       type: 'while'
       /**
@@ -1563,8 +1569,8 @@ export interface components {
        * @default 1000
        */
       maxIterations?: number
-    }
-    countLoop: components['schemas']['baseLoop'] & {
+    } & components['schemas']['baseLoop']
+    countLoop: {
       /** @constant */
       type: 'count'
       /** @description Number of iterations to execute */
@@ -1574,17 +1580,17 @@ export interface components {
        * @default index
        */
       indexVariable?: string
-    }
+    } & components['schemas']['baseLoop']
     loopDefinition:
       | components['schemas']['forEachLoop']
       | components['schemas']['whileLoop']
       | components['schemas']['countLoop']
-    loopActivity: components['schemas']['baseActivity'] & {
+    loopActivity: {
       /** @constant */
       type: 'loop'
       /** @description Loop definition */
       loop: components['schemas']['loopDefinition']
-    }
+    } & components['schemas']['baseActivity']
     /** @description Join pattern configuration - waits for specific activities to complete before proceeding */
     joinDefinition: {
       /** @description List of activity IDs to wait for */
@@ -1616,12 +1622,12 @@ export interface components {
        */
       aggregateOutputs?: boolean
     }
-    joinActivity: components['schemas']['baseActivity'] & {
+    joinActivity: {
       /** @constant */
       type: 'join'
       /** @description Join definition */
       join: components['schemas']['joinDefinition']
-    }
+    } & components['schemas']['baseActivity']
     /**
      * Workflow Definition Schema
      * @description JSON Schema for workflow YAML definitions in the Nexus Workflow Engine
@@ -1700,4 +1706,7 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
+type WithRequired<T, K extends keyof T> = T & {
+  [P in K]-?: T[P]
+}
 export type operations = Record<string, never>

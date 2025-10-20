@@ -1,8 +1,9 @@
 import '@ansible/nexus-ui-framework/style.css'
-import { StrictMode } from 'react'
+import { lazy, StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './app/App.js'
 import './index.css'
+
+const App = lazy(() => import('./app/App.js'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
