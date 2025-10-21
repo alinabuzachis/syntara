@@ -21,4 +21,6 @@
 
 .glass.card {
   @apply bg-white/5;
+    @apply backdrop-blur-md;
+
 }

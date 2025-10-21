@@ -16,8 +16,9 @@ export function Scrollable(props: {
           if (props.onScroll) {
             props.onScroll({
               atTop: event.currentTarget.scrollTop === 0,
+              // sometime due to rounding errors we need to use >= here for
               atBottom:
-                event.currentTarget.scrollHeight - event.currentTarget.scrollTop === event.currentTarget.clientHeight,
+                event.currentTarget.scrollHeight - event.currentTarget.scrollTop <= event.currentTarget.clientHeight,
             })
           }
         }}
