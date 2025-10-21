@@ -104,6 +104,8 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
   const [nodes, setNodes, onNodesChange] = useNodesState(props.initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(props.initialEdges)
 
+  // const onConnect = useCallback((params: Connection) => setEdges((eds) => [...eds, params]), [setEdges])
+
   const onLayout = useCallback(
     (direction: 'TB' | 'LR') => {
       const layouted = getLayoutedElements(nodes, edges, { direction })
@@ -149,6 +151,7 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
       edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
+      // onConnect={onConnect}
       proOptions={{ hideAttribution: true }}
       fitView
     >
@@ -157,39 +160,44 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
   )
 }
 
-function addActivity(activity: Activity, nodes: NodeType[], edges: EdgeType[], previousIds: string[]): boolean {
+function addActivity(activity: Activity, nodes: NodeType[], edges: EdgeType[], previousIds: string[]): string {
   switch (activity.type) {
     case 'task':
-      addTaskActivity(activity, nodes, edges, previousIds)
-      return true
+      return addTaskActivity(activity, nodes, edges, previousIds)
     case 'condition':
-      addConditionActivity(activity, nodes, edges, previousIds)
-      return true
+      return addConditionActivity(activity, nodes, edges, previousIds)
     case 'sequence':
-      addSequenceActivity(activity, nodes, edges, previousIds)
-      return true
+      return addSequenceActivity(activity, nodes, edges, previousIds)
     case 'parallel':
-      addParallelActivity(activity, nodes, edges, previousIds)
-      return true
+      return addParallelActivity(activity, nodes, edges, previousIds)
     case 'loop':
-      addLoopActivity(activity, nodes, edges, previousIds)
-      return true
+      return addLoopActivity(activity, nodes, edges, previousIds)
     case 'join':
-      addJoinActivity(activity, nodes, edges, previousIds)
-      return true
+      return addJoinActivity(activity, nodes, edges)
   }
 }
 
-function addTaskActivity(taskActivity: TaskActivity, nodes: NodeType[], edges: EdgeType[], previousIds: string[]) {
+function addTaskActivity(
+  taskActivity: TaskActivity,
+  nodes: NodeType[],
+  edges: EdgeType[],
+  previousIds: string[],
+  parentId?: string
+) {
   nodes.push({
     id: taskActivity.id,
     type: 'task',
     position: { x: 0, y: 0 },
     data: taskActivity,
+    parentId,
+    extent: parentId ? 'parent' : undefined,
   })
   for (const id of previousIds) {
     edges.push({ id: `${id}-${taskActivity.id}`, source: id, target: taskActivity.id })
   }
+  previousIds.length = 0
+  previousIds.push(taskActivity.id)
+  return taskActivity.id
 }
 
 function addConditionActivity(
@@ -207,6 +215,7 @@ function addConditionActivity(
   for (const id of previousIds) {
     edges.push({ id: `${id}-${conditionActivity.id}`, source: id, target: conditionActivity.id })
   }
+  return conditionActivity.id
 }
 
 function addSequenceActivity(
@@ -222,6 +231,7 @@ function addSequenceActivity(
       seqPreviousIds = [step.id]
     }
   }
+  return sequenceActivity.id
 }
 
 function addParallelActivity(
@@ -230,9 +240,32 @@ function addParallelActivity(
   edges: EdgeType[],
   previousIds: string[]
 ) {
+  const ids: string[] = []
   for (const branch of parallelActivity.branches ?? []) {
-    addActivity(branch, nodes, edges, previousIds)
+    ids.push(addActivity(branch, nodes, edges, [...previousIds]))
   }
+
+  previousIds.length = 0
+  previousIds.push(...ids)
+
+  // nodes.push({
+  //   id: parallelActivity.id,
+  //   type: 'parallel',
+  //   position: { x: 0, y: 0 },
+  //   data: parallelActivity,
+  //   // style: {
+  //   //   width: 300,
+  //   //   height: 400,
+  //   // },
+  // })
+  // for (const id of ids) {
+  //   edges.push({ id: `${parallelActivity.id}-${id}`, source: id, target: parallelActivity.id })
+  // }
+
+  // previousIds.length = 0
+  // previousIds.push(parallelActivity.id)
+
+  return parallelActivity.id
 }
 
 function addLoopActivity(loopActivity: LoopActivity, nodes: NodeType[], edges: EdgeType[], previousIds: string[]) {
@@ -250,10 +283,10 @@ function addLoopActivity(loopActivity: LoopActivity, nodes: NodeType[], edges: E
   if (loopPreviousId && firstId) {
     edges.push({ id: `${loopPreviousId}-${firstId}`, source: loopPreviousId, target: firstId, type: 'loop' })
   }
+  return loopActivity.id
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function addJoinActivity(joinActivity: JoinActivity, nodes: NodeType[], edges: EdgeType[], previousIds: string[]) {
+function addJoinActivity(joinActivity: JoinActivity, nodes: NodeType[], edges: EdgeType[]) {
   nodes.push({
     id: joinActivity.id,
     type: 'join',
@@ -263,4 +296,5 @@ function addJoinActivity(joinActivity: JoinActivity, nodes: NodeType[], edges: E
   for (const id of joinActivity.join.branches) {
     edges.push({ id: `${id}-${joinActivity.id}`, source: id, target: joinActivity.id })
   }
+  return joinActivity.id
 }
