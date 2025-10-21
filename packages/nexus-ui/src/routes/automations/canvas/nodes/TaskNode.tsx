@@ -12,7 +12,7 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
   return (
     <NodeComponent
       className="rounded-3xl"
-      onClick={(e) => {
+      onClick={() => {
         setSidePanel(<TaskActivityDetails data={props.data} />)
       }}
     >
@@ -26,10 +26,6 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
             <dd>{props.data.condition}</dd>
           </>
         )}
-        {/* <dt className="font-mono text-xs text-white/50">JSON</dt>
-        <dd className="font-mono text-sm">
-          <pre>{JSON.stringify(props.data, undefined, 2)}</pre>
-        </dd> */}
       </dl>
     </NodeComponent>
   )
