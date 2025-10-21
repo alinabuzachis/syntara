@@ -1,16 +1,14 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
-import { DirectionNodeComponent } from './DirectionNode'
+import { NodeComponent } from './common/NodeComponent'
+import { NodeTitle } from './common/NodeTitle'
 
 export type TaskNode = { type: 'task' } & Node<TaskActivity>
 
 export function TaskNodeComponent(props: NodeProps<TaskNode>) {
   return (
-    <DirectionNodeComponent className="rounded-3xl">
-      <div>
-        <label className="text-lg font-bold">{props.data.name}</label>
-        <div className="text-xs text-white/60">Task</div>
-      </div>
+    <NodeComponent className="rounded-3xl">
+      <NodeTitle type="Task" name={props.data.name} />
       <dl className="details">
         <dt>Executor</dt>
         <dd>{props.data.task.executor}</dd>
@@ -25,6 +23,6 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
           <pre>{JSON.stringify(props.data, undefined, 2)}</pre>
         </dd> */}
       </dl>
-    </DirectionNodeComponent>
+    </NodeComponent>
   )
 }

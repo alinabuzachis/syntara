@@ -1,16 +1,14 @@
 import type { ConditionActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
-import { DirectionNodeComponent } from './DirectionNode'
+import { NodeComponent } from './common/NodeComponent'
+import { NodeTitle } from './common/NodeTitle'
 
 export type ConditionNode = { type: 'condition' } & Node<ConditionActivity>
 
 export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
   return (
-    <DirectionNodeComponent className="rounded-4xl">
-      <div>
-        <label className="text-lg font-bold">{props.data.name}</label>
-        <div className="text-xs text-white/60">Condition</div>
-      </div>
+    <NodeComponent className="rounded-4xl">
+      <NodeTitle type="Condition" name={props.data.name} />
       <dl className="details">
         <dt>Condition</dt>
         <dd>{props.data.condition}</dd>
@@ -19,6 +17,6 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
           <pre>{JSON.stringify(props.data, undefined, 2)}</pre>
         </dd> */}
       </dl>
-    </DirectionNodeComponent>
+    </NodeComponent>
   )
 }

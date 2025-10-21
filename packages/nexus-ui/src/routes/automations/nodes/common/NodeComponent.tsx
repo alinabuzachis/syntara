@@ -1,9 +1,9 @@
 import { Handle, Position } from '@xyflow/react'
 import clsx from 'clsx'
 import { useContext } from 'react'
-import { FlowDirectionContext } from '../FlowDirectionContext'
+import { FlowDirectionContext } from '../../FlowDirectionContext'
 
-export function DirectionNodeComponent(props: {
+export function NodeComponent(props: {
   children: React.ReactNode
   disableSource?: boolean
   disableTarget?: boolean
