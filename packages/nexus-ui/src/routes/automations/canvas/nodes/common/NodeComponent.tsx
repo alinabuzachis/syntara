@@ -8,11 +8,14 @@ export function NodeComponent(props: {
   disableSource?: boolean
   disableTarget?: boolean
   className?: string
+  onClick?: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void
 }) {
   const [flowDirection] = useContext(FlowDirectionContext)
-
   return (
-    <div className={clsx('glass card flex flex-col gap-4 border-2 p-6 shadow-md shadow-black/20', props.className)}>
+    <div
+      className={clsx('glass card flex flex-col gap-4 border-2 p-6 shadow-md shadow-black/20', props.className)}
+      onClick={props.onClick}
+    >
       {props.children}
       {!props.disableTarget && (
         <>
