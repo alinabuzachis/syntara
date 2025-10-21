@@ -7,13 +7,17 @@ This module tests that utility functions meet performance requirements:
 
 import time
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from nexus.core import CursorData, NamedResource
+from nexus.core.models.base import NamedResource
 from nexus.core.utils import matches, parse_filters, parse_label_filter
 from nexus.core.utils.cursor import decode_cursor
 from nexus.core.utils.pagination import encode_pagination_cursor, generate_response
 from nexus.core.utils.sorting import parse_multiple_sorts, parse_sort
+
+if TYPE_CHECKING:
+    from nexus.core.utils import CursorData
 
 
 class MockResource(NamedResource):

@@ -7,11 +7,11 @@ using AND logic (all filter labels must match).
 import re
 from typing import Any, TypeVar
 
-from sqlalchemy import Select, and_, func
+from sqlalchemy import Select, and_
 from sqlmodel import SQLModel
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
-from nexus.core import BaseResource
+from nexus.core.models.base import BaseResource
 
 # Type variable for generic Query/Select type
 TP = TypeVar("TP", bound=tuple[Any, ...])
@@ -162,9 +162,9 @@ def apply_label_filters(
     conditions = []
 
     for key, value in label_filters.items():
-        # Use SQLite JSON function for label matching
-        # This creates conditions like: json_extract(Resource.labels, '$.env') == 'prod'
-        condition = func.json_extract(labels_field, f"$.{key}") == value
+        # Use PostgreSQL JSONB operator for label matching
+        # This creates conditions like: Resource.labels ->> 'env' == 'prod'
+        condition = labels_field[key].astext == value
         conditions.append(condition)
 
     # Apply all conditions with AND logic

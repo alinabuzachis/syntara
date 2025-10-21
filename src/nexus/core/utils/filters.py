@@ -5,11 +5,11 @@ bracket notation into structured filter objects for database queries.
 """
 
 import re
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, TypeVar
 
+from pydantic import BaseModel
 from sqlalchemy import Select, and_
 from sqlmodel import SQLModel
 
@@ -45,8 +45,7 @@ class FilterOperator(str, Enum):
     LTE = "lte"
 
 
-@dataclass
-class Filter:
+class Filter(BaseModel):
     """Structured filter object parsed from query parameters.
 
     Attributes:

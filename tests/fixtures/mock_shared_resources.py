@@ -1,10 +1,6 @@
 """Mock concrete implementations of shared resource models for testing and documentation."""
 
-from nexus.core.models.base import BaseResource
-from nexus.core.models.named import NamedResource
-from nexus.core.models.resource import Resource
-from nexus.core.models.soft_deletable import SoftDeletableResource
-from nexus.core.models.user_owned import UserOwnedResource
+from nexus.core.models.base import BaseResource, NamedResource, Resource, SoftDeletableResource, UserOwnedResource
 
 
 class MockBaseResource(BaseResource, table=True):

@@ -10,7 +10,7 @@ Cursor Format:
 
 from collections.abc import Sequence
 
-from nexus.core import BaseResource
+from nexus.core.models.base import BaseResource
 from nexus.core.utils.cursor import (
     PaginationDirection,
     create_cursor_data,

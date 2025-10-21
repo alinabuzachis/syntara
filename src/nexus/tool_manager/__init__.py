@@ -51,11 +51,7 @@ from nexus.tool_manager.models import (
     ToolValidationResult,
 )
 
-__version__ = "0.1.0"
-
 __all__ = [  # noqa: RUF022
-    # Version
-    "__version__",
     # Domain Models
     "Provider",
     "Tool",

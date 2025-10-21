@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from nexus.core import NamedResource
+from nexus.core.models.base import NamedResource
 from nexus.core.utils.cursor import (
     PaginationDirection,
     create_cursor_data,

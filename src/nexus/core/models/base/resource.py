@@ -6,9 +6,9 @@ capabilities through multiple inheritance.
 
 from abc import ABC
 
-from nexus.core.models.named import NamedResource
-from nexus.core.models.soft_deletable import SoftDeletableResource
-from nexus.core.models.user_owned import UserOwnedResource
+from nexus.core.models.base.named import NamedResource
+from nexus.core.models.base.soft_deletable import SoftDeletableResource
+from nexus.core.models.base.user_owned import UserOwnedResource
 
 
 class Resource(NamedResource, SoftDeletableResource, UserOwnedResource, ABC):
