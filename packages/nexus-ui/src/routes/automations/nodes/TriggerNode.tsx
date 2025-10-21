@@ -1,5 +1,6 @@
 import { type Node, type NodeProps } from '@xyflow/react'
-import { DirectionNodeComponent } from './DirectionNode'
+import { NodeComponent } from './common/NodeComponent'
+import { NodeTitle } from './common/NodeTitle'
 
 export type TriggerNode = { type: 'trigger' } & Node<{
   label: string
@@ -8,11 +9,8 @@ export type TriggerNode = { type: 'trigger' } & Node<{
 }>
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   return (
-    <DirectionNodeComponent disableTarget className="rounded-4xl rounded-l-[128px]">
-      <div>
-        <label className="text-lg font-bold">{props.data.label}</label>
-        <div className="text-xs text-white/60">Trigger</div>
-      </div>
+    <NodeComponent disableTarget className="rounded-4xl rounded-l-[128px]">
+      <NodeTitle type="Trigger" name={props.data.label} />
       {props.data.description && <div className="text-pretty">{props.data.description}</div>}
       {props.data.integrations && (
         <div>
@@ -26,6 +24,6 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
           </ul>
         </div>
       )}
-    </DirectionNodeComponent>
+    </NodeComponent>
   )
 }
