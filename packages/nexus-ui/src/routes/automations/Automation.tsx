@@ -4,7 +4,7 @@ import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
 import { useQueryState } from '../../components/states/useQueryState'
-import { AutomationFlow } from './AutomationFlow'
+import { AutomationFlow } from './canvas/AutomationFlow'
 
 export default function Automation() {
   const workflowId = useParams().workflowId || '1'
