@@ -64,14 +64,6 @@ body {
       2px -2px 4px var(--color-pink-800);
   }
 
-  .card {
-    /* @apply p-6; */
-
-    /* @apply flex flex-col; */
-    @apply border border-gray-700;
-    @apply bg-black/80 bg-linear-0 from-violet-500/30 to-blue-300/30;
-    @apply shadow-lg shadow-black/50;
-  }
 }
 
 .react-flow.dark {

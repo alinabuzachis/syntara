@@ -13,7 +13,7 @@ export function NodeComponent(props: {
   const [flowDirection] = useContext(FlowDirectionContext)
   return (
     <div
-      className={clsx('glass card flex flex-col gap-4 border-2 p-6 shadow-md shadow-black/20', props.className)}
+      className={clsx('glass card flex flex-col gap-4 border-2 px-6 py-4 shadow-md shadow-black/50', props.className)}
       onClick={props.onClick}
     >
       {props.children}
