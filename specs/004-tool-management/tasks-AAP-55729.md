@@ -7,7 +7,7 @@
 
 This ticket delivers the foundational abstraction layer for tool management, creating provider-agnostic architecture with core domain logic, and validates the design with a mock provider implementation. All functionality includes passing tests.
 
-**Tech Stack**: Python 3.12+, FastAPI, SQLAlchemy 2.0, pytest, Redis
+**Tech Stack**: Python 3.12+, FastAPI, SQLAlchemy 2.0, pytest, Valkey
 **Package**: `nexus.tool_manager`
 **Source Directory**: `./src/nexus/tool_manager/`
 
@@ -86,7 +86,7 @@ graph TD
 - [x] Ensure `src/nexus/tool_manager` is listed in hatch build targets
 - [x] Ensure proper Python package structure with `__init__.py` files
 - [x] Include package in build configuration and dependency management
-- [x] Add required dependencies: mcp library, httpx, Redis client
+- [x] Add required dependencies: mcp library, httpx, Valkey client
 - [x] Verify package can be imported and installed correctly
 - [x] Add basic import test to verify package setup
 
@@ -108,7 +108,7 @@ graph TD
 - [x] All models with complete type hints and validation
 - [x] Exceptions: `ProviderError`, `ToolNotFoundError`, `ValidationError`, `ProviderNotFoundError`
 - [x] Repository interfaces (protocols) for data persistence abstraction
-- [x] Cache adapter interfaces for future Redis integration
+- [x] Cache adapter interfaces for future Valkey integration
 - [x] Comprehensive docstrings for all domain types
 
 ### T005 [P]: Implement provider factory ✅ COMPLETED
@@ -295,7 +295,7 @@ Task: "Unit test pagination logic in ./tests/unit/tool_core/test_pagination_logi
 - [x] Domain models (Provider, Tool, ToolParameter, ToolExecution) defined with complete type hints
 - [x] All domain exceptions defined with clear inheritance hierarchy
 - [x] Repository interface protocols defined for data persistence abstraction
-- [x] Cache adapter interfaces defined for future Redis integration
+- [x] Cache adapter interfaces defined for future Valkey integration
 
 ### Core Functions ✅ COMPLETED
 - [x] `tool_core.py` exports complete provider management API (6 functions) with docstrings

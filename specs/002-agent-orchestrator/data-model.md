@@ -326,7 +326,7 @@ Agent-to-Agent protocol message for internal communication between orchestrator 
 
 **Performance Target:** <500ms p95 per message exchange (research.md)
 
-**Storage Location:** In-memory message bus (Redis or internal queue)
+**Storage Location:** In-memory message bus (Valkey or internal queue)
 
 ---
 
@@ -412,7 +412,7 @@ paused → cancelled
 - **Minimal in-memory state**: Active invocation processing (transient)
 - **No persistent storage**: All persistence via Context Manager
 - **Stateless design**: Enables horizontal scaling
-- **Message bus**: Redis Streams or in-memory queue for A2A messages (ephemeral)
+- **Message bus**: Valkey Streams or in-memory queue for A2A messages (ephemeral)
 
 ---
 

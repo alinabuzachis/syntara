@@ -37,7 +37,7 @@ Backend API for administrators to register and manage external tool providers (M
 - Track usage metrics and rate limits
 - Pluggable adapter architecture for multiple provider types
 
-**Tech Stack**: FastAPI, PostgreSQL, SQLAlchemy 2.0, Redis
+**Tech Stack**: FastAPI, PostgreSQL, SQLAlchemy 2.0, Valkey
 **Frontend**: Separate repository
 
 ## Implementation Architecture
@@ -66,7 +66,7 @@ graph TB
     subgraph "💾 Data Layer"
         direction LR
         PG[(PostgreSQL<br/>• Provider Configs<br/>• Tool Metadata<br/>• Usage Metrics<br/>• Audit Logs)]
-        REDIS[(Redis Cache<br/>• Session Data<br/>• Rate Limits<br/>• Tool Cache<br/>• Config Cache)]
+        REDIS[(Valkey Cache<br/>• Session Data<br/>• Rate Limits<br/>• Tool Cache<br/>• Config Cache)]
     end
 
     subgraph "🌍 External Systems"
@@ -274,7 +274,7 @@ sequenceDiagram
     participant Auth as Authentication
     participant ProvSvc as Tool Provider Service
     participant DB as PostgreSQL
-    participant Cache as Redis Cache
+    participant Cache as Valkey Cache
     participant Adapter as Provider Adapter
     participant ExtProv as External Tool Provider
 
@@ -444,13 +444,13 @@ src/nexus/tool_manager/lib/
 
 ## Technical Context
 **Language/Version**: Python 3.12+ \
-**Primary Dependencies**: FastAPI, uvicorn, pytest, SQLAlchemy 2.0, asyncpg, Redis, pluggable provider adapters \
-**Storage**: PostgreSQL with SQLAlchemy 2.0 + asyncpg driver, Redis for distributed caching \
+**Primary Dependencies**: FastAPI, uvicorn, pytest, SQLAlchemy 2.0, asyncpg, Valkey, pluggable provider adapters \
+**Storage**: PostgreSQL with SQLAlchemy 2.0 + asyncpg driver, Valkey for distributed caching \
 **Testing**: pytest with async support, httpx for API testing \
 **Target Platform**: Linux server \
 **Project Type**: backend (API service only - frontend is separate repository) \
 **Performance Goals**: Scalable performance. Metrics to be agreed \
-**Constraints**: 5-second provider connection timeouts, 1-hour TTL for Tool metadata caching, Redis LRU memory management \
+**Constraints**: 5-second provider connection timeouts, 1-hour TTL for Tool metadata caching, Valkey LRU memory management \
 **Scale/Scope**: Multiple Tool providers, hundreds of Tools, admin-only API endpoints \
 **Arguments**: Feature specification from `/specs/004-tool-management/spec.md`
 

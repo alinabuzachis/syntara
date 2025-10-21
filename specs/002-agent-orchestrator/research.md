@@ -50,7 +50,7 @@
 **Implementation Approach**:
 
 - WS /ws/invoke/{id} endpoint establishes WebSocket connection
-- Agents emit progress events to a pub/sub mechanism (Redis Streams or in-memory queue)
+- Agents emit progress events to a pub/sub mechanism (Valkey Streams or in-memory queue)
 - FastAPI WebSocket handler reads from queue and sends JSON events
 - Event types: progress, log, status_change, completion, error, message
 - Client library handles reconnection and JSON message parsing
@@ -162,7 +162,7 @@
 - A2A message structure: `{sender_id, receiver_id, message_type, payload, correlation_id}`
 - Orchestrator creates A2ARequest for routing decisions
 - Specialized agents (workflow_generator, generic_agent) respond with A2AResponse
-- Message routing via internal bus (in-memory queue or Redis)
+- Message routing via internal bus (in-memory queue or Valkey)
 - Correlation IDs track request-response pairs
 
 **Alternatives Considered**:
@@ -214,7 +214,7 @@
 ### Supporting Technologies
 
 - **FastAPI WebSocket**: WebSocket support for progress streaming
-- **Redis**: Pub/sub for WebSocket event broadcasting to multiple clients
+- **Valkey**: Pub/sub for WebSocket event broadcasting to multiple clients
 - **Uvicorn**: ASGI server for FastAPI with WebSocket support
 - **pytest**: Testing framework with async support
 - **httpx**: Async HTTP client for external component integration
@@ -241,7 +241,7 @@
 ### Optimization Strategies
 
 - Connection pooling for external component clients
-- Redis caching for frequently accessed data
+- Valkey caching for frequently accessed data
 - Async I/O throughout the stack
 - Background task queue for async mode processing
 - Rate limiting and backpressure for external component calls

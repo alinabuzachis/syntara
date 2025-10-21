@@ -12,7 +12,7 @@
 
 **Alternatives considered**:
 - SQLite + aiosqlite: Good for development but lacks concurrent write performance for multi-agent metrics
-- Redis as primary storage: Excellent for caching but lacks complex querying for Tool metadata management
+- Valkey as primary storage: Excellent for caching but lacks complex querying for Tool metadata management
 - MongoDB: Good schema flexibility but adds complexity and lacks ACID guarantees for registration management
 
 ## Performance Goals for Concurrent Tool Executions and Rate Limit Response Times
@@ -32,13 +32,13 @@
 
 ## Memory and Network Constraints for Caching and Tool Provider Timeouts
 
-**Decision**: Redis for distributed caching with 5-second Tool Provider timeouts
+**Decision**: Valkey for distributed caching with 5-second Tool Provider timeouts
 
 **Rationale**:
-- Redis provides shared cache across multiple FastAPI instances in distributed system
+- Valkey provides shared cache across multiple FastAPI instances in distributed system
 - Tool schemas rarely change, ideal for caching with TTL-based invalidation
 - 5-second timeouts prevent hanging operations while allowing for network latency
-- Redis with LRU eviction policies manages memory automatically under load
+- Valkey with LRU eviction policies manages memory automatically under load
 
 **Alternatives considered**:
 - In-memory caching: Limited to single instance, doesn't scale across distributed system
@@ -97,7 +97,7 @@
 
 **Backend API Dependencies**:
 - SQLAlchemy 2.0 with AsyncSession and asyncpg driver
-- Redis for distributed caching and rate limiting
+- Valkey for distributed caching and rate limiting
 - Official MCP Python SDK + FastMCP 2.0
 - FastAPI with Pydantic v2 for validation and serialization
 - OpenAPI/Swagger for automatic API documentation

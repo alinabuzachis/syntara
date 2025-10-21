@@ -261,7 +261,7 @@ NEXUS_DB_NAME=nexus_api
 This feature is intentionally minimal (empty database). Future features will add:
 - Alembic migrations for schema management
 - Seed data management
-- Additional services (Redis, message queue, etc.)
+- Additional services (Valkey, message queue, etc.)
 - Multi-service orchestration
 
 ### Podman-specific Considerations

@@ -7,7 +7,7 @@ This quickstart guide demonstrates the key workflows for Tool Provider Integrati
 - Admin access to the Nexus system
 - At least one test Tool Provider available for registration (e.g., MCP server)
 - Python environment with required dependencies installed
-- PostgreSQL and Redis services running
+- PostgreSQL and Valkey services running
 
 ## Test Scenarios
 
@@ -398,7 +398,7 @@ curl -X DELETE http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
 ### Common Issues
 1. **Provider validation fails**: Check Tool Provider is running and accessible
 2. **Tool refresh returns 0 tools**: Verify Tool Provider exposes tools correctly
-3. **Rate limit not enforced**: Check Redis connection and configuration
+3. **Rate limit not enforced**: Check Valkey connection and configuration
 4. **Metrics not collecting**: Verify PostgreSQL connection and table creation
 5. **Bracket notation not working**: Ensure proper URL encoding for complex queries
 
@@ -410,8 +410,8 @@ curl -v http://localhost:3000/mcp/tools
 # Verify database tables
 psql -d nexus -c "\dt tool_*"
 
-# Check Redis rate limit keys
-redis-cli KEYS "rate_limit:*"
+# Check Valkey rate limit keys
+valkey-cli KEYS "rate_limit:*"
 ```
 
 This quickstart validates all major user scenarios from the feature specification and ensures the implementation meets constitutional requirements for observability, error handling, and data integrity.

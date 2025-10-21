@@ -108,7 +108,7 @@ graph TB
 ## Technical Context
 
 **Language/Version**: Python 3.12+
-**Primary Dependencies**: FastAPI, Pydantic, LangChain, LangGraph, Redis
+**Primary Dependencies**: FastAPI, Pydantic, LangChain, LangGraph, Valkey
 **Storage**: Context Manager (external service - working/short-term/long-term memory), Workflow System (external - stores workflow definitions), Tools Registry (external - tool catalog)
 **Testing**: pytest with async support
 **Target Platform**: Linux server (containerized deployment)
@@ -156,7 +156,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 ✅ **PASS** - Configuration externalized:
 
 - External component URLs/credentials via environment variables
-- Redis connection configuration
+- Valkey connection configuration
 - Timeout values and performance thresholds configurable
 - No magic values or hardcoded environment assumptions
 
@@ -244,7 +244,7 @@ tests/
 1. **Extract unknowns from Technical Context** above:
 
    - ✅ All NEEDS CLARIFICATION resolved
-   - Technology choices finalized: FastAPI, LangChain, LangGraph, Redis
+   - Technology choices finalized: FastAPI, LangChain, LangGraph, Valkey
 
 2. **Research areas completed**:
 

@@ -42,7 +42,7 @@ This approach mirrors the successful workflow engine implementation pattern, ena
 **Key Dependencies to Add**:
 - MCP Python SDK (mcp library)
 - FastMCP 2.0 (optional for testing)
-- Redis (for caching and rate limiting)
+- Valkey (for caching and rate limiting)
 - httpx (for HTTP client operations)
 
 ---
@@ -81,7 +81,7 @@ Establish the provider-agnostic architecture for tool management. This ticket de
   - Domain models (dataclasses): `Provider`, `Tool`, `ToolParameter`, `ToolExecution`
   - Exceptions: `ProviderError`, `ToolNotFoundError`, `ValidationError`, `ProviderNotFoundError`
   - Repository interfaces (protocols) for data persistence abstraction
-  - Cache adapter interfaces for future Redis integration
+  - Cache adapter interfaces for future Valkey integration
 - Implement core provider management functions in `./src/nexus/tool_manager/lib/tool_core.py`:
   - `register_provider`: Add new provider with validation
   - `list_providers`: Query providers with filters and pagination
@@ -137,7 +137,7 @@ Establish the provider-agnostic architecture for tool management. This ticket de
 - ✅ Domain models (Provider, Tool, ToolParameter, ToolExecution) defined with complete type hints
 - ✅ All domain exceptions defined (ProviderError, ToolNotFoundError, ValidationError, ProviderNotFoundError)
 - ✅ Repository interface protocols defined for data persistence abstraction
-- ✅ Cache adapter interfaces defined for future Redis integration
+- ✅ Cache adapter interfaces defined for future Valkey integration
 - ✅ `tool_core.py` exports complete provider management API (6 functions) with docstrings
 - ✅ `tool_core.py` exports complete tool management API (7 functions) with docstrings
 - ✅ All tool_core provider functions work with mock provider
@@ -643,7 +643,7 @@ Implement comprehensive usage tracking and analytics including database models f
 **Story Points**: 8
 
 ### Description
-Implement comprehensive rate limiting system including database models for rate limit configurations, Redis-backed sliding window enforcement, service layer for rate limit management, and REST API endpoints for administrators to configure rate limits. This ticket delivers complete rate limiting capabilities at provider, tool, and user levels.
+Implement comprehensive rate limiting system including database models for rate limit configurations, Valkey-backed sliding window enforcement, service layer for rate limit management, and REST API endpoints for administrators to configure rate limits. This ticket delivers complete rate limiting capabilities at provider, tool, and user levels.
 
 **Note**: This ticket depends on ticket AAP-55730 (Tool Provider Management Service + API) and ticket AAP-55731 (Tool Management & Control). It adds rate limiting enforcement to tool testing and provides administrative controls for configuring limits.
 
@@ -669,11 +669,11 @@ Implement comprehensive rate limiting system including database models for rate 
 **Service Layer**:
 - Implement `RateLimitService` in `./src/nexus/tool_manager/services/rate_limit_service.py`
   - Wrap tool_core rate limit functions with DB persistence
-  - Handle Redis counter operations with sliding window algorithm
-  - Use Redis sorted sets to track requests within time window
+  - Handle Valkey counter operations with sliding window algorithm
+  - Use Valkey sorted sets to track requests within time window
   - Implement automatic expiration of old entries
   - Handle multiple rate limits (check all applicable limits, enforce most restrictive)
-  - Graceful degradation if Redis unavailable (configurable fail-open or fail-closed)
+  - Graceful degradation if Valkey unavailable (configurable fail-open or fail-closed)
 - Update ToolService to enforce rate limits before tool testing
   - Check applicable rate limits (provider-level, tool-level, user-level)
   - Return 429 with Retry-After header when rate limit exceeded
@@ -707,7 +707,7 @@ Implement comprehensive rate limiting system including database models for rate 
 - Unit tests in `./tests/unit/`:
   - `test_models_rate_limit.py` - Test validation rules for rate limit model
   - `tool_core/test_rate_limit.py` - Test rate limit CRUD and enforcement logic with various configurations
-  - `test_rate_limit_service.py` - Test Redis sorted set operations, sliding window, cleanup, failure scenarios
+  - `test_rate_limit_service.py` - Test Valkey sorted set operations, sliding window, cleanup, failure scenarios
   - Achieve ≥80% coverage for rate limiting code
 - Contract tests in `./tests/contract/test_rate_limits_contract.py`:
   - Test all 5 endpoints match OpenAPI schema
@@ -724,15 +724,15 @@ Implement comprehensive rate limiting system including database models for rate 
 - ✅ RateLimitConfig model created with proper fields and indexes
 - ✅ Database migration created and runs successfully
 - ✅ All 7 rate limit core functions implemented in tool_core.py
-- ✅ RateLimitService implements sliding window algorithm with Redis sorted sets
+- ✅ RateLimitService implements sliding window algorithm with Valkey sorted sets
 - ✅ Rate limit enforcement correctly calculates window usage
 - ✅ Burst allowance works correctly (allows N extra requests beyond limit)
 - ✅ Sliding window implementation prevents edge-case bypasses
 - ✅ Rate limits configurable at 3 levels: provider, tool, user
 - ✅ Multiple rate limits apply to single request (most restrictive wins)
-- ✅ Redis counters expire automatically after window duration
+- ✅ Valkey counters expire automatically after window duration
 - ✅ Old entries removed from sorted sets automatically
-- ✅ Rate limit enforcement handles Redis failures gracefully
+- ✅ Rate limit enforcement handles Valkey failures gracefully
 - ✅ ToolService enforces rate limits before tool testing
 - ✅ All 5 rate limit endpoints implemented with proper HTTP methods
 - ✅ All endpoints require admin authentication
@@ -973,7 +973,7 @@ Validate system performance against targets, optimize database queries, and comp
    - **Delivers**: Working metrics and analytics system
 
 7. **AAP-55735: Rate Limiting System** (8 points)
-   - Complete rate limiting with Redis-backed enforcement
+   - Complete rate limiting with Valkey-backed enforcement
    - Includes: Rate limit model, sliding window algorithm, service layer, API (5 endpoints)
    - **Delivers**: Working rate limiting system
 

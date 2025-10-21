@@ -276,7 +276,7 @@ services:
 
 This data model is designed for extensibility:
 
-1. **Additional Services**: Redis, message queue containers (add to docker-compose.yml)
+1. **Additional Services**: Valkey, message queue containers (add to docker-compose.yml)
 2. **Schema Management**: Alembic migrations (separate feature, uses Connection Configuration)
 3. **Seed Data**: Data loading utilities (separate feature, uses Connection Configuration)
 4. **Multi-environment**: Production, staging configurations (separate docker-compose files)
