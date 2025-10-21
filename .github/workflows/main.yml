@@ -17,18 +17,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Podman
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install podman
-
       - name: Log in to GitHub Container Registry
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and tag nexus-ui image
         run: |
-          podman build -f packages/nexus-ui/Containerfile \
+          docker build -f packages/nexus-ui/Containerfile \
             -t nexus-ui:latest \
             -t ghcr.io/${{ github.repository_owner }}/nexus-ui:latest \
             -t ghcr.io/${{ github.repository_owner }}/nexus-ui:${{ github.sha }} \
@@ -36,7 +31,7 @@ jobs:
 
       - name: Build and tag nexus-mock-api image
         run: |
-          podman build -f packages/nexus-mock-api/Containerfile \
+          docker build -f packages/nexus-mock-api/Containerfile \
             -t nexus-mock-api:latest \
             -t ghcr.io/${{ github.repository_owner }}/nexus-mock-api:latest \
             -t ghcr.io/${{ github.repository_owner }}/nexus-mock-api:${{ github.sha }} \
@@ -44,10 +39,10 @@ jobs:
 
       - name: Push images to GitHub Container Registry
         run: |
-          podman push ghcr.io/${{ github.repository_owner }}/nexus-ui:latest
-          podman push ghcr.io/${{ github.repository_owner }}/nexus-ui:${{ github.sha }}
-          podman push ghcr.io/${{ github.repository_owner }}/nexus-mock-api:latest
-          podman push ghcr.io/${{ github.repository_owner }}/nexus-mock-api:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/nexus-ui:latest
+          docker push ghcr.io/${{ github.repository_owner }}/nexus-ui:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/nexus-mock-api:latest
+          docker push ghcr.io/${{ github.repository_owner }}/nexus-mock-api:${{ github.sha }}
 
       - name: Configure SSH
         env:
