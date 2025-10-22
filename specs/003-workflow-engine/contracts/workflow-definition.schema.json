@@ -519,7 +519,18 @@
         { "$ref": "#/definitions/conditionActivity" },
         { "$ref": "#/definitions/loopActivity" },
         { "$ref": "#/definitions/joinActivity" }
-      ]
+      ],
+      "discriminator": {
+        "propertyName": "type",
+        "mapping": {
+          "task": "#/definitions/taskActivity",
+          "parallel": "#/definitions/parallelActivity",
+          "sequence": "#/definitions/sequenceActivity",
+          "condition": "#/definitions/conditionActivity",
+          "loop": "#/definitions/loopActivity",
+          "join": "#/definitions/joinActivity"
+        }
+      }
     },
     "baseTaskDefinition": {
       "type": "object",
@@ -730,7 +741,16 @@
         { "$ref": "#/definitions/scriptTask" },
         { "$ref": "#/definitions/apiTask" },
         { "$ref": "#/definitions/connectorTask" }
-      ]
+      ],
+      "discriminator": {
+        "propertyName": "executor",
+        "mapping": {
+          "agentic": "#/definitions/agenticTask",
+          "script": "#/definitions/scriptTask",
+          "api": "#/definitions/apiTask",
+          "connector": "#/definitions/connectorTask"
+        }
+      }
     },
     "baseLoop": {
       "type": "object",
@@ -833,7 +853,15 @@
         { "$ref": "#/definitions/forEachLoop" },
         { "$ref": "#/definitions/whileLoop" },
         { "$ref": "#/definitions/countLoop" }
-      ]
+      ],
+      "discriminator": {
+        "propertyName": "type",
+        "mapping": {
+          "forEach": "#/definitions/forEachLoop",
+          "while": "#/definitions/whileLoop",
+          "count": "#/definitions/countLoop"
+        }
+      }
     },
     "approvalDefinition": {
       "type": "object",
