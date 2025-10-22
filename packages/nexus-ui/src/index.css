@@ -69,7 +69,7 @@ body {
   background: transparent;
   --xy-controls-button-background-color-default: transparent;
   --xy-edge-stroke-default: #fff6;
-  --xy-edge-stroke-width-default: 2px;
+  --xy-edge-stroke-width-default: 2.5px;
 }
 
 dt {

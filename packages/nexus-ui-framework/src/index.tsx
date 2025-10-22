@@ -1,6 +1,7 @@
 import './index.css'
 
 export * from './components/Button'
+export * from './components/Collapsible'
 export * from './components/IconButton'
 export * from './components/menu'
 export * from './components/Scrollable'

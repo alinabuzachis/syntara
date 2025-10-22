@@ -1,4 +1,4 @@
-import type { ToolProvider } from '../client'
+import type { ToolProvider } from '@ansible/nexus-contracts'
 
 export const providers: ToolProvider[] = [
   {

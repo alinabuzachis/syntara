@@ -1,6 +1,13 @@
 import { IconButton } from '@ansible/nexus-ui-framework'
 import { Panel, useReactFlow } from '@xyflow/react'
-import { ExpandIcon, MoveHorizontalIcon, MoveVerticalIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react'
+import {
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  FullscreenIcon,
+  UnfoldHorizontalIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from 'lucide-react'
 import { useContext } from 'react'
 import { FlowDirectionContext } from './FlowDirectionContext'
 
@@ -17,17 +24,23 @@ export function CanvasControls() {
         <ZoomOutIcon />
       </IconButton>
       <IconButton onClick={() => fitView()}>
-        <ExpandIcon />
+        <FullscreenIcon />
       </IconButton>
-      <IconButton onClick={() => setFlowDirection('TB')}>
+      {/* <IconButton onClick={() => setFlowDirection('TB')}>
         <MoveVerticalIcon />
-      </IconButton>
+      </IconButton> */}
       <IconButton onClick={() => setFlowDirection('LR')}>
-        <MoveHorizontalIcon />
+        <UnfoldHorizontalIcon />
       </IconButton>
       {/* <button onClick={() => fitView()}>
         <FullscreenIcon />
       </button> */}
+      <IconButton>
+        <ChevronsDownUpIcon />
+      </IconButton>
+      <IconButton>
+        <ChevronsUpDownIcon />
+      </IconButton>
     </Panel>
   )
 }

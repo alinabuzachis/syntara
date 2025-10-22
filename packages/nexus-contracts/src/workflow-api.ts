@@ -1407,7 +1407,13 @@ export interface components {
       } & {
         [key: string]: unknown
       }
-    } & components['schemas']['baseTaskDefinition']
+    } & (components['schemas']['baseTaskDefinition'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      executor: 'agentic'
+    })
     scriptTask: {
       /**
        * @description Task executor type
@@ -1427,7 +1433,13 @@ export interface components {
           [key: string]: string
         }
       }
-    } & components['schemas']['baseTaskDefinition']
+    } & (components['schemas']['baseTaskDefinition'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      executor: 'script'
+    })
     apiTask: {
       /**
        * @description Task executor type
@@ -1468,7 +1480,13 @@ export interface components {
           [key: string]: unknown
         }
       }
-    } & components['schemas']['baseTaskDefinition']
+    } & (components['schemas']['baseTaskDefinition'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      executor: 'api'
+    })
     connectorTask: {
       /**
        * @description Task executor type
@@ -1485,7 +1503,13 @@ export interface components {
           [key: string]: unknown
         }
       }
-    } & components['schemas']['baseTaskDefinition']
+    } & (components['schemas']['baseTaskDefinition'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      executor: 'connector'
+    })
     taskDefinition:
       | components['schemas']['agenticTask']
       | components['schemas']['scriptTask']
@@ -1496,7 +1520,13 @@ export interface components {
       type: 'task'
       /** @description Task definition */
       task: components['schemas']['taskDefinition']
-    } & components['schemas']['baseActivity']
+    } & (components['schemas']['baseActivity'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'task'
+    })
     activity:
       | components['schemas']['taskActivity']
       | components['schemas']['parallelActivity']
@@ -1509,13 +1539,25 @@ export interface components {
       type: 'parallel'
       /** @description Activities to execute in parallel */
       branches: components['schemas']['activity'][]
-    } & components['schemas']['baseActivity']
+    } & (components['schemas']['baseActivity'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'parallel'
+    })
     sequenceActivity: {
       /** @constant */
       type: 'sequence'
       /** @description Activities to execute sequentially */
       steps: components['schemas']['activity'][]
-    } & components['schemas']['baseActivity']
+    } & (components['schemas']['baseActivity'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'sequence'
+    })
     conditionActivity: {
       /** @constant */
       type: 'condition'
@@ -1529,7 +1571,13 @@ export interface components {
       then: components['schemas']['activity'][]
       /** @description Activities to execute if condition is false */
       else?: components['schemas']['activity'][]
-    } & WithRequired<components['schemas']['baseActivity'], 'condition'>
+    } & (WithRequired<components['schemas']['baseActivity'], 'condition'> & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'condition'
+    })
     /** @description Base properties common to all loop types */
     baseLoop: {
       /** @description Activities to execute in each iteration */
@@ -1554,7 +1602,13 @@ export interface components {
        * @default index
        */
       indexVariable?: string
-    } & components['schemas']['baseLoop']
+    } & (components['schemas']['baseLoop'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'forEach'
+    })
     whileLoop: {
       /** @constant */
       type: 'while'
@@ -1569,7 +1623,13 @@ export interface components {
        * @default 1000
        */
       maxIterations?: number
-    } & components['schemas']['baseLoop']
+    } & (components['schemas']['baseLoop'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'while'
+    })
     countLoop: {
       /** @constant */
       type: 'count'
@@ -1580,7 +1640,13 @@ export interface components {
        * @default index
        */
       indexVariable?: string
-    } & components['schemas']['baseLoop']
+    } & (components['schemas']['baseLoop'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'count'
+    })
     loopDefinition:
       | components['schemas']['forEachLoop']
       | components['schemas']['whileLoop']
@@ -1590,7 +1656,13 @@ export interface components {
       type: 'loop'
       /** @description Loop definition */
       loop: components['schemas']['loopDefinition']
-    } & components['schemas']['baseActivity']
+    } & (components['schemas']['baseActivity'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'loop'
+    })
     /** @description Join pattern configuration - waits for specific activities to complete before proceeding */
     joinDefinition: {
       /** @description List of activity IDs to wait for */
@@ -1627,7 +1699,13 @@ export interface components {
       type: 'join'
       /** @description Join definition */
       join: components['schemas']['joinDefinition']
-    } & components['schemas']['baseActivity']
+    } & (components['schemas']['baseActivity'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'join'
+    })
     /**
      * Workflow Definition Schema
      * @description JSON Schema for workflow YAML definitions in the Nexus Workflow Engine
