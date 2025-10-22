@@ -7,7 +7,8 @@ using AND logic (all filter labels must match).
 import re
 from typing import Any, TypeVar
 
-from sqlalchemy import Select, and_
+from sqlalchemy import Select, and_, cast
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import SQLModel
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
@@ -163,8 +164,13 @@ def apply_label_filters(
 
     for key, value in label_filters.items():
         # Use PostgreSQL JSONB operator for label matching
-        # This creates conditions like: Resource.labels ->> 'env' == 'prod'
-        condition = labels_field[key].astext == value
+        # This creates conditions like: Resource.labels::jsonb @> :param_1
+        # The @> operator checks if the left JSONB contains the right JSONB
+        # Build JSONB dict that will be bound as a parameter (prevents SQL injection)
+        json_dict = {key: value}
+        labels_field_jsonb = cast(labels_field, JSONB)
+        # SQLAlchemy will automatically bind this dict as a JSONB parameter
+        condition = labels_field_jsonb.contains(json_dict)
         conditions.append(condition)
 
     # Apply all conditions with AND logic

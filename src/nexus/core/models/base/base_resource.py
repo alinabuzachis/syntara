@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 from pydantic import ConfigDict, field_validator
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import DateTime
 from sqlmodel import Field, SQLModel
 
 from nexus.core.constants import ValidationMessages
@@ -58,12 +59,14 @@ class BaseResource(SQLModel, ABC):
         default_factory=_utc_now,
         description="Timestamp when resource was created",
         index=True,
+        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
     )
 
     updated_at: datetime = Field(
         default_factory=_utc_now,
         description="Timestamp when resource was last updated",
         index=True,
+        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
     )
 
     # Labels as JSONB column for key-value pairs

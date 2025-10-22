@@ -9,10 +9,11 @@ info:
     The Agent Orchestrator provides an async-only API that returns invocation IDs immediately and streams all progress and results via WebSocket. This design provides better scalability, lower latency, and bidirectional communication capabilities.
 
     ## Key Features
-    - Async-only POST /invoke endpoint (returns invocation ID immediately)
-    - Interactive messaging: POST /invoke/{id}/message for multi-turn conversations
-    - Process control: POST /invoke/{id}/pause and POST /invoke/{id}/cancel
-    - Real-time progress and results: WS /ws/invoke/{id} (WebSocket)
+    - Async-only POST /invocations endpoint (returns invocation ID immediately)
+    - List invocations with cursor-based pagination: GET /invocations
+    - Interactive messaging: POST /invocations/{id}/message for multi-turn conversations
+    - Process control: POST /invocations/{id}/pause and POST /invocations/{id}/cancel
+    - Real-time progress and results: WS /ws/invocations/{id} (WebSocket)
 
     ## Authentication
     All endpoints require authentication. Include user credentials in headers.
@@ -30,15 +31,15 @@ servers:
   description: Local development
 
 paths:
-  /invoke:
+  /invocations:
     post:
-      summary: Invoke Agent Orchestrator
+      summary: Create Invocation (Async)
       description: |
-        Async-only endpoint to invoke the Agent Orchestrator. Returns invocation_id immediately.
+        Accept async agent invocation request and return invocation ID immediately.
 
-        Connect to WS /ws/invoke/{id} to monitor progress and receive results via WebSocket.
+        Connect to WS /ws/invocations/{id} to monitor progress and receive results via WebSocket.
 
-      operationId: invokeAgent
+      operationId: createInvocation
       tags:
       - Invocation
       requestBody:
@@ -46,57 +47,173 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InvokeRequest'
+              $ref: '#/components/schemas/InvocationRequest'
             examples:
               workflowGeneration:
                 summary: Workflow generation request
                 value:
                   prompt: Create a workflow to deploy customer service app to production
                     with health checks
-                  user_id: user-123
-                  context:
+                  createdBy: 550e8400-e29b-41d4-a716-446655440000
+                  sessionId: session-001
+                  contextData:
                     environment: production
                     app_id: customer-svc
               toolAnalysis:
                 summary: Tool analysis request
                 value:
                   prompt: What tools are available for deployment?
-                  user_id: user-123
+                  createdBy: 550e8400-e29b-41d4-a716-446655440000
+                  sessionId: session-002
       responses:
         '202':
           description: Invocation accepted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InvokeResponse'
+                $ref: '#/components/schemas/Invocation'
               examples:
                 invocationAccepted:
                   summary: Invocation accepted
                   value:
-                    invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
+                    id: 550e8400-e29b-41d4-a716-446655440000
+                    prompt: Create a workflow to deploy customer service app
+                    createdBy: 770e8400-e29b-41d4-a716-446655440000
+                    updatedBy:
+                    sessionId: session-001
                     status: running
-                    created_at: '2025-10-08T10:30:00Z'
-                    ws_url: ws://localhost:8000/api/v1/ws/invoke/inv-550e8400-e29b-41d4-a716-446655440000
+                    createdAt: '2025-10-21T10:30:00Z'
+                    updatedAt: '2025-10-21T10:30:00Z'
+                    startedAt:
+                    completedAt:
+                    labels:
+                      environment: production
+                      team: platform
+                    contextData:
+                      app_id: customer-svc
+                      region: us-east-1
+                    result:
+                    errorMessage:
+                    checkpointData:
         '400':
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/ValidationError
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: 
+                  ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
         '500':
-          description: Internal server error
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/InternalServerError
+
+    get:
+      summary: List Invocations
+      description: |
+        List invocations with cursor-based pagination and filtering.
+
+        **Filtering Options:**
+        - `status`: Filter by invocation status (running, paused, cancelled, completed, failed)
+        - `prompt`: Filter by prompt text with operators (contains, starts_with)
+        - `created_by`: Filter by creator UUID with operators (eq)
+        - `session_id`: Filter by session ID with operators (eq, contains, starts_with)
+        - `labels`: Filter by label key-value pairs (e.g., labels[environment]=production)
+        - `created_at`: Filter by creation timestamp with operators (eq, gt, gte, lt, lte)
+        - `updated_at`: Filter by last update timestamp with operators (eq, gt, gte, lt, lte)
+
+        **Sorting:**
+        - Sort by timestamp fields only: `created_at`, `updated_at`, `started_at`, `completed_at`
+        - Ascending: `sort=field` (e.g., `sort=created_at`)
+        - Descending: `sort=-field` (e.g., `sort=-created_at`)
+
+        **Pagination:**
+        - Cursor-based pagination with `cursor` and `limit` parameters
+        - Optionally includes total count with `include_total=true`
+
+      operationId: listInvocations
+      tags:
+      - Invocation
+      parameters:
+      - $ref: 
+          ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/cursorParam
+      - $ref: 
+          ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/limitParam
+      - $ref: 
+          ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/sortParam
+      - $ref: '#/components/parameters/statusFilterParam'
+      - $ref: '#/components/parameters/promptFilterParam'
+      - $ref: '#/components/parameters/createdByFilterParam'
+      - $ref: '#/components/parameters/sessionIdFilterParam'
+      - $ref: 
+          ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+      - $ref: 
+          ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+      - $ref: 
+          ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
+      - $ref: 
+          ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+      responses:
+        '200':
+          description: Successful response with paginated invocations
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/InvocationListResponse'
+              examples:
+                paginatedList:
+                  summary: Paginated invocation list
+                  value:
+                    resources:
+                    - id: 550e8400-e29b-41d4-a716-446655440000
+                      prompt: Deploy app to production
+                      createdBy: 770e8400-e29b-41d4-a716-446655440000
+                      updatedBy:
+                      sessionId: session-001
+                      status: running
+                      createdAt: '2025-10-21T10:30:00Z'
+                      updatedAt: '2025-10-21T10:30:00Z'
+                      startedAt: '2025-10-21T10:30:01Z'
+                      completedAt:
+                      labels:
+                        environment: production
+                        team: platform
+                      contextData:
+                        environment: production
+                        app_id: customer-svc
+                      result:
+                      errorMessage:
+                      checkpointData:
+                    - id: 660e8400-e29b-41d4-a716-446655440001
+                      prompt: Analyze metrics
+                      createdBy: 770e8400-e29b-41d4-a716-446655440000
+                      updatedBy:
+                      sessionId: session-002
+                      status: completed
+                      createdAt: '2025-10-21T09:00:00Z'
+                      updatedAt: '2025-10-21T09:05:00Z'
+                      startedAt: '2025-10-21T09:00:01Z'
+                      completedAt: '2025-10-21T09:05:00Z'
+                      labels:
+                        environment: staging
+                      contextData: {}
+                      result:
+                        workflowId: wf-123
+                        status: success
+                      errorMessage:
+                      checkpointData:
+                    next: eyJpZCI6IjY2MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMSJ9
+                    prev:
+                    total: 42
+        '400':
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/ValidationError
+        '500':
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/InternalServerError
 
-  /ws/invoke/{invocation_id}:
+  /ws/invocations/{invocationId}:
     get:
       summary: Stream progress events (WebSocket)
       description: |
@@ -125,10 +242,10 @@ paths:
       tags:
       - Invocation
       parameters:
-      - name: invocation_id
+      - name: invocationId
         in: path
         required: true
-        description: Invocation ID from POST /invoke response
+        description: Invocation ID from POST /invocations response
         schema:
           type: string
           format: uuid
@@ -136,44 +253,42 @@ paths:
         '101':
           description: Switching Protocols - WebSocket connection established
         '404':
-          description: Invocation not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/NotFoundError
         '400':
           description: WebSocket upgrade failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: 
+                  ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
       x-websocket-messages:
         description: WebSocket message examples
         examples:
           progressMessage:
             summary: Progress event
             value:
-              event_type: progress
-              invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
-              timestamp: '2025-10-08T10:30:01Z'
+              eventType: progress
+              invocationId: 550e8400-e29b-41d4-a716-446655440000
+              timestamp: '2025-10-21T10:30:01Z'
               data:
                 phase: tool_assessment
                 message: Evaluating deployment tools
-                progress_percentage: 45
-              sequence_number: 5
+                progressPercentage: 45
+              sequenceNumber: 5
           completionMessage:
             summary: Completion event
             value:
-              event_type: completion
-              invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
-              timestamp: '2025-10-08T10:30:15Z'
+              eventType: completion
+              invocationId: 550e8400-e29b-41d4-a716-446655440000
+              timestamp: '2025-10-21T10:30:15Z'
               data:
-                result_type: workflow
-                workflow_id: wf-abc123
-                workflow_url: /workflows/wf-abc123
-              sequence_number: 42
+                resultType: workflow
+                workflowId: wf-abc123
+                workflowUrl: /workflows/wf-abc123
+              sequenceNumber: 42
 
-  /invoke/{invocation_id}/message:
+  /invocations/{invocationId}/message:
     post:
       summary: Send message to running agent
       description: |
@@ -186,7 +301,7 @@ paths:
       tags:
       - Interaction
       parameters:
-      - name: invocation_id
+      - name: invocationId
         in: path
         required: true
         description: Invocation ID of running agent
@@ -202,7 +317,7 @@ paths:
             example:
               message: Use blue-green deployment strategy instead
               context:
-                deployment_strategy: blue-green
+                deploymentStrategy: blue-green
       responses:
         '202':
           description: Message accepted for processing
@@ -211,35 +326,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
               example:
-                invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
-                message_id: msg-770e8400-e29b-41d4-a716-446655440002
+                invocationId: 550e8400-e29b-41d4-a716-446655440000
+                messageId: 770e8400-e29b-41d4-a716-446655440002
                 status: accepted
-                acknowledged_at: '2025-10-08T10:35:00Z'
+                acknowledgedAt: '2025-10-21T10:35:00Z'
         '400':
-          description: Invalid request (invocation not running or message invalid)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/ValidationError
         '404':
-          description: Invocation not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/NotFoundError
 
-  /invoke/{invocation_id}/pause:
+  /invocations/{invocationId}/pause:
     post:
       summary: Pause running agent
       description: |
         Pause a running agent invocation. Agent saves current state to checkpoint and enters paused state.
-        Agent can be resumed via POST /invoke/{id}/message (resume with message) or explicitly resumed.
+        Agent can be resumed via POST /invocations/{id}/message (resume with message) or explicitly resumed.
 
       operationId: pauseAgent
       tags:
       - Control
       parameters:
-      - name: invocation_id
+      - name: invocationId
         in: path
         required: true
         description: Invocation ID of running agent
@@ -254,25 +363,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ControlResponse'
               example:
-                invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
+                invocationId: 550e8400-e29b-41d4-a716-446655440000
                 action: pause
                 status: acknowledged
-                current_state: paused
-                acknowledged_at: '2025-10-08T10:35:00Z'
+                currentState: paused
+                acknowledgedAt: '2025-10-21T10:35:00Z'
         '400':
-          description: Invalid state transition (already paused/completed)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/ValidationError
         '404':
-          description: Invocation not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/NotFoundError
 
-  /invoke/{invocation_id}/cancel:
+  /invocations/{invocationId}/cancel:
     post:
       summary: Cancel running agent
       description: |
@@ -283,7 +386,7 @@ paths:
       tags:
       - Control
       parameters:
-      - name: invocation_id
+      - name: invocationId
         in: path
         required: true
         description: Invocation ID of agent to cancel
@@ -298,76 +401,264 @@ paths:
               schema:
                 $ref: '#/components/schemas/ControlResponse'
               example:
-                invocation_id: inv-550e8400-e29b-41d4-a716-446655440000
+                invocationId: 550e8400-e29b-41d4-a716-446655440000
                 action: cancel
                 status: completed
-                current_state: cancelled
-                acknowledged_at: '2025-10-08T10:35:00Z'
+                currentState: cancelled
+                acknowledgedAt: '2025-10-21T10:35:00Z'
                 message: Agent cancelled successfully, cleanup completed
         '400':
-          description: Invalid state (already cancelled/completed)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/ValidationError
         '404':
-          description: Invocation not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/NotFoundError
 
 components:
+  parameters:
+    statusFilterParam:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/InvocationStatus'
+      description: |
+        Filter invocations by status.
+        - Exact match: `status=running`
+      example: running
+
+    createdByFilterParam:
+      name: created_by
+      in: query
+      required: false
+      style: deepObject
+      explode: true
+      schema:
+        allOf:
+        - type: string
+          format: uuid
+          description: Exact match of creator UUID. ?created_by=<uuid>
+        - type: object
+          properties:
+            eq:
+              title: Equals
+              description: Exact match of creator UUID. ?created_by[eq]=<uuid>
+              type: string
+              format: uuid
+      description: |
+        Filter invocations by creator UUID.
+        - Exact match: `created_by=550e8400-e29b-41d4-a716-446655440000`
+        - Explicit equals: `created_by[eq]=550e8400-e29b-41d4-a716-446655440000`
+      example: 550e8400-e29b-41d4-a716-446655440000
+
+    sessionIdFilterParam:
+      name: session_id
+      in: query
+      required: false
+      style: deepObject
+      explode: true
+      schema:
+        allOf:
+        - type: string
+          description: Exact match of session ID (case-sensitive). ?session_id=<session_id>
+        - type: object
+          properties:
+            eq:
+              title: Equals
+              description: Exact match of session ID (case-sensitive). ?session_id[eq]=<session_id>
+              type: string
+            contains:
+              title: Contains
+              description: Substring match within session ID. ?session_id[contains]=<substring>
+              type: string
+            starts_with:
+              title: Starts With
+              description: Prefix match at start of session ID. ?session_id[starts_with]=<prefix>
+              type: string
+      description: |
+        Filter invocations by session ID.
+        - Exact match: `session_id=session-001`
+        - Contains: `session_id[contains]=session`
+        - Starts with: `session_id[starts_with]=session-`
+      example: session-001
+
+    promptFilterParam:
+      name: prompt
+      in: query
+      required: false
+      style: deepObject
+      explode: true
+      schema:
+        allOf:
+        - type: string
+          description: Substring match within prompt text. ?prompt=<text>
+        - type: object
+          properties:
+            contains:
+              title: Contains
+              description: Substring match within prompt text (case-insensitive).
+                ?prompt[contains]=<text>
+              type: string
+            starts_with:
+              title: Starts With
+              description: Prefix match at start of prompt. ?prompt[starts_with]=<prefix>
+              type: string
+      description: |
+        Filter invocations by prompt text.
+        - Contains (default): `prompt=deploy`
+        - Contains (explicit): `prompt[contains]=deploy`
+        - Starts with: `prompt[starts_with]=Create a workflow`
+      example: deploy
+
   schemas:
-    InvokeRequest:
+    InvocationStatus:
+      type: string
+      enum: [running, paused, cancelled, completed, failed]
+      description: Current invocation status
+      example: running
+
+    Invocation:
+      allOf:
+      - $ref: 
+          ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
+      - type: object
+        title: Invocation
+        description: |
+          Agent invocation resource representing an async agent execution.
+
+          Invocations track the execution state, results, and metadata for agent requests.
+
+          Extends UserOwnedResource to inherit: id, createdAt, updatedAt, createdBy, updatedBy, labels.
+        required:
+        - prompt
+        - sessionId
+        - status
+        properties:
+          prompt:
+            type: string
+            minLength: 1
+            maxLength: 10000
+            title: Prompt
+            description: Natural language request describing desired automation task
+            example: Deploy customer service app to production
+          sessionId:
+            type: string
+            maxLength: 255
+            title: Session ID
+            description: Session identifier for grouping related invocations
+            example: session-001
+          status:
+            $ref: '#/components/schemas/InvocationStatus'
+          startedAt:
+            type: string
+            format: date-time
+            nullable: true
+            readOnly: true
+            title: Started At
+            description: When agent started processing
+            example: '2025-10-21T10:30:01Z'
+          completedAt:
+            type: string
+            format: date-time
+            nullable: true
+            readOnly: true
+            title: Completed At
+            description: When agent completed or failed
+            example: '2025-10-21T10:35:00Z'
+          contextData:
+            type: object
+            default: {}
+            title: Context Data
+            description: Additional context for the invocation
+            additionalProperties: true
+            example:
+              environment: production
+              app_id: customer-svc
+          result:
+            type: object
+            nullable: true
+            title: Result
+            description: Invocation result data (populated on completion)
+            additionalProperties: true
+            example:
+              workflowId: wf-123
+              status: success
+          errorMessage:
+            type: string
+            nullable: true
+            maxLength: 2000
+            title: Error Message
+            description: Error message if invocation failed
+            example: Tool execution timeout
+          checkpointData:
+            type: object
+            nullable: true
+            title: Checkpoint Data
+            description: Checkpoint state for paused invocations
+            additionalProperties: true
+            example:
+              phase: complete
+              step: 5
+
+    InvocationRequest:
       type: object
+      title: Invocation Request
+      description: Request body for creating a new invocation
       required:
       - prompt
-      - user_id
+      - createdBy
+      - sessionId
       properties:
         prompt:
           type: string
           minLength: 1
           maxLength: 10000
+          title: Prompt
           description: Natural language request describing desired automation task
-        user_id:
-          type: string
-          description: User identifier for authentication and policy evaluation
-        context:
-          type: object
-          additionalProperties: true
-          description: Optional additional context for the request
-        metadata:
-          type: object
-          additionalProperties: true
-          description: Client-specific metadata for tracking and audit
-
-    InvokeResponse:
-      type: object
-      required:
-      - invocation_id
-      - status
-      - created_at
-      - ws_url
-      properties:
-        invocation_id:
+          example: Create a workflow to deploy customer service app
+        createdBy:
           type: string
           format: uuid
-          description: Unique identifier for this invocation
-        status:
+          title: Created By
+          description: User identifier for authentication and policy evaluation
+          example: 550e8400-e29b-41d4-a716-446655440000
+        sessionId:
           type: string
-          enum: [running, paused, cancelled, completed, failed]
-          description: Current invocation status
-        created_at:
-          type: string
-          format: date-time
-          description: When invocation was created
-        ws_url:
-          type: string
-          description: WebSocket URL for progress and results
+          title: Session ID
+          description: Session identifier for grouping related invocations
+          example: session-001
+        contextData:
+          type: object
+          default: {}
+          title: Context Data
+          description: Optional additional context for the request
+          additionalProperties: true
+          example:
+            environment: production
+            app_id: customer-svc
+
+    InvocationListResponse:
+      allOf:
+      - $ref: 
+          ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+      - type: object
+        title: Invocation List Response
+        description: Paginated response containing invocations
+        required:
+        - resources
+        properties:
+          resources:
+            type: array
+            title: Invocations
+            description: Array of invocations in current page
+            items:
+              $ref: '#/components/schemas/Invocation'
+            maxItems: 100
 
     MessageRequest:
       type: object
+      title: Message Request
+      description: Request to send message to running agent
       required:
       - message
       properties:
@@ -375,124 +666,154 @@ components:
           type: string
           minLength: 1
           maxLength: 5000
+          title: Message
           description: User message to inject into agent conversation
+          example: Use blue-green deployment strategy instead
         context:
           type: object
-          additionalProperties: true
+          title: Context
           description: Additional context for the message
-        metadata:
-          type: object
           additionalProperties: true
-          description: Client-specific metadata
+          example:
+            deploymentStrategy: blue-green
 
     MessageResponse:
       type: object
+      title: Message Response
+      description: Response after sending message to agent
       required:
-      - invocation_id
-      - message_id
+      - invocationId
+      - messageId
       - status
-      - acknowledged_at
+      - acknowledgedAt
       properties:
-        invocation_id:
+        invocationId:
           type: string
           format: uuid
+          title: Invocation ID
           description: Invocation ID that received the message
-        message_id:
+          example: 550e8400-e29b-41d4-a716-446655440000
+        messageId:
           type: string
           format: uuid
+          title: Message ID
           description: Unique identifier for this message
+          example: 770e8400-e29b-41d4-a716-446655440002
         status:
           type: string
           enum: [accepted, rejected]
+          title: Status
           description: Whether message was accepted for processing
-        acknowledged_at:
+          example: accepted
+        acknowledgedAt:
           type: string
           format: date-time
+          title: Acknowledged At
           description: When message was acknowledged
+          example: '2025-10-21T10:35:00Z'
         error:
           type: string
+          nullable: true
+          title: Error
           description: Error message (if status=rejected)
+          example:
 
     ProgressEvent:
       type: object
+      title: Progress Event
+      description: WebSocket progress event from agent
       required:
-      - event_type
-      - invocation_id
+      - eventType
+      - invocationId
       - timestamp
       - data
       properties:
-        event_type:
+        eventType:
           type: string
           enum: [progress, log, status_change, message, completion, error]
+          title: Event Type
           description: Type of progress event
-        invocation_id:
+          example: progress
+        invocationId:
           type: string
           format: uuid
+          title: Invocation ID
           description: Invocation ID this event belongs to
+          example: 550e8400-e29b-41d4-a716-446655440000
         timestamp:
           type: string
           format: date-time
+          title: Timestamp
           description: When this event occurred
+          example: '2025-10-21T10:30:01Z'
         data:
           type: object
+          title: Data
+          description: Event-specific data (structure varies by eventType)
           additionalProperties: true
-          description: Event-specific data (structure varies by event_type)
-        sequence_number:
+          example:
+            phase: tool_assessment
+            message: Evaluating deployment tools
+            progressPercentage: 45
+        sequenceNumber:
           type: integer
+          title: Sequence Number
           description: Sequence number for event ordering
+          example: 5
 
     ControlResponse:
       type: object
+      title: Control Response
+      description: Response after sending control signal to agent
       required:
-      - invocation_id
+      - invocationId
       - action
       - status
-      - current_state
-      - acknowledged_at
+      - currentState
+      - acknowledgedAt
       properties:
-        invocation_id:
+        invocationId:
           type: string
           format: uuid
+          title: Invocation ID
           description: Invocation ID that received control signal
+          example: 550e8400-e29b-41d4-a716-446655440000
         action:
           type: string
           enum: [pause, cancel, resume]
+          title: Action
           description: Control action requested
+          example: pause
         status:
           type: string
           enum: [acknowledged, completed, rejected]
+          title: Status
           description: Control signal processing status
-        current_state:
+          example: acknowledged
+        currentState:
           type: string
           enum: [running, paused, cancelled, completed]
+          title: Current State
           description: Current invocation state after control signal
-        acknowledged_at:
+          example: paused
+        acknowledgedAt:
           type: string
           format: date-time
+          title: Acknowledged At
           description: When control signal was acknowledged
+          example: '2025-10-21T10:35:00Z'
         message:
           type: string
+          nullable: true
+          title: Message
           description: Human-readable message about control signal processing
+          example: Agent paused successfully
         error:
           type: string
+          nullable: true
+          title: Error
           description: Error message (if status=rejected)
-
-    Error:
-      type: object
-      required:
-      - error
-      - message
-      properties:
-        error:
-          type: string
-          description: Error code
-        message:
-          type: string
-          description: Human-readable error message
-        details:
-          type: object
-          additionalProperties: true
-          description: Additional error details
+          example:
 
   securitySchemes:
     BearerAuth:

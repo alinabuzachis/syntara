@@ -1,30 +1,38 @@
-"""Unit tests for Invocation ORM model.
+"""Unit tests for Invocation SQLModel.
+
+This file contains comprehensive tests for the Invocation model, covering both
+ORM (database) usage and Pydantic (schema validation) usage.
 
 Tests cover:
-- Invocation creation with required fields
-- Status transitions
+- Database operations (creation, updates, queries)
+- Status transitions and enum handling
 - JSONB field operations (context_data, result, checkpoint_data)
 - Timestamp field behavior (created_at, started_at, completed_at, updated_at)
 - Field validation and constraints
+- List response models (InvocationListResponse)
+- Enum validation (InvocationStatus)
 """
 
 from datetime import UTC, datetime
+from typing import Any
+from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus.api.models.invocation import Invocation
+from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
 
 
 @pytest.mark.asyncio
 async def test_create_invocation_with_required_fields(test_db_session: AsyncSession) -> None:
     """Test creating an invocation with required fields only."""
+    user_uuid = uuid4()
     invocation = Invocation(
         prompt="Deploy customer service app to production",
-        user_id="user-123",
+        created_by=user_uuid,
         session_id="session-001",
-        status="running",
+        status=InvocationStatus.RUNNING,
     )
 
     test_db_session.add(invocation)
@@ -34,7 +42,7 @@ async def test_create_invocation_with_required_fields(test_db_session: AsyncSess
     # Verify required fields
     assert invocation.id is not None
     assert invocation.prompt == "Deploy customer service app to production"
-    assert invocation.user_id == "user-123"
+    assert invocation.created_by == user_uuid
     assert invocation.session_id == "session-001"
     assert invocation.status == "running"
 
@@ -55,12 +63,13 @@ async def test_create_invocation_with_required_fields(test_db_session: AsyncSess
 async def test_create_invocation_with_all_fields(test_db_session: AsyncSession) -> None:
     """Test creating an invocation with all fields populated."""
     now = datetime.now(UTC)
+    user_uuid = uuid4()
 
     invocation = Invocation(
         prompt="Analyze production metrics",
-        user_id="user-456",
+        created_by=user_uuid,
         session_id="session-002",
-        status="completed",
+        status=InvocationStatus.COMPLETED,
         started_at=now,
         completed_at=now,
         context_data={"environment": "production", "app_id": "app-1"},
@@ -75,7 +84,7 @@ async def test_create_invocation_with_all_fields(test_db_session: AsyncSession) 
 
     # Verify all fields
     assert invocation.prompt == "Analyze production metrics"
-    assert invocation.user_id == "user-456"
+    assert invocation.created_by == user_uuid
     assert invocation.session_id == "session-002"
     assert invocation.status == "completed"
     assert invocation.started_at == now
@@ -90,9 +99,9 @@ async def test_invocation_status_transitions(test_db_session: AsyncSession) -> N
     """Test invocation status can be updated."""
     invocation = Invocation(
         prompt="Test workflow",
-        user_id="user-789",
+        created_by=uuid4(),
         session_id="session-003",
-        status="running",
+        status=InvocationStatus.RUNNING,
     )
 
     test_db_session.add(invocation)
@@ -100,16 +109,16 @@ async def test_invocation_status_transitions(test_db_session: AsyncSession) -> N
     await test_db_session.refresh(invocation)
 
     # Update status to paused
-    invocation.status = "paused"
+    invocation.status = InvocationStatus.PAUSED
     await test_db_session.commit()
     await test_db_session.refresh(invocation)
-    assert invocation.status == "paused"
+    assert invocation.status == InvocationStatus.PAUSED
 
     # Update status to cancelled
-    invocation.status = "cancelled"
+    invocation.status = InvocationStatus.CANCELLED
     await test_db_session.commit()
     await test_db_session.refresh(invocation)
-    assert invocation.status == "cancelled"
+    assert invocation.status == InvocationStatus.CANCELLED
 
 
 @pytest.mark.asyncio
@@ -117,9 +126,9 @@ async def test_invocation_timestamps(test_db_session: AsyncSession) -> None:
     """Test timestamp fields behavior."""
     invocation = Invocation(
         prompt="Test timestamps",
-        user_id="user-100",
+        created_by=uuid4(),
         session_id="session-100",
-        status="running",
+        status=InvocationStatus.RUNNING,
     )
 
     test_db_session.add(invocation)
@@ -134,7 +143,7 @@ async def test_invocation_timestamps(test_db_session: AsyncSession) -> None:
     assert updated_at is not None
 
     # Update the invocation
-    invocation.status = "completed"
+    invocation.status = InvocationStatus.COMPLETED
     invocation.completed_at = datetime.now(UTC)
     await test_db_session.commit()
     await test_db_session.refresh(invocation)
@@ -158,9 +167,9 @@ async def test_invocation_jsonb_fields(test_db_session: AsyncSession) -> None:
 
     invocation = Invocation(
         prompt="Complex JSONB test",
-        user_id="user-200",
+        created_by=uuid4(),
         session_id="session-200",
-        status="running",
+        status=InvocationStatus.RUNNING,
         context_data=complex_context,
     )
 
@@ -170,37 +179,38 @@ async def test_invocation_jsonb_fields(test_db_session: AsyncSession) -> None:
 
     # Verify JSONB data is preserved
     assert invocation.context_data == complex_context
-    assert invocation.context_data["metadata"]["tags"] == ["deployment", "critical"]
+    assert invocation.context_data["metadata"]["tags"] == ["deployment", "critical"]  # type: ignore[index]
 
 
 @pytest.mark.asyncio
 async def test_query_invocations_by_status(test_db_session: AsyncSession) -> None:
     """Test querying invocations by status."""
+    user_uuid = uuid4()
     # Create multiple invocations with different statuses
     invocation1 = Invocation(
         prompt="Running task 1",
-        user_id="user-300",
+        created_by=user_uuid,
         session_id="session-300",
-        status="running",
+        status=InvocationStatus.RUNNING,
     )
     invocation2 = Invocation(
         prompt="Running task 2",
-        user_id="user-300",
+        created_by=user_uuid,
         session_id="session-300",
-        status="running",
+        status=InvocationStatus.RUNNING,
     )
     invocation3 = Invocation(
         prompt="Completed task",
-        user_id="user-300",
+        created_by=user_uuid,
         session_id="session-300",
-        status="completed",
+        status=InvocationStatus.COMPLETED,
     )
 
     test_db_session.add_all([invocation1, invocation2, invocation3])
     await test_db_session.commit()
 
     # Query for running invocations
-    result = await test_db_session.execute(select(Invocation).where(Invocation.status == "running"))
+    result = await test_db_session.execute(select(Invocation).where(Invocation.status == "running"))  # type: ignore[arg-type]
     running_invocations = result.scalars().all()
 
     assert len(running_invocations) == 2
@@ -209,30 +219,32 @@ async def test_query_invocations_by_status(test_db_session: AsyncSession) -> Non
 
 @pytest.mark.asyncio
 async def test_query_invocations_by_user(test_db_session: AsyncSession) -> None:
-    """Test querying invocations by user_id."""
+    """Test querying invocations by created_by."""
+    user1_uuid = uuid4()
+    user2_uuid = uuid4()
     # Create invocations for different users
     invocation1 = Invocation(
         prompt="User 1 task",
-        user_id="user-400",
+        created_by=user1_uuid,
         session_id="session-400",
-        status="running",
+        status=InvocationStatus.RUNNING,
     )
     invocation2 = Invocation(
         prompt="User 2 task",
-        user_id="user-500",
+        created_by=user2_uuid,
         session_id="session-500",
-        status="running",
+        status=InvocationStatus.RUNNING,
     )
 
     test_db_session.add_all([invocation1, invocation2])
     await test_db_session.commit()
 
-    # Query for user-400's invocations
-    result = await test_db_session.execute(select(Invocation).where(Invocation.user_id == "user-400"))
+    # Query for user1's invocations
+    result = await test_db_session.execute(select(Invocation).where(Invocation.created_by == user1_uuid))  # type: ignore[arg-type]
     user_invocations = result.scalars().all()
 
     assert len(user_invocations) == 1
-    assert user_invocations[0].user_id == "user-400"
+    assert user_invocations[0].created_by == user1_uuid
 
 
 @pytest.mark.asyncio
@@ -240,9 +252,9 @@ async def test_invocation_repr(test_db_session: AsyncSession) -> None:
     """Test __repr__ method."""
     invocation = Invocation(
         prompt="Test repr",
-        user_id="user-600",
+        created_by=uuid4(),
         session_id="session-600",
-        status="running",
+        status=InvocationStatus.RUNNING,
     )
 
     test_db_session.add(invocation)
@@ -252,4 +264,436 @@ async def test_invocation_repr(test_db_session: AsyncSession) -> None:
     repr_str = repr(invocation)
     assert "Invocation" in repr_str
     assert str(invocation.id) in repr_str
-    assert "running" in repr_str
+    assert "running" in repr_str or "RUNNING" in repr_str  # Can be either enum name or value
+
+
+# SQLModel validation tests (previously in test_invocation_schemas.py)
+# These tests validate the Invocation model when used as a Pydantic schema
+
+
+class TestInvocationValidation:
+    """Tests for Invocation SQLModel validation (schema usage)."""
+
+    def test_valid_invocation_creation(self) -> None:
+        """Test creating invocation with valid data."""
+        invocation_id = uuid4()
+        user_uuid = uuid4()
+        now = datetime.now(UTC)
+
+        invocation = Invocation(
+            id=invocation_id,
+            prompt="Deploy app to production",
+            created_by=user_uuid,
+            session_id="session-001",
+            status=InvocationStatus.RUNNING,
+            created_at=now,
+            updated_at=now,
+        )
+
+        assert invocation.id == invocation_id
+        assert invocation.prompt == "Deploy app to production"
+        assert invocation.created_by == user_uuid
+        assert invocation.session_id == "session-001"
+        assert invocation.status == InvocationStatus.RUNNING
+        assert invocation.started_at is None
+        assert invocation.completed_at is None
+        assert invocation.context_data == {}
+        assert invocation.result is None
+        assert invocation.error_message is None
+
+    def test_invocation_with_all_optional_fields(self) -> None:
+        """Test invocation with all optional fields populated."""
+        invocation_id = uuid4()
+        now = datetime.now(UTC)
+
+        invocation = Invocation(
+            id=invocation_id,
+            prompt="Deploy app",
+            created_by=uuid4(),
+            session_id="session-001",
+            status=InvocationStatus.COMPLETED,
+            created_at=now,
+            started_at=now,
+            completed_at=now,
+            updated_at=now,
+            context_data={"env": "prod"},
+            result={"workflow_id": "wf-123"},
+            error_message=None,
+            checkpoint_data={"phase": "complete"},
+        )
+
+        assert invocation.context_data == {"env": "prod"}
+        assert invocation.result == {"workflow_id": "wf-123"}
+        assert invocation.checkpoint_data == {"phase": "complete"}
+
+
+class TestInvocationListResponse:
+    """Tests for InvocationListResponse model."""
+
+    def test_empty_list_response(self) -> None:
+        """Test list response with no invocations."""
+        response = InvocationListResponse(
+            resources=[],
+            total=0,
+        )
+
+        assert response.resources == []
+        assert response.total == 0
+
+    def test_list_response_with_invocations(self) -> None:
+        """Test list response with multiple invocations."""
+        invocation_1 = Invocation(
+            id=uuid4(),
+            prompt="Test 1",
+            created_by=uuid4(),
+            session_id="session-001",
+            status=InvocationStatus.RUNNING,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        invocation_2 = Invocation(
+            id=uuid4(),
+            prompt="Test 2",
+            created_by=uuid4(),
+            session_id="session-002",
+            status=InvocationStatus.COMPLETED,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        response = InvocationListResponse(
+            resources=[invocation_1, invocation_2],
+            total=2,
+        )
+
+        assert len(response.resources) == 2
+        assert response.total == 2
+
+
+class TestInvocationStatusEnum:
+    """Tests for InvocationStatus enum."""
+
+    def test_all_status_enum_values(self) -> None:
+        """Test all valid status enum values."""
+        assert InvocationStatus.RUNNING.value == "running"
+        assert InvocationStatus.PAUSED.value == "paused"
+        assert InvocationStatus.CANCELLED.value == "cancelled"
+        assert InvocationStatus.COMPLETED.value == "completed"
+        assert InvocationStatus.FAILED.value == "failed"
+
+    def test_status_enum_from_string(self) -> None:
+        """Test creating status enum from string."""
+        status = InvocationStatus("running")
+        assert status == InvocationStatus.RUNNING
+
+
+class TestInvocationBaseResourceFields:
+    """Tests for UserOwnedResource base fields (labels, updated_by)."""
+
+    def test_invocation_with_labels(self) -> None:
+        """Test creating invocation with labels."""
+        labels = {"environment": "production", "region": "us-east-1", "team": "platform"}
+
+        invocation = Invocation(
+            id=uuid4(),
+            prompt="Test with labels",
+            created_by=uuid4(),
+            session_id="session-001",
+            status=InvocationStatus.RUNNING,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+            labels=labels,
+        )
+
+        assert invocation.labels == labels
+        assert invocation.labels["environment"] == "production"
+        assert invocation.labels["region"] == "us-east-1"
+        assert invocation.labels["team"] == "platform"
+
+    def test_invocation_default_labels_none(self) -> None:
+        """Test invocation has None labels by default (from BaseResource)."""
+        invocation = Invocation(
+            id=uuid4(),
+            prompt="Test default labels",
+            created_by=uuid4(),
+            session_id="session-001",
+            status=InvocationStatus.RUNNING,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        # BaseResource defaults labels to None, not {}
+        assert invocation.labels is None
+
+    def test_invocation_with_updated_by(self) -> None:
+        """Test invocation with updated_by field."""
+        created_by_uuid = uuid4()
+        updated_by_uuid = uuid4()
+
+        invocation = Invocation(
+            id=uuid4(),
+            prompt="Test updated_by",
+            created_by=created_by_uuid,
+            session_id="session-001",
+            status=InvocationStatus.RUNNING,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+            updated_by=updated_by_uuid,
+        )
+
+        assert invocation.created_by == created_by_uuid
+        assert invocation.updated_by == updated_by_uuid
+
+    def test_invocation_updated_by_nullable(self) -> None:
+        """Test updated_by is nullable (None by default)."""
+        invocation = Invocation(
+            id=uuid4(),
+            prompt="Test nullable updated_by",
+            created_by=uuid4(),
+            session_id="session-001",
+            status=InvocationStatus.RUNNING,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        assert invocation.updated_by is None
+
+
+class TestInvocationSortableFields:
+    """Tests for __sortable_fields__ class variable."""
+
+    def test_sortable_fields_exists(self) -> None:
+        """Test that __sortable_fields__ class variable exists."""
+        assert hasattr(Invocation, "__sortable_fields__")
+        assert isinstance(Invocation.__sortable_fields__, list)
+
+    def test_sortable_fields_contains_correct_fields(self) -> None:
+        """Test that __sortable_fields__ contains only timestamp fields."""
+        expected_fields = ["created_at", "updated_at", "started_at", "completed_at"]
+        assert Invocation.__sortable_fields__ == expected_fields
+
+    def test_sortable_fields_are_strings(self) -> None:
+        """Test that all sortable fields are strings."""
+        assert all(isinstance(field, str) for field in Invocation.__sortable_fields__)
+
+
+@pytest.mark.asyncio
+async def test_query_invocations_by_session_id(test_db_session: AsyncSession) -> None:
+    """Test querying invocations by session_id."""
+    user_uuid = uuid4()
+    # Create invocations for different sessions
+    invocation1 = Invocation(
+        prompt="Session 1 task 1",
+        created_by=user_uuid,
+        session_id="session-alpha",
+        status=InvocationStatus.RUNNING,
+    )
+    invocation2 = Invocation(
+        prompt="Session 1 task 2",
+        created_by=user_uuid,
+        session_id="session-alpha",
+        status=InvocationStatus.RUNNING,
+    )
+    invocation3 = Invocation(
+        prompt="Session 2 task",
+        created_by=user_uuid,
+        session_id="session-beta",
+        status=InvocationStatus.RUNNING,
+    )
+
+    test_db_session.add_all([invocation1, invocation2, invocation3])
+    await test_db_session.commit()
+
+    # Query for session-alpha invocations
+    result = await test_db_session.execute(select(Invocation).where(Invocation.session_id == "session-alpha"))  # type: ignore[arg-type]
+    session_invocations = result.scalars().all()
+
+    assert len(session_invocations) == 2
+    assert all(inv.session_id == "session-alpha" for inv in session_invocations)
+
+
+@pytest.mark.asyncio
+async def test_invocation_status_completed(test_db_session: AsyncSession) -> None:
+    """Test invocation with COMPLETED status."""
+    invocation = Invocation(
+        prompt="Test completion",
+        created_by=uuid4(),
+        session_id="session-700",
+        status=InvocationStatus.RUNNING,
+    )
+
+    test_db_session.add(invocation)
+    await test_db_session.commit()
+    await test_db_session.refresh(invocation)
+
+    # Update to completed
+    invocation.status = InvocationStatus.COMPLETED
+    invocation.completed_at = datetime.now(UTC)
+    await test_db_session.commit()
+    await test_db_session.refresh(invocation)
+
+    assert invocation.status == InvocationStatus.COMPLETED
+    assert invocation.completed_at is not None
+
+
+@pytest.mark.asyncio
+async def test_invocation_status_failed(test_db_session: AsyncSession) -> None:
+    """Test invocation with FAILED status."""
+    invocation = Invocation(
+        prompt="Test failure",
+        created_by=uuid4(),
+        session_id="session-800",
+        status=InvocationStatus.RUNNING,
+    )
+
+    test_db_session.add(invocation)
+    await test_db_session.commit()
+    await test_db_session.refresh(invocation)
+
+    # Update to failed with error message
+    invocation.status = InvocationStatus.FAILED
+    invocation.error_message = "Tool execution timeout"
+    invocation.completed_at = datetime.now(UTC)
+    await test_db_session.commit()
+    await test_db_session.refresh(invocation)
+
+    assert invocation.status == InvocationStatus.FAILED
+    assert invocation.error_message == "Tool execution timeout"
+    assert invocation.completed_at is not None
+
+
+@pytest.mark.asyncio
+async def test_invocation_error_message_field(test_db_session: AsyncSession) -> None:
+    """Test error_message field can store error details."""
+    error_msg = "Database connection timeout after 30 seconds. Failed to connect to postgres://db:5432"
+
+    invocation = Invocation(
+        prompt="Test error message",
+        created_by=uuid4(),
+        session_id="session-900",
+        status=InvocationStatus.FAILED,
+        error_message=error_msg,
+    )
+
+    test_db_session.add(invocation)
+    await test_db_session.commit()
+    await test_db_session.refresh(invocation)
+
+    assert invocation.error_message == error_msg
+    assert len(invocation.error_message) > 50  # Verify it can store longer messages
+
+
+@pytest.mark.asyncio
+async def test_invocation_indexes_exist(test_db_session: AsyncSession) -> None:
+    """Test that expected indexes exist on invocations table."""
+
+    def get_indexes(connection: Any) -> list[dict[str, Any]]:  # noqa: ANN401
+        """Get indexes from the database using sync inspector."""
+        inspector = inspect(connection)
+        indexes: list[dict[str, Any]] = inspector.get_indexes("invocations")
+        return indexes
+
+    # Get the connection and run inspector in sync context
+    connection = await test_db_session.connection()
+    indexes = await connection.run_sync(get_indexes)
+    index_names = {idx["name"] for idx in indexes}
+
+    # Verify expected indexes exist
+    expected_indexes = {
+        "ix_invocations_status",
+        "ix_invocations_created_by",
+        "ix_invocations_session_id",
+        "ix_invocations_created_at",
+        "ix_invocations_created_by_status",
+    }
+
+    for expected_index in expected_indexes:
+        assert expected_index in index_names, f"Missing index: {expected_index}"
+
+
+@pytest.mark.asyncio
+async def ***REMOVED***(test_db_session: AsyncSession) -> None:
+    """Test that timestamp fields preserve timezone information."""
+    now = datetime.now(UTC)
+
+    invocation = Invocation(
+        prompt="Test timezone awareness",
+        created_by=uuid4(),
+        session_id="session-1000",
+        status=InvocationStatus.RUNNING,
+        started_at=now,
+    )
+
+    test_db_session.add(invocation)
+    await test_db_session.commit()
+    await test_db_session.refresh(invocation)
+
+    # Verify all timestamps have timezone info
+    assert invocation.created_at.tzinfo is not None
+    assert invocation.updated_at.tzinfo is not None
+    assert invocation.started_at is not None
+    assert invocation.started_at.tzinfo is not None
+
+    # Verify we can compare timezone-aware datetimes
+    assert invocation.created_at.tzinfo == UTC
+    assert invocation.updated_at.tzinfo == UTC
+    assert invocation.started_at.tzinfo == UTC
+
+
+@pytest.mark.asyncio
+async def test_invocation_session_id_max_length(test_db_session: AsyncSession) -> None:
+    """Test session_id field respects max_length constraint."""
+    # Create session_id at exactly max length (255 chars)
+    max_length_session_id = "s" * 255
+
+    invocation = Invocation(
+        prompt="Test session_id max length",
+        created_by=uuid4(),
+        session_id=max_length_session_id,
+        status=InvocationStatus.RUNNING,
+    )
+
+    test_db_session.add(invocation)
+    await test_db_session.commit()
+    await test_db_session.refresh(invocation)
+
+    assert invocation.session_id == max_length_session_id
+    assert len(invocation.session_id) == 255
+
+
+@pytest.mark.asyncio
+async def test_invocation_status_default_value(test_db_session: AsyncSession) -> None:
+    """Test that status defaults to RUNNING when not specified."""
+    invocation = Invocation(
+        prompt="Test default status",
+        created_by=uuid4(),
+        session_id="session-1100",
+        # Note: status not explicitly set
+    )
+
+    test_db_session.add(invocation)
+    await test_db_session.commit()
+    await test_db_session.refresh(invocation)
+
+    assert invocation.status == InvocationStatus.RUNNING
+
+
+@pytest.mark.asyncio
+async def test_invocation_prompt_max_length(test_db_session: AsyncSession) -> None:
+    """Test prompt field respects max_length constraint (10000 chars)."""
+    # Create prompt at exactly max length (10000 chars)
+    max_length_prompt = "a" * 10000
+
+    invocation = Invocation(
+        prompt=max_length_prompt,
+        created_by=uuid4(),
+        session_id="session-1200",
+        status=InvocationStatus.RUNNING,
+    )
+
+    test_db_session.add(invocation)
+    await test_db_session.commit()
+    await test_db_session.refresh(invocation)
+
+    assert invocation.prompt == max_length_prompt
+    assert len(invocation.prompt) == 10000

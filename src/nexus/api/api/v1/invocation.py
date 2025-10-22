@@ -3,18 +3,22 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus.api.db import get_db
-from nexus.api.schemas.invocation import (
+from nexus.agent_orchestrator.models import (
+    Invocation,
     InvocationListResponse,
     InvocationStatus,
-    InvokeRequest,
-    InvokeResponse,
 )
-from nexus.api.services.invocation_service import InvocationService
+from nexus.agent_orchestrator.services import InvocationService
+from nexus.api.db import get_db
+from nexus.core.utils import generate_response
+from nexus.core.utils.cursor import SortDirection
+from nexus.core.utils.filters import parse_filters
+from nexus.core.utils.labels import parse_label_filter
+from nexus.core.utils.sorting import parse_sort
 
 router = APIRouter(prefix="/invocations", tags=["Invocation"])
 logger = logging.getLogger(__name__)
@@ -27,17 +31,17 @@ logger = logging.getLogger(__name__)
     description="Accept async agent invocation request and return invocation ID immediately",
 )
 async def invoke_agent(
-    request: InvokeRequest,
+    invocation: Invocation,
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> InvokeResponse:
+) -> Invocation:
     """Accept async invocation request.
 
     Args:
-        request: Invocation request with prompt, user_id, and session_id
+        invocation: Invocation data with prompt, created_by, and session_id
         db: Database session (dependency injected)
 
     Returns:
-        Invocation response with id and status
+        Created invocation
 
     Raises:
         HTTPException: If invocation creation fails
@@ -45,17 +49,15 @@ async def invoke_agent(
     """
     try:
         service = InvocationService(db)
-        invocation = await service.accept_invocation(request)
-
-        return InvokeResponse(
-            id=invocation.id,
-            status=InvocationStatus(invocation.status),
-            created_at=invocation.created_at,
-            ws_url=None,  # WebSocket support in NEXUS-002-2
+        return await service.create_invocation(
+            prompt=invocation.prompt,
+            created_by=invocation.created_by,
+            session_id=invocation.session_id,
+            context_data=invocation.context_data,
         )
 
     except ValidationError as e:
-        logger.warning("Validation error in invocation request", exc_info=e)
+        logger.warning("Pydantic validation error in invocation request", exc_info=e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid request data",
@@ -71,74 +73,112 @@ async def invoke_agent(
 @router.get(
     "",
     summary="List Invocations",
-    description="List invocations with optional status filter",
+    description="List invocations with cursor-based pagination and filtering",
 )
 async def list_invocations(
-    status_filter: Annotated[
-        InvocationStatus | None,
-        Query(
-            alias="status",
-            description="Filter by invocation status",
-        ),
-    ] = None,
-    limit: Annotated[
-        int,
-        Query(
-            ge=1,
-            le=1000,
-            description="Maximum number of results",
-        ),
-    ] = 100,
-    offset: Annotated[
-        int,
-        Query(
-            ge=0,
-            description="Number of results to skip",
-        ),
-    ] = 0,
+    request: Request,
+    cursor: Annotated[str | None, Query(description="Pagination cursor")] = None,
+    limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of results")] = 20,
+    sort: Annotated[str | None, Query(description="Sort field (prefix with - for descending)")] = None,
+    invocation_status: Annotated[InvocationStatus | None, Query(alias="status", description="Filter by status")] = None,
+    include_total: Annotated[bool, Query(description="Include total count in response")] = False,  # noqa: FBT002
     *,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InvocationListResponse:
-    """List invocations with optional filtering.
+    """List invocations with cursor-based pagination and filtering.
+
+    Supports advanced filtering with operators:
+    - prompt: prompt[contains]=text, prompt[starts_with]=text
+    - created_by: created_by=uuid or created_by[eq]=uuid
+    - session_id: session_id=id, session_id[eq]=id, session_id[contains]=text,
+      session_id[starts_with]=text
+    - labels: labels[key]=value (e.g., labels[environment]=production)
+    - created_at: created_at[gt|gte|lt|lte]=timestamp
+    - updated_at: updated_at[gt|gte|lt|lte]=timestamp
 
     Args:
-        status_filter: Optional status to filter by
-        limit: Maximum results to return (1-1000)
-        offset: Number of results to skip
+        request: FastAPI request object to access query parameters
+        cursor: Pagination cursor for next/previous page
+        limit: Maximum results to return (1-100, default 20)
+        sort: Field to sort by (prefix with - for descending, e.g., "-created_at")
+        invocation_status: Filter by invocation status (query param: status)
+        include_total: Whether to include total count
         db: Database session (dependency injected)
 
     Returns:
-        List of invocations with total count
+        Paginated list of invocations with cursors
 
     Raises:
-        HTTPException: If list operation fails
+        HTTPException: If list operation fails or invalid filter/sort field
 
     """
     try:
-        service = InvocationService(db)
+        # Parse query parameters (API layer responsibility)
+        query_params = dict(request.query_params)
 
-        invocations, total = await service.list_invocations(
-            status=status_filter,
-            limit=limit,
-            offset=offset,
+        # Remove non-filter parameters
+        for param in ["cursor", "limit", "sort", "include_total", "status"]:
+            query_params.pop(param, None)
+
+        # Parse label filters
+        label_filters = parse_label_filter(query_params)
+        for key in query_params.copy():
+            if key.startswith("labels["):
+                query_params.pop(key)
+
+        # Parse advanced filters
+        allowed_fields = [
+            "prompt",
+            "created_by",
+            "session_id",
+            "created_at",
+            "updated_at",
+        ]
+        filters = parse_filters(query_params, allowed_fields)
+
+        # Parse sorting
+        sort_field, sort_direction = parse_sort(
+            sort,
+            Invocation.__sortable_fields__,
+            default_field="created_at",
+            default_direction=SortDirection.DESC,
         )
 
-        # Convert Invocation models to InvokeResponse models
-        invoke_responses = [
-            InvokeResponse(
-                id=inv.id,
-                status=InvocationStatus(inv.status),
-                created_at=inv.created_at,
-                ws_url=None,
-            )
-            for inv in invocations
-        ]
+        # Call service layer (business logic)
+        service = InvocationService(db)
+        invocations, total_count = await service.list_invocations(
+            filters=filters,
+            label_filters=label_filters,
+            status_filter=invocation_status,
+            sorting=[(sort_field, sort_direction)],
+            limit=limit,
+            include_total=include_total,
+        )
+
+        # Generate response (API layer responsibility)
+        pagination_metadata = generate_response(
+            items=invocations,
+            limit=limit,
+            cursor=cursor,
+            include_total=include_total,
+            total_count=total_count,
+        )
 
         return InvocationListResponse(
-            invocations=invoke_responses,
-            total=total,
+            resources=invocations,
+            next=pagination_metadata["next"],
+            prev=pagination_metadata["prev"],
+            total=pagination_metadata["total"],
         )
 
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid filter or sort parameter: {e}",
+        ) from e
+    except HTTPException:
+        # Re-raise HTTPExceptions without wrapping
+        raise
     except Exception as e:
         logger.exception("Unexpected error listing invocations")
         raise HTTPException(

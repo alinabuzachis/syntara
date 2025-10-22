@@ -4,6 +4,7 @@ This module provides functions for converting URL query parameters with
 bracket notation into structured filter objects for database queries.
 """
 
+import logging
 import re
 from datetime import datetime
 from enum import Enum
@@ -15,6 +16,9 @@ from sqlmodel import SQLModel
 
 # We need to import this protected type to pass mypy type-checking
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
+
+# Logger for this module
+logger = logging.getLogger(__name__)
 
 # Type variable for generic Query/Select type
 TP = TypeVar("TP", bound=tuple[Any, ...])
@@ -186,6 +190,77 @@ def _sanitize_like_value(value: FilterValue) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _convert_filter_value(value: FilterValue, field_attr: Any) -> FilterValue:  # noqa: ANN401
+    """Convert filter value to the appropriate type based on the field.
+
+    Args:
+        value: Raw filter value (usually a string from query params)
+        field_attr: SQLAlchemy field attribute to infer type from
+
+    Returns:
+        Converted value of the appropriate type
+
+    Raises:
+        ValueError: If datetime conversion fails with invalid format
+
+    """
+    # If value is already the right type, return as-is
+    if not isinstance(value, str):
+        return value
+
+    # Try to infer type from the field's Python type
+    try:
+        # Get the Python type from the SQLAlchemy column
+        python_type = field_attr.type.python_type
+    except (AttributeError, NotImplementedError):
+        # Some SQLAlchemy types don't implement python_type (like UUID, custom types)
+        # This is expected, just use string comparison for these fields
+        logger.debug(
+            "Field %s does not provide python_type, using string comparison",
+            getattr(field_attr, "key", "unknown"),
+        )
+        return value
+
+    # Handle datetime fields with explicit error handling
+    if python_type == datetime or (hasattr(python_type, "__origin__") and python_type.__origin__ == datetime):
+        try:
+            # Try parsing as ISO 8601 format (with 'Z' suffix or timezone)
+            # Replace 'Z' with '+00:00' for fromisoformat compatibility
+            iso_value = value.replace("Z", "+00:00") if value.endswith("Z") else value
+            parsed_datetime: datetime = datetime.fromisoformat(iso_value)
+            return parsed_datetime
+        except ValueError as e:
+            # Log warning and re-raise - malformed timestamps should fail loudly
+            logger.warning(
+                "Failed to parse datetime value '%s' for field %s: %s",
+                value,
+                getattr(field_attr, "key", "unknown"),
+                e,
+            )
+            msg = f"Invalid datetime format: {value}. Expected ISO 8601 format (e.g., '2025-01-15T10:30:00Z')"
+            raise ValueError(msg) from e
+
+    # Handle other numeric/boolean types
+    if python_type in (int, float, bool):
+        try:
+            converted: int | float | bool = python_type(value)
+            return converted
+        except ValueError as e:
+            # Log warning and re-raise - type mismatches should fail loudly
+            logger.warning(
+                "Failed to convert value '%s' to %s for field %s: %s",
+                value,
+                python_type.__name__,
+                getattr(field_attr, "key", "unknown"),
+                e,
+            )
+            msg = f"Invalid {python_type.__name__} value: {value}"
+            raise ValueError(msg) from e
+
+    # For other types (str, UUID, custom types), use string comparison
+    return value
+
+
 def _build_condition(field_attr: Any, operator: FilterOperator, value: FilterValue) -> Any:  # noqa: ANN401, PLR0911
     """Build a SQLAlchemy condition for a single filter.
 
@@ -198,23 +273,26 @@ def _build_condition(field_attr: Any, operator: FilterOperator, value: FilterVal
         SQLAlchemy condition object
 
     """
+    # Convert value to appropriate type based on field
+    converted_value = _convert_filter_value(value, field_attr)
+
     match operator:
         case FilterOperator.EQ:
-            return field_attr == value
+            return field_attr == converted_value
         case FilterOperator.CONTAINS:
-            sanitized_value = _sanitize_like_value(value)
+            sanitized_value = _sanitize_like_value(converted_value)
             return field_attr.ilike(f"%{sanitized_value}%")
         case FilterOperator.STARTS_WITH:
-            sanitized_value = _sanitize_like_value(value)
+            sanitized_value = _sanitize_like_value(converted_value)
             return field_attr.ilike(f"{sanitized_value}%")
         case FilterOperator.GT:
-            return field_attr > value
+            return field_attr > converted_value
         case FilterOperator.GTE:
-            return field_attr >= value
+            return field_attr >= converted_value
         case FilterOperator.LT:
-            return field_attr < value
+            return field_attr < converted_value
         case FilterOperator.LTE:
-            return field_attr <= value
+            return field_attr <= converted_value
 
 
 def apply_filters(

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from nexus.api.clients.a2a_client import A2AClient
+from nexus.agent_orchestrator.clients.a2a_client import A2AClient
 
 
 class AgentRoute:
