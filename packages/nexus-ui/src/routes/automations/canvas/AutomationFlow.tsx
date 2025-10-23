@@ -35,7 +35,7 @@ type EdgeType = Pick<EdgeProps, 'markerEnd'> & {
 
 const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { direction: 'TB' | 'LR' }) => {
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: options.direction })
+  g.setGraph({ rankdir: options.direction, ranksep: 200 })
 
   edges.forEach((edge) => g.setEdge(edge.source, edge.target))
   nodes.forEach((node) =>
@@ -231,6 +231,29 @@ function addConditionActivity(
   for (const id of previousIds) {
     edges.push({ id: `${id}-${conditionActivity.id}`, source: id, target: conditionActivity.id, sourceHandle })
   }
+
+  for (const branch of conditionActivity.then ?? []) {
+    addActivity(branch, nodes, edges, [conditionActivity.id], 'then')
+
+    edges.push({
+      id: `${conditionActivity.id}-${branch.id}-then`,
+      source: conditionActivity.id,
+      target: branch.id,
+      sourceHandle: 'then',
+    })
+  }
+
+  for (const branch of conditionActivity.else ?? []) {
+    addActivity(branch, nodes, edges, [conditionActivity.id], 'else')
+
+    edges.push({
+      id: `${conditionActivity.id}-${branch.id}-else`,
+      source: conditionActivity.id,
+      target: branch.id,
+      sourceHandle: 'else',
+    })
+  }
+
   return conditionActivity.id
 }
 

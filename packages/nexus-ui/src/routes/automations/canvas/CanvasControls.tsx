@@ -1,18 +1,9 @@
 import { IconButton } from '@ansible/nexus-ui-framework'
 import { Panel, useReactFlow } from '@xyflow/react'
-import {
-  ChevronsDownUpIcon,
-  ChevronsUpDownIcon,
-  FullscreenIcon,
-  UnfoldHorizontalIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
-} from 'lucide-react'
-import { useContext } from 'react'
-import { FlowDirectionContext } from './FlowDirectionContext'
+import { FullscreenIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react'
 
 export function CanvasControls() {
-  const [, setFlowDirection] = useContext(FlowDirectionContext)
+  // const [, setFlowDirection] = useContext(FlowDirectionContext)
   const { fitView, zoomIn, zoomOut } = useReactFlow()
 
   return (
@@ -26,21 +17,18 @@ export function CanvasControls() {
       <IconButton onClick={() => fitView()}>
         <FullscreenIcon />
       </IconButton>
-      {/* <IconButton onClick={() => setFlowDirection('TB')}>
-        <MoveVerticalIcon />
+      {/* <IconButton onClick={() => setFlowDirection('LR')}>
+        <BrushCleaning />
       </IconButton> */}
-      <IconButton onClick={() => setFlowDirection('LR')}>
-        <UnfoldHorizontalIcon />
-      </IconButton>
+      {/* <IconButton>
+        <ChevronsDownUpIcon />
+      </IconButton> */}
+      {/* <IconButton>
+        <ChevronsUpDownIcon />
+      </IconButton> */}
       {/* <button onClick={() => fitView()}>
         <FullscreenIcon />
       </button> */}
-      <IconButton>
-        <ChevronsDownUpIcon />
-      </IconButton>
-      <IconButton>
-        <ChevronsUpDownIcon />
-      </IconButton>
     </Panel>
   )
 }

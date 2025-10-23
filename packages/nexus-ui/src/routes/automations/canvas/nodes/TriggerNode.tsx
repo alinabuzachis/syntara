@@ -1,6 +1,8 @@
 import { type Node, type NodeProps } from '@xyflow/react'
 import { PlayCircleIcon } from 'lucide-react'
 import { NodeComponent } from './common/NodeComponent'
+import { NodeHeader } from './common/NodeHeader'
+import { NodeIcon } from './common/NodeIcon'
 import { NodeTitle } from './common/NodeTitle'
 
 export type TriggerNode = { type: 'trigger' } & Node<{
@@ -11,7 +13,12 @@ export type TriggerNode = { type: 'trigger' } & Node<{
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   return (
     <NodeComponent disableTarget className="rounded-4xl rounded-l-[128px]">
-      <NodeTitle type="Trigger" name={props.data.label} icon={<PlayCircleIcon />} />
+      <NodeHeader>
+        <NodeIcon>
+          <PlayCircleIcon />
+        </NodeIcon>
+        <NodeTitle subTitle="Trigger" title={props.data.label} />
+      </NodeHeader>
       {props.data.description && <div className="text-pretty">{props.data.description}</div>}
       {props.data.integrations && (
         <div>
