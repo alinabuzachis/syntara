@@ -35,7 +35,7 @@ type EdgeType = Pick<EdgeProps, 'markerEnd'> & {
 
 const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { direction: 'TB' | 'LR' }) => {
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: options.direction, ranksep: 200 })
+  g.setGraph({ rankdir: options.direction, ranksep: 150 })
 
   edges.forEach((edge) => g.setEdge(edge.source, edge.target))
   nodes.forEach((node) =>
@@ -78,7 +78,10 @@ export function AutomationFlow(props: { workflow: WorkflowWithVersion }) {
             id: 'manual',
             type: 'trigger',
             position: { x: 0, y: 0 },
-            data: { label: 'Manual' },
+            data: {
+              label: 'Manual',
+              inputs: props.workflow.version?.workflow_definition?.inputs || {},
+            },
           })
           break
       }
@@ -110,15 +113,12 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
 
   // const onConnect = useCallback((params: Connection) => setEdges((eds) => [...eds, params]), [setEdges])
 
-  const onLayout = useCallback(
-    (direction: 'TB' | 'LR') => {
-      const layouted = getLayoutedElements(nodes, edges, { direction: direction ?? 'LR' })
-      setNodes([...layouted.nodes])
-      setEdges([...layouted.edges])
-      fitView({ maxZoom: 1 })
-    },
-    [nodes, edges, setNodes, setEdges, fitView]
-  )
+  const onLayout = useCallback(() => {
+    const layouted = getLayoutedElements(nodes, edges, { direction: 'LR' })
+    setNodes([...layouted.nodes])
+    setEdges([...layouted.edges])
+    fitView({ maxZoom: 1 })
+  }, [nodes, edges, setNodes, setEdges, fitView])
 
   // Store latest onLayout in a ref to avoid it being a dependency
   const onLayoutRef = useRef(onLayout)
@@ -134,14 +134,14 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
       // Schedule state update to avoid cascading renders
       queueMicrotask(() => {
         setIsInitialized(true)
-        onLayoutRef.current(flowDirection)
+        onLayoutRef.current()
       })
     }
   }, [nodes, isInitialized, flowDirection])
 
   useEffect(() => {
     if (isInitialized) {
-      onLayoutRef.current(flowDirection)
+      onLayoutRef.current()
     }
   }, [flowDirection, isInitialized])
 

@@ -1,6 +1,6 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
-import { BrainIcon, TerminalIcon } from 'lucide-react'
+import { BrainIcon, FileTerminalIcon } from 'lucide-react'
 import { useContext } from 'react'
 import { CodeBlock } from '../../../../components/details/CodeBlock'
 import { Detail } from '../../../../components/details/Detail'
@@ -17,7 +17,7 @@ import { NodeTitle } from './common/NodeTitle'
 export type TaskNode = { type: 'task' } & Node<TaskActivity>
 
 const executorMetadata: Record<string, { icon: React.ReactNode; label: string }> = {
-  script: { icon: <TerminalIcon />, label: 'Script' },
+  script: { icon: <FileTerminalIcon />, label: 'Script' },
   agentic: { icon: <BrainIcon />, label: 'Agentic' },
 }
 

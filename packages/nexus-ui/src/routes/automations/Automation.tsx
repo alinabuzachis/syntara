@@ -20,14 +20,6 @@ export default function Automation() {
   const expandAllEvent = useMemo(() => new EventTarget(), [])
   const collapseAllEvent = useMemo(() => new EventTarget(), [])
 
-  // const sidePanelValue = sidePanel ? (
-  //   sidePanel
-  // ) : (
-  //   <Scrollable className="glass max-h-full max-w-100 rounded-4xl border-2 text-xs">
-  //     <pre className="p-8">{JSON.stringify(workflow?.version?.workflow_definition, null, 2)}</pre>
-  //   </Scrollable>
-  // )
-
   const queryState = useQueryState(workflowQuery, 'Error loading workflow')
   if (queryState) return queryState
 
@@ -41,13 +33,11 @@ export default function Automation() {
               <div className="glass absolute inset-0 rounded-4xl border-2"></div>
               <AutomationFlow workflow={workflowQuery.data!} />
             </div>
-            <Scrollable className="glass max-h-full max-w-100 rounded-4xl border-2 text-xs">
-              {sidePanelState[0] ? (
-                sidePanelState[0]
-              ) : (
-                <pre className="p-8">{JSON.stringify(workflow?.version?.workflow_definition, null, 2)}</pre>
-              )}
-            </Scrollable>
+            {sidePanelState[0] && (
+              <Scrollable className="glass max-h-full max-w-100 rounded-4xl border-2 text-xs">
+                {sidePanelState[0]}
+              </Scrollable>
+            )}
           </div>
         </AppPage>
       </SidePanelContext.Provider>

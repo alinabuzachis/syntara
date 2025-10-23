@@ -7,7 +7,6 @@ import {
   MenuTrigger,
   Scrollable,
 } from '@ansible/nexus-ui-framework'
-import Fuse from 'fuse.js'
 import { EllipsisVerticalIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useLocation } from 'wouter'
@@ -19,24 +18,13 @@ import { ChatInput } from '../../../components/chat/ChatInput'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { StringCell } from '../../../components/table/StringCell'
 import { Table } from '../../../components/table/Table'
+import { useFuse } from '../../../hooks/useFuse'
 import { IntegrationCard } from './IntegrationCard'
 
 export default function Integrations() {
   const [, navigate] = useLocation()
-  const [search, setSearch] = useState('')
-
   const query = toolProvidersClient.useQuery('get', '/tool-providers', {})
-  const integrations = query.data?.providers ?? []
-
-  const fuse = new Fuse(integrations, {
-    keys: [
-      { name: 'name', weight: 0.5 },
-      { name: 'type', weight: 0.3 },
-      { name: 'description', weight: 0.2 },
-    ],
-    threshold: 0.7,
-  })
-  const results = search ? fuse.search(search).map((result) => result.item) : integrations
+  const { search, setSearch, items: providers } = useFuse(query.data?.providers ?? [], [{ name: 'name' }])
   const [view, setView] = useState<'table' | 'cards'>('table')
 
   const queryState = useQueryState(query, 'Error loading integrations')
@@ -76,7 +64,7 @@ export default function Integrations() {
       {view !== 'cards' ? (
         // <div className="roundedgrow overflow-hidden flex flex-col">
         <Table
-          items={results}
+          items={providers}
           columns={[
             {
               id: 'name',
@@ -98,7 +86,7 @@ export default function Integrations() {
       ) : (
         <Scrollable className="glass grow rounded-4xl border">
           <div className={`grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4 p-8`}>
-            {results.map((integration) => (
+            {providers.map((integration) => (
               <IntegrationCard key={integration.id} integration={integration} />
             ))}
           </div>
