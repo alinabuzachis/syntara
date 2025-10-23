@@ -1,10 +1,13 @@
 import type { ConditionActivity } from '@ansible/nexus-contracts'
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
+import { SplitIcon } from 'lucide-react'
 import { CodeBlock } from '../../../../components/details/CodeBlock'
 import { Detail } from '../../../../components/details/Detail'
 import { Details } from '../../../../components/details/Details'
-import { NodeBody, NodeComponent } from './common/NodeComponent'
+import { NodeBody } from './common/NodeBody'
+import { NodeComponent } from './common/NodeComponent'
 import { NodeHeader } from './common/NodeHeader'
+import { NodeIcon } from './common/NodeIcon'
 import { NodeTitle } from './common/NodeTitle'
 import { handleStyle } from './common/handleStyle'
 
@@ -14,14 +17,18 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
   return (
     <NodeComponent className="rounded-4xl">
       <NodeHeader>
-        {/* <NodeIcon></NodeIcon> */}
+        <NodeIcon>
+          <SplitIcon />
+        </NodeIcon>
         <NodeTitle title={props.data.name} subTitle="Condition" />
       </NodeHeader>
       <NodeBody>
         <ConditionNodeDetails conditionActivity={props.data} />
       </NodeBody>
-      <Handle type="source" id="then" position={Position.Right} style={{ ...handleStyle, top: '20%' }} />
-      <Handle type="source" id="else" position={Position.Right} style={{ ...handleStyle, top: '80%' }} />
+      <NodeHandles>
+        <NodeHandle id="then">then</NodeHandle>
+        <NodeHandle id="else">else</NodeHandle>
+      </NodeHandles>
     </NodeComponent>
   )
 }
@@ -40,5 +47,18 @@ export function ConditionNodeDetails(props: { conditionActivity: ConditionActivi
         </Detail>
       )}
     </Details>
+  )
+}
+
+function NodeHandles(props: { children: React.ReactNode }) {
+  return <div className="flex flex-col gap-1 self-end pb-2">{props.children}</div>
+}
+
+function NodeHandle(props: { children: React.ReactNode; id: string }) {
+  return (
+    <div className="relative rounded-l-4xl border-y-2 border-l-2 border-white/20 bg-white/10 px-4 py-2">
+      {props.children}
+      <Handle type="source" id={props.id} position={Position.Right} style={handleStyle} />
+    </div>
   )
 }

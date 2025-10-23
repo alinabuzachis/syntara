@@ -1,7 +1,8 @@
 import { Handle, Position } from '@xyflow/react'
 import clsx from 'clsx'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { handleStyle } from './handleStyle'
+import { NodeExpandedAllContext } from './NodeExpandedAllContext'
 import { NodeExpandedContext } from './NodeExpandedContext'
 
 export function NodeComponent(props: {
@@ -13,11 +14,26 @@ export function NodeComponent(props: {
   className?: string
   onClick?: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void
 }) {
+  const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
   const expandedContext = useState(true)
+  useEffect(() => {
+    const expandListener = () => {
+      expandedContext[1](true)
+    }
+    const collapseListener = () => {
+      expandedContext[1](false)
+    }
+    expandAllEvent.addEventListener('expandAll', expandListener)
+    collapseAllEvent.addEventListener('collapseAll', collapseListener)
+    return () => {
+      expandAllEvent.removeEventListener('expandAll', expandListener)
+      collapseAllEvent.removeEventListener('collapseAll', collapseListener)
+    }
+  }, [expandAllEvent, collapseAllEvent, expandedContext])
   return (
     <NodeExpandedContext.Provider value={expandedContext}>
       <div
-        className={clsx('glass card flex flex-col gap-4 border-2 px-6 py-4 shadow-md shadow-black/50', props.className)}
+        className={clsx('glass card flex flex-col gap-4 border-2 py-4 shadow-md shadow-black/50', props.className)}
         onClick={props.onClick}
       >
         {props.children}
@@ -32,12 +48,4 @@ export function NodeComponent(props: {
       </div>
     </NodeExpandedContext.Provider>
   )
-}
-
-export function NodeBody(props: { children: React.ReactNode; className?: string }) {
-  const [expanded] = React.useContext(NodeExpandedContext)
-  if (!expanded) {
-    return null
-  }
-  return props.children
 }

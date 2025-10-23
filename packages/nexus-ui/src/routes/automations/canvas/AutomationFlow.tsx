@@ -112,7 +112,7 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
 
   const onLayout = useCallback(
     (direction: 'TB' | 'LR') => {
-      const layouted = getLayoutedElements(nodes, edges, { direction })
+      const layouted = getLayoutedElements(nodes, edges, { direction: direction ?? 'LR' })
       setNodes([...layouted.nodes])
       setEdges([...layouted.edges])
       fitView({ maxZoom: 1 })
@@ -161,7 +161,7 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
       minZoom={0.1}
       maxZoom={1}
     >
-      <CanvasControls />
+      <CanvasControls onLayout={onLayout} />
     </ReactFlow>
   )
 }
@@ -232,26 +232,30 @@ function addConditionActivity(
     edges.push({ id: `${id}-${conditionActivity.id}`, source: id, target: conditionActivity.id, sourceHandle })
   }
 
+  previousIds = [conditionActivity.id]
   for (const branch of conditionActivity.then ?? []) {
-    addActivity(branch, nodes, edges, [conditionActivity.id], 'then')
-
-    edges.push({
-      id: `${conditionActivity.id}-${branch.id}-then`,
-      source: conditionActivity.id,
-      target: branch.id,
-      sourceHandle: 'then',
-    })
+    for (const id of previousIds) {
+      edges.push({
+        id: `${id}-${branch.id}-then`,
+        source: id,
+        target: branch.id,
+        sourceHandle: id === conditionActivity.id ? 'then' : 'source',
+      })
+    }
+    addActivity(branch, nodes, edges, previousIds, 'then')
   }
 
+  previousIds = [conditionActivity.id]
   for (const branch of conditionActivity.else ?? []) {
-    addActivity(branch, nodes, edges, [conditionActivity.id], 'else')
-
-    edges.push({
-      id: `${conditionActivity.id}-${branch.id}-else`,
-      source: conditionActivity.id,
-      target: branch.id,
-      sourceHandle: 'else',
-    })
+    for (const id of previousIds) {
+      edges.push({
+        id: `${id}-${branch.id}-else`,
+        source: id,
+        target: branch.id,
+        sourceHandle: id === conditionActivity.id ? 'else' : 'source',
+      })
+    }
+    addActivity(branch, nodes, edges, previousIds, 'else')
   }
 
   return conditionActivity.id
