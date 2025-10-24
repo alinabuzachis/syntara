@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 from nexus.workflows.activities.script_activity import execute_bash_script
-from nexus.workflows.models.workflow_definition import WorkflowDefinition
+from nexus.workflows.workflow_engine.models import WorkflowDefinition
 
 
 @pytest.mark.integration

@@ -11,8 +11,7 @@ from uuid import UUID, uuid4
 
 from pydantic import ConfigDict, field_validator
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.types import DateTime
-from sqlmodel import Field, SQLModel
+from sqlmodel import DateTime, Field, SQLModel
 
 from nexus.core.constants import ValidationMessages
 
@@ -52,9 +51,6 @@ class BaseResource(SQLModel, ABC):
 
     # Automatic timestamps
     # NOTE: These fields store timezone-aware datetime objects (always UTC).
-    # SQLModel doesn't support DateTime(timezone=True) in Field definitions, so
-    # Alembic migrations MUST manually specify DateTime(timezone=True) to create
-    # TIMESTAMPTZ columns in PostgreSQL. See existing migrations for examples.
     created_at: datetime = Field(
         default_factory=_utc_now,
         description="Timestamp when resource was created",
@@ -70,8 +66,8 @@ class BaseResource(SQLModel, ABC):
     )
 
     # Labels as JSONB column for key-value pairs
-    labels: dict[str, str] | None = Field(
-        default=None, sa_type=JSONB, description="Key-value pairs for resource labeling and filtering"
+    labels: dict[str, str] = Field(
+        default_factory=dict, sa_type=JSONB, description="Key-value pairs for resource labeling and filtering"
     )
 
     @field_validator("labels", mode="before")

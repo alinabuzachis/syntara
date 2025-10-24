@@ -5,7 +5,7 @@ import json
 import pytest
 
 from nexus.api.validators.workflow_definition import ValidationError, WorkflowDefinitionValidator
-from nexus.workflows.models.workflow_definition import WorkflowDefinition
+from nexus.workflows.workflow_engine.models import WorkflowDefinition
 
 
 class TestWorkflowDefinitionValidator:

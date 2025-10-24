@@ -1,41 +1,14 @@
-"""Workflow definition models."""
+"""Workflow models package.
 
-from .workflow_definition import (
-    Activity,
-    ApprovalDefinition,
-    CountLoopDefinition,
-    EventTrigger,
-    ForEachLoopDefinition,
-    InputParameter,
-    JoinDefinition,
-    LoopDefinition,
-    ManualTrigger,
-    Metadata,
-    RetryPolicy,
-    ScheduledTrigger,
-    TaskDefinition,
-    Trigger,
-    WhileLoopDefinition,
-    WorkflowDefinition,
-    WorkflowSpec,
-)
+This package contains database models (SQLModel tables):
+- Workflow: Workflow database model
+- WorkflowVersion: WorkflowVersion database model
 
-__all__ = [
-    "Activity",
-    "ApprovalDefinition",
-    "CountLoopDefinition",
-    "EventTrigger",
-    "ForEachLoopDefinition",
-    "InputParameter",
-    "JoinDefinition",
-    "LoopDefinition",
-    "ManualTrigger",
-    "Metadata",
-    "RetryPolicy",
-    "ScheduledTrigger",
-    "TaskDefinition",
-    "Trigger",
-    "WhileLoopDefinition",
-    "WorkflowDefinition",
-    "WorkflowSpec",
-]
+Usage:
+    from nexus.workflows.models import Workflow, WorkflowVersion
+"""
+
+from .workflow import Workflow
+from .workflow_version import WorkflowVersion
+
+__all__ = ["Workflow", "WorkflowVersion"]

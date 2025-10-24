@@ -8,7 +8,7 @@ from abc import ABC
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlmodel import Field
+from sqlmodel import DateTime, Field
 
 from nexus.core.models.base import BaseResource
 
@@ -45,7 +45,10 @@ class SoftDeletableResource(BaseResource, ABC):
 
     # Soft deletion tracking
     deleted_at: datetime | None = Field(
-        default=None, description="Timestamp when resource was soft deleted", index=True
+        default=None,
+        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        description="Timestamp when resource was soft deleted",
+        index=True,
     )
 
     deleted_by: UUID | None = Field(default=None, description="User who performed the soft delete", index=True)

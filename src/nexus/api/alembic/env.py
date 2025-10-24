@@ -8,12 +8,14 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlmodel import SQLModel
 
-from nexus.api.models import user, workflow, workflow_version
-from nexus.api.models.base import Base
+from nexus.agent_orchestrator.models.invocation import Invocation
+from nexus.core.models import User
+from nexus.workflows.models import Workflow, WorkflowVersion
 
-# Ensure models are registered with SQLAlchemy metadata
-_ = (user, workflow, workflow_version)
+# Ensure models are registered with SQLModel metadata
+_ = (Invocation, User, Workflow, WorkflowVersion)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -25,7 +27,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Set target metadata from models
-target_metadata = Base.metadata
+target_metadata = SQLModel.metadata
 
 # Override sqlalchemy.url with environment variable if present
 database_url = os.getenv("DATABASE_URL")

@@ -4,11 +4,11 @@ from typing import Annotated
 from uuid import uuid4
 
 from fastapi import Depends
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from nexus.api.db import get_db
-from nexus.api.models import User
+from nexus.core.models import User
 
 
 async def get_current_user(db: Annotated[AsyncSession, Depends(get_db)]) -> User:
@@ -24,7 +24,7 @@ async def get_current_user(db: Annotated[AsyncSession, Depends(get_db)]) -> User
         User instance
 
     """
-    result = await db.execute(select(User).filter(User.username == "dev-user"))
+    result = await db.execute(select(User).filter(User.username == "dev-user"))  # type: ignore[arg-type]
     user = result.scalar_one_or_none()
 
     if not user:

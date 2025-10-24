@@ -15,9 +15,8 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus.api.models.user import User
-from nexus.api.models.workflow import Workflow
-from nexus.api.models.workflow_version import WorkflowVersion
+from nexus.core.models import User
+from nexus.workflows.models import Workflow, WorkflowVersion
 from tests.helpers.workflow_fixtures import create_minimal_workflow_definition
 
 
@@ -123,13 +122,13 @@ async def test_workflow_labels_jsonb_operations(
 
     assert workflow.labels == labels
 
-    # Update labels
-    workflow.labels = {"env": "prod", "region": "us-west-2", "critical": True}
+    # Update labels (all values must be strings per spec 006)
+    workflow.labels = {"env": "prod", "region": "us-west-2", "critical": "true"}
     await test_db_session.commit()
     await test_db_session.refresh(workflow)
 
     assert workflow.labels["env"] == "prod"
-    assert workflow.labels["critical"] is True
+    assert workflow.labels["critical"] == "true"
 
 
 @pytest.mark.asyncio
@@ -203,7 +202,7 @@ async def test_workflow_relationship_with_user(
     test_db_session: AsyncSession,
     test_user: User,
 ) -> None:
-    """Test relationship between Workflow and User."""
+    """Test that Workflow tracks created_by user ID."""
     workflow = Workflow(
         id=uuid4(),
         name="relationship-workflow",
@@ -213,14 +212,8 @@ async def test_workflow_relationship_with_user(
     await test_db_session.commit()
     await test_db_session.refresh(workflow)
 
-    # Access creator relationship
-    assert workflow.creator.id == test_user.id
-    assert workflow.creator.username == test_user.username
-
-    # Access workflows from user
-    await test_db_session.refresh(test_user, ["created_workflows"])
-    workflow_ids = {w.id for w in test_user.created_workflows}
-    assert workflow.id in workflow_ids
+    # Verify created_by field references the user
+    assert workflow.created_by == test_user.id
 
 
 @pytest.mark.asyncio

@@ -27,22 +27,19 @@ from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from nexus.agent_orchestrator import models as agent_orchestrator_models
+from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.api.auth.dependencies import get_current_user
 from nexus.api.db import get_db
 from nexus.api.main import app
-from nexus.api.models import user, workflow, workflow_version
-from nexus.api.models.base import Base
-from nexus.api.models.user import User, UserRole
-from nexus.api.models.workflow import Workflow
-from nexus.api.models.workflow_version import WorkflowVersion
+from nexus.core.models import User, UserRole
 from nexus.workflows.activities.script_activity import execute_bash_script
 from nexus.workflows.dynamic_workflow import DynamicWorkflow
-from nexus.workflows.models.workflow_definition import WorkflowDefinition
+from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.workflow_engine.models import WorkflowDefinition
 from nexus.workflows.yaml_workflow_parser import parse_workflow_yaml
 
-# Ensure models are registered with SQLAlchemy metadata
-_ = (agent_orchestrator_models, user, workflow, workflow_version, User, Workflow, WorkflowVersion)
+# Ensure models are registered with SQLModel metadata
+_ = (Invocation, User, Workflow, WorkflowVersion)
 
 logger = logging.getLogger(__name__)
 
@@ -196,8 +193,7 @@ async def test_db_engine(worker_id: str) -> AsyncGenerator[AsyncEngine, None]:
 
     # Import models and create tables once for the session
     async with engine.begin() as conn:
-        # Create both SQLAlchemy (Base) and SQLModel tables
-        await conn.run_sync(Base.metadata.create_all)
+        # Create tables from SQLModel (for all models: User, Workflow, WorkflowVersion, Invocation)
         await conn.run_sync(SQLModel.metadata.create_all)
 
     yield engine
@@ -205,7 +201,6 @@ async def test_db_engine(worker_id: str) -> AsyncGenerator[AsyncEngine, None]:
     # Drop tables and dispose engine after session
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
-        await conn.run_sync(Base.metadata.drop_all)
 
     await engine.dispose()
 
@@ -223,10 +218,8 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
     """
     # Clear all data before each test for isolation
     async with test_db_engine.begin() as conn:
-        # Drop and recreate both SQLAlchemy (Base) and SQLModel tables
+        # Drop and recreate all SQLModel tables
         await conn.run_sync(SQLModel.metadata.drop_all)
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(SQLModel.metadata.create_all)
 
     async_session = async_sessionmaker(

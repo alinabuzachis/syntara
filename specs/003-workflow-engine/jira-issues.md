@@ -85,6 +85,24 @@ Implement complete workflow management functionality including database models, 
 
 ---
 
+## Ticket: Refactor models to use SQLModel
+**Epic**: [AAP-54306 - Spec out, plan, and implement an initial workflow engine feature](AAP-56320)
+**Story Points**: 5
+
+### Description
+Refactor models User, Workflow, WorkflowVersion to use SQLModels
+
+**Data Models:**
+- User, Workflow, and WorkflowVersion models
+
+### Acceptance Criteria
+- ✅ All existing Workflow Engine database models are updated to subclass from the shared base models
+- ✅ All existing Workflow Engine database models are converted to use SQLModel instead of SQLAlchemy
+- ✅ All existing Workflow Engine API models are also converted to use the same SQLModel models instead of Pydantic models
+- ✅ Any completed Workflow Engine API specs are added to the top-level schema directory
+
+--
+
 ## Ticket: YAML Workflow Execution Engine - Bash Script Activities
 **Epic**: [AAP-54306 - Spec out, plan, and implement an initial workflow engine feature](AAP-54306)
 **Story Points**: 8

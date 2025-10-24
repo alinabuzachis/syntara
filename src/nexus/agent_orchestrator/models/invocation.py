@@ -4,10 +4,8 @@ from datetime import datetime
 from enum import Enum
 from typing import ClassVar
 
-from sqlalchemy import Index, Text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.types import DateTime
-from sqlmodel import Field
+from sqlmodel import DateTime, Field, Index, Text
 
 from nexus.core.models.base import ResourcesResponse, UserOwnedResource
 

@@ -220,7 +220,7 @@ async def test_workflow_complete_lifecycle(base_client: AsyncClient) -> None:  #
     # Verify workflow not in list
     list_response = await base_client.get("/api/v1/workflows")
     assert list_response.status_code == 200
-    workflows = list_response.json()["workflows"]
+    workflows = list_response.json()["resources"]
 
     # Workflow should not appear in list (soft deleted)
     workflow_ids = [w["id"] for w in workflows]

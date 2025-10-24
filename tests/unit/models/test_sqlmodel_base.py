@@ -36,7 +36,7 @@ class TestSQLModelBaseClasses:
         assert annotations["id"] == UUID
         assert annotations["created_at"] == datetime
         assert annotations["updated_at"] == datetime
-        assert annotations["labels"] == dict[str, str] | None
+        assert annotations["labels"] == dict[str, str]
 
     def test_base_resource_sqlmodel_table_config(self) -> None:
         """Test that BaseResource is configured as abstract SQLModel."""
@@ -71,9 +71,9 @@ class TestSQLModelBaseClasses:
         )
         assert valid_resource.labels == {"key1": "value1", "key2": "value2"}
 
-        # None labels should be allowed
-        none_resource = MockBaseResource(id=resource_id, created_at=now, updated_at=now, labels=None)
-        assert none_resource.labels is None
+        # Labels default to empty dict when not provided
+        default_resource = MockBaseResource(id=resource_id, created_at=now, updated_at=now)
+        assert default_resource.labels == {}
 
         # Invalid labels should raise ValidationError. Invalid: value must be string
         with pytest.raises(ValidationError):

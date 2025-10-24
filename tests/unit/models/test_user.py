@@ -14,7 +14,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus.api.models.user import User, UserRole
+from nexus.core.models import User, UserRole
 
 
 @pytest.mark.asyncio

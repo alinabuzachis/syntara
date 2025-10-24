@@ -34,9 +34,18 @@ class UserOwnedResource(BaseResource, ABC):
     """
 
     # User ownership tracking
-    created_by: UUID = Field(description="User who created the resource", index=True)
+    created_by: UUID = Field(
+        foreign_key="users.id",
+        description="User who created the resource",
+        index=True,
+    )
 
-    updated_by: UUID | None = Field(default=None, description="User who last updated the resource", index=True)
+    updated_by: UUID | None = Field(
+        default=None,
+        foreign_key="users.id",
+        description="User who last updated the resource",
+        index=True,
+    )
 
     def update_by_user(self, user_id: UUID) -> None:
         """Update the resource's updated_by field.

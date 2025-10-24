@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from nexus.api.models import WorkflowVersion
+from nexus.workflows.models import WorkflowVersion
 
 
 def deserialize_workflow_version(version: WorkflowVersion) -> dict[str, Any]:

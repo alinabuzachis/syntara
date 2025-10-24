@@ -4,15 +4,16 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from nexus.api.api.v1.utils import deserialize_workflow_version
 from nexus.api.db import get_db
-from nexus.api.models import Workflow, WorkflowVersion
-from nexus.api.schemas import (
+from nexus.workflows.models import Workflow
+from nexus.workflows.models.workflow_version import (
+    WorkflowVersion,
     WorkflowVersionListResponse,
-    WorkflowVersionResponse,
+    WorkflowVersionRead,
 )
 
 router = APIRouter(prefix="/workflows", tags=["workflow-versions"])
@@ -43,7 +44,7 @@ async def list_workflow_versions(
     """
     # Verify workflow exists
     workflow_result = await db.execute(
-        select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))
+        select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
     )
     workflow = workflow_result.scalar_one_or_none()
 
@@ -57,10 +58,10 @@ async def list_workflow_versions(
     result = await db.execute(
         select(WorkflowVersion)
         .filter(
-            WorkflowVersion.workflow_id == workflow_id,
-            WorkflowVersion.deleted_at.is_(None),
+            WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
+            WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
         )
-        .order_by(WorkflowVersion.version.desc())
+        .order_by(WorkflowVersion.version.desc())  # type: ignore[attr-defined]
     )
     versions = list(result.scalars().all())
 
@@ -68,7 +69,7 @@ async def list_workflow_versions(
     version_dicts = [deserialize_workflow_version(v) for v in versions]
 
     # Manually construct response with deserialized versions
-    return WorkflowVersionListResponse(versions=[WorkflowVersionResponse.model_validate(v) for v in version_dicts])
+    return WorkflowVersionListResponse(versions=[WorkflowVersionRead.model_validate(v) for v in version_dicts])
 
 
 @router.get("/{workflow_id}/versions/{version}")
@@ -76,7 +77,7 @@ async def get_workflow_version(
     workflow_id: UUID,
     version: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> WorkflowVersionResponse:
+) -> WorkflowVersionRead:
     """Get a specific workflow version.
 
     Args:
@@ -93,7 +94,7 @@ async def get_workflow_version(
     """
     # Verify workflow exists
     workflow_result = await db.execute(
-        select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))
+        select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
     )
     workflow = workflow_result.scalar_one_or_none()
 
@@ -106,9 +107,9 @@ async def get_workflow_version(
     # Get version
     result = await db.execute(
         select(WorkflowVersion).filter(
-            WorkflowVersion.workflow_id == workflow_id,
-            WorkflowVersion.version == version,
-            WorkflowVersion.deleted_at.is_(None),
+            WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
+            WorkflowVersion.version == version,  # type: ignore[arg-type]
+            WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
         )
     )
     workflow_version = result.scalar_one_or_none()
@@ -120,4 +121,4 @@ async def get_workflow_version(
         )
 
     # Deserialize workflow_definition from JSON string to dict and return
-    return WorkflowVersionResponse.model_validate(deserialize_workflow_version(workflow_version))
+    return WorkflowVersionRead.model_validate(deserialize_workflow_version(workflow_version))

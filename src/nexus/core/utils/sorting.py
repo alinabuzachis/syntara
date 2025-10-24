@@ -15,8 +15,8 @@ Examples:
 
 from typing import Any, TypeVar
 
-from sqlalchemy import Select, asc, desc
-from sqlmodel import SQLModel
+from sqlalchemy import Select
+from sqlmodel import SQLModel, asc, desc
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.core.utils.cursor import SortDirection

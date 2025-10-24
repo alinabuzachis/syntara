@@ -357,12 +357,22 @@ specs/[###-feature]/
 ```
 src/
 └── nexus/
-    ├── api/             # FastAPI REST service (Temporal workflows, DB access)
-    │   ├── models/          # Data models and entities
-    │   ├── services/        # Business logic and orchestration
-    │   ├── api/             # API routers and dependencies
-    │   ├── workflows/       # Temporal workflow definitions
-    │   └── alembic/         # Database migrations (part of nexus.api package)
+    ├── api/             # FastAPI REST service (DB access, API endpoints)
+    │   ├── alembic/         # Database migrations
+    │   ├── api/             # API endpoint routers (v1, etc.)
+    │   ├── auth/            # Authentication utilities
+    │   ├── db/              # Database session management
+    │   ├── services/        # Temporal workflow execution services (TODO: move to workflows)
+    │   └── validators/      # Request validators
+    ├── core/            # Core shared models and utilities
+    │   ├── models/          # Shared database models (User, base classes)
+    │   └── utils/           # Shared utilities (pagination, cursor, etc.)
+    ├── workflows/       # Temporal workflow engine package
+    │   ├── models/          # Workflow & WorkflowVersion database models (SQLModel)
+    │   ├── workflow_engine/ # Workflow engine schemas and definitions
+    │   │   └── models/      # Pydantic schemas for YAML workflow definitions
+    │   ├── services/        # Workflow business logic services
+    │   └── activities/      # Temporal activity implementations
     ├── agents/          # Agent implementations (generic, research, etc.)
     └── tool_manager/    # Tool provider interfaces and adapters
 
@@ -438,7 +448,7 @@ tests/
 
 **Implementation Strategy**: The workflow engine will be delivered in 4 parts with self-contained tickets. Each ticket includes both data models and API endpoints for cohesive feature delivery. See [jira-issues.md](./jira-issues.md) for detailed breakdown.
 
-### Part 1: Core Workflow & Execution Foundation (34 points)
+### Part 1: Core Workflow & Execution Foundation (39 points)
 
 **Ticket 1: Workflow Management (Models + API)** - 13 points
 - User, Workflow, WorkflowVersion models with soft delete
@@ -466,6 +476,30 @@ tests/
 - PATCH /workflows/{id} with only metadata (name, description, labels, is_enabled) does NOT create version
 - GET /workflows/{id} always returns the current active version specified by `current_version` field
 - Explicit version endpoints (/workflows/{id}/versions) are for read-only access to version history
+
+**Ticket 1.5: Refactor Models to use SQLModel** - 5 points
+- Refactor User, Workflow, and WorkflowVersion models to use SQLModel instead of SQLAlchemy
+- Inherit from shared base models defined in spec 006-create-shared-resources:
+  - User inherits from SoftDeletableResource (provides id, createdAt, updatedAt, deletedAt, deletedBy)
+  - Workflow inherits from NamedResource, UserOwnedResource, SoftDeletableResource (provides id, name, description, labels, createdAt, updatedAt, createdBy, updatedBy, deletedAt, deletedBy)
+  - WorkflowVersion inherits from UserOwnedResource, SoftDeletableResource (provides id, createdAt, updatedAt, createdBy, updatedBy, deletedAt, deletedBy)
+- Convert API models to use the same SQLModel models instead of separate Pydantic models
+- Update database migrations to reflect new model structure if needed
+- Ensure labels field is implemented as Dict[str, str] per spec 006 FR-020
+- Add completed Workflow Engine API specs to top-level schema directory
+- All existing tests must continue passing
+- 80%+ test coverage maintained
+
+**SQLModel Integration Requirements** (referencing spec 006-create-shared-resources):
+- Follow shared base model patterns from spec 006:
+  - BaseResource: id (UUID), createdAt, updatedAt, labels (Dict[str, str])
+  - NamedResource: adds name, description
+  - SoftDeletableResource: adds deletedAt, deletedBy
+  - UserOwnedResource: adds createdBy, updatedBy
+- Use SQLModel's dual-purpose models (both ORM and Pydantic validation)
+- Backend-managed fields (id, timestamps, createdBy, updatedBy, deletedAt, deletedBy) should be marked readOnly in API responses
+- Maintain existing API contracts while consolidating data and API models
+- Reference spec 006 for additional filtering, pagination, and error handling conventions to apply in future tickets
 
 **Ticket 2: YAML Workflow Execution Engine - Bash Script Activities** - 8 points
 - YAML parser converting workflows to Temporal workflows

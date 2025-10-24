@@ -14,6 +14,7 @@ from nexus.core.models.base import (
     SoftDeletableResource,
     UserOwnedResource,
 )
+from nexus.core.models.user import User, UserRole
 
 __all__ = [
     "BaseResource",
@@ -23,5 +24,7 @@ __all__ = [
     "ResourcesResponse",
     "ResourcesResponseBase",
     "SoftDeletableResource",
+    "User",
     "UserOwnedResource",
+    "UserRole",
 ]

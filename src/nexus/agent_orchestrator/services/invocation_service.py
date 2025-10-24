@@ -3,8 +3,8 @@
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import func, select
 
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.core.utils.filters import Filter, apply_filters

@@ -20,11 +20,11 @@ async def test_get_workflows_empty_list(base_client: AsyncClient) -> None:
 
     assert response.status_code == 200
     data = response.json()
-    assert "workflows" in data
-    assert isinstance(data["workflows"], list)
-    assert len(data["workflows"]) == 0
+    assert "resources" in data
+    assert isinstance(data["resources"], list)
+    assert len(data["resources"]) == 0
     assert "total" in data
-    assert data["total"] == 0
+    assert data["total"] is None  # Total only included when include_total=true
 
 
 @pytest.mark.asyncio
@@ -55,9 +55,9 @@ async def test_get_workflows_list_all(base_client: AsyncClient) -> None:
 
     assert response.status_code == 200
     data = response.json()
-    assert "workflows" in data
-    assert len(data["workflows"]) == 3
-    assert data["total"] == 3
+    assert "resources" in data
+    assert len(data["resources"]) == 3
+    # Total not included by default (need include_total=true)
 
 
 @pytest.mark.asyncio
@@ -92,13 +92,13 @@ async def test_get_workflows_filter_by_created_by(base_client: AsyncClient) -> N
     assert response2.status_code == 201
 
     # Filter by creator - should return both workflows
-    response = await base_client.get(f"/api/v1/workflows?created_by={creator_id}")
+    response = await base_client.get(f"/api/v1/workflows?created_by={creator_id}&include_total=true")
     assert response.status_code == 200
     data = response.json()
-    assert len(data["workflows"]) == 2
+    assert len(data["resources"]) == 2
     assert data["total"] == 2
     # Verify both workflows have the same creator
-    assert all(wf["created_by"] == creator_id for wf in data["workflows"])
+    assert all(wf["created_by"] == creator_id for wf in data["resources"])
 
 
 @pytest.mark.asyncio
@@ -123,19 +123,19 @@ async def test_get_workflows_filter_by_is_enabled(base_client: AsyncClient) -> N
 
     assert response.status_code == 200
     data = response.json()
-    assert "workflows" in data
-    assert isinstance(data["workflows"], list)
+    assert "resources" in data
+    assert isinstance(data["resources"], list)
 
     # If workflows exist, verify they're all enabled
-    for workflow in data["workflows"]:
+    for workflow in data["resources"]:
         assert workflow["is_enabled"] is True
 
 
 @pytest.mark.asyncio
 async def test_get_workflows_pagination(base_client: AsyncClient) -> None:
-    """Test pagination with limit and offset.
+    """Test cursor-based pagination.
 
-    Expected: 200 OK with paginated results
+    Expected: 200 OK with paginated results and next/prev cursors
     """
     # Create 10 workflows
     for i in range(10):
@@ -150,20 +150,24 @@ async def test_get_workflows_pagination(base_client: AsyncClient) -> None:
         response = await base_client.post("/api/v1/workflows", json=workflow)
         assert response.status_code == 201
 
-    # Get first page (limit=5, offset=0)
-    response = await base_client.get("/api/v1/workflows?limit=5&offset=0")
+    # Get first page (limit=5, include_total to verify count)
+    response = await base_client.get("/api/v1/workflows?limit=5&include_total=true")
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data["workflows"]) == 5
+    assert len(data["resources"]) == 5
     assert data["total"] == 10
+    assert data["next"] is not None  # Should have next cursor
+    assert data["prev"] is None  # First page has no prev
 
-    # Get second page
-    response = await base_client.get("/api/v1/workflows?limit=5&offset=5")
+    # Get second page using cursor from first page
+    next_cursor = data["next"]
+    response = await base_client.get(f"/api/v1/workflows?limit=5&cursor={next_cursor}")
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data["workflows"]) == 5
+    assert len(data["resources"]) == 5
+    assert data["prev"] is not None  # Should have prev cursor now
 
 
 @pytest.mark.asyncio
@@ -194,7 +198,7 @@ async def test_get_workflows_excludes_soft_deleted(base_client: AsyncClient) -> 
 
     assert list_response.status_code == 200
     data = list_response.json()
-    workflow_ids = [w["id"] for w in data["workflows"]]
+    workflow_ids = [w["id"] for w in data["resources"]]
     assert workflow_id not in workflow_ids
 
 
@@ -235,11 +239,11 @@ async def test_get_workflows_filter_by_labels(base_client: AsyncClient) -> None:
     data = response.json()
 
     # Assert we got exactly one result
-    assert len(data["workflows"]) == 1
+    assert len(data["resources"]) == 1
 
     # Verify the result is the production workflow
-    assert data["workflows"][0]["name"] == "prod-workflow"
-    assert data["workflows"][0]["labels"]["environment"] == "production"
+    assert data["resources"][0]["name"] == "prod-workflow"
+    assert data["resources"][0]["labels"]["environment"] == "production"
 
 
 @pytest.mark.asyncio
@@ -261,13 +265,13 @@ async def test_get_workflows_default_page_size(base_client: AsyncClient) -> None
         response = await base_client.post("/api/v1/workflows", json=workflow)
         assert response.status_code == 201
 
-    # Get workflows without limit parameter
-    response = await base_client.get("/api/v1/workflows")
+    # Get workflows without limit parameter (but with include_total to verify count)
+    response = await base_client.get("/api/v1/workflows?include_total=true")
 
     assert response.status_code == 200
     data = response.json()
     # Should return 20 items (default limit)
-    assert len(data["workflows"]) == 20
+    assert len(data["resources"]) == 20
     # Total should show all 25 workflows exist
     assert data["total"] == 25
 
@@ -310,6 +314,6 @@ async def test_get_workflows_filter_by_label_key_only(base_client: AsyncClient) 
     data = response.json()
 
     # Should return only workflow with "feature" label
-    assert len(data["workflows"]) == 1
-    assert data["workflows"][0]["name"] == "workflow-with-label"
-    assert "feature" in data["workflows"][0]["labels"]
+    assert len(data["resources"]) == 1
+    assert data["resources"][0]["name"] == "workflow-with-label"
+    assert "feature" in data["resources"][0]["labels"]

@@ -5,13 +5,13 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_invoke_returns_202_accepted(base_client: AsyncClient) -> None:
+async def test_invoke_returns_202_accepted(base_client: AsyncClient, test_user) -> None:
     """Test that POST /api/v1/invocations returns 202 Accepted status."""
     response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app to production",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "session-001",
         },
     )
@@ -20,13 +20,13 @@ async def test_invoke_returns_202_accepted(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invoke_response_schema(base_client: AsyncClient) -> None:
+async def test_invoke_response_schema(base_client: AsyncClient, test_user) -> None:
     """Test that response matches expected schema."""
     response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app to production",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "session-001",
         },
     )
@@ -45,19 +45,19 @@ async def test_invoke_response_schema(base_client: AsyncClient) -> None:
     assert isinstance(data["id"], str)
     assert data["status"] == "running"
     assert isinstance(data["created_at"], str)
-    assert data["created_by"] == "00000000-0000-0000-0000-000000000001"
+    assert data["created_by"] == str(test_user.id)
     assert data["prompt"] == "Deploy app to production"
     assert data["session_id"] == "session-001"
 
 
 @pytest.mark.asyncio
-async def test_invoke_with_context(base_client: AsyncClient) -> None:
+async def test_invoke_with_context(base_client: AsyncClient, test_user) -> None:
     """Test invocation request with context data."""
     response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "session-001",
             "context_data": {"environment": "production", "region": "us-east-1"},
         },
@@ -69,7 +69,7 @@ async def test_invoke_with_context(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_missing_created_by(base_client: AsyncClient) -> None:
+async def test_invoke_validation_missing_created_by(base_client: AsyncClient, test_user) -> None:
     """Test validation error for missing created_by."""
     response = await base_client.post(
         "/api/v1/invocations",
@@ -83,13 +83,13 @@ async def test_invoke_validation_missing_created_by(base_client: AsyncClient) ->
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_missing_session_id(base_client: AsyncClient) -> None:
+async def test_invoke_validation_missing_session_id(base_client: AsyncClient, test_user) -> None:
     """Test validation error for missing session_id."""
     response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
         },
     )
 
@@ -97,7 +97,7 @@ async def test_invoke_validation_missing_session_id(base_client: AsyncClient) ->
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_returns_200(base_client: AsyncClient) -> None:
+async def test_list_invocations_returns_200(base_client: AsyncClient, test_user) -> None:
     """Test that GET /api/v1/invocations returns 200 OK."""
     response = await base_client.get("/api/v1/invocations")
 
@@ -105,7 +105,7 @@ async def test_list_invocations_returns_200(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_response_schema(base_client: AsyncClient) -> None:
+async def test_list_invocations_response_schema(base_client: AsyncClient, test_user) -> None:
     """Test that list response matches expected schema."""
     response = await base_client.get("/api/v1/invocations")
 
@@ -122,14 +122,14 @@ async def test_list_invocations_response_schema(base_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(base_client: AsyncClient) -> None:
+async def ***REMOVED***(base_client: AsyncClient, test_user) -> None:
     """Test filtering invocations by status."""
     # First create an invocation
     await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy app",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "session-001",
         },
     )
@@ -147,7 +147,7 @@ async def ***REMOVED***(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_with_pagination(base_client: AsyncClient) -> None:
+async def test_list_invocations_with_pagination(base_client: AsyncClient, test_user) -> None:
     """Test pagination with limit parameter."""
     response = await base_client.get("/api/v1/invocations?limit=10")
 
@@ -158,7 +158,7 @@ async def test_list_invocations_with_pagination(base_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_invalid_limit(base_client: AsyncClient) -> None:
+async def test_list_invocations_invalid_limit(base_client: AsyncClient, test_user) -> None:
     """Test validation error for invalid limit."""
     response = await base_client.get("/api/v1/invocations?limit=0")
 
@@ -166,7 +166,7 @@ async def test_list_invocations_invalid_limit(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_limit_too_large(base_client: AsyncClient) -> None:
+async def test_list_invocations_limit_too_large(base_client: AsyncClient, test_user) -> None:
     """Test validation error for limit exceeding maximum."""
     response = await base_client.get("/api/v1/invocations?limit=2000")
 
@@ -177,9 +177,9 @@ async def test_list_invocations_limit_too_large(base_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_by_created_by(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_by_created_by(base_client: AsyncClient, test_user) -> None:
     """Test filtering invocations by creator UUID."""
-    user_uuid = "00000000-0000-0000-0000-000000000001"
+    user_uuid = str(test_user.id)
 
     # Create an invocation
     await base_client.post(
@@ -203,7 +203,7 @@ async def test_list_invocations_filter_by_created_by(base_client: AsyncClient) -
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_by_session_id(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_by_session_id(base_client: AsyncClient, test_user) -> None:
     """Test filtering invocations by session ID."""
     session_id = "test-session-123"
 
@@ -212,7 +212,7 @@ async def test_list_invocations_filter_by_session_id(base_client: AsyncClient) -
         "/api/v1/invocations",
         json={
             "prompt": "Test prompt",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": session_id,
         },
     )
@@ -229,7 +229,7 @@ async def test_list_invocations_filter_by_session_id(base_client: AsyncClient) -
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_with_sorting(base_client: AsyncClient) -> None:
+async def test_list_invocations_with_sorting(base_client: AsyncClient, test_user) -> None:
     """Test sorting invocations by created_at descending."""
     response = await base_client.get("/api/v1/invocations?sort=-created_at&limit=5")
 
@@ -246,7 +246,7 @@ async def test_list_invocations_with_sorting(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_with_include_total(base_client: AsyncClient) -> None:
+async def test_list_invocations_with_include_total(base_client: AsyncClient, test_user) -> None:
     """Test include_total parameter returns total count."""
     response = await base_client.get("/api/v1/invocations?include_total=true")
 
@@ -260,7 +260,7 @@ async def test_list_invocations_with_include_total(base_client: AsyncClient) -> 
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_pagination_metadata(base_client: AsyncClient) -> None:
+async def test_list_invocations_pagination_metadata(base_client: AsyncClient, test_user) -> None:
     """Test pagination response includes next/prev cursors."""
     response = await base_client.get("/api/v1/invocations?limit=1")
 
@@ -277,9 +277,9 @@ async def test_list_invocations_pagination_metadata(base_client: AsyncClient) ->
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_with_multiple_filters(base_client: AsyncClient) -> None:
+async def test_list_invocations_with_multiple_filters(base_client: AsyncClient, test_user) -> None:
     """Test combining multiple filters."""
-    user_uuid = "00000000-0000-0000-0000-000000000001"
+    user_uuid = str(test_user.id)
     session_id = "multi-filter-session"
 
     # Create an invocation
@@ -311,12 +311,12 @@ async def test_list_invocations_with_multiple_filters(base_client: AsyncClient) 
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_missing_prompt(base_client: AsyncClient) -> None:
+async def test_invoke_validation_missing_prompt(base_client: AsyncClient, test_user) -> None:
     """Test validation error for missing prompt."""
     response = await base_client.post(
         "/api/v1/invocations",
         json={
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "session-001",
         },
     )
@@ -325,13 +325,13 @@ async def test_invoke_validation_missing_prompt(base_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_empty_prompt(base_client: AsyncClient) -> None:
+async def test_invoke_validation_empty_prompt(base_client: AsyncClient, test_user) -> None:
     """Test validation error for empty prompt."""
     response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "session-001",
         },
     )
@@ -340,7 +340,7 @@ async def test_invoke_validation_empty_prompt(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_invalid_created_by_uuid(base_client: AsyncClient) -> None:
+async def test_invoke_validation_invalid_created_by_uuid(base_client: AsyncClient, test_user) -> None:
     """Test validation error for invalid created_by UUID."""
     response = await base_client.post(
         "/api/v1/invocations",
@@ -355,7 +355,7 @@ async def test_invoke_validation_invalid_created_by_uuid(base_client: AsyncClien
 
 
 @pytest.mark.asyncio
-async def test_invoke_with_very_long_prompt(base_client: AsyncClient) -> None:
+async def test_invoke_with_very_long_prompt(base_client: AsyncClient, test_user) -> None:
     """Test invocation with very long prompt (near max length)."""
     # OpenAPI spec shows maxLength: 10000 for prompt
     long_prompt = "Deploy application " * 500  # ~9000 chars
@@ -364,7 +364,7 @@ async def test_invoke_with_very_long_prompt(base_client: AsyncClient) -> None:
         "/api/v1/invocations",
         json={
             "prompt": long_prompt,
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "session-001",
         },
     )
@@ -375,7 +375,7 @@ async def test_invoke_with_very_long_prompt(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invoke_validation_prompt_exceeds_max_length(base_client: AsyncClient) -> None:
+async def test_invoke_validation_prompt_exceeds_max_length(base_client: AsyncClient, test_user) -> None:
     """Test validation error for prompt exceeding max length (10000 chars)."""
     # Create a prompt that exceeds 10000 characters
     too_long_prompt = "a" * 10001
@@ -384,7 +384,7 @@ async def test_invoke_validation_prompt_exceeds_max_length(base_client: AsyncCli
         "/api/v1/invocations",
         json={
             "prompt": too_long_prompt,
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "session-001",
         },
     )
@@ -396,7 +396,7 @@ async def test_invoke_validation_prompt_exceeds_max_length(base_client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_sort_ascending(base_client: AsyncClient) -> None:
+async def test_list_invocations_sort_ascending(base_client: AsyncClient, test_user) -> None:
     """Test sorting invocations by created_at ascending."""
     response = await base_client.get("/api/v1/invocations?sort=created_at&limit=5")
 
@@ -412,7 +412,7 @@ async def test_list_invocations_sort_ascending(base_client: AsyncClient) -> None
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_sort_by_updated_at(base_client: AsyncClient) -> None:
+async def test_list_invocations_sort_by_updated_at(base_client: AsyncClient, test_user) -> None:
     """Test sorting by updated_at field."""
     response = await base_client.get("/api/v1/invocations?sort=-updated_at&limit=5")
 
@@ -428,7 +428,7 @@ async def test_list_invocations_sort_by_updated_at(base_client: AsyncClient) -> 
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_invalid_sort_field(base_client: AsyncClient) -> None:
+async def test_list_invocations_invalid_sort_field(base_client: AsyncClient, test_user) -> None:
     """Test that invalid sort field returns 400 error."""
     response = await base_client.get("/api/v1/invocations?sort=invalid_field")
 
@@ -438,7 +438,7 @@ async def test_list_invocations_invalid_sort_field(base_client: AsyncClient) -> 
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_sort_by_non_sortable_field(base_client: AsyncClient) -> None:
+async def test_list_invocations_sort_by_non_sortable_field(base_client: AsyncClient, test_user) -> None:
     """Test that sorting by non-sortable field (e.g., status) returns 400."""
     response = await base_client.get("/api/v1/invocations?sort=status")
 
@@ -448,14 +448,14 @@ async def test_list_invocations_sort_by_non_sortable_field(base_client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(base_client: AsyncClient) -> None:
+async def ***REMOVED***(base_client: AsyncClient, test_user) -> None:
     """Test that default sort order is -created_at (descending)."""
     # Create two invocations with slight delay to ensure different timestamps
     await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "First invocation",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "default-sort-test",
         },
     )
@@ -464,7 +464,7 @@ async def ***REMOVED***(base_client: AsyncClient) -> None:
         "/api/v1/invocations",
         json={
             "prompt": "Second invocation",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "default-sort-test",
         },
     )
@@ -485,7 +485,7 @@ async def ***REMOVED***(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_by_completed_status(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_by_completed_status(base_client: AsyncClient, test_user) -> None:
     """Test filtering by completed status."""
     response = await base_client.get("/api/v1/invocations?status=completed")
 
@@ -498,7 +498,7 @@ async def test_list_invocations_filter_by_completed_status(base_client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_by_failed_status(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_by_failed_status(base_client: AsyncClient, test_user) -> None:
     """Test filtering by failed status."""
     response = await base_client.get("/api/v1/invocations?status=failed")
 
@@ -511,7 +511,7 @@ async def test_list_invocations_filter_by_failed_status(base_client: AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_invalid_status(base_client: AsyncClient) -> None:
+async def test_list_invocations_invalid_status(base_client: AsyncClient, test_user) -> None:
     """Test validation error for invalid status value."""
     response = await base_client.get("/api/v1/invocations?status=invalid_status")
 
@@ -522,13 +522,13 @@ async def test_list_invocations_invalid_status(base_client: AsyncClient) -> None
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(base_client: AsyncClient) -> None:
+async def ***REMOVED***(base_client: AsyncClient, test_user) -> None:
     """Test that POST response includes all expected fields including inherited ones."""
     response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Complete field test",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "session-001",
         },
     )
@@ -559,14 +559,14 @@ async def ***REMOVED***(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_response_includes_all_fields(base_client: AsyncClient) -> None:
+async def test_list_response_includes_all_fields(base_client: AsyncClient, test_user) -> None:
     """Test that GET response resources include all fields."""
     # Create an invocation first
     await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Field test",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "field-test",
         },
     )
@@ -593,13 +593,13 @@ async def test_list_response_includes_all_fields(base_client: AsyncClient) -> No
 
 
 @pytest.mark.asyncio
-async def test_invoke_null_fields_handling(base_client: AsyncClient) -> None:
+async def test_invoke_null_fields_handling(base_client: AsyncClient, test_user) -> None:
     """Test that null/optional fields are properly returned as null."""
     response = await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Null field test",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "session-001",
         },
     )
@@ -620,7 +620,7 @@ async def test_invoke_null_fields_handling(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_cursor_pagination(base_client: AsyncClient) -> None:
+async def test_list_invocations_cursor_pagination(base_client: AsyncClient, test_user) -> None:
     """Test cursor-based pagination using next cursor."""
     # Get first page
     response1 = await base_client.get("/api/v1/invocations?limit=1")
@@ -639,7 +639,7 @@ async def test_list_invocations_cursor_pagination(base_client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_cursor_with_filters(base_client: AsyncClient) -> None:
+async def test_list_invocations_cursor_with_filters(base_client: AsyncClient, test_user) -> None:
     """Test that cursor pagination works with filters."""
     # Get first page with filter
     response = await base_client.get("/api/v1/invocations?status=running&limit=1")
@@ -657,7 +657,7 @@ async def test_list_invocations_cursor_with_filters(base_client: AsyncClient) ->
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_empty_results(base_client: AsyncClient) -> None:
+async def test_list_invocations_empty_results(base_client: AsyncClient, test_user) -> None:
     """Test list with filter that returns no results."""
     # Use a UUID that doesn't exist
     response = await base_client.get("/api/v1/invocations?created_by=00000000-0000-0000-0000-999999999999")
@@ -671,7 +671,7 @@ async def test_list_invocations_empty_results(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_with_limit_one(base_client: AsyncClient) -> None:
+async def test_list_invocations_with_limit_one(base_client: AsyncClient, test_user) -> None:
     """Test pagination with minimum limit (1)."""
     response = await base_client.get("/api/v1/invocations?limit=1")
 
@@ -685,14 +685,14 @@ async def test_list_invocations_with_limit_one(base_client: AsyncClient) -> None
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_prompt_contains(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_prompt_contains(base_client: AsyncClient, test_user) -> None:
     """Test filtering by prompt text with contains operator."""
     # Create invocations with different prompts
     await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy application to production",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "prompt-filter-test",
         },
     )
@@ -701,7 +701,7 @@ async def test_list_invocations_filter_prompt_contains(base_client: AsyncClient)
         "/api/v1/invocations",
         json={
             "prompt": "Analyze system metrics",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "prompt-filter-test",
         },
     )
@@ -718,14 +718,14 @@ async def test_list_invocations_filter_prompt_contains(base_client: AsyncClient)
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_prompt_starts_with(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_prompt_starts_with(base_client: AsyncClient, test_user) -> None:
     """Test filtering by prompt text with starts_with operator."""
     # Create invocations
     await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Deploy application",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "prompt-filter-test-2",
         },
     )
@@ -734,7 +734,7 @@ async def test_list_invocations_filter_prompt_starts_with(base_client: AsyncClie
         "/api/v1/invocations",
         json={
             "prompt": "Analyze deployment logs",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "prompt-filter-test-2",
         },
     )
@@ -751,7 +751,7 @@ async def test_list_invocations_filter_prompt_starts_with(base_client: AsyncClie
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_by_labels(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_by_labels(base_client: AsyncClient, test_user) -> None:
     """Test filtering by label key-value pairs."""
     # Note: This test assumes labels can be set on POST, which may need implementation
     response = await base_client.get("/api/v1/invocations?labels[environment]=production")
@@ -766,7 +766,7 @@ async def test_list_invocations_filter_by_labels(base_client: AsyncClient) -> No
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_by_multiple_labels(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_by_multiple_labels(base_client: AsyncClient, test_user) -> None:
     """Test filtering by multiple label key-value pairs."""
     response = await base_client.get("/api/v1/invocations?labels[environment]=production&labels[team]=platform")
 
@@ -781,7 +781,7 @@ async def test_list_invocations_filter_by_multiple_labels(base_client: AsyncClie
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_created_at_gt(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_created_at_gt(base_client: AsyncClient, test_user) -> None:
     """Test filtering by created_at greater than timestamp."""
     # Use ISO 8601 timestamp
     timestamp = "2025-10-21T10:00:00Z"
@@ -797,7 +797,7 @@ async def test_list_invocations_filter_created_at_gt(base_client: AsyncClient) -
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_created_at_gte(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_created_at_gte(base_client: AsyncClient, test_user) -> None:
     """Test filtering by created_at greater than or equal to timestamp."""
     timestamp = "2025-10-21T10:00:00Z"
 
@@ -812,7 +812,7 @@ async def test_list_invocations_filter_created_at_gte(base_client: AsyncClient) 
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_created_at_lt(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_created_at_lt(base_client: AsyncClient, test_user) -> None:
     """Test filtering by created_at less than timestamp."""
     timestamp = "2025-10-21T10:00:00Z"
 
@@ -827,7 +827,7 @@ async def test_list_invocations_filter_created_at_lt(base_client: AsyncClient) -
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_created_at_lte(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_created_at_lte(base_client: AsyncClient, test_user) -> None:
     """Test filtering by created_at less than or equal to timestamp."""
     timestamp = "2025-10-21T10:00:00Z"
 
@@ -842,7 +842,7 @@ async def test_list_invocations_filter_created_at_lte(base_client: AsyncClient) 
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_created_at_range(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_created_at_range(base_client: AsyncClient, test_user) -> None:
     """Test filtering by created_at range using gte and lte."""
     start_time = "2025-10-21T09:00:00Z"
     end_time = "2025-10-21T11:00:00Z"
@@ -859,7 +859,7 @@ async def test_list_invocations_filter_created_at_range(base_client: AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_updated_at_gt(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_updated_at_gt(base_client: AsyncClient, test_user) -> None:
     """Test filtering by updated_at greater than timestamp."""
     timestamp = "2025-10-21T10:00:00Z"
 
@@ -874,7 +874,7 @@ async def test_list_invocations_filter_updated_at_gt(base_client: AsyncClient) -
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_updated_at_lte(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_updated_at_lte(base_client: AsyncClient, test_user) -> None:
     """Test filtering by updated_at less than or equal to timestamp."""
     timestamp = "2025-10-21T10:00:00Z"
 
@@ -889,9 +889,9 @@ async def test_list_invocations_filter_updated_at_lte(base_client: AsyncClient) 
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_created_by_eq_operator(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_created_by_eq_operator(base_client: AsyncClient, test_user) -> None:
     """Test filtering by created_by with explicit eq operator."""
-    user_uuid = "00000000-0000-0000-0000-000000000001"
+    user_uuid = str(test_user.id)
 
     # Create an invocation
     await base_client.post(
@@ -915,7 +915,7 @@ async def test_list_invocations_filter_created_by_eq_operator(base_client: Async
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_session_id_eq_operator(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_session_id_eq_operator(base_client: AsyncClient, test_user) -> None:
     """Test filtering by session_id with explicit eq operator."""
     session_id = "test-session-eq"
 
@@ -923,7 +923,7 @@ async def test_list_invocations_filter_session_id_eq_operator(base_client: Async
         "/api/v1/invocations",
         json={
             "prompt": "Test session_id eq operator",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": session_id,
         },
     )
@@ -939,14 +939,14 @@ async def test_list_invocations_filter_session_id_eq_operator(base_client: Async
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_session_id_contains(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_session_id_contains(base_client: AsyncClient, test_user) -> None:
     """Test filtering by session_id with contains operator."""
     # Create invocations with different session IDs
     await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Session contains test 1",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "prod-session-001",
         },
     )
@@ -955,7 +955,7 @@ async def test_list_invocations_filter_session_id_contains(base_client: AsyncCli
         "/api/v1/invocations",
         json={
             "prompt": "Session contains test 2",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "dev-session-002",
         },
     )
@@ -972,13 +972,13 @@ async def test_list_invocations_filter_session_id_contains(base_client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_list_invocations_filter_session_id_starts_with(base_client: AsyncClient) -> None:
+async def test_list_invocations_filter_session_id_starts_with(base_client: AsyncClient, test_user) -> None:
     """Test filtering by session_id with starts_with operator."""
     await base_client.post(
         "/api/v1/invocations",
         json={
             "prompt": "Session starts_with test",
-            "created_by": "00000000-0000-0000-0000-000000000001",
+            "created_by": str(test_user.id),
             "session_id": "prefix-session-123",
         },
     )

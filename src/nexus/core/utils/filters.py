@@ -11,8 +11,8 @@ from enum import Enum
 from typing import Any, TypeVar
 
 from pydantic import BaseModel
-from sqlalchemy import Select, and_
-from sqlmodel import SQLModel
+from sqlalchemy import Select
+from sqlmodel import SQLModel, and_
 
 # We need to import this protected type to pass mypy type-checking
 from sqlmodel.sql._expression_select_cls import SelectOfScalar

@@ -7,9 +7,9 @@ using AND logic (all filter labels must match).
 import re
 from typing import Any, TypeVar
 
-from sqlalchemy import Select, and_, cast
+from sqlalchemy import Select
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, and_, cast
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.core.models.base import BaseResource

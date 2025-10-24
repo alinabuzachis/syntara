@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus.api.models import Workflow
+from nexus.workflows.models import Workflow
 from tests.helpers import create_minimal_workflow_definition
 
 
@@ -105,7 +105,7 @@ async def test_delete_workflow_excluded_from_list(base_client: AsyncClient) -> N
 
     assert list_response.status_code == 200
     data = list_response.json()
-    workflow_ids = [w["id"] for w in data["workflows"]]
+    workflow_ids = [w["id"] for w in data["resources"]]
 
     assert workflow_id1 not in workflow_ids
     assert workflow_id2 in workflow_ids

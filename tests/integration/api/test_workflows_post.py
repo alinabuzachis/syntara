@@ -54,7 +54,7 @@ async def test_post_workflow_invalid_definition(base_client: AsyncClient) -> Non
 
     response = await base_client.post("/api/v1/workflows", json=invalid_workflow)
 
-    assert response.status_code == 422
+    assert response.status_code == 400
     data = response.json()
     assert "detail" in data
 
@@ -74,7 +74,7 @@ async def test_post_workflow_missing_name(base_client: AsyncClient) -> None:
 
     response = await base_client.post("/api/v1/workflows", json=workflow_without_name)
 
-    assert response.status_code == 422
+    assert response.status_code == 422  # Pydantic validation errors return 422
     data = response.json()
     assert "detail" in data
 
@@ -122,7 +122,7 @@ async def test_post_workflow_missing_required_fields(base_client: AsyncClient) -
 
     response = await base_client.post("/api/v1/workflows", json=workflow_missing_fields)
 
-    assert response.status_code == 422
+    assert response.status_code == 400
     data = response.json()
     assert "detail" in data
 

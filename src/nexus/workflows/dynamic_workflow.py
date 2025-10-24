@@ -16,7 +16,7 @@ from temporalio.common import RetryPolicy
 
 from nexus.workflows.activities.script_activity import execute_bash_script
 from nexus.workflows.expression_resolver import ExpressionResolver
-from nexus.workflows.models.workflow_definition import (
+from nexus.workflows.workflow_engine.models import (
     Activity,
     CountLoopDefinition,
     ForEachLoopDefinition,

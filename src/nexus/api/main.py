@@ -13,7 +13,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from sqlmodel import text
 
 from nexus.api.api.v1 import workflow_versions, workflows
 from nexus.api.api.v1.invocation import router as invoke_router
