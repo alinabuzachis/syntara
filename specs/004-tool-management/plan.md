@@ -163,7 +163,6 @@ erDiagram
         string name
         string namespaced_name UK
         text description
-        json schema
         boolean enabled
         string status
         datetime last_discovered_at
@@ -186,7 +185,6 @@ erDiagram
         text description
         boolean required
         json default_value
-        json validation_schema
         json example_value
         datetime created_at
         uuid created_by FK
@@ -353,7 +351,7 @@ sequenceDiagram
 classDiagram
     %% Abstract Base
     class ToolProviderAdapter {
-        <<Protocol/ABC>>
+        <<Protocol>>
         +validate_connection() ValidationResult
         +refresh_tools() List~ToolMetadata~
         +get_tool_schema(tool_name) ToolSchema
@@ -411,15 +409,13 @@ classDiagram
     ToolCore --> ProviderFactory : uses
 
     %% Styling
-    classDef abstract fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#0d47a1
-    classDef implementation fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
-    classDef factory fill:#fff8e1,stroke:#f57c00,stroke-width:2px,color:#e65100
-    classDef core fill:#e8f5e8,stroke:#388e3c,stroke-width:2px,color:#1b5e20
+    classDef abstract fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    classDef implementation fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef factory fill:#fff8e1,stroke:#f57c00,stroke-width:2px
+    classDef core fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
 
     class ToolProviderAdapter abstract
-    class MCPProvider implementation
-    class PythonProvider implementation
-    class RESTAPIProvider implementation
+    class MCPProvider,PythonProvider,RESTAPIProvider implementation
     class ProviderFactory factory
     class ToolCore core
 ```
@@ -488,18 +484,38 @@ specs/[###-feature]/
 ### Source Code (repository root)
 ```
 # Backend API Service
-src/
-├── models/          # SQLAlchemy data models
-├── services/        # Business logic and provider integration
-├── api/            # FastAPI routers and endpoints
-└── lib/            # Shared utilities and helpers (includes providers/)
+src/nexus/
+├── core/
+│   └── models/
+│       └── base/           # Shared base models (Resource, BaseResource)
+├── tool_manager/
+│   ├── models/             # SQLModel data models (Tool, ToolProvider, etc.)
+│   ├── services/           # Business logic and provider integration
+│   └── lib/
+│       ├── providers/      # Tool provider implementations
+│       ├── interfaces.py   # Provider interfaces and protocols
+│       └── exceptions.py   # Tool manager exceptions
+└── api/
+    ├── alembic/           # Database migrations
+    ├── api/v1/            # FastAPI routers and endpoints
+    ├── auth/              # Authentication and authorization
+    ├── db/                # Database connection and session management
+    ├── models/            # API models
+    ├── schemas/           # Request/response schemas
+    ├── services/          # API service layer (direct database access)
+    ├── utils/             # Utility functions
+    ├── validators/        # Input validation
+    └── workflows/         # Temporal workflow definitions
 
 tests/
-├── contract/       # API contract tests
-├── integration/    # Integration tests with Tool providers
-├── unit/          # Unit tests for services and models
-├── e2e/            # End-to-end tests with real providers
-└── fixtures/       # Test fixtures and mock servers
+├── unit/
+│   └── tool_manager/
+│       ├── models/        # Unit tests for SQLModel data models
+│       └── lib/
+│           └── providers/ # Unit tests for provider implementations
+├── integration/           # Integration tests with Tool providers
+├── e2e/                  # End-to-end tests with real providers
+└── fixtures/             # Test fixtures and mock servers
 ```
 
 **Structure Decision**: Backend API service only (frontend handled in separate repository)

@@ -4,11 +4,15 @@ import asyncio
 import random
 from datetime import UTC, datetime
 from typing import Any
+from uuid import uuid4
 
+from nexus.tool_manager.lib.exceptions import ProviderError, ToolNotFoundError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
-from nexus.tool_manager.lib.tool_core import ProviderError, Tool, ToolNotFoundError, ToolParameter
 from nexus.tool_manager.models import (
     ConnectionValidationResult,
+    Tool,
+    ToolParameter,
+    ToolParameterType,
     ToolSchema,
     ToolValidationResult,
 )
@@ -42,28 +46,84 @@ class MockProvider(ToolProviderAdapter):
         self.simulate_auth_failure = simulate_auth_failure
         self.response_delay_ms = response_delay_ms
 
+        # Mock tool schemas (separate from Tool models to match new design)
+        self._tool_schemas = {
+            "echo_tool": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "Message to echo back",
+                    },
+                },
+                "required": ["message"],
+            },
+            "calculator": {
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "enum": ["add", "subtract", "multiply", "divide"],
+                        "description": "Mathematical operation to perform",
+                    },
+                    "a": {
+                        "type": "number",
+                        "description": "First operand",
+                    },
+                    "b": {
+                        "type": "number",
+                        "description": "Second operand",
+                    },
+                },
+                "required": ["operation", "a", "b"],
+            },
+            "file_reader": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to file to read",
+                    },
+                    "encoding": {
+                        "type": "string",
+                        "default": "utf-8",
+                        "description": "File encoding",
+                    },
+                },
+                "required": ["file_path"],
+            },
+            "random_number": {
+                "type": "object",
+                "properties": {
+                    "min_value": {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Minimum value (inclusive)",
+                    },
+                    "max_value": {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Maximum value (inclusive)",
+                    },
+                },
+            },
+        }
+
         # Mock tool definitions
         self._mock_tools = [
             Tool(
                 name="echo_tool",
                 namespaced_name=f"{provider_name}::echo_tool",
                 description="A simple tool that echoes input back",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "message": {
-                            "type": "string",
-                            "description": "Message to echo back",
-                        },
-                    },
-                    "required": ["message"],
-                },
                 parameters=[
                     ToolParameter(
+                        tool_id=uuid4(),
                         name="message",
-                        type="string",
+                        type=ToolParameterType.STRING,
                         description="Message to echo back",
                         required=True,
+                        created_by=uuid4(),
+                        updated_by=uuid4(),
                     ),
                 ],
             ),
@@ -71,44 +131,33 @@ class MockProvider(ToolProviderAdapter):
                 name="calculator",
                 namespaced_name=f"{provider_name}::calculator",
                 description="Basic calculator tool for mathematical operations",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "operation": {
-                            "type": "string",
-                            "enum": ["add", "subtract", "multiply", "divide"],
-                            "description": "Mathematical operation to perform",
-                        },
-                        "a": {
-                            "type": "number",
-                            "description": "First operand",
-                        },
-                        "b": {
-                            "type": "number",
-                            "description": "Second operand",
-                        },
-                    },
-                    "required": ["operation", "a", "b"],
-                },
                 parameters=[
                     ToolParameter(
+                        tool_id=uuid4(),
                         name="operation",
-                        type="string",
+                        type=ToolParameterType.STRING,
                         description="Mathematical operation to perform",
                         required=True,
-                        constraints={"enum": ["add", "subtract", "multiply", "divide"]},
+                        created_by=uuid4(),
+                        updated_by=uuid4(),
                     ),
                     ToolParameter(
+                        tool_id=uuid4(),
                         name="a",
-                        type="number",
+                        type=ToolParameterType.NUMBER,
                         description="First operand",
                         required=True,
+                        created_by=uuid4(),
+                        updated_by=uuid4(),
                     ),
                     ToolParameter(
+                        tool_id=uuid4(),
                         name="b",
-                        type="number",
+                        type=ToolParameterType.NUMBER,
                         description="Second operand",
                         required=True,
+                        created_by=uuid4(),
+                        updated_by=uuid4(),
                     ),
                 ],
             ),
@@ -116,34 +165,25 @@ class MockProvider(ToolProviderAdapter):
                 name="file_reader",
                 namespaced_name=f"{provider_name}::file_reader",
                 description="Tool for reading file contents",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "Path to file to read",
-                        },
-                        "encoding": {
-                            "type": "string",
-                            "default": "utf-8",
-                            "description": "File encoding",
-                        },
-                    },
-                    "required": ["file_path"],
-                },
                 parameters=[
                     ToolParameter(
+                        tool_id=uuid4(),
                         name="file_path",
-                        type="string",
+                        type=ToolParameterType.STRING,
                         description="Path to file to read",
                         required=True,
+                        created_by=uuid4(),
+                        updated_by=uuid4(),
                     ),
                     ToolParameter(
+                        tool_id=uuid4(),
                         name="encoding",
-                        type="string",
+                        type=ToolParameterType.STRING,
                         description="File encoding",
                         required=False,
-                        default="utf-8",
+                        default_value={"value": "utf-8"},
+                        created_by=uuid4(),
+                        updated_by=uuid4(),
                     ),
                 ],
             ),
@@ -151,35 +191,26 @@ class MockProvider(ToolProviderAdapter):
                 name="random_number",
                 namespaced_name=f"{provider_name}::random_number",
                 description="Generate a random number within specified range",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "min_value": {
-                            "type": "integer",
-                            "default": 0,
-                            "description": "Minimum value (inclusive)",
-                        },
-                        "max_value": {
-                            "type": "integer",
-                            "default": 100,
-                            "description": "Maximum value (inclusive)",
-                        },
-                    },
-                },
                 parameters=[
                     ToolParameter(
+                        tool_id=uuid4(),
                         name="min_value",
-                        type="integer",
+                        type=ToolParameterType.NUMBER,
                         description="Minimum value (inclusive)",
                         required=False,
-                        default=0,
+                        default_value={"value": 0},
+                        created_by=uuid4(),
+                        updated_by=uuid4(),
                     ),
                     ToolParameter(
+                        tool_id=uuid4(),
                         name="max_value",
-                        type="integer",
+                        type=ToolParameterType.NUMBER,
                         description="Maximum value (inclusive)",
                         required=False,
-                        default=100,
+                        default_value={"value": 100},
+                        created_by=uuid4(),
+                        updated_by=uuid4(),
                     ),
                 ],
             ),
@@ -227,15 +258,16 @@ class MockProvider(ToolProviderAdapter):
                 name=tool.name,
                 namespaced_name=tool.namespaced_name,
                 description=tool.description,
-                input_schema=tool.input_schema.copy(),
                 parameters=[
                     ToolParameter(
+                        tool_id=uuid4(),
                         name=param.name,
                         type=param.type,
                         description=param.description,
                         required=param.required,
-                        default=param.default,
-                        constraints=param.constraints.copy(),
+                        default_value=param.default_value,
+                        created_by=uuid4(),
+                        updated_by=uuid4(),
                     )
                     for param in tool.parameters
                 ],
@@ -259,10 +291,13 @@ class MockProvider(ToolProviderAdapter):
             msg = f"Tool '{tool_name}' not found in mock provider"
             raise ToolNotFoundError(msg)
 
+        # Get schema from our tool schemas dictionary
+        tool_schema = self._tool_schemas.get(tool_name, {})
+
         return ToolSchema(
             name=tool.name,
-            description=tool.description,
-            input_schema=tool.input_schema.copy(),
+            description=tool.description or "No description available",
+            input_schema=tool_schema.copy(),
         )
 
     async def validate_tool(self, tool_name: str, parameters: dict[str, Any] | None = None) -> ToolValidationResult:

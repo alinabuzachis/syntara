@@ -54,15 +54,15 @@ class BaseResource(SQLModel, ABC):
     created_at: datetime = Field(
         default_factory=_utc_now,
         description="Timestamp when resource was created",
-        index=True,
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        index=True,
     )
 
     updated_at: datetime = Field(
         default_factory=_utc_now,
         description="Timestamp when resource was last updated",
-        index=True,
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        index=True,
     )
 
     # Labels as JSONB column for key-value pairs

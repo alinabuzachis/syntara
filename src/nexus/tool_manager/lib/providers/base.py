@@ -3,9 +3,9 @@
 from abc import abstractmethod
 from typing import Any, Protocol, runtime_checkable
 
-from nexus.tool_manager.lib.tool_core import Tool
 from nexus.tool_manager.models import (
     ConnectionValidationResult,
+    Tool,
     ToolSchema,
     ToolValidationResult,
 )

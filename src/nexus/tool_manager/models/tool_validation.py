@@ -1,12 +1,12 @@
 """Tool validation result models."""
 
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from sqlmodel import SQLModel
 
-@dataclass
-class ToolValidationResult:
+
+class ToolValidationResult(SQLModel):
     """Result of validating a tool's functionality.
 
     Attributes:
@@ -25,26 +25,3 @@ class ToolValidationResult:
     message: str
     validated_at: datetime
     validation_output: Any = None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "success": self.success,
-            "duration_ms": self.duration_ms,
-            "status": self.status,
-            "message": self.message,
-            "validated_at": self.validated_at.isoformat(),
-            "validation_output": self.validation_output,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ToolValidationResult":
-        """Create instance from dictionary."""
-        return cls(
-            success=data["success"],
-            duration_ms=data["duration_ms"],
-            status=data["status"],
-            message=data["message"],
-            validated_at=datetime.fromisoformat(data["validated_at"]),
-            validation_output=data.get("validation_output"),
-        )

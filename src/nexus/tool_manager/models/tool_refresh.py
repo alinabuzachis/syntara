@@ -1,12 +1,11 @@
 """Tool refresh result models."""
 
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+
+from sqlmodel import SQLModel
 
 
-@dataclass
-class ToolRefreshResult:
+class ToolRefreshResult(SQLModel):
     """Result of refreshing tools from a provider.
 
     Attributes:
@@ -21,22 +20,3 @@ class ToolRefreshResult:
     updated_count: int
     disabled_count: int
     refreshed_at: datetime
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "refreshed_count": self.refreshed_count,
-            "updated_count": self.updated_count,
-            "disabled_count": self.disabled_count,
-            "refreshed_at": self.refreshed_at.isoformat(),
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ToolRefreshResult":
-        """Create instance from dictionary."""
-        return cls(
-            refreshed_count=data["refreshed_count"],
-            updated_count=data["updated_count"],
-            disabled_count=data["disabled_count"],
-            refreshed_at=datetime.fromisoformat(data["refreshed_at"]),
-        )

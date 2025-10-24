@@ -1,12 +1,11 @@
 """Connection validation result models."""
 
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+
+from sqlmodel import SQLModel
 
 
-@dataclass
-class ConnectionValidationResult:
+class ConnectionValidationResult(SQLModel):
     """Result of validating a connection to a tool provider.
 
     Attributes:
@@ -23,24 +22,3 @@ class ConnectionValidationResult:
     protocol_version: str
     validated_at: datetime
     error: str | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "valid": self.valid,
-            "provider_type": self.provider_type,
-            "protocol_version": self.protocol_version,
-            "validated_at": self.validated_at.isoformat(),
-            "error": self.error,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ConnectionValidationResult":
-        """Create instance from dictionary."""
-        return cls(
-            valid=data["valid"],
-            provider_type=data["provider_type"],
-            protocol_version=data["protocol_version"],
-            validated_at=datetime.fromisoformat(data["validated_at"]),
-            error=data.get("error"),
-        )

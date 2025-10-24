@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from nexus.tool_manager.lib.tool_core import CacheAdapter
+from nexus.tool_manager.lib.interfaces import CacheAdapter
 
 
 class MockCacheAdapter(CacheAdapter):

@@ -5,7 +5,7 @@
 ```
 ToolProvider (1) -----> (N) Tool
 Tool (1) -----> (N) ToolParameter
-Tool (1) -----> (N) ToolMetric
+Tool (1) -----> (N) ToolExecution
 ToolProvider (1) -----> (N) RateLimitConfig
 Tool (1) -----> (N) RateLimitConfig
 UsageCounter (N) -----> (1) ToolProvider
@@ -13,7 +13,7 @@ UsageCounter (N) -----> (1) Tool
 Users (1) -----> (N) ToolProvider (created_by, updated_by, deleted_by)
 Users (1) -----> (N) Tool (created_by, updated_by, deleted_by)
 Users (1) -----> (N) ToolParameter (created_by, updated_by, deleted_by)
-Users (1) -----> (N) ToolMetric (user_id, created_by, updated_by, deleted_by)
+Users (1) -----> (N) ToolExecution (user_id, created_by, updated_by, deleted_by)
 Users (1) -----> (N) RateLimitConfig (created_by, updated_by, deleted_by)
 Users (1) -----> (N) UsageCounter (user_id, created_by, updated_by, deleted_by)
 ```
@@ -28,12 +28,12 @@ Represents a Tool Provider with type-specific configuration and registration met
 | `id`                    | UUID | Primary key                                                                                                                                                 |
 | `name`                  | string (unique) | Human-readable provider name                                                                                                                                |
 | `description`           | text (nullable) | Optional provider description                                                                                                                               |
-| `provider_type`         | string | Type of Tool Provider (e.g., mcp, python, rest_api, etc.)                                                                                                 |
-| `configuration`         | JSON | Type-specific configuration (see Configuration Schema section)                                                                                             |
+| `configuration`         | JSON | Type-specific configuration including provider_type (see Configuration Schema section)                                                                    |
 | `enabled`               | boolean (default true) | Tool Provider availability. Disabled providers have all tools disabled.                                                                                    |
 | `status`                | enum | Provider status: "validating", "available", "error"                                                                                                        |
 | `last_validated_at`     | datetime (nullable) | Last successful validation timestamp                                                                                                                        |
 | `validation_error`      | text (nullable) | Last validation error message                                                                                                                               |
+| `tool_count`            | integer (default 0) | Number of tools provided by this provider                                                                                                                  |
 | `created_at`            | datetime | Registration timestamp                                                                                                                                      |
 | `created_by`            | UUID | Foreign key to Users table - Administrator who registered provider                                                                                         |
 | `updated_at`            | datetime | Last modification timestamp                                                                                                                                 |
@@ -43,8 +43,7 @@ Represents a Tool Provider with type-specific configuration and registration met
 
 **Validation Rules:**
 - `name` must be unique across all providers
-- `provider_type` must be a valid string identifier
-- `configuration` must conform to provider type schema (see Configuration Schema section)
+- `configuration` must include a valid `provider_type` field and conform to provider type schema (see Configuration Schema section)
 
 **State Transitions:**
 - New provider starts in "validating" status
@@ -53,7 +52,7 @@ Represents a Tool Provider with type-specific configuration and registration met
 - Admin can toggle enabled independently of status
 
 **Update Operations:**
-- **PUT**: Complete replacement of provider configuration (requires provider_type in configuration)
+- **PUT**: Complete replacement of provider configuration
 - **PATCH**: Partial updates using JSON Merge Patch (RFC 7396)
   - Only provided fields are updated
   - Configuration object is merged with existing values
@@ -70,11 +69,11 @@ Represents an individual capability exposed by a Tool Provider with enablement c
 | `name`               | string (max 100 chars) | Tool name from provider                                |
 | `namespaced_name`    | string (max 200 chars, unique) | Provider-prefixed name                                 |
 | `description`        | text | Tool description from provider                         |
-| `schema`             | JSON | Tool parameter schema                                  |
+| `parameters`         | Array | Array of ToolParameter objects                        |
 | `enabled`            | boolean (default true) | Tool enabled for use. Available tools may be disabled. |
 | `status`             | enum | Tool status: "available", "missing", "error"           |
-| `last_discovered_at` | datetime | Last successful discovery timestamp                    |
-| `discovery_error`    | text (nullable) | Last discovery error message                           |
+| `last_refreshed_at`  | datetime | Last successful refresh timestamp                     |
+| `refresh_error`      | text (nullable) | Last refresh error message                             |
 | `execution_count`    | integer (default 0) | Total execution counter                                |
 | `last_executed_at`   | datetime (nullable) | Last execution timestamp                               |
 | `created_at`         | datetime | First discovery timestamp                              |
@@ -88,13 +87,13 @@ Represents an individual capability exposed by a Tool Provider with enablement c
 - `name` must be valid identifier (alphanumeric, underscore, hyphen)
 - `namespaced_name` follows pattern "{provider_name}::{tool_name}"
 - `namespaced_name` must be unique across all tools
-- `schema` must be valid JSON schema format
+- `parameters` array contains ToolParameter objects
 - Tool can only be enabled if status is "available"
 
 **State Transitions:**
 - New Tool starts as "available" and enabled=true
 - Missing from provider during refresh → status="missing", enabled=false
-- Discovery error → status="error" with discovery_error message
+- Refresh error → status="error" with refresh_error message
 - Admin can toggle enabled independently of status
 
 ### ToolParameter
@@ -108,9 +107,8 @@ Represents individual input requirements for tools with validation rules.
 | `type` | enum | Parameter type: "string", "number", "boolean", "object", "array" |
 | `description` | text | Parameter description |
 | `required` | boolean | Whether parameter is required |
-| `default_value` | JSON (nullable) | Default parameter value |
-| `validation_schema` | JSON (nullable) | Additional validation rules |
-| `example_value` | JSON (nullable) | Example parameter value |
+| `default_value` | object (nullable) | Default parameter value |
+| `example_value` | object (nullable) | Example parameter value |
 | `created_at` | datetime | Parameter definition timestamp |
 | `created_by` | UUID | Foreign key to Users table - Administrator who created parameter |
 | `updated_at` | datetime | Last update timestamp |
@@ -122,9 +120,8 @@ Represents individual input requirements for tools with validation rules.
 - `name` must be valid identifier within Tool scope
 - `type` must be one of allowed JSON schema types
 - `default_value` must match parameter type
-- `validation_schema` must be valid JSON schema subset
 
-### ToolMetric
+### ToolExecution
 Records individual Tool executions for performance monitoring and analysis.
 
 | Field | Data Type | Description |
@@ -142,11 +139,11 @@ Records individual Tool executions for performance monitoring and analysis.
 | `error_message` | text (nullable) | Error description for failed executions |
 | `error_code` | string (nullable) | Structured error code |
 | `created_at` | datetime | Record creation timestamp |
-| `created_by` | UUID | Foreign key to Users table - Administrator who created metric record |
+| `created_by` | UUID | Foreign key to Users table - Administrator who created execution record |
 | `updated_at` | datetime | Last update timestamp |
-| `updated_by` | UUID | Foreign key to Users table - Administrator who last updated metric record |
+| `updated_by` | UUID | Foreign key to Users table - Administrator who last updated execution record |
 | `deleted_at` | datetime (nullable) | Soft delete timestamp |
-| `deleted_by` | UUID (nullable) | Foreign key to Users table - Administrator who deleted metric record |
+| `deleted_by` | UUID (nullable) | Foreign key to Users table - Administrator who deleted execution record |
 
 **Validation Rules:**
 - `execution_end` must be after `execution_start` if both present
@@ -163,10 +160,13 @@ Defines usage limits and time windows at provider, tool, and user levels.
 | `id` | UUID | Primary key |
 | `target_type` | enum | Limit scope: "provider", "tool", "user" |
 | `target_id` | string | Target identifier (UUID for provider/tool, string for user) |
+| `target_name` | string (nullable) | Human-readable target name for display |
 | `requests_per_window` | integer | Maximum requests allowed |
 | `window_duration_seconds` | integer | Time window in seconds |
 | `burst_allowance` | integer (default 0) | Additional burst requests |
 | `enabled` | boolean (default true) | Whether limit is active |
+| `current_usage` | integer (default 0) | Current usage count in window |
+| `usage_reset_at` | datetime (nullable) | When current usage counter resets |
 | `created_at` | datetime | Configuration creation timestamp |
 | `created_by` | UUID | Foreign key to Users table - Administrator who set limit |
 | `updated_at` | datetime | Last modification timestamp |
@@ -217,12 +217,13 @@ Maintains cumulative usage statistics with rolling time window calculations.
 
 Tool providers support flexible configuration formats based on their type.
 
-The `configuration` JSON field contains provider-specific settings (provider_type is now a separate column):
+The `configuration` JSON field contains both the provider type and provider-specific settings:
 
 ### Base Configuration Structure
 ```json
 {
-  // provider-specific fields only
+  "provider_type": "string (required)",
+  // provider-specific fields
 }
 ```
 
@@ -231,13 +232,9 @@ The `configuration` JSON field contains provider-specific settings (provider_typ
 #### MCP Provider
 ```json
 {
-  "host": "localhost",
-  "port": 3000,
-  "protocol": "sse",
-  "authentication_type": "none",
-  "authentication_config": {},
-  "connection_timeout": 5,
-  "read_timeout": 10
+  "provider_type": "mcp",
+  "base_url": "https://api.example.com/mcp",
+  "api_key": "your-api-key-here"
 }
 ```
 Note: MCP protocol options are "sse" or "streaming_http" (stdio not supported)
@@ -245,6 +242,7 @@ Note: MCP protocol options are "sse" or "streaming_http" (stdio not supported)
 #### Python Tool Provider
 ```json
 {
+  "provider_type": "python",
   "module_path": "my_tools.decorated_functions",
   "class_name": "MyToolClass"
 }
@@ -253,6 +251,7 @@ Note: MCP protocol options are "sse" or "streaming_http" (stdio not supported)
 #### REST API Provider  
 ```json
 {
+  "provider_type": "rest_api",
   "base_url": "https://api.example.com/tools",
   "authentication_type": "api_key",
   "authentication_config": {
@@ -267,6 +266,7 @@ Note: MCP protocol options are "sse" or "streaming_http" (stdio not supported)
 #### Custom Provider Example
 ```json
 {
+  "provider_type": "custom",
   "database_url": "postgresql://localhost/tools",
   "schema": "custom_tools",
   "timeout": 5000
@@ -274,7 +274,7 @@ Note: MCP protocol options are "sse" or "streaming_http" (stdio not supported)
 ```
 
 **Configuration Validation Rules:**
-- `provider_type` column determines the expected configuration schema
+- `provider_type` field within configuration determines the expected configuration schema
 - Each provider type defines its own required and optional configuration fields
 - Provider implementations/adaptors handle type-specific validation
 - No predefined list of provider types - new types can be added through implementation
@@ -286,7 +286,7 @@ Note: MCP protocol options are "sse" or "streaming_http" (stdio not supported)
 *Primary Key Indexes (for keyset pagination):*
 - `ToolProvider.id` (primary key, clustered)
 - `Tool.id` (primary key, clustered)
-- `ToolMetric.id` (primary key, clustered)
+- `ToolExecution.id` (primary key, clustered)
 - `RateLimitConfig.id` (primary key, clustered)
 - `UsageCounter.id` (primary key, clustered)
 
@@ -294,9 +294,9 @@ Note: MCP protocol options are "sse" or "streaming_http" (stdio not supported)
 - `ToolProvider.created_at, ToolProvider.id` (composite for chronological pagination)
 - `Tool.created_at, Tool.id` (composite for chronological pagination)
 - `Tool.provider_id, Tool.created_at, Tool.id` (composite for provider-filtered pagination)
-- `ToolMetric.created_at, ToolMetric.id` (composite for chronological pagination)
-- `ToolMetric.tool_id, ToolMetric.created_at, ToolMetric.id` (composite for tool-filtered pagination)
-- `ToolMetric.user_id, ToolMetric.created_at, ToolMetric.id` (composite for user-filtered pagination)
+- `ToolExecution.created_at, ToolExecution.id` (composite for chronological pagination)
+- `ToolExecution.tool_id, ToolExecution.created_at, ToolExecution.id` (composite for tool-filtered pagination)
+- `ToolExecution.user_id, ToolExecution.created_at, ToolExecution.id` (composite for user-filtered pagination)
 - `RateLimitConfig.target_type, RateLimitConfig.created_at, RateLimitConfig.id` (composite)
 
 *Unique Constraints:*
@@ -305,9 +305,9 @@ Note: MCP protocol options are "sse" or "streaming_http" (stdio not supported)
 
 *Foreign Key Indexes:*
 - `Tool.provider_id` (foreign key index)
-- `ToolMetric.tool_id` (foreign key index)
-- `ToolMetric.provider_id` (foreign key index)
-- `ToolMetric.user_id` (foreign key index)
+- `ToolExecution.tool_id` (foreign key index)
+- `ToolExecution.provider_id` (foreign key index)
+- `ToolExecution.user_id` (foreign key index)
 - `UsageCounter.provider_id` (foreign key index)
 - `UsageCounter.tool_id` (foreign key index)
 - `UsageCounter.user_id` (foreign key index)
@@ -320,9 +320,9 @@ Note: MCP protocol options are "sse" or "streaming_http" (stdio not supported)
 - `ToolParameter.created_by` (foreign key index)
 - `ToolParameter.updated_by` (foreign key index)
 - `ToolParameter.deleted_by` (foreign key index)
-- `ToolMetric.created_by` (foreign key index)
-- `ToolMetric.updated_by` (foreign key index)
-- `ToolMetric.deleted_by` (foreign key index)
+- `ToolExecution.created_by` (foreign key index)
+- `ToolExecution.updated_by` (foreign key index)
+- `ToolExecution.deleted_by` (foreign key index)
 - `RateLimitConfig.created_by` (foreign key index)
 - `RateLimitConfig.updated_by` (foreign key index)
 - `RateLimitConfig.deleted_by` (foreign key index)
@@ -366,17 +366,17 @@ WHERE provider_id = :provider_id AND enabled = :enabled
   ORDER BY created_at, id LIMIT :limit
 ```
 
-*ToolMetric List:*
+*ToolExecution List:*
 ```sql
 -- Chronological pagination (primary use case)
 WHERE created_at >= :timestamp AND id > :cursor
   ORDER BY created_at DESC, id LIMIT :limit
 
--- Tool-specific metrics
+-- Tool-specific executions
 WHERE tool_id = :tool_id AND created_at >= :timestamp AND id > :cursor
   ORDER BY created_at DESC, id LIMIT :limit
 
--- User-specific metrics  
+-- User-specific executions  
 WHERE user_id = :user_id AND created_at >= :timestamp AND id > :cursor
   ORDER BY created_at DESC, id LIMIT :limit
 ```
@@ -411,38 +411,38 @@ sequenceDiagram
     Client->>API: GET /api/v1/tools?limit=20&provider_id=abc123
     API->>DB: SELECT * FROM tools<br/>WHERE provider_id = 'abc123'<br/>ORDER BY id LIMIT 20
     DB-->>API: Return 20 tools (IDs: t001...t020)
-    API-->>Client: {tools: [...], limit: 20, next_cursor: "t020", has_more: true}
+    API-->>Client: {resources: [...], next: "t020", prev: null}
 
     Note over Client,DB: Second Page Request
     Client->>API: GET /api/v1/tools?limit=20&provider_id=abc123&cursor=t020
     API->>DB: SELECT * FROM tools<br/>WHERE provider_id = 'abc123'<br/>AND id > 't020'<br/>ORDER BY id LIMIT 20
     DB-->>API: Return next 20 tools (IDs: t021...t040)
-    API-->>Client: {tools: [...], limit: 20, next_cursor: "t040", has_more: true}
+    API-->>Client: {resources: [...], next: "t040", prev: "t020"}
 
     Note over Client,DB: Final Page Request
     Client->>API: GET /api/v1/tools?limit=20&provider_id=abc123&cursor=t040
     API->>DB: SELECT * FROM tools<br/>WHERE provider_id = 'abc123'<br/>AND id > 't040'<br/>ORDER BY id LIMIT 20
     DB-->>API: Return final 15 tools (IDs: t041...t055)
-    API-->>Client: {tools: [...], limit: 20, next_cursor: null, has_more: false}
+    API-->>Client: {resources: [...], next: null, prev: "t040"}
 
     Note over Client,DB: With Total Count (Optional)
     Client->>API: GET /api/v1/tools?include_total=true&limit=20
     API->>DB: COUNT(*) FROM tools
     API->>DB: SELECT * FROM tools ORDER BY id LIMIT 20
     DB-->>API: count: 55, tools: 20 records
-    API-->>Client: {tools: [...], total: 55, next_cursor: "t020", has_more: true}
+    API-->>Client: {resources: [...], total: 55, next: "t020", prev: null}
 
     Note over Client,DB: Chronological Pagination
     Client->>API: GET /api/v1/tools?limit=10&provider_id=abc123&cursor=t010
     API->>DB: SELECT * FROM tools<br/>WHERE provider_id = 'abc123'<br/>AND created_at >= timestamp<br/>AND id > 't010'<br/>ORDER BY created_at, id LIMIT 10
     DB-->>API: Return 10 tools ordered by creation time
-    API-->>Client: {tools: [...], next_cursor: "t020", has_more: true}
+    API-->>Client: {resources: [...], next: "t020", prev: "t010"}
 ```
 
 ## Data Retention Policies
 
-**Metric Data:**
-- ToolMetric records will have configurable archival policies to cold storage
+**Execution Data:**
+- ToolExecution records will have configurable archival policies to cold storage
 - UsageCounter aggregation policies for hourly to daily and daily to monthly rollups to be defined
 - Retention periods to be determined based on operational requirements
 

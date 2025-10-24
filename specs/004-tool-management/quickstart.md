@@ -22,14 +22,10 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
   -d '{
     "name": "test-mcp-provider-sse",
     "description": "Test MCP Tool Provider with SSE protocol",
-    "provider_type": "mcp",
     "configuration": {
-      "host": "localhost",
-      "port": 3000,
-      "protocol": "sse",
-      "authentication_type": "none",
-      "connection_timeout": 5,
-      "read_timeout": 10
+      "provider_type": "mcp",
+      "base_url": "https://localhost:3000/mcp",
+      "api_key": "test-api-key-123"
     }
   }'
 
@@ -56,14 +52,10 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
   -d '{
     "name": "test-mcp-provider-streaming",
     "description": "Test MCP Tool Provider with Streaming HTTP protocol",
-    "provider_type": "mcp",
     "configuration": {
-      "host": "localhost",
-      "port": 3001,
-      "protocol": "streaming_http",
-      "authentication_type": "none",
-      "connection_timeout": 5,
-      "read_timeout": 10
+      "provider_type": "mcp",
+      "base_url": "https://localhost:3001/mcp",
+      "api_key": "test-streaming-key-456"
     }
   }'
 
@@ -117,7 +109,7 @@ curl -X GET "http://localhost:8000/api/v1/tools?provider_id[eq]=$PROVIDER_ID" \
 # Verify: Each Tool has namespaced_name format "test-mcp-provider::tool_name"
 
 # Step 3: Get Tool details with parameters
-TOOL_ID=$(echo $TOOLS_RESPONSE | jq -r '.tools[0].id')
+TOOL_ID=$(echo $TOOLS_RESPONSE | jq -r '.resources[0].id')
 curl -X GET http://localhost:8000/api/v1/tools/$TOOL_ID \
   -H "Authorization: Bearer <admin-token>"
 
@@ -227,12 +219,8 @@ curl -X PUT http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
     "description": "Updated MCP Tool Provider",
     "configuration": {
       "provider_type": "mcp",
-      "host": "localhost",
-      "port": 3001,
-      "protocol": "sse",
-      "authentication_type": "none",
-      "connection_timeout": 10,
-      "read_timeout": 15
+      "base_url": "https://localhost:3001/mcp",
+      "api_key": "updated-api-key-789"
     },
     "enabled": true
   }'
@@ -247,8 +235,7 @@ curl -X PATCH http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
   -d '{
     "description": "Partially updated MCP provider",
     "configuration": {
-      "port": 3002,
-      "connection_timeout": 8
+      "api_key": "partially-updated-key"
     }
   }'
 
@@ -302,11 +289,10 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
   -H "Authorization: Bearer <admin-token>" \
   -d '{
     "name": "invalid-provider",
-    "provider_type": "mcp",
     "configuration": {
-      "host": "nonexistent.example.com",
-      "port": 9999,
-      "protocol": "sse"
+      "provider_type": "mcp",
+      "base_url": "https://nonexistent.example.com:9999/mcp",
+      "api_key": "invalid-key"
     }
   }'
 
@@ -319,11 +305,10 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
   -H "Authorization: Bearer <admin-token>" \
   -d '{
     "name": "invalid-provider",
-    "provider_type": "mcp",
     "configuration": {
-      "host": "localhost",
-      "port": 3001,
-      "protocol": "sse"
+      "provider_type": "mcp",
+      "base_url": "https://localhost:3001/mcp",
+      "api_key": "duplicate-test-key"
     }
   }'
 

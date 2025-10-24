@@ -32,6 +32,7 @@ from nexus.api.auth.dependencies import get_current_user
 from nexus.api.db import get_db
 from nexus.api.main import app
 from nexus.core.models import User, UserRole
+from nexus.tool_manager.models import Tool, ToolProvider
 from nexus.workflows.activities.script_activity import execute_bash_script
 from nexus.workflows.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.models import Workflow, WorkflowVersion
@@ -231,7 +232,9 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
     session = async_session()
     try:
         yield session
-        await session.commit()
+        # The session may have already been rolled back
+        if session.is_active:
+            await session.commit()
     except Exception:
         await session.rollback()
         raise
@@ -527,3 +530,47 @@ def load_workflow() -> Callable[[str], Any]:
         return parse_workflow_yaml(workflow_yaml)
 
     return _load
+
+
+# ============================================================================
+# Tool Manager Fixtures
+# ============================================================================
+@pytest_asyncio.fixture
+async def test_tool_provider(test_db_session: AsyncSession, test_user: User) -> "ToolProvider":
+    """Create a test Tool Provider.
+
+    Args:
+        test_db_session: Test database session
+        test_user: Test User
+
+    Returns:
+        ToolProvider: Test Tool Provider instance
+
+    """
+    tool_provider = ToolProvider(name="mock-provider", configuration={"provider_type": "mock"}, created_by=test_user.id)
+    test_db_session.add(tool_provider)
+    await test_db_session.commit()
+    await test_db_session.refresh(tool_provider)
+    return tool_provider
+
+
+@pytest_asyncio.fixture
+async def test_tool(test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User) -> "Tool":
+    """Create a test Tool.
+
+    Args:
+        test_db_session: Test database session
+        test_tool_provider: Test Tool Provider
+        test_user: Test User
+
+    Returns:
+        Tool: Test Tool instance
+
+    """
+    tool = Tool(
+        name="mock-tool", provider_id=test_tool_provider.id, namespaced_name="mock::tool", created_by=test_user.id
+    )
+    test_db_session.add(tool)
+    await test_db_session.commit()
+    await test_db_session.refresh(tool)
+    return tool

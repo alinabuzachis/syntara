@@ -4,26 +4,22 @@ import copy
 from datetime import UTC, datetime
 from uuid import UUID
 
-from nexus.tool_manager.lib.tool_core import (
-    FilterParam,
-    PaginationParams,
-    PaginationResult,
-    Provider,
-    ProviderNotFoundError,
-    ProviderRepository,
-    ValidationError,
-)
+from nexus.core.utils.cursor import CursorData, SortDirection, extract_sort_from_cursor
+from nexus.core.utils.filters import Filter, FilterOperator
+from nexus.tool_manager.lib.exceptions import ProviderNotFoundError, ValidationError
+from nexus.tool_manager.lib.interfaces import ToolProviderRepository
+from nexus.tool_manager.models import ToolProvider
 
 
-class MockProviderRepository(ProviderRepository):
+class MockToolProviderRepository(ToolProviderRepository):
     """Mock repository for testing purposes."""
 
     def __init__(self) -> None:
         """Initialize mock repository with in-memory storage."""
-        self._providers: dict[UUID, Provider] = {}
-        self._providers_by_name: dict[str, Provider] = {}
+        self._providers: dict[UUID, ToolProvider] = {}
+        self._providers_by_name: dict[str, ToolProvider] = {}
 
-    async def create(self, provider: Provider) -> Provider:
+    async def create(self, provider: ToolProvider) -> ToolProvider:
         """Create a new provider."""
         if provider.name in self._providers_by_name:
             msg = f"Provider with name '{provider.name}' already exists"
@@ -35,59 +31,91 @@ class MockProviderRepository(ProviderRepository):
         self._providers_by_name[provider.name] = provider
         return provider
 
-    async def get_by_id(self, provider_id: UUID) -> Provider | None:
+    async def get_by_id(self, provider_id: UUID) -> ToolProvider | None:
         """Get provider by ID."""
         return self._providers.get(provider_id)
 
-    async def get_by_name(self, name: str) -> Provider | None:
+    async def get_by_name(self, name: str) -> ToolProvider | None:
         """Get provider by name."""
         return self._providers_by_name.get(name)
 
+    def _apply_filters(self, items: list[ToolProvider], filters: list[Filter] | None) -> list[ToolProvider]:
+        """Apply filtering to the list of providers."""
+        if not filters:
+            return items
+
+        filtered_items = items
+        for filter_obj in filters:
+            if filter_obj.field == "name" and filter_obj.operator == FilterOperator.CONTAINS:
+                filtered_items = [p for p in filtered_items if str(filter_obj.value).lower() in p.name.lower()]
+            elif filter_obj.field == "status" and filter_obj.operator == FilterOperator.EQ:
+                filtered_items = [p for p in filtered_items if p.status.value == filter_obj.value]
+            elif filter_obj.field == "enabled" and filter_obj.operator == FilterOperator.EQ:
+                filter_value = filter_obj.value
+                if isinstance(filter_value, str):
+                    filter_value = filter_value.lower() == "true"
+                filtered_items = [p for p in filtered_items if p.enabled == filter_value]
+
+        return filtered_items
+
+    def _apply_sorting(self, items: list[ToolProvider], cursor_data: CursorData | None) -> list[ToolProvider]:
+        """Apply sorting to the list of providers."""
+        sort_field = "created_at"
+        sort_direction = SortDirection.DESC
+
+        if cursor_data:
+            sort_field, sort_direction = extract_sort_from_cursor(cursor_data)
+
+        # Handle different sort fields
+        if sort_field == "name":
+            items.sort(key=lambda x: x.name, reverse=(sort_direction == SortDirection.DESC))
+        elif sort_field == "updated_at":
+            items.sort(key=lambda x: x.updated_at, reverse=(sort_direction == SortDirection.DESC))
+        else:  # Default to created_at
+            items.sort(key=lambda x: x.created_at, reverse=(sort_direction == SortDirection.DESC))
+
+        return items
+
+    def _apply_pagination(
+        self, items: list[ToolProvider], cursor_data: CursorData | None, limit: int
+    ) -> list[ToolProvider]:
+        """Apply cursor-based pagination to the list of providers."""
+        start_index = 0
+        if cursor_data and "id" in cursor_data:
+            # Find the position of the cursor ID in the sorted list
+            cursor_id = cursor_data["id"]
+            try:
+                cursor_uuid = UUID(cursor_id)
+                for i, item in enumerate(items):
+                    if item.id == cursor_uuid:
+                        # Start from next item for pagination
+                        start_index = i + 1
+                        break
+            except (ValueError, TypeError):
+                # Invalid cursor ID, start from beginning
+                start_index = 0
+
+        # Return the requested page
+        end_index = start_index + limit
+        return items[start_index:end_index]
+
     async def list_providers(
         self,
-        filters: list[FilterParam] | None = None,
-        pagination: PaginationParams | None = None,
-    ) -> PaginationResult:
+        filters: list[Filter] | None = None,
+        cursor_data: CursorData | None = None,
+        limit: int = 20,
+    ) -> list[ToolProvider]:
         """List providers with optional filtering and pagination."""
         items = list(self._providers.values())
 
-        # Apply basic filtering (simplified for mock)
-        if filters:
-            for filter_param in filters:
-                if filter_param.field == "name" and filter_param.operator == "contains":
-                    items = [p for p in items if filter_param.value.lower() in p.name.lower()]
-                elif filter_param.field == "status" and filter_param.operator == "eq":
-                    items = [p for p in items if p.status.value == filter_param.value]
-                elif filter_param.field == "enabled" and filter_param.operator == "eq":
-                    items = [p for p in items if p.enabled == filter_param.value]
+        # Apply filtering, sorting, and pagination in sequence
+        items = self._apply_filters(items, filters)
+        items = self._apply_sorting(items, cursor_data)
+        items = self._apply_pagination(items, cursor_data, limit)
 
-        # Sort by created_at for consistent ordering
-        items.sort(key=lambda x: x.created_at)
+        return items  # noqa: RET504
 
-        # Apply pagination (simplified)
-        pagination = pagination or PaginationParams()
-        start = 0
-        if pagination.cursor:
-            # Simple cursor implementation using array index
-            try:
-                start = int(pagination.cursor)
-            except (ValueError, TypeError):
-                start = 0
-
-        end = start + pagination.limit
-        page_items = items[start:end]
-        has_more = end < len(items)
-        next_cursor = str(end) if has_more else None
-        total = len(items) if pagination.include_total else None
-
-        return PaginationResult(
-            items=page_items,
-            next_cursor=next_cursor,
-            has_more=has_more,
-            total=total,
-        )
-
-    async def update(self, provider: Provider) -> Provider:
+    async def update(self, provider: ToolProvider) -> ToolProvider:
         """Update an existing provider."""
         if provider.id not in self._providers:
             msg = f"Provider with ID '{provider.id}' not found"

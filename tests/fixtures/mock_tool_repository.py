@@ -4,15 +4,11 @@ import copy
 from datetime import UTC, datetime
 from uuid import UUID
 
-from nexus.tool_manager.lib.tool_core import (
-    FilterParam,
-    PaginationParams,
-    PaginationResult,
-    Tool,
-    ToolNotFoundError,
-    ToolRepository,
-    ValidationError,
-)
+from nexus.core.utils.cursor import CursorData, SortDirection, extract_sort_from_cursor
+from nexus.core.utils.filters import Filter, FilterOperator
+from nexus.tool_manager.lib.exceptions import ToolNotFoundError, ValidationError
+from nexus.tool_manager.lib.interfaces import ToolRepository
+from nexus.tool_manager.models import Tool
 
 
 class MockToolRepository(ToolRepository):
@@ -43,51 +39,80 @@ class MockToolRepository(ToolRepository):
         """Get tool by namespaced name."""
         return self._tools_by_name.get(namespaced_name)
 
+    def _apply_filters(self, items: list[Tool], filters: list[Filter] | None) -> list[Tool]:
+        """Apply filtering to the list of tools."""
+        if not filters:
+            return items
+
+        filtered_items = items
+        for filter_obj in filters:
+            if filter_obj.field == "name" and filter_obj.operator == FilterOperator.CONTAINS:
+                filtered_items = [t for t in filtered_items if str(filter_obj.value).lower() in t.name.lower()]
+            elif filter_obj.field == "enabled" and filter_obj.operator == FilterOperator.EQ:
+                filter_value = filter_obj.value
+                if isinstance(filter_value, str):
+                    filter_value = filter_value.lower() == "true"
+                filtered_items = [t for t in filtered_items if t.enabled == filter_value]
+            elif filter_obj.field == "provider_id" and filter_obj.operator == FilterOperator.EQ:
+                provider_id = UUID(filter_obj.value) if isinstance(filter_obj.value, str) else filter_obj.value
+                filtered_items = [t for t in filtered_items if t.provider_id == provider_id]
+
+        return filtered_items
+
+    def _apply_sorting(self, items: list[Tool], cursor_data: CursorData | None) -> list[Tool]:
+        """Apply sorting to the list of tools."""
+        sort_field = "created_at"
+        sort_direction = SortDirection.DESC
+
+        if cursor_data:
+            sort_field, sort_direction = extract_sort_from_cursor(cursor_data)
+
+        # Handle different sort fields
+        if sort_field == "name":
+            items.sort(key=lambda x: x.name, reverse=(sort_direction == SortDirection.DESC))
+        elif sort_field == "updated_at":
+            items.sort(key=lambda x: x.updated_at, reverse=(sort_direction == SortDirection.DESC))
+        else:  # Default to created_at
+            items.sort(key=lambda x: x.created_at, reverse=(sort_direction == SortDirection.DESC))
+
+        return items
+
+    def _apply_pagination(self, items: list[Tool], cursor_data: CursorData | None, limit: int) -> list[Tool]:
+        """Apply cursor-based pagination to the list of tools."""
+        start_index = 0
+        if cursor_data and "id" in cursor_data:
+            # Find the position of the cursor ID in the sorted list
+            cursor_id = cursor_data["id"]
+            try:
+                cursor_uuid = UUID(cursor_id)
+                for i, item in enumerate(items):
+                    if item.id == cursor_uuid:
+                        # Start from next item for pagination
+                        start_index = i + 1
+                        break
+            except (ValueError, TypeError):
+                # Invalid cursor ID, start from beginning
+                start_index = 0
+
+        # Return the requested page
+        end_index = start_index + limit
+        return items[start_index:end_index]
+
     async def list_tools(
         self,
-        filters: list[FilterParam] | None = None,
-        pagination: PaginationParams | None = None,
-    ) -> PaginationResult:
+        filters: list[Filter] | None = None,
+        cursor_data: CursorData | None = None,
+        limit: int = 20,
+    ) -> list[Tool]:
         """List tools with optional filtering and pagination."""
         items = list(self._tools.values())
 
-        # Apply basic filtering (simplified for mock)
-        if filters:
-            for filter_param in filters:
-                if filter_param.field == "name" and filter_param.operator == "contains":
-                    items = [t for t in items if filter_param.value.lower() in t.name.lower()]
-                elif filter_param.field == "enabled" and filter_param.operator == "eq":
-                    items = [t for t in items if t.enabled == filter_param.value]
-                elif filter_param.field == "provider_id" and filter_param.operator == "eq":
-                    provider_id = (
-                        UUID(filter_param.value) if isinstance(filter_param.value, str) else filter_param.value
-                    )
-                    items = [t for t in items if t.provider_id == provider_id]
+        # Apply filtering, sorting, and pagination in sequence
+        items = self._apply_filters(items, filters)
+        items = self._apply_sorting(items, cursor_data)
+        items = self._apply_pagination(items, cursor_data, limit)
 
-        # Sort by created_at for consistent ordering
-        items.sort(key=lambda x: x.created_at)
-
-        # Apply pagination (simplified)
-        pagination = pagination or PaginationParams()
-        start = 0
-        if pagination.cursor:
-            try:
-                start = int(pagination.cursor)
-            except (ValueError, TypeError):
-                start = 0
-
-        end = start + pagination.limit
-        page_items = items[start:end]
-        has_more = end < len(items)
-        next_cursor = str(end) if has_more else None
-        total = len(items) if pagination.include_total else None
-
-        return PaginationResult(
-            items=page_items,
-            next_cursor=next_cursor,
-            has_more=has_more,
-            total=total,
-        )
+        return items  # noqa: RET504
 
     async def update(self, tool: Tool) -> Tool:
         """Update an existing tool."""

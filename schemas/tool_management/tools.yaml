@@ -10,7 +10,7 @@ servers:
 
 # Reference shared resource schemas
 x-shared-contracts:
-- path: ../006-create-shared-resources/contracts/shared-resources.openapi.yaml
+- path: ../base/shared-resources.openapi.yaml
   namespace: shared
 
 paths:
@@ -74,20 +74,15 @@ paths:
           Filter tools by execution count.
           - Exact match: `execution_count=10`
           - Range: `execution_count[gte]=5&execution_count[lte]=50`
+      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
       - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/limitParam
+          ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
       - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/cursorParam
-      - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-      - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
-      - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-      - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-      - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+          ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
+      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
       responses:
         '200':
           description: List of tools
@@ -95,8 +90,7 @@ paths:
             application/json:
               schema:
                 allOf:
-                - $ref: 
-                    ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+                - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
                 - type: object
                   properties:
                     resources:
@@ -111,8 +105,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
 
   /tools/{tool_id}:
     get:
@@ -137,15 +130,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
         '404':
           description: Tool not found
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
 
     patch:
       summary: Update tool configuration
@@ -175,22 +166,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
         '403':
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
         '404':
           description: Tool not found
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
 
   /tools/bulk-update:
     patch:
@@ -234,22 +222,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
         '403':
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
 
 components:
   schemas:
     Tool:
       allOf:
-      - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Resource
+      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Resource
       - type: object
         properties:
           provider_id:

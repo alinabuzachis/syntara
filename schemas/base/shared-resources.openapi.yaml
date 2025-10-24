@@ -1,0 +1,464 @@
+openapi: 3.0.3
+info:
+  title: Nexus Shared API Resources
+  version: 1.0.0
+  description: |
+    Shared OpenAPI schemas, Pydantic models, and utility functions for all Nexus API resources.
+
+    This specification defines:
+    - Base resource schemas (BaseResource, NamedResource, SoftDeletableResource, UserOwnedResource, Resource)
+    - Standardized filtering conventions with bracket notation operators
+    - Pagination patterns with optional total counts
+    - Shared query parameters and error responses
+    - Label filtering with key-value pairs
+
+    ## Naming Conventions
+    - **Schema properties**: camelCase (e.g., `createdAt`, `userName`)
+    - **Query parameters**: snake_case (e.g., `created_at`, `user_name`)
+    - **Python code**: snake_case (PEP 8)
+
+    ## Filtering Conventions
+    - **Direct equality**: `?parameter=value` (shorthand for `parameter[eq]=value`)
+    - **Operators**: `?parameter[operator]=value` where operator ∈ {eq, contains, gt, gte, lt, lte}
+    - **Multiple values (OR)**: `?parameter=val1,val2` or `?parameter=val1&parameter=val2`
+    - **Multiple parameters (AND)**: `?name=example&status=active`
+    - **Label filtering**: `?labels[environment]=production`
+
+components:
+  schemas:
+    BaseResource:
+      type: object
+      title: Base Resource
+      description: Foundational schema for all API resources with system-managed metadata
+      required:
+      - id
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          title: Resource ID
+          description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
+
+    NamedResource:
+      allOf:
+      - $ref: '#/components/schemas/BaseResource'
+      - type: object
+        title: Named Resource
+        description: Extension of BaseResource adding user-provided identification
+        required:
+        - name
+        properties:
+          name:
+            type: string
+            minLength: 1
+            maxLength: 255
+            title: Name
+            description: Human-readable name for the resource
+            example: Authentication Service
+          description:
+            type: string
+            nullable: true
+            maxLength: 2000
+            title: Description
+            description: Detailed description of the resource
+            example: Handles user authentication and authorization workflows
+
+    SoftDeletableResource:
+      allOf:
+      - $ref: '#/components/schemas/BaseResource'
+      - type: object
+        title: Soft Deletable Resource
+        description: Extension of BaseResource supporting soft deletion tracking
+        properties:
+          deletedAt:
+            type: string
+            format: date-time
+            nullable: true
+            readOnly: true
+            title: Deleted At
+            description: Timestamp when resource was soft deleted
+            example: '2025-10-09T14:00:00Z'
+          deletedBy:
+            type: string
+            format: uuid
+            nullable: true
+            readOnly: true
+            title: Deleted By
+            description: User who performed the soft delete
+            example: 660e8400-e29b-41d4-a716-446655440000
+
+    UserOwnedResource:
+      allOf:
+      - $ref: '#/components/schemas/BaseResource'
+      - type: object
+        title: User Owned Resource
+        description: Extension of BaseResource tracking resource ownership and modifications
+        required:
+        - createdBy
+        properties:
+          createdBy:
+            type: string
+            format: uuid
+            readOnly: true
+            title: Created By
+            description: User who created the resource
+            example: 770e8400-e29b-41d4-a716-446655440000
+          updatedBy:
+            type: string
+            format: uuid
+            nullable: true
+            readOnly: true
+            title: Updated By
+            description: User who last updated the resource
+            example: 880e8400-e29b-41d4-a716-446655440000
+
+    Resource:
+      allOf:
+      - $ref: '#/components/schemas/NamedResource'
+      - $ref: '#/components/schemas/SoftDeletableResource'
+      - $ref: '#/components/schemas/UserOwnedResource'
+      title: Resource
+      description: |
+        Composite entity combining all base resource capabilities:
+        - System metadata (from BaseResource): id, timestamps, labels
+        - Naming (from NamedResource): name, description
+        - Soft deletion (from SoftDeletableResource): deletedAt, deletedBy
+        - Ownership (from UserOwnedResource): createdBy, updatedBy
+
+        This is the recommended base schema for most API resources.
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        createdAt: '2025-10-09T12:00:00Z'
+        updatedAt: '2025-10-09T12:30:00Z'
+        labels:
+          environment: production
+          region: us-east-1
+        name: Authentication Service
+        description: Handles user authentication and authorization
+        deletedAt:
+        deletedBy:
+        createdBy: 770e8400-e29b-41d4-a716-446655440000
+        updatedBy: 880e8400-e29b-41d4-a716-446655440000
+
+    Error:
+      type: object
+      title: Error Response
+      description: Standardized error response structure
+      required:
+      - error
+      - message
+      properties:
+        error:
+          type: string
+          title: Error Code
+          description: Error category/code in snake_case format
+          example: validation_error
+        message:
+          type: string
+          maxLength: 500
+          title: Error Message
+          description: Human-readable error message
+          example: The 'name' field is required
+        details:
+          type: string
+          nullable: true
+          maxLength: 2000
+          title: Error Details
+          description: Additional error details or context
+          example: Field 'name' must be between 1 and 255 characters
+
+    ResourcesResponseBase:
+      type: object
+      title: Paginated Response Base
+      description: Pagination metadata structure for list responses
+      properties:
+        next:
+          type: string
+          nullable: true
+          title: Next Page Cursor
+          description: Cursor for next page of results
+          example: eyJpZCI6InV1aWQifQ
+        prev:
+          type: string
+          nullable: true
+          title: Previous Page Cursor
+          description: Cursor for previous page of results
+          example: eyJpZCI6InV1aWQifQ
+        total:
+          type: integer
+          minimum: 0
+          nullable: true
+          title: Total Count
+          description: Total count of resources (only when include_total=true)
+          example: 150
+
+    ResourcesResponse:
+      allOf:
+      - $ref: '#/components/schemas/ResourcesResponseBase'
+      - type: object
+        title: Resources Response
+        description: Complete paginated response with resource array
+        required:
+        - resources
+        properties:
+          resources:
+            type: array
+            title: Resources
+            description: Array of resources in current page
+            items:
+              $ref: '#/components/schemas/Resource'
+            maxItems: 100
+
+  parameters:
+    limitParam:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Number of resources to return per page
+      example: 20
+
+    sortParam:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+      description: |
+        Sort order for resources.
+        - Ascending: `field` (e.g., `name`)
+        - Descending: `-field` (e.g., `-created_at`)
+      example: -created_at
+
+    nameFilterParam:
+      name: name
+      in: query
+      required: false
+      style: deepObject
+      explode: true
+      schema:
+        allOf:
+        - type: string
+          description: Exact match of the name (case-insensitive). ?name=<name>
+        - type: object
+          properties:
+            contains:
+              title: Contains
+              description: Substring to match within the name (case-insensitive).
+                ?name[contains]=<substring>
+              type: string
+            starts_with:
+              title: Starts With
+              description: Prefix to match at the start of the name (case-insensitive).
+                ?name[starts_with]=<prefix>
+              type: string
+            eq:
+              title: Equals
+              description: Exact match of the name (case-insensitive). ?name[eq]=<name>
+              type: string
+            gt:
+              title: Greater Than
+              description: Greater than comparison (lexicographical). ?name[gt]=<name>
+              type: string
+            gte:
+              title: Greater Than Or Equal
+              description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
+              type: string
+            lt:
+              title: Less Than
+              description: Less than comparison (lexicographical). ?name[lt]=<name>
+              type: string
+            lte:
+              title: Less Than Or Equal
+              description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
+              type: string
+      description: |
+        Filter resources by name.
+        - Exact match: `name=value`
+        - Contains: `name[contains]=value`
+      example: auth
+
+    createdAtFilterParam:
+      name: created_at
+      in: query
+      required: false
+      style: deepObject
+      explode: true
+      schema:
+        allOf:
+        - type: string
+          format: date-time
+          description: Exact match of creation timestamp. ?created_at=<timestamp>
+        - type: object
+          properties:
+            eq:
+              title: Equals
+              description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+              type: string
+              format: date-time
+            gt:
+              title: Greater Than
+              description: Greater than comparison. ?created_at[gt]=<timestamp>
+              type: string
+              format: date-time
+            gte:
+              title: Greater Than Or Equal
+              description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
+              type: string
+              format: date-time
+            lt:
+              title: Less Than
+              description: Less than comparison. ?created_at[lt]=<timestamp>
+              type: string
+              format: date-time
+            lte:
+              title: Less Than Or Equal
+              description: Less than or equal comparison. ?created_at[lte]=<timestamp>
+              type: string
+              format: date-time
+
+    updatedAtFilterParam:
+      name: updated_at
+      in: query
+      required: false
+      style: deepObject
+      explode: true
+      schema:
+        allOf:
+        - type: string
+          format: date-time
+          description: Exact match of last update timestamp. ?updated_at=<timestamp>
+        - type: object
+          properties:
+            eq:
+              title: Equals
+              description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
+              type: string
+              format: date-time
+            gt:
+              title: Greater Than
+              description: Greater than comparison. ?updated_at[gt]=<timestamp>
+              type: string
+              format: date-time
+            gte:
+              title: Greater Than Or Equal
+              description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
+              type: string
+              format: date-time
+            lt:
+              title: Less Than
+              description: Less than comparison. ?updated_at[lt]=<timestamp>
+              type: string
+              format: date-time
+            lte:
+              title: Less Than Or Equal
+              description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
+              type: string
+              format: date-time
+
+    cursorParam:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Opaque cursor for pagination (from previous response)
+      example: eyJpZCI6InV1aWQifQ
+
+    labelsFilterParam:
+      name: labels
+      in: query
+      required: false
+      style: deepObject
+      explode: true
+      schema:
+        type: object
+        additionalProperties:
+          type: string
+      description: |
+        Filter resources by label key-value pairs.
+        - Single label: `labels[environment]=production`
+        - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
+        All specified labels must match (AND logic).
+      example:
+        environment: production
+        region: us-east-1
+
+    includeTotalParam:
+      name: include_total
+      in: query
+      required: false
+      schema:
+        type: boolean
+        default: false
+      description: Whether to include total count in response (may impact performance)
+      example: true
+
+  responses:
+    ValidationError:
+      description: Validation error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: validation_error
+            message: Invalid request parameters
+            details: Field 'name' must be between 1 and 255 characters
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: not_found
+            message: Resource not found
+            details: No resource exists with id '550e8400-e29b-41d4-a716-446655440000'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: internal_error
+            message: An unexpected error occurred
+            details:
+
+paths: {} # No endpoints defined - this is a shared schema specification
