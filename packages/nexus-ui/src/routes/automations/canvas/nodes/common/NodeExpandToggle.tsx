@@ -4,7 +4,10 @@ import { useContext } from 'react'
 import { NodeExpandedContext } from './NodeExpandedContext'
 
 export function NodeExpandToggle() {
-  const [expanded, setExpanded] = useContext(NodeExpandedContext)
+  const expandedState = useContext(NodeExpandedContext)
+  const expanded = expandedState ? expandedState : [false, () => {}]
+  const setExpanded = expandedState ? expandedState[1] : () => {}
+  if (!expandedState) return null
   return (
     <ChevronDownIcon
       onClick={() => setExpanded((expanded) => !expanded)}

@@ -13,7 +13,7 @@ export type JoinNode = { type: 'join' } & Node<JoinActivity>
 
 export function JoinNodeComponent(props: NodeProps<JoinNode>) {
   return (
-    <NodeComponent className="rounded-3xl">
+    <NodeComponent className="rounded-3xl" nodeProps={props}>
       <NodeHeader>
         <NodeIcon>
           <MergeIcon />

@@ -10,7 +10,7 @@ export type LoopNode = { type: 'loop' } & Node<LoopActivity>
 
 export function LoopNodeComponent(props: NodeProps<LoopNode>) {
   return (
-    <NodeComponent className="rounded-4xl" enableEnd enableStart>
+    <NodeComponent className="rounded-4xl" enableEnd enableStart nodeProps={props}>
       <NodeHeader>
         <NodeIcon>
           <RepeatIcon />

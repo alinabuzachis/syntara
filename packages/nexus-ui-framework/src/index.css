@@ -23,3 +23,9 @@
   @apply bg-white/5;
   @apply backdrop-blur-md;
 }
+
+.glass.selected {
+  @apply bg-white/10;
+  @apply backdrop-blur-lg;
+  @apply border-violet-300/60;
+}

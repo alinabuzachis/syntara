@@ -9,19 +9,10 @@ import type {
   WorkflowWithVersion,
 } from '@ansible/nexus-contracts'
 import Dagre from '@dagrejs/dagre'
-import {
-  MarkerType,
-  ReactFlow,
-  ReactFlowProvider,
-  useEdgesState,
-  useNodesState,
-  useReactFlow,
-  type EdgeProps,
-} from '@xyflow/react'
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { MarkerType, ReactFlow, useEdgesState, useNodesState, useReactFlow, type EdgeProps } from '@xyflow/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CanvasControls } from './CanvasControls'
 import { edgeTypes } from './edges/EdgeType'
-import { FlowDirectionContext } from './FlowDirectionContext'
 import { nodeTypes, type NodeType } from './nodes/NodeType'
 
 type EdgeType = Pick<EdgeProps, 'markerEnd'> & {
@@ -35,7 +26,7 @@ type EdgeType = Pick<EdgeProps, 'markerEnd'> & {
 
 const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { direction: 'TB' | 'LR' }) => {
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: options.direction, ranksep: 150 })
+  g.setGraph({ rankdir: options.direction, ranksep: 120 })
 
   edges.forEach((edge) => g.setEdge(edge.source, edge.target))
   nodes.forEach((node) =>
@@ -63,8 +54,6 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
 }
 
 export function AutomationFlow(props: { workflow: WorkflowWithVersion }) {
-  const flowDirectionState = useState<'TB' | 'LR'>('LR')
-
   const { nodes, edges } = useMemo(() => {
     const nodes: NodeType[] = []
     const edges: EdgeType[] = []
@@ -95,13 +84,7 @@ export function AutomationFlow(props: { workflow: WorkflowWithVersion }) {
     return { nodes, edges }
   }, [props.workflow.version?.workflow_definition])
 
-  return (
-    <FlowDirectionContext.Provider value={flowDirectionState}>
-      <ReactFlowProvider>
-        <AutomationBuilderFlow initialNodes={nodes} initialEdges={edges} />
-      </ReactFlowProvider>
-    </FlowDirectionContext.Provider>
-  )
+  return <AutomationBuilderFlow initialNodes={nodes} initialEdges={edges} />
 }
 
 function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: EdgeType[] }) {
@@ -126,8 +109,6 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
     onLayoutRef.current = onLayout
   }, [onLayout])
 
-  const [flowDirection] = useContext(FlowDirectionContext)
-
   // Apply initial layout after nodes are measured
   useEffect(() => {
     if (!isInitialized && nodes.every((node) => node.measured)) {
@@ -137,13 +118,13 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
         onLayoutRef.current()
       })
     }
-  }, [nodes, isInitialized, flowDirection])
+  }, [nodes, isInitialized])
 
   useEffect(() => {
     if (isInitialized) {
       onLayoutRef.current()
     }
-  }, [flowDirection, isInitialized])
+  }, [isInitialized])
 
   return (
     <ReactFlow<NodeType, EdgeType>
