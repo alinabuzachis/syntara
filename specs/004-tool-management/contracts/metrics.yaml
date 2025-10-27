@@ -8,6 +8,11 @@ servers:
 - url: http://localhost:8000/api/v1
   description: Development server
 
+# Reference shared resource schemas
+x-shared-contracts:
+- path: ../../../schemas/base/shared-resources.openapi.yaml
+  namespace: shared
+
 paths:
   /metrics/tools:
     get:
@@ -109,7 +114,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
   /metrics/executions:
     get:
@@ -200,7 +205,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
   /rate-limits:
     get:
@@ -291,7 +296,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
     post:
       summary: Create rate limit configuration
@@ -314,13 +319,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '403':
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
   /rate-limits/{limit_id}:
     get:
@@ -345,13 +350,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '404':
           description: Rate limit not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
     put:
       summary: Update rate limit configuration
@@ -381,19 +386,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '403':
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '404':
           description: Rate limit not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
     delete:
       summary: Delete rate limit configuration
@@ -413,13 +418,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '404':
           description: Rate limit not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
 components:
   schemas:
@@ -668,16 +673,3 @@ components:
           minimum: 0
         enabled:
           type: boolean
-
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-        message:
-          type: string
-        details:
-          type: object
-      required:
-      - error
-      - message

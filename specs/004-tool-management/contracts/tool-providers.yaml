@@ -10,7 +10,7 @@ servers:
 
 # Reference shared resource schemas
 x-shared-contracts:
-- path: ../006-create-shared-resources/contracts/shared-resources.openapi.yaml
+- path: ../../../schemas/base/shared-resources.openapi.yaml
   namespace: shared
 
 paths:
@@ -62,19 +62,19 @@ paths:
           - Exact match: `provider_type=mcp`
           - Multiple types: `provider_type[in]=mcp,python`
       - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/limitParam
+          ../../../schemas/base/shared-resources.openapi.yaml#/components/parameters/limitParam
       - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/cursorParam
+          ../../../schemas/base/shared-resources.openapi.yaml#/components/parameters/cursorParam
       - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+          ../../../schemas/base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
       - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
+          ../../../schemas/base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
       - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+          ../../../schemas/base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
       - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
+          ../../../schemas/base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
       - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+          ../../../schemas/base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
       responses:
         '200':
           description: List of Tool Providers
@@ -83,7 +83,7 @@ paths:
               schema:
                 allOf:
                 - $ref: 
-                    ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+                    ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
                 - type: object
                   properties:
                     resources:
@@ -98,8 +98,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
     post:
       summary: Register new Tool Provider
@@ -122,22 +121,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '403':
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '409':
           description: Provider name already exists
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
   /tool-providers/{provider_id}:
     get:
@@ -162,15 +158,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '404':
           description: Provider not found
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
     put:
       summary: Update Tool Provider configuration
@@ -200,22 +194,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '403':
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '404':
           description: Provider not found
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
     patch:
       summary: Partially update Tool Provider configuration
@@ -246,22 +237,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '403':
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '404':
           description: Provider not found
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
     delete:
       summary: Remove Tool Provider
@@ -281,15 +269,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '404':
           description: Provider not found
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
   /tool-providers/{provider_id}/validate:
     post:
@@ -343,15 +329,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '404':
           description: Provider not found
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
   /tool-providers/{provider_id}/refresh-tools:
     post:
@@ -386,29 +370,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '403':
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
         '404':
           description: Provider not found
           content:
             application/json:
               schema:
-                $ref: 
-                  ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Error
 
 components:
   schemas:
     ToolProvider:
       allOf:
-      - $ref: 
-          ../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Resource
+      - $ref: ../../../schemas/base/shared-resources.openapi.yaml#/components/schemas/Resource
       - type: object
         properties:
           configuration:
