@@ -19,37 +19,62 @@ export interface paths {
       parameters: {
         query?: {
           /**
-           * @description Generic field filtering with operators. Syntax: field[operator]=value
-           *
-           *     Supported operators:
-           *     - eq: equals
-           *     - ne: not equals
-           *     - in: in array (comma-separated values)
-           *     - contains: string contains
-           *     - startswith: string starts with
-           *     - endswith: string ends with
-           *     - gt: greater than
-           *     - gte: greater than or equal
-           *     - lt: less than
-           *     - lte: less than or equal
-           *     - between: between two values (comma-separated)
-           *
-           *     Examples:
-           *     - ?status[eq]=available
-           *     - ?name[contains]=widget
-           *     - ?created_at[lte]=2025-10-03
-           *     - ?status[in]=available,validating
-           *     - ?created_at[between]=2025-01-01,2025-12-31
+           * @description Filter providers by status.
+           *     - Exact match: `status=available`
+           *     - Multiple values: `status[in]=available,validating`
            */
-          'field[operator]'?: {
-            [key: string]: string
+          status?: string & {
+            /** @description Exact match of the status. ?status[eq]=<status> */
+            eq?: string
+            /** @description Match any of the comma-separated values. ?status[in]=<val1,val2> */
+            in?: string
           }
-          /** @description Maximum number of providers to return */
-          limit?: number
-          /** @description Cursor for keyset pagination (provider ID to start after) */
-          cursor?: string
-          /** @description Include total count in response (may impact performance) */
-          include_total?: boolean
+          /**
+           * @description Filter providers by provider type.
+           *     - Exact match: `provider_type=mcp`
+           *     - Multiple types: `provider_type[in]=mcp,python`
+           */
+          provider_type?: string & {
+            /** @description Exact match of the provider type. ?provider_type[eq]=<type> */
+            eq?: string
+            /** @description Match any of the comma-separated values. ?provider_type[in]=<type1,type2> */
+            in?: string
+          }
+          /**
+           * @description Number of resources to return per page
+           * @example 20
+           */
+          limit?: components['parameters']['limitParam']
+          /**
+           * @description Opaque cursor for pagination (from previous response)
+           * @example eyJpZCI6InV1aWQifQ
+           */
+          cursor?: components['parameters']['cursorParam']
+          /**
+           * @description Whether to include total count in response (may impact performance)
+           * @example true
+           */
+          include_total?: components['parameters']['includeTotalParam']
+          /**
+           * @description Filter resources by name.
+           *     - Exact match: `name=value`
+           *     - Contains: `name[contains]=value`
+           * @example auth
+           */
+          name?: components['parameters']['nameFilterParam']
+          created_at?: components['parameters']['createdAtFilterParam']
+          updated_at?: components['parameters']['updatedAtFilterParam']
+          /**
+           * @description Filter resources by label key-value pairs.
+           *     - Single label: `labels[environment]=production`
+           *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
+           *     All specified labels must match (AND logic).
+           * @example {
+           *       "environment": "production",
+           *       "region": "us-east-1"
+           *     }
+           */
+          labels?: components['parameters']['labelsFilterParam']
         }
         header?: never
         path?: never
@@ -63,19 +88,8 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': {
-              providers: components['schemas']['ToolProvider'][]
-              /** @description Maximum number of items requested */
-              limit: number
-              /**
-               * Format: uuid
-               * @description Cursor for the next page (null if no more pages)
-               */
-              next_cursor?: string | null
-              /** @description Whether there are more items available */
-              has_more: boolean
-              /** @description Total count (only included if include_total=true) */
-              total?: number
+            'application/json': components['schemas']['ResourcesResponseBase'] & {
+              resources: components['schemas']['ToolProvider'][]
             }
           }
         }
@@ -104,7 +118,7 @@ export interface paths {
       }
       requestBody: {
         content: {
-          'application/json': components['schemas']['ToolProviderCreate']
+          'application/json': components['schemas']['ToolProvider']
         }
       }
       responses: {
@@ -218,7 +232,7 @@ export interface paths {
       }
       requestBody: {
         content: {
-          'application/json': components['schemas']['ToolProviderUpdate']
+          'application/json': components['schemas']['ToolProvider']
         }
       }
       responses: {
@@ -320,7 +334,7 @@ export interface paths {
       }
       requestBody: {
         content: {
-          'application/merge-patch+json': components['schemas']['ToolProviderPatch']
+          'application/merge-patch+json': components['schemas']['ToolProvider']
         }
       }
       responses: {
@@ -523,81 +537,330 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
-    ToolProvider: {
-      /** Format: uuid */
-      id: string
-      name: string
-      description?: string
-      /** @description Type of Tool Provider (e.g., mcp, python, rest_api, etc.) */
-      provider_type: string
+    ToolProvider: components['schemas']['Resource'] & {
       /** @description Provider-specific configuration */
-      configuration: {
-        [key: string]: unknown
-      }
-      enabled: boolean
-      /** @enum {string} */
-      status: 'available' | 'error' | 'validating'
+      configuration: components['schemas']['MCPConfiguration']
+      /** @default true */
+      enabled?: boolean
+      /**
+       * @default validating
+       * @enum {string}
+       */
+      status?: 'available' | 'error' | 'validating'
       /** Format: date-time */
-      last_validated_at?: string
-      validation_error?: string
-      /** Format: date-time */
-      created_at: string
-      /** Format: uuid */
-      created_by: string
-      /** Format: date-time */
-      updated_at?: string | null
-      /** Format: uuid */
-      updated_by?: string | null
-      /** Format: date-time */
-      deleted_at?: string | null
-      /** Format: uuid */
-      deleted_by?: string | null
+      last_validated_at?: string | null
+      validation_error?: string | null
+      /** @default 0 */
       tool_count?: number
     }
-    ToolProviderCreate: {
+    MCPConfiguration: {
+      /** @constant */
+      provider_type?: 'mcp'
+      /** Format: uri */
+      base_url: string
+      api_key: string
+    }
+    /**
+     * Paginated Response Base
+     * @description Pagination metadata structure for list responses
+     */
+    ResourcesResponseBase: {
+      /**
+       * Next Page Cursor
+       * @description Cursor for next page of results
+       * @example eyJpZCI6InV1aWQifQ
+       */
+      next?: string | null
+      /**
+       * Previous Page Cursor
+       * @description Cursor for previous page of results
+       * @example eyJpZCI6InV1aWQifQ
+       */
+      prev?: string | null
+      /**
+       * Total Count
+       * @description Total count of resources (only when include_total=true)
+       * @example 150
+       */
+      total?: number | null
+    }
+    /**
+     * Base Resource
+     * @description Foundational schema for all API resources with system-managed metadata
+     */
+    BaseResource: {
+      /**
+       * Resource ID
+       * Format: uuid
+       * @description Unique identifier for the resource
+       * @example 550e8400-e29b-41d4-a716-446655440000
+       */
+      readonly id: string
+      /**
+       * Created At
+       * Format: date-time
+       * @description Timestamp when resource was created
+       * @example 2025-10-09T12:00:00Z
+       */
+      readonly createdAt: string
+      /**
+       * Updated At
+       * Format: date-time
+       * @description Timestamp when resource was last updated
+       * @example 2025-10-09T12:30:00Z
+       */
+      readonly updatedAt: string
+      /**
+       * Labels
+       * @description Key-value pairs for resource labeling and filtering
+       * @default {}
+       * @example {
+       *       "environment": "production",
+       *       "region": "us-east-1",
+       *       "team": "platform"
+       *     }
+       */
+      labels?: {
+        [key: string]: string
+      }
+    }
+    NamedResource: components['schemas']['BaseResource'] & {
+      /**
+       * Name
+       * @description Human-readable name for the resource
+       * @example Authentication Service
+       */
       name: string
-      description?: string
-      /** @description Type of Tool Provider (e.g., mcp, python, rest_api, etc.) */
-      provider_type: string
-      /** @description Provider-specific configuration */
-      configuration: {
-        [key: string]: unknown
-      }
+      /**
+       * Description
+       * @description Detailed description of the resource
+       * @example Handles user authentication and authorization workflows
+       */
+      description?: string | null
     }
-    ToolProviderUpdate: {
-      name?: string
-      description?: string
-      /** @description Provider-specific configuration including provider_type */
-      configuration?: {
-        /** @description Type of Tool Provider (e.g., mcp, python, rest_api, etc.) */
-        provider_type: string
-      } & {
-        [key: string]: unknown
-      }
-      enabled?: boolean
-      /** @enum {string} */
-      status?: 'available' | 'error'
+    SoftDeletableResource: components['schemas']['BaseResource'] & {
+      /**
+       * Deleted At
+       * Format: date-time
+       * @description Timestamp when resource was soft deleted
+       * @example 2025-10-09T14:00:00Z
+       */
+      readonly deletedAt?: string | null
+      /**
+       * Deleted By
+       * Format: uuid
+       * @description User who performed the soft delete
+       * @example 660e8400-e29b-41d4-a716-446655440000
+       */
+      readonly deletedBy?: string | null
     }
-    /** @description JSON Merge Patch for partial updates (RFC 7396). Only provided fields will be updated. */
-    ToolProviderPatch: {
-      name?: string
-      description?: string
-      /** @description Provider-specific configuration (will be merged with existing configuration) */
-      configuration?: {
-        [key: string]: unknown
-      }
-      enabled?: boolean
-      /** @enum {string} */
-      status?: 'available' | 'error'
+    UserOwnedResource: components['schemas']['BaseResource'] & {
+      /**
+       * Created By
+       * Format: uuid
+       * @description User who created the resource
+       * @example 770e8400-e29b-41d4-a716-446655440000
+       */
+      readonly createdBy: string
+      /**
+       * Updated By
+       * Format: uuid
+       * @description User who last updated the resource
+       * @example 880e8400-e29b-41d4-a716-446655440000
+       */
+      readonly updatedBy?: string | null
     }
+    /**
+     * Resource
+     * @description Composite entity combining all base resource capabilities:
+     *     - System metadata (from BaseResource): id, timestamps, labels
+     *     - Naming (from NamedResource): name, description
+     *     - Soft deletion (from SoftDeletableResource): deletedAt, deletedBy
+     *     - Ownership (from UserOwnedResource): createdBy, updatedBy
+     *
+     *     This is the recommended base schema for most API resources.
+     * @example {
+     *       "id": "550e8400-e29b-41d4-a716-446655440000",
+     *       "createdAt": "2025-10-09T12:00:00Z",
+     *       "updatedAt": "2025-10-09T12:30:00Z",
+     *       "labels": {
+     *         "environment": "production",
+     *         "region": "us-east-1"
+     *       },
+     *       "name": "Authentication Service",
+     *       "description": "Handles user authentication and authorization",
+     *       "deletedAt": null,
+     *       "deletedBy": null,
+     *       "createdBy": "770e8400-e29b-41d4-a716-446655440000",
+     *       "updatedBy": "880e8400-e29b-41d4-a716-446655440000"
+     *     }
+     */
+    Resource: components['schemas']['NamedResource'] &
+      components['schemas']['SoftDeletableResource'] &
+      components['schemas']['UserOwnedResource']
+    /**
+     * Error Response
+     * @description Standardized error response structure
+     */
     Error: {
+      /**
+       * Error Code
+       * @description Error category/code in snake_case format
+       * @example validation_error
+       */
       error: string
+      /**
+       * Error Message
+       * @description Human-readable error message
+       * @example The 'name' field is required
+       */
       message: string
-      details?: Record<string, never>
+      /**
+       * Error Details
+       * @description Additional error details or context
+       * @example Field 'name' must be between 1 and 255 characters
+       */
+      details?: string | null
     }
   }
   responses: never
-  parameters: never
+  parameters: {
+    /**
+     * @description Number of resources to return per page
+     * @example 20
+     */
+    limitParam: number
+    /**
+     * @description Opaque cursor for pagination (from previous response)
+     * @example eyJpZCI6InV1aWQifQ
+     */
+    cursorParam: string
+    /**
+     * @description Whether to include total count in response (may impact performance)
+     * @example true
+     */
+    includeTotalParam: boolean
+    /**
+     * @description Filter resources by name.
+     *     - Exact match: `name=value`
+     *     - Contains: `name[contains]=value`
+     * @example auth
+     */
+    nameFilterParam: string & {
+      /**
+       * Contains
+       * @description Substring to match within the name (case-insensitive). ?name[contains]=<substring>
+       */
+      contains?: string
+      /**
+       * Starts With
+       * @description Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
+       */
+      starts_with?: string
+      /**
+       * Equals
+       * @description Exact match of the name (case-insensitive). ?name[eq]=<name>
+       */
+      eq?: string
+      /**
+       * Greater Than
+       * @description Greater than comparison (lexicographical). ?name[gt]=<name>
+       */
+      gt?: string
+      /**
+       * Greater Than Or Equal
+       * @description Greater than or equal comparison (lexicographical). ?name[gte]=<name>
+       */
+      gte?: string
+      /**
+       * Less Than
+       * @description Less than comparison (lexicographical). ?name[lt]=<name>
+       */
+      lt?: string
+      /**
+       * Less Than Or Equal
+       * @description Less than or equal comparison (lexicographical). ?name[lte]=<name>
+       */
+      lte?: string
+    }
+    createdAtFilterParam: string & {
+      /**
+       * Equals
+       * Format: date-time
+       * @description Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+       */
+      eq?: string
+      /**
+       * Greater Than
+       * Format: date-time
+       * @description Greater than comparison. ?created_at[gt]=<timestamp>
+       */
+      gt?: string
+      /**
+       * Greater Than Or Equal
+       * Format: date-time
+       * @description Greater than or equal comparison. ?created_at[gte]=<timestamp>
+       */
+      gte?: string
+      /**
+       * Less Than
+       * Format: date-time
+       * @description Less than comparison. ?created_at[lt]=<timestamp>
+       */
+      lt?: string
+      /**
+       * Less Than Or Equal
+       * Format: date-time
+       * @description Less than or equal comparison. ?created_at[lte]=<timestamp>
+       */
+      lte?: string
+    }
+    updatedAtFilterParam: string & {
+      /**
+       * Equals
+       * Format: date-time
+       * @description Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
+       */
+      eq?: string
+      /**
+       * Greater Than
+       * Format: date-time
+       * @description Greater than comparison. ?updated_at[gt]=<timestamp>
+       */
+      gt?: string
+      /**
+       * Greater Than Or Equal
+       * Format: date-time
+       * @description Greater than or equal comparison. ?updated_at[gte]=<timestamp>
+       */
+      gte?: string
+      /**
+       * Less Than
+       * Format: date-time
+       * @description Less than comparison. ?updated_at[lt]=<timestamp>
+       */
+      lt?: string
+      /**
+       * Less Than Or Equal
+       * Format: date-time
+       * @description Less than or equal comparison. ?updated_at[lte]=<timestamp>
+       */
+      lte?: string
+    }
+    /**
+     * @description Filter resources by label key-value pairs.
+     *     - Single label: `labels[environment]=production`
+     *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
+     *     All specified labels must match (AND logic).
+     * @example {
+     *       "environment": "production",
+     *       "region": "us-east-1"
+     *     }
+     */
+    labelsFilterParam: {
+      [key: string]: string
+    }
+  }
   requestBodies: never
   headers: never
   pathItems: never

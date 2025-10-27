@@ -1,12 +1,27 @@
-import { Scrollable } from '@ansible/nexus-ui-framework'
+import { Menu, MenuItem, MenuItems, MenuTrigger, Scrollable } from '@ansible/nexus-ui-framework'
 import clsx from 'clsx'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import type { Column } from './Column'
+import { EllipsisIcon } from 'lucide-react'
 
-export function Table<T>(props: { items: T[]; columns: Column<T>[] }) {
+export interface IRowAction<T> {
+  label: string
+  onClick: (item: T) => unknown
+}
+
+export function Table<T>(props: {
+  items: T[]
+  columns: Column<T>[]
+  rowActions?: IRowAction<T>[]
+  emptyState?: ReactNode
+}) {
   const { items, columns } = props
   const [atTop, setAtTop] = useState<boolean | undefined>(true)
   const [atBottom, setAtBottom] = useState<boolean | undefined>(true)
+  if (!props?.items || (props?.items?.length < 1 && props.emptyState)) {
+    return props.emptyState
+  }
   return (
     <div className="flex grow flex-col overflow-hidden rounded-4xl border-2 border-white/20">
       <Scrollable
@@ -26,6 +41,7 @@ export function Table<T>(props: { items: T[]; columns: Column<T>[] }) {
               {columns.map((column) => (
                 <th key={String(column.id)}>{column.label}</th>
               ))}
+              {props?.rowActions && props.rowActions.length > 0 && <th />}
             </tr>
           </thead>
           <tbody className="glass">
@@ -34,10 +50,24 @@ export function Table<T>(props: { items: T[]; columns: Column<T>[] }) {
                 {columns.map((column) => (
                   <td key={String(column.id)}>{column.render(item)}</td>
                 ))}
+                {props?.rowActions && props.rowActions.length > 0 && (
+                  <td>
+                    <Menu>
+                      <MenuTrigger>
+                        <EllipsisIcon />
+                      </MenuTrigger>
+                      <MenuItems>
+                        {props?.rowActions?.map((action) => (
+                          <MenuItem onClick={() => action.onClick(item)}> {action.label}</MenuItem>
+                        ))}
+                      </MenuItems>
+                    </Menu>
+                  </td>
+                )}
               </tr>
             ))}
             <tr>
-              <td colSpan={columns.length} />
+              <td colSpan={columns.length + 1} />
             </tr>
           </tbody>
         </table>

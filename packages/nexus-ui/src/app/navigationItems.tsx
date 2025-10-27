@@ -8,6 +8,7 @@ const IntegrationForm = lazy(() =>
   import('../routes/configuration/integrations/form/IntegrationForm').then((m) => ({ default: m.IntegrationForm }))
 )
 const Integrations = lazy(() => import('../routes/configuration/integrations/Integrations'))
+const IntegrationTools = lazy(() => import('../routes/configuration/integrations/IntegrationTools'))
 const Glossary = lazy(() => import('../routes/documentation/glossary/Glossary'))
 
 export const navigationItems: INavigationItem[] = [
@@ -56,6 +57,11 @@ export const navigationItems: INavigationItem[] = [
             label: 'Configure',
             path: AppRoute.Configuration.Integrations.Configure,
             element: <IntegrationForm />,
+          },
+          {
+            label: 'IntegrationTools',
+            path: AppRoute.Configuration.Integrations.IntegrationTools,
+            element: <IntegrationTools />,
           },
         ],
       },

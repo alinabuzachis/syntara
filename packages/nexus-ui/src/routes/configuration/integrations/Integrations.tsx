@@ -8,7 +8,7 @@ import {
   Scrollable,
 } from '@ansible/nexus-ui-framework'
 import { EllipsisVerticalIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
@@ -20,11 +20,30 @@ import { StringCell } from '../../../components/table/StringCell'
 import { Table } from '../../../components/table/Table'
 import { useFuse } from '../../../hooks/useFuse'
 import { IntegrationCard } from './IntegrationCard'
+import { IntegrationEmptyState } from './IntegrationEmptyState.tsx'
+import type { ToolProvider } from '@ansible/nexus-contracts'
+
+interface IRowAction<T> {
+  label: string
+  onClick: (item: T) => unknown
+}
 
 export default function Integrations() {
   const [, navigate] = useLocation()
   const query = toolProvidersClient.useQuery('get', '/tool-providers', {})
-  const { search, setSearch, items: providers } = useFuse(query.data?.providers ?? [], [{ name: 'name' }])
+  const { search, setSearch, items: results } = useFuse(query.data?.resources ?? [], [{ name: 'name' }])
+
+  const rowActions = useMemo<IRowAction<ToolProvider>[]>(
+    () => [
+      {
+        label: 'View and enable/disable tools',
+        onClick: (provider: ToolProvider) => {
+          navigate(`/configuration/integrations/${provider.id}/tools`)
+        },
+      },
+    ],
+    [navigate]
+  )
   const [view, setView] = useState<'table' | 'cards'>('table')
 
   const queryState = useQueryState(query, 'Error loading integrations')
@@ -32,39 +51,42 @@ export default function Integrations() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Integrations">
-        {/* <ExampleToggleGroup /> */}
-        <input
-          className="search grow"
-          placeholder="Search integrations..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button
-          className="rounded-full bg-blue-400/70 px-4 py-1"
-          onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}
-        >
-          Add Integration
-        </button>
-        <Menu>
-          <MenuTrigger>
-            <EllipsisVerticalIcon />
-          </MenuTrigger>
-          <MenuItems>
-            <MenuGroup label="View">
-              <MenuRadioGroup value={view} onValueChange={setView}>
-                <MenuRadioItem value="table">Table</MenuRadioItem>
-                <MenuRadioItem value="cards">Cards</MenuRadioItem>
-              </MenuRadioGroup>
-            </MenuGroup>
-          </MenuItems>
-        </Menu>
-        {/* <ExampleToggleGroup /> */}
-      </AppPageHeader>
+      {results && results.length > 0 && (
+        <AppPageHeader title="Integrations">
+          {/* <ExampleToggleGroup /> */}
+          <input
+            className="search grow"
+            placeholder="Search integrations..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <button
+            className="rounded-full bg-blue-400/70 px-4 py-1"
+            onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}
+          >
+            Add Integration
+          </button>
+          <Menu>
+            <MenuTrigger>
+              <EllipsisVerticalIcon />
+            </MenuTrigger>
+            <MenuItems>
+              <MenuGroup label="View">
+                <MenuRadioGroup value={view} onValueChange={setView}>
+                  <MenuRadioItem value="table">Table</MenuRadioItem>
+                  <MenuRadioItem value="cards">Cards</MenuRadioItem>
+                </MenuRadioGroup>
+              </MenuGroup>
+            </MenuItems>
+          </Menu>
+          {/* <ExampleToggleGroup /> */}
+        </AppPageHeader>
+      )}
       {view !== 'cards' ? (
         // <div className="roundedgrow overflow-hidden flex flex-col">
         <Table
-          items={providers}
+          items={results}
+          rowActions={rowActions}
           columns={[
             {
               id: 'name',
@@ -72,21 +94,27 @@ export default function Integrations() {
               render: (item) => <StringCell>{item.name}</StringCell>,
             },
             {
-              id: 'provider_type',
-              label: 'Type',
-              render: (item) => <StringCell>{item.provider_type}</StringCell>,
+              id: 'status',
+              label: 'Status',
+              render: (item) => <StringCell>{item.status}</StringCell>,
             },
             {
-              id: 'description',
-              label: 'Description',
-              render: (item) => <StringCell>{item.description}</StringCell>,
+              id: 'configuration',
+              label: 'Integration type',
+              render: (item) => <StringCell>{item.configuration.provider_type}</StringCell>,
+            },
+            {
+              id: 'tool_count',
+              label: 'Tools',
+              render: (item) => <StringCell>{item.tool_count}</StringCell>,
             },
           ]}
+          emptyState=<IntegrationEmptyState />
         />
       ) : (
         <Scrollable className="glass grow rounded-4xl border">
           <div className={`grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4 p-8`}>
-            {providers.map((integration) => (
+            {results.map((integration) => (
               <IntegrationCard key={integration.id} integration={integration} />
             ))}
           </div>

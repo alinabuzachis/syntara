@@ -9,7 +9,6 @@ import { ChatInput } from '../../../../components/chat/ChatInput'
 
 export function IntegrationForm() {
   const { mutate: createIntegration } = toolProvidersClient.useMutation('post', '/tool-providers')
-
   return (
     <AppPage>
       <AppPageHeader title="Configure Integration">
@@ -26,23 +25,24 @@ export function IntegrationForm() {
       <div className="grid grow grid-cols-2 gap-4">
         <Form<ToolProvider>
           id="integration-form"
-          onSubmit={(toolProvider) => {
+          onSubmit={(toolProvider: ToolProvider) => {
             createIntegration(
               { body: toolProvider },
               { onSuccess: () => navigate(AppRoute.Configuration.Integrations.Root) }
             )
           }}
           defaultValues={{
-            provider_type: 'mcp-server',
+            configuration: { provider_type: 'mcp' },
           }}
         >
           <FormSelect<ToolProvider>
             label="Type"
-            name="provider_type"
+            name="configuration.provider_type"
             options={[{ label: 'MCP Server', value: 'mcp-server' }]}
           />
-          <FormInput<ToolProvider> label="Name" name="name" placeholder="Enter name" required autoFocus />
-          {/* <FormInput<ToolProvider> label="Server name / ID" name="url" placeholder="Enter server name / ID" required /> */}
+          <FormInput<ToolProvider> label="Server name / ID" name="name" placeholder="Enter server name / ID" required />
+          <FormInput<ToolProvider> label="Description" name="description" placeholder="Enter description" autoFocus />
+          <FormInput<ToolProvider> label="API URL" name="configuration.url" placeholder="Enter API URL" required />
         </Form>
         <div className="glass flex grow flex-col items-center justify-center gap-4 rounded-4xl border p-8 text-balance">
           Test the integration to identify and manage the tools it provides.
