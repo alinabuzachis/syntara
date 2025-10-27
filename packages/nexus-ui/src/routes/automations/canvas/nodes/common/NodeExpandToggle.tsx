@@ -5,7 +5,7 @@ import { NodeExpandedContext } from './NodeExpandedContext'
 
 export function NodeExpandToggle() {
   const expandedState = useContext(NodeExpandedContext)
-  const expanded = expandedState ? expandedState : [false, () => {}]
+  const expanded = expandedState ? expandedState[0] : false
   const setExpanded = expandedState ? expandedState[1] : () => {}
   if (!expandedState) return null
   return (

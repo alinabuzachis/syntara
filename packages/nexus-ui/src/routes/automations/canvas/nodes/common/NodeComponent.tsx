@@ -35,7 +35,7 @@ export function NodeComponent(props: {
     <NodeExpandedContext.Provider value={expandedContext}>
       <div
         className={clsx(
-          'glass card flex flex-col gap-4 border-2 py-4',
+          'glass card flex flex-col border-2 py-4',
           {
             'shadow-md shadow-black/50': !props.nodeProps.selected,
             'selected shadow-xl shadow-black/50': props.nodeProps.selected,
