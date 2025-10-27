@@ -44,7 +44,7 @@ export function TriggerNodeDetails(props: {
             <Detail label="Inputs">
               <ul className="mt-1 flex flex-col gap-1">
                 {Object.entries(nodeData.inputs).map(([inputName, inputDef]) => (
-                  <li className="rounded-xl bg-black/30 px-4 py-2" key={inputName}>
+                  <li className="rounded-xl bg-black/30 px-4 py-2 text-sm" key={inputName}>
                     <span className="font-mono font-bold">{inputName}</span>: {inputDef.type}
                   </li>
                 ))}
