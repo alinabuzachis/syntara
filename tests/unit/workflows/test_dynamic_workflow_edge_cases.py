@@ -11,7 +11,7 @@ Expression resolution logic is tested in test_expression_resolver.py.
 
 import pytest
 
-from nexus.workflows.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models import (
     Activity,
     RetryPolicy,

@@ -22,7 +22,7 @@ import signal
 import sys
 from types import FrameType
 
-from nexus.api.services.temporal_worker import start_worker, stop_worker
+from nexus.workflows.workflow_engine.services.temporal_worker import start_worker, stop_worker
 
 # Configure logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

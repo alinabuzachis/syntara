@@ -1,9 +1,17 @@
-"""Workflow engine models for YAML-based workflow definitions.
+"""Workflow engine models for YAML-based workflow definitions and service responses.
 
-This package contains Pydantic models used to define and parse workflow definitions
-from YAML files. These are schema models, not database models.
+This package contains:
+- Pydantic models for workflow definitions from YAML files (schema models)
+- Response models for workflow execution service operations
 """
 
+from .responses import (
+    WorkflowCancellationResponse,
+    WorkflowResultResponse,
+    WorkflowStartResponse,
+    WorkflowStatusResponse,
+    WorkflowTerminationResponse,
+)
 from .workflow_definition import (
     Activity,
     ApprovalDefinition,
@@ -25,6 +33,7 @@ from .workflow_definition import (
 )
 
 __all__ = [
+    # Workflow definition models
     "Activity",
     "ApprovalDefinition",
     "CountLoopDefinition",
@@ -40,6 +49,12 @@ __all__ = [
     "TaskDefinition",
     "Trigger",
     "WhileLoopDefinition",
+    # Response models
+    "WorkflowCancellationResponse",
     "WorkflowDefinition",
+    "WorkflowResultResponse",
     "WorkflowSpec",
+    "WorkflowStartResponse",
+    "WorkflowStatusResponse",
+    "WorkflowTerminationResponse",
 ]

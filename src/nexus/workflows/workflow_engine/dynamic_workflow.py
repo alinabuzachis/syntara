@@ -14,9 +14,9 @@ from typing import Any
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 
-from nexus.workflows.activities.script_activity import execute_bash_script
-from nexus.workflows.expression_resolver import ExpressionResolver
-from nexus.workflows.workflow_engine.models import (
+from .activities.script_activity import execute_bash_script
+from .expression_resolver import ExpressionResolver
+from .models import (
     Activity,
     CountLoopDefinition,
     ForEachLoopDefinition,

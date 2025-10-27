@@ -2,7 +2,7 @@
 
 import pytest
 
-from nexus.workflows.activities.script_activity import (
+from nexus.workflows.workflow_engine.activities.script_activity import (
     ScriptExecutionError,
     execute_bash_script,
 )

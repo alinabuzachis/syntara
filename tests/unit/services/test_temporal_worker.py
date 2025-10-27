@@ -13,8 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-import nexus.api.services.temporal_worker
-from nexus.api.services.temporal_worker import (
+import nexus.workflows.workflow_engine.services.temporal_worker
+from nexus.workflows.workflow_engine.services.temporal_worker import (
     TemporalWorkerService,
     get_worker,
     start_worker,
@@ -82,8 +82,11 @@ class TestTemporalWorkerServiceStart:
             return original_create_task(coro)
 
         with (
-            patch("nexus.api.services.temporal_worker.Client.connect", new=AsyncMock(return_value=mock_client)),
-            patch("nexus.api.services.temporal_worker.Worker", return_value=mock_worker),
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
+                new=AsyncMock(return_value=mock_client),
+            ),
+            patch("nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker),
             patch("asyncio.create_task", side_effect=mock_create_task),
         ):
             await service.start()
@@ -123,10 +126,12 @@ class TestTemporalWorkerServiceStart:
 
         with (
             patch(
-                "nexus.api.services.temporal_worker.Client.connect",
+                "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
                 new=AsyncMock(return_value=mock_client),
             ) as mock_connect,
-            patch("nexus.api.services.temporal_worker.Worker", return_value=mock_worker) as mock_worker_class,
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker
+            ) as mock_worker_class,
             patch("asyncio.create_task", side_effect=mock_create_task),
         ):
             await service.start()
@@ -151,7 +156,7 @@ class TestTemporalWorkerServiceStart:
 
         connection_error = ConnectionError("Connection failed")
         with patch(
-            "nexus.api.services.temporal_worker.Client.connect",
+            "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
             new=AsyncMock(side_effect=connection_error),
         ):
             with pytest.raises(ConnectionError, match="Connection failed"):
@@ -172,9 +177,12 @@ class TestTemporalWorkerServiceStart:
 
         worker_error = RuntimeError("Worker creation failed")
         with (
-            patch("nexus.api.services.temporal_worker.Client.connect", new=AsyncMock(return_value=mock_client)),
             patch(
-                "nexus.api.services.temporal_worker.Worker",
+                "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
+                new=AsyncMock(return_value=mock_client),
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Worker",
                 side_effect=worker_error,
             ),
             pytest.raises(RuntimeError, match="Worker creation failed"),
@@ -264,8 +272,11 @@ class TestTemporalWorkerServiceContextManager:
             await asyncio.sleep(100)  # Long-running task
 
         with (
-            patch("nexus.api.services.temporal_worker.Client.connect", new=AsyncMock(return_value=mock_client)),
-            patch("nexus.api.services.temporal_worker.Worker", return_value=mock_worker),
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
+                new=AsyncMock(return_value=mock_client),
+            ),
+            patch("nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker),
         ):
             # Override the worker.run to return our mock task
             mock_worker.run.return_value = None
@@ -306,8 +317,11 @@ class TestTemporalWorkerServiceContextManager:
                 raise ValueError(msg)
 
         with (
-            patch("nexus.api.services.temporal_worker.Client.connect", new=AsyncMock(return_value=mock_client)),
-            patch("nexus.api.services.temporal_worker.Worker", return_value=mock_worker),
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
+                new=AsyncMock(return_value=mock_client),
+            ),
+            patch("nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker),
         ):
             # Override the worker.run to return our mock task
             mock_worker.run.return_value = None
@@ -328,7 +342,7 @@ class TestGlobalWorkerManagement:
     async def test_start_worker_first_time(self) -> None:
         """Test starting the global worker for the first time."""
         # Reset global worker state
-        nexus.api.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
 
         mock_client = MagicMock()
         mock_worker = MagicMock()
@@ -346,8 +360,11 @@ class TestGlobalWorkerManagement:
             return original_create_task(coro)
 
         with (
-            patch("nexus.api.services.temporal_worker.Client.connect", new=AsyncMock(return_value=mock_client)),
-            patch("nexus.api.services.temporal_worker.Worker", return_value=mock_worker),
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
+                new=AsyncMock(return_value=mock_client),
+            ),
+            patch("nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker),
             patch("asyncio.create_task", side_effect=mock_create_task),
         ):
             worker = await start_worker(
@@ -362,7 +379,7 @@ class TestGlobalWorkerManagement:
             assert worker.task_queue == "test-queue"
 
         # Cleanup
-        nexus.api.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
 
     @pytest.mark.asyncio
     async def test_start_worker_already_running(self) -> None:
@@ -371,7 +388,7 @@ class TestGlobalWorkerManagement:
         existing_worker = TemporalWorkerService(
             temporal_address="test-address", namespace="test-namespace", task_queue="test-queue"
         )
-        nexus.api.services.temporal_worker._worker_service = existing_worker
+        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = existing_worker
 
         worker = await start_worker()
 
@@ -379,7 +396,7 @@ class TestGlobalWorkerManagement:
         assert worker == existing_worker
 
         # Cleanup
-        nexus.api.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
 
     @pytest.mark.asyncio
     async def test_stop_worker_when_running(self) -> None:
@@ -387,7 +404,7 @@ class TestGlobalWorkerManagement:
         # Set up running worker
         mock_service = MagicMock()
         mock_service.stop = AsyncMock()
-        nexus.api.services.temporal_worker._worker_service = mock_service
+        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = mock_service
 
         await stop_worker()
 
@@ -395,17 +412,17 @@ class TestGlobalWorkerManagement:
         mock_service.stop.assert_called_once()
 
         # Verify global reference cleared
-        assert nexus.api.services.temporal_worker._worker_service is None
+        assert nexus.workflows.workflow_engine.services.temporal_worker._worker_service is None
 
     @pytest.mark.asyncio
     async def test_stop_worker_when_not_running(self) -> None:
         """Test stopping worker when none is running."""
-        nexus.api.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
 
         # Should not raise any errors
         await stop_worker()
 
-        assert nexus.api.services.temporal_worker._worker_service is None
+        assert nexus.workflows.workflow_engine.services.temporal_worker._worker_service is None
 
     def test_get_worker_when_running(self) -> None:
         """Test getting the worker when it's running."""
@@ -413,18 +430,18 @@ class TestGlobalWorkerManagement:
         mock_service = TemporalWorkerService(
             temporal_address="test-address", namespace="test-namespace", task_queue="test-queue"
         )
-        nexus.api.services.temporal_worker._worker_service = mock_service
+        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = mock_service
 
         worker = get_worker()
 
         assert worker == mock_service
 
         # Cleanup
-        nexus.api.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
 
     def test_get_worker_when_not_running(self) -> None:
         """Test getting worker when none is running."""
-        nexus.api.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
 
         worker = get_worker()
 
@@ -459,8 +476,11 @@ class TestTemporalWorkerServiceLogging:
             return original_create_task(coro)
 
         with (
-            patch("nexus.api.services.temporal_worker.Client.connect", new=AsyncMock(return_value=mock_client)),
-            patch("nexus.api.services.temporal_worker.Worker", return_value=mock_worker),
+            patch(
+                "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
+                new=AsyncMock(return_value=mock_client),
+            ),
+            patch("nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker),
             patch("asyncio.create_task", side_effect=mock_create_task),
             caplog.at_level("INFO"),
         ):
@@ -502,7 +522,7 @@ class TestTemporalWorkerServiceLogging:
         connection_error = ConnectionError("Connection failed")
         with (
             patch(
-                "nexus.api.services.temporal_worker.Client.connect",
+                "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
                 new=AsyncMock(side_effect=connection_error),
             ),
             caplog.at_level("ERROR"),

@@ -11,8 +11,8 @@ from uuid import UUID
 import pytest
 
 from nexus.api.constants import DEFAULT_TASK_QUEUE
-from nexus.api.services.execution_service import ExecutionService, create_execution_service
-from nexus.workflows.yaml_workflow_parser import WorkflowParseError
+from nexus.workflows.workflow_engine.services.execution_service import ExecutionService, create_execution_service
+from nexus.workflows.workflow_engine.yaml_workflow_parser import WorkflowParseError
 
 
 class TestExecutionServiceInitialization:
@@ -421,7 +421,7 @@ class TestCreateExecutionService:
         """Test creating execution service with default parameters."""
         mock_client = Mock()
 
-        with patch("nexus.api.services.execution_service.Client") as mock_client_class:
+        with patch("nexus.workflows.workflow_engine.services.execution_service.Client") as mock_client_class:
             mock_client_class.connect = AsyncMock(return_value=mock_client)
 
             service = await create_execution_service()
@@ -440,7 +440,7 @@ class TestCreateExecutionService:
         """Test creating execution service with custom parameters."""
         mock_client = Mock()
 
-        with patch("nexus.api.services.execution_service.Client") as mock_client_class:
+        with patch("nexus.workflows.workflow_engine.services.execution_service.Client") as mock_client_class:
             mock_client_class.connect = AsyncMock(return_value=mock_client)
 
             service = await create_execution_service(

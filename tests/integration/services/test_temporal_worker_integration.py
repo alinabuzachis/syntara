@@ -14,10 +14,10 @@ import pytest
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from nexus.api.services.execution_service import ExecutionService
-from nexus.api.services.temporal_worker import TemporalWorkerService
-from nexus.workflows.activities.script_activity import execute_bash_script
-from nexus.workflows.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
+from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.services.execution_service import ExecutionService
+from nexus.workflows.workflow_engine.services.temporal_worker import TemporalWorkerService
 
 
 class MockWorkerService(TemporalWorkerService):

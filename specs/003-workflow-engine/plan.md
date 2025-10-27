@@ -362,18 +362,19 @@ src/
     │   ├── api/             # API endpoint routers (v1, etc.)
     │   ├── auth/            # Authentication utilities
     │   ├── db/              # Database session management
-    │   ├── services/        # Temporal workflow execution services (TODO: move to workflows)
     │   └── validators/      # Request validators
     ├── core/            # Core shared models and utilities
     │   ├── models/          # Shared database models (User, base classes)
     │   └── utils/           # Shared utilities (pagination, cursor, etc.)
     ├── workflows/       # Temporal workflow engine package
-    │   ├── models/          # Workflow & WorkflowVersion database models (SQLModel)
-    │   ├── workflow_engine/ # Workflow engine schemas and definitions
-    │   │   └── models/      # Pydantic schemas for YAML workflow definitions
-    │   ├── services/        # Workflow business logic services
-    │   └── activities/      # Temporal activity implementations
-    ├── agents/          # Agent implementations (generic, research, etc.)
+    │   ├── worker.py        # Standalone worker entrypoint (container main)
+    │   ├── models/          # Workflow, WorkflowVersion, Execution database models (SQLModel)
+    │   ├── services/        # Workflow business logic services (WorkflowService, ExecutionService)
+    │   └── workflow_engine/ # Workflow engine core components
+    │       ├── activities/             # Temporal activity implementations
+    │       ├── models/                 # Response models & Pydantic schemas for workflows
+    │       └── services/               # Temporal execution & worker services
+    ├── agent_orchestrator/  # Agent orchestration and invocation management
     └── tool_manager/    # Tool provider interfaces and adapters
 
 tests/

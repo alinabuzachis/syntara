@@ -11,7 +11,7 @@ import pytest
 import yaml
 from jsonschema import ValidationError, validate
 
-from nexus.workflows.yaml_workflow_parser import parse_workflow_yaml
+from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 
 
 @pytest.mark.integration

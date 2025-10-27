@@ -10,9 +10,9 @@ from temporalio.client import Client, WorkflowFailureError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from nexus.workflows.activities.script_activity import execute_bash_script
-from nexus.workflows.dynamic_workflow import DynamicWorkflow
-from nexus.workflows.yaml_workflow_parser import parse_workflow_yaml
+from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
+from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 
 
 @pytest.mark.integration
@@ -122,8 +122,12 @@ async def test_retry_tracking_in_database() -> None:
     mock_activity_id = uuid4()
 
     with (
-        patch("src.nexus.workflows.activities.execution_tracker.create_activity_execution") as mock_create,
-        patch("src.nexus.workflows.activities.execution_tracker.update_activity_execution") as mock_update,
+        patch(
+            "src.nexus.workflows.workflow_engine.activities.execution_tracker.create_activity_execution"
+        ) as mock_create,
+        patch(
+            "src.nexus.workflows.workflow_engine.activities.execution_tracker.update_activity_execution"
+        ) as mock_update,
     ):
         mock_create.return_value = AsyncMock(id=mock_activity_id, execution_id=mock_execution_id, retry_count=0)
         mock_update.return_value = AsyncMock()

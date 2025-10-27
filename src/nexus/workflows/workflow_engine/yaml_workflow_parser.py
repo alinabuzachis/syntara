@@ -7,7 +7,7 @@ into strongly-typed Pydantic models for validation and execution.
 import yaml
 from pydantic import ValidationError
 
-from .workflow_engine.models import WorkflowDefinition
+from .models import WorkflowDefinition
 
 
 class WorkflowParseError(Exception):

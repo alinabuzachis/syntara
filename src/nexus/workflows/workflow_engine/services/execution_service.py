@@ -16,15 +16,15 @@ from nexus.api.constants import (
     DEFAULT_TEMPORAL_ADDRESS,
     DEFAULT_TEMPORAL_NAMESPACE,
 )
-from nexus.api.services.models import (
+from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.models.responses import (
     WorkflowCancellationResponse,
     WorkflowResultResponse,
     WorkflowStartResponse,
     WorkflowStatusResponse,
     WorkflowTerminationResponse,
 )
-from nexus.workflows.dynamic_workflow import DynamicWorkflow
-from nexus.workflows.yaml_workflow_parser import parse_workflow_yaml
+from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 
 logger = logging.getLogger(__name__)
 

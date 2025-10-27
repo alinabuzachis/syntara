@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from nexus.workflows.yaml_workflow_parser import (
+from nexus.workflows.workflow_engine.yaml_workflow_parser import (
     WorkflowParseError,
     parse_workflow_yaml,
 )
@@ -412,7 +412,7 @@ workflow:
         # This triggers the generic "except Exception" block in parse_workflow_yaml (lines 86-88).
         with (
             patch(
-                "nexus.workflows.yaml_workflow_parser.WorkflowDefinition",
+                "nexus.workflows.workflow_engine.yaml_workflow_parser.WorkflowDefinition",
                 side_effect=RuntimeError("Unexpected error during model initialization"),
             ),
             pytest.raises(WorkflowParseError, match="Unexpected error parsing workflow"),

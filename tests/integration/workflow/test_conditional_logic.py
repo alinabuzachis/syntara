@@ -11,8 +11,8 @@ from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from nexus.workflows.dynamic_workflow import DynamicWorkflow
-from nexus.workflows.yaml_workflow_parser import parse_workflow_yaml
+from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 
 
 @pytest.mark.integration

@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from nexus.workflows.activities.script_activity import execute_bash_script
+from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
 
 
 @pytest.mark.integration
