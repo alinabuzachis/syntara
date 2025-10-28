@@ -26,14 +26,16 @@ def upgrade() -> None:
         DO $$
         BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'invocationstatus') THEN
-                CREATE TYPE invocationstatus AS ENUM ('running', 'paused', 'cancelled', 'completed', 'failed');
+                CREATE TYPE invocationstatus AS ENUM (
+                    'created', 'running', 'paused', 'cancelled', 'completed', 'failed'
+                );
             END IF;
         END$$;
     """)
 
     # Reference the enum for use in table creation
     invocation_status_enum = postgresql.ENUM(
-        "running", "paused", "cancelled", "completed", "failed", name="invocationstatus", create_type=False
+        "created", "running", "paused", "cancelled", "completed", "failed", name="invocationstatus", create_type=False
     )
 
     # Create invocations table

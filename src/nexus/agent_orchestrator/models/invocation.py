@@ -4,8 +4,10 @@ from datetime import datetime
 from enum import Enum
 from typing import ClassVar
 
+from sqlalchemy import Index, Text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import DateTime, Field, Index, Text
+from sqlalchemy.types import DateTime
+from sqlmodel import Field
 
 from nexus.core.models.base import ResourcesResponse, UserOwnedResource
 
@@ -13,6 +15,7 @@ from nexus.core.models.base import ResourcesResponse, UserOwnedResource
 class InvocationStatus(str, Enum):
     """Status enum for invocation lifecycle."""
 
+    CREATED = "created"
     RUNNING = "running"
     PAUSED = "paused"
     CANCELLED = "cancelled"
@@ -47,6 +50,8 @@ class Invocation(UserOwnedResource, table=True):
 
     __tablename__ = "invocations"
 
+    # SQLModel configuration is inherited from base classes
+
     # Define composite indexes
     __table_args__ = (Index("ix_invocations_created_by_status", "created_by", "status"),)
 
@@ -74,7 +79,7 @@ class Invocation(UserOwnedResource, table=True):
     )
 
     status: InvocationStatus = Field(
-        default=InvocationStatus.RUNNING,
+        default=InvocationStatus.CREATED,
         description="Current invocation status",
         index=True,
     )

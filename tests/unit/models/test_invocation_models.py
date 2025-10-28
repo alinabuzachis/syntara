@@ -44,7 +44,7 @@ async def test_create_invocation_with_required_fields(test_db_session: AsyncSess
     assert invocation.prompt == "Deploy customer service app to production"
     assert invocation.created_by == test_user.id
     assert invocation.session_id == "session-001"
-    assert invocation.status == "running"
+    assert invocation.status == InvocationStatus.RUNNING
 
     # Verify auto-generated fields
     assert invocation.created_at is not None
@@ -85,7 +85,7 @@ async def test_create_invocation_with_all_fields(test_db_session: AsyncSession, 
     assert invocation.prompt == "Analyze production metrics"
     assert invocation.created_by == test_user.id
     assert invocation.session_id == "session-002"
-    assert invocation.status == "completed"
+    assert invocation.status == InvocationStatus.COMPLETED
     assert invocation.started_at == now
     assert invocation.completed_at == now
     assert invocation.context_data == {"environment": "production", "app_id": "app-1"}
@@ -669,7 +669,7 @@ async def test_invocation_session_id_max_length(test_db_session: AsyncSession, t
 
 @pytest.mark.asyncio
 async def test_invocation_status_default_value(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test that status defaults to RUNNING when not specified."""
+    """Test that status defaults to CREATED when not specified."""
     invocation = Invocation(
         prompt="Test default status",
         created_by=test_user.id,
@@ -681,7 +681,7 @@ async def test_invocation_status_default_value(test_db_session: AsyncSession, te
     await test_db_session.commit()
     await test_db_session.refresh(invocation)
 
-    assert invocation.status == InvocationStatus.RUNNING
+    assert invocation.status == InvocationStatus.CREATED
 
 
 @pytest.mark.asyncio

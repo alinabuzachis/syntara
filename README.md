@@ -141,6 +141,107 @@ make temporal-clean  # Stop Temporal server and UI only
 make services-clean  # Stop and remove all data (database + temporal)
 ```
 
+### LLM and Agent Configuration
+
+Nexus uses LangChain with OpenRouter for intelligent agent responses. The GenericAgent handles information queries using various LLMs.
+
+**OpenRouter Setup**:
+
+1. **Get your API key** from [https://openrouter.ai/keys](https://openrouter.ai/keys)
+
+2. **Configure environment variables**:
+   ```bash
+   # Copy the example environment file
+   cp .env.example .env
+
+   # Edit .env and add your OpenRouter API key
+   OPENROUTER_API_KEY=your_openrouter_api_key_here
+   OPENROUTER_MODEL=anthropic/claude-3.5-sonnet  # or openai/gpt-4, google/gemini-pro
+   OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+   ```
+
+3. **Available models** (see [https://openrouter.ai/models](https://openrouter.ai/models)):
+   - `anthropic/claude-3.5-sonnet` - Best for complex reasoning (default)
+   - `openai/gpt-4` - OpenAI's most capable model
+   - `google/gemini-pro` - Google's flagship model
+   - `meta-llama/llama-3-70b` - Open source alternative
+   - Many more available through OpenRouter
+
+**Agent Routing**:
+
+Nexus automatically routes requests to the appropriate agent:
+- **GenericAgent**: Information queries, questions, explanations
+  - Uses LangChain + OpenRouter LLM
+  - Returns natural language responses
+  - Example: "What tools are available for deployment?"
+
+- **WorkflowGeneratorAgent**: Workflow creation requests
+  - Uses Temporal workflows
+  - Returns structured workflow results
+  - Example: "Deploy customer service app to production"
+
+**Testing without OpenRouter**:
+
+For development and testing without configuring OpenRouter:
+```bash
+# The system works without OPENROUTER_API_KEY set
+# GenericAgent will be disabled but other features work normally
+make test-all
+```
+
+**Environment Variables**:
+- `OPENROUTER_API_KEY` (required for GenericAgent, get from https://openrouter.ai/keys)
+- `OPENROUTER_MODEL` (default: `anthropic/claude-3.5-sonnet`)
+- `OPENROUTER_BASE_URL` (default: `https://openrouter.ai/api/v1`)
+
+**Example API Usage**:
+
+First, ensure database migrations have been run:
+```bash
+uv run alembic upgrade head
+```
+
+Then you can invoke agents:
+
+```bash
+# 1. Create an information query (routes to GenericAgent)
+curl -X POST http://localhost:8000/api/v1/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "What is Docker?", "createdBy": "550e8400-e29b-41d4-a716-446655440000", "sessionId": "session-456"}'
+
+# Response includes the invocation ID and result:
+# {
+#   "id": "4e51166b-f57f-4f19-a04a-69ae9afc6e2f",
+#   "status": "completed",
+#   "result": {
+#     "type": "answer",
+#     "content": "Docker is a platform that packages applications...",
+#     "metadata": {"model": "anthropic/claude-3.5-sonnet"}
+#   },
+#   ...
+# }
+
+# 2. Get invocation details by ID (NOTE: This endpoint is for testing/debugging)
+# Use the "id" field from the response above
+curl 'http://localhost:8000/api/v1/invocations/4e51166b-f57f-4f19-a04a-69ae9afc6e2f'
+
+# 3. Workflow request (routes to WorkflowGeneratorAgent)
+curl -X POST http://localhost:8000/api/v1/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Deploy customer service app to production", "createdBy": "550e8400-e29b-41d4-a716-446655440000", "sessionId": "session-789", "contextData": {"environment": "production"}}'
+
+# 4. List all completed invocations
+curl 'http://localhost:8000/api/v1/invocations?status=completed'
+```
+
+**NOTE**: The GET `/api/v1/invocations/{id}` endpoint is designed for **testing and debugging**. In production, you would typically use WebSockets or Server-Sent Events for real-time result streaming instead of polling this endpoint.
+
+**Field Names**: The API uses camelCase field names per the OpenAPI contract:
+- `createdBy` (UUID) - user identifier (previously `user_id`)
+- `sessionId` (string) - session identifier (previously `session_id`)
+- `contextData` (object) - additional context (previously `context`)
+- Response fields: `id`, `createdAt`, `updatedAt`, `startedAt`, `completedAt`, etc.
+
 ### Development Commands
 
 | Command | Description |

@@ -213,6 +213,132 @@ paths:
           $ref: 
             ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/InternalServerError
 
+  /invocations/{invocationId}:
+    get:
+      summary: Get Invocation Details (Testing/Debug)
+      description: |
+        Retrieve full invocation details including the result.
+
+        **NOTE: This endpoint is primarily for TESTING and DEBUGGING purposes.**
+
+        Production systems should use WebSockets (see `/ws/invocations/{invocationId}`)
+        for real-time result streaming instead of polling this endpoint.
+
+        **Use Cases:**
+        - View the actual LLM responses from GenericAgent during development
+        - Inspect workflow execution results for debugging
+        - Debug routing decisions and agent behavior
+        - Manual testing of agent integrations
+
+        **Production Alternative:**
+        Use the WebSocket endpoint at `/ws/invocations/{invocationId}` for real-time
+        progress updates and results.
+
+      operationId: getInvocation
+      tags:
+      - Invocation
+      parameters:
+      - name: invocationId
+        in: path
+        required: true
+        description: UUID of the invocation to retrieve
+        schema:
+          type: string
+          format: uuid
+        example: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '200':
+          description: Successful response with full invocation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invocation'
+              examples:
+                completedGenericAgent:
+                  summary: Completed GenericAgent invocation
+                  value:
+                    id: 550e8400-e29b-41d4-a716-446655440000
+                    prompt: What deployment tools are available?
+                    createdBy: 770e8400-e29b-41d4-a716-446655440000
+                    updatedBy:
+                    sessionId: test-session-123
+                    status: completed
+                    createdAt: '2025-10-21T10:00:00Z'
+                    updatedAt: '2025-10-21T10:00:05Z'
+                    startedAt: '2025-10-21T10:00:01Z'
+                    completedAt: '2025-10-21T10:00:05Z'
+                    labels:
+                      environment: development
+                    contextData:
+                      user_context: testing
+                    result:
+                      type: answer
+                      content: The Nexus system provides several deployment tools...
+                      metadata:
+                        model: anthropic/claude-3.5-sonnet
+                    errorMessage:
+                    checkpointData:
+                runningInvocation:
+                  summary: Running invocation (not yet completed)
+                  value:
+                    id: 660e8400-e29b-41d4-a716-446655440001
+                    prompt: Analyze production metrics
+                    createdBy: 770e8400-e29b-41d4-a716-446655440000
+                    updatedBy:
+                    sessionId: test-session-456
+                    status: running
+                    createdAt: '2025-10-21T10:30:00Z'
+                    updatedAt: '2025-10-21T10:30:00Z'
+                    startedAt: '2025-10-21T10:30:01Z'
+                    completedAt:
+                    labels: {}
+                    contextData: {}
+                    result:
+                    errorMessage:
+                    checkpointData:
+                failedInvocation:
+                  summary: Failed invocation with error
+                  value:
+                    id: 770e8400-e29b-41d4-a716-446655440002
+                    prompt: Invalid query
+                    createdBy: 770e8400-e29b-41d4-a716-446655440000
+                    updatedBy:
+                    sessionId: test-session-789
+                    status: failed
+                    createdAt: '2025-10-21T11:00:00Z'
+                    updatedAt: '2025-10-21T11:00:02Z'
+                    startedAt: '2025-10-21T11:00:01Z'
+                    completedAt: '2025-10-21T11:00:02Z'
+                    labels: {}
+                    contextData: {}
+                    result:
+                    errorMessage: GenericAgent not configured. Set OPENROUTER_API_KEY
+                      environment variable.
+                    checkpointData:
+        '400':
+          description: Invalid UUID format
+          content:
+            application/json:
+              schema:
+                $ref: 
+                  ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+              example:
+                error: Invalid UUID format
+                detail: Invalid UUID provided (not-a-uuid)
+        '404':
+          description: Invocation not found
+          content:
+            application/json:
+              schema:
+                $ref: 
+                  ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/schemas/Error
+              example:
+                error: Not Found
+                detail: Invocation 550e8400-e29b-41d4-a716-446655440000 not found
+        '500':
+          $ref: 
+            ../../006-create-shared-resources/contracts/shared-resources.openapi.yaml#/components/responses/InternalServerError
+
   /ws/invocations/{invocationId}:
     get:
       summary: Stream progress events (WebSocket)
