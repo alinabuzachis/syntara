@@ -1,18 +1,81 @@
 # Nexus UI
 
-A modern React application with a shared UI component library for building automation workflows.
+[![Build Status](https://img.shields.io/github/actions/workflow/status/jamestalton/next-ui/ci.yml)](https://github.com/jamestalton/next-ui/actions)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/jamestalton/next-ui)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
+
+## Overview
+
+Nexus UI is a cutting-edge React application designed for building and managing complex automation workflows. It provides a robust, type-safe, and performant solution for creating, visualizing, and managing automated processes.
+
+### Key Features
+
+- 🚀 Modern React 19 with TypeScript
+- 🎨 Responsive UI with TailwindCSS 4
+- 🔀 Advanced workflow canvas and node-based automation
+- 🔒 Type-safe API integrations
+- 🧪 Comprehensive testing infrastructure
+- 🚢 Docker/Podman containerization
 
 ## Quick Start
 
+### Prerequisites
+
+- Node.js 22+ (recommended)
+- npm 10+
+
+### Installation
+
 ```bash
+# Clone the repository
+git clone https://github.com/jamestalton/next-ui.git
+cd next-ui
+
 # Install dependencies
 npm ci
+```
 
-# Start development (builds framework, runs dev server, starts mock API)
+### Development Server
+
+```bash
+# Start all services (framework, UI, mock API)
 npm start
 ```
 
-The application will be available at http://localhost:5173 with the mock API running on http://localhost:3000.
+### Access Applications
+
+- **UI**: http://localhost:5173
+- **Mock API**: http://localhost:3000
+
+### Common Commands
+
+```bash
+# Run tests
+npm test
+
+# Build for production
+npm run build
+
+# Run linter
+npm run format:check
+
+# Generate API contracts
+npm run gen
+```
+
+### Troubleshooting
+
+- Ensure you're using Node.js 22+
+- Run `npm ci` instead of `npm install`
+- Check that all dependencies are installed correctly
+- Refer to [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines
+- Check out our [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for comprehensive development information
+
+## Project Documentation
+
+- [Contributing Guidelines](CONTRIBUTING.md)
+- [Developer Guide](DEVELOPER_GUIDE.md)
+- [Architectural Overview](CLAUDE.md)
 
 ## Project Structure
 
@@ -66,6 +129,10 @@ npm run podman:run                 # Run all containers (UI on 4000, API on 3000
 npm run podman:run:nexus-ui        # Run UI container only
 npm run podman:run:nexus-mock-api  # Run mock API container only
 ```
+
+## Contributing
+
+We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to get started, our development process, and how you can contribute.
 
 ## Technology Stack
 
