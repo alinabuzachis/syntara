@@ -497,7 +497,7 @@ src/nexus/
 │       └── exceptions.py   # Tool manager exceptions
 └── api/
     ├── alembic/           # Database migrations
-    ├── api/v1/            # FastAPI routers and endpoints
+    ├── v1/                # FastAPI v1 routers and endpoints
     ├── auth/              # Authentication and authorization
     ├── db/                # Database connection and session management
     ├── models/            # API models

@@ -6,9 +6,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus.api.api.v1.utils import deserialize_workflow_version
 from nexus.api.auth import get_current_user
 from nexus.api.db import get_db
+from nexus.api.v1.utils import deserialize_workflow_version
 from nexus.api.validators import ValidationError
 from nexus.core.models import User
 from nexus.core.models.base import ResourcesResponse

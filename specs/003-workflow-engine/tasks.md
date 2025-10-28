@@ -201,7 +201,7 @@ graph TB
   - Soft delete query interceptor/filter (exclude deleted_at IS NOT NULL by default)
 
 - [X] **T004** Set up FastAPI application structure
-  - Files: `src/nexus/api/main.py`, `src/nexus/api/api/__init__.py`
+  - Files: `src/nexus/api/main.py`, `src/nexus/api/v1/__init__.py`
   - Initialize FastAPI app with OpenAPI metadata
   - Configure CORS, middleware stack
   - Health check endpoint: GET /health
@@ -333,28 +333,28 @@ graph TB
   - Integration: Used in POST /workflows (T022) and POST /versions (T027) endpoints
 
 - [X] **** Implement POST /api/v1/workflows endpoint
-  - File: `src/nexus/api/api/v1/workflows.py`
+  - File: `src/nexus/api/v1/workflows.py`
   - Handler: create_workflow(request: CreateWorkflowRequest, db: AsyncSession)
   - Logic: Validate YAML, create Workflow + initial WorkflowVersion (version=1)
   - Response: 201 Created with Workflow object
   - Error handling: 400 for invalid YAML, duplicate name
 
 - [X] **** Implement GET /api/v1/workflows endpoint
-  - File: `src/nexus/api/api/v1/workflows.py` (add handler)
+  - File: `src/nexus/api/v1/workflows.py` (add handler)
   - Handler: list_workflows(created_by, is_enabled, labels, limit, offset, db)
   - Logic: Filter soft-deleted (deleted_at IS NULL), apply query filters
   - Pagination: limit/offset with total count
   - Response: 200 OK with workflows array
 
 - [X] **** Implement GET /api/v1/workflows/{id} endpoint
-  - File: `src/nexus/api/api/v1/workflows.py` (add handler)
+  - File: `src/nexus/api/v1/workflows.py` (add handler)
   - Handler: get_workflow(workflow_id: UUID, db: AsyncSession)
   - Logic: Fetch workflow, exclude soft-deleted, fetch current version (specified by current_version field)
   - Response: 200 OK with WorkflowWithVersionResponse (workflow + current version data), 404 if not found or deleted
   - Note: Always returns the active version as specified by workflow.current_version
 
 - [X] **** Implement PATCH /api/v1/workflows/{id} endpoint
-  - File: `src/nexus/api/api/v1/workflows.py` (add handler)
+  - File: `src/nexus/api/v1/workflows.py` (add handler)
   - Handler: update_workflow(workflow_id, request: UpdateWorkflowRequest, db)
   - Logic:
     * Metadata only (name, description, labels, is_enabled): Update without creating version
@@ -369,7 +369,7 @@ graph TB
   - Note: Change detection prevents unnecessary version creation when YAML is exactly identical
 
 - [X] **** Implement DELETE /api/v1/workflows/{id} endpoint (soft delete)
-  - File: `src/nexus/api/api/v1/workflows.py` (add handler)
+  - File: `src/nexus/api/v1/workflows.py` (add handler)
   - Handler: delete_workflow(workflow_id: UUID, current_user: User, db)
   - Logic: Set deleted_at = now(), deleted_by = current_user.id (NOT hard delete)
   - Response: 204 No Content, 404 if not found
@@ -380,13 +380,13 @@ graph TB
   - No manual version creation endpoint exists - this ensures version integrity and automatic tracking
 
 - [X] **** Implement GET /api/v1/workflows/{id}/versions endpoint
-  - File: `src/nexus/api/api/v1/workflow_versions.py` (add handler)
+  - File: `src/nexus/api/v1/workflow_versions.py` (add handler)
   - Handler: list_versions(workflow_id: UUID, db: AsyncSession)
   - Logic: Fetch all non-deleted versions for workflow, order by version DESC
   - Response: 200 OK with versions array
 
 - [X] **** Implement GET /api/v1/workflows/{id}/versions/{version} endpoint
-  - File: `src/nexus/api/api/v1/workflow_versions.py` (add handler)
+  - File: `src/nexus/api/v1/workflow_versions.py` (add handler)
   - Handler: get_version(workflow_id: UUID, version: int, db: AsyncSession)
   - Logic: Fetch specific version with workflow_definition
   - Response: 200 OK with WorkflowVersion object, 404 if not found

@@ -78,8 +78,8 @@
   - ✅ Following Pattern 1 (separate models with table=False for API operations)
   - ✅ Created schemas: WorkflowBase, WorkflowCreate, WorkflowUpdate, WorkflowRead, WorkflowReadWithVersion, WorkflowListResponse
   - ✅ Created schemas: WorkflowVersionRead, WorkflowVersionListResponse
-  - ✅ Updated src/nexus/api/api/v1/workflows.py to use new SQLModel schemas
-  - ✅ Updated src/nexus/api/api/v1/workflow_versions.py to use new SQLModel schemas
+  - ✅ Updated src/nexus/api/v1/workflows.py to use new SQLModel schemas
+  - ✅ Updated src/nexus/api/v1/workflow_versions.py to use new SQLModel schemas
   - ✅ Backend-managed fields properly excluded from request schemas
   - ✅ Used model_config ConfigDict(from_attributes=True) for response models
   - ✅ Resolved forward references with model_rebuild()

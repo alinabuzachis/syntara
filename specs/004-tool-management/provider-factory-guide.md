@@ -220,4 +220,4 @@ This approach:
 
 ## Example Usage
 
-See `src/nexus/api/api/v1/tool_providers.py` (when implemented) for complete examples of using the dependency injection system in FastAPI endpoints.
+See `src/nexus/api/v1/tool_providers.py` (when implemented) for complete examples of using the dependency injection system in FastAPI endpoints.

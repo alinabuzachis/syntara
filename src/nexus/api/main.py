@@ -15,9 +15,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlmodel import text
 
-from nexus.api.api.v1 import workflow_versions, workflows
-from nexus.api.api.v1.invocation import router as invoke_router
 from nexus.api.db import get_db
+from nexus.api.v1 import workflow_versions, workflows
+from nexus.api.v1.invocation import router as invoke_router
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
 
 logger = logging.getLogger(__name__)

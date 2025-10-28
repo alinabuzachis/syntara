@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from nexus.api.api.v1.utils import deserialize_workflow_version
 from nexus.api.db import get_db
+from nexus.api.v1.utils import deserialize_workflow_version
 from nexus.workflows.models import Workflow
 from nexus.workflows.models.workflow_version import (
     WorkflowVersion,

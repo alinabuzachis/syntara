@@ -359,7 +359,7 @@ src/
 └── nexus/
     ├── api/             # FastAPI REST service (DB access, API endpoints)
     │   ├── alembic/         # Database migrations
-    │   ├── api/             # API endpoint routers (v1, etc.)
+    │   ├── v1/              # API v1 endpoint routers
     │   ├── auth/            # Authentication utilities
     │   ├── db/              # Database session management
     │   └── validators/      # Request validators
