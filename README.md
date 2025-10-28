@@ -1,9 +1,5 @@
 # Nexus UI
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/jamestalton/next-ui/ci.yml)](https://github.com/jamestalton/next-ui/actions)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/jamestalton/next-ui)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
-
 ## Overview
 
 Nexus UI is a cutting-edge React application designed for building and managing complex automation workflows. It provides a robust, type-safe, and performant solution for creating, visualizing, and managing automated processes.

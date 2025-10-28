@@ -32,7 +32,7 @@ const yamlFiles = [
   // 'edge_cases/error_unsupported_duration.yaml',
   // 'edge_cases/error_unsupported_executor.yaml',
   // 'edge_cases/error_unsupported_language.yaml',
-  // 'edge_cases/expression_resolution.yaml',
+  'edge_cases/expression_resolution.yaml',
   // 'edge_cases/output_mapping_json.yaml',
   // 'edge_cases/retry_policy.yaml',
   // 'edge_cases/script_failure.yaml',

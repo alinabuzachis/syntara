@@ -1,6 +1,7 @@
 import { type Node, type NodeProps } from '@xyflow/react'
 import { PlayCircleIcon } from 'lucide-react'
 import type { WorkflowAPI } from 'nexus-contracts'
+import { CodeBlock } from '../../../../components/details/CodeBlock'
 import { Detail } from '../../../../components/details/Detail'
 import { Details } from '../../../../components/details/Details'
 import { NodeBody } from './common/NodeBody'
@@ -42,13 +43,15 @@ export function TriggerNodeDetails(props: {
         <NodeBody>
           <Details>
             <Detail label="Inputs">
-              <ul className="mt-1 flex flex-col gap-1">
-                {Object.entries(nodeData.inputs).map(([inputName, inputDef]) => (
-                  <li className="rounded-xl bg-black/30 px-4 py-2 text-sm" key={inputName}>
-                    <span className="font-mono font-bold">{inputName}</span>: {inputDef.type}
-                  </li>
-                ))}
-              </ul>
+              <CodeBlock>
+                <ul className="flex flex-col gap-1">
+                  {Object.entries(nodeData.inputs).map(([inputName, inputDef]) => (
+                    <li key={inputName}>
+                      <span className="font-mono font-bold">{inputName}</span>: {inputDef.type}
+                    </li>
+                  ))}
+                </ul>
+              </CodeBlock>
             </Detail>
           </Details>
         </NodeBody>
