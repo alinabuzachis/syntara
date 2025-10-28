@@ -319,9 +319,28 @@ async def test_workflow(test_db_session: AsyncSession, test_user: "User") -> "Wo
         schema_version="1.0.0",
         workflow_definition={
             "schemaVersion": "1.0.0",
-            "name": "test-workflow",
-            "description": "Test workflow",
-            "activities": [],
+            "version": 1,
+            "metadata": {
+                "name": "test-workflow",
+                "description": "Test workflow",
+            },
+            "triggers": [
+                {
+                    "type": "manual",
+                }
+            ],
+            "workflow": {
+                "activities": [
+                    {
+                        "id": "test_activity",
+                        "name": "test_activity",
+                        "type": "task",
+                        "executor": "script",
+                        "language": "bash",
+                        "script": "echo 'test'",
+                    }
+                ],
+            },
         },
         created_by=test_user.id,
     )

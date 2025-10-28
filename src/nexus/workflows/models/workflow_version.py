@@ -15,6 +15,7 @@ from sqlmodel import Field, Index, Relationship, SQLModel
 from nexus.core.models.base import SoftDeletableResource, UserOwnedResource
 
 if TYPE_CHECKING:
+    from nexus.workflows.models.execution import Execution
     from nexus.workflows.models.workflow import Workflow
 
 
@@ -41,6 +42,7 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
 
     Relationships:
         workflow: Parent workflow
+        executions: All executions that used this version
 
     """
 
@@ -78,6 +80,11 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
 
     # Relationships
     workflow: "Workflow" = Relationship(back_populates="versions")
+
+    executions: list["Execution"] = Relationship(
+        back_populates="workflow_version",
+        cascade_delete=False,
+    )
 
     # Table arguments for indexes and constraints
     __table_args__ = (

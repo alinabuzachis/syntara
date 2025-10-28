@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from sqlmodel import text
 
 from nexus.api.db import get_db
-from nexus.api.v1 import workflow_versions, workflows
+from nexus.api.v1 import executions, workflow_versions, workflows
 from nexus.api.v1.invocation import router as invoke_router
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
 
@@ -75,6 +75,7 @@ app.add_middleware(
 # Register API routers
 app.include_router(workflows.router, prefix="/api/v1")
 app.include_router(workflow_versions.router, prefix="/api/v1")
+app.include_router(executions.router, prefix="/api/v1")
 app.include_router(invoke_router, prefix="/api/v1")
 
 

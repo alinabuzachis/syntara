@@ -14,6 +14,7 @@ from sqlmodel import Field, Index, Relationship, SQLModel, text
 from nexus.core.models.base import Resource
 
 if TYPE_CHECKING:
+    from nexus.workflows.models.execution import Execution
     from nexus.workflows.models.workflow_version import WorkflowVersion, WorkflowVersionRead
 
 
@@ -39,6 +40,7 @@ class Workflow(Resource, table=True):
 
     Relationships:
         versions: All versions of this workflow
+        executions: All executions of this workflow
 
     """
 
@@ -63,6 +65,11 @@ class Workflow(Resource, table=True):
     # Use soft delete (workflow.soft_delete()) which doesn't cascade to versions,
     # or manually delete versions first if hard delete is needed.
     versions: list["WorkflowVersion"] = Relationship(
+        back_populates="workflow",
+        cascade_delete=False,
+    )
+
+    executions: list["Execution"] = Relationship(
         back_populates="workflow",
         cascade_delete=False,
     )
