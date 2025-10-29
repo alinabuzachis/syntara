@@ -247,3 +247,49 @@ class TestFilterParser:
 
         desc_filter = next(f for f in filters if f.field == "description")
         assert desc_filter.value == "Test with spaces & symbols!"
+
+    def test_parse_boolean_string_values(self) -> None:
+        """Test parsing string representations of boolean values."""
+        # Test various boolean string representations
+        test_cases = [
+            ("enabled[eq]", "true", "enabled", FilterOperator.EQ, "true"),
+            ("is_active[eq]", "false", "is_active", FilterOperator.EQ, "false"),
+            ("active", "1", "active", FilterOperator.EQ, "1"),
+            ("disabled[eq]", "0", "disabled", FilterOperator.EQ, "0"),
+            ("visible[eq]", "yes", "visible", FilterOperator.EQ, "yes"),
+            ("hidden[eq]", "no", "hidden", FilterOperator.EQ, "no"),
+            ("online[eq]", "on", "online", FilterOperator.EQ, "on"),
+            ("offline[eq]", "off", "offline", FilterOperator.EQ, "off"),
+        ]
+
+        for param_notation, param_value, expected_field, expected_operator, expected_value in test_cases:
+            params = {param_notation: param_value}
+            allowed_fields = [expected_field]
+
+            filters = parse_filters(params, allowed_fields)
+
+            assert len(filters) == 1
+            assert filters[0].field == expected_field
+            assert filters[0].operator == expected_operator
+            assert filters[0].value == expected_value
+
+    def test_parse_boolean_case_insensitive_values(self) -> None:
+        """Test parsing boolean values with different cases."""
+        test_cases = [
+            ("TRUE", "TRUE"),
+            ("False", "False"),
+            ("TrUe", "TrUe"),
+            ("FALSE", "FALSE"),
+        ]
+
+        for input_value, expected_value in test_cases:
+            params = {"enabled[eq]": input_value}
+            allowed_fields = ["enabled"]
+
+            filters = parse_filters(params, allowed_fields)
+
+            assert len(filters) == 1
+            assert filters[0].field == "enabled"
+            assert filters[0].operator == FilterOperator.EQ
+            # Parser should preserve the original string case
+            assert filters[0].value == expected_value

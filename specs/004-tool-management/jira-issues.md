@@ -287,7 +287,7 @@ Implement complete Tool Provider management including database persistence, serv
 - Implement `ToolProviderService` in `./src/nexus/tool_manager/services/tool_provider_service.py`
   - Wrap tool_core provider functions with DB persistence
   - Handle provider registration with validation
-  - Support provider updates (full and partial via JSON Merge Patch)
+  - Support provider updates (full and partial)
   - Implement soft delete for providers
   - Handle provider validation with status tracking
   - Handle tool refresh from providers with DB upsert logic
@@ -315,7 +315,7 @@ Implement complete Tool Provider management including database persistence, serv
   - Error: 400 if invalid, 404 if not found
 - PATCH /api/v1/tool-providers/{provider_id} - Partially update Tool Provider
   - Content-Type: application/merge-patch+json
-  - Request: partial provider data (JSON Merge Patch RFC 7396)
+  - Request: partial provider data
   - Response: 200 OK with updated provider
   - Merges configuration changes with existing config
 - DELETE /api/v1/tool-providers/{provider_id} - Remove Tool Provider
@@ -380,8 +380,7 @@ Implement complete Tool Provider management including database persistence, serv
 - ✅ List endpoint supports optional include_total parameter
 - ✅ Create endpoint validates unique name and returns 409 on conflict
 - ✅ PUT endpoint requires full provider data update
-- ✅ PATCH endpoint uses JSON Merge Patch (RFC 7396) with proper Content-Type
-- ✅ PATCH endpoint merges configuration changes correctly
+- ✅ PATCH endpoint updates configuration changes correctly
 - ✅ Validate endpoint updates provider status and last_validated_at
 - ✅ Validate endpoint returns validation details (provider_type, capabilities, etc.)
 - ✅ Refresh-tools endpoint connects to provider and upserts tools to DB

@@ -33,7 +33,6 @@ Represents a Tool Provider with type-specific configuration and registration met
 | `status`                | enum | Provider status: "validating", "available", "error"                                                                                                        |
 | `last_validated_at`     | datetime (nullable) | Last successful validation timestamp                                                                                                                        |
 | `validation_error`      | text (nullable) | Last validation error message                                                                                                                               |
-| `tool_count`            | integer (default 0) | Number of tools provided by this provider                                                                                                                  |
 | `created_at`            | datetime | Registration timestamp                                                                                                                                      |
 | `created_by`            | UUID | Foreign key to Users table - Administrator who registered provider                                                                                         |
 | `updated_at`            | datetime | Last modification timestamp                                                                                                                                 |
@@ -53,11 +52,51 @@ Represents a Tool Provider with type-specific configuration and registration met
 
 **Update Operations:**
 - **PUT**: Complete replacement of provider configuration
-- **PATCH**: Partial updates using JSON Merge Patch (RFC 7396)
+- **PATCH**: Partial updates
   - Only provided fields are updated
-  - Configuration object is merged with existing values
-  - Uses `application/merge-patch+json` content type
+  - Configuration values replace the existing configuration
   - No required fields (unlike PUT)
+
+### ToolProviderCreate
+API model for creating new tool providers and complete updates (POST/PUT operations).
+
+| Field                   | Data Type | Description                                                                                                                                                 |
+|-------------------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`                  | string (required) | Human-readable provider name (1-255 chars)                                                                                                                 |
+| `description`           | string (optional) | Optional provider description (max 2000 chars)                                                                                                             |
+| `configuration`         | JSON (required) | Type-specific configuration including provider_type                                                                                                         |
+
+**Inheritance:**
+- Extends `NamedResource` from shared resources
+- Inherits `name` (required) and `description` (optional) fields
+- Adds `configuration` as a required field
+
+**Validation Rules:**
+- `name` is required and must be unique across all providers
+- `configuration` must include a valid `provider_type` field
+- Configuration must conform to provider type schema
+
+**Usage:**
+- POST `/api/v1/tool-providers` - Create new provider
+- PUT `/api/v1/tool-providers/{id}` - Complete replacement
+
+### ToolProviderPatch
+API model for partial updates (PATCH operations).
+
+| Field                   | Data Type | Description                                                                                                                                                 |
+|-------------------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`                  | string (optional) | Human-readable provider name (1-255 chars)                                                                                                                 |
+| `description`           | string (optional) | Provider description (max 2000 chars)                                                                                                                      |
+| `configuration`         | JSON (optional) | Partial configuration updates                                                                                                                               |
+| `enabled`               | boolean (optional) | Enable/disable the provider                                                                                                                                 |
+
+**Validation Rules:**
+- All fields are optional (supports partial updates)
+- When `configuration` is provided, it must still contain `provider_type`
+- Configuration values replace the existing configuration
+
+**Usage:**
+- PATCH `/api/v1/tool-providers/{id}` - Partial updates with `application/merge-patch+json`
 
 ### Tool
 Represents an individual capability exposed by a Tool Provider with enablement control.

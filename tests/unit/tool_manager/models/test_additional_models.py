@@ -1,7 +1,7 @@
 """Unit tests for additional dataclass models.
 
 Tests cover:
-- ToolRefreshResult dataclass functionality
+- ToolProviderRefreshResult dataclass functionality
 - ToolSchema dataclass functionality
 - Dictionary conversion methods
 - Round-trip serialization
@@ -10,15 +10,15 @@ Tests cover:
 from datetime import UTC, datetime
 from typing import Any
 
-from nexus.tool_manager.models.tool_refresh import ToolRefreshResult
+from nexus.tool_manager.models.tool_provider_refresh_result import ToolProviderRefreshResult
 from nexus.tool_manager.models.tool_schema import ToolSchema
 
 
-def test_tool_refresh_result_creation() -> None:
-    """Test ToolRefreshResult dataclass creation."""
+def test_tool_provider_refresh_result_creation() -> None:
+    """Test ToolProviderRefreshResult dataclass creation."""
     now = datetime.now(UTC)
 
-    result = ToolRefreshResult(
+    result = ToolProviderRefreshResult(
         refreshed_count=5,
         updated_count=3,
         disabled_count=2,
@@ -31,11 +31,11 @@ def test_tool_refresh_result_creation() -> None:
     assert result.refreshed_at == now
 
 
-def test_tool_refresh_result_zero_counts() -> None:
-    """Test ToolRefreshResult with zero counts."""
+def test_tool_provider_refresh_result_zero_counts() -> None:
+    """Test ToolProviderRefreshResult with zero counts."""
     now = datetime.now(UTC)
 
-    result = ToolRefreshResult(
+    result = ToolProviderRefreshResult(
         refreshed_count=0,
         updated_count=0,
         disabled_count=0,

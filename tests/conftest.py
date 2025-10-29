@@ -33,11 +33,13 @@ from nexus.api.db import get_db
 from nexus.api.main import app
 from nexus.core.models import User, UserRole
 from nexus.tool_manager.models import Tool, ToolProvider
+from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
 from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
+from tests.fixtures.mock_tool_provider_adapter import MockProvider
 
 # Ensure models are registered with SQLModel metadata
 _ = (Invocation, User, Workflow, WorkflowVersion)
@@ -232,7 +234,7 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
     session = async_session()
     try:
         yield session
-        # The session may have already been rolled back
+        # Only commit if session is still active (constraint violation tests cause automatic rollback during flush)
         if session.is_active:
             await session.commit()
     except Exception:
@@ -593,3 +595,41 @@ async def test_tool(test_db_session: AsyncSession, test_tool_provider: ToolProvi
     await test_db_session.commit()
     await test_db_session.refresh(tool)
     return tool
+
+
+@pytest_asyncio.fixture
+async def test_tool_provider_service(test_db_session: AsyncSession, test_user: User) -> "ToolProviderService":
+    """Create a ToolProviderService with mock provider registered for testing.
+
+    Args:
+        test_db_session: Test database session
+        test_user: Test User
+
+    Returns:
+        ToolProviderService: Service instance with mock provider registered
+
+    """
+    service = ToolProviderService(test_db_session, test_user)
+    service.provider_factory.register_provider_type("mock", MockProvider)
+    return service
+
+
+@pytest.fixture(autouse=True)
+def mock_provider_for_integration_tests(monkeypatch) -> Callable[[Any, Any], ToolProviderService]:
+    """Patch API service creation to include mock provider for integration tests.
+
+    This fixture automatically runs for every test and patches the API's
+    _create_tool_provider_service function to return services with the mock provider registered.
+    This allows integration tests to work with mock providers without polluting production code.
+    """
+
+    def patched_create_service(db, current_user) -> "ToolProviderService":
+        """Create a ToolProviderService with mock provider registered."""
+        service = ToolProviderService(db, current_user)
+        service.provider_factory.register_provider_type("mock", MockProvider)
+        return service
+
+    # Patch the API function that creates ToolProviderService instances
+    monkeypatch.setattr("nexus.api.v1.tool_providers._create_tool_provider_service", patched_create_service)
+
+    return patched_create_service

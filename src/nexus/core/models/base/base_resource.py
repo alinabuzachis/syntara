@@ -91,5 +91,8 @@ class BaseResource(SQLModel, ABC):
         return v
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
-        from_attributes=True, validate_by_name=True, validate_assignment=True
+        from_attributes=True,
+        validate_by_name=True,
+        validate_assignment=True,
+        extra="forbid",  # Reject unknown fields
     )  # type: ignore[assignment]

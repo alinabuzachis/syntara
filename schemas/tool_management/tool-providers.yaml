@@ -33,13 +33,9 @@ paths:
               eq:
                 type: string
                 description: Exact match of the status. ?status[eq]=<status>
-              in:
-                type: string
-                description: Match any of the comma-separated values. ?status[in]=<val1,val2>
         description: |
           Filter providers by status.
           - Exact match: `status=available`
-          - Multiple values: `status[in]=available,validating`
       - name: provider_type
         in: query
         required: false
@@ -54,13 +50,9 @@ paths:
               eq:
                 type: string
                 description: Exact match of the provider type. ?provider_type[eq]=<type>
-              in:
-                type: string
-                description: Match any of the comma-separated values. ?provider_type[in]=<type1,type2>
         description: |
           Filter providers by provider type.
           - Exact match: `provider_type=mcp`
-          - Multiple types: `provider_type[in]=mcp,python`
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
@@ -102,7 +94,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ToolProvider'
+              $ref: '#/components/schemas/ToolProviderCreate'
       responses:
         '201':
           description: Provider registered successfully
@@ -175,7 +167,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ToolProvider'
+              $ref: '#/components/schemas/ToolProviderCreate'
       responses:
         '200':
           description: Provider updated successfully
@@ -204,8 +196,7 @@ paths:
 
     patch:
       summary: Partially update Tool Provider configuration
-      description: Partially update configuration of existing Tool Provider using
-        JSON Merge Patch (RFC 7396)
+      description: Partially update configuration of existing Tool Provider
       parameters:
       - name: provider_id
         in: path
@@ -218,7 +209,7 @@ paths:
         content:
           application/merge-patch+json:
             schema:
-              $ref: '#/components/schemas/ToolProvider'
+              $ref: '#/components/schemas/ToolProviderPatch'
       responses:
         '200':
           description: Provider updated successfully
@@ -288,36 +279,13 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  valid:
-                    type: boolean
-                  provider_type:
-                    type: string
-                  protocol_version:
-                    type: string
-                  capabilities:
-                    type: array
-                    items:
-                      type: string
-                  validated_at:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/ToolProviderValidationResult'
         '400':
           description: Provider validation failed
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  valid:
-                    type: boolean
-                    example: false
-                  error:
-                    type: string
-                  validated_at:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/ToolProviderValidationResult'
         '403':
           description: Admin access required
           content:
@@ -348,17 +316,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  refreshed_count:
-                    type: integer
-                  updated_count:
-                    type: integer
-                  disabled_count:
-                    type: integer
-                  refreshed_at:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/ToolProviderRefreshResult'
         '400':
           description: Tool refresh failed
           content:
@@ -403,12 +361,46 @@ components:
           validation_error:
             type: string
             nullable: true
-          tool_count:
-            type: integer
-            minimum: 0
-            default: 0
         required:
         - configuration
+
+    ToolProviderCreate:
+      allOf:
+      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
+      - type: object
+        properties:
+          configuration:
+            description: Provider-specific configuration
+            oneOf:
+            - $ref: '#/components/schemas/MCPConfiguration'
+        required:
+        - configuration
+
+    ToolProviderPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Human-readable name for the provider
+        description:
+          type: string
+          nullable: true
+          maxLength: 2000
+          description: Detailed description of the provider
+        configuration:
+          description: Provider-specific configuration
+          oneOf:
+          - $ref: '#/components/schemas/MCPConfiguration'
+        enabled:
+          type: boolean
+          nullable: true
+          description: Enable/disable the provider
+      description: |
+        Schema for partially updating a Tool Provider.
+        All fields are optional - only include fields you want to update.
+        If updating the configuration a provider_type must still be provided.
 
     MCPConfiguration:
       allOf:
@@ -424,3 +416,39 @@ components:
         required:
         - base_url
         - api_key
+
+    ToolProviderValidationResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        provider_type:
+          type: string
+        validated_at:
+          type: string
+          format: date-time
+        error:
+          type: string
+          nullable: true
+      required:
+      - valid
+      - provider_type
+      - validated_at
+
+    ToolProviderRefreshResult:
+      type: object
+      properties:
+        refreshed_count:
+          type: integer
+        updated_count:
+          type: integer
+        disabled_count:
+          type: integer
+        refreshed_at:
+          type: string
+          format: date-time
+      required:
+      - refreshed_count
+      - updated_count
+      - disabled_count
+      - refreshed_at

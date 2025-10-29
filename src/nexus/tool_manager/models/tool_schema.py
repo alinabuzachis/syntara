@@ -1,7 +1,8 @@
 """Tool schema models."""
 
-from typing import Any
+from typing import Any, ClassVar
 
+from pydantic import ConfigDict
 from sqlmodel import SQLModel
 
 
@@ -22,3 +23,7 @@ class ToolSchema(SQLModel):
     input_schema: dict[str, Any]
     output_schema: dict[str, Any] | None = None
     examples: list[dict[str, Any]] | None = None
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="forbid",  # Reject unknown fields
+    )  # type: ignore[assignment]

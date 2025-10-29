@@ -4,8 +4,8 @@ from abc import abstractmethod
 from typing import Any, Protocol, runtime_checkable
 
 from nexus.tool_manager.models import (
-    ConnectionValidationResult,
     Tool,
+    ToolProviderValidationResult,
     ToolSchema,
     ToolValidationResult,
 )
@@ -21,11 +21,11 @@ class ToolProviderAdapter(Protocol):
     """
 
     @abstractmethod
-    async def validate_connection(self) -> ConnectionValidationResult:
+    async def validate_connection(self) -> ToolProviderValidationResult:
         """Validate connection to the tool provider.
 
         Returns:
-            ConnectionValidationResult containing validation details
+            ToolProviderValidationResult containing validation details
 
         Raises:
             ProviderError: If connection validation fails due to provider issues

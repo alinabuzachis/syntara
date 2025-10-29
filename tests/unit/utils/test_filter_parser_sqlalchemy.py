@@ -308,3 +308,196 @@ class TestFilterParserSQLAlchemy:
         assert len(result) == 2
         usernames = {user.username for user in result}
         assert usernames == {"charlie", "diana"}
+
+    async def test_boolean_string_to_boolean_conversion(self, session: AsyncSession) -> None:
+        """Test automatic conversion of boolean string values to actual boolean types."""
+        query = select(UserModel)
+
+        # Test "true" string converts to True boolean
+        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="true")]
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match active users (alice, bob, diana)
+        assert len(result) == 3
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "bob", "diana"}
+
+        # Test "false" string converts to False boolean
+        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="false")]
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match inactive users (charlie)
+        assert len(result) == 1
+        assert result[0].username == "charlie"
+
+    async def test_boolean_numeric_string_conversion(self, session: AsyncSession) -> None:
+        """Test conversion of numeric string representations to boolean."""
+        query = select(UserModel)
+
+        # Test "1" string converts to True boolean
+        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="1")]
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match active users (alice, bob, diana)
+        assert len(result) == 3
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "bob", "diana"}
+
+        # Test "0" string converts to False boolean
+        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="0")]
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match inactive users (charlie)
+        assert len(result) == 1
+        assert result[0].username == "charlie"
+
+    async def test_boolean_alternative_string_representations(self, session: AsyncSession) -> None:
+        """Test alternative boolean string representations (yes/no, on/off)."""
+        query = select(UserModel)
+
+        # Test "yes" string converts to True boolean
+        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="yes")]
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match active users (alice, bob, diana)
+        assert len(result) == 3
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "bob", "diana"}
+
+        # Test "no" string converts to False boolean
+        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="no")]
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match inactive users (charlie)
+        assert len(result) == 1
+        assert result[0].username == "charlie"
+
+        # Test "on" string converts to True boolean
+        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="on")]
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match active users (alice, bob, diana)
+        assert len(result) == 3
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "bob", "diana"}
+
+        # Test "off" string converts to False boolean
+        filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="off")]
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match inactive users (charlie)
+        assert len(result) == 1
+        assert result[0].username == "charlie"
+
+    async def test_boolean_case_insensitive_conversion(self, session: AsyncSession) -> None:
+        """Test that boolean string conversion is case-insensitive."""
+        query = select(UserModel)
+
+        # Test various case combinations for "true"
+        true_variations = ["TRUE", "True", "TrUe", "tRUE"]
+        for true_value in true_variations:
+            filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=true_value)]
+            filtered_query = apply_filters(query, filters, UserModel)
+            result = (await session.execute(filtered_query)).scalars().all()
+
+            # Should match active users (alice, bob, diana)
+            assert len(result) == 3, f"Failed for case variation: {true_value}"
+            usernames = {user.username for user in result}
+            assert usernames == {"alice", "bob", "diana"}
+
+        # Test various case combinations for "false"
+        false_variations = ["FALSE", "False", "FaLsE", "fALSE"]
+        for false_value in false_variations:
+            filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=false_value)]
+            filtered_query = apply_filters(query, filters, UserModel)
+            result = (await session.execute(filtered_query)).scalars().all()
+
+            # Should match inactive users (charlie)
+            assert len(result) == 1, f"Failed for case variation: {false_value}"
+            assert result[0].username == "charlie"
+
+    async def test_boolean_invalid_string_raises_error(self) -> None:
+        """Test that invalid boolean strings raise ValueError."""
+        query = select(UserModel)
+
+        # Test invalid boolean strings
+        invalid_values = ["invalid", "maybe", "sometimes", "2", "-1", "null", ""]
+
+        for invalid_value in invalid_values:
+            filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=invalid_value)]
+
+            with pytest.raises(ValueError, match="Invalid boolean value"):
+                apply_filters(query, filters, UserModel)
+
+    async def test_end_to_end_boolean_filtering_from_query_params(self, session: AsyncSession) -> None:
+        """Test complete workflow: parse boolean query parameters and apply filters."""
+        # Test the exact scenario that was failing: enabled[eq]=false
+        params = {"is_active[eq]": "false"}
+        allowed_fields = ["is_active"]
+
+        # Parse filters from query parameters
+        filters = parse_filters(params, allowed_fields)
+
+        # Apply to query - this should automatically convert "false" to False
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match inactive users (charlie)
+        assert len(result) == 1
+        assert result[0].username == "charlie"
+        assert result[0].is_active is False
+
+        # Test the opposite: enabled[eq]=true
+        params = {"is_active[eq]": "true"}
+        filters = parse_filters(params, allowed_fields)
+
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match active users (alice, bob, diana)
+        assert len(result) == 3
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "bob", "diana"}
+        for user in result:
+            assert user.is_active is True
+
+    async def test_boolean_filtering_mixed_with_other_filters(self, session: AsyncSession) -> None:
+        """Test boolean filtering combined with other filter types."""
+        # Test boolean + numeric filter
+        params = {"is_active[eq]": "true", "age[gte]": "30"}
+        allowed_fields = ["is_active", "age"]
+        filters = parse_filters(params, allowed_fields)
+
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match active users with age >= 30 (bob)
+        assert len(result) == 1
+        assert result[0].username == "bob"
+        assert result[0].is_active is True
+        assert result[0].age >= 30
+
+        # Test boolean + string filter
+        params = {"is_active[eq]": "false", "username[starts_with]": "c"}
+        allowed_fields = ["is_active", "username"]
+        filters = parse_filters(params, allowed_fields)
+
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match inactive users whose username starts with 'c' (charlie)
+        assert len(result) == 1
+        assert result[0].username == "charlie"
+        assert result[0].is_active is False

@@ -33,13 +33,9 @@ paths:
               eq:
                 type: string
                 description: Exact match of the status. ?status[eq]=<status>
-              in:
-                type: string
-                description: Match any of the comma-separated values. ?status[in]=<val1,val2>
         description: |
           Filter tools by status.
           - Exact match: `status=available`
-          - Multiple values: `status[in]=available,missing`
       - name: enabled
         in: query
         required: false

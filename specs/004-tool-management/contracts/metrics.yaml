@@ -26,21 +26,17 @@ paths:
 
           Supported operators:
           - eq: equals
-          - ne: not equals
-          - in: in array (comma-separated values)
           - contains: string contains
-          - startswith: string starts with
-          - endswith: string ends with
+          - starts_with: string starts with
           - gt: greater than
           - gte: greater than or equal
           - lt: less than
           - lte: less than or equal
-          - between: between two values (comma-separated)
 
           Examples:
           - ?time_window[eq]=day
           - ?start_date[gte]=2025-01-01
-          - ?provider_id[in]=uuid1,uuid2,uuid3
+          - ?provider_id[eq]=uuid1
           - ?user_id[contains]=agent
         schema:
           type: object
@@ -128,21 +124,17 @@ paths:
 
           Supported operators:
           - eq: equals
-          - ne: not equals
-          - in: in array (comma-separated values)
           - contains: string contains
-          - startswith: string starts with
-          - endswith: string ends with
+          - starts_with: string starts with
           - gt: greater than
           - gte: greater than or equal
           - lt: less than
           - lte: less than or equal
-          - between: between two values (comma-separated)
 
           Examples:
           - ?status[eq]=success
           - ?execution_start[gte]=2025-01-01T00:00:00Z
-          - ?duration_ms[between]=100,5000
+          - ?duration_ms[gt]=100
           - ?user_id[contains]=agent
         schema:
           type: object
@@ -219,22 +211,18 @@ paths:
 
           Supported operators:
           - eq: equals
-          - ne: not equals
-          - in: in array (comma-separated values)
           - contains: string contains
-          - startswith: string starts with
-          - endswith: string ends with
+          - starts_with: string starts with
           - gt: greater than
           - gte: greater than or equal
           - lt: less than
           - lte: less than or equal
-          - between: between two values (comma-separated)
 
           Examples:
           - ?target_type[eq]=tool
           - ?enabled[eq]=true
           - ?requests_per_window[gte]=100
-          - ?created_at[between]=2025-01-01,2025-12-31
+          - ?created_at[gte]=2025-01-01
         schema:
           type: object
           additionalProperties:

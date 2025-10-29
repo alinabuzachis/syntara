@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 
 from nexus.core.models import Resource
-from nexus.core.models.base.base_resource import BaseResource
+from nexus.core.models.base import BaseResource
 
 if TYPE_CHECKING:
     from nexus.tool_manager.models.tool_execution import ToolExecution
@@ -27,6 +27,7 @@ class ToolStatus(str, Enum):
     AVAILABLE = "available"
     MISSING = "missing"
     ERROR = "error"
+    DISABLED = "disabled"
 
 
 class ToolParameterType(str, Enum):
@@ -161,3 +162,7 @@ class ToolUpdate(SQLModel):
     """Model for updating tool configuration."""
 
     enabled: bool = Field(description="Whether the tool is enabled")
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="forbid",  # Reject unknown fields
+    )  # type: ignore[assignment]

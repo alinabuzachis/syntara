@@ -2,9 +2,10 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
+from pydantic import ConfigDict
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 
@@ -100,3 +101,7 @@ class ToolMetricsSummary(SQLModel):
     p95_duration_ms: int
     time_window: str
     generated_at: datetime
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="forbid",  # Reject unknown fields
+    )  # type: ignore[assignment]

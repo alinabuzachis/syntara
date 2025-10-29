@@ -1,8 +1,9 @@
 """Tool validation result models."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 
+from pydantic import ConfigDict
 from sqlmodel import SQLModel
 
 
@@ -25,3 +26,7 @@ class ToolValidationResult(SQLModel):
     message: str
     validated_at: datetime
     validation_output: Any = None
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="forbid",  # Reject unknown fields
+    )  # type: ignore[assignment]

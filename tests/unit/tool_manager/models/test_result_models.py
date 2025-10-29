@@ -3,7 +3,7 @@
 Tests cover:
 - BulkUpdateResult dataclass functionality
 - ToolValidationResult dataclass functionality
-- ConnectionValidationResult dataclass functionality
+- ToolProviderValidationResult dataclass functionality
 - Dictionary conversion methods
 - Round-trip serialization
 """
@@ -11,7 +11,7 @@ Tests cover:
 from datetime import UTC, datetime
 
 from nexus.tool_manager.models.bulk_update import BulkUpdateResult
-from nexus.tool_manager.models.connection_validation import ConnectionValidationResult
+from nexus.tool_manager.models.tool_provider_validation_result import ToolProviderValidationResult
 from nexus.tool_manager.models.tool_validation import ToolValidationResult
 
 
@@ -83,38 +83,34 @@ def test_tool_validation_result_without_output() -> None:
 
 
 def test_connection_validation_result_creation() -> None:
-    """Test ConnectionValidationResult dataclass creation."""
+    """Test ToolProviderValidationResult dataclass creation."""
     now = datetime.now(UTC)
 
-    result = ConnectionValidationResult(
+    result = ToolProviderValidationResult(
         valid=True,
         provider_type="mcp",
-        protocol_version="1.0.0",
         validated_at=now,
         error=None,
     )
 
     assert result.valid is True
     assert result.provider_type == "mcp"
-    assert result.protocol_version == "1.0.0"
     assert result.validated_at == now
     assert result.error is None
 
 
 def test_connection_validation_result_with_error() -> None:
-    """Test ConnectionValidationResult with error."""
+    """Test ToolProviderValidationResult with error."""
     now = datetime.now(UTC)
 
-    result = ConnectionValidationResult(
+    result = ToolProviderValidationResult(
         valid=False,
         provider_type="custom",
-        protocol_version="2.1.0",
         validated_at=now,
         error="Authentication failed",
     )
 
     assert result.valid is False
     assert result.provider_type == "custom"
-    assert result.protocol_version == "2.1.0"
     assert result.validated_at == now
     assert result.error == "Authentication failed"

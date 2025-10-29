@@ -19,7 +19,7 @@ info:
 
     ## Filtering Conventions
     - **Direct equality**: `?parameter=value` (shorthand for `parameter[eq]=value`)
-    - **Operators**: `?parameter[operator]=value` where operator ∈ {eq, contains, gt, gte, lt, lte}
+    - **Operators**: `?parameter[operator]=value` where operator ∈ {eq, contains, starts_with, gt, gte, lt, lte}
     - **Multiple values (OR)**: `?parameter=val1,val2` or `?parameter=val1&parameter=val2`
     - **Multiple parameters (AND)**: `?name=example&status=active`
     - **Label filtering**: `?labels[environment]=production`

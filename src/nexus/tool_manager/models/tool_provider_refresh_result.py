@@ -1,12 +1,14 @@
-"""Tool refresh result models."""
+"""Tool provider refresh result models."""
 
 from datetime import datetime
+from typing import ClassVar
 
+from pydantic import ConfigDict
 from sqlmodel import SQLModel
 
 
-class ToolRefreshResult(SQLModel):
-    """Result of refreshing tools from a provider.
+class ToolProviderRefreshResult(SQLModel):
+    """Result of refreshing tools from a tool provider.
 
     Attributes:
         refreshed_count: Number of new tools discovered and added
@@ -20,3 +22,7 @@ class ToolRefreshResult(SQLModel):
     updated_count: int
     disabled_count: int
     refreshed_at: datetime
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="forbid",  # Reject unknown fields
+    )  # type: ignore[assignment]

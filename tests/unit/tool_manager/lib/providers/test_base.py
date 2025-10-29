@@ -11,7 +11,7 @@ import inspect
 from datetime import UTC, datetime
 
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
-from nexus.tool_manager.models import ConnectionValidationResult, ToolSchema, ToolValidationResult
+from nexus.tool_manager.models import ToolProviderValidationResult, ToolSchema, ToolValidationResult
 from nexus.tool_manager.models.tool import Tool
 from tests.fixtures import MockProvider
 
@@ -69,11 +69,9 @@ def test_mock_provider_implements_protocol() -> None:
 class CompleteProvider(ToolProviderAdapter):
     """A provider that implements all required methods."""
 
-    async def validate_connection(self) -> ConnectionValidationResult:
+    async def validate_connection(self) -> ToolProviderValidationResult:
         """Mock implementation."""
-        return ConnectionValidationResult(
-            valid=True, provider_type="complete", protocol_version="1", validated_at=datetime.now(UTC)
-        )
+        return ToolProviderValidationResult(valid=True, provider_type="complete", validated_at=datetime.now(UTC))
 
     async def refresh_tools(self) -> list[Tool]:
         """Mock implementation."""

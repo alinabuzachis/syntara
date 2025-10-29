@@ -5,6 +5,16 @@
 class ToolManagerError(Exception):
     """Base exception for tool management errors."""
 
+    def __init__(self, message: str) -> None:
+        """Initialize error.
+
+        Args:
+            message: Error message describing the failure
+
+        """
+        self.message = message
+        super().__init__(self.message)
+
 
 class ProviderError(ToolManagerError):
     """Exception raised for provider-related errors."""

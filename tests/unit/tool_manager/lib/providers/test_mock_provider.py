@@ -2,7 +2,7 @@
 
 Tests cover:
 - MockProvider implementation of ToolProviderAdapter protocol
-- Error simulation capabilities
+- Error simulation features
 - Tool discovery and validation
 - Connection validation
 - Configuration options and behavior
@@ -16,7 +16,7 @@ import pytest
 
 from nexus.tool_manager.lib.exceptions import ProviderError, ToolNotFoundError
 from nexus.tool_manager.models import (
-    ConnectionValidationResult,
+    ToolProviderValidationResult,
     ToolSchema,
     ToolValidationResult,
 )
@@ -59,10 +59,9 @@ class TestMockProvider:
 
         result = await provider.validate_connection()
 
-        assert isinstance(result, ConnectionValidationResult)
+        assert isinstance(result, ToolProviderValidationResult)
         assert result.valid is True
         assert result.provider_type == "mock"
-        assert result.protocol_version == "1.0.0"
         assert isinstance(result.validated_at, datetime)
         assert result.error is None
 
@@ -113,11 +112,11 @@ class TestMockProvider:
         tools = await provider.refresh_tools()
 
         assert isinstance(tools, list)
-        assert len(tools) == 4  # MockProvider defines 4 tools
+        assert len(tools) == 1  # MockProvider defines 1 tool when refreshed
 
         # Check tool names
         tool_names = {tool.name for tool in tools}
-        expected_names = {"echo_tool", "calculator", "file_reader", "random_number"}
+        expected_names = {"echo_tool"}
         assert tool_names == expected_names
 
         # Check namespaced names
@@ -308,9 +307,6 @@ class TestMockProvider:
         assert len(tool_names) == 4
         assert "echo_tool" in tool_names
         assert "calculator" in tool_names
-
-        # Test get_tool_count
-        assert provider.get_tool_count() == 4
 
     def test_error_simulation_configuration(self) -> None:
         """Test error simulation configuration methods."""

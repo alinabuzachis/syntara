@@ -9,10 +9,10 @@ from uuid import uuid4
 from nexus.tool_manager.lib.exceptions import ProviderError, ToolNotFoundError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
 from nexus.tool_manager.models import (
-    ConnectionValidationResult,
     Tool,
     ToolParameter,
     ToolParameterType,
+    ToolProviderValidationResult,
     ToolSchema,
     ToolValidationResult,
 )
@@ -235,15 +235,14 @@ class MockProvider(ToolProviderAdapter):
             msg = "Simulated authentication failure"
             raise ProviderError(msg)
 
-    async def validate_connection(self) -> ConnectionValidationResult:
+    async def validate_connection(self) -> ToolProviderValidationResult:
         """Validate connection to the mock provider."""
         await self._apply_delay()
         await self._check_error_conditions()
 
-        return ConnectionValidationResult(
+        return ToolProviderValidationResult(
             valid=True,
             provider_type="mock",
-            protocol_version="1.0.0",
             validated_at=datetime.now(UTC),
         )
 
@@ -252,27 +251,24 @@ class MockProvider(ToolProviderAdapter):
         await self._apply_delay()
         await self._check_error_conditions()
 
-        # Return copies of mock tools to avoid mutation issues
+        # Return a single tool when refreshed
         return [
             Tool(
-                name=tool.name,
-                namespaced_name=tool.namespaced_name,
-                description=tool.description,
+                name="echo_tool",
+                namespaced_name=f"{self.provider_name}::echo_tool",
+                description="A simple tool that echoes input back",
                 parameters=[
                     ToolParameter(
                         tool_id=uuid4(),
-                        name=param.name,
-                        type=param.type,
-                        description=param.description,
-                        required=param.required,
-                        default_value=param.default_value,
+                        name="message",
+                        type=ToolParameterType.STRING,
+                        description="Message to echo back",
+                        required=True,
                         created_by=uuid4(),
                         updated_by=uuid4(),
-                    )
-                    for param in tool.parameters
+                    ),
                 ],
-            )
-            for tool in self._mock_tools
+            ),
         ]
 
     async def get_tool_schema(self, tool_name: str) -> ToolSchema:
@@ -416,10 +412,6 @@ class MockProvider(ToolProviderAdapter):
     def get_tool_names(self) -> list[str]:
         """Get list of available tool names (helper for testing)."""
         return [tool.name for tool in self._mock_tools]
-
-    def get_tool_count(self) -> int:
-        """Get count of available tools (helper for testing)."""
-        return len(self._mock_tools)
 
     def set_error_simulation(
         self,

@@ -228,13 +228,14 @@ curl -X PUT http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
 # Expected: 200 OK with completely updated provider
 # Verify: All configuration fields are replaced
 
-# Step 2: Partially update provider using PATCH (JSON Merge Patch)
+# Step 2: Partially update provider using PATCH
 curl -X PATCH http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
   -H "Content-Type: application/merge-patch+json" \
   -H "Authorization: Bearer <admin-token>" \
   -d '{
     "description": "Partially updated MCP provider",
     "configuration": {
+      "provider_type": "mcp",
       "api_key": "partially-updated-key"
     }
   }'
@@ -339,10 +340,10 @@ curl -X GET "http://localhost:8000/api/v1/metrics/executions?status[eq]=success&
 # Expected: 200 OK with successful executions within duration and time range
 
 # Step 4: Filter rate limits by multiple targets
-curl -X GET "http://localhost:8000/api/v1/rate-limits?target_type[in]=tool,provider&enabled[eq]=true" \
+curl -X GET "http://localhost:8000/api/v1/rate-limits?target_type[eq]=tool&enabled[eq]=true" \
   -H "Authorization: Bearer <admin-token>"
 
-# Expected: 200 OK with enabled rate limits for tools and providers
+# Expected: 200 OK with enabled rate limits for tools
 ```
 
 ## Success Criteria

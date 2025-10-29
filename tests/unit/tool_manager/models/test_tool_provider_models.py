@@ -7,6 +7,8 @@ Tests cover:
 - Provider status enum
 - Field validation and constraints
 - ToolProvider.tools relationship
+- ToolProviderCreate model
+- ToolProviderPatch model
 """
 
 from datetime import UTC, datetime
@@ -24,6 +26,8 @@ from nexus.tool_manager.models.tool_provider import (
     MCPConfiguration,
     ProviderStatus,
     ToolProvider,
+    ToolProviderCreate,
+    ToolProviderPatch,
 )
 
 
@@ -55,7 +59,6 @@ async def test_create_tool_provider_with_required_fields(test_db_session: AsyncS
     assert provider.status == ProviderStatus.VALIDATING  # Default value
     assert provider.last_validated_at is None
     assert provider.validation_error is None
-    assert provider.tool_count == 0  # Default value
     assert provider.created_by == test_user.id
     assert provider.created_at is not None
     assert provider.updated_at is not None
@@ -82,7 +85,6 @@ async def test_create_tool_provider_with_all_fields(test_db_session: AsyncSessio
         status=ProviderStatus.ERROR,
         last_validated_at=now,
         validation_error="Connection timeout",
-        tool_count=5,
         created_by=test_user.id,
         labels={"env": "test", "region": "us-east-1"},
     )
@@ -94,7 +96,6 @@ async def test_create_tool_provider_with_all_fields(test_db_session: AsyncSessio
     assert provider.status == ProviderStatus.ERROR
     assert provider.last_validated_at == now
     assert provider.validation_error == "Connection timeout"
-    assert provider.tool_count == 5
     assert provider.labels == {"env": "test", "region": "us-east-1"}
 
 
@@ -114,7 +115,7 @@ def test_tool_provider_configuration_validation(test_user: User) -> None:
     assert provider.configuration == valid_config
 
     # Missing provider_type should raise ValueError
-    with pytest.raises(TypeError, match="configuration must contain 'provider_type' field"):
+    with pytest.raises(ValueError, match="configuration must contain 'provider_type' field"):
         ToolProvider(
             id=uuid4(),
             name="Test Provider",
@@ -123,7 +124,7 @@ def test_tool_provider_configuration_validation(test_user: User) -> None:
         )
 
     # Empty provider_type should raise ValueError
-    with pytest.raises(TypeError, match="provider_type must be a non-empty string"):
+    with pytest.raises(ValueError, match="provider_type must be a non-empty string"):
         ToolProvider(
             id=uuid4(),
             name="Test Provider",
@@ -132,7 +133,7 @@ def test_tool_provider_configuration_validation(test_user: User) -> None:
         )
 
     # Whitespace-only provider_type should raise ValueError
-    with pytest.raises(TypeError, match="provider_type must be a non-empty string"):
+    with pytest.raises(ValueError, match="provider_type must be a non-empty string"):
         ToolProvider(
             id=uuid4(),
             name="Test Provider",
@@ -141,7 +142,7 @@ def test_tool_provider_configuration_validation(test_user: User) -> None:
         )
 
     # Non-string provider_type should raise ValueError
-    with pytest.raises(TypeError, match="provider_type must be a non-empty string"):
+    with pytest.raises(ValueError, match="provider_type must be a non-empty string"):
         ToolProvider(
             id=uuid4(),
             name="Test Provider",
@@ -187,7 +188,7 @@ def test_mcp_configuration_provider_type_validation() -> None:
     assert config.provider_type == "mcp"
 
     # Setting provider_type to anything else should raise ValueError
-    with pytest.raises(TypeError, match="provider_type must be 'mcp' for MCPConfiguration"):
+    with pytest.raises(ValueError, match="provider_type must be 'mcp' for MCPConfiguration"):
         MCPConfiguration(
             provider_type="custom",
             base_url="https://mcp.example.com",
@@ -200,26 +201,16 @@ async def test_tool_provider_constraints(test_db_session: AsyncSession, test_use
     """Test tool provider field constraints."""
     provider_id = uuid4()
 
-    # Test tool_count constraint (should be >= 0)
+    # Test that ToolProvider can be created with valid configuration
     provider = ToolProvider(
         id=provider_id,
         name="Test Provider",
         configuration={"provider_type": "test"},
-        tool_count=0,  # Should be valid
         created_by=test_user.id,
     )
     test_db_session.add(provider)
     await test_db_session.commit()
-
-    # Negative tool_count should be invalid (but validation happens at Pydantic level)
-    with pytest.raises(ValueError):  # noqa: PT011
-        ToolProvider(
-            id=uuid4(),
-            name="Test Provider",
-            configuration={"provider_type": "test"},
-            tool_count=-1,  # Should be invalid
-            created_by=test_user.id,
-        )
+    assert provider.name == "Test Provider"
 
 
 @pytest.mark.asyncio
@@ -492,3 +483,104 @@ async def test_tool_provider_name_case_sensitivity(test_db_session: AsyncSession
     # Verify both providers exist with their respective names
     assert provider1.name == "test provider"
     assert provider2.name == "Test Provider"
+
+
+def test_tool_provider_create_model() -> None:
+    """Test ToolProviderCreate model."""
+    config = {
+        "provider_type": "mcp",
+        "base_url": "https://api.example.com",
+        "api_key": "test-key",
+    }
+
+    provider_create = ToolProviderCreate(
+        name="Test Provider",
+        description="A test provider",
+        configuration=config,
+    )
+
+    assert provider_create.name == "Test Provider"
+    assert provider_create.description == "A test provider"
+    assert provider_create.configuration == config
+
+
+def test_tool_provider_create_validation() -> None:
+    """Test ToolProviderCreate validation."""
+    # Valid creation should work
+    valid_config = {
+        "provider_type": "mcp",
+        "base_url": "https://api.example.com",
+    }
+    provider_create = ToolProviderCreate(
+        name="Test Provider",
+        configuration=valid_config,
+    )
+    assert provider_create.name == "Test Provider"
+    assert provider_create.configuration == valid_config
+
+    # Missing provider_type should raise ValueError
+    with pytest.raises(ValueError, match="configuration must contain 'provider_type' field"):
+        ToolProviderCreate(
+            name="Test Provider",
+            configuration={"base_url": "https://api.example.com"},
+        )
+
+    # Empty provider_type should raise ValueError
+    with pytest.raises(ValueError, match="provider_type must be a non-empty string"):
+        ToolProviderCreate(
+            name="Test Provider",
+            configuration={"provider_type": ""},
+        )
+
+
+def test_tool_provider_patch_model() -> None:
+    """Test ToolProviderPatch model."""
+    # Test with all fields
+    config = {
+        "provider_type": "mcp",
+        "base_url": "https://api.example.com",
+        "api_key": "test-key",
+    }
+
+    provider_patch = ToolProviderPatch(
+        name="Updated Provider",
+        description="Updated description",
+        configuration=config,
+    )
+
+    assert provider_patch.name == "Updated Provider"
+    assert provider_patch.description == "Updated description"
+    assert provider_patch.configuration == config
+
+    # Test with no fields (all optional)
+    empty_patch = ToolProviderPatch()
+    assert empty_patch.name is None
+    assert empty_patch.description is None
+    assert empty_patch.configuration is None
+
+    # Test with partial fields
+    partial_patch = ToolProviderPatch(name="New Name")
+    assert partial_patch.name == "New Name"
+    assert partial_patch.description is None
+    assert partial_patch.configuration is None
+
+
+def test_tool_provider_patch_validation() -> None:
+    """Test ToolProviderPatch validation."""
+    # Valid configuration should work
+    valid_config = {
+        "provider_type": "mcp",
+        "base_url": "https://api.example.com",
+    }
+    provider_patch = ToolProviderPatch(configuration=valid_config)
+    assert provider_patch.configuration == valid_config
+
+    # Invalid configuration should raise ValueError
+    with pytest.raises(ValueError, match="configuration must be a dictionary"):
+        ToolProviderPatch(configuration=None)
+
+    # Invalid configuration should raise ValueError
+    with pytest.raises(ValueError, match="configuration must contain 'provider_type' field"):
+        ToolProviderPatch(
+            configuration={"base_url": "https://api.example.com"},
+        )

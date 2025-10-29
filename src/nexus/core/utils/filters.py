@@ -65,7 +65,8 @@ class Filter(BaseModel):
 
 
 # Regex pattern to match bracket notation: field[operator]
-BRACKET_PATTERN = re.compile(r"^(\w+)\[(\w+)\]$")
+# Allow dots in field names for nested fields like "configuration.provider_type"
+BRACKET_PATTERN = re.compile(r"^([\w.]+)\[(\w+)\]$")
 
 
 def parse_filters(params: dict[str, str], allowed_fields: list[str]) -> list[Filter]:
@@ -190,6 +191,102 @@ def _sanitize_like_value(value: FilterValue) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _convert_datetime_value(value: str, field_attr: Any) -> datetime:  # noqa: ANN401
+    """Convert string value to datetime.
+
+    Args:
+        value: String value to convert
+        field_attr: SQLAlchemy field attribute for error context
+
+    Returns:
+        Parsed datetime object
+
+    Raises:
+        ValueError: If datetime conversion fails
+
+    """
+    try:
+        # Try parsing as ISO 8601 format (with 'Z' suffix or timezone)
+        # Replace 'Z' with '+00:00' for fromisoformat compatibility
+        iso_value = value.replace("Z", "+00:00") if value.endswith("Z") else value
+        return datetime.fromisoformat(iso_value)
+    except ValueError as e:
+        # Log warning and re-raise - malformed timestamps should fail loudly
+        logger.warning(
+            "Failed to parse datetime value '%s' for field %s: %s",
+            value,
+            getattr(field_attr, "key", "unknown"),
+            e,
+        )
+        msg = f"Invalid datetime format: {value}. Expected ISO 8601 format (e.g., '2025-01-15T10:30:00Z')"
+        raise ValueError(msg) from e
+
+
+def _convert_boolean_value(value: str) -> bool:
+    """Convert string value to boolean.
+
+    Args:
+        value: String value to convert
+
+    Returns:
+        Boolean value
+
+    Raises:
+        ValueError: If boolean conversion fails
+
+    """
+    try:
+        # Convert common string representations to boolean
+        lower_value = value.lower().strip()
+        if lower_value in ("true", "1", "yes", "on"):
+            return True
+        if lower_value in ("false", "0", "no", "off"):
+            return False
+        msg = f"Invalid boolean value: {value}. Expected 'true', 'false', '1', '0', 'yes', 'no', 'on', or 'off'"
+        raise ValueError(msg)
+    except AttributeError as e:
+        # If value doesn't have lower() method, it's not a string
+        msg = f"Invalid boolean value: {value}. Expected string representation of boolean"
+        raise ValueError(msg) from e
+
+
+def _convert_numeric_value(value: str, python_type: type, field_attr: Any) -> int | float:  # noqa: ANN401
+    """Convert string value to numeric type.
+
+    Args:
+        value: String value to convert
+        python_type: Target numeric type (int or float)
+        field_attr: SQLAlchemy field attribute for error context
+
+    Returns:
+        Converted numeric value
+
+    Raises:
+        ValueError: If numeric conversion fails
+
+    """
+    try:
+        converted_value = python_type(value)
+        # Ensure we return the expected type
+        if python_type is int:
+            return int(converted_value)
+        if python_type is float:
+            return float(converted_value)
+        # This shouldn't happen given the function's usage, but for type safety
+        return float(converted_value)
+    except ValueError as e:
+        # Log warning and re-raise - type mismatches should fail loudly
+        logger.warning(
+            "Failed to convert value '%s' to %s for field %s: %s",
+            value,
+            python_type.__name__,
+            getattr(field_attr, "key", "unknown"),
+            e,
+        )
+        msg = f"Invalid {python_type.__name__} value: {value}"
+        raise ValueError(msg) from e
+
+
 def _convert_filter_value(value: FilterValue, field_attr: Any) -> FilterValue:  # noqa: ANN401
     """Convert filter value to the appropriate type based on the field.
 
@@ -221,41 +318,17 @@ def _convert_filter_value(value: FilterValue, field_attr: Any) -> FilterValue:  
         )
         return value
 
-    # Handle datetime fields with explicit error handling
+    # Handle datetime fields
     if python_type == datetime or (hasattr(python_type, "__origin__") and python_type.__origin__ == datetime):
-        try:
-            # Try parsing as ISO 8601 format (with 'Z' suffix or timezone)
-            # Replace 'Z' with '+00:00' for fromisoformat compatibility
-            iso_value = value.replace("Z", "+00:00") if value.endswith("Z") else value
-            parsed_datetime: datetime = datetime.fromisoformat(iso_value)
-            return parsed_datetime
-        except ValueError as e:
-            # Log warning and re-raise - malformed timestamps should fail loudly
-            logger.warning(
-                "Failed to parse datetime value '%s' for field %s: %s",
-                value,
-                getattr(field_attr, "key", "unknown"),
-                e,
-            )
-            msg = f"Invalid datetime format: {value}. Expected ISO 8601 format (e.g., '2025-01-15T10:30:00Z')"
-            raise ValueError(msg) from e
+        return _convert_datetime_value(value, field_attr)
 
-    # Handle other numeric/boolean types
-    if python_type in (int, float, bool):
-        try:
-            converted: int | float | bool = python_type(value)
-            return converted
-        except ValueError as e:
-            # Log warning and re-raise - type mismatches should fail loudly
-            logger.warning(
-                "Failed to convert value '%s' to %s for field %s: %s",
-                value,
-                python_type.__name__,
-                getattr(field_attr, "key", "unknown"),
-                e,
-            )
-            msg = f"Invalid {python_type.__name__} value: {value}"
-            raise ValueError(msg) from e
+    # Handle boolean fields
+    if python_type is bool:
+        return _convert_boolean_value(value)
+
+    # Handle numeric types
+    if python_type in (int, float):
+        return _convert_numeric_value(value, python_type, field_attr)
 
     # For other types (str, UUID, custom types), use string comparison
     return value

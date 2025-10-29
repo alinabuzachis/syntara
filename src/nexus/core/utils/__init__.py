@@ -10,6 +10,7 @@ from nexus.core.utils.cursor import (
     SortDirection,
     decode_cursor,
     encode_cursor,
+    extract_pagination_from_cursor,
     extract_sort_from_cursor,
     get_pagination_direction,
 )
@@ -40,6 +41,7 @@ __all__ = [
     "apply_sorting",
     "decode_cursor",
     "encode_cursor",
+    "extract_pagination_from_cursor",
     "extract_sort_from_cursor",
     "filter_resources",
     "generate_response",
