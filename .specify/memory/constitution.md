@@ -1,14 +1,19 @@
 <!-- Sync Impact Report
-Version Change: 1.0.0 → 1.1.0 (Code Architecture Principles added)
-Modified Principles: Development Standards (added Code Architecture Principles section)
-Added Sections: Code Architecture Principles (DRY, SOLID, Separation of Concerns, Dependency Injection, Composition vs Inheritance)
+Version Change: 1.1.0 → 1.2.0 (API Specification Standards added)
+Modified Principles: Development Standards (added API Specification Standards section)
+Added Sections: API Specification Standards (OpenAPI, AsyncAPI, error handling, versioning, path structure, pagination, security)
 Removed Sections: N/A
 Templates Updated:
-  ✅ .specify/templates/plan-template.md (added Code Architecture Compliance checklist)
+  ✅ .specify/templates/plan-template.md (added API Specification Standards checklist with 11 checks including path structure /api/v1/[component]/[resource], updated pagination to limit/cursor, corrected schema paths to [project root]/schemas/[component]/)
   ✅ .specify/templates/spec-template.md (no changes needed - business-focused document)
-  ✅ .specify/templates/tasks-template.md (added Architecture Reminders section)
-  ✅ .specify/templates/agent-file-template.md (added Code Architecture Principles section)
-Follow-up TODOs: Review existing code for compliance with new architecture principles
+  ✅ .specify/templates/tasks-template.md (added API specification reminders including path structure, updated pagination to limit/cursor, corrected schema paths to [project root]/schemas/[component]/)
+  ✅ .specify/templates/agent-file-template.md (no changes needed - auto-generated file)
+Follow-up TODOs:
+  - Review existing OpenAPI/AsyncAPI specs for compliance with new standards
+  - Update API documentation to include RFC 9457 error response format
+  - Audit all endpoints to ensure they follow /api/v1/[component]/[resource] path pattern
+  - Audit endpoints for pagination (limit/cursor), filtering, and security scheme documentation
+  - Migrate any existing /contracts/ directories to [project root]/schemas/[component]/ structure
 -->
 
 # Nexus System Constitution
@@ -69,6 +74,61 @@ may change without notice.
   - Use composition when components need to be reused independently
   - Use inheritance when extending behavior of a base class with shared contract
   - Prefer interfaces/protocols over abstract base classes when defining contracts
+
+### API Specification Standards
+
+All APIs MUST be formally specified and compliant with industry standards to ensure
+consistency, maintainability, and interoperability.
+
+#### Specification Formats
+
+- **REST APIs**: MUST be defined and compliant with the latest version of the OpenAPI Specification (https://swagger.io/specification/)
+- **WebSocket and Async APIs**: MUST be defined and compliant with the latest version of AsyncAPI Specification v3.0.0 or later (https://www.asyncapi.com/docs/reference/specification/v3.0.0)
+- **Naming Convention**: All OpenAPI and AsyncAPI specifications MUST follow snake_case pattern for parameter names, property names, and schema names
+- **Documentation Completeness**: Specifications MUST provide full documentation for every endpoint and operation including:
+  - Description of the endpoint/operation purpose
+  - Description for all parameters (path, query, header, body)
+  - Realistic examples for request and response payloads
+  - Expected response codes and their meanings
+
+#### Error Handling
+
+- **Error Format**: All error responses MUST follow RFC 9457 Problem Details standard with consistent structure including:
+  - `type`: URI reference identifying the problem type
+  - `title`: Short, human-readable summary
+  - `status`: HTTP status code
+  - `detail`: Human-readable explanation specific to this occurrence
+  - `instance`: Optional URI reference identifying the specific occurrence
+- **Error Messages**: MUST be actionable and MUST NOT expose internal implementation details (e.g., stack traces, database schemas, internal paths)
+- **Error Codes**: Use consistent, documented error codes across all APIs
+
+#### Versioning
+
+- **Semantic Versioning**: APIs MUST implement semantic versioning (major.minor.patch)
+- **Breaking Changes**: Require major version increment and deprecation notices at least one minor version before removal
+- **Version Communication**: API version MUST be communicated via URL path (e.g., `/api/v1/users`) or header (e.g., `API-Version: 1.0`)
+- **API Path Structure**: All API endpoints MUST follow the pattern `/api/v1/[component]/[resource]` (e.g., `/api/v1/agents/some_resource`, `/api/v1/workflows/some_resource`). This convention ensures consistency across the monolithic service and can be revisited when breaking down into multiple microservices.
+
+#### Pagination and Filtering
+
+- **Pagination**: All list/collection endpoints MUST support pagination with consistent parameters:
+  - `limit`: Maximum number of items to return (with documented default and maximum)
+  - `cursor`: Position in the collection
+  - Response MUST include supporting for total count and next/previous page indicators
+- **Filtering**: Filtering parameters MUST follow consistent patterns across all endpoints (e.g., `filter[field]=value`)
+- **Sorting**: Sorting parameters MUST follow consistent patterns (e.g., `sort=field` or `sort=-field` for descending)
+
+#### Security
+
+- **Security Schemes**: All authenticated endpoints MUST document security schemes in the specification (e.g., Bearer token, API key, OAuth2)
+- **Authentication Requirements**: Each endpoint MUST clearly indicate whether authentication is required
+- **Scope Documentation**: For OAuth2 or similar schemes, required scopes MUST be documented per endpoint
+
+#### Schema Management
+
+- **Backward Compatibility**: Schema changes MUST be validated for backward compatibility before release
+- **Breaking Schema Changes**: Require major version increment and must be documented in migration guides
+- **Deprecation**: Deprecated fields MUST be marked as deprecated in the specification with removal timeline
 
 ### Code Quality Requirements
 
@@ -143,4 +203,4 @@ process. All team members are responsible for upholding these principles.
 - Exceptions require explicit documentation and time bounds
 - Regular audits to ensure ongoing compliance
 
-**Version**: 1.1.0 | **Ratified**: 2025-09-23 | **Last Amended**: 2025-10-13
+**Version**: 1.2.0 | **Ratified**: 2025-09-23 | **Last Amended**: 2025-10-24

@@ -1,7 +1,7 @@
 # Tasks: [FEATURE NAME]
 
 **Input**: Design documents from `/specs/[###-feature-name]/`
-**Prerequisites**: plan.md (required), research.md, data-model.md, contracts/
+**Prerequisites**: plan.md (required), research.md, data-model.md, [project root]/schemas/[component]/
 
 ## Execution Flow (main)
 ```
@@ -10,7 +10,7 @@
    → Extract: tech stack, libraries, structure
 2. Load optional design documents:
    → data-model.md: Extract entities → model tasks
-   → contracts/: Each file → contract test task
+   → [project root]/schemas/[component]/: Each schema file → contract test task
    → research.md: Extract decisions → setup tasks
 3. Generate tasks by category:
    → Setup: project init, dependencies, linting
@@ -26,7 +26,7 @@
 6. Generate dependency graph
 7. Create parallel execution examples
 8. Validate task completeness:
-   → All contracts have tests?
+   → All schemas have tests?
    → All entities have models?
    → All endpoints implemented?
 9. Return: SUCCESS (tasks ready for execution)
@@ -62,6 +62,16 @@
 - Prefer composition over inheritance
 - Maintain clear separation of concerns
 - **Use SQLModel for all data models** - unified models for database tables and API schemas (not separate Pydantic + SQLAlchemy)
+
+**API Specification Reminders**:
+- Document all REST APIs with OpenAPI spec (latest version)
+- Document all WebSocket/async APIs with AsyncAPI v3.0.0+
+- Use snake_case for all API spec names (parameters, properties, schemas)
+- All endpoints must follow path pattern: /api/v1/[component]/[resource]
+- Implement RFC 9457 Problem Details for error responses
+- All collection endpoints must support pagination (limit and cursor)
+- Document security schemes for authenticated endpoints
+- Validate schema changes for backward compatibility
 
 - [ ] T008 [P] User model in src/models/user.py (using SQLModel)
 - [ ] T009 [P] UserService CRUD in src/services/user_service.py
@@ -108,8 +118,8 @@ Task: "Integration test auth in tests/integration/test_auth.py"
 ## Task Generation Rules
 *Applied during main() execution*
 
-1. **From Contracts**:
-   - Each contract file → contract test task [P]
+1. **From Schemas**:
+   - Each schema file → contract test task [P]
    - Each endpoint → implementation task
 
 2. **From Data Model**:
@@ -127,7 +137,7 @@ Task: "Integration test auth in tests/integration/test_auth.py"
 ## Validation Checklist
 *GATE: Checked by main() before returning*
 
-- [ ] All contracts have corresponding tests
+- [ ] All schemas have corresponding tests
 - [ ] All entities have model tasks
 - [ ] All tests come before implementation
 - [ ] Parallel tasks truly independent

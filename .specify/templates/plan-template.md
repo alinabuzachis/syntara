@@ -18,7 +18,7 @@
    → Update Progress Tracking: Initial Constitution Check
 5. Execute Phase 0 → research.md
    → If NEEDS CLARIFICATION remain: ERROR "Resolve unknowns"
-6. Execute Phase 1 → contracts, data-model.md, quickstart.md, agent-specific template file (e.g., `CLAUDE.md` for Claude Code, `.github/copilot-instructions.md` for GitHub Copilot, `GEMINI.md` for Gemini CLI, `QWEN.md` for Qwen Code or `AGENTS.md` for opencode).
+6. Execute Phase 1 → schemas, data-model.md, quickstart.md, agent-specific template file (e.g., `CLAUDE.md` for Claude Code, `.github/copilot-instructions.md` for GitHub Copilot, `GEMINI.md` for Gemini CLI, `QWEN.md` for Qwen Code or `AGENTS.md` for opencode).
 7. Re-evaluate Constitution Check section
    → If new violations: Refactor design, return to Phase 1
    → Update Progress Tracking: Post-Design Constitution Check
@@ -59,6 +59,19 @@
 - [ ] **Dependency Injection**: Dependencies are explicitly injected via constructors
 - [ ] **Composition vs Inheritance**: Design uses composition over inheritance unless clear "is-a" relationship exists
 
+### API Specification Standards Compliance
+- [ ] **OpenAPI/AsyncAPI Compliance**: REST APIs use latest OpenAPI spec; WebSocket/async APIs use AsyncAPI v3.0.0+
+- [ ] **Naming Convention**: API specs follow snake_case pattern for all names
+- [ ] **Documentation Completeness**: All endpoints/operations fully documented with descriptions, parameters, examples
+- [ ] **RFC 9457 Error Format**: Error responses follow Problem Details standard with type, title, status, detail, instance
+- [ ] **Error Message Safety**: Error messages are actionable and don't expose internal implementation details
+- [ ] **API Versioning**: APIs implement semantic versioning with clear version communication (URL path or header)
+- [ ] **API Path Structure**: All endpoints follow pattern /api/v1/[component]/[resource]
+- [ ] **Pagination Support**: All collection endpoints support pagination with limit and cursor parameters
+- [ ] **Filtering/Sorting Consistency**: Filtering and sorting parameters follow consistent patterns across endpoints
+- [ ] **Security Documentation**: Authenticated endpoints document security schemes, authentication requirements, and scopes
+- [ ] **Schema Compatibility**: Schema changes validated for backward compatibility; breaking changes require major version bump
+
 ## Project Structure
 
 ### Documentation (this feature)
@@ -68,7 +81,6 @@ specs/[###-feature]/
 ├── research.md          # Phase 0 output (/plan command)
 ├── data-model.md        # Phase 1 output (/plan command)
 ├── quickstart.md        # Phase 1 output (/plan command)
-├── contracts/           # Phase 1 output (/plan command)
 └── tasks.md             # Phase 2 output (/tasks command - NOT created by /plan)
 ```
 
@@ -143,7 +155,8 @@ ios/ or android/
 2. **Generate API contracts** from functional requirements:
    - For each user action → endpoint
    - Use standard REST/GraphQL patterns
-   - Output OpenAPI/GraphQL schema to `/contracts/`
+   - Output OpenAPI/AsyncAPI schema to `[project root]/schemas/[component]/`
+   - Note: Schemas are stored at project root level, NOT within the specs folder
 
 3. **Generate contract tests** from contracts:
    - One test file per endpoint
@@ -163,15 +176,15 @@ ios/ or android/
    - Keep under 150 lines for token efficiency
    - Output to repository root
 
-**Output**: data-model.md, /contracts/*, failing tests, quickstart.md, agent-specific file
+**Output**: data-model.md, [project root]/schemas/[component]/*, failing tests, quickstart.md, agent-specific file
 
 ## Phase 2: Task Planning Approach
 *This section describes what the /tasks command will do - DO NOT execute during /plan*
 
 **Task Generation Strategy**:
 - Load `.specify/templates/tasks-template.md` as base
-- Generate tasks from Phase 1 design docs (contracts, data model, quickstart)
-- Each contract → contract test task [P]
+- Generate tasks from Phase 1 design docs (schemas, data model, quickstart)
+- Each schema → contract test task [P]
 - Each entity → model creation task [P]
 - Each user story → integration test task
 - Implementation tasks to make tests pass
@@ -219,4 +232,4 @@ ios/ or android/
 - [ ] Complexity deviations documented
 
 ---
-*Based on Constitution v1.1.0 - See `.specify/memory/constitution.md`*
+*Based on Constitution v1.2.0 - See `.specify/memory/constitution.md`*
