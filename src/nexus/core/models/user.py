@@ -8,7 +8,8 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-from sqlmodel import JSON, DateTime, Field, Index, text
+from sqlalchemy import Enum as SAEnum
+from sqlmodel import JSON, Column, DateTime, Field, Index, text
 
 from nexus.core.models.base import SoftDeletableResource
 
@@ -69,8 +70,18 @@ class User(SoftDeletableResource, table=True):
     )
 
     role: UserRole = Field(
+        sa_column=Column(
+            SAEnum(
+                UserRole,
+                name="userrole",
+                create_constraint=True,
+                native_enum=True,
+                values_callable=lambda x: [e.value for e in x],
+            ),
+            nullable=False,
+            index=True,
+        ),
         description="User role for access control",
-        index=True,
     )
 
     # Optional fields with defaults

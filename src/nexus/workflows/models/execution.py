@@ -95,7 +95,13 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         default=ExecutionStatus.PENDING,
         description="Current execution status",
         sa_column=Column(
-            SAEnum(ExecutionStatus, name="workflowexecutionstatus", create_constraint=True, native_enum=True),
+            SAEnum(
+                ExecutionStatus,
+                name="workflowexecutionstatus",
+                create_constraint=True,
+                native_enum=True,
+                values_callable=lambda x: [e.value for e in x],
+            ),
             nullable=False,
             index=True,
         ),
