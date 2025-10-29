@@ -22,7 +22,7 @@ def test_all_examples_valid_against_schema() -> None:
     and can be parsed correctly.
     """
     # Load the JSON schema
-    schema_file = Path("specs/003-workflow-engine/contracts/workflow-definition.schema.json")
+    schema_file = Path("schemas/workflows/workflow-definition.schema.json")
     with Path.open(schema_file) as f:
         schema = json.load(f)
 
@@ -89,7 +89,7 @@ def test_example_schema_validation(example_file: str) -> None:
     This provides better error reporting per file.
     """
     # Load the JSON schema
-    schema_file = Path("specs/003-workflow-engine/contracts/workflow-definition.schema.json")
+    schema_file = Path("schemas/workflows/workflow-definition.schema.json")
     with Path.open(schema_file) as f:
         schema = json.load(f)
 

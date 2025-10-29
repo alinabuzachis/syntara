@@ -1,7 +1,7 @@
 # Tasks: Workflow Engine - Ticket 1 (Workflow Management)
 
 **Input**: Design documents from `/specs/003-workflow-engine/`
-**Prerequisites**: plan.md, data-model.md, contracts/workflow-api.yaml, jira-issues.md
+**Prerequisites**: plan.md, data-model.md, schemas/workflows/workflow-api.yaml, jira-issues.md
 **Scope**: Ticket 1 - Workflow Management (Models + API) - 13 Story Points
 
 ## Execution Flow (main)
@@ -11,7 +11,7 @@
 2. Load data-model.md:
    → Extract entities: User, Workflow, WorkflowVersion
    → Soft delete fields: deleted_at, deleted_by
-3. Load contracts/workflow-api.yaml:
+3. Load schemas/workflows/workflow-api.yaml:
    → Extract endpoints: POST/GET/PATCH/DELETE /workflows, /workflows/{id}/versions
 4. Generate tasks by category:
    → Setup: Dependencies, database, migrations
@@ -444,7 +444,7 @@ graph TB
 - [ ] **T037 [P]** Generate OpenAPI specification file
   - File: `docs/openapi.json`
   - Generate from FastAPI app: `python -m src.nexus.api.main --export-openapi`
-  - Verify: Matches contracts/workflow-api.yaml structure
+  - Verify: Matches schemas/workflows/workflow-api.yaml structure
   - Automate: Add to pre-commit hook or CI pipeline
   - **Status**: ⏸️ DEFERRED - FastAPI auto-generates at /docs endpoint
 

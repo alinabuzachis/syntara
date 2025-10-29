@@ -166,7 +166,7 @@
 ## Phase 6: Documentation & OpenAPI
 
 - [X] T017 Update OpenAPI schemas - COMPLETED
-  - ✅ OpenAPI schemas exist in specs/003-workflow-engine/contracts/
+  - ✅ OpenAPI schemas migrated to schemas/workflows/
   - ✅ workflow-api.yaml, shared-schemas.yaml updated during T007
   - ✅ Schemas reflect SQLModel models correctly
   - ✅ Nested objects (labels, workflow_definition) properly typed

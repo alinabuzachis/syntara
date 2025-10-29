@@ -11,7 +11,7 @@
 
 **Scope**: Execution Management REST API ONLY (WebSocket API out of scope)
 **Prerequisites**: Ticket 1 completed (Workflow Management Models + API)
-**Reference**: contracts/workflow-api.yaml (REST endpoints only)
+**Reference**: schemas/workflows/workflow-api.yaml (REST endpoints only)
 
 ## Task Dependencies & Execution Flow (Ticket 4)
 

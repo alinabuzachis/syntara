@@ -1,86 +1,14 @@
 # Shared Schemas for Workflow Engine API
-# This file contains common schema definitions used by both REST API (OpenAPI) and WebSocket API (AsyncAPI)
+# This file contains workflow-specific schema definitions used by both REST API (OpenAPI) and WebSocket API (AsyncAPI)
+# Base resource schemas (BaseResource, NamedResource, etc.) are in ../base/shared-resources.openapi.yaml
 
 components:
   schemas:
-    BaseResource:
-      type: object
-      title: Base Resource
-      description: Base fields common to all resources including unique identifier,
-        labels for categorization, and audit timestamps
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: Unique resource identifier
-        labels:
-          type: object
-          additionalProperties:
-            type: string
-          description: Key-value labels for categorization and filtering (e.g., {"environment":"production",
-            "team":"data-platform"})
-          example:
-            environment: production
-            team: data-platform
-            priority: high
-        created_at:
-          type: string
-          format: date-time
-          description: Timestamp when resource was created
-        updated_at:
-          type: string
-          format: date-time
-          description: Timestamp when resource was last updated
-
-    NamedResource:
-      allOf:
-      - $ref: '#/components/schemas/BaseResource'
-      - type: object
-        title: Named Resource
-        description: Extension of BaseResource with human-readable name and optional
-          description
-        properties:
-          name:
-            type: string
-            description: Human-readable name
-          description:
-            type: string
-            description: Optional description
-            nullable: true
-
-    SoftDeletableResource:
-      type: object
-      title: Soft Deletable Resource
-      description: Mixin fields for resources that support soft deletion with audit
-        trail (deleted_at timestamp and deleted_by user)
-      properties:
-        deleted_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: Timestamp when resource was soft deleted
-        deleted_by:
-          type: string
-          format: uuid
-          nullable: true
-          description: User who soft deleted the resource
-
-    UserOwnedResource:
-      type: object
-      title: User Owned Resource
-      description: Mixin fields for resources with user ownership tracking (created_by
-        user reference)
-      properties:
-        created_by:
-          type: string
-          format: uuid
-          description: User who created the resource
-
     Workflow:
       allOf:
-      - $ref: '#/components/schemas/NamedResource'
-      - $ref: '#/components/schemas/SoftDeletableResource'
-      - $ref: '#/components/schemas/UserOwnedResource'
+      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
+      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/SoftDeletableResource
+      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
       - type: object
         title: Workflow
         description: A complete automation process with versioned definitions, combining
@@ -123,7 +51,7 @@ components:
 
     Execution:
       allOf:
-      - $ref: '#/components/schemas/BaseResource'
+      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
       - type: object
         title: Execution
         description: Runtime instance of a workflow execution with current state,
@@ -177,7 +105,7 @@ components:
 
     ActivityExecution:
       allOf:
-      - $ref: '#/components/schemas/BaseResource'
+      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
       - type: object
         title: Activity Execution
         description: Individual activity execution within a workflow with runtime
@@ -232,7 +160,7 @@ components:
 
     Approval:
       allOf:
-      - $ref: '#/components/schemas/BaseResource'
+      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
       - type: object
         title: Approval
         description: Human-in-the-loop decision point that pauses workflow execution
@@ -472,19 +400,6 @@ components:
           type: object
           description: Approver's response including reason, comments, and any additional
             structured data
-
-    Error:
-      type: object
-      title: Error Response
-      description: Standard error response format with error code, message, and optional
-        details
-      properties:
-        error:
-          type: string
-        message:
-          type: string
-        details:
-          type: object
 
     # WebSocket-specific schemas
     WebSocketMessage:

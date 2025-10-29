@@ -629,5 +629,5 @@ asyncio.run(main())
 
 - **Temporal Python SDK**: https://docs.temporal.io/dev-guide/python
 - **Pydantic v2**: https://docs.pydantic.dev/latest/
-- **JSON Schema**: `specs/003-workflow-engine/contracts/workflow-definition.schema.json`
+- **JSON Schema**: `schemas/workflows/workflow-definition.schema.json`
 - **Architecture Plan**: `specs/003-workflow-engine/plan.md`
