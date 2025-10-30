@@ -49,6 +49,7 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.6.0",
     "httpx>=0.25.0",  # for testing FastAPI
+    "respx>=0.20.0",  # for mocking httpx requests
     "types-pyyaml>=6.0.12",  # type stubs for PyYAML
     "yamllint>=1.35.1",
     "yamlfmt>=1.1.1",
@@ -171,4 +172,9 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
+]
+
+[dependency-groups]
+dev = [
+    "respx>=0.22.0",
 ]

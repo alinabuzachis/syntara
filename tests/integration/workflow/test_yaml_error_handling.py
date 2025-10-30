@@ -12,6 +12,7 @@ from temporalio.worker import Worker
 
 from nexus.workflows.workflow_engine.activities.script_activity import ScriptExecutionError, execute_bash_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.models import ScriptExecutorConfig, ScriptLanguage
 from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 
 
@@ -65,9 +66,10 @@ async def test_error_details_capture() -> None:
     echo "ERROR: Permission denied" >&2
     exit 2
     """
+    config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code=script)
 
     with pytest.raises(ScriptExecutionError) as exc_info:
-        await execute_bash_script(script=script, inputs={})
+        await execute_bash_script(config.model_dump(by_alias=True), inputs={})
 
     # Error should contain useful information
     error_str = str(exc_info.value).lower()
@@ -84,9 +86,10 @@ async def test_syntax_error_in_bash_script() -> None:
     if [ without closing bracket
     echo "This won't execute"
     """
+    config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code=script)
 
     with pytest.raises(ScriptExecutionError):
-        await execute_bash_script(script=script, inputs={})
+        await execute_bash_script(config.model_dump(by_alias=True), inputs={})
 
 
 @pytest.mark.integration
@@ -268,9 +271,10 @@ async def test_error_metadata_in_activity_execution() -> None:
         echo "Stack trace line 2" >&2
         exit 127
         """
+        config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code=script)
 
         try:
-            await execute_bash_script(script=script, inputs={})
+            await execute_bash_script(config.model_dump(by_alias=True), inputs={})
         except (RuntimeError, ValueError, ScriptExecutionError) as e:
             # In real implementation, error details would be passed to update_activity_execution
             error_details = {

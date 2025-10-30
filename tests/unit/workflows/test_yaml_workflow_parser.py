@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from nexus.workflows.workflow_engine.models import ScriptExecutorConfig
 from nexus.workflows.workflow_engine.yaml_workflow_parser import (
     WorkflowParseError,
     parse_workflow_yaml,
@@ -116,7 +117,8 @@ workflow:
         assert activity.type == "task"
         assert activity.task is not None
         assert activity.task.executor == "script"
-        assert "Hello" in activity.task.config["code"]
+        assert isinstance(activity.task.config, ScriptExecutorConfig)
+        assert "Hello" in activity.task.config.code
 
     def test_parse_parallel_activity(self) -> None:
         """Test parsing parallel activity."""
@@ -683,3 +685,49 @@ workflow:
         assert workflow_def.triggers[0].type == "manual"
         assert workflow_def.triggers[1].type == "scheduled"
         assert workflow_def.triggers[2].type == "event"
+
+    def test_parse_script_with_environment_variables(self) -> None:
+        """Test parsing script activity with environment variables."""
+        yaml_str = """
+schemaVersion: "1.0.0"
+version: 1
+metadata:
+  name: test-workflow
+  description: Test
+triggers:
+- type: manual
+workflow:
+  activities:
+  - id: script_with_env
+    type: task
+    task:
+      executor: script
+      config:
+        language: python
+        environment:
+          API_KEY: "secret123"
+          DB_HOST: "localhost"
+          DB_PORT: "5432"
+        code: |
+          import os
+          print(os.getenv("API_KEY"))
+"""
+        workflow_def = parse_workflow_yaml(yaml_str)
+
+        activity = workflow_def.workflow.activities[0]
+        assert activity.id == "script_with_env"
+        assert activity.task is not None
+        assert activity.task.executor == "script"
+
+        # Verify config is ScriptExecutorConfig model
+        assert isinstance(activity.task.config, ScriptExecutorConfig)
+
+        # Verify environment field is properly parsed
+        script_config = activity.task.config
+        assert script_config.environment is not None
+        assert isinstance(script_config.environment, dict)
+        assert script_config.environment["API_KEY"] == "secret123"
+        assert script_config.environment["DB_HOST"] == "localhost"
+        assert script_config.environment["DB_PORT"] == "5432"
+        assert script_config.language.value == "python"
+        assert "os.getenv" in script_config.code

@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
+from nexus.workflows.workflow_engine.models import ScriptExecutorConfig, ScriptLanguage
 from nexus.workflows.workflow_engine.services.execution_service import ExecutionService
 from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 
@@ -61,7 +62,8 @@ workflow:
     # Start the activity in background (simulates a running workflow)
     task_def = workflow_def.workflow.activities[0].task
     assert task_def is not None
-    activity_task = asyncio.create_task(execute_bash_script(script=task_def.config["code"], inputs={}))
+    assert isinstance(task_def.config, ScriptExecutorConfig)
+    activity_task = asyncio.create_task(execute_bash_script(task_def.config.model_dump(by_alias=True), inputs={}))
 
     # Wait a bit for activity to start
     await asyncio.sleep(0.1)
@@ -152,7 +154,8 @@ workflow:
     for activity in workflow_def.workflow.activities:
         task_def = activity.task
         assert task_def is not None
-        task = asyncio.create_task(execute_bash_script(script=task_def.config["code"], inputs={}))
+        assert isinstance(task_def.config, ScriptExecutorConfig)
+        task = asyncio.create_task(execute_bash_script(task_def.config.model_dump(by_alias=True), inputs={}))
         tasks.append(task)
 
     # Wait for activities to start
@@ -209,11 +212,13 @@ async def test_partial_cancellation() -> None:
     """Test cancelling workflow after some activities complete."""
     # First activity completes quickly
     script1 = "echo 'Quick task'; exit 0"
-    result1 = await execute_bash_script(script=script1, inputs={})
+    config1 = ScriptExecutorConfig(language=ScriptLanguage.BASH, code=script1)
+    result1 = await execute_bash_script(config1.model_dump(by_alias=True), inputs={})
     assert "Quick task" in result1["stdout"]
 
     # Second activity is long-running and will be cancelled
-    task2 = asyncio.create_task(execute_bash_script(script="sleep 30; echo 'Should not complete'", inputs={}))
+    config2 = ScriptExecutorConfig(language=ScriptLanguage.BASH, code="sleep 30; echo 'Should not complete'")
+    task2 = asyncio.create_task(execute_bash_script(config2.model_dump(by_alias=True), inputs={}))
 
     await asyncio.sleep(0.1)
 
@@ -241,8 +246,9 @@ async def test_cancellation_cleanup() -> None:
     sleep 20
     rm /tmp/test_workflow_$$
     """
+    config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code=script)
 
-    task = asyncio.create_task(execute_bash_script(script=script, inputs={}))
+    task = asyncio.create_task(execute_bash_script(config.model_dump(by_alias=True), inputs={}))
 
     await asyncio.sleep(0.1)
 

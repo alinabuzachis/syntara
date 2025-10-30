@@ -1,0 +1,26 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: timeout-retry
+  description: API request with timeout and exponential backoff retry
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: slow_endpoint
+    type: task
+    timeout: PT2S
+    task:
+      executor: api
+      config:
+        method: GET
+        url: http://test-api.example.com/api/slow
+    retryPolicy:
+      maxAttempts: 3
+      backoff: exponential
+      initialInterval: PT1S
+      maxInterval: PT10S
+      multiplier: 2.0

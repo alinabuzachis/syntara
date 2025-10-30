@@ -1,0 +1,101 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: random-users
+  description: Fetch random user profiles and generate user directory
+  tags:
+  - real-world
+  - api
+  - users
+  owner: demo-team
+
+triggers:
+- type: manual
+
+inputs:
+  count:
+    type: integer
+    description: Number of random users to generate
+    default: 5
+    minimum: 1
+    maximum: 20
+
+workflow:
+  activities:
+  # Fetch random users from randomuser.me API
+  - id: fetch_users
+    name: Fetch Random Users
+    type: task
+    task:
+      executor: api
+      config:
+        method: GET
+        url: https://randomuser.me/api/
+        headers:
+          Accept: application/json
+        queryParams:
+          results: ${input.count}
+          nat: us,gb,ca
+      outputs:
+        users: $.body.results
+        info: $.body.info
+    timeout: PT30S
+
+  # Process users with Python
+  - id: process_users
+    name: Process User Data
+    type: task
+    task:
+      executor: script
+      config:
+        language: python
+        code: |
+          import json
+          import os
+
+          # Get users from environment
+          users_json = os.getenv('INPUT_USERS', '[]')
+          users = json.loads(users_json)
+
+          # Process each user
+          processed_users = []
+          for user in users:
+              processed_user = {
+                  "name": f"{user['name']['first']} {user['name']['last']}",
+                  "email": user['email'],
+                  "username": user['login']['username'],
+                  "location": f"{user['location']['city']}, {user['location']['state']}, {user['location']['country']}",
+                  "phone": user['phone'],
+                  "age": user['dob']['age'],
+                  "gender": user['gender'],
+                  "picture": user['picture']['medium']
+              }
+              processed_users.append(processed_user)
+
+          # Generate statistics
+          total_users = len(processed_users)
+          avg_age = sum(u['age'] for u in processed_users) / total_users if total_users > 0 else 0
+          gender_counts = {}
+          for user in processed_users:
+              gender = user['gender']
+              gender_counts[gender] = gender_counts.get(gender, 0) + 1
+
+          # Create report
+          report = {
+              "total_users": total_users,
+              "average_age": round(avg_age, 1),
+              "gender_distribution": gender_counts,
+              "users": processed_users,
+              "summary": f"Generated {total_users} random user profiles with average age {round(avg_age, 1)}"
+          }
+
+          print(json.dumps(report, indent=2))
+      inputs:
+        users: ${fetch_users.output.users}
+      outputs:
+        directory: $.output
+        totalUsers: $.output.total_users
+        averageAge: $.output.average_age
+        summary: $.output.summary
+    timeout: PT1M

@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
-from nexus.workflows.workflow_engine.models import WorkflowDefinition
+from nexus.workflows.workflow_engine.models import ScriptExecutorConfig, ScriptLanguage, WorkflowDefinition
 
 
 @pytest.mark.integration
@@ -117,12 +117,13 @@ async def test_foreach_with_output_aggregation() -> None:
     echo "Processed: $ITEM"
     echo "{\"item\": \"$ITEM\", \"status\": \"done\"}"
     """
+    config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code=script)
 
     items = ["task1", "task2", "task3"]
     outputs = []
 
     for item in items:
-        result = await execute_bash_script(script=script, inputs={"item": item})
+        result = await execute_bash_script(config.model_dump(by_alias=True), inputs={"item": item})
         outputs.append(result)
 
     # Verify all outputs collected

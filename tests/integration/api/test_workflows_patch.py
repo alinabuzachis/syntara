@@ -371,6 +371,7 @@ async def test_patch_workflow_with_unchanged_yaml_skips_version(base_client: Asy
                 "task": {
                     "executor": "api",
                     "config": {
+                        "method": "GET",
                         "url": "https://example.com",
                     },
                 },

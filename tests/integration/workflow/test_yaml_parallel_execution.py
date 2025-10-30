@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
+from nexus.workflows.workflow_engine.models import ScriptExecutorConfig, ScriptLanguage
 
 
 @pytest.mark.integration
@@ -104,7 +105,8 @@ async def test_parallel_with_different_durations() -> None:
 
     start_time = time.time()
 
-    tasks = [execute_bash_script(script=s, inputs={}) for s in scripts]
+    configs = [ScriptExecutorConfig(language=ScriptLanguage.BASH, code=s) for s in scripts]
+    tasks = [execute_bash_script(config.model_dump(by_alias=True), inputs={}) for config in configs]
     results = await asyncio.gather(*tasks)
 
     elapsed_time = time.time() - start_time

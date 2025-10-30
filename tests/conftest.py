@@ -35,7 +35,8 @@ from nexus.core.models import User, UserRole
 from nexus.tool_manager.models import Tool, ToolProvider
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 from nexus.workflows.models import Workflow, WorkflowVersion
-from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
+from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
+from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
 from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
@@ -427,7 +428,8 @@ async def temporal_client(temporal_env: WorkflowEnvironment) -> Client:
 async def temporal_worker(temporal_env: WorkflowEnvironment) -> AsyncGenerator[Worker, None]:
     """Provide a Temporal worker for testing.
 
-    This worker is configured with the DynamicWorkflow and bash script activity.
+    This worker is configured with the DynamicWorkflow and all activity executors
+    (bash, Python, and API).
 
     Args:
         temporal_env: The Temporal test environment fixture
@@ -444,7 +446,7 @@ async def temporal_worker(temporal_env: WorkflowEnvironment) -> AsyncGenerator[W
         temporal_env.client,
         task_queue=task_queue,
         workflows=[DynamicWorkflow],
-        activities=[execute_bash_script],
+        activities=[execute_bash_script, execute_python_script, execute_api_request],
     ) as worker:
         logger.info("Test worker started on queue: %s", task_queue)
         yield worker

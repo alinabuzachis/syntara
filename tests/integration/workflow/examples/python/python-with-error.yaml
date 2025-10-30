@@ -1,0 +1,24 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: python-with-error
+  description: Python script that raises an exception to test error handling
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: failing_script
+    type: task
+    task:
+      executor: script
+      config:
+        language: python
+        code: |
+          raise Exception("Intentional error for testing")
+    retryPolicy:
+      maxAttempts: 3
+      backoff: exponential
+      initialInterval: PT1S

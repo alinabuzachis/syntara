@@ -7,23 +7,32 @@ activity execution, tracking, error handling, and state persistence.
 
 import asyncio
 import json
-import re
 from datetime import timedelta
-from typing import Any
+from typing import Any, cast
 
 from temporalio import workflow
-from temporalio.common import RetryPolicy
 
-from .activities.script_activity import execute_bash_script
+from .activities.common import build_retry_policy, parse_timeout
+
+# Import script activities (use asyncio.subprocess, no sandbox issues)
+from .activities.script_activity import execute_bash_script, execute_python_script
 from .expression_resolver import ExpressionResolver
 from .models import (
     Activity,
+    APIExecutorConfig,
     CountLoopDefinition,
     ForEachLoopDefinition,
     JoinDefinition,
+    ScriptExecutorConfig,
     WhileLoopDefinition,
     WorkflowDefinition,
 )
+
+# Import API activity with unsafe passthrough to avoid sandbox restrictions
+# The httpx library triggers urllib.request.Request warnings in Temporal's sandbox
+# See: https://github.com/temporalio/sdk-python#avoiding-the-sandbox
+with workflow.unsafe.imports_passed_through():
+    from .activities.api_activity import execute_api_request
 
 
 @workflow.defn
@@ -65,10 +74,18 @@ class DynamicWorkflow:
         # Initialize expression resolver
         self.expression_resolver = ExpressionResolver(self.workflow_definition)
 
+        # Apply default values from input parameter definitions
+        resolved_inputs: dict[str, Any] = dict(workflow_inputs or {})
+        if self.workflow_definition.inputs:
+            for input_name, input_param in self.workflow_definition.inputs.items():
+                # Apply default value if input not provided and default is specified
+                if input_name not in resolved_inputs and input_param.default is not None:
+                    resolved_inputs[input_name] = input_param.default
+
         # Initialize workflow state
         workflow_state: dict[str, Any] = {
             "execution_id": execution_id,
-            "inputs": workflow_inputs or {},
+            "inputs": resolved_inputs,
             "variables": self.workflow_definition.variables or {},
             "activity_outputs": {},
             "completed_activities": [],
@@ -88,23 +105,38 @@ class DynamicWorkflow:
         try:
             # Execute activities
             for activity in self.workflow_definition.workflow.activities:
-                activity_result = await self._execute_activity(
-                    activity=activity,
-                    execution_id=execution_id,
-                    workflow_state=workflow_state,
-                )
+                try:
+                    activity_result = await self._execute_activity(
+                        activity=activity,
+                        execution_id=execution_id,
+                        workflow_state=workflow_state,
+                    )
 
-                # Store activity output
-                workflow_state["activity_outputs"][activity.id] = activity_result
-                workflow_state["completed_activities"].append(activity.id)
+                    # Store activity output
+                    workflow_state["activity_outputs"][activity.id] = activity_result
+                    workflow_state["completed_activities"].append(activity.id)
 
-                # Update workflow state after each activity (persistence checkpoint)
-                workflow_state["updated_at"] = workflow.now().isoformat()
+                    # Update workflow state after each activity (persistence checkpoint)
+                    workflow_state["updated_at"] = workflow.now().isoformat()
 
-                workflow.logger.info(
-                    f"Activity {activity.id} completed",
-                    extra={"activity_id": activity.id, "execution_id": execution_id},
-                )
+                    workflow.logger.info(
+                        f"Activity {activity.id} completed",
+                        extra={"activity_id": activity.id, "execution_id": execution_id},
+                    )
+
+                except Exception as activity_error:
+                    # Store error details for failed activity
+                    workflow_state["activity_outputs"][activity.id] = {
+                        "error": str(activity_error),
+                        "error_details": {
+                            "type": type(activity_error).__name__,
+                            "message": str(activity_error),
+                        },
+                    }
+                    workflow_state["updated_at"] = workflow.now().isoformat()
+
+                    # Re-raise to be caught by outer exception handler
+                    raise
 
             # Mark workflow as completed
             workflow_state["status"] = "completed"
@@ -187,6 +219,123 @@ class DynamicWorkflow:
         # activity.type == "join"  # noqa: ERA001
         return await self._execute_join_activity(activity, workflow_state)
 
+    async def _execute_script_executor(
+        self,
+        activity: Activity,
+        task_inputs: dict[str, Any],
+        activity_timeout: timedelta,
+        execution_id: str,
+    ) -> dict[str, Any]:
+        """Execute a script executor (bash or python).
+
+        Args:
+            activity: Task activity definition
+            task_inputs: Prepared task inputs
+            activity_timeout: Execution timeout
+            execution_id: Workflow execution ID
+
+        Returns:
+            Script execution result
+
+        """
+        if not activity.task:
+            msg = f"Activity {activity.id} has no task definition"
+            raise ValueError(msg)
+
+        # Ensure config is a ScriptExecutorConfig
+        if not isinstance(activity.task.config, ScriptExecutorConfig):
+            msg = f"Script executor requires ScriptExecutorConfig, got {type(activity.task.config).__name__}"
+            raise TypeError(msg)
+
+        script_config = activity.task.config
+        language = script_config.language.value
+
+        # Route to appropriate script executor based on language
+        if language == "bash":
+            script_executor = execute_bash_script
+        elif language == "python":
+            script_executor = execute_python_script
+        else:
+            msg = f"Unsupported script language: {language}"
+            raise ValueError(msg)
+
+        # Execute script activity
+        # Serialize config to dict to avoid Pydantic V1 deprecation warnings in Temporal
+        try:
+            result = await workflow.execute_activity(
+                script_executor,
+                args=[script_config.model_dump(by_alias=True), task_inputs],
+                start_to_close_timeout=activity_timeout,
+                retry_policy=build_retry_policy(
+                    activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None
+                ),
+            )
+
+            # Process output mappings if defined
+            if activity.task.outputs:
+                result = self._process_output_mappings(result, activity.task.outputs)
+
+            return cast("dict[str, Any]", result)
+
+        except Exception as e:
+            workflow.logger.error(
+                f"Task {activity.id} failed: {e}",
+                extra={"activity_id": activity.id, "execution_id": execution_id},
+            )
+            raise
+
+    async def _execute_api_executor(
+        self,
+        activity: Activity,
+        task_inputs: dict[str, Any],
+        activity_timeout: timedelta,
+        execution_id: str,
+    ) -> dict[str, Any]:
+        """Execute an API executor.
+
+        Args:
+            activity: Task activity definition
+            task_inputs: Prepared task inputs
+            activity_timeout: Execution timeout
+            execution_id: Workflow execution ID
+
+        Returns:
+            API execution result
+
+        """
+        if not activity.task:
+            msg = f"Activity {activity.id} has no task definition"
+            raise ValueError(msg)
+
+        # Ensure config is an APIExecutorConfig
+        if not isinstance(activity.task.config, APIExecutorConfig):
+            msg = f"API executor requires APIExecutorConfig, got {type(activity.task.config).__name__}"
+            raise TypeError(msg)
+
+        # Serialize config to dict to avoid Pydantic V1 deprecation warnings in Temporal
+        try:
+            result = await workflow.execute_activity(
+                execute_api_request,
+                args=[activity.task.config.model_dump(by_alias=True), task_inputs],
+                start_to_close_timeout=activity_timeout,
+                retry_policy=build_retry_policy(
+                    activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None
+                ),
+            )
+
+            # Process output mappings if defined
+            if activity.task.outputs:
+                result = self._process_output_mappings(result, activity.task.outputs)
+
+            return cast("dict[str, Any]", result)
+
+        except Exception as e:
+            workflow.logger.error(
+                f"API task {activity.id} failed: {e}",
+                extra={"activity_id": activity.id, "execution_id": execution_id},
+            )
+            raise
+
     async def _execute_task_activity(
         self,
         activity: Activity,
@@ -222,42 +371,13 @@ class DynamicWorkflow:
         task_inputs = self._prepare_task_inputs(activity, workflow_state)
 
         # Configure timeout
-        timeout = self._parse_duration(activity.timeout) if activity.timeout else timedelta(minutes=5)
+        timeout = parse_timeout(activity.timeout) if activity.timeout else timedelta(minutes=5)
 
         # Execute based on executor type
         if activity.task.executor == "script":
-            script_code = activity.task.config.get("code", "")
-            language = activity.task.config.get("language", "bash")
-
-            if language != "bash":
-                msg = f"Unsupported script language: {language}"
-                raise ValueError(msg)
-
-            # Execute bash script activity
-            try:
-                result = await workflow.execute_activity(
-                    execute_bash_script,
-                    args=[script_code, task_inputs],
-                    start_to_close_timeout=timeout,
-                    retry_policy=self._build_retry_policy(activity),
-                )
-
-                # Process output mappings if defined
-                if activity.task.outputs:
-                    result = self._process_output_mappings(result, activity.task.outputs)
-
-            except Exception as e:
-                workflow.logger.error(
-                    f"Task {activity.id} failed: {e}",
-                    extra={"activity_id": activity.id, "execution_id": execution_id},
-                )
-                raise
-            else:
-                result_dict: dict[str, Any] = result
-                return result_dict
-        else:
-            msg = f"Unsupported executor type: {activity.task.executor}"
-            raise ValueError(msg)
+            return await self._execute_script_executor(activity, task_inputs, timeout, execution_id)
+        # Otherwise, executor must be "api" (enforced by type system)
+        return await self._execute_api_executor(activity, task_inputs, timeout, execution_id)
 
     async def _execute_parallel_activity(
         self,
@@ -296,7 +416,7 @@ class DynamicWorkflow:
 
             # Store branch results
             branch_results = {}
-            for branch, result in zip(activity.branches, results, strict=False):
+            for branch, result in zip(activity.branches, results, strict=True):
                 branch_results[branch.id] = result
                 workflow_state["activity_outputs"][branch.id] = result
 
@@ -691,11 +811,20 @@ class DynamicWorkflow:
                 try:
                     result = await task
                     workflow_state["activity_outputs"][branch_id] = result
-                except (asyncio.CancelledError, ValueError, TypeError, RuntimeError) as e:
-                    workflow.logger.warning(
-                        f"Branch {branch_id} failed: {e}",
+                except asyncio.CancelledError:
+                    workflow.logger.info(
+                        f"Branch {branch_id} was cancelled",
                         extra={"branch_id": branch_id},
                     )
+                    raise  # Re-raise to propagate cancellation
+                except Exception as e:
+                    # Log and re-raise all other exceptions
+                    workflow.logger.error(
+                        f"Branch {branch_id} failed with {type(e).__name__}: {e}",
+                        extra={"branch_id": branch_id},
+                        exc_info=True,
+                    )
+                    raise
             workflow_state.get("pending_branches", {}).pop(branch_id, None)
 
         # Handle pending tasks (timeout occurred)
@@ -727,9 +856,22 @@ class DynamicWorkflow:
         results = await asyncio.gather(*coroutines, return_exceptions=True)
 
         # Store results
-        for (branch_id, _, _), result in zip(branches_to_execute, results, strict=False):
-            if not isinstance(result, Exception):
+        for (branch_id, _, _), result in zip(branches_to_execute, results, strict=True):
+            if isinstance(result, Exception):
+                # Log the exception but don't fail the entire join
+                workflow.logger.error(
+                    f"Branch {branch_id} failed in join execution: {result}",
+                    extra={"branch_id": branch_id},
+                    exc_info=result,
+                )
+                # Store error in activity_outputs for visibility
+                workflow_state["activity_outputs"][branch_id] = {
+                    "error": str(result),
+                    "error_type": type(result).__name__,
+                }
+            else:
                 workflow_state["activity_outputs"][branch_id] = result
+
             workflow_state.get("pending_branches", {}).pop(branch_id, None)
 
     async def _execute_join_activity(
@@ -755,7 +897,7 @@ class DynamicWorkflow:
             raise ValueError(msg)
 
         join_def = activity.join
-        timeout_seconds = self._parse_duration(join_def.timeout).total_seconds() if join_def.timeout else None
+        timeout_seconds = parse_timeout(join_def.timeout).total_seconds() if join_def.timeout else None
 
         # Collect pending branches that need to be executed
         branches_to_execute = []
@@ -788,22 +930,72 @@ class DynamicWorkflow:
     ) -> dict[str, Any]:
         """Prepare input parameters for task execution with expression resolution.
 
+        Merges workflow-level inputs with task-specific inputs so that both
+        ${input.field} (workflow inputs) and task-mapped inputs are available.
+
         Args:
             activity: Activity definition
             workflow_state: Current workflow state with previous outputs
 
         Returns:
-            Resolved input parameters
+            Resolved input parameters (workflow inputs + task inputs)
 
         """
-        if not activity.task or not activity.task.inputs:
-            return {}
+        # Start with workflow-level inputs (so ${input.field} expressions work)
+        resolved_inputs = dict(workflow_state.get("inputs", {}))
 
-        resolved_inputs = {}
-        for key, value in activity.task.inputs.items():
-            resolved_inputs[key] = self.expression_resolver.resolve_expression(value, workflow_state)
+        # Add task-specific inputs (these override workflow inputs if same key)
+        if activity.task and activity.task.inputs:
+            for key, value in activity.task.inputs.items():
+                resolved_inputs[key] = self.expression_resolver.resolve_expression(value, workflow_state)
 
         return resolved_inputs
+
+    def _traverse_path(self, data: dict[str, Any] | list[Any] | object, path: str) -> object:
+        """Traverse a JSONPath-like expression to extract value from data.
+
+        Supports dict keys and array indices (e.g., "items.0.name").
+
+        Args:
+            data: Source data to traverse
+            path: Dot-separated path (e.g., "output.items.0.id")
+
+        Returns:
+            Extracted value or None if path not found
+
+        """
+        value: object = data
+        for field_name in path.split("."):
+            if isinstance(value, dict) and field_name in value:
+                value = value[field_name]
+            elif isinstance(value, list) and field_name.isdigit():
+                # Support numeric indices for arrays
+                index = int(field_name)
+                if 0 <= index < len(value):
+                    value = value[index]
+                else:
+                    return None
+            else:
+                return None
+        return value
+
+    def _parse_value(self, value: object) -> object:
+        """Parse value, attempting JSON deserialization if it's a string.
+
+        Args:
+            value: Value to parse
+
+        Returns:
+            Parsed value (JSON if string, otherwise original)
+
+        """
+        if isinstance(value, str):
+            try:
+                return json.loads(value.strip())
+            except (json.JSONDecodeError, ValueError):
+                # Not JSON, return as-is
+                return value
+        return value
 
     def _process_output_mappings(
         self,
@@ -826,93 +1018,14 @@ class DynamicWorkflow:
         mapped_outputs = {}
 
         for output_name, mapping_expr in output_mappings.items():
-            # Handle $.stdout, $.stderr patterns
+            # Handle $.field or $.nested.field patterns
             if mapping_expr.startswith("$."):
-                field_name = mapping_expr[2:]  # Remove "$."
-                if field_name in result:
-                    value = result[field_name]
+                path = mapping_expr[2:]  # Remove "$."
+                value = self._traverse_path(result, path)
 
-                    # Try to parse as JSON if it's a string
-                    if isinstance(value, str):
-                        try:
-                            parsed = json.loads(value.strip())
-                            mapped_outputs[output_name] = parsed
-                        except (json.JSONDecodeError, ValueError):
-                            # Not JSON, store as-is
-                            mapped_outputs[output_name] = value
-                    else:
-                        mapped_outputs[output_name] = value
+                if value is not None:
+                    mapped_outputs[output_name] = self._parse_value(value)
 
         # Add the mapped outputs to result under 'output' key
         result["output"] = mapped_outputs
         return result
-
-    def _parse_duration(self, iso_duration: str) -> timedelta:
-        """Parse ISO 8601 duration format to timedelta.
-
-        Supports PT format with hours, minutes, and seconds:
-        - PT5M - 5 minutes
-        - PT30S - 30 seconds
-        - PT2H - 2 hours
-        - PT1H30M - 1 hour 30 minutes
-        - PT1H30M15S - 1 hour 30 minutes 15 seconds
-
-        Args:
-            iso_duration: ISO 8601 duration string (e.g., "PT5M" or "PT1H30M")
-
-        Returns:
-            timedelta object
-
-        """
-        if not iso_duration.startswith("PT"):
-            msg = f"Invalid ISO 8601 duration: {iso_duration}"
-            raise ValueError(msg)
-
-        duration_str = iso_duration[2:]  # Remove "PT" prefix
-
-        # Parse hours, minutes, and seconds using regex
-        hours_match = re.search(r"(\d+)H", duration_str)
-        minutes_match = re.search(r"(\d+)M", duration_str)
-        seconds_match = re.search(r"(\d+)S", duration_str)
-
-        hours = int(hours_match.group(1)) if hours_match else 0
-        minutes = int(minutes_match.group(1)) if minutes_match else 0
-        seconds = int(seconds_match.group(1)) if seconds_match else 0
-
-        # Ensure at least one component was found
-        if hours == 0 and minutes == 0 and seconds == 0:
-            msg = f"Unsupported duration format: {iso_duration}"
-            raise ValueError(msg)
-
-        return timedelta(hours=hours, minutes=minutes, seconds=seconds)
-
-    def _build_retry_policy(self, activity: Activity) -> RetryPolicy | None:
-        """Build Temporal retry policy from activity configuration.
-
-        Args:
-            activity: Activity with optional retryPolicy
-
-        Returns:
-            Temporal RetryPolicy or None
-
-        """
-        if not activity.retry_policy:
-            return None
-
-        retry_config = activity.retry_policy
-        initial_interval = self._parse_duration(retry_config.initial_interval)
-
-        # Build retry policy
-        policy_kwargs: dict[str, Any] = {
-            "maximum_attempts": retry_config.max_attempts,
-            "initial_interval": initial_interval,
-        }
-
-        # Add optional fields
-        if retry_config.max_interval:
-            policy_kwargs["maximum_interval"] = self._parse_duration(retry_config.max_interval)
-
-        if retry_config.backoff == "exponential" and retry_config.multiplier:
-            policy_kwargs["backoff_coefficient"] = retry_config.multiplier
-
-        return RetryPolicy(**policy_kwargs)

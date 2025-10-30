@@ -5,16 +5,19 @@ Expression resolution logic is tested in test_expression_resolver.py.
 """
 
 # ruff: noqa: SLF001
-# SLF001: These tests specifically test private methods (_parse_duration, _process_output_mappings, etc.)
+# SLF001: These tests specifically test private methods (_process_output_mappings, etc.)
 # PLR2004: Test assertions use literal values which is standard practice in unit tests
 # FBT001: Test parameters include boolean values for parameterized tests
 
 import pytest
 
+from nexus.workflows.workflow_engine.activities.common import build_retry_policy, parse_timeout
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models import (
     Activity,
     RetryPolicy,
+    ScriptExecutorConfig,
+    ScriptLanguage,
     TaskDefinition,
 )
 
@@ -26,15 +29,13 @@ class TestDurationParsing:
         ("duration", "error_match"),
         [
             ("5M", "Invalid ISO 8601 duration"),  # Missing PT prefix
-            ("PT5D", "Unsupported duration format"),  # Days not supported
+            ("PT5D", "Invalid ISO 8601 duration"),  # Days not supported
         ],
     )
     def test_parse_duration_invalid(self, duration: str, error_match: str) -> None:
         """Test parsing invalid duration formats raises ValueError."""
-        workflow = DynamicWorkflow()
-
         with pytest.raises(ValueError, match=error_match):
-            workflow._parse_duration(duration)
+            parse_timeout(duration)
 
     @pytest.mark.parametrize(
         ("duration", "expected_seconds"),
@@ -49,8 +50,7 @@ class TestDurationParsing:
     )
     def test_parse_duration_valid(self, duration: str, expected_seconds: float) -> None:
         """Test parsing valid duration formats."""
-        workflow = DynamicWorkflow()
-        result = workflow._parse_duration(duration)
+        result = parse_timeout(duration)
         assert result.total_seconds() == expected_seconds
 
 
@@ -99,54 +99,58 @@ class TestRetryPolicy:
 
     def test_build_retry_policy_none(self) -> None:
         """Test building retry policy when none configured."""
-        workflow = DynamicWorkflow()
         activity = Activity(
             id="test",
             type="task",
-            task=TaskDefinition(executor="script", config={"language": "bash", "code": "echo test"}),
+            task=TaskDefinition(
+                executor="script", config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test")
+            ),
         )
 
-        policy = workflow._build_retry_policy(activity)
+        policy = build_retry_policy(activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None)
         assert policy is None
 
     def test_build_retry_policy_basic(self) -> None:
         """Test building basic retry policy."""
-        workflow = DynamicWorkflow()
         activity = Activity(
             id="test",
             type="task",
-            task=TaskDefinition(executor="script", config={"language": "bash", "code": "echo test"}),
+            task=TaskDefinition(
+                executor="script", config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test")
+            ),
             retryPolicy=RetryPolicy(maxAttempts=3, initialInterval="PT1S"),
         )
 
-        policy = workflow._build_retry_policy(activity)
+        policy = build_retry_policy(activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None)
         assert policy is not None
         assert policy.maximum_attempts == 3
 
     def test_build_retry_policy_with_max_interval(self) -> None:
         """Test building retry policy with max interval."""
-        workflow = DynamicWorkflow()
         activity = Activity(
             id="test",
             type="task",
-            task=TaskDefinition(executor="script", config={"language": "bash", "code": "echo test"}),
+            task=TaskDefinition(
+                executor="script", config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test")
+            ),
             retryPolicy=RetryPolicy(maxAttempts=5, initialInterval="PT1S", maxInterval="PT30S"),
         )
 
-        policy = workflow._build_retry_policy(activity)
+        policy = build_retry_policy(activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None)
         assert policy is not None
         assert policy.maximum_interval is not None
 
     def test_build_retry_policy_with_exponential_backoff(self) -> None:
         """Test building retry policy with exponential backoff."""
-        workflow = DynamicWorkflow()
         activity = Activity(
             id="test",
             type="task",
-            task=TaskDefinition(executor="script", config={"language": "bash", "code": "echo test"}),
+            task=TaskDefinition(
+                executor="script", config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test")
+            ),
             retryPolicy=RetryPolicy(maxAttempts=5, initialInterval="PT1S", backoff="exponential", multiplier=2.0),
         )
 
-        policy = workflow._build_retry_policy(activity)
+        policy = build_retry_policy(activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None)
         assert policy is not None
         assert policy.backoff_coefficient == 2.0

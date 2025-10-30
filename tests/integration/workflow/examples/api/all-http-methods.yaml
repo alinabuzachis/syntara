@@ -1,0 +1,58 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: all-http-methods
+  description: Test all HTTP methods (GET, POST, PUT, PATCH, DELETE)
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: get_request
+    type: task
+    task:
+      executor: api
+      config:
+        method: GET
+        url: http://test-api.example.com/api/data
+
+  - id: post_request
+    type: task
+    task:
+      executor: api
+      config:
+        method: POST
+        url: http://test-api.example.com/api/users
+        body:
+          name: New User
+          email: user@example.com
+
+  - id: put_request
+    type: task
+    task:
+      executor: api
+      config:
+        method: PUT
+        url: http://test-api.example.com/api/users/123
+        body:
+          name: Updated User
+
+  - id: patch_request
+    type: task
+    task:
+      executor: api
+      config:
+        method: PATCH
+        url: http://test-api.example.com/api/users/123
+        body:
+          email: updated@example.com
+
+  - id: delete_request
+    type: task
+    task:
+      executor: api
+      config:
+        method: DELETE
+        url: http://test-api.example.com/api/users/123

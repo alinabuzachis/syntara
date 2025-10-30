@@ -4,6 +4,8 @@ These models represent the structure of workflow definitions parsed from YAML.
 They are used for validation and type-safe access to workflow configuration.
 """
 
+from enum import Enum
+from http import HTTPMethod
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
@@ -80,12 +82,89 @@ class CountLoopDefinition(BaseModel):
 LoopDefinition = ForEachLoopDefinition | WhileLoopDefinition | CountLoopDefinition
 
 
+# Task executor configurations
+class ScriptLanguage(str, Enum):
+    """Supported script languages for script executor."""
+
+    BASH = "bash"
+    PYTHON = "python"
+
+
+class AuthenticationType(str, Enum):
+    """Supported authentication types for API requests."""
+
+    BASIC = "basic"
+    BEARER = "bearer"
+    API_KEY = "apiKey"
+    OAUTH2 = "oauth2"
+
+
+class ScriptExecutorConfig(BaseModel):
+    """Configuration for script executor.
+
+    Attributes:
+        language: Script language (bash or python)
+        code: Script code to execute
+        environment: Optional environment variables for script execution
+
+    """
+
+    language: ScriptLanguage
+    code: str = Field(min_length=1, description="Script code to execute")
+    environment: dict[str, str] = Field(default_factory=dict, description="Environment variables for script execution")
+
+
+class Authentication(BaseModel):
+    """Authentication configuration for API requests.
+
+    Attributes:
+        type: Authentication type (basic, bearer, apiKey, oauth2)
+        credentials: Reference to stored credentials (must use ${secrets.XXX} pattern)
+
+    """
+
+    type: AuthenticationType = Field(description="Authentication type")
+    credentials: str = Field(
+        description="Reference to stored credentials",
+        pattern=r"^\$\{secrets\.[a-zA-Z0-9_]+\}$",
+    )
+
+
+class APIExecutorConfig(BaseModel):
+    """Configuration for API executor.
+
+    Attributes:
+        method: HTTP method to use
+        url: Request URL
+        headers: Optional request headers
+        body: Optional request body (dict or string)
+        query_params: Optional query parameters
+        authentication: Optional authentication configuration
+        timeout: Optional timeout in seconds
+
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    method: HTTPMethod = Field(description="HTTP method (GET, POST, PUT, PATCH, DELETE)")
+    url: str = Field(description="Request URL")
+    headers: dict[str, Any] = Field(default_factory=dict)
+    body: dict[str, Any] | str | None = None
+    query_params: dict[str, Any] = Field(default_factory=dict, alias="queryParams")
+    authentication: Authentication | None = Field(default=None, description="Authentication configuration")
+    timeout: int | None = Field(default=None, description="Optional timeout in seconds")
+
+
+# Union type for executor configs (strict - only typed configs allowed)
+ExecutorConfig = ScriptExecutorConfig | APIExecutorConfig
+
+
 # Task definitions
 class TaskDefinition(BaseModel):
     """Definition for an executable task."""
 
-    executor: Literal["agentic", "script", "api", "connector"] = Field(description="Task executor type")
-    config: dict[str, Any] = Field(description="Executor-specific configuration")
+    executor: Literal["script", "api"] = Field(description="Task executor type")
+    config: ExecutorConfig = Field(description="Executor-specific configuration")
     inputs: dict[str, Any] | None = Field(default=None, description="Input parameters for the task")
     outputs: dict[str, str] | None = Field(
         default=None, description="Output mapping from the task (JSONPath expressions)"

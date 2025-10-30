@@ -14,9 +14,13 @@ from .responses import (
 )
 from .workflow_definition import (
     Activity,
+    APIExecutorConfig,
     ApprovalDefinition,
+    Authentication,
+    AuthenticationType,
     CountLoopDefinition,
     EventTrigger,
+    ExecutorConfig,
     ForEachLoopDefinition,
     InputParameter,
     JoinDefinition,
@@ -25,6 +29,8 @@ from .workflow_definition import (
     Metadata,
     RetryPolicy,
     ScheduledTrigger,
+    ScriptExecutorConfig,
+    ScriptLanguage,
     TaskDefinition,
     Trigger,
     WhileLoopDefinition,
@@ -33,11 +39,15 @@ from .workflow_definition import (
 )
 
 __all__ = [
+    "APIExecutorConfig",
     # Workflow definition models
     "Activity",
     "ApprovalDefinition",
+    "Authentication",
+    "AuthenticationType",
     "CountLoopDefinition",
     "EventTrigger",
+    "ExecutorConfig",
     "ForEachLoopDefinition",
     "InputParameter",
     "JoinDefinition",
@@ -46,6 +56,8 @@ __all__ = [
     "Metadata",
     "RetryPolicy",
     "ScheduledTrigger",
+    "ScriptExecutorConfig",
+    "ScriptLanguage",
     "TaskDefinition",
     "Trigger",
     "WhileLoopDefinition",

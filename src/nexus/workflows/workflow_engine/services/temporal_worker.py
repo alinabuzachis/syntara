@@ -16,7 +16,8 @@ from nexus.api.constants import (
     DEFAULT_TEMPORAL_ADDRESS,
     DEFAULT_TEMPORAL_NAMESPACE,
 )
-from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
+from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
+from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,11 @@ class TemporalWorkerService:
                 self.client,
                 task_queue=self.task_queue,
                 workflows=[DynamicWorkflow],
-                activities=[execute_bash_script],
+                activities=[
+                    execute_bash_script,
+                    execute_python_script,
+                    execute_api_request,
+                ],
             )
 
             # Start worker in background task

@@ -1,0 +1,226 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: blog-analytics
+  description: Multi-step blog analytics workflow using JSONPlaceholder API
+  tags:
+  - real-world
+  - api
+  - multi-step
+  - analytics
+  owner: demo-team
+
+triggers:
+- type: manual
+
+inputs:
+  user_id:
+    type: integer
+    description: User ID to analyze
+    default: 1
+    minimum: 1
+    maximum: 10
+
+workflow:
+  activities:
+  # Step 1: Fetch user profile
+  - id: fetch_user
+    name: Fetch User Profile
+    type: task
+    task:
+      executor: api
+      config:
+        method: GET
+        url: https://jsonplaceholder.typicode.com/users/${input.user_id}
+        headers:
+          Accept: application/json
+      outputs:
+        user: $.body
+        name: $.body.name
+        username: $.body.username
+        email: $.body.email
+        company: $.body.company.name
+    timeout: PT30S
+
+  # Step 2: Fetch user's posts
+  - id: fetch_posts
+    name: Fetch User Posts
+    type: task
+    task:
+      executor: api
+      config:
+        method: GET
+        url: https://jsonplaceholder.typicode.com/posts
+        headers:
+          Accept: application/json
+        queryParams:
+          userId: ${input.user_id}
+      outputs:
+        posts: $.body
+    timeout: PT30S
+
+  # Step 3: Fetch user's todos
+  - id: fetch_todos
+    name: Fetch User Todos
+    type: task
+    task:
+      executor: api
+      config:
+        method: GET
+        url: https://jsonplaceholder.typicode.com/todos
+        headers:
+          Accept: application/json
+        queryParams:
+          userId: ${input.user_id}
+      outputs:
+        todos: $.body
+    timeout: PT30S
+
+  # Step 4: Analyze user activity in parallel
+  - id: analyze_posts
+    name: Analyze Post Content
+    type: task
+    task:
+      executor: script
+      config:
+        language: python
+        code: |
+          import json
+          import os
+
+          posts_json = os.getenv('INPUT_POSTS', '[]')
+          posts = json.loads(posts_json)
+
+          total_posts = len(posts)
+          total_words = sum(len(post['body'].split()) for post in posts)
+          avg_words = total_words / total_posts if total_posts > 0 else 0
+
+          # Find longest and shortest posts
+          if posts:
+              longest = max(posts, key=lambda p: len(p['body']))
+              shortest = min(posts, key=lambda p: len(p['body']))
+          else:
+              longest = shortest = None
+
+          analysis = {
+              "total_posts": total_posts,
+              "total_words": total_words,
+              "average_words_per_post": round(avg_words, 2),
+              "longest_post": {
+                  "id": longest['id'],
+                  "title": longest['title'],
+                  "word_count": len(longest['body'].split())
+              } if longest else None,
+              "shortest_post": {
+                  "id": shortest['id'],
+                  "title": shortest['title'],
+                  "word_count": len(shortest['body'].split())
+              } if shortest else None
+          }
+
+          print(json.dumps(analysis))
+      inputs:
+        posts: ${fetch_posts.output.posts}
+      outputs:
+        postAnalysis: $.output
+        totalPosts: $.output.total_posts
+    timeout: PT1M
+
+  # Step 5: Analyze todos
+  - id: analyze_todos
+    name: Analyze Todo Completion
+    type: task
+    task:
+      executor: script
+      config:
+        language: python
+        code: |
+          import json
+          import os
+
+          todos_json = os.getenv('INPUT_TODOS', '[]')
+          todos = json.loads(todos_json)
+
+          total_todos = len(todos)
+          completed = sum(1 for todo in todos if todo.get('completed', False))
+          pending = total_todos - completed
+          completion_rate = (completed / total_todos * 100) if total_todos > 0 else 0
+
+          analysis = {
+              "total_todos": total_todos,
+              "completed": completed,
+              "pending": pending,
+              "completion_rate": round(completion_rate, 2)
+          }
+
+          print(json.dumps(analysis))
+      inputs:
+        todos: ${fetch_todos.output.todos}
+      outputs:
+        todoAnalysis: $.output
+        completionRate: $.output.completion_rate
+    timeout: PT1M
+
+  # Step 6: Generate comprehensive report
+  - id: generate_report
+    name: Generate User Activity Report
+    type: task
+    task:
+      executor: script
+      config:
+        language: python
+        code: |
+          import json
+          import os
+
+          # Get all inputs
+          name = os.getenv('INPUT_NAME', 'Unknown')
+          username = os.getenv('INPUT_USERNAME', 'unknown')
+          email = os.getenv('INPUT_EMAIL', 'unknown@example.com')
+          company = os.getenv('INPUT_COMPANY', 'Unknown')
+
+          post_analysis_json = os.getenv('INPUT_POST_ANALYSIS', '{}')
+          todo_analysis_json = os.getenv('INPUT_TODO_ANALYSIS', '{}')
+
+          post_analysis = json.loads(post_analysis_json)
+          todo_analysis = json.loads(todo_analysis_json)
+
+          # Determine activity level
+          total_posts = post_analysis.get('total_posts', 0)
+          completion_rate = todo_analysis.get('completion_rate', 0)
+
+          if total_posts >= 10 and completion_rate >= 50:
+              activity_level = "Highly Active"
+          elif total_posts >= 5 or completion_rate >= 30:
+              activity_level = "Moderately Active"
+          else:
+              activity_level = "Low Activity"
+
+          # Generate comprehensive report
+          report = {
+              "user_profile": {
+                  "name": name,
+                  "username": username,
+                  "email": email,
+                  "company": company
+              },
+              "content_analysis": post_analysis,
+              "productivity_analysis": todo_analysis,
+              "activity_level": activity_level,
+              "summary": f"{name} (@{username}) is a {activity_level.lower()} user with {total_posts} posts and {completion_rate}% todo completion rate."
+          }
+
+          print(json.dumps(report, indent=2))
+      inputs:
+        name: ${fetch_user.output.name}
+        username: ${fetch_user.output.username}
+        email: ${fetch_user.output.email}
+        company: ${fetch_user.output.company}
+        post_analysis: ${analyze_posts.output.postAnalysis}
+        todo_analysis: ${analyze_todos.output.todoAnalysis}
+      outputs:
+        report: $.output
+        summary: $.output.summary
+        activityLevel: $.output.activity_level
+    timeout: PT1M

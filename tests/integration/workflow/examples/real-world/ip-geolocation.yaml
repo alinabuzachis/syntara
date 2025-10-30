@@ -1,0 +1,101 @@
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: ip-geolocation
+  description: Fetch IP geolocation data and generate location report
+  tags:
+  - real-world
+  - api
+  - geolocation
+  owner: demo-team
+
+triggers:
+- type: manual
+
+inputs:
+  ip_address:
+    type: string
+    description: IP address to lookup (leave empty for your current IP)
+    default: 8.8.8.8
+
+workflow:
+  activities:
+  # Fetch IP geolocation data from ip-api.com (free, no auth required)
+  - id: fetch_location
+    name: Fetch IP Geolocation
+    type: task
+    task:
+      executor: api
+      config:
+        method: GET
+        url: http://ip-api.com/json/${input.ip_address}
+        headers:
+          Accept: application/json
+      outputs:
+        locationData: $.body
+        country: $.body.country
+        city: $.body.city
+        region: $.body.regionName
+        latitude: $.body.lat
+        longitude: $.body.lon
+        timezone: $.body.timezone
+        isp: $.body.isp
+        status: $.body.status
+    timeout: PT30S
+
+  # Generate location report with Bash
+  - id: generate_report
+    name: Generate Location Report
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          #!/bin/bash
+
+          # Get environment variables
+          IP="$INPUT_IP"
+          COUNTRY="$INPUT_COUNTRY"
+          CITY="$INPUT_CITY"
+          REGION="$INPUT_REGION"
+          LAT="$INPUT_LATITUDE"
+          LON="$INPUT_LONGITUDE"
+          TIMEZONE="$INPUT_TIMEZONE"
+          ISP="$INPUT_ISP"
+
+          # Generate report
+          cat <<EOF
+          {
+            "report_title": "IP Geolocation Report",
+            "ip_address": "$IP",
+            "location": {
+              "country": "$COUNTRY",
+              "region": "$REGION",
+              "city": "$CITY",
+              "coordinates": {
+                "latitude": $LAT,
+                "longitude": $LON
+              }
+            },
+            "network": {
+              "isp": "$ISP",
+              "timezone": "$TIMEZONE"
+            },
+            "summary": "IP $IP is located in $CITY, $REGION, $COUNTRY (ISP: $ISP)"
+          }
+          EOF
+      inputs:
+        ip: ${input.ip_address}
+        country: ${fetch_location.output.country}
+        city: ${fetch_location.output.city}
+        region: ${fetch_location.output.region}
+        latitude: ${fetch_location.output.latitude}
+        longitude: ${fetch_location.output.longitude}
+        timezone: ${fetch_location.output.timezone}
+        isp: ${fetch_location.output.isp}
+      outputs:
+        report: $.output
+        summary: $.output.summary
+    timeout: PT1M

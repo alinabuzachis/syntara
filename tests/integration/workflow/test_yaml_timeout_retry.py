@@ -12,6 +12,7 @@ from temporalio.worker import Worker
 
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.models import ScriptExecutorConfig, ScriptLanguage
 from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 
 
@@ -97,8 +98,9 @@ async def test_retry_with_transient_failures() -> None:
                 echo "Attempt {attempt} - success!"
                 exit 0
                 """
+            config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code=script)
 
-            result = await execute_bash_script(script=script, inputs={})
+            result = await execute_bash_script(config.model_dump(by_alias=True), inputs={})
             attempts.append({"attempt": attempt, "success": True, "output": result})
             break  # Success, stop retrying
 
@@ -136,8 +138,9 @@ async def test_retry_tracking_in_database() -> None:
         for retry_count in range(3):
             try:
                 script = "exit 1" if retry_count < 2 else "echo 'Success'; exit 0"
+                config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code=script)
 
-                await execute_bash_script(script=script, inputs={})
+                await execute_bash_script(config.model_dump(by_alias=True), inputs={})
 
                 # On success, update with final retry count
                 # mock_update should be called with retry_count=2
