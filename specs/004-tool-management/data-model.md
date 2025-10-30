@@ -29,8 +29,7 @@ Represents a Tool Provider with type-specific configuration and registration met
 | `name`                  | string (unique) | Human-readable provider name                                                                                                                                |
 | `description`           | text (nullable) | Optional provider description                                                                                                                               |
 | `configuration`         | JSON | Type-specific configuration including provider_type (see Configuration Schema section)                                                                    |
-| `enabled`               | boolean (default true) | Tool Provider availability. Disabled providers have all tools disabled.                                                                                    |
-| `status`                | enum | Provider status: "validating", "available", "error"                                                                                                        |
+| `status`                | enum | Provider status: "validating", "available", "error", "disabled"                                                                                                        |
 | `last_validated_at`     | datetime (nullable) | Last successful validation timestamp                                                                                                                        |
 | `validation_error`      | text (nullable) | Last validation error message                                                                                                                               |
 | `created_at`            | datetime | Registration timestamp                                                                                                                                      |
@@ -88,7 +87,7 @@ API model for partial updates (PATCH operations).
 | `name`                  | string (optional) | Human-readable provider name (1-255 chars)                                                                                                                 |
 | `description`           | string (optional) | Provider description (max 2000 chars)                                                                                                                      |
 | `configuration`         | JSON (optional) | Partial configuration updates                                                                                                                               |
-| `enabled`               | boolean (optional) | Enable/disable the provider                                                                                                                                 |
+| `status`                | enum (optional) | Set provider status: "available", "disabled"                                                                                                            |
 
 **Validation Rules:**
 - All fields are optional (supports partial updates)

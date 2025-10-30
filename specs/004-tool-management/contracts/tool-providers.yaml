@@ -353,12 +353,9 @@ components:
             description: Provider-specific configuration
             oneOf:
             - $ref: '#/components/schemas/MCPConfiguration'
-          enabled:
-            type: boolean
-            default: true
           status:
             type: string
-            enum: [available, error, validating]
+            enum: [available, error, validating, disabled]
             default: validating
           last_validated_at:
             type: string
@@ -400,10 +397,11 @@ components:
           description: Provider-specific configuration
           oneOf:
           - $ref: '#/components/schemas/MCPConfiguration'
-        enabled:
-          type: boolean
+        status:
+          type: string
+          enum: [available, disabled]
           nullable: true
-          description: Enable/disable the provider
+          description: Set the provider status (available or disabled)
       description: |
         Schema for partially updating a Tool Provider.
         All fields are optional - only include fields you want to update.

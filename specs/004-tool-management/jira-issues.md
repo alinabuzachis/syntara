@@ -180,7 +180,7 @@ Refactor the existing Tool Manager system to use SQLModel for unified database t
 **Model Refactoring to SQLModel**:
 - Refactor `ToolProvider` to extend Resource base class in `src/nexus/tool_manager/models/tool_provider.py`
   - Inherit common fields (id, name, description, timestamps, audit fields) from Resource
-  - Maintain provider-specific fields (configuration, enabled, status, validation fields)
+  - Maintain provider-specific fields (configuration, status, validation fields)
   - Ensure proper table name and SQLModel configuration
 - Refactor `Tool` to extend Resource base class in `src/nexus/tool_manager/models/tool.py`
   - Inherit common fields from Resource base class
@@ -272,7 +272,7 @@ Implement complete Tool Provider management including database persistence, serv
 
 **Database Models** (`./src/nexus/tool_manager/models/`):
 - Create `ToolProvider` model in `./src/nexus/tool_manager/models/tool_provider.py`
-  - Fields: id (UUID), name, description, provider_type, configuration (JSONB), enabled, status (enum: available/error/validating)
+  - Fields: id (UUID), name, description, provider_type, configuration (JSONB), status (enum: available/error/validating/disabled)
   - Audit fields: created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
   - Validation: unique name, provider_type must be valid
   - Indexes: (name), (provider_type), (status), (created_at, id) for pagination
@@ -309,7 +309,7 @@ Implement complete Tool Provider management including database persistence, serv
   - Response: 200 OK with full provider data
   - Error: 404 if not found
 - PUT /api/v1/tool-providers/{provider_id} - Update Tool Provider configuration
-  - Request: full provider data (name, description, configuration with provider_type, enabled, status)
+  - Request: full provider data (name, description, configuration with provider_type, status)
   - Response: 200 OK with updated provider
   - Validation: valid configuration, positive values
   - Error: 400 if invalid, 404 if not found

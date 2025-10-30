@@ -86,7 +86,6 @@ class ToolProviderService:
             allowed_filter_fields = [
                 "name",
                 "status",
-                "enabled",
                 "provider_type",
                 "configuration.provider_type",
                 "configuration.base_url",
@@ -134,7 +133,7 @@ class ToolProviderService:
 
         """
         try:
-            allowed_sort_fields = ["name", "created_at", "updated_at", "status", "enabled"]
+            allowed_sort_fields = ["name", "created_at", "updated_at", "status"]
             sort_field, sort_direction = parse_sort(sort, allowed_sort_fields)
             query = apply_sorting(query, [(sort_field, sort_direction)], ToolProvider)
             return query, sort_direction
@@ -307,7 +306,6 @@ class ToolProviderService:
             name=provider_create.name,
             description=provider_create.description,
             configuration=provider_create.configuration,
-            enabled=True,  # Default enabled state
             status=ProviderStatus.VALIDATING,
             created_by=self.user.id,
             updated_by=self.user.id,
@@ -396,8 +394,8 @@ class ToolProviderService:
         if provider_patch.description is not None:
             provider.description = provider_patch.description
 
-        if provider_patch.enabled is not None:
-            provider.enabled = provider_patch.enabled
+        if provider_patch.status is not None:
+            provider.status = provider_patch.status
 
         if provider_patch.configuration is not None:
             # Validate merged configuration. Pydantic validates when the property is set.

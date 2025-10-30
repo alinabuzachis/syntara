@@ -50,7 +50,6 @@ class TestToolProvidersGetContract:
             "name",
             "description",
             "configuration",
-            "enabled",
             "status",
             "last_validated_at",
             "validation_error",

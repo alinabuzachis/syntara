@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.tool_manager.models import ToolProvider
+from nexus.tool_manager.models import ProviderStatus, ToolProvider
 
 
 @pytest_asyncio.fixture
@@ -20,42 +20,42 @@ async def multiple_test_providers(test_db_session: AsyncSession, test_user: User
             name="Alpha Provider",
             description="First provider for testing",
             configuration={"provider_type": "mcp", "base_url": "https://alpha.example.com"},
-            enabled=True,
+            status=ProviderStatus.AVAILABLE,
             created_by=test_user.id,
         ),
         ToolProvider(
             name="Beta Provider",
             description="Second provider for testing",
             configuration={"provider_type": "python", "module": "beta_module"},
-            enabled=False,
+            status=ProviderStatus.DISABLED,
             created_by=test_user.id,
         ),
         ToolProvider(
             name="Gamma Provider",
             description="Third provider for testing",
             configuration={"provider_type": "mcp", "base_url": "https://gamma.example.com"},
-            enabled=True,
+            status=ProviderStatus.AVAILABLE,
             created_by=test_user.id,
         ),
         ToolProvider(
             name="Delta Provider",
             description="Fourth provider for testing",
             configuration={"provider_type": "python", "module": "delta_module"},
-            enabled=True,
+            status=ProviderStatus.AVAILABLE,
             created_by=test_user.id,
         ),
         ToolProvider(
             name="Echo Provider",
             description="Fifth provider for testing",
             configuration={"provider_type": "mcp", "base_url": "https://echo.example.com"},
-            enabled=False,
+            status=ProviderStatus.DISABLED,
             created_by=test_user.id,
         ),
         ToolProvider(
             name="Foxtrot Provider",
             description="Sixth provider for testing",
             configuration={"provider_type": "python", "module": "foxtrot_module"},
-            enabled=True,
+            status=ProviderStatus.AVAILABLE,
             created_by=test_user.id,
         ),
     ]
@@ -151,17 +151,17 @@ class TestToolProvidersListContract:
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test bracket filter notation is accepted."""
-        # Test filtering by enabled status
-        response = await base_client.get("/api/v1/tool-providers", params={"enabled[eq]": "true"})
+        # Test filtering by status
+        response = await base_client.get("/api/v1/tool-providers", params={"status[eq]": "available"})
         assert response.status_code == 200
         data = response.json()
         assert "resources" in data
 
-        # All returned providers should be enabled
+        # All returned providers should be available
         for provider in data["resources"]:
-            assert provider["enabled"] is True
+            assert provider["status"] == "available"
 
-        # Should return 4 enabled providers (Alpha, Gamma, Delta, Foxtrot)
+        # Should return 4 available providers (Alpha, Gamma, Delta, Foxtrot)
         assert len(data["resources"]) == 4
 
         # Test filtering by provider type in configuration
@@ -227,7 +227,6 @@ class TestToolProvidersListContract:
                 "name",
                 "description",
                 "configuration",
-                "enabled",
                 "status",
                 "last_validated_at",
                 "validation_error",
@@ -243,7 +242,6 @@ class TestToolProvidersListContract:
             assert isinstance(provider["id"], str)
             assert isinstance(provider["name"], str)
             assert isinstance(provider["configuration"], dict)
-            assert isinstance(provider["enabled"], bool)
             assert isinstance(provider["status"], str)
 
     @pytest.mark.asyncio
@@ -350,7 +348,7 @@ class TestToolProvidersListContract:
     ) -> None:
         """Test combining filters and sorting."""
         # Filter enabled providers and sort by name
-        response = await base_client.get("/api/v1/tool-providers", params={"enabled[eq]": "true", "sort": "name"})
+        response = await base_client.get("/api/v1/tool-providers", params={"status[eq]": "available", "sort": "name"})
         assert response.status_code == 200
 
         data = response.json()
@@ -358,7 +356,7 @@ class TestToolProvidersListContract:
 
         # Should be enabled and sorted
         for provider in data["resources"]:
-            assert provider["enabled"] is True
+            assert provider["status"] == "available"
 
         names = [p["name"] for p in data["resources"]]
         assert names == sorted(names)
@@ -371,15 +369,15 @@ class TestToolProvidersListContract:
     ) -> None:
         """Test combining filters and sorting."""
         # Filter enabled providers and sort by name
-        response = await base_client.get("/api/v1/tool-providers", params={"enabled[eq]": "false", "sort": "-name"})
+        response = await base_client.get("/api/v1/tool-providers", params={"status[eq]": "disabled", "sort": "-name"})
         assert response.status_code == 200
 
         data = response.json()
         assert len(data["resources"]) == 2  # Beta, Echo
 
-        # Should be enabled and sorted
+        # Should be disabled and sorted
         for provider in data["resources"]:
-            assert provider["enabled"] is False
+            assert provider["status"] == "disabled"
 
         names = [p["name"] for p in data["resources"]]
         assert names == sorted(names, reverse=True)
@@ -393,7 +391,7 @@ class TestToolProvidersListContract:
         """Test filtering by multiple criteria."""
         # Filter enabled MCP providers
         response = await base_client.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "true", "configuration.provider_type[eq]": "mcp"}
+            "/api/v1/tool-providers", params={"status[eq]": "available", "configuration.provider_type[eq]": "mcp"}
         )
         assert response.status_code == 200
 
@@ -401,7 +399,7 @@ class TestToolProvidersListContract:
         assert len(data["resources"]) == 2  # Alpha and Gamma
 
         for provider in data["resources"]:
-            assert provider["enabled"] is True
+            assert provider["status"] == "available"
             assert provider["configuration"]["provider_type"] == "mcp"
             assert provider["name"] in ["Alpha Provider", "Gamma Provider"]
 
@@ -413,7 +411,7 @@ class TestToolProvidersListContract:
     ) -> None:
         """Test pagination works correctly with filters."""
         # Get enabled providers with pagination
-        response = await base_client.get("/api/v1/tool-providers", params={"enabled[eq]": "true", "limit": "2"})
+        response = await base_client.get("/api/v1/tool-providers", params={"status[eq]": "available", "limit": "2"})
         assert response.status_code == 200
 
         data = response.json()
@@ -422,17 +420,17 @@ class TestToolProvidersListContract:
 
         # All results should be enabled
         for provider in data["resources"]:
-            assert provider["enabled"] is True
+            assert provider["status"] == "available"
 
         # Get next page
         next_response = await base_client.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "true", "limit": "2", "cursor": data["next"]}
+            "/api/v1/tool-providers", params={"status[eq]": "available", "limit": "2", "cursor": data["next"]}
         )
         assert next_response.status_code == 200
 
         next_data = next_response.json()
         for provider in next_data["resources"]:
-            assert provider["enabled"] is True
+            assert provider["status"] == "available"
 
     @pytest.mark.asyncio
     async def test_list_providers_edge_cases_contract(
@@ -515,7 +513,7 @@ class TestToolProvidersListContract:
 
         # Get total for enabled providers only
         enabled_response = await base_client.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "true", "include_total": "true"}
+            "/api/v1/tool-providers", params={"status[eq]": "available", "include_total": "true"}
         )
         assert enabled_response.status_code == 200
         enabled_data = enabled_response.json()
@@ -523,7 +521,7 @@ class TestToolProvidersListContract:
 
         # Total should be accurate even with pagination
         paginated_response = await base_client.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "true", "include_total": "true", "limit": "2"}
+            "/api/v1/tool-providers", params={"status[eq]": "available", "include_total": "true", "limit": "2"}
         )
         assert paginated_response.status_code == 200
         paginated_data = paginated_response.json()

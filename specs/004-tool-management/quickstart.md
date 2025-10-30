@@ -222,7 +222,7 @@ curl -X PUT http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
       "base_url": "https://localhost:3001/mcp",
       "api_key": "updated-api-key-789"
     },
-    "enabled": true
+    "status": "available"
   }'
 
 # Expected: 200 OK with completely updated provider
@@ -247,10 +247,10 @@ curl -X PATCH http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
 curl -X PATCH http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
   -H "Content-Type: application/merge-patch+json" \
   -H "Authorization: Bearer <admin-token>" \
-  -d '{"enabled": false}'
+  -d '{"status": "disabled"}'
 
 # Expected: 200 OK with provider disabled
-# Verify: Only enabled field changed, configuration preserved
+# Verify: Only status field changed, configuration preserved
 ```
 
 ### Scenario 8: Provider Management and Tool Lifecycle

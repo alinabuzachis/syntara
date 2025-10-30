@@ -152,7 +152,7 @@ class TestToolProvidersCreateContract:
 
         # Contract: Must include all required response fields
         data = response.json()
-        required_fields = ["id", "name", "configuration", "enabled", "status", "created_at", "updated_at"]
+        required_fields = ["id", "name", "configuration", "status", "created_at", "updated_at"]
         for field in required_fields:
             assert field in data
 

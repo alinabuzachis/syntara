@@ -26,7 +26,7 @@ def upgrade() -> None:
         DO $$
         BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tool_provider_status') THEN
-                CREATE TYPE tool_provider_status AS ENUM ('available', 'error', 'validating');
+                CREATE TYPE tool_provider_status AS ENUM ('available', 'error', 'validating', 'disabled');
             END IF;
         END$$;
     """)
@@ -53,7 +53,7 @@ def upgrade() -> None:
 
     # Reference the enums for use in table creation
     tool_provider_status_enum = postgresql.ENUM(
-        "available", "error", "validating", name="tool_provider_status", create_type=False
+        "available", "error", "validating", "disabled", name="tool_provider_status", create_type=False
     )
     tool_status_enum = postgresql.ENUM(
         "available", "error", "missing", "disabled", name="tool_status", create_type=False
@@ -79,7 +79,6 @@ def upgrade() -> None:
         sa.Column("labels", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         # ToolProvider specific fields
         sa.Column("configuration", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column("enabled", sa.Boolean(), nullable=False, default=True),
         sa.Column("status", tool_provider_status_enum, nullable=False, default="validating"),
         sa.Column("last_validated_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("validation_error", sa.Text(), nullable=True),
@@ -99,7 +98,6 @@ def upgrade() -> None:
         postgresql_where="(deleted_at IS NULL)",
     )
     op.create_index("ix_tool_providers_status", "tool_providers", ["status"])
-    op.create_index("ix_tool_providers_enabled", "tool_providers", ["enabled"])
     op.create_index("ix_tool_providers_created_at", "tool_providers", ["created_at"])
     op.create_index("ix_tool_providers_last_validated_at", "tool_providers", ["last_validated_at"])
     op.create_index("ix_tool_providers_created_at_id", "tool_providers", ["created_at", "id"])
@@ -212,7 +210,6 @@ def downgrade() -> None:
     op.drop_index("ix_tool_providers_created_at_id", table_name="tool_providers")
     op.drop_index("ix_tool_providers_last_validated_at", table_name="tool_providers")
     op.drop_index("ix_tool_providers_created_at", table_name="tool_providers")
-    op.drop_index("ix_tool_providers_enabled", table_name="tool_providers")
     op.drop_index("ix_tool_providers_status", table_name="tool_providers")
     op.drop_index("ix_tool_providers_name_unique", table_name="tool_providers")
 
@@ -230,5 +227,7 @@ def downgrade() -> None:
     )
     tool_parameter_type_enum.drop(op.get_bind(), checkfirst=True)
 
-    tool_provider_status_enum = postgresql.ENUM("available", "error", "validating", name="tool_provider_status")
+    tool_provider_status_enum = postgresql.ENUM(
+        "available", "error", "validating", "disabled", name="tool_provider_status"
+    )
     tool_provider_status_enum.drop(op.get_bind(), checkfirst=True)

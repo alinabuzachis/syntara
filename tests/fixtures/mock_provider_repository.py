@@ -50,11 +50,6 @@ class MockToolProviderRepository(ToolProviderRepository):
                 filtered_items = [p for p in filtered_items if str(filter_obj.value).lower() in p.name.lower()]
             elif filter_obj.field == "status" and filter_obj.operator == FilterOperator.EQ:
                 filtered_items = [p for p in filtered_items if p.status.value == filter_obj.value]
-            elif filter_obj.field == "enabled" and filter_obj.operator == FilterOperator.EQ:
-                filter_value = filter_obj.value
-                if isinstance(filter_value, str):
-                    filter_value = filter_value.lower() == "true"
-                filtered_items = [p for p in filtered_items if p.enabled == filter_value]
 
         return filtered_items
 
