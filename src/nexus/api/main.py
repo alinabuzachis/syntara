@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlmodel import text
 
+from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.api.db import get_db
 from nexus.api.v1 import executions, tool_providers, workflow_versions, workflows
 from nexus.api.v1.invocation import router as invoke_router
@@ -73,11 +74,11 @@ app.add_middleware(
 )
 
 # Register API routers
-app.include_router(workflows.router, prefix="/api/v1")
-app.include_router(workflow_versions.router, prefix="/api/v1")
-app.include_router(executions.router, prefix="/api/v1")
-app.include_router(invoke_router, prefix="/api/v1")
-app.include_router(tool_providers.router, prefix="/api/v1")
+app.include_router(workflows.router, prefix=API_V1_PATH_PREFIX)
+app.include_router(workflow_versions.router, prefix=API_V1_PATH_PREFIX)
+app.include_router(executions.router, prefix=API_V1_PATH_PREFIX)
+app.include_router(invoke_router, prefix=API_V1_PATH_PREFIX)
+app.include_router(tool_providers.router, prefix=API_V1_PATH_PREFIX)
 
 
 @app.get("/health", tags=["Health"])

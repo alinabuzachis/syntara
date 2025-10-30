@@ -6,6 +6,10 @@ See docs/CONFIGURATION.md for detailed documentation.
 
 import os
 
+# API configuration
+
+API_V1_PATH_PREFIX = "/api/v1"
+
 # Temporal configuration
 # These defaults are suitable for local development.
 # Override via environment variables for production deployments.
