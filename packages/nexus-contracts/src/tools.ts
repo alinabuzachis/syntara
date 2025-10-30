@@ -21,13 +21,10 @@ export interface paths {
           /**
            * @description Filter tools by status.
            *     - Exact match: `status=available`
-           *     - Multiple values: `status[in]=available,missing`
            */
           status?: string & {
             /** @description Exact match of the status. ?status[eq]=<status> */
             eq?: string
-            /** @description Match any of the comma-separated values. ?status[in]=<val1,val2> */
-            in?: string
           }
           /** @description Filter tools by enabled status */
           enabled?: boolean

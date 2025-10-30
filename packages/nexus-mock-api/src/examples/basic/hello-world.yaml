@@ -2,7 +2,7 @@ schemaVersion: 1.0.0
 version: 1
 metadata:
   name: hello-world
-  description: Simple hello world workflow
+  description: Simple hello world workflow with environment variables
 triggers:
 - type: manual
 workflow:
@@ -13,8 +13,11 @@ workflow:
       executor: script
       config:
         language: bash
+        environment:
+          GREETING: Hello
+          WORLD_NAME: World
         code: |
-          echo "Hello, World!"
+          echo "${GREETING}, ${WORLD_NAME}!"
           echo "Current time: $(date)"
 
   - id: say_goodbye
@@ -23,5 +26,7 @@ workflow:
       executor: script
       config:
         language: bash
+        environment:
+          FAREWELL: Goodbye
         code: |
-          echo "Goodbye, World!"
+          echo "${FAREWELL}, World!"

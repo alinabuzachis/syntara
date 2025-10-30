@@ -22,7 +22,7 @@ export function randomString(length: number, base = randomCharacters.length, opt
 }
 
 export const handlers = [
-  http.get('/api/tool-providers', () => {
+  http.get('/api/v1/tool-providers', () => {
     const body: ToolProvidersResponse = {
       resources: providers,
       limit: 20,
@@ -30,7 +30,7 @@ export const handlers = [
     }
     return HttpResponse.json(body)
   }),
-  http.post('/api/tool-providers', async (req) => {
+  http.post('/api/v1/tool-providers', async (req) => {
     const newToolProvider = (await req.request.json()) as ToolProvider
     newToolProvider.id = (providers.length + 1).toString()
     newToolProvider.status = 'available'
@@ -56,7 +56,7 @@ export const handlers = [
     return HttpResponse.json(newToolProvider, { status: 201 })
   }),
 
-  http.get('/api/tool-providers/:provider_id', (request) => {
+  http.get('/api/v1/tool-providers/:provider_id', (request) => {
     const providerId = request?.params?.provider_id
     const providerList = providers
 
@@ -65,7 +65,7 @@ export const handlers = [
     return HttpResponse.json(body)
   }),
 
-  http.get('/api/tools', ({ request }) => {
+  http.get('/api/v1/tools', ({ request }) => {
     let body: ToolsResponse = {
       resources: tools,
       limit: 20,
@@ -88,7 +88,7 @@ export const handlers = [
     return HttpResponse.json(body)
   }),
 
-  http.patch('/api/tools/bulk-update', async (req) => {
+  http.patch('/api/v1/tools/bulk-update', async (req) => {
     const reqData = (await req.request.json()) as { tool_ids?: string[]; enabled?: boolean }
     if (reqData?.tool_ids && reqData?.tool_ids?.length > 0) {
       tools.forEach((tool) => {
@@ -98,12 +98,17 @@ export const handlers = [
     return HttpResponse.json({}, { status: 201 })
   }),
 
-  http.get('/api/workflows', () => {
-    const body: WorkflowsResponse = { workflows }
+  http.get('/api/v1/workflows', () => {
+    const body: WorkflowsResponse = {
+      resources: workflows,
+      next: null,
+      prev: null,
+      total: workflows.length,
+    }
     return HttpResponse.json(body)
   }),
 
-  http.get('/api/workflows/:workflowId', (request) => {
+  http.get('/api/v1/workflows/:workflowId', (request) => {
     const workflowId = request.params.workflowId
     const body = workflows.find((w) => w.id === workflowId)
     if (!body) return HttpResponse.json({ error: 'Workflow not found' }, { status: 404 })

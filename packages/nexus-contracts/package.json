@@ -12,7 +12,7 @@
     "nexus:checkout": "rm -rf nexus && git clone https://github.com/syntara-orchestration/syntara",
     "gen:tools": "npx openapi-typescript ./nexus/schemas/tool_management/tools.yaml --output ./src/tools.ts --default-non-nullable false",
     "gen:tool-providers": "npx openapi-typescript ./nexus/schemas/tool_management/tool-providers.yaml --output ./src/tool-providers.ts --default-non-nullable false",
-    "gen:workflow": "npx openapi-typescript ./nexus/specs/003-workflow-engine/contracts/workflow-api.yaml --output ./src/workflow-api.ts --default-non-nullable false",
+    "gen:workflow": "npx openapi-typescript ./nexus/schemas/workflows/workflow-api.yaml --output ./src/workflow-api.ts --default-non-nullable false",
     "gen:examples": "cp -r ./nexus/tests/integration/workflow/examples ../nexus-mock-api/src",
     "nexus:clean": "rm -rf nexus"
   }

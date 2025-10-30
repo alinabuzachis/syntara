@@ -21,24 +21,18 @@ export interface paths {
           /**
            * @description Filter providers by status.
            *     - Exact match: `status=available`
-           *     - Multiple values: `status[in]=available,validating`
            */
           status?: string & {
             /** @description Exact match of the status. ?status[eq]=<status> */
             eq?: string
-            /** @description Match any of the comma-separated values. ?status[in]=<val1,val2> */
-            in?: string
           }
           /**
            * @description Filter providers by provider type.
            *     - Exact match: `provider_type=mcp`
-           *     - Multiple types: `provider_type[in]=mcp,python`
            */
           provider_type?: string & {
             /** @description Exact match of the provider type. ?provider_type[eq]=<type> */
             eq?: string
-            /** @description Match any of the comma-separated values. ?provider_type[in]=<type1,type2> */
-            in?: string
           }
           /**
            * @description Number of resources to return per page
@@ -118,7 +112,7 @@ export interface paths {
       }
       requestBody: {
         content: {
-          'application/json': components['schemas']['ToolProvider']
+          'application/json': components['schemas']['ToolProviderCreate']
         }
       }
       responses: {
@@ -232,7 +226,7 @@ export interface paths {
       }
       requestBody: {
         content: {
-          'application/json': components['schemas']['ToolProvider']
+          'application/json': components['schemas']['ToolProviderCreate']
         }
       }
       responses: {
@@ -321,7 +315,7 @@ export interface paths {
     head?: never
     /**
      * Partially update Tool Provider configuration
-     * @description Partially update configuration of existing Tool Provider using JSON Merge Patch (RFC 7396)
+     * @description Partially update configuration of existing Tool Provider
      */
     patch: {
       parameters: {
@@ -334,7 +328,7 @@ export interface paths {
       }
       requestBody: {
         content: {
-          'application/merge-patch+json': components['schemas']['ToolProvider']
+          'application/merge-patch+json': components['schemas']['ToolProviderPatch']
         }
       }
       responses: {
@@ -408,14 +402,7 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': {
-              valid?: boolean
-              provider_type?: string
-              protocol_version?: string
-              capabilities?: string[]
-              /** Format: date-time */
-              validated_at?: string
-            }
+            'application/json': components['schemas']['ToolProviderValidationResult']
           }
         }
         /** @description Provider validation failed */
@@ -424,13 +411,7 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': {
-              /** @example false */
-              valid?: boolean
-              error?: string
-              /** Format: date-time */
-              validated_at?: string
-            }
+            'application/json': components['schemas']['ToolProviderValidationResult']
           }
         }
         /** @description Admin access required */
@@ -489,13 +470,7 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': {
-              refreshed_count?: number
-              updated_count?: number
-              disabled_count?: number
-              /** Format: date-time */
-              refreshed_at?: string
-            }
+            'application/json': components['schemas']['ToolProviderRefreshResult']
           }
         }
         /** @description Tool refresh failed */
@@ -550,8 +525,25 @@ export interface components {
       /** Format: date-time */
       last_validated_at?: string | null
       validation_error?: string | null
-      /** @default 0 */
-      tool_count?: number
+    }
+    ToolProviderCreate: components['schemas']['NamedResource'] & {
+      /** @description Provider-specific configuration */
+      configuration: components['schemas']['MCPConfiguration']
+    }
+    /**
+     * @description Schema for partially updating a Tool Provider.
+     *     All fields are optional - only include fields you want to update.
+     *     If updating the configuration a provider_type must still be provided.
+     */
+    ToolProviderPatch: {
+      /** @description Human-readable name for the provider */
+      name?: string
+      /** @description Detailed description of the provider */
+      description?: string | null
+      /** @description Provider-specific configuration */
+      configuration?: components['schemas']['MCPConfiguration']
+      /** @description Enable/disable the provider */
+      enabled?: boolean | null
     }
     MCPConfiguration: {
       /** @constant */
@@ -559,6 +551,20 @@ export interface components {
       /** Format: uri */
       base_url: string
       api_key: string
+    }
+    ToolProviderValidationResult: {
+      valid: boolean
+      provider_type: string
+      /** Format: date-time */
+      validated_at: string
+      error?: string | null
+    }
+    ToolProviderRefreshResult: {
+      refreshed_count: number
+      updated_count: number
+      disabled_count: number
+      /** Format: date-time */
+      refreshed_at: string
     }
     /**
      * Paginated Response Base

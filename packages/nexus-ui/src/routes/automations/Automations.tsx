@@ -11,7 +11,7 @@ import { useFuse } from '../../hooks/useFuse'
 
 export default function Automations() {
   const workflowsQuery = workflowClient.useQuery('get', '/workflows')
-  const workflows = workflowsQuery.data?.workflows ?? []
+  const workflows = workflowsQuery.data?.resources ?? []
 
   const { search, setSearch, items: automations } = useFuse(workflows, [{ name: 'name' }])
 

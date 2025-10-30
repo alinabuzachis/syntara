@@ -54,7 +54,7 @@ describe('Automations Component', () => {
   beforeEach(() => {
     // Reset mocks before each test
     vi.mocked(workflowClient.useQuery).mockReturnValue({
-      data: { workflows: mockWorkflows },
+      data: { resources: mockWorkflows },
       isPending: false,
       isError: false,
       error: null,

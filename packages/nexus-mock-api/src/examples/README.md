@@ -104,7 +104,7 @@ See the test files for programmatic usage examples.
 
 ## Schema Validation
 
-All examples are validated against `specs/003-workflow-engine/contracts/workflow-definition.schema.json`.
+All examples are validated against `schemas/workflows/workflow-definition.schema.json`.
 
 Run validation tests:
 

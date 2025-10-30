@@ -55,7 +55,7 @@ export interface paths {
     }
     /**
      * List workflows
-     * @description Retrieve a list of workflows with filtering and pagination.
+     * @description Retrieve a list of workflows with filtering, sorting, and cursor-based pagination.
      */
     get: {
       parameters: {
@@ -65,12 +65,47 @@ export interface paths {
           /** @description Filter by enabled status */
           is_enabled?: boolean
           /**
-           * @description Filter by labels (format "key=value,key2=value2" or "key" for existence check)
-           * @example environment=production,team=data-platform
+           * @description Number of resources to return per page
+           * @example 20
            */
-          labels?: string
-          limit?: number
-          offset?: number
+          limit?: components['parameters']['limitParam']
+          /**
+           * @description Opaque cursor for pagination (from previous response)
+           * @example eyJpZCI6InV1aWQifQ
+           */
+          cursor?: components['parameters']['cursorParam']
+          /**
+           * @description Whether to include total count in response (may impact performance)
+           * @example true
+           */
+          include_total?: components['parameters']['includeTotalParam']
+          /**
+           * @description Sort order for resources.
+           *     - Ascending: `field` (e.g., `name`)
+           *     - Descending: `-field` (e.g., `-created_at`)
+           * @example -created_at
+           */
+          sort?: components['parameters']['sortParam']
+          /**
+           * @description Filter resources by name.
+           *     - Exact match: `name=value`
+           *     - Contains: `name[contains]=value`
+           * @example auth
+           */
+          name?: components['parameters']['nameFilterParam']
+          created_at?: components['parameters']['createdAtFilterParam']
+          updated_at?: components['parameters']['updatedAtFilterParam']
+          /**
+           * @description Filter resources by label key-value pairs.
+           *     - Single label: `labels[environment]=production`
+           *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
+           *     All specified labels must match (AND logic).
+           * @example {
+           *       "environment": "production",
+           *       "region": "us-east-1"
+           *     }
+           */
+          labels?: components['parameters']['labelsFilterParam']
         }
         header?: never
         path?: never
@@ -84,11 +119,8 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': {
-              workflows?: components['schemas']['Workflow'][]
-              total?: number
-              limit?: number
-              offset?: number
+            'application/json': components['schemas']['ResourcesResponseBase'] & {
+              resources: components['schemas']['Workflow'][]
             }
           }
         }
@@ -287,11 +319,37 @@ export interface paths {
     }
     /**
      * List workflow versions
-     * @description Retrieve all versions for a workflow ordered by version number descending. WorkflowVersion entities are read-only and managed automatically by the system.
+     * @description Retrieve all versions for a workflow with cursor-based pagination.
+     *     WorkflowVersion entities are read-only and managed automatically by the system.
+     *     Versions are ordered by version number descending (newest first) by default.
      */
     get: {
       parameters: {
-        query?: never
+        query?: {
+          /**
+           * @description Number of resources to return per page
+           * @example 20
+           */
+          limit?: components['parameters']['limitParam']
+          /**
+           * @description Opaque cursor for pagination (from previous response)
+           * @example eyJpZCI6InV1aWQifQ
+           */
+          cursor?: components['parameters']['cursorParam']
+          /**
+           * @description Whether to include total count in response (may impact performance)
+           * @example true
+           */
+          include_total?: components['parameters']['includeTotalParam']
+          /**
+           * @description Sort order for resources.
+           *     - Ascending: `field` (e.g., `name`)
+           *     - Descending: `-field` (e.g., `-created_at`)
+           * @example -created_at
+           */
+          sort?: components['parameters']['sortParam']
+          created_at?: components['parameters']['createdAtFilterParam']
+        }
         header?: never
         path: {
           workflowId: string
@@ -306,7 +364,9 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': components['schemas']['WorkflowVersionListResponse']
+            'application/json': components['schemas']['ResourcesResponseBase'] & {
+              resources: components['schemas']['WorkflowVersionResponse'][]
+            }
           }
         }
         /** @description Workflow not found */
@@ -389,7 +449,7 @@ export interface paths {
     }
     /**
      * List executions
-     * @description Retrieve executions with filtering and pagination.
+     * @description Retrieve executions with filtering, sorting, and cursor-based pagination.
      */
     get: {
       parameters: {
@@ -398,15 +458,50 @@ export interface paths {
           workflow_id?: string
           /** @description Filter by user who started the execution */
           started_by?: string
-          /** @description Filter by execution status */
-          status?: components['schemas']['ExecutionStatus']
           /**
-           * @description Filter by labels (format "key=value,key2=value2" or "key" for existence check)
-           * @example priority=high,env=production
+           * @description Filter executions by status.
+           *     - Exact match: `status=running`
+           *     - Multiple values: `status[in]=running,pending`
            */
-          labels?: string
-          limit?: number
-          offset?: number
+          status?: components['schemas']['ExecutionStatus'] & {
+            /** @description Match any of the comma-separated values. ?status[in]=<val1,val2> */
+            in?: string
+          }
+          /**
+           * @description Number of resources to return per page
+           * @example 20
+           */
+          limit?: components['parameters']['limitParam']
+          /**
+           * @description Opaque cursor for pagination (from previous response)
+           * @example eyJpZCI6InV1aWQifQ
+           */
+          cursor?: components['parameters']['cursorParam']
+          /**
+           * @description Whether to include total count in response (may impact performance)
+           * @example true
+           */
+          include_total?: components['parameters']['includeTotalParam']
+          /**
+           * @description Sort order for resources.
+           *     - Ascending: `field` (e.g., `name`)
+           *     - Descending: `-field` (e.g., `-created_at`)
+           * @example -created_at
+           */
+          sort?: components['parameters']['sortParam']
+          created_at?: components['parameters']['createdAtFilterParam']
+          updated_at?: components['parameters']['updatedAtFilterParam']
+          /**
+           * @description Filter resources by label key-value pairs.
+           *     - Single label: `labels[environment]=production`
+           *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
+           *     All specified labels must match (AND logic).
+           * @example {
+           *       "environment": "production",
+           *       "region": "us-east-1"
+           *     }
+           */
+          labels?: components['parameters']['labelsFilterParam']
         }
         header?: never
         path?: never
@@ -420,11 +515,8 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': {
-              executions?: components['schemas']['Execution'][]
-              total?: number
-              limit?: number
-              offset?: number
+            'application/json': components['schemas']['ResourcesResponseBase'] & {
+              resources: components['schemas']['Execution'][]
             }
           }
         }
@@ -571,11 +663,35 @@ export interface paths {
     }
     /**
      * List activity executions
-     * @description Retrieve activity executions for a workflow execution.
+     * @description Retrieve activity executions for a workflow execution with cursor-based pagination.
      */
     get: {
       parameters: {
-        query?: never
+        query?: {
+          /**
+           * @description Number of resources to return per page
+           * @example 20
+           */
+          limit?: components['parameters']['limitParam']
+          /**
+           * @description Opaque cursor for pagination (from previous response)
+           * @example eyJpZCI6InV1aWQifQ
+           */
+          cursor?: components['parameters']['cursorParam']
+          /**
+           * @description Whether to include total count in response (may impact performance)
+           * @example true
+           */
+          include_total?: components['parameters']['includeTotalParam']
+          /**
+           * @description Sort order for resources.
+           *     - Ascending: `field` (e.g., `name`)
+           *     - Descending: `-field` (e.g., `-created_at`)
+           * @example -created_at
+           */
+          sort?: components['parameters']['sortParam']
+          created_at?: components['parameters']['createdAtFilterParam']
+        }
         header?: never
         path: {
           executionId: string
@@ -590,7 +706,9 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': components['schemas']['ActivityExecution'][]
+            'application/json': components['schemas']['ResourcesResponseBase'] & {
+              resources: components['schemas']['ActivityExecution'][]
+            }
           }
         }
         /** @description Execution not found */
@@ -621,13 +739,45 @@ export interface paths {
     }
     /**
      * List pending approvals
-     * @description Retrieve pending approvals for the current user.
+     * @description Retrieve approvals for the current user with filtering, sorting, and cursor-based pagination.
      */
     get: {
       parameters: {
         query?: {
-          status?: components['schemas']['ApprovalStatus']
+          /**
+           * @description Filter approvals by status.
+           *     - Exact match: `status=pending`
+           *     - Multiple values: `status[in]=pending,approved`
+           */
+          status?: components['schemas']['ApprovalStatus'] & {
+            /** @description Match any of the comma-separated values. ?status[in]=<val1,val2> */
+            in?: string
+          }
+          /** @description Filter by activity execution ID */
           activity_execution_id?: string
+          /**
+           * @description Number of resources to return per page
+           * @example 20
+           */
+          limit?: components['parameters']['limitParam']
+          /**
+           * @description Opaque cursor for pagination (from previous response)
+           * @example eyJpZCI6InV1aWQifQ
+           */
+          cursor?: components['parameters']['cursorParam']
+          /**
+           * @description Whether to include total count in response (may impact performance)
+           * @example true
+           */
+          include_total?: components['parameters']['includeTotalParam']
+          /**
+           * @description Sort order for resources.
+           *     - Ascending: `field` (e.g., `name`)
+           *     - Descending: `-field` (e.g., `-created_at`)
+           * @example -created_at
+           */
+          sort?: components['parameters']['sortParam']
+          created_at?: components['parameters']['createdAtFilterParam']
         }
         header?: never
         path?: never
@@ -641,7 +791,9 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': components['schemas']['Approval'][]
+            'application/json': components['schemas']['ResourcesResponseBase'] & {
+              resources: components['schemas']['Approval'][]
+            }
           }
         }
       }
@@ -748,68 +900,89 @@ export interface components {
   schemas: {
     /**
      * Base Resource
-     * @description Base fields common to all resources including unique identifier, labels for categorization, and audit timestamps
+     * @description Foundational schema for all API resources with system-managed metadata
      */
     BaseResource: {
       /**
+       * Resource ID
        * Format: uuid
-       * @description Unique resource identifier
+       * @description Unique identifier for the resource
+       * @example 550e8400-e29b-41d4-a716-446655440000
        */
-      id?: string
+      readonly id: string
       /**
-       * @description Key-value labels for categorization and filtering (e.g., {"environment":"production", "team":"data-platform"})
+       * Created At
+       * Format: date-time
+       * @description Timestamp when resource was created
+       * @example 2025-10-09T12:00:00Z
+       */
+      readonly createdAt: string
+      /**
+       * Updated At
+       * Format: date-time
+       * @description Timestamp when resource was last updated
+       * @example 2025-10-09T12:30:00Z
+       */
+      readonly updatedAt: string
+      /**
+       * Labels
+       * @description Key-value pairs for resource labeling and filtering
+       * @default {}
        * @example {
        *       "environment": "production",
-       *       "team": "data-platform",
-       *       "priority": "high"
+       *       "region": "us-east-1",
+       *       "team": "platform"
        *     }
        */
       labels?: {
         [key: string]: string
       }
-      /**
-       * Format: date-time
-       * @description Timestamp when resource was created
-       */
-      created_at?: string
-      /**
-       * Format: date-time
-       * @description Timestamp when resource was last updated
-       */
-      updated_at?: string
     }
     NamedResource: components['schemas']['BaseResource'] & {
-      /** @description Human-readable name */
-      name?: string
-      /** @description Optional description */
+      /**
+       * Name
+       * @description Human-readable name for the resource
+       * @example Authentication Service
+       */
+      name: string
+      /**
+       * Description
+       * @description Detailed description of the resource
+       * @example Handles user authentication and authorization workflows
+       */
       description?: string | null
     }
-    /**
-     * Soft Deletable Resource
-     * @description Mixin fields for resources that support soft deletion with audit trail (deleted_at timestamp and deleted_by user)
-     */
-    SoftDeletableResource: {
+    SoftDeletableResource: components['schemas']['BaseResource'] & {
       /**
+       * Deleted At
        * Format: date-time
        * @description Timestamp when resource was soft deleted
+       * @example 2025-10-09T14:00:00Z
        */
-      deleted_at?: string | null
+      readonly deletedAt?: string | null
       /**
+       * Deleted By
        * Format: uuid
-       * @description User who soft deleted the resource
+       * @description User who performed the soft delete
+       * @example 660e8400-e29b-41d4-a716-446655440000
        */
-      deleted_by?: string | null
+      readonly deletedBy?: string | null
     }
-    /**
-     * User Owned Resource
-     * @description Mixin fields for resources with user ownership tracking (created_by user reference)
-     */
-    UserOwnedResource: {
+    UserOwnedResource: components['schemas']['BaseResource'] & {
       /**
+       * Created By
        * Format: uuid
        * @description User who created the resource
+       * @example 770e8400-e29b-41d4-a716-446655440000
        */
-      created_by?: string
+      readonly createdBy: string
+      /**
+       * Updated By
+       * Format: uuid
+       * @description User who last updated the resource
+       * @example 880e8400-e29b-41d4-a716-446655440000
+       */
+      readonly updatedBy?: string | null
     }
     Workflow: components['schemas']['NamedResource'] &
       components['schemas']['SoftDeletableResource'] &
@@ -1163,12 +1336,51 @@ export interface components {
     }
     /**
      * Error Response
-     * @description Standard error response format with error code, message, and optional details
+     * @description Standardized error response structure
      */
     Error: {
-      error?: string
-      message?: string
-      details?: Record<string, never>
+      /**
+       * Error Code
+       * @description Error category/code in snake_case format
+       * @example validation_error
+       */
+      error: string
+      /**
+       * Error Message
+       * @description Human-readable error message
+       * @example The 'name' field is required
+       */
+      message: string
+      /**
+       * Error Details
+       * @description Additional error details or context
+       * @example Field 'name' must be between 1 and 255 characters
+       */
+      details?: string | null
+    }
+    /**
+     * Paginated Response Base
+     * @description Pagination metadata structure for list responses
+     */
+    ResourcesResponseBase: {
+      /**
+       * Next Page Cursor
+       * @description Cursor for next page of results
+       * @example eyJpZCI6InV1aWQifQ
+       */
+      next?: string | null
+      /**
+       * Previous Page Cursor
+       * @description Cursor for previous page of results
+       * @example eyJpZCI6InV1aWQifQ
+       */
+      prev?: string | null
+      /**
+       * Total Count
+       * @description Total count of resources (only when include_total=true)
+       * @example 150
+       */
+      total?: number | null
     }
     /** @description Manual trigger - user initiates workflow execution */
     manualTrigger: {
@@ -1778,7 +1990,150 @@ export interface components {
     }
   }
   responses: never
-  parameters: never
+  parameters: {
+    /**
+     * @description Number of resources to return per page
+     * @example 20
+     */
+    limitParam: number
+    /**
+     * @description Opaque cursor for pagination (from previous response)
+     * @example eyJpZCI6InV1aWQifQ
+     */
+    cursorParam: string
+    /**
+     * @description Whether to include total count in response (may impact performance)
+     * @example true
+     */
+    includeTotalParam: boolean
+    /**
+     * @description Sort order for resources.
+     *     - Ascending: `field` (e.g., `name`)
+     *     - Descending: `-field` (e.g., `-created_at`)
+     * @example -created_at
+     */
+    sortParam: string
+    /**
+     * @description Filter resources by name.
+     *     - Exact match: `name=value`
+     *     - Contains: `name[contains]=value`
+     * @example auth
+     */
+    nameFilterParam: string & {
+      /**
+       * Contains
+       * @description Substring to match within the name (case-insensitive). ?name[contains]=<substring>
+       */
+      contains?: string
+      /**
+       * Starts With
+       * @description Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
+       */
+      starts_with?: string
+      /**
+       * Equals
+       * @description Exact match of the name (case-insensitive). ?name[eq]=<name>
+       */
+      eq?: string
+      /**
+       * Greater Than
+       * @description Greater than comparison (lexicographical). ?name[gt]=<name>
+       */
+      gt?: string
+      /**
+       * Greater Than Or Equal
+       * @description Greater than or equal comparison (lexicographical). ?name[gte]=<name>
+       */
+      gte?: string
+      /**
+       * Less Than
+       * @description Less than comparison (lexicographical). ?name[lt]=<name>
+       */
+      lt?: string
+      /**
+       * Less Than Or Equal
+       * @description Less than or equal comparison (lexicographical). ?name[lte]=<name>
+       */
+      lte?: string
+    }
+    createdAtFilterParam: string & {
+      /**
+       * Equals
+       * Format: date-time
+       * @description Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+       */
+      eq?: string
+      /**
+       * Greater Than
+       * Format: date-time
+       * @description Greater than comparison. ?created_at[gt]=<timestamp>
+       */
+      gt?: string
+      /**
+       * Greater Than Or Equal
+       * Format: date-time
+       * @description Greater than or equal comparison. ?created_at[gte]=<timestamp>
+       */
+      gte?: string
+      /**
+       * Less Than
+       * Format: date-time
+       * @description Less than comparison. ?created_at[lt]=<timestamp>
+       */
+      lt?: string
+      /**
+       * Less Than Or Equal
+       * Format: date-time
+       * @description Less than or equal comparison. ?created_at[lte]=<timestamp>
+       */
+      lte?: string
+    }
+    updatedAtFilterParam: string & {
+      /**
+       * Equals
+       * Format: date-time
+       * @description Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
+       */
+      eq?: string
+      /**
+       * Greater Than
+       * Format: date-time
+       * @description Greater than comparison. ?updated_at[gt]=<timestamp>
+       */
+      gt?: string
+      /**
+       * Greater Than Or Equal
+       * Format: date-time
+       * @description Greater than or equal comparison. ?updated_at[gte]=<timestamp>
+       */
+      gte?: string
+      /**
+       * Less Than
+       * Format: date-time
+       * @description Less than comparison. ?updated_at[lt]=<timestamp>
+       */
+      lt?: string
+      /**
+       * Less Than Or Equal
+       * Format: date-time
+       * @description Less than or equal comparison. ?updated_at[lte]=<timestamp>
+       */
+      lte?: string
+    }
+    /**
+     * @description Filter resources by label key-value pairs.
+     *     - Single label: `labels[environment]=production`
+     *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
+     *     All specified labels must match (AND logic).
+     * @example {
+     *       "environment": "production",
+     *       "region": "us-east-1"
+     *     }
+     */
+    labelsFilterParam: {
+      [key: string]: string
+    }
+  }
   requestBodies: never
   headers: never
   pathItems: never
