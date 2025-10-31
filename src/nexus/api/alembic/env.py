@@ -1,7 +1,6 @@
 """Alembic environment configuration for async migrations."""
 
 import asyncio
-import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -11,6 +10,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
 from nexus.agent_orchestrator.models.invocation import Invocation
+from nexus.api.db.session import DATABASE_URL
 from nexus.core.models import User
 from nexus.workflows.models import Workflow, WorkflowVersion
 
@@ -29,10 +29,8 @@ if config.config_file_name is not None:
 # Set target metadata from models
 target_metadata = SQLModel.metadata
 
-# Override sqlalchemy.url with environment variable if present
-database_url = os.getenv("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+# Use the same DATABASE_URL from the application's session module
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 
 def run_migrations_offline() -> None:

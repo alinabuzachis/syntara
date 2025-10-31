@@ -114,13 +114,31 @@ db-clean: ## Stop database and remove all data (destructive)
 	@echo "✅ Database stopped and data purged"
 
 
+# Valkey
+# ========================================================
+.PHONY: valkey-run
+valkey-run: ## Start Valkey cache container (foreground, Ctrl+C to stop)
+	@echo "🚀 Starting Valkey cache..."
+	@echo "📍 Connection: valkey://localhost:$${VALKEY_PORT:-6379}"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	$(COMPOSE_CMD) -f podman-compose.yml up valkey
+
+.PHONY: valkey-clean
+valkey-clean: ## Stop Valkey and remove data
+	@echo "🧹 Stopping Valkey cache..."
+	$(COMPOSE_CMD) -f podman-compose.yml stop valkey
+	$(COMPOSE_CMD) -f podman-compose.yml rm -f valkey
+	@echo "✅ Valkey stopped"
+
+
 # Temporal
 # ========================================================
 .PHONY: temporal-run
 temporal-run: ## Start Temporal server, UI, and worker (foreground, Ctrl+C to stop)
 	@echo "🚀 Starting Temporal server, UI, and worker..."
 	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
-	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8080}"
+	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	$(COMPOSE_CMD) -f podman-compose.yml up temporal temporal-ui temporal-worker
@@ -132,13 +150,35 @@ temporal-clean: ## Stop Temporal and remove data
 	$(COMPOSE_CMD) -f podman-compose.yml rm -f temporal temporal-ui
 	@echo "✅ Temporal stopped"
 
-.PHONY: services-run
-services-run: ## Start all services (database + temporal + UI + worker) in background
-	@echo "🚀 Starting all services (database + temporal + UI + worker)..."
+.PHONY: build-images
+build-images: ## Build container images for nexus and temporal-worker
+	@echo "🔨 Building container images..."
+	@echo "📦 Building nexus image..."
+	$(COMPOSE_CMD) -f podman-compose.yml build nexus
+	@echo "✅ Container images built successfully"
+	@echo "   Image: $${NEXUS_IMAGE:-localhost/nexus:latest}"
+
+.PHONY: run-all
+run-all: ## Start all services (foreground, Ctrl+C to stop)
+	@echo "🚀 Starting all services..."
+	@echo "📍 Nexus API: http://localhost:$${NEXUS_API_PORT:-8000}"
+	@echo "📍 Nexus UI: http://localhost:$${NEXUS_UI_PORT:-8080}"
 	@echo "📍 Database: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
+	@echo "📍 Valkey Cache: valkey://localhost:$${VALKEY_PORT:-6379}"
 	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
-	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8080}"
-	$(COMPOSE_CMD) -f podman-compose.yml up -d database temporal temporal-ui temporal-worker
+	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	$(COMPOSE_CMD) -f podman-compose.yml up
+
+.PHONY: services-run
+services-run: ## Start all services (database + valkey + temporal + UI + worker) in background
+	@echo "🚀 Starting all services (database + valkey + temporal + UI + worker)..."
+	@echo "📍 Database: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
+	@echo "📍 Valkey Cache: valkey://localhost:$${VALKEY_PORT:-6379}"
+	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
+	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
+	$(COMPOSE_CMD) -f podman-compose.yml up -d database valkey temporal temporal-ui temporal-worker
 	@echo "✅ All services started in background"
 	@echo "   Use 'make services-logs' to view logs"
 	@echo "   Use 'make services-stop' to stop services"
@@ -157,6 +197,7 @@ services-logs: ## View logs from all services
 	podman ps -a --filter "name=nexus" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 	@echo ""
 	podman logs -f nexus_database_1 2>/dev/null & \
+	podman logs -f nexus_valkey_1 2>/dev/null & \
 	podman logs -f nexus_temporal_1 2>/dev/null & \
 	podman logs -f nexus_temporal-ui_1 2>/dev/null & \
 	podman logs -f nexus-temporal-worker 2>/dev/null & \
@@ -166,6 +207,11 @@ services-logs: ## View logs from all services
 db-logs: ## View database logs only
 	@echo "📋 Viewing database logs..."
 	podman logs -f nexus_database_1
+
+.PHONY: valkey-logs
+valkey-logs: ## View Valkey cache logs only
+	@echo "📋 Viewing Valkey cache logs..."
+	podman logs -f nexus_valkey_1
 
 .PHONY: temporal-logs
 temporal-logs: ## View Temporal server and worker logs
@@ -178,6 +224,13 @@ temporal-logs: ## View Temporal server and worker logs
 temporal-ui-logs: ## View Temporal UI logs only
 	@echo "📋 Viewing Temporal UI logs..."
 	podman logs -f nexus_temporal-ui_1
+
+.PHONY: run-clean
+run-clean: ## Stop all services and remove all data (destructive)
+	@echo "🧹 Stopping all services and removing data..."
+	@echo "⚠️  WARNING: This will delete all database and Temporal data!"
+	$(COMPOSE_CMD) -f podman-compose.yml down -v
+	@echo "✅ All services stopped and data purged"
 
 .PHONY: services-clean
 services-clean: ## Stop all services and remove all data (destructive)

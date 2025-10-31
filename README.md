@@ -37,6 +37,30 @@ This project uses `uv` for dependency management and provides a comprehensive Ma
 
 ### Quick Start
 
+**Option 1: Full Stack with Containers (Recommended)**
+
+**NOTE**: The UI image is private and you need to be previously logged in ghcr.io registry in order to be able to download the image.
+You can do it easily with `gh` [github cli](https://cli.github.com/)
+
+```bash
+gh auth token | podman login ghcr.io --username $(gh api user --jq '.login') --password-stdin
+```
+
+**IMPORTANT**: Before starting the services for the first time, you must build the container images:
+
+```bash
+# Build container images (required before first run)
+make build-images
+```
+
+```bash
+# Start all services (API, UI, Database, Temporal, Worker)
+make run-all
+```
+
+
+
+**Option 2: Local Development**
 ```bash
 # Install dependencies and setup project
 make install
@@ -115,11 +139,11 @@ The application uses these environment variables (with defaults):
 - `NEXUS_TEMPORAL_ADDRESS` (default: `localhost:7233`)
 - `NEXUS_TEMPORAL_NAMESPACE` (default: `default`)
 - `NEXUS_TEMPORAL_PORT` (default: `7233`)
-- `NEXUS_TEMPORAL_UI_PORT` (default: `8080`)
+- `NEXUS_TEMPORAL_UI_PORT` (default: `8081`)
 - `NEXUS_TASK_QUEUE` (default: `nexus-workflow-queue`)
 
 **Access Temporal UI** (Development/Debugging Only):
-Once Temporal is running, access the web UI at: http://localhost:8080
+Once Temporal is running, access the web UI at: http://localhost:8081
 
 The UI is for **local development and debugging only**. The local UI allows you to:
 - Monitor workflow executions in real-time
@@ -139,6 +163,92 @@ make worker-logs      # Temporal worker logs
 ```bash
 make temporal-clean  # Stop Temporal server and UI only
 make services-clean  # Stop and remove all data (database + temporal)
+```
+
+### Containerized Deployment
+
+Nexus provides a complete containerized stack using `podman-compose` for easy deployment and development.
+
+#### Available Services
+
+The `podman-compose.yml` defines the following services:
+
+| Service | Description | Port | Image |
+|---------|-------------|------|-------|
+| **database** | PostgreSQL 17 database | 5432 | `postgres:17` |
+| **valkey** | Redis-compatible in-memory data store | 6379 | `valkey-8-c10s` |
+| **temporal** | Temporal workflow engine | 7233 | `temporalio/auto-setup:1.25.1` |
+| **temporal-ui** | Temporal web UI (dev only) | 8081 | `temporalio/ui:2.31.2` |
+| **temporal-worker** | Temporal workflow worker | - | Built from `containers/nexus/Containerfile` |
+| **nexus** | Nexus API service | 8000 | Built from `containers/nexus/Containerfile` |
+| **nexus-ui** | Nexus web interface | 8080 | `ghcr.io/syntara-orchestration/syntara-ui` |
+
+#### Container Commands
+
+**Build container images** (required before first run):
+```bash
+make build-images
+```
+
+**Start all services** (foreground):
+```bash
+make run-all
+# Access:
+# - API: http://localhost:8000
+# - UI: http://localhost:8080
+# - Temporal UI: http://localhost:8081
+# - Database: postgresql://admin:admin@localhost:5432/nexus_api
+```
+
+**Start all services** (background):
+```bash
+make services-run         # Start all services
+make services-logs        # View logs from all services
+make services-stop        # Stop all services
+make services-clean       # Stop and remove all data (destructive)
+```
+
+**Individual service logs**:
+```bash
+make db-logs              # Database logs
+make temporal-logs        # Temporal server and worker logs
+make temporal-ui-logs     # Temporal UI logs
+```
+
+
+**Environment Variables**:
+
+All services can be configured via `.env` file or environment variables:
+
+```bash
+# API Configuration
+NEXUS_API_PORT=8000
+
+# UI Configuration
+NEXUS_API_URL=http://localhost:8000
+NEXUS_UI_PORT=8080
+NEXUS_UI_IMAGE=ghcr.io/syntara-orchestration/syntara-ui
+NEXUS_UI_VERSION=latest
+
+# Database Configuration
+NEXUS_DB_HOST=localhost
+NEXUS_DB_PORT=5432
+NEXUS_DB_USER=admin
+NEXUS_DB_PASSWORD=admin
+NEXUS_DB_NAME=nexus_api
+
+# Valkey Configuration
+VALKEY_PORT=6379
+
+# Temporal Configuration
+NEXUS_TEMPORAL_ADDRESS=localhost:7233
+NEXUS_TEMPORAL_PORT=7233
+NEXUS_TEMPORAL_UI_PORT=8081
+NEXUS_TEMPORAL_NAMESPACE=default
+NEXUS_TASK_QUEUE=nexus-workflow-queue
+
+# Logging
+LOG_LEVEL=INFO
 ```
 
 ### LLM and Agent Configuration
@@ -247,6 +357,12 @@ curl 'http://localhost:8000/api/v1/invocations?status=completed'
 | Command | Description |
 |---------|-------------|
 | `make help` | Show all available commands |
+| `make build-images` | Build container images (required before first run) |
+| `make install` | Complete setup from scratch |
+| `make dev` | Run development server with auto-reload |
+| `make test-all` | Run all tests |
+| `make lint` | Run linting and type checking |
+| `make format` | Format code |
 
 ### Project Structure
 
