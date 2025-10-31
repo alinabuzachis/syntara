@@ -55,6 +55,7 @@ async def test_create_tool_provider_with_required_fields(test_db_session: AsyncS
     assert provider.id == provider_id
     assert provider.name == "Test Provider"
     assert provider.configuration == config
+    assert provider.enabled is True  # Default value
     assert provider.status == ProviderStatus.VALIDATING  # Default value
     assert provider.last_validated_at is None
     assert provider.validation_error is None
@@ -80,6 +81,7 @@ async def test_create_tool_provider_with_all_fields(test_db_session: AsyncSessio
         name="Full Test Provider",
         description="A test provider with all fields",
         configuration=config,
+        enabled=False,
         status=ProviderStatus.ERROR,
         last_validated_at=now,
         validation_error="Connection timeout",
@@ -90,6 +92,7 @@ async def test_create_tool_provider_with_all_fields(test_db_session: AsyncSessio
     await test_db_session.commit()
     await test_db_session.refresh(provider)
 
+    assert provider.enabled is False
     assert provider.status == ProviderStatus.ERROR
     assert provider.last_validated_at == now
     assert provider.validation_error == "Connection timeout"
@@ -153,7 +156,6 @@ def test_provider_status_enum() -> None:
     assert ProviderStatus.AVAILABLE.value == "available"
     assert ProviderStatus.ERROR.value == "error"
     assert ProviderStatus.VALIDATING.value == "validating"
-    assert ProviderStatus.DISABLED.value == "disabled"
 
 
 def test_mcp_configuration_model() -> None:

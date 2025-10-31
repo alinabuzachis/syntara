@@ -181,7 +181,7 @@ class TestToolProvidersUpdateContract:
             "base_url": "https://example.com/mcp",
             "api_key": "test-key",
         }
-        assert data["status"] == "validating"
+        assert data["enabled"]
 
     @pytest.mark.asyncio
     async def test_update_provider_timestamps_updated_contract(

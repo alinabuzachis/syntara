@@ -45,7 +45,6 @@ class ProviderStatus(str, Enum):
     AVAILABLE = "available"
     ERROR = "error"
     VALIDATING = "validating"
-    DISABLED = "disabled"
 
 
 class MCPConfiguration(SQLModel):
@@ -79,6 +78,7 @@ class ToolProvider(Resource, table=True):
 
     Attributes:
         configuration: Provider-specific configuration (stored as JSON)
+        enabled: Whether the provider is enabled (default: True)
         status: Current status of the provider (default: validating)
         last_validated_at: Timestamp of last validation (nullable)
         validation_error: Error message from last validation attempt (nullable)
@@ -109,6 +109,8 @@ class ToolProvider(Resource, table=True):
     )
 
     configuration: dict[str, Any] = Field(sa_type=JSONB, description="Provider-specific configuration")
+
+    enabled: bool = Field(default=True, description="Enable/disable the provider")
 
     status: ProviderStatus = Field(
         default=ProviderStatus.VALIDATING,
@@ -176,7 +178,6 @@ class ToolProviderPatch(SQLModel):
         name: Optional human-readable name (1-255 chars)
         description: Optional detailed description (max 2000 chars)
         configuration: Optional provider-specific configuration
-        status: Optional provider status (available or disabled)
 
     """
 
@@ -198,22 +199,13 @@ class ToolProviderPatch(SQLModel):
         description="Provider-specific configuration",
     )
 
-    status: ProviderStatus | None = Field(default=None, description="Set the provider status (available or disabled)")
+    enabled: bool | None = Field(default=None, description="Enable/disable the provider")
 
     @field_validator("configuration")
     @classmethod
     def validate_configuration(cls, v: dict[str, Any]) -> dict[str, Any]:
         """Validate configuration using shared validation logic."""
         return _validate_provider_configuration(v)
-
-    @field_validator("status")
-    @classmethod
-    def validate_status(cls, v: ProviderStatus | None) -> ProviderStatus | None:
-        """Validate that only user-controllable statuses are allowed in patch operations."""
-        if v is not None and v not in (ProviderStatus.AVAILABLE, ProviderStatus.DISABLED):
-            msg = f"status must be one of {ProviderStatus.AVAILABLE.value!r} or {ProviderStatus.DISABLED.value!r}"
-            raise ValueError(msg)
-        return v
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",  # Reject unknown fields
