@@ -21,6 +21,20 @@ class FieldLimits:
     MAX_CURSOR_SIZE = 1024  # 1KB limit for cursor tokens
 
 
+class WebSocketConfig:
+    """WebSocket configuration constants."""
+
+    # Message size limits
+    MAX_MESSAGE_SIZE = 1048576  # 1MB
+
+    # Connection limits
+    MAX_CONNECTIONS = 100
+
+    # Health check settings
+    PING_INTERVAL = 30  # seconds
+    PING_TIMEOUT = 10  # seconds
+
+
 class ValidationMessages:
     """Standard validation error messages."""
 

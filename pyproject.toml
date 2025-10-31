@@ -50,6 +50,7 @@ dev = [
     "mypy>=1.6.0",
     "httpx>=0.25.0",  # for testing FastAPI
     "respx>=0.20.0",  # for mocking httpx requests
+    "websockets>=12.0",  # for WebSocket client testing
     "types-pyyaml>=6.0.12",  # type stubs for PyYAML
     "yamllint>=1.35.1",
     "yamlfmt>=1.1.1",
@@ -97,6 +98,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "D104"]
+"src/nexus/core/models/base/resource.py" = ["A005"]  # Allow module name shadowing stdlib
 "tests/**/*.py" = [
     "S101",     # Allow assert statements in tests
     "ANN001",   # Don't require type annotations for test function arguments (fixtures)

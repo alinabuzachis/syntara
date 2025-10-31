@@ -135,7 +135,7 @@ async def execute_api_request(config: dict[str, Any], inputs: dict[str, Any]) ->
                 headers=resolved_headers,
                 params=resolved_query_params,
                 json=resolved_body if isinstance(resolved_body, dict) else None,
-                content=resolved_body if isinstance(resolved_body, (str, bytes)) else None,
+                content=resolved_body if isinstance(resolved_body, str | bytes) else None,
             )
 
             # Calculate elapsed time

@@ -810,6 +810,7 @@ dev = [
     { name = "types-jsonschema" },
     { name = "types-pyyaml" },
     { name = "types-requests" },
+    { name = "websockets" },
     { name = "yamlfmt" },
     { name = "yamllint" },
 ]
@@ -854,6 +855,7 @@ requires-dist = [
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.12" },
     { name = "types-requests", marker = "extra == 'dev'", specifier = ">=2.31.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
+    { name = "websockets", marker = "extra == 'dev'", specifier = ">=12.0" },
     { name = "yamlfmt", marker = "extra == 'dev'" },
     { name = "yamlfmt", marker = "extra == 'dev'", specifier = ">=1.1.1" },
     { name = "yamllint", marker = "extra == 'dev'", specifier = ">=1.35.1" },

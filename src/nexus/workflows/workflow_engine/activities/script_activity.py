@@ -126,7 +126,7 @@ def _sanitize_env_value(value: object) -> str:
     # Convert dicts and lists to JSON for proper serialization
     # Python's str() uses single quotes and Python-specific syntax (True/False/None)
     # which is not valid JSON. json.dumps() produces valid JSON with double quotes.
-    str_value = json.dumps(value) if isinstance(value, (dict, list)) else str(value)
+    str_value = json.dumps(value) if isinstance(value, dict | list) else str(value)
 
     # Check for null bytes (not allowed in environment variables)
     if "\0" in str_value:

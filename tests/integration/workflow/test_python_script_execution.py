@@ -66,7 +66,7 @@ async def test_python_script_with_input_parameters(
     calc_activity = result["activity_outputs"]["calculator"]
     calc_output = calc_activity["output"]
     assert "result" in calc_output
-    assert isinstance(calc_output["result"], (int, float))
+    assert isinstance(calc_output["result"], int | float)
 
     # Verify environment variables were used (check raw output object)
     assert "app" in calc_output

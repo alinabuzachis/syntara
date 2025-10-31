@@ -452,7 +452,7 @@ class TestTemporalWorkerServiceLogging:
     """Test logging behavior of worker service."""
 
     @pytest.mark.asyncio
-    async def test_start_logs_connection_info(self, caplog: pytest.LogCaptureFixture) -> None:
+    async def test_start_logs_connection_info(self) -> None:
         """Test that start() logs connection information."""
         service = TemporalWorkerService(
             temporal_address="test.temporal.io:7233",
@@ -482,17 +482,19 @@ class TestTemporalWorkerServiceLogging:
             ),
             patch("nexus.workflows.workflow_engine.services.temporal_worker.Worker", return_value=mock_worker),
             patch("asyncio.create_task", side_effect=mock_create_task),
-            caplog.at_level("INFO"),
+            patch("nexus.workflows.workflow_engine.services.temporal_worker.logger") as mock_logger,
         ):
             await service.start()
 
-            # Check that connection info was logged
-            assert any("Connecting to Temporal server" in record.message for record in caplog.records)
-            assert any("test.temporal.io:7233" in record.message for record in caplog.records)
-            assert any("test-namespace" in record.message for record in caplog.records)
+            # Verify logger was called with connection info
+            mock_logger.info.assert_any_call(
+                "Connecting to Temporal server at %s (namespace: %s)",
+                "test.temporal.io:7233",
+                "test-namespace",
+            )
 
     @pytest.mark.asyncio
-    async def test_stop_logs_shutdown_info(self, caplog: pytest.LogCaptureFixture) -> None:
+    async def test_stop_logs_shutdown_info(self) -> None:
         """Test that stop() logs shutdown information."""
         service = TemporalWorkerService(
             temporal_address="test-address", namespace="test-namespace", task_queue="test-queue"
@@ -505,15 +507,15 @@ class TestTemporalWorkerServiceLogging:
         mock_task = asyncio.create_task(mock_worker_run())
         service._worker_task = mock_task
 
-        with caplog.at_level("INFO"):
+        with patch("nexus.workflows.workflow_engine.services.temporal_worker.logger") as mock_logger:
             await service.stop()
 
-        # Check that shutdown info was logged
-        assert any("Stopping Temporal worker" in record.message for record in caplog.records)
-        assert any("Temporal worker stopped" in record.message for record in caplog.records)
+            # Verify shutdown logs were called
+            mock_logger.info.assert_any_call("Stopping Temporal worker...")
+            mock_logger.info.assert_any_call("Temporal worker stopped")
 
     @pytest.mark.asyncio
-    async def test_start_failure_logs_error(self, caplog: pytest.LogCaptureFixture) -> None:
+    async def test_start_failure_logs_error(self) -> None:
         """Test that start() logs errors on failure."""
         service = TemporalWorkerService(
             temporal_address="test-address", namespace="test-namespace", task_queue="test-queue"
@@ -525,10 +527,10 @@ class TestTemporalWorkerServiceLogging:
                 "nexus.workflows.workflow_engine.services.temporal_worker.Client.connect",
                 new=AsyncMock(side_effect=connection_error),
             ),
-            caplog.at_level("ERROR"),
+            patch("nexus.workflows.workflow_engine.services.temporal_worker.logger") as mock_logger,
         ):
             with pytest.raises(ConnectionError, match="Connection failed"):
                 await service.start()
 
-            # Check that error was logged
-            assert any("Failed to start Temporal worker" in record.message for record in caplog.records)
+            # Verify error was logged (using exception which includes traceback)
+            mock_logger.exception.assert_called_once_with("Failed to start Temporal worker")

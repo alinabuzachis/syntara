@@ -513,5 +513,5 @@ class TestAPIEdgeCases:
             result = await execute_api_request(config.model_dump(by_alias=True), inputs={})
 
         assert "elapsed_ms" in result
-        assert isinstance(result["elapsed_ms"], (int, float))
+        assert isinstance(result["elapsed_ms"], int | float)
         assert result["elapsed_ms"] >= 0

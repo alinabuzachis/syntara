@@ -19,6 +19,7 @@ from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.api.db import get_db
 from nexus.api.v1 import executions, tool_providers, workflow_versions, workflows
 from nexus.api.v1.invocation import router as invoke_router
+from nexus.api.v1.websocket import build_websocket_router
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
 
 logger = logging.getLogger(__name__)
@@ -42,8 +43,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         None
 
     """
+    # Configure application loggers to use uvicorn's handlers
+    # Copy uvicorn's handlers to nexus logger so our logs get formatted
+    uvicorn_logger = logging.getLogger("uvicorn")
+    nexus_logger = logging.getLogger("nexus")
+    nexus_logger.setLevel(logging.INFO)
+
+    # Copy uvicorn's handlers to nexus logger
+    for handler in uvicorn_logger.handlers:
+        nexus_logger.addHandler(handler)
+
+    # Disable propagation since we have handlers now
+    nexus_logger.propagate = False
+
     # Startup: Initialize provider factory in app.state
     app.state.provider_factory = ProviderFactory()
+
+    # Register WebSocket router after logging is configured
+    # This ensures validation messages use uvicorn's log format
+    ws_router = build_websocket_router()
+    app.include_router(ws_router)
 
     # Register provider types here as they are implemented
 

@@ -379,7 +379,8 @@ class WorkflowService:
         name: str | None = None,
         description: str | None = None,
         labels: dict[str, Any] | None = None,
-        is_enabled: bool | None = None,  # noqa: FBT001
+        *,
+        is_enabled: bool | None = None,
         updated_by: UUID | None = None,
     ) -> None:
         """Update workflow metadata fields.
@@ -495,7 +496,8 @@ class WorkflowService:
         name: str | None = None,
         description: str | None = None,
         labels: dict[str, Any] | None = None,
-        is_enabled: bool | None = None,  # noqa: FBT001
+        *,
+        is_enabled: bool | None = None,
         workflow_definition: WorkflowDefinition | None = None,
         change_description: str | None = None,
         updated_by: UUID | None = None,
