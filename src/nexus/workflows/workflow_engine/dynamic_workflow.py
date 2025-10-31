@@ -265,6 +265,7 @@ class DynamicWorkflow:
             result = await workflow.execute_activity(
                 script_executor,
                 args=[script_config.model_dump(by_alias=True), task_inputs],
+                activity_id=activity.id,
                 start_to_close_timeout=activity_timeout,
                 retry_policy=build_retry_policy(
                     activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None
@@ -317,6 +318,7 @@ class DynamicWorkflow:
             result = await workflow.execute_activity(
                 execute_api_request,
                 args=[activity.task.config.model_dump(by_alias=True), task_inputs],
+                activity_id=activity.id,
                 start_to_close_timeout=activity_timeout,
                 retry_policy=build_retry_policy(
                     activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None
