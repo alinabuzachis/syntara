@@ -1,10 +1,10 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-import type { ReactNode } from 'react'
-import { IntegrationForm } from './IntegrationForm'
-import { toolProvidersClient } from '../../../../client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { navigate } from 'wouter/use-browser-location'
+import { toolProvidersClient } from '../../../../client'
+import { IntegrationForm } from './IntegrationForm'
 
 // Mock dependencies
 vi.mock('../../../../client', () => ({
@@ -69,54 +69,38 @@ describe('IntegrationForm Component', () => {
   })
 
   describe('Rendering', () => {
-    it('renders without crashing', () => {
-      render(<IntegrationForm />, { wrapper })
+    it('renders the component with all required elements', () => {
+      const { container } = render(<IntegrationForm />, { wrapper })
 
-      // Check page header
+      // Page header
       expect(screen.getByText('Configure Integration')).toBeInTheDocument()
-    })
 
-    it('renders all form fields', () => {
-      render(<IntegrationForm />, { wrapper })
-
-      // Check for all input fields by placeholder text
-      expect(screen.getByPlaceholderText('Enter server name / ID')).toBeInTheDocument()
-      expect(screen.getByPlaceholderText('Enter description')).toBeInTheDocument()
-      expect(screen.getByPlaceholderText('Enter API URL')).toBeInTheDocument()
-    })
-
-    it('renders all action buttons', () => {
-      render(<IntegrationForm />, { wrapper })
-
-      // Check for buttons
+      // Action buttons
       expect(screen.getByText('Add integration')).toBeInTheDocument()
-      expect(screen.getAllByText('Test Integration').length).toBeGreaterThan(0)
       expect(screen.getByText('Cancel')).toBeInTheDocument()
-    })
 
-    it('renders ChatInput component', () => {
-      render(<IntegrationForm />, { wrapper })
-
+      // ChatInput component
       expect(screen.getByTestId('chat-input')).toBeInTheDocument()
-    })
 
-    it('displays test integration helper text', () => {
-      render(<IntegrationForm />, { wrapper })
-
-      expect(screen.getByText('Test the integration to identify and manage the tools it provides.')).toBeInTheDocument()
+      // Grid layout
+      const gridContainer = container.querySelector('.grid.grow')
+      expect(gridContainer).toBeInTheDocument()
     })
   })
 
   describe('Form Fields', () => {
-    it('has Type select with MCP Server option', () => {
+    it('renders integration type field with MCP Server option selected by default', () => {
       render(<IntegrationForm />, { wrapper })
 
-      // Check that the form has a type field (by looking for the select/combobox)
-      const typeField = screen.getByRole('combobox')
+      const typeField = screen.getByRole('radiogroup', { name: /integration type/i })
       expect(typeField).toBeInTheDocument()
+
+      const mcpOption = screen.getByRole('radio', { name: /mcp server/i })
+      expect(mcpOption).toBeInTheDocument()
+      expect(mcpOption).toBeChecked()
     })
 
-    it('Server name field has correct placeholder', () => {
+    it('renders server name field as required', () => {
       render(<IntegrationForm />, { wrapper })
 
       const serverNameInput = screen.getByPlaceholderText('Enter server name / ID')
@@ -124,14 +108,14 @@ describe('IntegrationForm Component', () => {
       expect(serverNameInput).toHaveAttribute('required')
     })
 
-    it('Description field has correct placeholder and autofocus', () => {
+    it('renders description field', () => {
       render(<IntegrationForm />, { wrapper })
 
       const descriptionInput = screen.getByPlaceholderText('Enter description')
       expect(descriptionInput).toBeInTheDocument()
     })
 
-    it('API URL field has correct placeholder and is required', () => {
+    it('renders API URL field as required', () => {
       render(<IntegrationForm />, { wrapper })
 
       const apiUrlInput = screen.getByPlaceholderText('Enter API URL')
@@ -140,11 +124,10 @@ describe('IntegrationForm Component', () => {
     })
   })
 
-  describe('Form Submission', () => {
-    it('allows user to fill out the form', async () => {
+  describe('Form Interactions', () => {
+    it('allows users to fill out all form fields', () => {
       render(<IntegrationForm />, { wrapper })
 
-      // Fill out the form
       const serverNameInput = screen.getByPlaceholderText('Enter server name / ID') as HTMLInputElement
       const descriptionInput = screen.getByPlaceholderText('Enter description') as HTMLInputElement
       const apiUrlInput = screen.getByPlaceholderText('Enter API URL') as HTMLInputElement
@@ -153,57 +136,35 @@ describe('IntegrationForm Component', () => {
       fireEvent.change(descriptionInput, { target: { value: 'Test Description' } })
       fireEvent.change(apiUrlInput, { target: { value: 'https://test.example.com' } })
 
-      // Verify values are set
       expect(serverNameInput.value).toBe('Test Server')
       expect(descriptionInput.value).toBe('Test Description')
       expect(apiUrlInput.value).toBe('https://test.example.com')
     })
 
-    it('submits form with correct data when Add integration is clicked', async () => {
+    it('submits form data when Add integration button is clicked', async () => {
       render(<IntegrationForm />, { wrapper })
 
-      // Fill out the form
-      const serverNameInput = screen.getByPlaceholderText('Enter server name / ID')
-      const descriptionInput = screen.getByPlaceholderText('Enter description')
-      const apiUrlInput = screen.getByPlaceholderText('Enter API URL')
-
-      fireEvent.change(serverNameInput, { target: { value: 'Production Server' } })
-      fireEvent.change(descriptionInput, { target: { value: 'Main production integration' } })
-      fireEvent.change(apiUrlInput, { target: { value: 'https://prod.example.com/api' } })
-
-      // Submit the form
-      const submitButton = screen.getByText('Add integration')
-      fireEvent.click(submitButton)
-
-      // Wait for mutation to be called
-      await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalled()
+      fireEvent.change(screen.getByPlaceholderText('Enter server name / ID'), {
+        target: { value: 'Production Server' },
       })
-    })
+      fireEvent.change(screen.getByPlaceholderText('Enter description'), {
+        target: { value: 'Main production integration' },
+      })
+      fireEvent.change(screen.getByPlaceholderText('Enter API URL'), {
+        target: { value: 'https://prod.example.com/api' },
+      })
 
-    it('includes provider_type in submission', async () => {
-      render(<IntegrationForm />, { wrapper })
-
-      // Fill out required fields
-      const serverNameInput = screen.getByPlaceholderText('Enter server name / ID')
-      const apiUrlInput = screen.getByPlaceholderText('Enter API URL')
-
-      fireEvent.change(serverNameInput, { target: { value: 'Test' } })
-      fireEvent.change(apiUrlInput, { target: { value: 'https://test.com' } })
-
-      // Submit the form
       const submitButton = screen.getByText('Add integration')
       fireEvent.click(submitButton)
 
-      // The mutation should include the configuration.provider_type from defaultValues
       await waitFor(() => {
         expect(mockMutate).toHaveBeenCalled()
       })
     })
   })
 
-  describe('Button Actions', () => {
-    it('Cancel button navigates back to integrations list', async () => {
+  describe('Navigation', () => {
+    it('navigates back to integrations list when Cancel is clicked', async () => {
       const { navigate } = await import('wouter/use-browser-location')
       const mockNav = vi.mocked(navigate)
 
@@ -215,51 +176,12 @@ describe('IntegrationForm Component', () => {
       expect(mockNav).toHaveBeenCalledWith('/configuration/integrations')
     })
 
-    it('Add integration button has correct form attribute', () => {
+    it('has submit button properly linked to form', () => {
       render(<IntegrationForm />, { wrapper })
 
       const addButton = screen.getByText('Add integration')
       expect(addButton).toHaveAttribute('form', 'integration-form')
       expect(addButton).toHaveAttribute('type', 'submit')
-    })
-
-    it('Test Integration buttons are present', () => {
-      render(<IntegrationForm />, { wrapper })
-
-      const testButtons = screen.getAllByText('Test Integration')
-      expect(testButtons.length).toBe(2) // One in header, one in the helper panel
-    })
-  })
-
-  describe('Form Validation', () => {
-    it('marks Server name / ID field as required', () => {
-      render(<IntegrationForm />, { wrapper })
-
-      const serverNameInput = screen.getByPlaceholderText('Enter server name / ID')
-      expect(serverNameInput).toHaveAttribute('required')
-    })
-
-    it('marks API URL field as required', () => {
-      render(<IntegrationForm />, { wrapper })
-
-      const apiUrlInput = screen.getByPlaceholderText('Enter API URL')
-      expect(apiUrlInput).toHaveAttribute('required')
-    })
-  })
-
-  describe('Layout', () => {
-    it('renders form in two-column grid layout', () => {
-      const { container } = render(<IntegrationForm />, { wrapper })
-
-      const gridContainer = container.querySelector('.grid.grid-cols-2')
-      expect(gridContainer).toBeInTheDocument()
-    })
-
-    it('renders helper panel with test integration info', () => {
-      render(<IntegrationForm />, { wrapper })
-
-      const helperPanel = screen.getByText('Test the integration to identify and manage the tools it provides.')
-      expect(helperPanel).toBeInTheDocument()
     })
   })
 })

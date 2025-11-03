@@ -7,14 +7,20 @@ export function FormInput<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 >(props: { name: TName; label: string; description?: string } & BaseInput.Props) {
-  const { name, label, description, ...inputProps } = props
+  const { name, label, description, required, ...inputProps } = props
   const {
     register,
     formState: { errors },
   } = useFormContext()
   return (
-    <FormField name={name} label={label} description={description} error={errors[name]?.message as React.ReactNode}>
-      <Input {...register(name)} {...inputProps} />
+    <FormField
+      name={name}
+      label={label}
+      description={description}
+      required={required}
+      error={errors[name]?.message as React.ReactNode}
+    >
+      <Input {...register(name)} required={required} {...inputProps} />
     </FormField>
   )
 }
