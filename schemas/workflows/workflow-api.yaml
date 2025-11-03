@@ -308,13 +308,13 @@ paths:
           type: string
           format: uuid
         description: Filter by workflow ID
-      - name: started_by
+      - name: created_by
         in: query
         required: false
         schema:
           type: string
           format: uuid
-        description: Filter by user who started the execution
+        description: Filter by user who created the execution
       - name: status
         in: query
         required: false

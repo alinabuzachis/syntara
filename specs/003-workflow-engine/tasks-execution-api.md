@@ -177,10 +177,10 @@ graph TB
   - Expected: 201 Created, 404 Not Found (workflow), 400 Bad Request
   - Verify: Execution record created, status=pending, created_by set from auth context
 
-- [ ] **T044 [P]** Integration test: GET /api/v1/executions
+- [X] **T044 [P]** Integration test: GET /api/v1/executions
   - File: `tests/integration/api/test_executions_get.py`
   - Test cases: List all, filter by workflow_id, filter by status, filter by created_by, label filtering
-  - Pagination: limit/offset with total count
+  - Pagination: cursor-based with total count (include_total parameter)
   - Expected: 200 OK with executions array
 
 - [ ] **T045 [P]** Integration test: GET /api/v1/executions/{id}
@@ -263,11 +263,11 @@ graph TB
   - Foreign keys: Execution → Workflow, Execution → WorkflowVersion, Execution → User, ActivityExecution → Execution, Approval → ActivityExecution, Approval → User, AuditLog → Execution (SET NULL), AuditLog → User (SET NULL)
   - Test: `alembic upgrade head` and `alembic downgrade -1`
 
-- [ ] **T056 [P]** Unit tests for Execution model
+- [X] **T056 [P]** Unit tests for Execution model
   - File: `tests/unit/models/test_execution.py`
   - Test cases: Create execution, status transitions (pending → running → completed/failed/cancelled), pause/resume transitions, timestamp validation, label operations
   - Verify: Status state machine enforced, unique temporal_workflow_id, check constraints work
-  - Coverage: All status transitions, all validation rules
+  - Coverage: All status transitions, all validation rules (19 tests covering all aspects)
 
 - [ ] **T057 [P]** Unit tests for ActivityExecution model
   - File: `tests/unit/models/test_activity_execution.py`
@@ -310,12 +310,12 @@ graph TB
   - Response: 201 Created with Execution object
   - Error handling: 404 for workflow not found, 400 if workflow disabled, 503 if Temporal unavailable
 
-- [ ] **T062** Implement GET /api/v1/executions endpoint
-  - File: `src/nexus/api/api/v1/executions.py` (add handler)
-  - Handler: list_executions(workflow_id, created_by, status, labels, limit, offset, db)
+- [X] **T062** Implement GET /api/v1/executions endpoint
+  - File: `src/nexus/api/v1/executions.py`
+  - Handler: list_executions(workflow_id, created_by, status, labels, limit, cursor, sort, include_total, db)
   - Logic: Filter by query parameters, apply label filtering using JSONB @> operator
-  - Pagination: limit/offset with total count
-  - Response: 200 OK with executions array, total, limit, offset
+  - Pagination: cursor-based with optional total count (include_total parameter)
+  - Response: 200 OK with ResourcesResponse (resources, next, prev, total)
 
 - [ ] **T063** Implement GET /api/v1/executions/{id} endpoint
   - File: `src/nexus_api/api/v1/executions.py` (add handler)
