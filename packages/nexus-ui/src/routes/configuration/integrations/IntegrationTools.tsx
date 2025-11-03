@@ -1,37 +1,40 @@
-import { useParams } from 'wouter'
+import { useLocation, useParams } from 'wouter'
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
+import { toolProvidersClient, toolsClient } from '../../../client'
+import { ChatInput } from '../../../components/chat/ChatInput'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { toolProvidersClient, toolsClient } from '../../../client.tsx'
-import { Button } from '@ansible/nexus-ui-framework'
-import { navigate } from 'wouter/use-browser-location'
-import { AppRoute } from '../../../app/AppRoute.tsx'
-import IntegrationToolsEdit from './IntegrationToolsEdit.tsx'
+import { StringCell } from '../../../components/table/StringCell'
+import { Table } from '../../../components/table/Table'
+import { useFuse } from '../../../hooks/useFuse'
+import { IntegrationEmptyState } from './IntegrationEmptyState.tsx'
+import { useState } from 'react'
 import type { Tool } from '@ansible/nexus-contracts'
+import { AppRoute } from '../../../app/AppRoute.tsx'
+import { Button, Form } from '@ansible/nexus-ui-framework'
 
 export default function IntegrationTools() {
   const params = useParams()
+  const [, navigate] = useLocation()
   const provider_id = params?.provider_id || ''
   const integrationQuery = toolProvidersClient.useQuery('get', '/tool-providers/{provider_id}', {
     params: { path: { provider_id } },
   })
   const provider = integrationQuery.data!
-  const { mutate: updateTools } = toolsClient.useMutation('patch', '/tools/bulk-update')
-  const integrationQueryStatus = useQueryState(integrationQuery, 'Error loading integration')
-  const { data, isLoading, isFetching } = toolsClient.useQuery('get', '/tools', {
+  //const { mutate: updateTools} = toolsClient.useMutation('patch', '/tools/bulk-update')
+  const integrationQueryStatus = useQueryState(integrationQuery, 'Error loading tools')
+  const query = toolsClient.useQuery('get', '/tools', {
     params: {
       query: {
         provider_id: provider_id,
       },
     },
   })
-  const tools: Tool[] | undefined = data?.resources
+  const { mutate: updateTools } = toolsClient.useMutation('patch', '/tools/bulk-update')
 
-  if (integrationQueryStatus) return integrationQueryStatus
-
-  const handleSubmit = async (toolData: Tool[]) => {
-    const enableTools = toolData?.filter((tool) => tool.enabled)?.map((tool) => tool.id)
-    const disableTools = toolData?.filter((tool) => !tool.enabled)?.map((tool) => tool.id)
+  const handleSubmit = async () => {
+    const enableTools = enabledTools?.map((tool) => tool.id)
+    const disableTools = results?.filter((tool) => !enabledTools.includes(tool))?.map((tool) => tool.id)
     if (enableTools && enableTools?.length > 0) {
       updateTools(
         { body: { tool_ids: enableTools, enabled: true } },
@@ -46,10 +49,21 @@ export default function IntegrationTools() {
     }
     navigate(AppRoute.Configuration.Integrations.Root)
   }
+  const { search, setSearch, items: results } = useFuse(query.data?.resources ?? [], [{ name: 'namespaced_name' }])
+  const [enabledTools, setEnabledTools] = useState<Tool[]>([])
+
+  if (integrationQueryStatus) return integrationQueryStatus
+
   return (
     <AppPage>
       <AppPageHeader title={`${provider?.name} tools`}>
         <div className="grow" />
+        <input
+          className="search grow"
+          placeholder="Search tools..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <Button type="submit" form="tools-form">
           Save
         </Button>
@@ -57,12 +71,41 @@ export default function IntegrationTools() {
           Cancel
         </Button>
       </AppPageHeader>
-      <div className="relative flex grow gap-4 overflow-hidden">
-        <div className="relative isolate flex grow gap-4 overflow-hidden">
-          <div className="glass absolute inset-0 rounded-4xl border-2"></div>
-          {!isFetching && !isLoading && <IntegrationToolsEdit toolList={tools} handleSubmit={handleSubmit} />}
-        </div>
-      </div>
+      <Form
+        id="tools-form"
+        onSubmit={() => {
+          //e.preventDefault()
+          handleSubmit()
+        }}
+        className="flex grow flex-col overflow-hidden"
+      >
+        <Table
+          items={results}
+          showSelect
+          isSelected={(item) => item.enabled}
+          keyFn={(item) => item.id}
+          columns={[
+            {
+              id: 'name',
+              label: 'Name',
+              render: (item) => (
+                <div>
+                  <StringCell>
+                    <div>{item.namespaced_name}</div>
+                    <div className="text-xs font-thin">{item.description}</div>
+                  </StringCell>
+                </div>
+              ),
+            },
+          ]}
+          emptyState=<IntegrationEmptyState />
+          onSelectionChange={(selected) => {
+            setEnabledTools(selected)
+            console.log(`${selected.length} tools enabled`)
+          }}
+        />
+      </Form>
+      <ChatInput />
     </AppPage>
   )
 }

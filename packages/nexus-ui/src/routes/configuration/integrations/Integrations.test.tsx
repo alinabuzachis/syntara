@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import Integrations from './Integrations'
 import { toolProvidersClient } from '../../../client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AlertProvider } from '@ansible/nexus-ui-framework'
 
 // Mock dependencies
 vi.mock('../../../client', () => ({
@@ -30,7 +31,9 @@ const queryClient = new QueryClient({
 })
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  <QueryClientProvider client={queryClient}>
+    <AlertProvider>{children}</AlertProvider>
+  </QueryClientProvider>
 )
 
 describe('Integrations Component', () => {

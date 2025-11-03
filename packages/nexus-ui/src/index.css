@@ -44,6 +44,7 @@ body {
     @apply focus:border-white/30 focus:ring-0;
     @apply rounded-xl;
     @apply px-4 py-2;
+    font-size: small;
   }
 
   .search {
@@ -54,6 +55,7 @@ body {
     @apply focus:border-white/30 focus:ring-0;
     @apply rounded-xl;
     @apply px-4 py-2;
+    font-size: small;
   }
 
   .ai-shadow {
@@ -74,8 +76,10 @@ body {
 
 dt {
   @apply mb-0.5 text-white/60;
+  font-size: medium;
 }
 
 dd {
   @apply text-white not-last:mb-6;
+  font-size: small;
 }

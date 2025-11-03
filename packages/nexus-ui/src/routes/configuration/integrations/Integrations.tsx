@@ -7,7 +7,7 @@ import {
   MenuTrigger,
   Scrollable,
 } from '@ansible/nexus-ui-framework'
-import { EllipsisVerticalIcon } from 'lucide-react'
+import { EllipsisVerticalIcon, EyeIcon, Trash2Icon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 import { AppPage } from '../../../app/AppPage'
@@ -17,16 +17,11 @@ import { toolProvidersClient } from '../../../client'
 import { ChatInput } from '../../../components/chat/ChatInput'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { StringCell } from '../../../components/table/StringCell'
-import { Table } from '../../../components/table/Table'
+import { Table, type IRowAction } from '../../../components/table/Table'
 import { useFuse } from '../../../hooks/useFuse'
 import { IntegrationCard } from './IntegrationCard'
 import { IntegrationEmptyState } from './IntegrationEmptyState.tsx'
 import type { ToolProvider } from '@ansible/nexus-contracts'
-
-interface IRowAction<T> {
-  label: string
-  onClick: (item: T) => unknown
-}
 
 export default function Integrations() {
   const [, navigate] = useLocation()
@@ -37,13 +32,25 @@ export default function Integrations() {
     () => [
       {
         label: 'View and enable/disable tools',
+        icon: EyeIcon,
         onClick: (provider: ToolProvider) => {
           navigate(`/configuration/integrations/${provider.id}/tools`)
+        },
+      },
+      {
+        label: 'Uninstall',
+        icon: Trash2Icon,
+        variant: 'destructive' as const,
+        onClick: (provider: ToolProvider) => {
+          if (confirm(`Are you sure you want to delete "${provider.name}"?`)) {
+            console.log('Uninstall integration:', provider.name)
+          }
         },
       },
     ],
     [navigate]
   )
+
   const [view, setView] = useState<'table' | 'cards'>('table')
 
   const queryState = useQueryState(query, 'Error loading integrations')
@@ -83,10 +90,10 @@ export default function Integrations() {
         </AppPageHeader>
       )}
       {view !== 'cards' ? (
-        // <div className="roundedgrow overflow-hidden flex flex-col">
         <Table
           items={results}
           rowActions={rowActions}
+          keyFn={(item) => item.id}
           columns={[
             {
               id: 'name',

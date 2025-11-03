@@ -6,6 +6,7 @@ export function Form<TFieldValues extends FieldValues = FieldValues>(props: {
   children: React.ReactNode
   defaultValues?: DefaultValues<TFieldValues>
   onSubmit: (data: TFieldValues) => void | Promise<void>
+  className?: string
 }) {
   const methods = useForm<TFieldValues>({
     defaultValues: props.defaultValues,
@@ -15,7 +16,7 @@ export function Form<TFieldValues extends FieldValues = FieldValues>(props: {
       <form
         id={props.id}
         onSubmit={methods.handleSubmit(props.onSubmit)}
-        className="glass flex grow flex-col gap-4 rounded-4xl border p-8"
+        className={props?.className ? props.className : 'glass flex grow flex-col gap-4 rounded-4xl border p-8'}
       >
         {props.children}
       </form>
