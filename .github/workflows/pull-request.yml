@@ -19,3 +19,34 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm test
+
+  test-build:
+    name: Test Multi-Arch Container Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Test build nexus-ui image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/nexus-ui/Containerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: nexus-ui:test
+
+      - name: Test build nexus-mock-api image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/nexus-mock-api/Containerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: nexus-mock-api:test

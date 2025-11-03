@@ -17,32 +17,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to GitHub Container Registry
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and tag nexus-ui image
-        run: |
-          docker build -f packages/nexus-ui/Containerfile \
-            -t nexus-ui:latest \
-            -t ghcr.io/${{ github.repository_owner }}/nexus-ui:latest \
-            -t ghcr.io/${{ github.repository_owner }}/nexus-ui:${{ github.sha }} \
-            .
+      - name: Build and push nexus-ui image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/nexus-ui/Containerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/nexus-ui:latest
+            ghcr.io/${{ github.repository_owner }}/nexus-ui:${{ github.sha }}
 
-      - name: Build and tag nexus-mock-api image
-        run: |
-          docker build -f packages/nexus-mock-api/Containerfile \
-            -t nexus-mock-api:latest \
-            -t ghcr.io/${{ github.repository_owner }}/nexus-mock-api:latest \
-            -t ghcr.io/${{ github.repository_owner }}/nexus-mock-api:${{ github.sha }} \
-            .
-
-      - name: Push images to GitHub Container Registry
-        run: |
-          docker push ghcr.io/${{ github.repository_owner }}/nexus-ui:latest
-          docker push ghcr.io/${{ github.repository_owner }}/nexus-ui:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository_owner }}/nexus-mock-api:latest
-          docker push ghcr.io/${{ github.repository_owner }}/nexus-mock-api:${{ github.sha }}
+      - name: Build and push nexus-mock-api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/nexus-mock-api/Containerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/nexus-mock-api:latest
+            ghcr.io/${{ github.repository_owner }}/nexus-mock-api:${{ github.sha }}
 
       - name: Configure SSH
         env:

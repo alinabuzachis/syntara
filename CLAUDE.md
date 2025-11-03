@@ -91,10 +91,12 @@ npm run format:check       # Check formatting
 
 ## Deployment Considerations
 
-- Containerization: Podman/Docker
-- Production build: Nginx-based
-- Authentication: Basic (demo/coffee)
-- Separate containers for UI and Mock API
+- **Containerization**: Podman (local), Docker Buildx (CI/CD)
+- **Multi-architecture**: Supports linux/amd64 and linux/arm64
+- **Production build**: Nginx-based (UI), Node.js (Mock API)
+- **Authentication**: Basic (demo/coffee)
+- **Separate containers**: UI and Mock API
+- **Build script**: `./build-multiarch.sh` for multi-arch Podman builds
 
 ## Performance Notes
 
