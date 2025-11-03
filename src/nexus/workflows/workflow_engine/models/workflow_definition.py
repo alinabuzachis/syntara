@@ -326,6 +326,54 @@ class WorkflowSpec(BaseModel):
 
     activities: list[Activity] = Field(description="List of workflow activities", min_length=1)
 
+    @field_validator("activities")
+    @classmethod
+    def validate_unique_activity_ids(cls, activities: list[Activity]) -> list[Activity]:
+        """Ensure all activity IDs are unique within the workflow.
+
+        This validator recursively checks all activities, including nested activities
+        in parallel branches, sequences, conditions, and loops.
+        """
+
+        def collect_activity_ids(activities_list: list[Activity], path: str = "workflow") -> list[tuple[str, str]]:
+            """Recursively collect all activity IDs with their paths."""
+            ids_with_paths = []
+            for idx, activity in enumerate(activities_list):
+                current_path = f"{path}.activities[{idx}]"
+                ids_with_paths.append((activity.id, current_path))
+
+                # Recursively check nested activities
+                if activity.branches:
+                    ids_with_paths.extend(collect_activity_ids(activity.branches, f"{current_path}.branches"))
+                if activity.steps:
+                    ids_with_paths.extend(collect_activity_ids(activity.steps, f"{current_path}.steps"))
+                if activity.then:
+                    ids_with_paths.extend(collect_activity_ids(activity.then, f"{current_path}.then"))
+                if activity.else_:
+                    ids_with_paths.extend(collect_activity_ids(activity.else_, f"{current_path}.else"))
+                if activity.loop and hasattr(activity.loop, "do"):
+                    ids_with_paths.extend(collect_activity_ids(activity.loop.do, f"{current_path}.loop.do"))
+
+            return ids_with_paths
+
+        # Collect all activity IDs
+        all_ids_with_paths = collect_activity_ids(activities)
+
+        # Check for duplicates
+        seen_ids: dict[str, str] = {}
+        for activity_id, path in all_ids_with_paths:
+            if activity_id in seen_ids:
+                msg = (
+                    f"Duplicate activity ID '{activity_id}' found. "
+                    f"First occurrence: {seen_ids[activity_id]}, "
+                    f"Second occurrence: {path}. "
+                    f"Activity IDs must be unique within a workflow."
+                )
+                raise ValueError(msg)
+            seen_ids[activity_id] = path
+
+        return activities
+
 
 class InputParameter(BaseModel):
     """Workflow input parameter definition."""

@@ -341,3 +341,126 @@ workflow:
         # Should parse successfully with ISO 8601 format
         workflow_def = parse_workflow_yaml(yaml_content)
         assert workflow_def.metadata.timeout == "PT1H30M"
+
+    @pytest.mark.asyncio
+    async def test_duplicate_activity_ids_rejected(
+        self,
+        temporal_env: WorkflowEnvironment,  # noqa: ARG002
+        temporal_client: Client,  # noqa: ARG002
+        temporal_worker: Worker,  # noqa: ARG002
+    ) -> None:
+        """Test that duplicate activity IDs are rejected."""
+        yaml_content = """
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: duplicate-ids-test
+  description: Test duplicate activity IDs
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: say_hello
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: echo "Hello"
+  - id: say_hello
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: echo "Goodbye"
+"""
+        # Should raise validation error for duplicate IDs
+        with pytest.raises(WorkflowParseError, match="Duplicate activity ID 'say_hello'"):
+            parse_workflow_yaml(yaml_content)
+
+    @pytest.mark.asyncio
+    async def test_duplicate_activity_ids_in_nested_structures(
+        self,
+        temporal_env: WorkflowEnvironment,  # noqa: ARG002
+        temporal_client: Client,  # noqa: ARG002
+        temporal_worker: Worker,  # noqa: ARG002
+    ) -> None:
+        """Test that duplicate activity IDs in nested structures are rejected."""
+        yaml_content = """
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: nested-duplicate-test
+  description: Test duplicate IDs in nested structures
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: main_task
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: echo "Main"
+  - id: parallel_group
+    type: parallel
+    branches:
+    - id: branch_1
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Branch 1"
+    - id: main_task
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Branch 2"
+"""
+        # Should raise validation error for duplicate IDs across nested structures
+        with pytest.raises(WorkflowParseError, match="Duplicate activity ID 'main_task'"):
+            parse_workflow_yaml(yaml_content)
+
+    @pytest.mark.asyncio
+    async def test_activity_id_with_invalid_format(
+        self,
+        temporal_env: WorkflowEnvironment,  # noqa: ARG002
+        temporal_client: Client,  # noqa: ARG002
+        temporal_worker: Worker,  # noqa: ARG002
+    ) -> None:
+        """Test that activity IDs with invalid format (e.g., spaces) are rejected."""
+        yaml_content = """
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: invalid-id-format-test
+  description: Test invalid activity ID format
+
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: invalid id with spaces
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: echo "test"
+"""
+        # Should raise validation error for invalid ID format
+        with pytest.raises(WorkflowParseError, match="id"):
+            parse_workflow_yaml(yaml_content)
