@@ -57,7 +57,7 @@ async def list_tools(
         HTTPException: 403 if user lacks admin access
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = ToolService(db, current_user)
@@ -104,7 +104,7 @@ async def get_tool(
         HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = ToolService(db, current_user)
@@ -143,7 +143,7 @@ async def bulk_update_tools(
         HTTPException: 400 for validation errors, 403 for auth
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = ToolService(db, current_user)
@@ -184,7 +184,7 @@ async def update_tool(
         HTTPException: 400 for validation errors, 404 if not found, 403 for auth
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = ToolService(db, current_user)

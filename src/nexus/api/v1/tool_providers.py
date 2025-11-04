@@ -115,7 +115,7 @@ async def list_tool_providers(
         HTTPException: 403 if user lacks admin access
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = _create_tool_provider_service(db, current_user)
@@ -162,7 +162,7 @@ async def create_tool_provider(
         HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = _create_tool_provider_service(db, current_user)
@@ -203,7 +203,7 @@ async def get_tool_provider(
         HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = _create_tool_provider_service(db, current_user)
@@ -244,7 +244,7 @@ async def update_tool_provider(
         HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = _create_tool_provider_service(db, current_user)
@@ -289,7 +289,7 @@ async def patch_tool_provider(
         HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = _create_tool_provider_service(db, current_user)
@@ -329,7 +329,7 @@ async def delete_tool_provider(
         HTTPException: 404 if provider not found, 403 for auth
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = _create_tool_provider_service(db, current_user)
@@ -368,7 +368,7 @@ async def validate_tool_provider(
         HTTPException: 400 for validation failure, 404 if not found, 403 for auth
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = _create_tool_provider_service(db, current_user)
@@ -409,7 +409,7 @@ async def refresh_provider_tools(
         HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797  # noqa: FIX002
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
     service = _create_tool_provider_service(db, current_user)

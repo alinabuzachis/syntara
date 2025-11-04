@@ -94,6 +94,7 @@ ignore = [
     "COM812",  # missing-trailing-comma (conflicts with formatter)
     "PLR0913",  # Allow more than 5 arguments in FastAPI
     "TRY300",  # Standard exception handling pattern
+    "FIX002",  # Allow TODO comments
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -105,7 +106,6 @@ ignore = [
     "PLR2004",  # Allow magic values in tests
     "TD002",    # TODO formatting
     "TD003",    # TODO formatting
-    "FIX002",   # Allow TODO comments
     "ARG001",   # Allow unused test fixture arguments
 ]
 "src/nexus/api/repositories/*.py" = ["ANN401"]  # Allow Any for database row types

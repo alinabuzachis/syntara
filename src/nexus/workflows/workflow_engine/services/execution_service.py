@@ -193,7 +193,7 @@ class ExecutionService:
 
             # Wait for workflow to complete
             logger.info("Waiting for workflow %s to complete...", temporal_workflow_id)
-            # TODO: This blocks until workflow completes, which is problematic  # noqa: TD002, TD003, FIX002
+            # TODO: This blocks until workflow completes, which is problematic  # noqa: TD002, TD003
             # for HITL workflows that may wait indefinitely for human input.
             # This will be addressed in a future Human-in-the-Loop Approvals ticket.
             result: dict[str, Any] = await handle.result()
@@ -311,6 +311,6 @@ async def create_execution_service(
         temporal_address,
         namespace=namespace,
     )
-    # TODO: Handle how ExecutionService is dispatched/deployed  # noqa: TD002, TD003, FIX002
+    # TODO: Handle how ExecutionService is dispatched/deployed  # noqa: TD002, TD003
     # via containerization. This will be addressed in a future Containerization & Deployment ticket.
     return ExecutionService(client, task_queue)
