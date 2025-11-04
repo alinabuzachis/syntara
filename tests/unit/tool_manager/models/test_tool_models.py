@@ -25,7 +25,6 @@ from nexus.tool_manager.models.tool import (
     ToolStatus,
     ToolUpdate,
 )
-from nexus.tool_manager.models.tool_execution import ExecutionStatus, ToolExecution
 
 
 @pytest.mark.asyncio
@@ -52,7 +51,6 @@ async def test_create_tool_with_required_fields(
     assert tool.namespaced_name == "test_provider::test_tool"
     assert tool.enabled is True  # Default value
     assert tool.status == ToolStatus.AVAILABLE  # Default value
-    assert tool.execution_count == 0  # Default value
     assert tool.last_executed_at is None
     assert tool.last_refreshed_at is None
     assert tool.refresh_error is None
@@ -77,7 +75,6 @@ async def test_create_tool_with_all_fields(
         namespaced_name="test_provider::full_test_tool",
         enabled=False,
         status=ToolStatus.ERROR,
-        execution_count=5,
         last_executed_at=now,
         last_refreshed_at=now,
         refresh_error="Connection failed",
@@ -90,7 +87,6 @@ async def test_create_tool_with_all_fields(
 
     assert tool.enabled is False
     assert tool.status == ToolStatus.ERROR
-    assert tool.execution_count == 5
     assert tool.last_executed_at == now
     assert tool.last_refreshed_at == now
     assert tool.refresh_error == "Connection failed"
@@ -274,59 +270,6 @@ async def test_tool_parameter_relationship(
 
 
 @pytest.mark.asyncio
-async def test_tool_executions_relationship(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
-) -> None:
-    """Test the relationship between Tool and ToolExecution."""
-    # Create tool executions for the tool
-    execution1 = ToolExecution(
-        id=uuid4(),
-        tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
-        user_id=test_user.id,
-        execution_start=datetime.now(UTC),
-        status=ExecutionStatus.SUCCESS,
-        input_parameters={},
-        output_data={},
-        created_by=test_user.id,
-    )
-    execution2 = ToolExecution(
-        id=uuid4(),
-        tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
-        user_id=test_user.id,
-        execution_start=datetime.now(UTC),
-        status=ExecutionStatus.ERROR,
-        input_parameters={},
-        output_data={},
-        created_by=test_user.id,
-    )
-
-    test_db_session.add_all([execution1, execution2])
-    await test_db_session.commit()
-    await test_db_session.refresh(test_tool)
-
-    # Load tool with executions relationship using selectinload
-    result = await test_db_session.scalars(
-        select(Tool)
-        .options(selectinload(Tool.executions))  # type: ignore[arg-type]
-        .where(Tool.id == test_tool.id)
-    )
-    _tool = result.first()
-
-    # Check relationship
-    assert _tool is not None
-    assert len(_tool.executions) == 2
-    execution_statuses = {e.status for e in _tool.executions}
-    assert execution_statuses == {ExecutionStatus.SUCCESS, ExecutionStatus.ERROR}
-
-    # Verify each execution references the correct tool
-    for execution in _tool.executions:
-        assert execution.tool_id == test_tool.id
-        assert execution.provider_id == test_tool_provider.id
-
-
-@pytest.mark.asyncio
 async def test_tool_cascade_delete_parameters(test_db_session: AsyncSession, test_tool: Tool, test_user: User) -> None:
     """Test that deleting a Tool cascades to delete its ToolParameters."""
     # Create parameters for the existing test tool
@@ -366,56 +309,6 @@ async def test_tool_cascade_delete_parameters(test_db_session: AsyncSession, tes
         select(ToolParameter).where(ToolParameter.tool_id == test_tool.id)
     )
     assert len(params_after_delete.all()) == 0
-
-
-@pytest.mark.asyncio
-async def test_tool_cascade_delete_executions(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
-) -> None:
-    """Test that deleting a Tool cascades to delete its ToolExecutions."""
-    # Create executions for the existing test tool
-    execution1 = ToolExecution(
-        id=uuid4(),
-        tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
-        user_id=test_user.id,
-        execution_start=datetime.now(UTC),
-        status=ExecutionStatus.RUNNING,
-        input_parameters={},
-        output_data={},
-        created_by=test_user.id,
-    )
-    execution2 = ToolExecution(
-        id=uuid4(),
-        tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
-        user_id=test_user.id,
-        execution_start=datetime.now(UTC),
-        status=ExecutionStatus.TIMEOUT,
-        input_parameters={},
-        output_data={},
-        created_by=test_user.id,
-    )
-
-    test_db_session.add_all([execution1, execution2])
-    await test_db_session.commit()
-
-    # Verify executions exist
-    executions_result = await test_db_session.scalars(
-        select(ToolExecution).where(ToolExecution.tool_id == test_tool.id)
-    )
-    executions = executions_result.all()
-    assert len(executions) == 2
-
-    # Delete the tool
-    await test_db_session.delete(test_tool)
-    await test_db_session.commit()
-
-    # Verify executions are cascade deleted
-    executions_after_delete = await test_db_session.scalars(
-        select(ToolExecution).where(ToolExecution.tool_id == test_tool.id)
-    )
-    assert len(executions_after_delete.all()) == 0
 
 
 @pytest.mark.asyncio

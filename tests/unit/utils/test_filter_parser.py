@@ -5,9 +5,17 @@ parameters into structured filter objects. Tests will fail until FilterParser
 is implemented.
 """
 
+from enum import Enum
+from unittest.mock import MagicMock
+
 import pytest
 
-from nexus.core.utils.filters import Filter, FilterOperator, parse_filters
+from nexus.core.utils.filters import (
+    Filter,
+    FilterOperator,
+    _convert_filter_value,
+    parse_filters,
+)
 
 
 class TestFilterParser:
@@ -24,13 +32,13 @@ class TestFilterParser:
     def test_filter_operator_enum_values(self) -> None:
         """Test that FilterOperator enum has expected values."""
         # Check all required operators exist
-        assert FilterOperator.EQ == "eq"  # type: ignore[comparison-overlap]
-        assert FilterOperator.CONTAINS == "contains"  # type: ignore[unreachable]
-        assert FilterOperator.STARTS_WITH == "starts_with"
-        assert FilterOperator.GT == "gt"
-        assert FilterOperator.GTE == "gte"
-        assert FilterOperator.LT == "lt"
-        assert FilterOperator.LTE == "lte"
+        assert FilterOperator.EQ.value == "eq"
+        assert FilterOperator.CONTAINS.value == "contains"
+        assert FilterOperator.STARTS_WITH.value == "starts_with"
+        assert FilterOperator.GT.value == "gt"
+        assert FilterOperator.GTE.value == "gte"
+        assert FilterOperator.LT.value == "lt"
+        assert FilterOperator.LTE.value == "lte"
 
     def test_filter_dataclass_structure(self) -> None:
         """Test that Filter dataclass has expected structure."""
@@ -293,3 +301,146 @@ class TestFilterParser:
             assert filters[0].operator == FilterOperator.EQ
             # Parser should preserve the original string case
             assert filters[0].value == expected_value
+
+
+class MockStatus(str, Enum):
+    """Mock enum for unit testing."""
+
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    PENDING = "pending"
+
+
+class TestFilterValueConversion:
+    """Test the _convert_filter_value function for type conversion and validation."""
+
+    def test_convert_filter_value_enum_valid(self) -> None:
+        """Test converting valid enum values."""
+        # Mock field attribute for enum field
+        field_attr = MagicMock()
+        field_attr.type.python_type = MockStatus
+        field_attr.key = "status"
+
+        # Test valid enum value
+        result = _convert_filter_value("active", field_attr)
+        assert result == MockStatus.ACTIVE
+        assert isinstance(result, MockStatus)
+
+        # Test another valid enum value
+        result = _convert_filter_value("pending", field_attr)
+        assert result == MockStatus.PENDING
+        assert isinstance(result, MockStatus)
+
+    def test_convert_filter_value_enum_invalid(self) -> None:
+        """Test converting invalid enum values raises ValueError."""
+        # Mock field attribute for enum field
+        field_attr = MagicMock()
+        field_attr.type.python_type = MockStatus
+        field_attr.key = "status"
+
+        # Test invalid enum value
+        with pytest.raises(ValueError, match="Invalid value 'nonexistent' for field 'status'") as exc_info:
+            _convert_filter_value("nonexistent", field_attr)
+
+        error_message = str(exc_info.value)
+        assert "Invalid value 'nonexistent' for field 'status'" in error_message
+        assert "Valid values are:" in error_message
+        assert "active" in error_message
+        assert "inactive" in error_message
+        assert "pending" in error_message
+
+    def test_convert_filter_value_enum_case_sensitive(self) -> None:
+        """Test that enum validation is case-sensitive."""
+        # Mock field attribute for enum field
+        field_attr = MagicMock()
+        field_attr.type.python_type = MockStatus
+        field_attr.key = "status"
+
+        # Test case sensitivity - uppercase should fail
+        with pytest.raises(ValueError, match="Invalid value 'ACTIVE' for field 'status'") as exc_info:
+            _convert_filter_value("ACTIVE", field_attr)
+
+        assert "Invalid value 'ACTIVE' for field 'status'" in str(exc_info.value)
+
+        # Test case sensitivity - mixed case should fail
+        with pytest.raises(ValueError, match="Invalid value 'Active' for field 'status'"):
+            _convert_filter_value("Active", field_attr)
+
+    def test_convert_filter_value_non_enum_passthrough(self) -> None:
+        """Test that non-enum fields pass through unchanged."""
+        # Mock field attribute for string field
+        field_attr = MagicMock()
+        field_attr.type.python_type = str
+        field_attr.key = "name"
+
+        # Should pass through unchanged
+        result = _convert_filter_value("test_value", field_attr)
+        assert result == "test_value"
+        assert isinstance(result, str)
+
+    def test_convert_filter_value_non_string_input(self) -> None:
+        """Test that non-string input passes through unchanged."""
+        # Mock field attribute for enum field
+        field_attr = MagicMock()
+        field_attr.type.python_type = MockStatus
+        field_attr.key = "status"
+
+        # Non-string input should pass through
+        enum_value = MockStatus.ACTIVE
+        result = _convert_filter_value(enum_value, field_attr)
+        assert result == enum_value
+
+        # Integer input should pass through
+        result = _convert_filter_value(42, field_attr)
+        assert result == 42
+
+    def test_convert_filter_value_enum_error_message_format(self) -> None:
+        """Test that enum validation error messages are properly formatted."""
+        # Mock field attribute with unknown field name
+        field_attr = MagicMock()
+        field_attr.type.python_type = MockStatus
+        field_attr.key = "test_field"
+
+        with pytest.raises(ValueError, match="Invalid value 'invalid_value' for field 'test_field'") as exc_info:
+            _convert_filter_value("invalid_value", field_attr)
+
+        error_message = str(exc_info.value)
+
+        # Should include field name
+        assert "test_field" in error_message
+
+        # Should include the invalid value
+        assert "invalid_value" in error_message
+
+        # Should list all valid values
+        assert "active, inactive, pending" in error_message
+
+    def test_convert_filter_value_enum_field_without_key(self) -> None:
+        """Test enum validation when field attribute has no key."""
+        # Mock field attribute without key
+        field_attr = MagicMock()
+        field_attr.type.python_type = MockStatus
+        del field_attr.key  # Remove key attribute
+
+        with pytest.raises(ValueError, match="Invalid value 'invalid' for field 'unknown'") as exc_info:
+            _convert_filter_value("invalid", field_attr)
+
+        error_message = str(exc_info.value)
+        # Should fall back to "unknown" when no key is available
+        assert "unknown" in error_message
+
+    def test_convert_filter_value_enum_subclass_detection(self) -> None:
+        """Test that enum subclass detection works correctly."""
+        # Mock field attribute for non-enum class
+        field_attr = MagicMock()
+        field_attr.type.python_type = str  # Not an enum
+        field_attr.key = "text_field"
+
+        # Should not trigger enum validation
+        result = _convert_filter_value("any_value", field_attr)
+        assert result == "any_value"
+
+        # Mock field attribute that fails isinstance check
+        field_attr.type.python_type = None
+        result = _convert_filter_value("any_value", field_attr)
+        assert result == "any_value"

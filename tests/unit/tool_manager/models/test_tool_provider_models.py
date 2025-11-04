@@ -21,7 +21,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.tool_manager.models.tool import Tool, ToolStatus
-from nexus.tool_manager.models.tool_execution import ExecutionStatus, ToolExecution
 from nexus.tool_manager.models.tool_provider import (
     MCPConfiguration,
     ProviderStatus,
@@ -264,57 +263,6 @@ async def test_tool_provider_tools_relationship(
 
 
 @pytest.mark.asyncio
-async def test_tool_provider_executions_relationship(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
-) -> None:
-    """Test the relationship between ToolProvider and ToolExecution."""
-    # Create tool executions for the provider
-    execution1 = ToolExecution(
-        id=uuid4(),
-        tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
-        user_id=test_user.id,
-        execution_start=datetime.now(UTC),
-        status=ExecutionStatus.RUNNING,
-        input_parameters={"test": "running"},
-        created_by=test_user.id,
-    )
-    execution2 = ToolExecution(
-        id=uuid4(),
-        tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
-        user_id=test_user.id,
-        execution_start=datetime.now(UTC),
-        status=ExecutionStatus.SUCCESS,
-        input_parameters={"test": "success"},
-        created_by=test_user.id,
-    )
-
-    test_db_session.add_all([execution1, execution2])
-    await test_db_session.commit()
-    await test_db_session.refresh(test_tool_provider)
-
-    # Load provider with executions relationship using selectinload
-    result = await test_db_session.scalars(
-        select(ToolProvider)
-        .options(selectinload(ToolProvider.executions))  # type: ignore[arg-type]
-        .where(ToolProvider.id == test_tool_provider.id)
-    )
-    _provider = result.first()
-
-    # Check relationship
-    assert _provider is not None
-    assert len(_provider.executions) == 2
-    execution_statuses = {e.status for e in _provider.executions}
-    assert execution_statuses == {ExecutionStatus.RUNNING, ExecutionStatus.SUCCESS}
-
-    # Verify each execution references the correct provider
-    for execution in _provider.executions:
-        assert execution.provider_id == test_tool_provider.id
-        assert execution.tool_id == test_tool.id
-
-
-@pytest.mark.asyncio
 async def test_tool_provider_cascade_delete_tools(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:
@@ -352,54 +300,6 @@ async def test_tool_provider_cascade_delete_tools(
     # Verify tools are cascade deleted
     tools_after_delete = await test_db_session.scalars(select(Tool).where(Tool.provider_id == test_tool_provider.id))
     assert len(tools_after_delete.all()) == 0
-
-
-@pytest.mark.asyncio
-async def test_tool_provider_cascade_delete_executions(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
-) -> None:
-    """Test that deleting a ToolProvider cascades to delete its ToolExecutions."""
-    # Create executions for the existing test provider and tool
-    execution1 = ToolExecution(
-        id=uuid4(),
-        tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
-        user_id=test_user.id,
-        execution_start=datetime.now(UTC),
-        status=ExecutionStatus.SUCCESS,
-        input_parameters={"cascade": "success"},
-        created_by=test_user.id,
-    )
-    execution2 = ToolExecution(
-        id=uuid4(),
-        tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
-        user_id=test_user.id,
-        execution_start=datetime.now(UTC),
-        status=ExecutionStatus.ERROR,
-        input_parameters={"cascade": "error"},
-        created_by=test_user.id,
-    )
-
-    test_db_session.add_all([execution1, execution2])
-    await test_db_session.commit()
-
-    # Verify executions exist
-    executions_result = await test_db_session.scalars(
-        select(ToolExecution).where(ToolExecution.provider_id == test_tool_provider.id)
-    )
-    executions = executions_result.all()
-    assert len(executions) == 2
-
-    # Delete the provider
-    await test_db_session.delete(test_tool_provider)
-    await test_db_session.commit()
-
-    # Verify executions are cascade deleted
-    executions_after_delete = await test_db_session.scalars(
-        select(ToolExecution).where(ToolExecution.provider_id == test_tool_provider.id)
-    )
-    assert len(executions_after_delete.all()) == 0
 
 
 @pytest.mark.asyncio
@@ -469,7 +369,7 @@ async def test_tool_provider_name_case_sensitivity(test_db_session: AsyncSession
     test_db_session.add(provider1)
     await test_db_session.commit()
 
-    # Create second provider with different case (should work - case sensitive)
+    # Create second provider with different case (should work - case-sensitive)
     provider2 = ToolProvider(
         id=uuid4(),
         name="Test Provider",  # Different case

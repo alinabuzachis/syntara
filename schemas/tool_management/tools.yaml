@@ -49,27 +49,6 @@ paths:
           type: string
           format: uuid
         description: Filter tools by provider ID
-      - name: execution_count
-        in: query
-        required: false
-        style: deepObject
-        explode: true
-        schema:
-          allOf:
-          - type: integer
-            description: Exact match of execution count. ?execution_count=<count>
-          - type: object
-            properties:
-              gte:
-                type: integer
-                description: Greater than or equal. ?execution_count[gte]=<count>
-              lte:
-                type: integer
-                description: Less than or equal. ?execution_count[lte]=<count>
-        description: |
-          Filter tools by execution count.
-          - Exact match: `execution_count=10`
-          - Range: `execution_count[gte]=5&execution_count[lte]=50`
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
@@ -246,10 +225,6 @@ components:
             type: string
             enum: [available, missing, error]
             default: available
-          execution_count:
-            type: integer
-            minimum: 0
-            default: 0
           last_executed_at:
             type: string
             format: date-time
@@ -270,7 +245,6 @@ components:
         - namespaced_name
         - enabled
         - status
-        - execution_count
 
     ToolParameter:
       type: object

@@ -1,5 +1,6 @@
 """Tool Provider API endpoints."""
 
+import logging
 from typing import Annotated
 from uuid import UUID
 
@@ -26,6 +27,8 @@ from nexus.tool_manager.models.tool_provider_validation_result import ToolProvid
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 
 router = APIRouter(prefix="/tool-providers", tags=["tool-providers"])
+
+logger = logging.getLogger(__name__)
 
 
 def _create_tool_provider_service(db: AsyncSession, current_user: User) -> ToolProviderService:
@@ -130,8 +133,9 @@ async def list_tool_providers(
     except ValidationError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
     except Exception as e:
+        logger.exception("Unexpected error listing tool providers", exc_info=e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to list providers: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error listing tool providers"
         ) from e
 
 
@@ -170,8 +174,9 @@ async def create_tool_provider(
     except IntegrityError as e:
         raise _handle_integrity_error(e, provider_create.name) from e
     except Exception as e:
+        logger.exception("Unexpected error creating tool provider", exc_info=e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to create provider: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error creating tool provider"
         ) from e
 
 
@@ -208,8 +213,9 @@ async def get_tool_provider(
     except ProviderNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
+        logger.exception("Unexpected error getting tool provider details", exc_info=e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get provider: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error getting tool provider details"
         ) from e
 
 
@@ -252,8 +258,9 @@ async def update_tool_provider(
     except IntegrityError as e:
         raise _handle_integrity_error(e, provider_update.name) from e
     except Exception as e:
+        logger.exception("Unexpected error updating tool provider", exc_info=e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update provider: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error updating tool provider"
         ) from e
 
 
@@ -296,8 +303,9 @@ async def patch_tool_provider(
     except IntegrityError as e:
         raise _handle_integrity_error(e) from e
     except Exception as e:
+        logger.exception("Unexpected error patching tool provider", exc_info=e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to patch provider: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error patching tool provider"
         ) from e
 
 
@@ -331,8 +339,9 @@ async def delete_tool_provider(
     except ProviderNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
+        logger.exception("Unexpected error deleting tool provider", exc_info=e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete provider: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error deleting tool provider"
         ) from e
 
 
@@ -371,8 +380,9 @@ async def validate_tool_provider(
     except ProviderError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
+        logger.exception("Unexpected error validating tool provider", exc_info=e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to validate provider: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error validating tool provider"
         ) from e
 
 
@@ -411,6 +421,7 @@ async def refresh_provider_tools(
     except ProviderError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
+        logger.exception("Unexpected error refreshing tools from provider", exc_info=e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to refresh tools: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error refreshing tools from provider"
         ) from e

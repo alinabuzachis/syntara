@@ -18,7 +18,6 @@ from nexus.core.models.base import NamedResource
 
 if TYPE_CHECKING:
     from nexus.tool_manager.models.tool import Tool
-    from nexus.tool_manager.models.tool_execution import ToolExecution
 
 
 def _validate_provider_configuration(v: dict[str, Any]) -> dict[str, Any]:
@@ -128,8 +127,6 @@ class ToolProvider(Resource, table=True):
 
     # Relationships
     tools: list["Tool"] = Relationship(back_populates="provider", cascade_delete=True)
-
-    executions: list["ToolExecution"] = Relationship(back_populates="provider", cascade_delete=True)
 
     @field_validator("configuration")
     @classmethod

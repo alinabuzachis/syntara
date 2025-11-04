@@ -93,7 +93,7 @@ As a system administrator, I want to register external Tool Providers so that us
 7. **Given** rate limits are configured for a Tool, **When** a user exceeds the allowed requests per time window, **Then** further requests are denied with a clear rate limit error message
 8. **Given** metrics are being collected, **When** an error threshold is exceeded for a specific Tool, **Then** administrators receive an alert notification for investigation
 9. **Given** a Tool is registered and active, **When** an administrator disables the Tool, **Then** the Tool remains registered but is excluded from Tool selection interfaces used by core agents
-10. **Given** multiple Tools are disabled, **When** I view the Tool management interface, **Then** I can see all Tools with clear indication of their enabled/disabled status
+10. **Given** multiple Tools have enabled=false, **When** I view the Tool management interface, **Then** I can see all Tools with clear indication of their enabled status and system status
 11. **Given** a disabled Tool, **When** the core agent requests available Tools for selection, **Then** the disabled Tool is not included in the returned list
 12. **Given** a Tool was previously refreshed from a Tool Provider, **When** the provider no longer exposes that Tool during metadata refresh, **Then** the Tool is automatically disabled and marked as `missing`
 

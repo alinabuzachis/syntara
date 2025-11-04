@@ -5,7 +5,6 @@
 ```
 ToolProvider (1) -----> (N) Tool
 Tool (1) -----> (N) ToolParameter
-Tool (1) -----> (N) ToolExecution
 ToolProvider (1) -----> (N) RateLimitConfig
 Tool (1) -----> (N) RateLimitConfig
 UsageCounter (N) -----> (1) ToolProvider
@@ -105,7 +104,7 @@ Represents an individual capability exposed by a Tool Provider with enablement c
 |----------------------|-----------|--------------------------------------------------------|
 | `id`                 | UUID | Primary key                                            |
 | `provider_id`        | UUID | Foreign key to ToolProvider                           |
-| `name`               | string (max 100 chars) | Tool name from provider                                |
+| `name`               | string (max 255 chars) | Tool name from provider                                |
 | `namespaced_name`    | string (max 200 chars, unique) | Provider-prefixed name                                 |
 | `description`        | text | Tool description from provider                         |
 | `parameters`         | Array | Array of ToolParameter objects                        |
@@ -113,7 +112,6 @@ Represents an individual capability exposed by a Tool Provider with enablement c
 | `status`             | enum | Tool status: "available", "missing", "error"           |
 | `last_refreshed_at`  | datetime | Last successful refresh timestamp                     |
 | `refresh_error`      | text (nullable) | Last refresh error message                             |
-| `execution_count`    | integer (default 0) | Total execution counter                                |
 | `last_executed_at`   | datetime (nullable) | Last execution timestamp                               |
 | `created_at`         | datetime | First discovery timestamp                              |
 | `created_by`         | UUID | Foreign key to Users table - Administrator who created tool |

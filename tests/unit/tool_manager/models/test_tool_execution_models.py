@@ -12,7 +12,6 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -198,79 +197,6 @@ def test_tool_metrics_summary_creation() -> None:
     assert summary.p95_duration_ms == 3000
     assert summary.time_window == "day"
     assert summary.generated_at == now
-
-
-@pytest.mark.asyncio
-async def test_tool_execution_tool_relationship(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
-) -> None:
-    """Test the relationship between ToolExecution and Tool."""
-    # Create a tool execution
-    execution = ToolExecution(
-        id=uuid4(),
-        tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
-        user_id=test_user.id,
-        execution_start=datetime.now(UTC),
-        status=ExecutionStatus.SUCCESS,
-        input_parameters={"action": "test"},
-        created_by=test_user.id,
-    )
-    test_db_session.add(execution)
-    await test_db_session.commit()
-    await test_db_session.refresh(execution)
-
-    # Load execution with tool relationship using selectinload
-    result = await test_db_session.scalars(
-        select(ToolExecution)
-        .options(selectinload(ToolExecution.tool))  # type: ignore[arg-type]
-        .where(ToolExecution.id == execution.id)
-    )
-    _execution = result.first()
-
-    # Check relationship
-    assert _execution is not None
-    assert _execution.tool is not None
-    assert _execution.tool.id == test_tool.id
-    assert _execution.tool.name == test_tool.name
-    assert _execution.tool.provider_id == test_tool_provider.id
-
-
-@pytest.mark.asyncio
-async def test_tool_execution_provider_relationship(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
-) -> None:
-    """Test the relationship between ToolExecution and ToolProvider."""
-    # Create a tool execution
-    execution = ToolExecution(
-        id=uuid4(),
-        tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
-        user_id=test_user.id,
-        execution_start=datetime.now(UTC),
-        status=ExecutionStatus.ERROR,
-        input_parameters={"test_param": "error_value"},
-        error_message="Test error",
-        error_code="TEST_ERROR",
-        created_by=test_user.id,
-    )
-    test_db_session.add(execution)
-    await test_db_session.commit()
-    await test_db_session.refresh(execution)
-
-    # Load execution with provider relationship using selectinload
-    result = await test_db_session.scalars(
-        select(ToolExecution)
-        .options(selectinload(ToolExecution.provider))  # type: ignore[arg-type]
-        .where(ToolExecution.id == execution.id)
-    )
-    _execution = result.first()
-
-    # Check relationship
-    assert _execution is not None
-    assert _execution.provider is not None
-    assert _execution.provider.id == test_tool_provider.id
-    assert _execution.provider.name == test_tool_provider.name
 
 
 @pytest.mark.asyncio

@@ -131,11 +131,11 @@ curl -X PATCH http://localhost:8000/api/v1/tools/$TOOL_ID \
 # Verify: enabled field is false, but Tool still exists
 
 # Step 2: List enabled Tools for selection
-curl -X GET http://localhost:8000/api/v1/tools?enabled[eq]=true \
+curl -X GET http://localhost:8000/api/v1/tools?enabled[eq]=true&status[eq]=available \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with list excluding disabled Tool
-# Verify: Disabled Tool is NOT in the enabled Tools list
+# Verify: Tool must be both enabled=true AND status=available to be usable
 
 # Step 3: Re-enable the Tool
 curl -X PATCH http://localhost:8000/api/v1/tools/$TOOL_ID \
@@ -327,11 +327,11 @@ curl -X GET "http://localhost:8000/api/v1/tool-providers?status[eq]=available&cr
 
 # Expected: 200 OK with providers matching status and date criteria
 
-# Step 2: Search tools by name pattern and filter by execution count
-curl -X GET "http://localhost:8000/api/v1/tools?name[contains]=search&execution_count[gte]=5" \
+# Step 2: Search tools by name pattern and filter by status and enabled state
+curl -X GET "http://localhost:8000/api/v1/tools?name[contains]=search&status[eq]=available&enabled[eq]=true" \
   -H "Authorization: Bearer <admin-token>"
 
-# Expected: 200 OK with tools containing "search" in name with 5+ executions
+# Expected: 200 OK with tools containing "search" in name that are available
 
 # Step 3: Filter metrics by multiple criteria
 curl -X GET "http://localhost:8000/api/v1/metrics/executions?status[eq]=success&duration_ms[between]=100,5000&execution_start[gte]=2025-10-01T00:00:00Z" \

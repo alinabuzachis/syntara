@@ -17,7 +17,7 @@ from sqlmodel import text
 
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.api.db import get_db
-from nexus.api.v1 import executions, tool_providers, workflow_versions, workflows
+from nexus.api.v1 import executions, tool_providers, tools, workflow_versions, workflows
 from nexus.api.v1.invocation import router as invoke_router
 from nexus.api.v1.websocket import build_websocket_router
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
@@ -98,6 +98,7 @@ app.include_router(workflow_versions.router, prefix=API_V1_PATH_PREFIX)
 app.include_router(executions.router, prefix=API_V1_PATH_PREFIX)
 app.include_router(invoke_router, prefix=API_V1_PATH_PREFIX)
 app.include_router(tool_providers.router, prefix=API_V1_PATH_PREFIX)
+app.include_router(tools.router, prefix=API_V1_PATH_PREFIX)
 
 
 @app.get("/health", tags=["Health"])

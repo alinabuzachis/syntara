@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 TP = TypeVar("TP", bound=tuple[Any, ...])
 
 # Type for filter values - more specific than Any
-FilterValue = str | int | float | bool | datetime
+FilterValue = str | int | float | bool | datetime | Enum
 
 
 class FilterOperator(str, Enum):
@@ -250,7 +250,7 @@ def _convert_boolean_value(value: str) -> bool:
         raise ValueError(msg) from e
 
 
-def _convert_numeric_value(value: str, python_type: type, field_attr: Any) -> int | float:  # noqa: ANN401
+def _convert_numeric_value(value: str, python_type: type[int | float], field_attr: Any) -> int | float:  # noqa: ANN401
     """Convert string value to numeric type.
 
     Args:
@@ -287,7 +287,39 @@ def _convert_numeric_value(value: str, python_type: type, field_attr: Any) -> in
         raise ValueError(msg) from e
 
 
-def _convert_filter_value(value: FilterValue, field_attr: Any) -> FilterValue:  # noqa: ANN401
+def _convert_enum_value(value: str, python_type: type[Enum], field_attr: Any) -> Enum:  # noqa: ANN401
+    """Convert string value to enum type.
+
+    Args:
+        value: String value to convert
+        python_type: Target enum type
+        field_attr: SQLAlchemy field attribute for error context
+
+    Returns:
+        Enum instance
+
+    Raises:
+        ValueError: If enum value is invalid
+
+    """
+    try:
+        # Try to create the enum instance from the string value
+        return python_type(value)
+    except ValueError as e:
+        # Get valid values for error message
+        valid_values = [item.value for item in python_type.__members__.values()]
+        field_name = getattr(field_attr, "key", "unknown")
+        logger.warning(
+            "Invalid enum value '%s' for field %s. Valid values: %s",
+            value,
+            field_name,
+            valid_values,
+        )
+        msg = f"Invalid value '{value}' for field '{field_name}'. Valid values are: {', '.join(valid_values)}"
+        raise ValueError(msg) from e
+
+
+def _convert_filter_value(value: FilterValue, field_attr: Any) -> FilterValue:  # noqa: ANN401, PLR0911
     """Convert filter value to the appropriate type based on the field.
 
     Args:
@@ -298,7 +330,7 @@ def _convert_filter_value(value: FilterValue, field_attr: Any) -> FilterValue:  
         Converted value of the appropriate type
 
     Raises:
-        ValueError: If datetime conversion fails with invalid format
+        ValueError: If datetime conversion fails with invalid format or if enum value is invalid
 
     """
     # If value is already the right type, return as-is
@@ -317,6 +349,10 @@ def _convert_filter_value(value: FilterValue, field_attr: Any) -> FilterValue:  
             getattr(field_attr, "key", "unknown"),
         )
         return value
+
+    # Handle enum fields with validation
+    if isinstance(python_type, type) and issubclass(python_type, Enum):
+        return _convert_enum_value(value, python_type, field_attr)
 
     # Handle datetime fields
     if python_type == datetime or (hasattr(python_type, "__origin__") and python_type.__origin__ == datetime):

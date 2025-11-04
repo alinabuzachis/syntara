@@ -32,7 +32,7 @@ from nexus.api.auth.dependencies import get_current_user
 from nexus.api.db import get_db
 from nexus.api.main import app
 from nexus.core.models import User, UserRole
-from nexus.tool_manager.models import Tool, ToolProvider
+from nexus.tool_manager.models import Tool, ToolProvider, ToolStatus
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
@@ -558,6 +558,135 @@ def load_workflow() -> Callable[[str], Any]:
 # ============================================================================
 # Tool Manager Fixtures
 # ============================================================================
+
+
+class ToolFactory:
+    """Factory class for creating test tools with configurable properties."""
+
+    def __init__(self, session: AsyncSession, provider: ToolProvider, user: User) -> None:
+        """Initialize the ToolFactory with database session and required entities.
+
+        Args:
+            session: AsyncSession for database operations
+            provider: ToolProvider instance to associate with created tools
+            user: User instance to set as creator/updater of tools
+
+        """
+        self.session = session
+        self.provider = provider
+        self.user = user
+
+    async def create_tools(
+        self,
+        count: int,
+        name_prefix: str = "Test Tool",
+        namespace_prefix: str = "test",
+        statuses: list[ToolStatus] | None = None,
+        enabled_states: list[bool] | None = None,
+        descriptions: list[str] | None = None,
+    ) -> list[Tool]:
+        """Create multiple tools with configurable properties.
+
+        Args:
+            count: Number of tools to create
+            name_prefix: Prefix for tool names (will be followed by numbers)
+            namespace_prefix: Prefix for namespaced names
+            statuses: List of statuses to cycle through (defaults to AVAILABLE)
+            enabled_states: List of enabled states to cycle through (defaults to True)
+            descriptions: List of descriptions to cycle through (defaults to generic descriptions)
+
+        Returns:
+            List of created Tool objects
+
+        """
+        if statuses is None:
+            statuses = [ToolStatus.AVAILABLE]
+        if enabled_states is None:
+            enabled_states = [True]
+        if descriptions is None:
+            descriptions = [f"{name_prefix} for testing"]
+
+        tools = []
+        for i in range(count):
+            status = statuses[i % len(statuses)]
+            enabled = enabled_states[i % len(enabled_states)]
+            description = descriptions[i % len(descriptions)]
+
+            tool = Tool(
+                provider_id=self.provider.id,
+                name=f"{name_prefix} {i + 1}",
+                description=description,
+                namespaced_name=f"{namespace_prefix}::{name_prefix.lower().replace(' ', '_')}_{i + 1}",
+                enabled=enabled,
+                status=status,
+                created_by=self.user.id,
+                updated_by=self.user.id,
+            )
+            tools.append(tool)
+            self.session.add(tool)
+
+        await self.session.commit()
+
+        for tool in tools:
+            await self.session.refresh(tool)
+
+        return tools
+
+    async def create_bulk_tools(self, count: int = 3) -> list[Tool]:
+        """Create tools suitable for bulk update testing."""
+        return await self.create_tools(
+            count=count,
+            name_prefix="Bulk Test Tool",
+            namespace_prefix="test",
+            statuses=[ToolStatus.AVAILABLE],
+            enabled_states=[True, True, False],  # Mix of enabled states for testing
+        )
+
+    async def create_concurrency_tools(self, count: int = 6) -> list[Tool]:
+        """Create tools suitable for concurrency testing."""
+        return await self.create_tools(
+            count=count,
+            name_prefix="Concurrency Tool",
+            namespace_prefix="test",
+            statuses=[ToolStatus.AVAILABLE],
+            enabled_states=[True],  # All enabled for concurrency tests
+        )
+
+    async def create_list_tools(self) -> list[Tool]:
+        """Create tools suitable for list/filter testing with varied properties."""
+        # Predefined set of tools with specific names and properties for list testing
+        tool_configs = [
+            ("Alpha Tool", "test::alpha_tool", True, ToolStatus.AVAILABLE, "First tool for testing"),
+            ("Beta Tool", "test::beta_tool", False, ToolStatus.ERROR, "Second tool for testing"),
+            ("Gamma Tool", "test::gamma_tool", True, ToolStatus.AVAILABLE, "Third tool for testing"),
+            ("Delta Tool", "test::delta_tool", False, ToolStatus.ERROR, "Fourth tool for testing"),
+            ("Echo Tool", "test::echo_tool", False, ToolStatus.MISSING, "Fifth tool for testing"),
+            ("Foxtrot Tool", "test::foxtrot_tool", True, ToolStatus.AVAILABLE, "Sixth tool for testing"),
+        ]
+
+        tools = []
+        for name, namespaced_name, enabled, status, description in tool_configs:
+            tool = Tool(
+                provider_id=self.provider.id,
+                name=name,
+                description=description,
+                namespaced_name=namespaced_name,
+                enabled=enabled,
+                status=status,
+                created_by=self.user.id,
+                updated_by=self.user.id,
+            )
+            tools.append(tool)
+            self.session.add(tool)
+
+        await self.session.commit()
+
+        for tool in tools:
+            await self.session.refresh(tool)
+
+        return tools
+
+
 @pytest_asyncio.fixture
 async def test_tool_provider(test_db_session: AsyncSession, test_user: User) -> "ToolProvider":
     """Create a test Tool Provider.
@@ -597,6 +726,32 @@ async def test_tool(test_db_session: AsyncSession, test_tool_provider: ToolProvi
     await test_db_session.commit()
     await test_db_session.refresh(tool)
     return tool
+
+
+@pytest_asyncio.fixture
+async def tool_factory(test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User) -> ToolFactory:
+    """Create a factory fixture for multiple test tools with configurable properties.
+
+    Returns a ToolFactory instance that can create tools with various configurations for different test scenarios.
+
+    Usage:
+        # Create tools for bulk operations
+        tools = await tool_factory.create_bulk_tools(count=3)
+
+        # Create tools for concurrency testing
+        tools = await tool_factory.create_concurrency_tools(count=6)
+
+        # Create tools for list/filter testing
+        tools = await tool_factory.create_list_tools()
+
+        # Create custom tools
+        tools = await tool_factory.create_tools(
+            count=5,
+            name_prefix="Custom",
+            statuses=[ToolStatus.AVAILABLE, ToolStatus.ERROR]
+        )
+    """
+    return ToolFactory(test_db_session, test_tool_provider, test_user)
 
 
 @pytest_asyncio.fixture

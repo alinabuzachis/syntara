@@ -529,3 +529,22 @@ class TestToolProvidersListContract:
         paginated_data = paginated_response.json()
         assert paginated_data["total"] == 4  # Total count, not page count
         assert len(paginated_data["resources"]) == 2  # Page size
+
+    @pytest.mark.asyncio
+    async def test_list_providers_filter_invalid_status_enum_contract(
+        self,
+        base_client: AsyncClient,
+        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
+    ) -> None:
+        """Test filtering with invalid ProviderStatus enum value returns 400."""
+        # Filter with invalid status value
+        response = await base_client.get("/api/v1/tool-providers", params={"status[eq]": "nonexistent"})
+
+        # Contract: Must return 400 Bad Request for invalid enum value
+        assert response.status_code == 400
+
+        # Contract: Must return error details
+        data = response.json()
+        assert "detail" in data
+        assert "Invalid value 'nonexistent'" in data["detail"]
+        assert "Valid values are:" in data["detail"]

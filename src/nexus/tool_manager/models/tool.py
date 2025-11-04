@@ -13,11 +13,10 @@ from pydantic import ConfigDict, field_validator
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 
-from nexus.core.models import Resource
+from nexus.core.models import Resource, ResourcesResponse
 from nexus.core.models.base import BaseResource
 
 if TYPE_CHECKING:
-    from nexus.tool_manager.models.tool_execution import ToolExecution
     from nexus.tool_manager.models.tool_provider import ToolProvider
 
 
@@ -27,7 +26,6 @@ class ToolStatus(str, Enum):
     AVAILABLE = "available"
     MISSING = "missing"
     ERROR = "error"
-    DISABLED = "disabled"
 
 
 class ToolParameterType(str, Enum):
@@ -88,7 +86,6 @@ class Tool(Resource, table=True):
         namespaced_name: Unique namespaced name for the tool (max 200 chars)
         enabled: Whether the tool is enabled (default: True)
         status: Current status of the tool (default: available)
-        execution_count: Number of times this tool has been executed (default: 0)
         last_executed_at: Timestamp of last execution (nullable)
         last_refreshed_at: Timestamp of last refresh from provider (nullable)
         refresh_error: Error message from last refresh attempt (nullable)
@@ -121,8 +118,6 @@ class Tool(Resource, table=True):
 
     status: ToolStatus = Field(default=ToolStatus.AVAILABLE, description="Current status of the tool")
 
-    execution_count: int = Field(default=0, ge=0, description="Number of times this tool has been executed")
-
     last_executed_at: datetime | None = Field(
         default=None,
         description="Timestamp of last execution",
@@ -141,8 +136,6 @@ class Tool(Resource, table=True):
 
     # Relationships
     parameters: list["ToolParameter"] = Relationship(back_populates="tool", cascade_delete=True)
-
-    executions: list["ToolExecution"] = Relationship(back_populates="tool", cascade_delete=True)
 
     provider: "ToolProvider" = Relationship(back_populates="tools")
 
@@ -166,3 +159,7 @@ class ToolUpdate(SQLModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",  # Reject unknown fields
     )  # type: ignore[assignment]
+
+
+# Type alias for Tool list responses using the standard pagination model
+ToolListResponse = ResourcesResponse[Tool]

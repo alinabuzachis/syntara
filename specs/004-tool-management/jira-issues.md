@@ -436,7 +436,7 @@ Implement complete tool management and testing functionality including service l
 - PUT /api/v1/tools/{tool_id} - Update tool (mainly enablement flag)
   - Request: enabled flag, optional description override
   - Response: 200 OK with updated tool
-- POST /api/v1/tools/bulk-update - Bulk enable/disable multiple tools
+- PATCH /api/v1/tools/bulk-update - Bulk enable/disable multiple tools
   - Request: tool_ids array, enabled flag
   - Response: 200 OK with update count and results
   - Handles partial failures gracefully

@@ -5,8 +5,8 @@ info:
   version: 1.0.0
 
 servers:
-- url: http://localhost:8000/api/v1
-  description: Development server
+- url: /api/v1
+  description: API server (relative path)
 
 # Reference shared resource schemas
 x-shared-contracts:

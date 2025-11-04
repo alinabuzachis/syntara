@@ -2,18 +2,14 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import DateTime, Field, Relationship, SQLModel
+from sqlmodel import DateTime, Field, SQLModel
 
 from nexus.core.models.base.user_owned import UserOwnedResource
-
-if TYPE_CHECKING:
-    from nexus.tool_manager.models.tool import Tool
-    from nexus.tool_manager.models.tool_provider import ToolProvider
 
 
 class ExecutionStatus(str, Enum):
@@ -73,11 +69,6 @@ class ToolExecution(UserOwnedResource, table=True):
     error_message: str | None = Field(default=None, description="Error description for failed executions")
 
     error_code: str | None = Field(default=None, description="Structured error code")
-
-    # Relationships
-    tool: "Tool" = Relationship(back_populates="executions")
-
-    provider: "ToolProvider" = Relationship(back_populates="executions")
 
 
 class ToolMetricsSummary(SQLModel):

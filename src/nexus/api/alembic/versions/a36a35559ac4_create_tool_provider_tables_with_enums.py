@@ -36,7 +36,7 @@ def upgrade() -> None:
         DO $$
         BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tool_status') THEN
-                CREATE TYPE tool_status AS ENUM ('available', 'error', 'missing', 'disabled');
+                CREATE TYPE tool_status AS ENUM ('available', 'error', 'missing');
             END IF;
         END$$;
     """)
@@ -55,9 +55,7 @@ def upgrade() -> None:
     tool_provider_status_enum = postgresql.ENUM(
         "available", "error", "validating", name="tool_provider_status", create_type=False
     )
-    tool_status_enum = postgresql.ENUM(
-        "available", "error", "missing", "disabled", name="tool_status", create_type=False
-    )
+    tool_status_enum = postgresql.ENUM("available", "error", "missing", name="tool_status", create_type=False)
     tool_parameter_type_enum = postgresql.ENUM(
         "string", "number", "boolean", "object", "array", name="tool_parameter_type", create_type=False
     )
@@ -127,7 +125,6 @@ def upgrade() -> None:
         sa.Column("namespaced_name", sa.String(length=200), nullable=False),
         sa.Column("enabled", sa.Boolean(), nullable=False, default=True),
         sa.Column("status", tool_status_enum, nullable=False, default="available"),
-        sa.Column("execution_count", sa.Integer(), nullable=False, default=0),
         sa.Column("last_executed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_refreshed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("refresh_error", sa.Text(), nullable=True),
@@ -137,7 +134,6 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["created_by"], ["users.id"]),
         sa.ForeignKeyConstraint(["updated_by"], ["users.id"]),
         sa.ForeignKeyConstraint(["deleted_by"], ["users.id"]),
-        sa.CheckConstraint("execution_count >= 0", name="ck_tools_execution_count_non_negative"),
     )
 
     # Create indexes for tools
@@ -222,7 +218,7 @@ def downgrade() -> None:
     op.drop_table("tool_providers")
 
     # Drop the enum types
-    tool_status_enum = postgresql.ENUM("available", "error", "missing", "disabled", name="tool_status")
+    tool_status_enum = postgresql.ENUM("available", "error", "missing", name="tool_status")
     tool_status_enum.drop(op.get_bind(), checkfirst=True)
 
     tool_parameter_type_enum = postgresql.ENUM(
