@@ -37,12 +37,12 @@ This document describes the implementation of the YAML workflow execution engine
    - stdout/stderr capture
    - Error handling with ScriptExecutionError
 
-6. **Execution Service** (`src/nexus/api/services/execution_service.py`)
+6. **Temporal Execution Service** (`src/nexus/workflows/workflow_engine/services/temporal_execution_service.py`)
    - High-level API for workflow operations
    - start_yaml_workflow, get_workflow_status, get_workflow_result
    - cancel_workflow, terminate_workflow
 
-7. **Worker Service** (`src/nexus/api/services/temporal_worker.py`)
+7. **Worker Service** (`src/nexus/workflows/workflow_engine/services/temporal_worker.py`)
    - Temporal worker lifecycle management
    - Registers workflows and activities
    - Async context manager for clean startup/shutdown
@@ -584,7 +584,7 @@ import asyncio
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from nexus.api.services.execution_service import ExecutionService
+from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 from nexus.workflows.activities.script_activity import execute_bash_script
 from nexus.workflows.dynamic_workflow import DynamicWorkflow
 
@@ -600,7 +600,7 @@ async def main():
         activities=[execute_bash_script],
     ):
         # Create execution service
-        execution_service = ExecutionService(client, "my-queue")
+        execution_service = TemporalExecutionService(client, "my-queue")
 
         # Start workflow from YAML file
         with open("workflow.yaml") as f:

@@ -1,8 +1,8 @@
 """Workflow engine services for Temporal execution and worker management."""
 
-from nexus.workflows.workflow_engine.services.execution_service import (
-    ExecutionService,
-    create_execution_service,
+from nexus.workflows.workflow_engine.services.temporal_execution_service import (
+    TemporalExecutionService,
+    create_temporal_execution_service,
 )
 from nexus.workflows.workflow_engine.services.temporal_worker import (
     TemporalWorkerService,
@@ -12,9 +12,9 @@ from nexus.workflows.workflow_engine.services.temporal_worker import (
 )
 
 __all__ = [
-    "ExecutionService",
+    "TemporalExecutionService",
     "TemporalWorkerService",
-    "create_execution_service",
+    "create_temporal_execution_service",
     "get_worker",
     "start_worker",
     "stop_worker",

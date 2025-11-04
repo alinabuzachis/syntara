@@ -16,7 +16,7 @@ from temporalio.worker import Worker
 
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
-from nexus.workflows.workflow_engine.services.execution_service import ExecutionService
+from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 from nexus.workflows.workflow_engine.services.temporal_worker import TemporalWorkerService
 
 
@@ -171,7 +171,7 @@ class TestTemporalWorkerServiceIntegration:
 
         async with worker_service:
             # Create execution service using the same client and queue
-            execution_service = ExecutionService(
+            execution_service = TemporalExecutionService(
                 temporal_client=temporal_env.client,
                 task_queue="workflow-processing-queue",
             )
@@ -217,8 +217,8 @@ class TestTemporalWorkerServiceIntegration:
             assert worker2._worker_task is not None
 
             # Create execution services for each queue
-            service1 = ExecutionService(temporal_client=temporal_env.client, task_queue="queue-1")
-            service2 = ExecutionService(temporal_client=temporal_env.client, task_queue="queue-2")
+            service1 = TemporalExecutionService(temporal_client=temporal_env.client, task_queue="queue-1")
+            service2 = TemporalExecutionService(temporal_client=temporal_env.client, task_queue="queue-2")
 
             # Start workflows on different queues
             workflow_yaml = create_simple_workflow_yaml(
@@ -260,7 +260,7 @@ class TestTemporalWorkerServiceIntegration:
 
         async with worker_service:
             # Create execution service
-            execution_service = ExecutionService(
+            execution_service = TemporalExecutionService(
                 temporal_client=temporal_env.client,
                 task_queue="shutdown-test-queue",
             )
@@ -310,7 +310,7 @@ class TestWorkerServiceConfiguration:
             assert worker.worker is not None
 
             # Try to execute workflow on the correct queue - should work
-            execution_service = ExecutionService(
+            execution_service = TemporalExecutionService(
                 temporal_client=temporal_env.client,
                 task_queue="specific-queue",
             )

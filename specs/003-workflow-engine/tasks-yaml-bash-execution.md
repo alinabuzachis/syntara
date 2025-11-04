@@ -49,7 +49,7 @@
   - Supports workflows with default input values (no --inputs required)
 - ✅ **Example Workflows**: hello-world, parallel-demo, loop-demo (all working)
 - ✅ **End-to-End Execution**: Fully functional without database (in-memory tracking)
-- ✅ **Programmatic API**: ExecutionService for workflow operations
+- ✅ **Programmatic API**: TemporalExecutionService for workflow operations
 - ✅ **Workflow Cancellation**: Full support for cancelling running workflows
 
 ### Recent Improvements:
@@ -228,8 +228,8 @@ Implement the foundational workflow execution engine that reads YAML workflow de
   - Support: Async context manager for clean lifecycle management
 
 - [x] **T020** Extend execution service for YAML workflow execution
-  - File: `src/nexus/api/services/execution_service.py`
-  - Implement: ExecutionService class with start_yaml_workflow, get_workflow_status, get_workflow_result
+  - File: `src/nexus/workflows/workflow_engine/services/temporal_execution_service.py`
+  - Implement: TemporalExecutionService class with start_yaml_workflow, get_workflow_status, get_workflow_result
   - Implement: cancel_workflow and terminate_workflow methods
   - Steps: Parse YAML, start Temporal workflow, return execution info (stub DB for now)
   - Error handling: Validation errors, Temporal connection errors with proper logging
@@ -242,7 +242,7 @@ Implement the foundational workflow execution engine that reads YAML workflow de
   - **Note**: Using in-memory stub - will connect to database once Phase 3 models available
 
 - [x] **T022** Add workflow cancellation support
-  - File: `src/nexus/api/services/execution_service.py` (T020)
+  - File: `src/nexus/workflows/workflow_engine/services/temporal_execution_service.py` (T020)
   - Implement: cancel_workflow() and terminate_workflow() methods
   - Call: Temporal client to cancel/terminate workflow by workflow_id
   - Update: Cancellation status and timestamps
@@ -404,7 +404,7 @@ src/nexus/api/
       execution_tracker.py            # ✅ T021 - Complete (in-memory stub, 206 lines)
   services/
     temporal_worker.py                # ✅ T019 - Complete (172 lines)
-    execution_service.py              # ✅ T020, T022 - Complete (270 lines)
+    temporal_execution_service.py     # ✅ T020, T022 - Complete (270 lines)
 
 tests/
   integration/

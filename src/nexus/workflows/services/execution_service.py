@@ -25,9 +25,7 @@ from nexus.core.utils.sorting import apply_sorting, parse_sort
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
-from nexus.workflows.workflow_engine.services.execution_service import (
-    ExecutionService as TemporalExecutionService,
-)
+from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 logger = logging.getLogger(__name__)
 

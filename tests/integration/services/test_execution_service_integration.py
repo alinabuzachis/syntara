@@ -1,6 +1,6 @@
-"""Integration tests for ExecutionService.
+"""Integration tests for TemporalExecutionService.
 
-These tests verify the ExecutionService works correctly with a real Temporal test server.
+These tests verify the TemporalExecutionService works correctly with a real Temporal test server.
 They focus on the service layer (YAML parsing, workflow management) rather than
 workflow execution details (which are tested in tests/integration/workflow/).
 """
@@ -16,7 +16,7 @@ from temporalio.worker import Worker
 
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
-from nexus.workflows.workflow_engine.services.execution_service import ExecutionService
+from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 from nexus.workflows.workflow_engine.yaml_workflow_parser import WorkflowParseError
 
 
@@ -25,8 +25,8 @@ async def execution_service(
     temporal_client: Client,
     temporal_worker: Worker,
     task_queue: str,
-) -> ExecutionService:
-    """Provide an ExecutionService connected to the test environment.
+) -> TemporalExecutionService:
+    """Provide an TemporalExecutionService connected to the test environment.
 
     Args:
         temporal_client: Temporal test client
@@ -34,18 +34,18 @@ async def execution_service(
         task_queue: Test task queue name
 
     Returns:
-        ExecutionService instance
+        TemporalExecutionService instance
 
     """
-    return ExecutionService(temporal_client=temporal_client, task_queue=task_queue)
+    return TemporalExecutionService(temporal_client=temporal_client, task_queue=task_queue)
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-class TestExecutionServiceIntegration:
-    """Integration tests for ExecutionService with real Temporal."""
+class TestTemporalExecutionServiceIntegration:
+    """Integration tests for TemporalExecutionService with real Temporal."""
 
-    async def test_start_and_complete_workflow(self, execution_service: ExecutionService) -> None:
+    async def test_start_and_complete_workflow(self, execution_service: TemporalExecutionService) -> None:
         """Test starting a workflow and waiting for completion."""
         workflow_yaml = """
 schemaVersion: "1.0.0"
@@ -87,7 +87,7 @@ workflow:
         assert "test_task" in workflow_result.activity_outputs
         assert "Integration test successful" in workflow_result.activity_outputs["test_task"]["stdout"]
 
-    async def test_start_workflow_with_custom_id(self, execution_service: ExecutionService) -> None:
+    async def test_start_workflow_with_custom_id(self, execution_service: TemporalExecutionService) -> None:
         """Test starting a workflow with a custom workflow ID."""
         workflow_yaml = """
 schemaVersion: "1.0.0"
@@ -122,7 +122,7 @@ workflow:
         workflow_result = await execution_service.get_workflow_result(result.temporal_workflow_id)
         assert workflow_result.status == "completed"
 
-    async def test_start_workflow_with_inputs(self, execution_service: ExecutionService) -> None:
+    async def test_start_workflow_with_inputs(self, execution_service: TemporalExecutionService) -> None:
         """Test starting a workflow with input parameters."""
         workflow_yaml = """
 schemaVersion: "1.0.0"
@@ -157,7 +157,7 @@ workflow:
         # Verify input was used
         assert "Hello, Alice!" in workflow_result.activity_outputs["use_input"]["stdout"]
 
-    async def test_invalid_yaml_raises_error(self, execution_service: ExecutionService) -> None:
+    async def test_invalid_yaml_raises_error(self, execution_service: TemporalExecutionService) -> None:
         """Test that invalid YAML raises WorkflowParseError."""
         invalid_yaml = """
 schemaVersion: "1.0.0"
@@ -170,7 +170,7 @@ this is not valid yaml!!!
                 workflow_name="invalid-test",
             )
 
-    async def test_get_workflow_status(self, execution_service: ExecutionService) -> None:
+    async def test_get_workflow_status(self, execution_service: TemporalExecutionService) -> None:
         """Test getting workflow status."""
         workflow_yaml = """
 schemaVersion: "1.0.0"
@@ -216,7 +216,7 @@ workflow:
         if final_status.status == "completed":
             assert final_status.close_time is not None
 
-    async def test_cancel_workflow(self, execution_service: ExecutionService) -> None:
+    async def test_cancel_workflow(self, execution_service: TemporalExecutionService) -> None:
         """Test cancelling a running workflow."""
         workflow_yaml = """
 schemaVersion: "1.0.0"
@@ -259,7 +259,7 @@ workflow:
         assert cancel_result.reason == "Integration test cancellation"
         assert cancel_result.cancelled_at is not None
 
-    async def test_terminate_workflow(self, execution_service: ExecutionService) -> None:
+    async def test_terminate_workflow(self, execution_service: TemporalExecutionService) -> None:
         """Test terminating a running workflow."""
         workflow_yaml = """
 schemaVersion: "1.0.0"
@@ -305,15 +305,15 @@ workflow:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-class TestCreateExecutionServiceFactory:
-    """Test the factory function for creating ExecutionService."""
+class TestCreateTemporalExecutionServiceFactory:
+    """Test the factory function for creating TemporalExecutionService."""
 
     async def test_create_execution_service_integration(
         self,
         temporal_env: AsyncGenerator[None, None],  # noqa: ARG002 - needed to ensure env exists
         temporal_worker: Worker,  # noqa: ARG002 - needed to ensure worker is running
     ) -> None:
-        """Test creating ExecutionService via factory function.
+        """Test creating TemporalExecutionService via factory function.
 
         Note: This test uses the real test environment but doesn't connect to
         localhost:7233 - it uses the test environment's client instead.
@@ -328,7 +328,7 @@ class TestCreateExecutionServiceFactory:
         # Instead, let's verify the service structure is created correctly
         # Create a minimal test to verify the factory creates a valid service
         async with await WorkflowEnvironment.start_time_skipping() as env:
-            service = ExecutionService(
+            service = TemporalExecutionService(
                 temporal_client=env.client,
                 task_queue="test-queue",
             )

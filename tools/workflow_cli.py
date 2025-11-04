@@ -8,7 +8,7 @@ It is NOT intended to be used in production or imported by the application code.
 This script serves as:
 - A manual testing tool for developers to validate workflow YAML files
 - A debugging utility to inspect workflow execution locally
-- A reference implementation showing how to use the ExecutionService
+- A reference implementation showing how to use the TemporalExecutionService
 - A quick way to verify Temporal integration without running the full API
 
 ## Test Coverage
@@ -16,7 +16,7 @@ This script serves as:
 This file is intentionally excluded from automated test coverage because:
 1. It's a manual utility, not application code
 2. Testing CLI argument parsing provides minimal value
-3. The underlying services (ExecutionService, TemporalWorkerService) are tested separately
+3. The underlying services (TemporalExecutionService, TemporalWorkerService) are tested separately
 4. Manual verification is more appropriate for CLI tools
 
 ## Usage
@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Any
 
 from nexus.workflows.workflow_engine.models import WorkflowResultResponse
-from nexus.workflows.workflow_engine.services.execution_service import ExecutionService
+from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 from nexus.workflows.workflow_engine.services.temporal_worker import TemporalWorkerService
 
 # Configure logging
@@ -93,7 +93,7 @@ async def run_workflow(  # noqa: C901, PLR0912, PLR0915
         if worker_service.client is None:
             msg = "Client should be initialized"
             raise RuntimeError(msg)
-        execution_service = ExecutionService(worker_service.client, task_queue)
+        execution_service = TemporalExecutionService(worker_service.client, task_queue)
 
         # Start workflow
         logger.info("\n=== Starting Workflow: %s ===", workflow_name)

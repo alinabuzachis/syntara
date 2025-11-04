@@ -8,7 +8,7 @@ import pytest
 
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
 from nexus.workflows.workflow_engine.models import ScriptExecutorConfig, ScriptLanguage
-from nexus.workflows.workflow_engine.services.execution_service import ExecutionService
+from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 
 
@@ -18,7 +18,7 @@ async def test_workflow_cancellation() -> None:
     """Test cancelling a running workflow.
 
     This test verifies:
-    - Running workflow can be cancelled via ExecutionService
+    - Running workflow can be cancelled via TemporalExecutionService
     - Temporal client's cancel method is called
     - Activities can be cancelled during execution
     """
@@ -57,7 +57,7 @@ workflow:
     mock_client.get_workflow_handle = MagicMock(return_value=mock_handle)
 
     # Create execution service with mock client
-    execution_service = ExecutionService(mock_client, "test-queue")
+    execution_service = TemporalExecutionService(mock_client, "test-queue")
 
     # Start the activity in background (simulates a running workflow)
     task_def = workflow_def.workflow.activities[0].task
@@ -147,7 +147,7 @@ workflow:
     mock_client.get_workflow_handle = MagicMock(return_value=mock_handle)
 
     # Create execution service
-    execution_service = ExecutionService(mock_client, "test-queue")
+    execution_service = TemporalExecutionService(mock_client, "test-queue")
 
     # Start all activities in parallel (simulates parallel execution)
     tasks = []
@@ -190,7 +190,7 @@ async def test_cancellation_status_updates() -> None:
     mock_client.get_workflow_handle = MagicMock(return_value=mock_handle)
 
     # Create execution service
-    execution_service = ExecutionService(mock_client, "test-queue")
+    execution_service = TemporalExecutionService(mock_client, "test-queue")
 
     # Cancel a workflow
     workflow_id = "status-update-workflow-123"

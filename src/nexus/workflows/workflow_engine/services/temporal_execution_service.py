@@ -29,7 +29,7 @@ from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_
 logger = logging.getLogger(__name__)
 
 
-class ExecutionService:
+class TemporalExecutionService:
     """Service for managing workflow executions."""
 
     def __init__(
@@ -37,10 +37,10 @@ class ExecutionService:
         temporal_client: Client,
         task_queue: str,
     ) -> None:
-        """Initialize execution service.
+        """Initialize temporal execution service.
 
         Note:
-            For most use cases, use create_execution_service() factory function instead,
+            For most use cases, use create_temporal_execution_service() factory function instead,
             which provides sensible defaults for temporal_address, namespace, and task_queue.
 
         Args:
@@ -80,7 +80,7 @@ class ExecutionService:
             Exception: If workflow fails to start
 
         Example:
-            >>> service = ExecutionService(client)
+            >>> service = TemporalExecutionService(client)
             >>> result = await service.start_yaml_workflow(
             ...     workflow_yaml='...',
             ...     workflow_name='my-workflow',
@@ -287,12 +287,12 @@ class ExecutionService:
             raise
 
 
-async def create_execution_service(
+async def create_temporal_execution_service(
     temporal_address: str = DEFAULT_TEMPORAL_ADDRESS,
     namespace: str = DEFAULT_TEMPORAL_NAMESPACE,
     task_queue: str = DEFAULT_TASK_QUEUE,
-) -> ExecutionService:
-    """Create an execution service with a new Temporal client.
+) -> TemporalExecutionService:
+    """Create a temporal execution service with a new Temporal client.
 
     Args:
         temporal_address: Temporal server address
@@ -300,10 +300,10 @@ async def create_execution_service(
         task_queue: Task queue name
 
     Returns:
-        ExecutionService instance
+        TemporalExecutionService instance
 
     Example:
-        >>> service = await create_execution_service()
+        >>> service = await create_temporal_execution_service()
         >>> result = await service.start_yaml_workflow(...)
 
     """
@@ -311,6 +311,6 @@ async def create_execution_service(
         temporal_address,
         namespace=namespace,
     )
-    # TODO: Handle how ExecutionService is dispatched/deployed  # noqa: TD002, TD003
+    # TODO: Handle how TemporalExecutionService is dispatched/deployed  # noqa: TD002, TD003
     # via containerization. This will be addressed in a future Containerization & Deployment ticket.
-    return ExecutionService(client, task_queue)
+    return TemporalExecutionService(client, task_queue)

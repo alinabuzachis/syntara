@@ -1,4 +1,4 @@
-"""Unit tests for ExecutionService.
+"""Unit tests for TemporalExecutionService.
 
 These tests use mocks to avoid requiring a real Temporal server.
 Integration tests with a real Temporal server are in tests/integration/.
@@ -11,17 +11,20 @@ from uuid import UUID
 import pytest
 
 from nexus.api.constants import DEFAULT_TASK_QUEUE
-from nexus.workflows.workflow_engine.services.execution_service import ExecutionService, create_execution_service
+from nexus.workflows.workflow_engine.services.temporal_execution_service import (
+    TemporalExecutionService,
+    create_temporal_execution_service,
+)
 from nexus.workflows.workflow_engine.yaml_workflow_parser import WorkflowParseError
 
 
-class TestExecutionServiceInitialization:
-    """Test ExecutionService initialization."""
+class TestTemporalExecutionServiceInitialization:
+    """Test TemporalExecutionService initialization."""
 
     def test_init_with_client(self) -> None:
         """Test initialization with Temporal client."""
         mock_client = Mock()
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         assert service.temporal_client is mock_client
         assert service.task_queue == "test-queue"
@@ -29,7 +32,7 @@ class TestExecutionServiceInitialization:
     def test_init_with_custom_task_queue(self) -> None:
         """Test initialization with custom task queue."""
         mock_client = Mock()
-        service = ExecutionService(temporal_client=mock_client, task_queue="custom-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="custom-queue")
 
         assert service.temporal_client is mock_client
         assert service.task_queue == "custom-queue"
@@ -47,7 +50,7 @@ class TestStartYamlWorkflow:
         mock_handle.first_execution_run_id = "run-123"
         mock_client.start_workflow = AsyncMock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         yaml_workflow = """
 schemaVersion: "1.0.0"
@@ -102,7 +105,7 @@ workflow:
         mock_handle.first_execution_run_id = "run-456"
         mock_client.start_workflow = AsyncMock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         yaml_workflow = """
 schemaVersion: "1.0.0"
@@ -135,7 +138,7 @@ workflow:
     async def test_start_workflow_invalid_yaml(self) -> None:
         """Test starting workflow with invalid YAML."""
         mock_client = Mock()
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         invalid_yaml = """
 schemaVersion: "1.0.0"
@@ -152,7 +155,7 @@ invalid yaml here!!!
     async def test_start_workflow_missing_required_fields(self) -> None:
         """Test starting workflow with missing required fields."""
         mock_client = Mock()
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         incomplete_yaml = """
 schemaVersion: "1.0.0"
@@ -171,7 +174,7 @@ version: 1
         mock_client = Mock()
         mock_client.start_workflow = AsyncMock(side_effect=RuntimeError("Temporal connection failed"))
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         yaml_workflow = """
 schemaVersion: "1.0.0"
@@ -218,7 +221,7 @@ class TestGetWorkflowStatus:
         mock_client = Mock()
         mock_client.get_workflow_handle = Mock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         result = await service.get_workflow_status("workflow-123")
 
@@ -242,7 +245,7 @@ class TestGetWorkflowStatus:
         mock_client = Mock()
         mock_client.get_workflow_handle = Mock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         result = await service.get_workflow_status("workflow-456")
 
@@ -255,7 +258,7 @@ class TestGetWorkflowStatus:
         mock_client = Mock()
         mock_client.get_workflow_handle = Mock(side_effect=Exception("Workflow not found"))
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         with pytest.raises(Exception, match="Workflow not found"):
             await service.get_workflow_status("nonexistent-workflow")
@@ -280,7 +283,7 @@ class TestGetWorkflowResult:
         mock_client = Mock()
         mock_client.get_workflow_handle = Mock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         result = await service.get_workflow_result("workflow-123")
 
@@ -300,7 +303,7 @@ class TestGetWorkflowResult:
         mock_client = Mock()
         mock_client.get_workflow_handle = Mock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         with pytest.raises(RuntimeError, match="Workflow execution failed"):
             await service.get_workflow_result("failed-workflow")
@@ -318,7 +321,7 @@ class TestCancelWorkflow:
         mock_client = Mock()
         mock_client.get_workflow_handle = Mock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         result = await service.cancel_workflow("workflow-123", reason="User requested")
 
@@ -338,7 +341,7 @@ class TestCancelWorkflow:
         mock_client = Mock()
         mock_client.get_workflow_handle = Mock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         result = await service.cancel_workflow("workflow-123")
 
@@ -353,7 +356,7 @@ class TestCancelWorkflow:
         mock_client = Mock()
         mock_client.get_workflow_handle = Mock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         with pytest.raises(RuntimeError, match="Cannot cancel completed workflow"):
             await service.cancel_workflow("workflow-123")
@@ -371,7 +374,7 @@ class TestTerminateWorkflow:
         mock_client = Mock()
         mock_client.get_workflow_handle = Mock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         result = await service.terminate_workflow("workflow-123", reason="Emergency stop")
 
@@ -391,7 +394,7 @@ class TestTerminateWorkflow:
         mock_client = Mock()
         mock_client.get_workflow_handle = Mock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         result = await service.terminate_workflow("workflow-123")
 
@@ -407,26 +410,26 @@ class TestTerminateWorkflow:
         mock_client = Mock()
         mock_client.get_workflow_handle = Mock(return_value=mock_handle)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         with pytest.raises(RuntimeError, match="Termination failed"):
             await service.terminate_workflow("workflow-123")
 
 
-class TestCreateExecutionService:
+class TestCreateTemporalExecutionService:
     """Test factory function for creating execution service."""
 
     @pytest.mark.asyncio
-    async def test_create_execution_service_defaults(self) -> None:
+    async def test_create_temporal_execution_service_defaults(self) -> None:
         """Test creating execution service with default parameters."""
         mock_client = Mock()
 
-        with patch("nexus.workflows.workflow_engine.services.execution_service.Client") as mock_client_class:
+        with patch("nexus.workflows.workflow_engine.services.temporal_execution_service.Client") as mock_client_class:
             mock_client_class.connect = AsyncMock(return_value=mock_client)
 
-            service = await create_execution_service()
+            service = await create_temporal_execution_service()
 
-            assert isinstance(service, ExecutionService)
+            assert isinstance(service, TemporalExecutionService)
             assert service.temporal_client is mock_client
             assert service.task_queue == DEFAULT_TASK_QUEUE
 
@@ -436,14 +439,14 @@ class TestCreateExecutionService:
             )
 
     @pytest.mark.asyncio
-    async def test_create_execution_service_custom_params(self) -> None:
+    async def test_create_temporal_execution_service_custom_params(self) -> None:
         """Test creating execution service with custom parameters."""
         mock_client = Mock()
 
-        with patch("nexus.workflows.workflow_engine.services.execution_service.Client") as mock_client_class:
+        with patch("nexus.workflows.workflow_engine.services.temporal_execution_service.Client") as mock_client_class:
             mock_client_class.connect = AsyncMock(return_value=mock_client)
 
-            service = await create_execution_service(
+            service = await create_temporal_execution_service(
                 temporal_address="temporal.example.com:7233",
                 namespace="production",
                 task_queue="prod-queue",
@@ -479,7 +482,7 @@ class TestWorkflowDataConversion:
 
         mock_client.start_workflow = AsyncMock(side_effect=capture_and_return)
 
-        service = ExecutionService(temporal_client=mock_client, task_queue="test-queue")
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
         yaml_workflow = """
 schemaVersion: "1.0.0"

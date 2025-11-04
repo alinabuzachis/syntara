@@ -17,7 +17,7 @@ from nexus.core.utils.pagination import generate_response
 from nexus.workflows.models.execution import Execution, ExecutionCreate, ExecutionRead, ExecutionStatus
 from nexus.workflows.services import ExecutionService
 from nexus.workflows.services.execution_service import WorkflowDisabledError, WorkflowNotFoundError
-from nexus.workflows.workflow_engine.services.execution_service import create_execution_service
+from nexus.workflows.workflow_engine.services.temporal_execution_service import create_temporal_execution_service
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ async def create_execution(
     # Get or create Temporal execution service
     temporal_service = None
     try:
-        temporal_service = await create_execution_service()
+        temporal_service = await create_temporal_execution_service()
     except (RPCError, OSError, ConnectionError, RuntimeError) as e:
         # RPCError: Temporal server RPC errors
         # OSError/ConnectionError: Network/connection issues
