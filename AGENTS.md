@@ -16,8 +16,9 @@ Nexus is a distributed multi-agent system that enables coordinated AI agents to 
 
 ### Environment Setup
 
-- Use always `uv` to manage dependencies and run commands.
-- The project includes a local development environment through make commands.
+- Use `uv` for dependency management and `uv run` for executing Python commands not covered by makefile
+- The project includes a local development environment through make commands
+- **Always prefer `make` commands when available**
 
 ### Development Workflow
 
