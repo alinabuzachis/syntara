@@ -5,15 +5,65 @@ import { useQueryState } from '../../components/states/useQueryState'
 import { DateCell } from '../../components/table/DateCell'
 import { LabelsCell } from '../../components/table/LabelsCell'
 import { LinkCell } from '../../components/table/LinkCell'
-import { StringCell } from '../../components/table/StringCell'
-import { Table } from '../../components/table/Table'
+import { Table, type IRowAction } from '../../components/table/Table'
 import { useFuse } from '../../hooks/useFuse'
+import { PlayIcon, ListIcon } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { ConfirmDialog, useAlerts } from '@ansible/nexus-ui-framework'
+import { SwitchCell } from '../../components/table/SwitchCell.tsx'
+import { useLocation } from 'wouter'
+
+type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
 export default function Automations() {
   const workflowsQuery = workflowClient.useQuery('get', '/workflows')
   const workflows = workflowsQuery.data?.resources ?? []
+  const { mutate: executeAutomation } = workflowClient.useMutation('post', '/executions')
+  const { showSuccess, showError } = useAlerts()
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
+  const [, setLocation] = useLocation()
 
   const { search, setSearch, items: automations } = useFuse(workflows, [{ name: 'name' }])
+
+  const handleRunAutomation = (workflow: Workflow) => {
+    executeAutomation(
+      { body: { workflow_id: workflow?.id, input_data: {} } },
+      {
+        onSuccess: () => {
+          showSuccess(`Successfully started automation "${workflow.name}"`, 'Automation Started')
+        },
+        onError: (error) => {
+          showError(
+            `Failed to start automation "${workflow.name}": ${error.message || 'Unknown error'}`,
+            'Automation Failed'
+          )
+        },
+      }
+    )
+  }
+
+  const rowActions = useMemo<IRowAction<Workflow>[]>(
+    () => [
+      {
+        label: 'Run automation',
+        icon: PlayIcon,
+        onClick: (workflow) => {
+          setSelectedWorkflow(workflow)
+          setConfirmDialogOpen(true)
+        },
+      },
+      {
+        label: 'View run history',
+        icon: ListIcon,
+        onClick: (workflow) => {
+          setLocation(`/executions?workflow_id=${workflow.id}`)
+        },
+      },
+    ],
+    [setLocation]
+  )
 
   const queryState = useQueryState(workflowsQuery, 'Error loading workflows')
   if (queryState) return queryState
@@ -30,16 +80,13 @@ export default function Automations() {
       </AppPageHeader>
       <Table
         items={automations}
+        rowActions={rowActions}
+        keyFn={(item) => item.id}
         columns={[
           {
             id: 'name',
             label: 'Name',
             render: (workflow) => <LinkCell href={`/automations/${workflow.id}`}>{workflow.name}</LinkCell>,
-          },
-          {
-            id: 'description',
-            label: 'Description',
-            render: (workflow) => <StringCell>{workflow.description}</StringCell>,
           },
           {
             id: 'created_at',
@@ -53,10 +100,43 @@ export default function Automations() {
           },
           {
             id: 'labels',
-            label: 'Labels',
+            label: 'Tags',
+            width: '200px',
             render: (workflow) => <LabelsCell labels={workflow.labels} />,
           },
+          {
+            id: 'is_enabled',
+            label: 'State',
+            render: (workflow) => (
+              <SwitchCell
+                checked={workflow?.is_enabled}
+                handleChange={() => {}}
+                showLabels
+                enabledLabel="Enabled"
+                disabledLabel="Disabled"
+                readOnly
+              />
+            ),
+          },
         ]}
+      />
+      <ConfirmDialog
+        open={confirmDialogOpen}
+        onOpenChange={setConfirmDialogOpen}
+        title={`Run ${selectedWorkflow?.name}?`}
+        description={
+          <>
+            You are about to manually run this automation. This action will start the automation immediately, bypassing
+            its normal trigger conditions.
+          </>
+        }
+        confirmLabel="Run now"
+        cancelLabel="Cancel"
+        onConfirm={() => {
+          if (selectedWorkflow) {
+            handleRunAutomation(selectedWorkflow)
+          }
+        }}
       />
     </AppPage>
   )

@@ -7,7 +7,7 @@ export function LabelsCell(props: { labels?: Record<string, string> | null }) {
       {Object.entries(props.labels).map(([key, value]) => (
         <span
           key={key}
-          className="mr-2 mb-2 inline-block rounded-full bg-gray-200 px-3 py-1 text-sm font-semibold text-gray-700"
+          className="glass mr-2 mb-2 inline-block rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-100"
         >
           {key}={value}
         </span>

@@ -1,16 +1,28 @@
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ReactNode } from 'react'
 import Automations from './Automations'
 import { workflowClient } from '../../client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AlertProvider } from '@ansible/nexus-ui-framework'
 
 // Mock dependencies
 vi.mock('../../client', () => ({
   workflowClient: {
     useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
 }))
+
+const mockSetLocation = vi.fn()
+
+vi.mock('wouter', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>
+  return {
+    ...actual,
+    useLocation: () => ['/automations', mockSetLocation],
+  }
+})
 
 // Create a QueryClient instance
 const queryClient = new QueryClient({
@@ -22,7 +34,9 @@ const queryClient = new QueryClient({
 })
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  <QueryClientProvider client={queryClient}>
+    <AlertProvider>{children}</AlertProvider>
+  </QueryClientProvider>
 )
 
 describe('Automations Component', () => {
@@ -31,8 +45,8 @@ describe('Automations Component', () => {
       id: '1',
       name: 'Important Project Workflow',
       description: 'Complex workflow for critical project',
-      created_at: '2023-01-01T00:00:00Z',
-      updated_at: '2023-01-02T00:00:00Z',
+      createdAt: '2023-01-01T00:00:00Z',
+      updatedAt: '2023-01-02T00:00:00Z',
       labels: {
         type: 'critical',
         status: 'active',
@@ -42,8 +56,8 @@ describe('Automations Component', () => {
       id: '2',
       name: 'Secondary Team Workflow',
       description: 'Routine workflow for secondary tasks',
-      created_at: '2023-02-01T00:00:00Z',
-      updated_at: '2023-02-02T00:00:00Z',
+      createdAt: '2023-02-01T00:00:00Z',
+      updatedAt: '2023-02-02T00:00:00Z',
       labels: {
         type: 'routine',
         status: 'maintenance',
@@ -58,6 +72,29 @@ describe('Automations Component', () => {
       isPending: false,
       isError: false,
       error: null,
+    })
+
+    // Mock mutation for execute automation
+    vi.mocked(workflowClient.useMutation).mockReturnValue({
+      mutate: vi.fn((body, callbacks) => {
+        if (callbacks?.onSuccess) {
+          callbacks.onSuccess({}, body, undefined)
+        }
+      }),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      isIdle: true,
+      error: null,
+      data: undefined,
+      variables: undefined,
+      context: undefined,
+      failureCount: 0,
+      failureReason: null,
+      status: 'idle',
+      submittedAt: 0,
     })
   })
 
@@ -204,13 +241,6 @@ describe('Automations Component', () => {
       expect(workflow1Link.closest('a')).toHaveAttribute('href', '/automations/1')
     })
 
-    it('renders description column', () => {
-      render(<Automations />, { wrapper })
-
-      expect(screen.getByText('Complex workflow for critical project')).toBeInTheDocument()
-      expect(screen.getByText('Routine workflow for secondary tasks')).toBeInTheDocument()
-    })
-
     it('renders labels column', () => {
       render(<Automations />, { wrapper })
 
@@ -223,6 +253,289 @@ describe('Automations Component', () => {
       expect(screen.getByText('status=active')).toBeInTheDocument()
       expect(screen.getByText('type=routine')).toBeInTheDocument()
       expect(screen.getByText('status=maintenance')).toBeInTheDocument()
+    })
+  })
+
+  describe('Execute Automation Row Action', () => {
+    it('shows success alert when automation executes successfully', async () => {
+      const mockMutate = vi.fn((body, callbacks) => {
+        if (callbacks?.onSuccess) {
+          callbacks.onSuccess({}, body, undefined)
+        }
+      })
+
+      vi.mocked(workflowClient.useMutation).mockReturnValue({
+        mutate: mockMutate,
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle',
+        submittedAt: 0,
+      })
+
+      render(<Automations />, { wrapper })
+
+      // Find and click the row action button for the first workflow
+      const table = screen.getByRole('table')
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      // Find and click the menu trigger button (the ... button)
+      const menuTrigger = within(firstDataRow).getByRole('button')
+      fireEvent.click(menuTrigger)
+
+      // Wait for menu to open and click the "Run automation" menu item
+      const runAutomationItem = await screen.findByText('Run automation')
+      fireEvent.click(runAutomationItem)
+
+      // Wait for confirmation dialog to appear and click "Run now" button
+      const runButton = await screen.findByRole('button', { name: /^Run now$/i })
+      fireEvent.click(runButton)
+
+      // Verify the mutation was called with correct parameters
+      await waitFor(() => {
+        expect(mockMutate).toHaveBeenCalledWith(
+          { body: { workflow_id: '1', input_data: {} } },
+          expect.objectContaining({
+            onSuccess: expect.any(Function),
+            onError: expect.any(Function),
+          })
+        )
+      })
+
+      // Verify success alert is shown
+      await waitFor(() => {
+        expect(screen.getByText('Automation Started')).toBeInTheDocument()
+        expect(screen.getByText(/Successfully started automation "Important Project Workflow"/)).toBeInTheDocument()
+      })
+    })
+
+    it('shows error alert when automation execution fails', async () => {
+      const mockError = new Error('Network error')
+      const mockMutate = vi.fn((body, callbacks) => {
+        if (callbacks?.onError) {
+          callbacks.onError(mockError, body, undefined)
+        }
+      })
+
+      vi.mocked(workflowClient.useMutation).mockReturnValue({
+        mutate: mockMutate,
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle',
+        submittedAt: 0,
+      })
+
+      render(<Automations />, { wrapper })
+
+      // Find and click the row action button for the first workflow
+      const table = screen.getByRole('table')
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      // Find and click the menu trigger button
+      const menuTrigger = within(firstDataRow).getByRole('button')
+      fireEvent.click(menuTrigger)
+
+      // Wait for menu to open and click the "Run automation" menu item
+      const runAutomationItem = await screen.findByText('Run automation')
+      fireEvent.click(runAutomationItem)
+
+      // Wait for confirmation dialog to appear and click "Run now" button
+      const runButton = await screen.findByRole('button', { name: /^Run now$/i })
+      fireEvent.click(runButton)
+
+      // Verify the mutation was called
+      await waitFor(() => {
+        expect(mockMutate).toHaveBeenCalled()
+      })
+
+      // Verify error alert is shown
+      await waitFor(() => {
+        expect(screen.getByText('Automation Failed')).toBeInTheDocument()
+        expect(
+          screen.getByText(/Failed to start automation "Important Project Workflow": Network error/)
+        ).toBeInTheDocument()
+      })
+    })
+
+    it('shows error alert with generic message when error has no message', async () => {
+      const mockError = {} // Error without message property
+      const mockMutate = vi.fn((body, callbacks) => {
+        if (callbacks?.onError) {
+          callbacks.onError(mockError, body, undefined)
+        }
+      })
+
+      vi.mocked(workflowClient.useMutation).mockReturnValue({
+        mutate: mockMutate,
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle',
+        submittedAt: 0,
+      })
+
+      render(<Automations />, { wrapper })
+
+      // Find and click the row action button for the first workflow
+      const table = screen.getByRole('table')
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      // Find and click the menu trigger button
+      const menuTrigger = within(firstDataRow).getByRole('button')
+      fireEvent.click(menuTrigger)
+
+      // Wait for menu to open and click the "Run automation" menu item
+      const runAutomationItem = await screen.findByText('Run automation')
+      fireEvent.click(runAutomationItem)
+
+      // Wait for confirmation dialog to appear and click "Run now" button
+      const runButton = await screen.findByRole('button', { name: /^Run now$/i })
+      fireEvent.click(runButton)
+
+      // Verify error alert is shown with generic message
+      await waitFor(() => {
+        expect(screen.getByText('Automation Failed')).toBeInTheDocument()
+        expect(
+          screen.getByText(/Failed to start automation "Important Project Workflow": Unknown error/)
+        ).toBeInTheDocument()
+      })
+    })
+
+    it('shows confirmation dialog when running automation', async () => {
+      render(<Automations />, { wrapper })
+
+      // Find and click the row action button for the first workflow
+      const table = screen.getByRole('table')
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      // Find and click the menu trigger button
+      const menuTrigger = within(firstDataRow).getByRole('button')
+      fireEvent.click(menuTrigger)
+
+      // Wait for menu to open and click the "Run automation" menu item
+      const runAutomationItem = await screen.findByText('Run automation')
+      fireEvent.click(runAutomationItem)
+
+      // Verify confirmation dialog is shown
+      await waitFor(() => {
+        expect(screen.getByText('Run Important Project Workflow?')).toBeInTheDocument()
+        expect(
+          screen.getByText(
+            /You are about to manually run this automation. This action will start the automation immediately, bypassing its normal trigger conditions./
+          )
+        ).toBeInTheDocument()
+      })
+
+      // Verify Run now and Cancel buttons are present
+      expect(screen.getByRole('button', { name: /^Run now$/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Cancel/i })).toBeInTheDocument()
+    })
+
+    it('cancels automation run when cancel button is clicked', async () => {
+      const mockMutate = vi.fn()
+
+      vi.mocked(workflowClient.useMutation).mockReturnValue({
+        mutate: mockMutate,
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle',
+        submittedAt: 0,
+      })
+
+      render(<Automations />, { wrapper })
+
+      // Find and click the row action button for the first workflow
+      const table = screen.getByRole('table')
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      // Find and click the menu trigger button
+      const menuTrigger = within(firstDataRow).getByRole('button')
+      fireEvent.click(menuTrigger)
+
+      // Wait for menu to open and click the "Run automation" menu item
+      const runAutomationItem = await screen.findByText('Run automation')
+      fireEvent.click(runAutomationItem)
+
+      // Wait for confirmation dialog to appear and click "Cancel" button
+      const cancelButton = await screen.findByRole('button', { name: /Cancel/i })
+      fireEvent.click(cancelButton)
+
+      // Verify the mutation was not called
+      await waitFor(() => {
+        expect(mockMutate).not.toHaveBeenCalled()
+      })
+
+      // Verify dialog is closed
+      await waitFor(() => {
+        expect(screen.queryByText('Run Important Project Workflow?')).not.toBeInTheDocument()
+      })
+    })
+
+    it('navigates to executions page filtered by workflow when "View run history" is clicked', async () => {
+      mockSetLocation.mockClear()
+
+      render(<Automations />, { wrapper })
+
+      // Find and click the row action button for the first workflow
+      const table = screen.getByRole('table')
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      // Find and click the menu trigger button
+      const menuTrigger = within(firstDataRow).getByRole('button')
+      fireEvent.click(menuTrigger)
+
+      // Wait for menu to open and click the "View run history" menu item
+      const viewRunHistoryItem = await screen.findByText('View run history')
+      fireEvent.click(viewRunHistoryItem)
+
+      // Verify navigation to executions page with workflow filter
+      await waitFor(() => {
+        expect(mockSetLocation).toHaveBeenCalledWith('/executions?workflow_id=1')
+      })
     })
   })
 })

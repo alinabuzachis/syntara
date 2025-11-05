@@ -205,7 +205,7 @@ export function Table<T>(props: {
                   {props?.rowActions && props.rowActions.length > 0 && (
                     <td>
                       <Menu>
-                        <MenuTrigger className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-white/10">
+                        <MenuTrigger className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-white/10">
                           <EllipsisVerticalIcon className="size-4" />
                         </MenuTrigger>
                         <MenuItems>

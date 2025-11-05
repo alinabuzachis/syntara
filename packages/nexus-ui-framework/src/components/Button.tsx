@@ -10,7 +10,7 @@ export function Button(props: ButtonProps) {
   return (
     <button
       className={clsx(
-        'rounded-full',
+        'cursor-pointer rounded-full',
         // Variant styles
         {
           'bg-blue-500 text-white hover:bg-blue-600': !variant || variant === 'primary',

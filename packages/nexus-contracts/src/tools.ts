@@ -31,17 +31,6 @@ export interface paths {
           /** @description Filter tools by provider ID */
           provider_id?: string
           /**
-           * @description Filter tools by execution count.
-           *     - Exact match: `execution_count=10`
-           *     - Range: `execution_count[gte]=5&execution_count[lte]=50`
-           */
-          execution_count?: number & {
-            /** @description Greater than or equal. ?execution_count[gte]=<count> */
-            gte?: number
-            /** @description Less than or equal. ?execution_count[lte]=<count> */
-            lte?: number
-          }
-          /**
            * @description Number of resources to return per page
            * @example 20
            */
@@ -312,8 +301,6 @@ export interface components {
        * @enum {string}
        */
       status: 'available' | 'missing' | 'error'
-      /** @default 0 */
-      execution_count: number
       /** Format: date-time */
       last_executed_at?: string | null
       /** Format: date-time */

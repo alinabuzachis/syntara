@@ -54,7 +54,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
       {children}
 
       {/* Alert Container */}
-      <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex max-w-md flex-col gap-2">
+      <div className="pointer-events-none fixed top-4 right-4 z-50 flex max-w-md flex-col gap-2">
         {alerts.map((alert) => (
           <div key={alert.id} className="animate-slide-in-right pointer-events-auto">
             <Alert {...alert} onDismiss={() => dismissAlert(alert.id)} />

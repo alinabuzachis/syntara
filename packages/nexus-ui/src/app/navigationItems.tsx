@@ -4,6 +4,7 @@ import { AppRoute } from './AppRoute'
 
 const Automation = lazy(() => import('../routes/automations/Automation'))
 const Automations = lazy(() => import('../routes/automations/Automations'))
+const Executions = lazy(() => import('../routes/executions/Executions'))
 const IntegrationForm = lazy(() =>
   import('../routes/configuration/integrations/form/IntegrationForm').then((m) => ({ default: m.IntegrationForm }))
 )
@@ -33,6 +34,11 @@ export const navigationItems: INavigationItem[] = [
         label: 'Automation',
         path: AppRoute.Automations.Automation,
         element: <Automation />,
+      },
+      {
+        label: 'Executions',
+        path: AppRoute.Executions.Root,
+        element: <Executions />,
       },
     ],
   },

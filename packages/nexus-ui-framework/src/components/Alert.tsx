@@ -22,23 +22,23 @@ export interface AlertConfig extends Omit<AlertProps, 'onDismiss'> {
 const variantConfig = {
   success: {
     icon: CheckCircleIcon,
-    className: 'border-green-500/40 bg-green-500/10 text-green-100',
-    iconClassName: 'text-green-400',
+    className: 'border-green-500/60 bg-green-500/30 text-green-50',
+    iconClassName: 'text-green-300',
   },
   error: {
     icon: XCircleIcon,
-    className: 'border-red-500/40 bg-red-500/10 text-red-100',
-    iconClassName: 'text-red-400',
+    className: 'border-red-500/60 bg-red-500/30 text-red-50',
+    iconClassName: 'text-red-300',
   },
   warning: {
     icon: AlertCircleIcon,
-    className: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-100',
-    iconClassName: 'text-yellow-400',
+    className: 'border-yellow-500/60 bg-yellow-500/30 text-yellow-50',
+    iconClassName: 'text-yellow-300',
   },
   info: {
     icon: InfoIcon,
-    className: 'border-blue-500/40 bg-blue-500/10 text-blue-100',
-    iconClassName: 'text-blue-400',
+    className: 'border-blue-500/60 bg-blue-500/30 text-blue-50',
+    iconClassName: 'text-blue-300',
   },
 }
 

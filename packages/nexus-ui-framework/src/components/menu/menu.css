@@ -4,6 +4,6 @@
   }
 
   .menu-item {
-    @apply rounded-lg px-3 py-1.5 hover:bg-white/10;
+    @apply cursor-pointer rounded-lg px-3 py-1.5 hover:bg-white/10;
   }
 }

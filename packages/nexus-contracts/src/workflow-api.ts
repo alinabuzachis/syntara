@@ -456,8 +456,8 @@ export interface paths {
         query?: {
           /** @description Filter by workflow ID */
           workflow_id?: string
-          /** @description Filter by user who started the execution */
-          started_by?: string
+          /** @description Filter by user who created the execution */
+          created_by?: string
           /**
            * @description Filter executions by status.
            *     - Exact match: `status=running`
@@ -916,14 +916,14 @@ export interface components {
        * @description Timestamp when resource was created
        * @example 2025-10-09T12:00:00Z
        */
-      readonly createdAt: string
+      readonly created_at: string
       /**
        * Updated At
        * Format: date-time
        * @description Timestamp when resource was last updated
        * @example 2025-10-09T12:30:00Z
        */
-      readonly updatedAt: string
+      readonly updated_at: string
       /**
        * Labels
        * @description Key-value pairs for resource labeling and filtering

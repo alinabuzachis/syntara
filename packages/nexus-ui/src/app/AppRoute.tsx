@@ -5,6 +5,10 @@ export const AppRoute = {
     Root: '/automations',
     Automation: '/automations/:workflowId',
   },
+  Executions: {
+    Root: '/executions',
+    Execution: '/executions/:executionId',
+  },
   Approvals: '/approvals',
   Configuration: {
     Overview: '/configuration',
