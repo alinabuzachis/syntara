@@ -9,7 +9,7 @@ help: ## Show this help message
 # Container runtime detection
 # ========================================================
 # Use podman-compose for container orchestration (via uv)
-COMPOSE_CMD := uv run podman-compose
+COMPOSE_CMD ?= uv run podman-compose
 
 
 # UV environment setup
