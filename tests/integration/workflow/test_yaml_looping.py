@@ -6,7 +6,12 @@ from typing import Any
 import pytest
 
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
-from nexus.workflows.workflow_engine.models import ScriptExecutorConfig, ScriptLanguage, WorkflowDefinition
+from nexus.workflows.workflow_engine.models import (
+    ForEachLoopDefinition,
+    ScriptExecutorConfig,
+    ScriptLanguage,
+    WorkflowDefinition,
+)
 
 
 @pytest.mark.integration
@@ -103,9 +108,11 @@ async def test_foreach_loop_structure(load_workflow: Callable[[str], WorkflowDef
 
     assert len(workflow_def.workflow.activities) == 1
     activity = workflow_def.workflow.activities[0]
-    assert activity.loop is not None
-    assert activity.loop.type == "forEach"
-    assert activity.loop.item_variable == "item"
+    loop_def = activity.loop
+    assert loop_def is not None
+    assert loop_def.type == "forEach"
+    assert isinstance(loop_def, ForEachLoopDefinition)
+    assert loop_def.item_variable == "item"
 
 
 @pytest.mark.integration

@@ -4,7 +4,12 @@ from unittest.mock import patch
 
 import pytest
 
-from nexus.workflows.workflow_engine.models import ScriptExecutorConfig
+from nexus.workflows.workflow_engine.models import (
+    CountLoopDefinition,
+    ForEachLoopDefinition,
+    ScriptExecutorConfig,
+    WhileLoopDefinition,
+)
 from nexus.workflows.workflow_engine.yaml_workflow_parser import (
     WorkflowParseError,
     parse_workflow_yaml,
@@ -193,12 +198,14 @@ workflow:
         activity = workflow_def.workflow.activities[0]
         assert activity.id == "loop_task"
         assert activity.type == "loop"
-        assert activity.loop is not None
-        assert activity.loop.type == "forEach"
-        assert activity.loop.items == "${input.items}"
-        assert activity.loop.item_variable == "item"
-        assert activity.loop.index_variable == "index"
-        assert len(activity.loop.do) == 1
+        loop_def = activity.loop
+        assert loop_def is not None
+        assert loop_def.type == "forEach"
+        assert isinstance(loop_def, ForEachLoopDefinition)
+        assert loop_def.items == "${input.items}"
+        assert loop_def.item_variable == "item"
+        assert loop_def.index_variable == "index"
+        assert len(loop_def.do) == 1
 
     def test_parse_condition_activity(self) -> None:
         """Test parsing condition activity."""
@@ -554,9 +561,11 @@ workflow:
         workflow_def = parse_workflow_yaml(yaml_str)
 
         activity = workflow_def.workflow.activities[0]
-        assert activity.loop is not None
-        assert activity.loop.type == "while"
-        assert activity.loop.condition == "${variables.counter} < 10"
+        loop_def = activity.loop
+        assert loop_def is not None
+        assert loop_def.type == "while"
+        assert isinstance(loop_def, WhileLoopDefinition)
+        assert loop_def.condition == "${variables.counter} < 10"
 
     def test_parse_count_loop(self) -> None:
         """Test parsing count loop activity."""
@@ -588,10 +597,12 @@ workflow:
         workflow_def = parse_workflow_yaml(yaml_str)
 
         activity = workflow_def.workflow.activities[0]
-        assert activity.loop is not None
-        assert activity.loop.type == "count"
-        assert activity.loop.count == 5
-        assert activity.loop.index_variable == "i"
+        loop_def = activity.loop
+        assert loop_def is not None
+        assert loop_def.type == "count"
+        assert isinstance(loop_def, CountLoopDefinition)
+        assert loop_def.count == 5
+        assert loop_def.index_variable == "i"
 
 
 class TestYAMLParserTriggers:

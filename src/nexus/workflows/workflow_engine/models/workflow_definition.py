@@ -11,6 +11,53 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 from nexus.api.constants import MAX_LOOP_ITERATIONS
+from nexus.workflows.workflow_engine import settings
+
+
+# Enums for type-safe string constants
+class BackoffStrategy(str, Enum):
+    """Backoff strategies for retry policies."""
+
+    FIXED = "fixed"
+    EXPONENTIAL = "exponential"
+    LINEAR = "linear"
+
+
+class ActivityType(str, Enum):
+    """Supported activity types."""
+
+    TASK = "task"
+    PARALLEL = "parallel"
+    SEQUENCE = "sequence"
+    CONDITION = "condition"
+    LOOP = "loop"
+    JOIN = "join"
+
+
+class LoopType(str, Enum):
+    """Supported loop types."""
+
+    FOR_EACH = "forEach"
+    WHILE = "while"
+    COUNT = "count"
+
+
+class JoinStrategy(str, Enum):
+    """Join strategies for parallel execution."""
+
+    ALL = "all"
+    ANY = "any"
+    MAJORITY = "majority"
+    COUNT = "count"
+
+
+class TimeoutAction(str, Enum):
+    """Actions to take when a timeout occurs."""
+
+    CONTINUE = "continue"
+    FAIL = "fail"
+    APPROVE = "approve"
+    REJECT = "reject"
 
 
 class RetryPolicy(BaseModel):
@@ -21,8 +68,8 @@ class RetryPolicy(BaseModel):
     max_attempts: int = Field(
         default=3, ge=0, le=100, description="Maximum number of retry attempts", alias="maxAttempts"
     )
-    backoff: Literal["fixed", "exponential", "linear"] = Field(
-        default="exponential", description="Backoff strategy: fixed, exponential, linear"
+    backoff: BackoffStrategy = Field(
+        default=BackoffStrategy.EXPONENTIAL, description="Backoff strategy: fixed, exponential, linear"
     )
     multiplier: float | None = Field(default=2.0, ge=1.0, le=10.0, description="Multiplier for exponential backoff")
     initial_interval: str = Field(
@@ -42,7 +89,7 @@ class ForEachLoopDefinition(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    type: Literal["forEach"] = Field(description="Loop type")
+    type: Literal[LoopType.FOR_EACH] = Field(description="Loop type")
     items: str = Field(description="Expression referencing array to iterate over (e.g., ${input.users})")
     item_variable: str = Field(default="item", description="Variable name for current item", alias="itemVariable")
     index_variable: str = Field(default="index", description="Variable name for current index", alias="indexVariable")
@@ -54,7 +101,7 @@ class WhileLoopDefinition(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    type: Literal["while"] = Field(description="Loop type")
+    type: Literal[LoopType.WHILE] = Field(description="Loop type")
     condition: str = Field(description="Condition expression to evaluate before each iteration", min_length=1)
     max_iterations: int = Field(
         default=1000,
@@ -71,7 +118,7 @@ class CountLoopDefinition(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    type: Literal["count"] = Field(description="Loop type")
+    type: Literal[LoopType.COUNT] = Field(description="Loop type")
     count: int = Field(ge=1, le=MAX_LOOP_ITERATIONS, description="Number of iterations to execute")
     index_variable: str = Field(
         default="index", description="Variable name for iteration counter", alias="indexVariable"
@@ -106,12 +153,19 @@ class ScriptExecutorConfig(BaseModel):
         language: Script language (bash or python)
         code: Script code to execute
         environment: Optional environment variables for script execution
+        timeout_seconds: Timeout for script execution in seconds (default from NEXUS_SCRIPT_TIMEOUT_MINUTES)
 
     """
 
     language: ScriptLanguage
     code: str = Field(min_length=1, description="Script code to execute")
     environment: dict[str, str] = Field(default_factory=dict, description="Environment variables for script execution")
+    timeout_seconds: int = Field(
+        default=settings.SCRIPT_TIMEOUT_MINUTES * 60,
+        ge=1,
+        le=3600,
+        description="Timeout for script execution in seconds (default from NEXUS_SCRIPT_TIMEOUT_MINUTES, max: 3600)",
+    )
 
 
 class Authentication(BaseModel):
@@ -155,15 +209,48 @@ class APIExecutorConfig(BaseModel):
     timeout: int | None = Field(default=None, description="Optional timeout in seconds")
 
 
+class AgenticExecutorConfig(BaseModel):
+    """Configuration for agentic executor.
+
+    Attributes:
+        prompt: The prompt template for the agent
+        agent: Optional agent identifier for routing
+        model: Optional model identifier
+        timeout: Timeout for agent invocation in seconds (default from NEXUS_AGENTIC_TIMEOUT_SECONDS, max: 3600)
+
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    prompt: str = Field(description="Prompt template for the agent")
+    agent: str | None = Field(default=None, description="Optional agent identifier")
+    model: str | None = Field(default=None, description="Optional model identifier")
+    timeout: int = Field(
+        default=settings.AGENTIC_TIMEOUT_SECONDS,
+        ge=1,
+        le=3600,
+        description="Timeout for agent invocation in seconds (default from NEXUS_AGENTIC_TIMEOUT_SECONDS, max: 3600)",
+    )
+
+
+# Executor type enum
+class ExecutorType(str, Enum):
+    """Supported executor types for tasks."""
+
+    SCRIPT = "script"
+    API = "api"
+    AGENTIC = "agentic"
+
+
 # Union type for executor configs (strict - only typed configs allowed)
-ExecutorConfig = ScriptExecutorConfig | APIExecutorConfig
+ExecutorConfig = ScriptExecutorConfig | APIExecutorConfig | AgenticExecutorConfig
 
 
 # Task definitions
 class TaskDefinition(BaseModel):
     """Definition for an executable task."""
 
-    executor: Literal["script", "api"] = Field(description="Task executor type")
+    executor: ExecutorType = Field(description="Task executor type")
     config: ExecutorConfig = Field(description="Executor-specific configuration")
     inputs: dict[str, Any] | None = Field(default=None, description="Input parameters for the task")
     outputs: dict[str, str] | None = Field(
@@ -179,8 +266,8 @@ class ApprovalDefinition(BaseModel):
     approvers: list[str] = Field(description="List of users or roles who can approve", min_length=1)
     prompt: str = Field(description="Approval prompt/question to display", min_length=1)
     timeout: str | None = Field(default=None, description="Time to wait for approval (ISO 8601 duration)")
-    on_timeout: Literal["approve", "reject", "fail"] = Field(
-        default="fail", description="Action to take if approval times out", alias="onTimeout"
+    on_timeout: TimeoutAction = Field(
+        default=TimeoutAction.FAIL, description="Action to take if approval times out", alias="onTimeout"
     )
     metadata: dict[str, Any] | None = Field(default=None, description="Additional context to display to approvers")
 
@@ -191,15 +278,13 @@ class JoinDefinition(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     branches: list[str] = Field(description="List of activity IDs to wait for", min_length=1)
-    strategy: Literal["all", "any", "majority", "count"] = Field(
-        default="all", description="Join strategy: all, any, majority, or count"
-    )
+    strategy: JoinStrategy = Field(default=JoinStrategy.ALL, description="Join strategy: all, any, majority, or count")
     count: int | None = Field(
         default=None, ge=1, description="Required number of completed branches (only for 'count' strategy)"
     )
     timeout: str | None = Field(default=None, description="Maximum time to wait for join condition")
-    on_timeout: Literal["continue", "fail"] = Field(
-        default="fail", description="Action to take if timeout is reached", alias="onTimeout"
+    on_timeout: TimeoutAction = Field(
+        default=TimeoutAction.FAIL, description="Action to take if timeout is reached", alias="onTimeout"
     )
     aggregate_outputs: bool = Field(
         default=True,
@@ -225,7 +310,7 @@ class Activity(BaseModel):
 
     id: str = Field(description="Unique identifier for the activity", pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$")
     name: str | None = Field(default=None, description="Human-readable activity name")
-    type: Literal["task", "parallel", "sequence", "condition", "loop", "join"] = Field(description="Activity type")
+    type: ActivityType = Field(description="Activity type")
     condition: str | None = Field(
         default=None, description="Conditional expression (for condition type or conditional execution)"
     )

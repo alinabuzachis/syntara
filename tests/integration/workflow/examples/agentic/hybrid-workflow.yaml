@@ -1,0 +1,62 @@
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: hybrid-workflow
+  description: Workflow combining script tasks and agentic tasks
+  tags:
+  - agentic
+  - hybrid
+  - demo
+triggers:
+- type: manual
+
+workflow:
+  activities:
+  - id: prepare_data
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "Preparing data for analysis..."
+          echo '{"status": "ready", "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}'
+      outputs:
+        status: $.stdout
+
+  - id: analyze_with_ai
+    type: task
+    task:
+      executor: agentic
+      config:
+        agent: production://analysis-agent
+        model: claude-3-5-sonnet-20241022
+        prompt: |
+          Analyze the provided data and generate insights.
+
+          Data status: ${prepare_data.output.status}
+
+          Provide:
+          1. Key trends and patterns
+          2. Statistical summary
+          3. Recommendations
+      inputs:
+        data_status: ${prepare_data.output.status}
+      outputs:
+        analysis: $.result.content
+
+  - id: generate_report
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: |
+          echo "=== Analysis Report ==="
+          echo "Generated: $(date)"
+          echo ""
+          echo "Analysis: $INPUT_ANALYSIS"
+      inputs:
+        analysis: ${analyze_with_ai.output.analysis}
+      outputs:
+        report: $.stdout

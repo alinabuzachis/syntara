@@ -15,6 +15,9 @@ from nexus.workflows.workflow_engine.activities.common import build_retry_policy
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models import (
     Activity,
+    ActivityType,
+    BackoffStrategy,
+    ExecutorType,
     RetryPolicy,
     ScriptExecutorConfig,
     ScriptLanguage,
@@ -101,9 +104,10 @@ class TestRetryPolicy:
         """Test building retry policy when none configured."""
         activity = Activity(
             id="test",
-            type="task",
+            type=ActivityType.TASK,
             task=TaskDefinition(
-                executor="script", config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test")
+                executor=ExecutorType.SCRIPT,
+                config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test"),
             ),
         )
 
@@ -114,9 +118,10 @@ class TestRetryPolicy:
         """Test building basic retry policy."""
         activity = Activity(
             id="test",
-            type="task",
+            type=ActivityType.TASK,
             task=TaskDefinition(
-                executor="script", config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test")
+                executor=ExecutorType.SCRIPT,
+                config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test"),
             ),
             retryPolicy=RetryPolicy(maxAttempts=3, initialInterval="PT1S"),
         )
@@ -129,9 +134,10 @@ class TestRetryPolicy:
         """Test building retry policy with max interval."""
         activity = Activity(
             id="test",
-            type="task",
+            type=ActivityType.TASK,
             task=TaskDefinition(
-                executor="script", config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test")
+                executor=ExecutorType.SCRIPT,
+                config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test"),
             ),
             retryPolicy=RetryPolicy(maxAttempts=5, initialInterval="PT1S", maxInterval="PT30S"),
         )
@@ -144,11 +150,14 @@ class TestRetryPolicy:
         """Test building retry policy with exponential backoff."""
         activity = Activity(
             id="test",
-            type="task",
+            type=ActivityType.TASK,
             task=TaskDefinition(
-                executor="script", config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test")
+                executor=ExecutorType.SCRIPT,
+                config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test"),
             ),
-            retryPolicy=RetryPolicy(maxAttempts=5, initialInterval="PT1S", backoff="exponential", multiplier=2.0),
+            retryPolicy=RetryPolicy(
+                maxAttempts=5, initialInterval="PT1S", backoff=BackoffStrategy.EXPONENTIAL, multiplier=2.0
+            ),
         )
 
         policy = build_retry_policy(activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None)

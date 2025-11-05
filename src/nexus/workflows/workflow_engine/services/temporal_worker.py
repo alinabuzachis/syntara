@@ -16,6 +16,7 @@ from nexus.api.constants import (
     DEFAULT_TEMPORAL_ADDRESS,
     DEFAULT_TEMPORAL_NAMESPACE,
 )
+from nexus.workflows.workflow_engine.activities.agentic_activity import execute_agentic_activity
 from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
@@ -81,9 +82,10 @@ class TemporalWorkerService:
                 task_queue=self.task_queue,
                 workflows=[DynamicWorkflow],
                 activities=[
+                    execute_agentic_activity,
+                    execute_api_request,
                     execute_bash_script,
                     execute_python_script,
-                    execute_api_request,
                 ],
             )
 

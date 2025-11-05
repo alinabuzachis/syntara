@@ -6,12 +6,17 @@ via environment variables. All settings have sensible defaults.
 Environment Variables:
     NEXUS_API_TIMEOUT_SECONDS: Default timeout for API requests (default: 30)
     NEXUS_SCRIPT_TIMEOUT_MINUTES: Default timeout for script execution (default: 5)
+    NEXUS_AGENTIC_TIMEOUT_SECONDS: Default timeout for agentic activities (default: 300)
     NEXUS_MAX_DURATION_HOURS: Maximum allowed duration in hours (default: 8760, 0 = unlimited)
     NEXUS_MAX_DURATION_MINUTES: Maximum allowed duration in minutes (default: 525600, 0 = unlimited)
     NEXUS_MAX_DURATION_SECONDS: Maximum allowed duration in seconds (default: 31536000, 0 = unlimited)
     NEXUS_SCRIPT_CLEANUP_TERMINATE_TIMEOUT: Timeout for graceful process termination (default: 1.0)
     NEXUS_SCRIPT_CLEANUP_KILL_TIMEOUT: Timeout for forceful process kill (default: 0.5)
     NEXUS_MAX_ENV_VAR_LENGTH: Maximum length per environment variable (default: 32768)
+    NEXUS_MAX_PROMPT_LENGTH: Maximum prompt length for agentic activities (default: 100000)
+    NEXUS_MAX_INPUT_VALUE_LENGTH: Maximum length for individual input values (default: 10000)
+    NEXUS_MAX_TOTAL_INPUT_SIZE: Maximum total size of all input values (default: 50000)
+    NEXUS_AGENT_ORCHESTRATOR_URL: Base URL for Agent Orchestrator API (default: http://localhost:8000/api/v1)
 
 Note:
     Setting any MAX_DURATION_* value to 0 disables validation for that unit,
@@ -131,3 +136,20 @@ SCRIPT_CLEANUP_KILL_TIMEOUT = _get_float_env("NEXUS_SCRIPT_CLEANUP_KILL_TIMEOUT"
 
 MAX_ENV_VAR_LENGTH = _get_int_env("NEXUS_MAX_ENV_VAR_LENGTH", 32768, min_value=1024)
 """Maximum length per environment variable in bytes (default: 32768 = 32KB)."""
+
+# Agentic activity settings
+# Override via environment variables: NEXUS_AGENTIC_TIMEOUT_SECONDS, NEXUS_MAX_PROMPT_LENGTH, etc.
+AGENTIC_TIMEOUT_SECONDS = _get_int_env("NEXUS_AGENTIC_TIMEOUT_SECONDS", 300, min_value=1)
+"""Default timeout for agentic activities in seconds (default: 300 = 5 minutes)."""
+
+MAX_PROMPT_LENGTH = _get_int_env("NEXUS_MAX_PROMPT_LENGTH", 100_000, min_value=1000)
+"""Maximum prompt length for agentic activities in characters (default: 100000 = 100KB)."""
+
+MAX_INPUT_VALUE_LENGTH = _get_int_env("NEXUS_MAX_INPUT_VALUE_LENGTH", 10_000, min_value=100)
+"""Maximum length for individual input values in characters (default: 10000 = 10KB)."""
+
+MAX_TOTAL_INPUT_SIZE = _get_int_env("NEXUS_MAX_TOTAL_INPUT_SIZE", 50_000, min_value=1000)
+"""Maximum total size of all input values combined in characters (default: 50000 = 50KB)."""
+
+AGENT_ORCHESTRATOR_BASE_URL = os.getenv("NEXUS_AGENT_ORCHESTRATOR_URL", "http://localhost:8000/api/v1")
+"""Base URL for Agent Orchestrator API (default: http://localhost:8000/api/v1)."""

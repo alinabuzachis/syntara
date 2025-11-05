@@ -19,19 +19,24 @@ from .activities.script_activity import execute_bash_script, execute_python_scri
 from .expression_resolver import ExpressionResolver
 from .models import (
     Activity,
+    ActivityType,
     APIExecutorConfig,
     CountLoopDefinition,
+    ExecutorType,
     ForEachLoopDefinition,
     JoinDefinition,
+    LoopType,
     ScriptExecutorConfig,
+    TimeoutAction,
     WhileLoopDefinition,
     WorkflowDefinition,
 )
 
-# Import API activity with unsafe passthrough to avoid sandbox restrictions
-# The httpx library triggers urllib.request.Request warnings in Temporal's sandbox
+# Import API and agentic activities with unsafe passthrough to avoid sandbox restrictions
+# The httpx library and agent client trigger warnings in Temporal's sandbox
 # See: https://github.com/temporalio/sdk-python#avoiding-the-sandbox
 with workflow.unsafe.imports_passed_through():
+    from .activities.agentic_activity import execute_agentic_activity
     from .activities.api_activity import execute_api_request
 
 
@@ -206,17 +211,17 @@ class DynamicWorkflow:
         )
 
         # Route to appropriate handler based on activity type
-        if activity.type == "task":
+        if activity.type == ActivityType.TASK:
             return await self._execute_task_activity(activity, execution_id, workflow_state)
-        if activity.type == "parallel":
+        if activity.type == ActivityType.PARALLEL:
             return await self._execute_parallel_activity(activity, execution_id, workflow_state)
-        if activity.type == "sequence":
+        if activity.type == ActivityType.SEQUENCE:
             return await self._execute_sequence_activity(activity, execution_id, workflow_state)
-        if activity.type == "condition":
+        if activity.type == ActivityType.CONDITION:
             return await self._execute_condition_activity(activity, execution_id, workflow_state)
-        if activity.type == "loop":
+        if activity.type == ActivityType.LOOP:
             return await self._execute_loop_activity(activity, execution_id, workflow_state)
-        # activity.type == "join"  # noqa: ERA001
+        # activity.type == ActivityType.JOIN  # noqa: ERA001
         return await self._execute_join_activity(activity, workflow_state)
 
     async def _execute_script_executor(
@@ -338,6 +343,53 @@ class DynamicWorkflow:
             )
             raise
 
+    async def _execute_agentic_executor(
+        self,
+        activity: Activity,
+        task_inputs: dict[str, Any],
+        activity_timeout: timedelta,
+        execution_id: str,
+    ) -> dict[str, Any]:
+        """Execute an agentic executor.
+
+        Args:
+            activity: Task activity definition
+            task_inputs: Prepared task inputs
+            activity_timeout: Execution timeout
+            execution_id: Workflow execution ID
+
+        Returns:
+            Agentic execution result
+
+        """
+        if not activity.task:
+            msg = f"Activity {activity.id} has no task definition"
+            raise ValueError(msg)
+
+        try:
+            result = await workflow.execute_activity(
+                execute_agentic_activity,
+                args=[activity.task.model_dump(), task_inputs],
+                activity_id=activity.id,
+                start_to_close_timeout=activity_timeout,
+                retry_policy=build_retry_policy(
+                    activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None
+                ),
+            )
+
+            # Process output mappings if defined
+            if activity.task.outputs:
+                result = self._process_output_mappings(result, activity.task.outputs)
+
+            return cast("dict[str, Any]", result)
+
+        except Exception as e:
+            workflow.logger.error(
+                f"Agentic task {activity.id} failed: {e}",
+                extra={"activity_id": activity.id, "execution_id": execution_id},
+            )
+            raise
+
     async def _execute_task_activity(
         self,
         activity: Activity,
@@ -376,9 +428,11 @@ class DynamicWorkflow:
         timeout = parse_timeout(activity.timeout) if activity.timeout else timedelta(minutes=5)
 
         # Execute based on executor type
-        if activity.task.executor == "script":
+        if activity.task.executor == ExecutorType.SCRIPT:
             return await self._execute_script_executor(activity, task_inputs, timeout, execution_id)
-        # Otherwise, executor must be "api" (enforced by type system)
+        if activity.task.executor == ExecutorType.AGENTIC:
+            return await self._execute_agentic_executor(activity, task_inputs, timeout, execution_id)
+        # Otherwise, executor must be API (enforced by type system)
         return await self._execute_api_executor(activity, task_inputs, timeout, execution_id)
 
     async def _execute_parallel_activity(
@@ -584,11 +638,11 @@ class DynamicWorkflow:
 
         loop_def = activity.loop
 
-        if loop_def.type == "forEach":
+        if loop_def.type == LoopType.FOR_EACH:
             return await self._execute_foreach_loop(loop_def, execution_id, workflow_state)
-        if loop_def.type == "while":
+        if loop_def.type == LoopType.WHILE:
             return await self._execute_while_loop(loop_def, execution_id, workflow_state)
-        # loop_def.type == "count"  # noqa: ERA001
+        # loop_def.type == LoopType.COUNT  # noqa: ERA001
         return await self._execute_count_loop(loop_def, execution_id, workflow_state)
 
     async def _execute_foreach_loop(
@@ -746,7 +800,7 @@ class DynamicWorkflow:
             TimeoutError: If join is configured to fail on timeout
 
         """
-        if join_def.on_timeout == "fail":
+        if join_def.on_timeout == TimeoutAction.FAIL:
             msg = f"Join activity {activity.id} timed out after {join_def.timeout}"
             raise TimeoutError(msg)
 
@@ -834,7 +888,7 @@ class DynamicWorkflow:
             for task in pending:
                 task.cancel()
             # Raise error only if configured to fail
-            if join_def.on_timeout == "fail":
+            if join_def.on_timeout == TimeoutAction.FAIL:
                 msg = f"Join activity {activity.id} timed out after {join_def.timeout}"
                 raise TimeoutError(msg)
 

@@ -209,7 +209,10 @@ def _process_script_result(
 
 
 async def _execute_script_common(
-    command: list[str], inputs: dict[str, Any], environment: dict[str, str] | None = None
+    command: list[str],
+    inputs: dict[str, Any],
+    environment: dict[str, str] | None = None,
+    timeout_seconds: float | None = None,
 ) -> dict[str, Any]:
     """Execute a script with common subprocess handling logic (DRY).
 
@@ -219,6 +222,7 @@ async def _execute_script_common(
         command: Command to execute (e.g., ["bash", "-c", script] or ["python", "-c", script])
         inputs: Input parameters (passed as environment variables with INPUT_ prefix)
         environment: Optional environment variables from config.environment
+        timeout_seconds: Optional timeout in seconds (uses default if not provided)
 
     Returns:
         dict with keys:
@@ -244,8 +248,11 @@ async def _execute_script_common(
             env=env,
         )
 
-        # Wait for completion and process result
-        stdout_bytes, stderr_bytes = await process.communicate()
+        # Wait for completion with timeout and process result
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+            process.communicate(),
+            timeout=timeout_seconds,
+        )
         return _process_script_result(process.returncode, stdout_bytes, stderr_bytes)
 
     except (ScriptExecutionError, RuntimeError):
@@ -309,7 +316,12 @@ async def execute_bash_script(config: dict[str, Any], inputs: dict[str, Any]) ->
 
     # Use common script execution logic
     full_command = ["bash", "-c", script_config.code]
-    return await _execute_script_common(full_command, inputs, script_config.environment)
+    return await _execute_script_common(
+        full_command,
+        inputs,
+        script_config.environment,
+        timeout_seconds=float(script_config.timeout_seconds),
+    )
 
 
 @activity.defn
@@ -377,7 +389,12 @@ async def execute_python_script(config: dict[str, Any], inputs: dict[str, Any]) 
     # Use common script execution logic
     # Use sys.executable to ensure we use the same Python interpreter that's running the workflow
     full_command = [sys.executable, "-c", script_config.code]
-    result = await _execute_script_common(full_command, inputs, script_config.environment)
+    result = await _execute_script_common(
+        full_command,
+        inputs,
+        script_config.environment,
+        timeout_seconds=float(script_config.timeout_seconds),
+    )
 
     # Try to parse stdout as JSON for structured output
     # This allows Python scripts to return structured data

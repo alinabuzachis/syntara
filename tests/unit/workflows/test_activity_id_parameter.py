@@ -16,7 +16,9 @@ import pytest
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models import (
     Activity,
+    ActivityType,
     APIExecutorConfig,
+    ExecutorType,
     ScriptExecutorConfig,
     ScriptLanguage,
     TaskDefinition,
@@ -35,9 +37,9 @@ class TestActivityIdParameter:
         # Create a test activity with a specific ID
         activity = Activity(
             id="test_script_activity",
-            type="task",
+            type=ActivityType.TASK,
             task=TaskDefinition(
-                executor="script",
+                executor=ExecutorType.SCRIPT,
                 config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo 'test'"),
             ),
         )
@@ -73,9 +75,9 @@ class TestActivityIdParameter:
         # Create a test activity with a specific ID
         activity = Activity(
             id="test_api_activity",
-            type="task",
+            type=ActivityType.TASK,
             task=TaskDefinition(
-                executor="api",
+                executor=ExecutorType.API,
                 config=APIExecutorConfig(
                     method=HTTPMethod.GET,
                     url="https://api.example.com/data",
@@ -115,18 +117,18 @@ class TestActivityIdParameter:
         # Create two different activities
         script_activity = Activity(
             id="fetch_data",
-            type="task",
+            type=ActivityType.TASK,
             task=TaskDefinition(
-                executor="script",
+                executor=ExecutorType.SCRIPT,
                 config=ScriptExecutorConfig(language=ScriptLanguage.PYTHON, code="print('data')"),
             ),
         )
 
         api_activity = Activity(
             id="send_notification",
-            type="task",
+            type=ActivityType.TASK,
             task=TaskDefinition(
-                executor="api",
+                executor=ExecutorType.API,
                 config=APIExecutorConfig(
                     method=HTTPMethod.POST,
                     url="https://api.example.com/notify",
@@ -174,9 +176,9 @@ class TestActivityIdParameter:
         # Activity IDs can contain letters, numbers, and underscores
         activity = Activity(
             id="process_data_v2_step1",
-            type="task",
+            type=ActivityType.TASK,
             task=TaskDefinition(
-                executor="script",
+                executor=ExecutorType.SCRIPT,
                 config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test"),
             ),
         )

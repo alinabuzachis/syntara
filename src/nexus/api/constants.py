@@ -5,6 +5,7 @@ See docs/CONFIGURATION.md for detailed documentation.
 """
 
 import os
+from uuid import UUID
 
 # API configuration
 
@@ -42,6 +43,20 @@ Use cases for multiple queues:
 - Environment isolation: dev-queue, staging-queue, prod-queue
 - Priority tiers: high-priority-queue, standard-queue
 - Feature segregation: data-processing-queue, api-workflows-queue
+"""
+
+# System user for automated operations
+
+SYSTEM_USER_ID = UUID(os.getenv("NEXUS_SYSTEM_USER_ID", "00000000-0000-0000-0000-000000000001"))
+"""System user UUID for automated/workflow operations.
+
+Environment variable: NEXUS_SYSTEM_USER_ID
+Default: 00000000-0000-0000-0000-000000000001
+
+This user ID is used when operations are initiated by the system rather than
+a specific user (e.g., workflow-triggered invocations, scheduled jobs).
+
+Note: This user must exist in the users table. See database migrations/seeds.
 """
 
 # Workflow execution limits

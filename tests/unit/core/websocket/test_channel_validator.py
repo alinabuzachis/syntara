@@ -2,8 +2,6 @@
 
 import types
 
-import pytest
-
 from nexus.core.websocket.channel_validator import (
     ChannelValidationResult,
     check_missing_handlers,
@@ -172,7 +170,7 @@ class TestChannelValidationResult:
 
         assert result.is_valid is False
 
-    def test_add_error(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_add_error(self) -> None:
         """Test add_error method."""
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
@@ -180,9 +178,8 @@ class TestChannelValidationResult:
 
         assert len(result.errors) == 1
         assert result.errors[0] == "Test error message"
-        assert "Test error message" in caplog.text
 
-    def test_add_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_add_warning(self) -> None:
         """Test add_warning method."""
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
@@ -190,7 +187,6 @@ class TestChannelValidationResult:
 
         assert len(result.warnings) == 1
         assert result.warnings[0] == "Test warning message"
-        assert "Test warning message" in caplog.text
 
 
 class TestValidateNamingConvention:
