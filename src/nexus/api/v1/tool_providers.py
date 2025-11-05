@@ -13,6 +13,7 @@ from nexus.api.db import get_db
 from nexus.core.models import User
 from nexus.tool_manager.lib.exceptions import (
     ProviderError,
+    ProviderNameConflictError,
     ProviderNotFoundError,
     ValidationError,
 )
@@ -45,44 +46,6 @@ def _create_tool_provider_service(db: AsyncSession, current_user: User) -> ToolP
 
     """
     return ToolProviderService(db, current_user)
-
-
-def _is_duplicate_name_error(e: IntegrityError) -> bool:
-    """Check if IntegrityError is due to duplicate provider name.
-
-    Args:
-        e: The IntegrityError to check
-
-    Returns:
-        True if error is due to duplicate provider name constraint
-
-    """
-    error_str = str(e)
-    return (
-        "ix_tool_providers_name_unique" in error_str
-        or "tool_providers.name" in error_str
-        or ("duplicate key" in error_str.lower() and "name" in error_str.lower())
-    )
-
-
-def _handle_integrity_error(e: IntegrityError, provider_name: str | None = None) -> HTTPException:
-    """Handle IntegrityError and convert to appropriate HTTPException.
-
-    Args:
-        e: The IntegrityError to handle
-        provider_name: Name of the provider (for specific error messages)
-
-    Returns:
-        HTTPException with appropriate status code and message
-
-    """
-    if _is_duplicate_name_error(e):
-        if provider_name:
-            detail = f"Provider with name '{provider_name}' already exists"
-        else:
-            detail = "Provider name already exists"
-        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
-    return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("")
@@ -172,7 +135,9 @@ async def create_tool_provider(
     except ValidationError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
     except IntegrityError as e:
-        raise _handle_integrity_error(e, provider_create.name) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    except ProviderNameConflictError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message) from e
     except Exception as e:
         logger.exception("Unexpected error creating tool provider", exc_info=e)
         raise HTTPException(
@@ -255,8 +220,8 @@ async def update_tool_provider(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
     except ValidationError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
-    except IntegrityError as e:
-        raise _handle_integrity_error(e, provider_update.name) from e
+    except ProviderNameConflictError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message) from e
     except Exception as e:
         logger.exception("Unexpected error updating tool provider", exc_info=e)
         raise HTTPException(
@@ -301,7 +266,9 @@ async def patch_tool_provider(
     except ValidationError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
     except IntegrityError as e:
-        raise _handle_integrity_error(e) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    except ProviderNameConflictError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message) from e
     except Exception as e:
         logger.exception("Unexpected error patching tool provider", exc_info=e)
         raise HTTPException(

@@ -152,7 +152,7 @@ graph TD
 - [x] Used to validate core abstractions work correctly
 
 ### T008 [P]: Create contract YAML templates ✅ COMPLETED
-**File**: `./specs/004-tool-management/contracts/`
+**File**: `./schemas/tool_management/`
 - [x] Define expected API contracts (will be implemented in later tickets)
 - [x] Include keyset pagination patterns in all list endpoints
 - [x] Document bracket filter syntax with all supported operators
@@ -253,7 +253,7 @@ Task: "Define ToolProviderAdapter Protocol in ./src/nexus/tool_manager/lib/provi
 Task: "Create domain models and exceptions in ./src/nexus/tool_manager/lib/tool_core.py"
 Task: "Implement provider factory in ./src/nexus/tool_manager/lib/providers/factory.py"
 Task: "Create mock provider for testing in ./tests/fixtures/mock_provider.py"
-Task: "Create contract YAML templates in ./specs/004-tool-management/contracts/"
+Task: "Create contract YAML templates in ./schemas/tool_management/"
 ```
 
 **Phase 3.3 Test Implementation** (All can run in parallel after core abstractions):

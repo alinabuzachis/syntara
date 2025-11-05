@@ -30,7 +30,7 @@ This approach mirrors the successful workflow engine implementation pattern, ena
 - **Models**: `./src/nexus/tool_manager/models/`
 - **Lib/Shared**: `./src/nexus/tool_manager/lib/`
 - **Tests Root**: `./tests/`
-- **Contracts**: `./specs/004-tool-management/contracts/`
+- **OpenAPI Schemas**: `./schemas/tool_management/`
 
 **Existing Tooling**:
 - Linting: ruff
@@ -116,7 +116,7 @@ Establish the provider-agnostic architecture for tool management. This ticket de
   - `test_error_handling.py` - Test error handling and timeout scenarios
   - `test_pagination_logic.py` - Validate pagination and filtering logic
   - Achieve ≥80% coverage for tool_core.py
-- Contract YAML templates in `./specs/004-tool-management/contracts/`:
+- Contract YAML templates in `./schemas/tool_management/`:
   - Define expected API contracts (will be implemented in later tickets)
   - Include keyset pagination patterns
   - Document bracket filter syntax

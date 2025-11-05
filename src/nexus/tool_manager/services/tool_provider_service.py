@@ -5,10 +5,11 @@ core domain logic with database persistence and transaction management.
 """
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, NoReturn
 from uuid import UUID
 
 from sqlalchemy import Select, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
@@ -28,6 +29,7 @@ from nexus.core.utils import (
 )
 from nexus.tool_manager.lib.exceptions import (
     ProviderError,
+    ProviderNameConflictError,
     ProviderNotFoundError,
     ValidationError,
 )
@@ -64,6 +66,39 @@ class ToolProviderService:
         self.session = session
         self.user = user
         self.provider_factory = ProviderFactory()
+
+    def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
+        """Check if IntegrityError is due to duplicate provider name.
+
+        Args:
+            e: The IntegrityError to check
+
+        Returns:
+            True if error is due to duplicate provider name constraint
+
+        """
+        error_str = str(e)
+        return (
+            "ix_tool_providers_name_unique" in error_str
+            or "tool_providers.name" in error_str
+            or ("duplicate key" in error_str.lower() and "name" in error_str.lower())
+        )
+
+    async def _handle_integrity_error(self, e: IntegrityError, provider_name: str) -> NoReturn:
+        """Handle IntegrityError and raise appropriate domain exception.
+
+        Args:
+            e: The IntegrityError to handle
+            provider_name: Name of the provider causing the conflict
+
+        Raises:
+            ProviderNameConflictError: If duplicate name constraint violated
+            IntegrityError: For other integrity constraint violations
+
+        """
+        if self._is_duplicate_name_error(e):
+            raise ProviderNameConflictError(provider_name) from e
+        raise e
 
     def _apply_filters_to_query(
         self, query: SelectToolProvider, query_params: dict[str, str]
@@ -299,7 +334,7 @@ class ToolProviderService:
 
         Raises:
             ValidationError: If provider data is invalid
-            IntegrityError: If provider name already exists
+            ProviderNameConflictError: If provider name already exists
 
         """
         # Create provider instance from ToolProviderCreate
@@ -314,10 +349,13 @@ class ToolProviderService:
         )
 
         self.session.add(provider)
-        await self.session.flush()
-        await self.session.refresh(provider)
 
-        return provider
+        try:
+            await self.session.flush()
+            await self.session.refresh(provider)
+            return provider
+        except IntegrityError as e:
+            await self._handle_integrity_error(e, provider_create.name)
 
     async def get_provider(self, provider_id: UUID) -> ToolProvider:
         """Get a tool provider by ID.
@@ -356,6 +394,7 @@ class ToolProviderService:
         Raises:
             ProviderNotFoundError: If provider doesn't exist
             ValidationError: If update data is invalid
+            ProviderNameConflictError: If new name conflicts with existing provider
 
         """
         provider = await self.get_provider(provider_id)
@@ -368,9 +407,12 @@ class ToolProviderService:
         provider.updated_by = self.user.id
         provider.updated_at = datetime.now(UTC)
 
-        await self.session.flush()
-        await self.session.refresh(provider)
-        return provider
+        try:
+            await self.session.flush()
+            await self.session.refresh(provider)
+            return provider
+        except IntegrityError as e:
+            await self._handle_integrity_error(e, provider_update.name)
 
     async def patch_provider(self, provider_id: UUID, provider_patch: ToolProviderPatch) -> ToolProvider:
         """Patch a tool provider.
@@ -385,9 +427,13 @@ class ToolProviderService:
         Raises:
             ProviderNotFoundError: If provider doesn't exist
             ValidationError: If patch data is invalid
+            ProviderNameConflictError: If new name conflicts with existing provider
 
         """
         provider = await self.get_provider(provider_id)
+
+        # Capture the name that will be used (for error handling if needed)
+        provider_name = provider_patch.name if provider_patch.name is not None else provider.name
 
         # Apply patch fields if they are provided (not None)
         if provider_patch.name is not None:
@@ -406,9 +452,13 @@ class ToolProviderService:
         provider.updated_by = self.user.id
         provider.updated_at = datetime.now(UTC)
 
-        await self.session.flush()
-        await self.session.refresh(provider)
-        return provider
+        try:
+            await self.session.flush()
+            await self.session.refresh(provider)
+            return provider
+        except IntegrityError as e:
+            # Use the captured provider name for error handling (don't access provider.name after rollback)
+            await self._handle_integrity_error(e, provider_name)
 
     async def delete_provider(self, provider_id: UUID) -> None:
         """Soft delete a tool provider and associated tools.

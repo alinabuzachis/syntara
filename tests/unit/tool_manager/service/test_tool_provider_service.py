@@ -14,12 +14,12 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.tool_manager.lib.exceptions import (
     ProviderError,
+    ProviderNameConflictError,
     ProviderNotFoundError,
 )
 from nexus.tool_manager.models.tool import Tool
@@ -94,7 +94,7 @@ async def test_create_provider_prevents_duplicate_names(test_db_session: AsyncSe
     assert provider1.name == "Duplicate Provider"
 
     # Attempt to create second provider with same name (should fail)
-    with pytest.raises(IntegrityError, match=r".*unique.*|.*constraint.*"):
+    with pytest.raises(ProviderNameConflictError, match="Provider with name 'Duplicate Provider' already exists"):
         await service.create_provider(provider_create)
 
 
@@ -670,7 +670,7 @@ async def test_update_provider_prevents_duplicate_names(test_db_session: AsyncSe
     # Attempt to update provider2 to have same name as provider1 (should fail)
     update_data: ToolProviderCreate = ToolProviderCreate(name="Provider One", configuration={"provider_type": "test"})
 
-    with pytest.raises(IntegrityError, match=r".*unique.*|.*constraint.*"):
+    with pytest.raises(ProviderNameConflictError, match="Provider with name 'Provider One' already exists"):
         await service.update_provider(provider2.id, update_data)
 
 

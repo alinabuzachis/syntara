@@ -3,8 +3,12 @@
 Tests partial update functionality.
 """
 
+from collections.abc import Sequence
+from typing import Any
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.exc import IntegrityError
 
 from nexus.tool_manager.models import ToolProvider
 
@@ -200,6 +204,37 @@ class TestToolProvidersPatchContract:
 
         # Contract: Must return 409 Conflict for duplicate name
         assert response.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_patch_provider_integrity_error_non_name_conflict_contract(
+        self, base_client: AsyncClient, test_tool_provider: ToolProvider, monkeypatch
+    ) -> None:
+        """Test 400 error for IntegrityError that is NOT a name conflict."""
+
+        # Mock the database session flush to raise a non-name-conflict IntegrityError
+        async def mock_flush(_: Sequence[Any] | None = None) -> None:
+            # Create an IntegrityError that won't be detected as a name conflict
+            msg: str = "CHECK constraint failed: some_other_constraint"
+            raise IntegrityError(msg, None, BaseException())
+
+        # Patch the database session flush method
+        monkeypatch.setattr("sqlalchemy.ext.asyncio.AsyncSession.flush", mock_flush)
+
+        patch_data = {"description": "Updated description"}
+
+        response = await base_client.patch(
+            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            json=patch_data,
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+
+        # Contract: Must return 400 Bad Request for non-name-conflict IntegrityError
+        assert response.status_code == 400
+
+        # Contract: Must return error message with IntegrityError details
+        data = response.json()
+        error_message = str(data.get("error", data.get("detail", "")))
+        assert "CHECK constraint failed" in error_message
 
     @pytest.mark.asyncio
     async def test_patch_provider_without_enabled_preserves_existing_value_contract(

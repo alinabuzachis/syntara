@@ -30,3 +30,12 @@ class ValidationError(ToolManagerError):
 
 class ProviderNotFoundError(ToolManagerError):
     """Exception raised when a provider is not found."""
+
+
+class ProviderNameConflictError(ToolManagerError):
+    """Exception raised when a provider name already exists."""
+
+    def __init__(self, name: str) -> None:
+        """Initialize exception with provider name."""
+        self.name = name
+        super().__init__(f"Provider with name '{name}' already exists")
