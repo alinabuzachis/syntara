@@ -1,6 +1,10 @@
+import type { Tool } from '@ansible/nexus-contracts'
+import { Button, Form } from '@ansible/nexus-ui-framework'
+import { useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
+import { AppRoute } from '../../../app/AppRoute.tsx'
 import { toolProvidersClient, toolsClient } from '../../../client'
 import { ChatInput } from '../../../components/chat/ChatInput'
 import { useQueryState } from '../../../components/states/useQueryState'
@@ -8,10 +12,6 @@ import { StringCell } from '../../../components/table/StringCell'
 import { Table } from '../../../components/table/Table'
 import { useFuse } from '../../../hooks/useFuse'
 import { IntegrationEmptyState } from './IntegrationEmptyState.tsx'
-import { useState } from 'react'
-import type { Tool } from '@ansible/nexus-contracts'
-import { AppRoute } from '../../../app/AppRoute.tsx'
-import { Button, Form } from '@ansible/nexus-ui-framework'
 
 export default function IntegrationTools() {
   const params = useParams()
@@ -98,7 +98,7 @@ export default function IntegrationTools() {
               ),
             },
           ]}
-          emptyState=<IntegrationEmptyState />
+          emptyState={<IntegrationEmptyState />}
           onSelectionChange={(selected) => {
             setEnabledTools(selected)
             console.log(`${selected.length} tools enabled`)

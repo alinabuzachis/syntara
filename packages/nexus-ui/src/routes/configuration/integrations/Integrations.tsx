@@ -1,4 +1,6 @@
+import type { ToolProvider } from '@ansible/nexus-contracts'
 import {
+  EmptyStateFilter,
   Menu,
   MenuGroup,
   MenuItems,
@@ -20,8 +22,7 @@ import { StringCell } from '../../../components/table/StringCell'
 import { Table, type IRowAction } from '../../../components/table/Table'
 import { useFuse } from '../../../hooks/useFuse'
 import { IntegrationCard } from './IntegrationCard'
-import { IntegrationEmptyState } from './IntegrationEmptyState.tsx'
-import type { ToolProvider } from '@ansible/nexus-contracts'
+import { IntegrationEmptyState } from './IntegrationEmptyState'
 
 export default function Integrations() {
   const [, navigate] = useLocation()
@@ -58,7 +59,7 @@ export default function Integrations() {
 
   return (
     <AppPage>
-      {results && results.length > 0 && (
+      {query.data?.resources && query.data.resources.length > 0 && (
         <AppPageHeader title="Integrations">
           {/* <ExampleToggleGroup /> */}
           <input
@@ -116,7 +117,7 @@ export default function Integrations() {
               render: (item) => <StringCell>{item.tool_count}</StringCell>,
             },
           ]}
-          emptyState=<IntegrationEmptyState />
+          emptyState={search ? <EmptyStateFilter /> : <IntegrationEmptyState />}
         />
       ) : (
         <Scrollable className="glass grow rounded-4xl border">
