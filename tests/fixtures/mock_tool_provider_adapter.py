@@ -4,7 +4,7 @@ import asyncio
 import random
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
+from uuid import UUID
 
 from nexus.tool_manager.lib.exceptions import ProviderError, ToolNotFoundError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
@@ -23,6 +23,7 @@ class MockProvider(ToolProviderAdapter):
 
     def __init__(
         self,
+        provider_id: UUID | None = None,
         provider_name: str = "mock_provider",
         *,
         simulate_timeout: bool = False,
@@ -33,6 +34,7 @@ class MockProvider(ToolProviderAdapter):
         """Initialize mock provider with configurable behavior.
 
         Args:
+            provider_id: Provider ID
             provider_name: Name of the mock provider
             simulate_timeout: Whether to simulate timeout errors
             simulate_connection_error: Whether to simulate connection errors
@@ -40,6 +42,7 @@ class MockProvider(ToolProviderAdapter):
             response_delay_ms: Artificial delay in milliseconds for testing
 
         """
+        self.provider_id = provider_id
         self.provider_name = provider_name
         self.simulate_timeout = simulate_timeout
         self.simulate_connection_error = simulate_connection_error
@@ -117,13 +120,10 @@ class MockProvider(ToolProviderAdapter):
                 description="A simple tool that echoes input back",
                 parameters=[
                     ToolParameter(
-                        tool_id=uuid4(),
                         name="message",
                         type=ToolParameterType.STRING,
                         description="Message to echo back",
                         required=True,
-                        created_by=uuid4(),
-                        updated_by=uuid4(),
                     ),
                 ],
             ),
@@ -133,31 +133,22 @@ class MockProvider(ToolProviderAdapter):
                 description="Basic calculator tool for mathematical operations",
                 parameters=[
                     ToolParameter(
-                        tool_id=uuid4(),
                         name="operation",
                         type=ToolParameterType.STRING,
                         description="Mathematical operation to perform",
                         required=True,
-                        created_by=uuid4(),
-                        updated_by=uuid4(),
                     ),
                     ToolParameter(
-                        tool_id=uuid4(),
                         name="a",
                         type=ToolParameterType.NUMBER,
                         description="First operand",
                         required=True,
-                        created_by=uuid4(),
-                        updated_by=uuid4(),
                     ),
                     ToolParameter(
-                        tool_id=uuid4(),
                         name="b",
                         type=ToolParameterType.NUMBER,
                         description="Second operand",
                         required=True,
-                        created_by=uuid4(),
-                        updated_by=uuid4(),
                     ),
                 ],
             ),
@@ -167,23 +158,17 @@ class MockProvider(ToolProviderAdapter):
                 description="Tool for reading file contents",
                 parameters=[
                     ToolParameter(
-                        tool_id=uuid4(),
                         name="file_path",
                         type=ToolParameterType.STRING,
                         description="Path to file to read",
                         required=True,
-                        created_by=uuid4(),
-                        updated_by=uuid4(),
                     ),
                     ToolParameter(
-                        tool_id=uuid4(),
                         name="encoding",
                         type=ToolParameterType.STRING,
                         description="File encoding",
                         required=False,
                         default_value={"value": "utf-8"},
-                        created_by=uuid4(),
-                        updated_by=uuid4(),
                     ),
                 ],
             ),
@@ -193,24 +178,18 @@ class MockProvider(ToolProviderAdapter):
                 description="Generate a random number within specified range",
                 parameters=[
                     ToolParameter(
-                        tool_id=uuid4(),
                         name="min_value",
                         type=ToolParameterType.NUMBER,
                         description="Minimum value (inclusive)",
                         required=False,
                         default_value={"value": 0},
-                        created_by=uuid4(),
-                        updated_by=uuid4(),
                     ),
                     ToolParameter(
-                        tool_id=uuid4(),
                         name="max_value",
                         type=ToolParameterType.NUMBER,
                         description="Maximum value (inclusive)",
                         required=False,
                         default_value={"value": 100},
-                        created_by=uuid4(),
-                        updated_by=uuid4(),
                     ),
                 ],
             ),
@@ -252,6 +231,7 @@ class MockProvider(ToolProviderAdapter):
         await self._check_error_conditions()
 
         # Return a single tool when refreshed
+        # Note: Only set the metadata fields, not database fields like created_by, provider_id
         return [
             Tool(
                 name="echo_tool",
@@ -259,13 +239,10 @@ class MockProvider(ToolProviderAdapter):
                 description="A simple tool that echoes input back",
                 parameters=[
                     ToolParameter(
-                        tool_id=uuid4(),
                         name="message",
                         type=ToolParameterType.STRING,
                         description="Message to echo back",
                         required=True,
-                        created_by=uuid4(),
-                        updated_by=uuid4(),
                     ),
                 ],
             ),

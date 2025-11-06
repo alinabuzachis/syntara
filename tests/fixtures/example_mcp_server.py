@@ -1,0 +1,204 @@
+"""Test MCP server using FastMCP for integration testing."""
+
+import asyncio
+import logging
+import socket
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
+from typing import Any
+
+import uvicorn
+from fastmcp import FastMCP
+
+logger = logging.getLogger(__name__)
+
+
+class ExampleMCPServer:
+    """Test MCP server using FastMCP for integration testing."""
+
+    def __init__(self, host: str = "localhost", port: int = 8765) -> None:
+        """Initialize test MCP server.
+
+        Args:
+            host: Host to bind server to
+            port: Port to bind server to
+
+        """
+        self.host = host
+        self.port = port
+        self.server_url = f"http://{host}:{port}"
+        self.base_url = f"http://{host}:{port}/mcp"  # MCP endpoint path
+        self.mcp_app = FastMCP("Example MCP Server")
+        self._server: uvicorn.Server | None = None
+        self._server_task: asyncio.Task[None] | None = None
+        self._setup_tools()
+
+    def _setup_tools(self) -> None:
+        """Set up test tools for the MCP server."""
+
+        @self.mcp_app.tool()
+        def calculate_sum(a: int, b: int) -> dict[str, Any]:
+            """Calculate the sum of two numbers.
+
+            Args:
+                a: First number
+                b: Second number
+
+            Returns:
+                Dictionary with the sum result
+
+            """
+            result = a + b
+            return {
+                "operation": "sum",
+                "inputs": {"a": a, "b": b},
+                "result": result,
+                "message": f"The sum of {a} and {b} is {result}",
+            }
+
+        @self.mcp_app.tool()
+        def calculate_product(a: float, b: float) -> dict[str, Any]:
+            """Calculate the product of two numbers.
+
+            Args:
+                a: First number
+                b: Second number
+
+            Returns:
+                Dictionary with the product result
+
+            """
+            result = a * b
+            return {
+                "operation": "product",
+                "inputs": {"a": a, "b": b},
+                "result": result,
+                "message": f"The product of {a} and {b} is {result}",
+            }
+
+        @self.mcp_app.tool()
+        def get_greeting(name: str, *, formal: bool = False) -> dict[str, Any]:
+            """Generate a greeting message.
+
+            Args:
+                name: Name of the person to greet
+                formal: Whether to use formal greeting
+
+            Returns:
+                Dictionary with greeting message
+
+            """
+            message = f"Good day, {name}. I hope you are well." if formal else f"Hello, {name}! How are you?"
+
+            return {
+                "operation": "greeting",
+                "inputs": {"name": name, "formal": formal},
+                "message": message,
+                "greeting_type": "formal" if formal else "casual",
+            }
+
+    async def start(self) -> None:
+        """Start the test MCP server."""
+        # Configure uvicorn to run the FastMCP HTTP app with streamable-http transport
+        config = uvicorn.Config(
+            self.mcp_app.http_app(transport="streamable-http"),
+            host=self.host,
+            port=self.port,
+            log_level="warning",
+            loop="asyncio",
+            access_log=False,
+            workers=1,
+        )
+
+        # Start server in background task
+        self._server = uvicorn.Server(config)
+        self._server_task = asyncio.create_task(self._server.serve())
+
+        # Wait for server to be ready with health check
+        await self._wait_for_server_ready()
+
+        logger.info("Test MCP server started at %s, MCP endpoint at %s", self.server_url, self.base_url)
+
+    async def _wait_for_server_ready(self, *, max_timeout: float = 10.0) -> None:
+        """Wait for server to be ready by attempting connection checks.
+
+        Args:
+            max_timeout: Maximum time to wait for server startup
+
+        """
+        start_time = asyncio.get_event_loop().time()
+        while (asyncio.get_event_loop().time() - start_time) < max_timeout:
+            try:
+                # Try to connect to the server socket
+                with socket.create_connection((self.host, self.port), timeout=1.0):
+                    logger.debug("Server socket connection successful")
+                    # Give a bit more time for FastMCP to fully initialize
+                    await asyncio.sleep(0.5)
+                    return
+            except OSError:
+                pass
+
+            await asyncio.sleep(0.1)
+
+        msg = f"Server did not start within {max_timeout}s"
+        raise TimeoutError(msg)
+
+    async def stop(self) -> None:
+        """Stop the test MCP server."""
+        if not self._server:
+            return
+        if not self._server_task:
+            return
+
+        try:
+            self._server.should_exit = True
+            await asyncio.wait_for(self._server_task, timeout=5.0)
+        except TimeoutError:
+            self._server_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._server_task
+
+        logger.info("Test MCP server stopped at %s", self.server_url)
+
+    @asynccontextmanager
+    async def running(self) -> AsyncIterator["ExampleMCPServer"]:
+        """Context manager for running the test server."""
+        await self.start()
+        try:
+            yield self
+        finally:
+            await self.stop()
+
+    def get_tools_info(self) -> list[dict[str, Any]]:
+        """Get information about available tools.
+
+        Returns:
+            List of tool information dictionaries
+
+        """
+        return [
+            {
+                "name": "calculate_sum",
+                "description": "Calculate the sum of two numbers",
+                "parameters": {
+                    "a": {"type": "integer", "description": "First number"},
+                    "b": {"type": "integer", "description": "Second number"},
+                },
+            },
+            {
+                "name": "calculate_product",
+                "description": "Calculate the product of two numbers",
+                "parameters": {
+                    "a": {"type": "number", "description": "First number"},
+                    "b": {"type": "number", "description": "Second number"},
+                },
+            },
+            {
+                "name": "get_greeting",
+                "description": "Generate a greeting message",
+                "parameters": {
+                    "name": {"type": "string", "description": "Name of the person to greet"},
+                    "formal": {"type": "boolean", "description": "Whether to use formal greeting", "default": False},
+                },
+            },
+        ]

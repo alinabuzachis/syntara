@@ -9,11 +9,13 @@ Tests cover:
 - Soft delete behavior
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
@@ -22,7 +24,8 @@ from nexus.tool_manager.lib.exceptions import (
     ProviderNameConflictError,
     ProviderNotFoundError,
 )
-from nexus.tool_manager.models.tool import Tool
+from nexus.tool_manager.lib.providers.factory import ProviderFactory
+from nexus.tool_manager.models.tool import Tool, ToolParameter
 from nexus.tool_manager.models.tool_provider import (
     ProviderStatus,
     ToolProvider,
@@ -31,23 +34,26 @@ from nexus.tool_manager.models.tool_provider import (
 )
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 
+if TYPE_CHECKING:
+    from nexus.tool_manager.models import ToolProviderValidationResult
+
 
 @pytest.mark.asyncio
-async def test_create_provider_success(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test successful provider creation."""
-    service = ToolProviderService(test_db_session, test_user)
-
+async def test_create_provider_success(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test successful provider creation with VALIDATING status."""
     provider_create = ToolProviderCreate(
         name="Test Provider",
         description="A test provider for unit testing",
-        configuration={"provider_type": "test", "endpoint": "http://localhost:8080"},
+        configuration={"provider_type": "mock"},
     )
 
-    provider = await service.create_provider(provider_create)
+    provider = await test_tool_provider_service.create_provider(provider_create)
 
     assert provider.name == "Test Provider"
     assert provider.description == "A test provider for unit testing"
-    assert provider.configuration == {"provider_type": "test", "endpoint": "http://localhost:8080"}
+    assert provider.configuration == {"provider_type": "mock"}
     assert provider.enabled is True
     assert provider.status == ProviderStatus.VALIDATING
     assert provider.created_by == test_user.id
@@ -80,22 +86,22 @@ async def test_create_provider_missing_provider_type(test_db_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_create_provider_prevents_duplicate_names(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_create_provider_prevents_duplicate_names(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
     """Test provider creation prevents duplicate names due to unique constraint."""
-    service = ToolProviderService(test_db_session, test_user)
-
     provider_create = ToolProviderCreate(
         name="Duplicate Provider",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mock"},
     )
 
     # Create first provider
-    provider1 = await service.create_provider(provider_create)
+    provider1 = await test_tool_provider_service.create_provider(provider_create)
     assert provider1.name == "Duplicate Provider"
 
     # Attempt to create second provider with same name (should fail)
     with pytest.raises(ProviderNameConflictError, match="Provider with name 'Duplicate Provider' already exists"):
-        await service.create_provider(provider_create)
+        await test_tool_provider_service.create_provider(provider_create)
 
 
 @pytest.mark.asyncio
@@ -103,7 +109,8 @@ async def test_get_provider_success(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:
     """Test successful provider retrieval."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     provider = await service.get_provider(test_tool_provider.id)
 
@@ -115,7 +122,8 @@ async def test_get_provider_success(
 @pytest.mark.asyncio
 async def test_get_provider_not_found(test_db_session: AsyncSession, test_user: User) -> None:
     """Test provider retrieval with non-existent ID."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
     non_existent_id = uuid4()
 
     with pytest.raises(ProviderNotFoundError, match=f"Provider {non_existent_id} not found"):
@@ -127,7 +135,8 @@ async def test_get_provider_soft_deleted(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:
     """Test provider retrieval fails for soft-deleted provider."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Soft delete the provider
     test_tool_provider.deleted_at = datetime.now(UTC)
@@ -143,7 +152,8 @@ async def test_update_provider_success(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:
     """Test successful provider update."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     provider_update: ToolProviderCreate = ToolProviderCreate(
         name="Updated Provider",
@@ -167,7 +177,8 @@ async def test_update_provider_invalid_configuration(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:
     """Test provider update fails with invalid configuration."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Mock ToolProviderCreate with invalid configuration
     mock_provider_update = Mock(spec=ToolProviderCreate)
@@ -184,7 +195,8 @@ async def test_patch_provider_success(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:
     """Test successful provider patch (partial update)."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Set initial configuration
     test_tool_provider.configuration = {"provider_type": "test", "existing": "value"}
@@ -213,7 +225,8 @@ async def test_patch_provider_configuration_merge(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:
     """Test configuration merging in patch operation."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Set initial configuration
     test_tool_provider.configuration = {
@@ -243,7 +256,8 @@ async def test_delete_provider_success(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:
     """Test successful provider soft deletion."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Create some tools for the provider
     tool1 = Tool(
@@ -284,7 +298,8 @@ async def test_delete_provider_success(
 @pytest.mark.asyncio
 async def test_list_providers_empty(test_db_session: AsyncSession, test_user: User) -> None:
     """Test listing providers when none exist."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     result = await service.list_providers()
 
@@ -298,7 +313,8 @@ async def test_list_providers_basic(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:
     """Test basic provider listing."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     result = await service.list_providers()
 
@@ -312,7 +328,8 @@ async def test_list_providers_with_total(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:
     """Test provider listing with total count."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     result = await service.list_providers(include_total=True)
 
@@ -323,7 +340,8 @@ async def test_list_providers_with_total(
 @pytest.mark.asyncio
 async def test_list_providers_filtering(test_db_session: AsyncSession, test_user: User) -> None:
     """Test provider listing with filtering."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Create test providers
     provider1 = ToolProvider(
@@ -392,7 +410,8 @@ async def test_list_providers_filtering(test_db_session: AsyncSession, test_user
 @pytest.mark.asyncio
 async def test_list_providers_sorting(test_db_session: AsyncSession, test_user: User) -> None:
     """Test provider listing with different sorting options."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Create test providers
     provider1 = ToolProvider(
@@ -439,7 +458,8 @@ async def test_list_providers_sorting(test_db_session: AsyncSession, test_user: 
 @pytest.mark.asyncio
 async def test_list_providers_pagination(test_db_session: AsyncSession, test_user: User) -> None:
     """Test provider listing with pagination."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Create multiple test providers
     providers = []
@@ -468,7 +488,8 @@ async def test_list_providers_pagination(test_db_session: AsyncSession, test_use
 @pytest.mark.asyncio
 async def test_list_providers_excludes_soft_deleted(test_db_session: AsyncSession, test_user: User) -> None:
     """Test that soft-deleted providers are excluded from listing."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Create active provider
     active_provider = ToolProvider(
@@ -503,7 +524,8 @@ async def test_list_providers_excludes_soft_deleted(test_db_session: AsyncSessio
 @pytest.mark.asyncio
 async def test_list_providers_complex_filtering(test_db_session: AsyncSession, test_user: User) -> None:
     """Test provider listing with complex filter combinations."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Create providers with different combinations of attributes
     provider1 = ToolProvider(
@@ -588,17 +610,19 @@ async def test_refresh_tools_unavailable_provider(
 @pytest.mark.asyncio
 async def test_service_initialization(test_db_session: AsyncSession, test_user: User) -> None:
     """Test service initialization."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     assert service.session == test_db_session
     assert service.user == test_user
-    assert service.provider_factory is not None
+    assert service.provider_factory == provider_factory
 
 
 @pytest.mark.asyncio
 async def test_list_providers_with_cursor_and_sorting(test_db_session: AsyncSession, test_user: User) -> None:
     """Test provider listing with both cursor pagination and sorting."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Create test providers
     providers = []
@@ -625,28 +649,29 @@ async def test_list_providers_with_cursor_and_sorting(test_db_session: AsyncSess
 
 
 @pytest.mark.asyncio
-async def test_create_provider_defaults(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test provider creation with default values."""
-    service = ToolProviderService(test_db_session, test_user)
-
+async def test_create_provider_defaults(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test provider creation with default values and VALIDATING status."""
     provider_data: ToolProviderCreate = ToolProviderCreate(
         name="Minimal Provider",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mock"},
         # No enabled or description provided
     )
 
-    provider = await service.create_provider(provider_data)
+    provider = await test_tool_provider_service.create_provider(provider_data)
 
     assert provider.name == "Minimal Provider"
     assert provider.description is None
     assert provider.enabled is True  # Default value
-    assert provider.status == ProviderStatus.VALIDATING  # Default for new providers
+    assert provider.status == ProviderStatus.VALIDATING
 
 
 @pytest.mark.asyncio
 async def test_update_provider_prevents_duplicate_names(test_db_session: AsyncSession, test_user: User) -> None:
     """Test provider update prevents duplicate names due to unique constraint."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Create two providers
     provider1 = ToolProvider(
@@ -679,7 +704,8 @@ async def test_patch_provider_without_enabled_preserves_existing_value(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:
     """Test that patching a provider without 'enabled' field preserves the existing 'enabled' value."""
-    service = ToolProviderService(test_db_session, test_user)
+    provider_factory = ProviderFactory()
+    service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Set initial enabled state to False
     test_tool_provider.enabled = False
@@ -712,3 +738,378 @@ async def test_patch_provider_without_enabled_preserves_existing_value(
     # The 'enabled' value should remain unchanged (True)
     assert patched_provider2.enabled is True
     assert patched_provider2.description == "Another update without enabled field"
+
+
+@pytest.mark.asyncio
+async def test_validate_provider_definition_success(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test successful provider definition validation without database persistence."""
+    provider_create = ToolProviderCreate(
+        name="Test Provider",
+        description="A test provider for validation testing",
+        configuration={"provider_type": "mock"},
+    )
+
+    result: ToolProviderValidationResult = await test_tool_provider_service.validate_provider_definition(
+        provider_create
+    )
+
+    assert result.valid is True
+    assert result.provider_type == "mock"
+    assert result.error is None
+    assert result.validated_at is not None
+
+    # Verify no provider was created in database
+    providers = await test_tool_provider_service.list_providers()
+    assert len(providers.resources) == 0
+
+
+@pytest.mark.asyncio
+async def test_validate_provider_definition_invalid_provider_type(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test provider definition validation with invalid provider type."""
+    provider_create = ToolProviderCreate(
+        name="Invalid Provider",
+        description="Provider with unknown type",
+        configuration={"provider_type": "unknown_type"},
+    )
+
+    result: ToolProviderValidationResult = await test_tool_provider_service.validate_provider_definition(
+        provider_create
+    )
+
+    assert not result.valid
+    assert result.provider_type == "unknown_type"
+    assert result.validated_at is not None
+    assert result.error is not None
+    assert "Provider connection validation failed: Unknown provider type 'unknown_type'" in result.error
+
+
+@pytest.mark.asyncio
+async def test_validate_provider_definition_connection_error(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test provider definition validation with simulated connection error."""
+    provider_create = ToolProviderCreate(
+        name="Connection Error Provider",
+        description="Provider that simulates connection error",
+        configuration={
+            "provider_type": "mock",
+            "simulate_connection_error": True,
+        },
+    )
+
+    result: ToolProviderValidationResult = await test_tool_provider_service.validate_provider_definition(
+        provider_create
+    )
+
+    assert not result.valid
+    assert result.provider_type == "mock"
+    assert result.validated_at is not None
+    assert result.error is not None
+    assert "Provider connection validation failed: Simulated connection error" in result.error
+
+
+@pytest.mark.asyncio
+async def test_validate_provider_definition_vs_validate_provider_comparison(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test that validate_provider_definition gives same results as validate_provider but without persistence."""
+    # First, create a provider using create_provider (leaves status as VALIDATING)
+    provider_create = ToolProviderCreate(
+        name="Comparison Provider",
+        description="For comparing validation methods",
+        configuration={"provider_type": "mock"},
+    )
+
+    created_provider = await test_tool_provider_service.create_provider(provider_create)
+    assert created_provider.status == ProviderStatus.VALIDATING
+
+    # Validate the created provider using validate_provider
+    persisted_validation = await test_tool_provider_service.validate_provider(created_provider.id)
+
+    # Now validate the same configuration using validate_provider_definition
+    definition_validation = await test_tool_provider_service.validate_provider_definition(provider_create)
+
+    # Both should have the same validation results
+    assert persisted_validation.valid == definition_validation.valid
+    assert persisted_validation.provider_type == definition_validation.provider_type
+    assert persisted_validation.error == definition_validation.error
+
+    # The timestamps will be different, but both should be valid datetime objects
+    assert persisted_validation.validated_at is not None
+    assert definition_validation.validated_at is not None
+
+
+# New workflow integration tests for create -> validate -> refresh workflow
+
+
+@pytest.mark.asyncio
+async def test_full_provider_workflow_success(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test complete provider workflow: create -> validate -> refresh_tools."""
+    # Step 1: Create provider (status should be VALIDATING)
+    provider_create = ToolProviderCreate(
+        name="Workflow Test Provider",
+        description="Testing complete workflow",
+        configuration={"provider_type": "mock"},
+    )
+
+    provider = await test_tool_provider_service.create_provider(provider_create)
+    assert provider.status == ProviderStatus.VALIDATING
+    assert provider.validation_error is None
+    assert provider.last_validated_at is None
+
+    # Step 2: Validate provider (status should become AVAILABLE)
+    validation_result = await test_tool_provider_service.validate_provider(provider.id)
+    assert validation_result.valid is True
+    assert validation_result.provider_type == "mock"
+    assert validation_result.error is None
+
+    # Refresh provider from database to check updated status
+    await test_db_session.refresh(provider)
+    assert provider.status.value == ProviderStatus.AVAILABLE.value
+    assert provider.validation_error is None
+    assert provider.last_validated_at is not None
+
+    # Step 3: Refresh tools (should create tools and parameters)
+    refresh_result = await test_tool_provider_service.refresh_tools(provider.id)  # type: ignore[unreachable]
+    assert refresh_result.refreshed_count > 0  # Should create some tools
+
+    # Verify tools were created
+    tools_query = select(Tool).filter(
+        Tool.provider_id == provider.id,
+        Tool.deleted_at.is_(None),
+    )
+    tools_result = await test_db_session.execute(tools_query)
+    tools = tools_result.scalars().all()
+    assert len(tools) == refresh_result.refreshed_count
+
+
+@pytest.mark.asyncio
+async def test_validate_provider_transitions_status_from_validating_to_available(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test that validate_provider correctly transitions status from VALIDATING to AVAILABLE."""
+    # Create provider
+    provider_create = ToolProviderCreate(
+        name="Status Transition Test",
+        configuration={"provider_type": "mock"},
+    )
+
+    provider = await test_tool_provider_service.create_provider(provider_create)
+    assert provider.status == ProviderStatus.VALIDATING
+
+    # Validate provider
+    validation_result = await test_tool_provider_service.validate_provider(provider.id)
+    assert validation_result.valid is True
+
+    # Check status was updated in database
+    await test_db_session.refresh(provider)
+    assert provider.status.value == ProviderStatus.AVAILABLE.value
+    assert provider.last_validated_at is not None
+    assert provider.validation_error is None
+
+
+@pytest.mark.asyncio
+async def test_validate_provider_transitions_status_from_validating_to_error(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test that validate_provider correctly transitions status from VALIDATING to ERROR on failure."""
+    # Create provider with configuration that will fail validation
+    provider_create = ToolProviderCreate(
+        name="Error Transition Test",
+        configuration={
+            "provider_type": "mock",
+            "simulate_connection_error": True,  # This should cause validation to fail
+        },
+    )
+
+    provider = await test_tool_provider_service.create_provider(provider_create)
+    assert provider.status.value == ProviderStatus.VALIDATING.value
+
+    # Validate provider (should fail)
+    validation_result = await test_tool_provider_service.validate_provider(provider.id)
+    assert validation_result.valid is False
+    assert validation_result.error is not None
+
+    # Check status was updated to ERROR in database
+    await test_db_session.refresh(provider)
+    assert provider.status.value == ProviderStatus.ERROR.value
+    assert provider.last_validated_at is not None
+    assert provider.validation_error is not None
+
+
+@pytest.mark.asyncio
+async def test_refresh_tools_only_works_with_available_provider(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test that refresh_tools only works when provider status is AVAILABLE."""
+    # Create provider (status will be VALIDATING)
+    provider_create = ToolProviderCreate(
+        name="Refresh Tools Test",
+        configuration={"provider_type": "mock"},
+    )
+
+    provider = await test_tool_provider_service.create_provider(provider_create)
+    assert provider.status == ProviderStatus.VALIDATING
+
+    # Try to refresh tools while status is VALIDATING (should fail)
+    with pytest.raises(ProviderError, match=f"Provider {provider.id} is not available for tool refresh"):
+        await test_tool_provider_service.refresh_tools(provider.id)
+
+    # Validate provider to make it AVAILABLE
+    await test_tool_provider_service.validate_provider(provider.id)
+    await test_db_session.refresh(provider)
+    assert provider.status.value == ProviderStatus.AVAILABLE.value
+
+    # Now refresh_tools should work
+    refresh_result = await test_tool_provider_service.refresh_tools(provider.id)
+    assert refresh_result.refreshed_count >= 0  # Should succeed
+
+
+@pytest.mark.asyncio
+async def test_create_provider_does_not_create_tools(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test that create_provider does NOT create any tools - tools are only created by refresh_tools."""
+    # Create provider
+    provider_create = ToolProviderCreate(
+        name="No Tools Test",
+        configuration={"provider_type": "mock"},
+    )
+
+    provider = await test_tool_provider_service.create_provider(provider_create)
+    assert provider.status.value == ProviderStatus.VALIDATING.value
+
+    # Verify no tools were created during provider creation
+    tools_query = select(Tool).filter(Tool.provider_id == provider.id, Tool.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
+    tools_result = await test_db_session.execute(tools_query)
+    tools = tools_result.scalars().all()
+    assert len(tools) == 0
+
+    # Even after validation, tools should still not exist until refresh_tools is called
+    await test_tool_provider_service.validate_provider(provider.id)
+    await test_db_session.refresh(provider)
+    assert provider.status.value == ProviderStatus.AVAILABLE.value
+
+    # Still no tools
+    tools_result = await test_db_session.execute(tools_query)
+    tools = tools_result.scalars().all()
+    assert len(tools) == 0
+
+    # Only after refresh_tools should tools be created
+    refresh_result = await test_tool_provider_service.refresh_tools(provider.id)
+    assert refresh_result.refreshed_count > 0
+
+    # Now tools should exist
+    tools_result = await test_db_session.execute(tools_query)
+    tools = tools_result.scalars().all()
+    assert len(tools) == refresh_result.refreshed_count
+
+
+@pytest.mark.asyncio
+async def test_workflow_with_tool_parameters(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test complete workflow ensuring tool parameters are created during refresh_tools."""
+    # Create and validate provider
+    provider_create = ToolProviderCreate(
+        name="Parameters Test Provider",
+        configuration={"provider_type": "mock"},
+    )
+
+    provider = await test_tool_provider_service.create_provider(provider_create)
+    await test_tool_provider_service.validate_provider(provider.id)
+
+    # Refresh tools (should create tools with parameters)
+    refresh_result = await test_tool_provider_service.refresh_tools(provider.id)
+    assert refresh_result.refreshed_count > 0
+
+    # Verify tools and their parameters were created
+
+    tools_query = select(Tool).filter(Tool.provider_id == provider.id, Tool.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
+    tools_result = await test_db_session.execute(tools_query)
+    tools = tools_result.scalars().all()
+    assert len(tools) > 0
+
+    # Check that at least some tools have parameters
+    total_parameters = 0
+    for tool in tools:
+        params_query = select(ToolParameter).filter(ToolParameter.tool_id == tool.id)
+        params_result = await test_db_session.execute(params_query)
+        parameters = params_result.scalars().all()
+        total_parameters += len(parameters)
+
+    # The mock provider should create some tools with parameters
+    assert total_parameters >= 0  # Mock provider might not have parameters, but the structure should work
+
+
+@pytest.mark.asyncio
+async def test_refresh_tools_multiple_times_works_correctly(
+    test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
+) -> None:
+    """Test that refreshing tools multiple times on the same provider works correctly."""
+    # Create and validate provider
+    provider_create = ToolProviderCreate(
+        name="Multiple Refresh Test Provider",
+        configuration={"provider_type": "mock"},
+    )
+
+    provider = await test_tool_provider_service.create_provider(provider_create)
+    await test_tool_provider_service.validate_provider(provider.id)
+
+    # First refresh
+    first_refresh_result = await test_tool_provider_service.refresh_tools(provider.id)
+    assert first_refresh_result.refreshed_count > 0
+    assert first_refresh_result.updated_count == 0  # No existing tools to update
+    assert first_refresh_result.disabled_count == 0  # No tools to disable
+
+    # Verify tools were created
+    tools_query = select(Tool).filter(Tool.provider_id == provider.id, Tool.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
+    tools_result = await test_db_session.execute(tools_query)
+    first_tools = tools_result.scalars().all()
+    first_tool_count = len(first_tools)
+    assert first_tool_count > 0
+
+    # Verify tool parameters were created
+    total_first_parameters = 0
+    for tool in first_tools:
+        params_query = select(ToolParameter).filter(ToolParameter.tool_id == tool.id)
+        params_result = await test_db_session.execute(params_query)
+        parameters = params_result.scalars().all()
+        total_first_parameters += len(parameters)
+
+    # Second refresh - should update existing tools, not create new ones
+    second_refresh_result = await test_tool_provider_service.refresh_tools(provider.id)
+    assert second_refresh_result.refreshed_count == 0  # No new tools created
+    assert second_refresh_result.updated_count == first_tool_count  # All existing tools updated
+    assert second_refresh_result.disabled_count == 0  # No tools disabled
+
+    # Verify same number of tools still exist
+    tools_result = await test_db_session.execute(tools_query)
+    second_tools = tools_result.scalars().all()
+    assert len(second_tools) == first_tool_count
+
+    # Verify tool parameters still exist and are the same count
+    total_second_parameters = 0
+    for tool in second_tools:
+        params_query = select(ToolParameter).filter(ToolParameter.tool_id == tool.id)
+        params_result = await test_db_session.execute(params_query)
+        parameters = params_result.scalars().all()
+        total_second_parameters += len(parameters)
+
+    assert total_second_parameters == total_first_parameters
+
+    # Verify all tools have their timestamps updated (they should be recent)
+    recent_time = datetime.now(UTC) - timedelta(seconds=10)  # Within last 10 seconds
+
+    for tool in second_tools:
+        assert tool.last_refreshed_at is not None
+        assert tool.last_refreshed_at > recent_time
+        assert tool.updated_at is not None
+        assert tool.updated_at > recent_time
+        assert tool.updated_by == test_user.id

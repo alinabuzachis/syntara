@@ -336,6 +336,38 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
 
+  /tool-providers/test:
+    post:
+      summary: Test Tool Provider definition
+      description: |
+        Test a Tool Provider definition without saving it to the database.
+        Validates the configuration and tests connectivity using the appropriate adapter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolProviderCreate'
+      responses:
+        '200':
+          description: Provider definition test completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProviderValidationResult'
+        '400':
+          description: Invalid provider configuration or test failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProviderValidationResult'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+
 components:
   schemas:
     ToolProvider:

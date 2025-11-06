@@ -66,13 +66,13 @@ class TestToolProvidersValidateContract:
 
         response = await base_client.post(f"/api/v1/tool-providers/{test_tool_provider.id}/validate")
 
-        # Contract: Must return 400 Bad Request for validation failure
-        assert response.status_code == 400
+        # Contract: Must return 200 with validation result showing failure
+        assert response.status_code == 200
 
         # Contract: Must return validation failure details
         data = response.json()
-        assert "detail" in data
-        assert data["detail"] == "Provider validation failed: Simulated connection error"
+        assert data["valid"] is False
+        assert data["error"] == "Provider connection validation failed: Simulated connection error"
 
     @pytest.mark.asyncio
     async def test_validate_provider_not_found_contract(self, base_client: AsyncClient) -> None:
@@ -121,7 +121,11 @@ class TestToolProvidersValidateContract:
 
         # Validate the provider (expecting failure)
         validate_response = await base_client.post(f"/api/v1/tool-providers/{test_tool_provider.id}/validate")
-        assert validate_response.status_code == 400
+        assert validate_response.status_code == 200
+
+        # Verify validation failed
+        validation_data = validate_response.json()
+        assert validation_data["valid"] is False
 
         # Check provider status was updated to error
         get_response = await base_client.get(f"/api/v1/tool-providers/{test_tool_provider.id}")

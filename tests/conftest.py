@@ -32,6 +32,8 @@ from nexus.api.auth.dependencies import get_current_user
 from nexus.api.db import get_db
 from nexus.api.main import app
 from nexus.core.models import User, UserRole
+from nexus.tool_manager.lib.providers.factory import ProviderFactory
+from nexus.tool_manager.lib.providers.mcp import MCPProvider
 from nexus.tool_manager.models import Tool, ToolProvider, ToolStatus
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 from nexus.workflows.models import Workflow, WorkflowVersion
@@ -766,9 +768,9 @@ async def test_tool_provider_service(test_db_session: AsyncSession, test_user: U
         ToolProviderService: Service instance with mock provider registered
 
     """
-    service = ToolProviderService(test_db_session, test_user)
-    service.provider_factory.register_provider_type("mock", MockProvider)
-    return service
+    provider_factory = ProviderFactory()
+    provider_factory.register_provider_type("mock", MockProvider)
+    return ToolProviderService(test_db_session, test_user, provider_factory)
 
 
 @pytest.fixture(autouse=True)
@@ -780,11 +782,12 @@ def mock_provider_for_integration_tests(monkeypatch) -> Callable[[Any, Any], Too
     This allows integration tests to work with mock providers without polluting production code.
     """
 
-    def patched_create_service(db, current_user) -> "ToolProviderService":
+    def patched_create_service(db, current_user, request=None) -> "ToolProviderService":
         """Create a ToolProviderService with mock provider registered."""
-        service = ToolProviderService(db, current_user)
-        service.provider_factory.register_provider_type("mock", MockProvider)
-        return service
+        provider_factory = ProviderFactory()
+        provider_factory.register_provider_type("mock", MockProvider)
+        provider_factory.register_provider_type("mcp", MCPProvider)
+        return ToolProviderService(db, current_user, provider_factory)
 
     # Patch the API function that creates ToolProviderService instances
     monkeypatch.setattr("nexus.api.v1.tool_providers._create_tool_provider_service", patched_create_service)

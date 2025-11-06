@@ -127,7 +127,7 @@ class TestToolProvidersUpdateContract:
         # First create another provider with the name we'll try to update to
         conflicting_provider_data = {
             "name": "existing-provider-name",
-            "configuration": {"provider_type": "mock", "base_url": "https://example.com/mcp"},
+            "configuration": {"provider_type": "mock"},
         }
         create_response = await base_client.post("/api/v1/tool-providers", json=conflicting_provider_data)
         assert create_response.status_code == 201
@@ -135,7 +135,7 @@ class TestToolProvidersUpdateContract:
         # Now try to update the test provider to use the same name
         update_data = {
             "name": "existing-provider-name",  # Name already taken by another provider
-            "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
+            "configuration": {"provider_type": "mock"},
         }
 
         response = await base_client.put(f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data)

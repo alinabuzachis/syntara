@@ -64,12 +64,17 @@ test-unit: check-deps ## Run unit tests only
 .PHONY: test-integration
 test-integration: check-deps ## Run integration tests
 	@echo "🧪 Running integration tests..."
-	uv run pytest tests/integration/ -v
+	uv run pytest tests/integration/ -v -m "not mcp"
+
+.PHONY: test-mcp
+test-mcp: check-deps ## Run MCP tests only
+	@echo "🧪 Running MCP tests..."
+	uv run pytest tests/ -v -m "mcp"
 
 .PHONY: test-coverage
 test-coverage: check-deps ## Run tests with coverage report
 	@echo "🧪 Running tests with coverage..."
-	uv run pytest tests/ -n auto --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --cov-report=xml --junitxml=pytest-results.xml
+	uv run pytest tests/ -n auto -m "not mcp" --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --cov-report=xml --junitxml=pytest-results.xml
 
 .PHONY: test-fast
 test-fast: check-deps ## Run tests with fail-fast and short traceback
@@ -79,7 +84,7 @@ test-fast: check-deps ## Run tests with fail-fast and short traceback
 .PHONY: test-all
 test-all: check-deps ## Run all tests
 	@echo "🧪 Running all tests..."
-	uv run pytest tests/ -v -n auto
+	uv run pytest tests/ -v -n auto -m "not mcp"
 
 # Development workflow
 # ========================================================

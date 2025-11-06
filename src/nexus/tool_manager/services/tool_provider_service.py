@@ -4,6 +4,7 @@ This module provides the service layer for Tool Provider management, wrapping
 core domain logic with database persistence and transaction management.
 """
 
+import logging
 from datetime import UTC, datetime
 from typing import Any, NoReturn
 from uuid import UUID
@@ -34,7 +35,7 @@ from nexus.tool_manager.lib.exceptions import (
     ValidationError,
 )
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
-from nexus.tool_manager.models.tool import Tool, ToolStatus
+from nexus.tool_manager.models.tool import Tool, ToolParameter, ToolStatus
 from nexus.tool_manager.models.tool_provider import (
     ProviderStatus,
     ToolProvider,
@@ -47,6 +48,8 @@ from nexus.tool_manager.models.tool_provider_validation_result import ToolProvid
 
 SelectToolProvider = Select[tuple[ToolProvider]] | SelectOfScalar[tuple[ToolProvider]]
 
+logger = logging.getLogger(__name__)
+
 
 class ToolProviderService:
     """Service for Tool Provider CRUD operations and business logic.
@@ -55,17 +58,18 @@ class ToolProviderService:
     with the provider factory for validation and tool refresh operations.
     """
 
-    def __init__(self, session: AsyncSession, user: User) -> None:
-        """Initialize service with database session and current user.
+    def __init__(self, session: AsyncSession, user: User, provider_factory: ProviderFactory) -> None:
+        """Initialize service with database session, current user, and provider factory.
 
         Args:
             session: Async database session for operations
             user: Current authenticated user for audit tracking
+            provider_factory: Shared provider factory instance from application state
 
         """
         self.session = session
         self.user = user
-        self.provider_factory = ProviderFactory()
+        self.provider_factory = provider_factory
 
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
         """Check if IntegrityError is due to duplicate provider name.
@@ -267,6 +271,153 @@ class ToolProviderService:
         total_result = await self.session.execute(count_query)
         return total_result.scalar()
 
+    async def _validate_provider_connection(
+        self, provider_id: UUID, provider_name: str, configuration: dict[str, Any]
+    ) -> ToolProviderValidationResult:
+        """Perform connection validation using configuration without updating database.
+
+        Args:
+            provider_id: Provider ID
+            provider_name: Provider name
+            configuration: Provider configuration dictionary containing provider_type and parameters
+
+        Returns:
+            ToolProviderValidationResult from the adapter's validate_connection method
+
+        Raises:
+            ValidationError: If configuration is invalid
+            ProviderError: If validation fails
+
+        """
+        try:
+            # Extract provider type and configuration parameters
+            provider_type = configuration["provider_type"]
+            config_params = {k: v for k, v in configuration.items() if k != "provider_type"}
+            # Add provider context for adapters that need it
+            config_params["provider_id"] = provider_id
+            config_params["provider_name"] = provider_name
+
+            # Create provider adapter from factory
+            adapter = self.provider_factory.create_provider_instance(provider_type, **config_params)
+
+            # Validate connection using the adapter
+            return await adapter.validate_connection()
+
+        except KeyError as e:
+            msg = f"Missing required configuration field: {e}"
+            raise ValidationError(msg) from e
+        except (ValueError, TypeError, AttributeError, ConnectionError, TimeoutError, OSError) as e:
+            msg = f"Provider connection validation failed: {e}"
+            raise ProviderError(msg) from e
+
+    async def _create_or_update_tool_parameters(self, tool: Tool, tool_parameters: list[ToolParameter]) -> None:
+        """Create or update tool parameters for a given tool.
+
+        Args:
+            tool: Tool instance to create/update parameters for
+            tool_parameters: List of ToolParameter instances to persist
+
+        """
+        # Clear existing parameters for this tool
+        existing_params_query = select(ToolParameter).filter(ToolParameter.tool_id == tool.id)  # type: ignore[arg-type]
+        existing_params_result = await self.session.execute(existing_params_query)
+        existing_params = existing_params_result.scalars().all()
+
+        for param in existing_params:
+            await self.session.delete(param)
+
+        # Create new parameter objects to ensure SQLAlchemy integrity
+        for tool_parameter in tool_parameters:
+            new_tool_parameter = ToolParameter(
+                tool_id=tool.id,
+                name=str(tool_parameter.name),
+                type=tool_parameter.type,
+                description=str(tool_parameter.description) if tool_parameter.description else "",
+                required=bool(tool_parameter.required) if hasattr(tool_parameter, "required") else False,
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
+            )
+            self.session.add(new_tool_parameter)
+
+    async def _update_existing_tool(self, tool: Tool, tool_metadata: Tool) -> None:
+        """Update an existing tool with metadata from the provider.
+
+        Args:
+            tool: Existing tool to update
+            tool_metadata: Tool metadata from the provider
+
+        """
+        tool.description = tool_metadata.description
+        tool.last_refreshed_at = datetime.now(UTC)
+        tool.refresh_error = None
+        tool.updated_by = self.user.id
+        tool.updated_at = datetime.now(UTC)
+
+        # Update tool parameters using helper method
+        existing_tool_parameters: list[ToolParameter] = (
+            tool_metadata.parameters.copy() if hasattr(tool_metadata, "parameters") and tool_metadata.parameters else []
+        )
+        await self._create_or_update_tool_parameters(tool, existing_tool_parameters)
+
+    async def _create_new_tool(self, provider: ToolProvider, tool_metadata: Tool, namespaced_name: str) -> Tool:
+        """Create a new tool from provider metadata.
+
+        Args:
+            provider: The provider this tool belongs to
+            tool_metadata: Tool metadata from the provider
+            namespaced_name: The namespaced name for the tool
+
+        Returns:
+            The created tool instance
+
+        """
+        # Create new tool
+        new_tool = Tool(
+            provider_id=provider.id,
+            name=tool_metadata.name,
+            namespaced_name=namespaced_name,
+            description=tool_metadata.description,
+            enabled=True,
+            last_refreshed_at=datetime.now(UTC),
+            created_by=self.user.id,
+            updated_by=self.user.id,
+        )
+
+        self.session.add(new_tool)
+
+        # Flush to ensure tool.id is generated by the database
+        await self.session.flush()
+        await self.session.refresh(new_tool)
+
+        # Update tool parameters using helper method
+        new_tool_parameters: list[ToolParameter] = (
+            tool_metadata.parameters.copy() if hasattr(tool_metadata, "parameters") and tool_metadata.parameters else []
+        )
+        await self._create_or_update_tool_parameters(new_tool, new_tool_parameters)
+
+        return new_tool
+
+    async def _disable_missing_tools(self, existing_tools: dict[str, Tool], found_tool_names: set[str]) -> int:
+        """Disable tools that were not found in the current refresh.
+
+        Args:
+            existing_tools: Dictionary of existing tools by name
+            found_tool_names: Set of tool names found in current refresh
+
+        Returns:
+            Number of tools that were disabled
+
+        """
+        disabled_count = 0
+        for tool_name, tool in existing_tools.items():
+            if tool_name not in found_tool_names:
+                tool.enabled = False
+                tool.status = ToolStatus.MISSING
+                tool.updated_by = self.user.id
+                tool.updated_at = datetime.now(UTC)
+                disabled_count += 1
+        return disabled_count
+
     async def list_providers(
         self,
         limit: int = 100,
@@ -324,13 +475,17 @@ class ToolProviderService:
         )
 
     async def create_provider(self, provider_create: ToolProviderCreate) -> ToolProvider:
-        """Create a new tool provider.
+        """Create a new tool provider without validation or tool discovery.
+
+        This method only creates the provider instance with VALIDATING status.
+        Use validate_provider() to validate the connection and set status to AVAILABLE/ERROR.
+        Use refresh_tools() to discover and create tools once the provider is validated.
 
         Args:
             provider_create: ToolProviderCreate instance with provider data
 
         Returns:
-            Created ToolProvider instance
+            Created ToolProvider instance with VALIDATING status
 
         Raises:
             ValidationError: If provider data is invalid
@@ -342,7 +497,7 @@ class ToolProviderService:
             name=provider_create.name,
             description=provider_create.description,
             configuration=provider_create.configuration,
-            enabled=True,  # Default enabled state
+            enabled=True,
             status=ProviderStatus.VALIDATING,
             created_by=self.user.id,
             updated_by=self.user.id,
@@ -353,7 +508,9 @@ class ToolProviderService:
         try:
             await self.session.flush()
             await self.session.refresh(provider)
+            logger.info("Successfully created provider '%s' with VALIDATING status", provider.name)
             return provider
+
         except IntegrityError as e:
             await self._handle_integrity_error(e, provider_create.name)
 
@@ -494,40 +651,31 @@ class ToolProviderService:
             provider_id: UUID of the provider to validate
 
         Returns:
-            ToolProviderValidationResult instance with status and details
+            ToolProviderValidationResult instance with status and details (never raises exceptions)
 
         Raises:
             ProviderNotFoundError: If provider doesn't exist
-            ProviderError: If validation fails
 
         """
         provider = await self.get_provider(provider_id)
 
         try:
-            # Get provider adapter from factory
-            provider_type = provider.configuration["provider_type"]
-            config_params = {k: v for k, v in provider.configuration.items() if k != "provider_type"}
-            adapter = self.provider_factory.create_provider_instance(provider_type, **config_params)
-
-            # Validate connection
-            validation_result = await adapter.validate_connection()
+            # Use shared validation method
+            validation_result = await self._validate_provider_connection(
+                provider.id, provider.name, provider.configuration
+            )
 
             # Update provider status based on validation
-            if validation_result.valid:
-                provider.status = ProviderStatus.AVAILABLE
-                provider.last_validated_at = datetime.now(UTC)
-                provider.validation_error = None
-            else:
-                provider.status = ProviderStatus.ERROR
-                provider.validation_error = validation_result.error
-
+            provider.status = ProviderStatus.AVAILABLE if validation_result.valid else ProviderStatus.ERROR
+            provider.validation_error = None if validation_result.valid else validation_result.error
+            provider.last_validated_at = validation_result.validated_at
             provider.updated_by = self.user.id
             provider.updated_at = datetime.now(UTC)
 
             await self.session.flush()
             await self.session.refresh(provider)
 
-            # Return the ToolProviderValidationResult with updated timestamp
+            # Always return validation result - never raise exceptions for validation failures
             return ToolProviderValidationResult(
                 valid=validation_result.valid,
                 provider_type=validation_result.provider_type,
@@ -535,17 +683,60 @@ class ToolProviderService:
                 error=validation_result.error,
             )
 
-        except Exception as e:
-            # Update provider status to error
-            provider.status = ProviderStatus.ERROR
-            provider.validation_error = str(e)
-            provider.updated_by = self.user.id
-            provider.updated_at = datetime.now(UTC)
+        except Exception as e:  # noqa: BLE001
+            # Handle any unexpected exceptions gracefully
+            try:
+                provider.status = ProviderStatus.ERROR
+                provider.validation_error = str(e)
+                provider.last_validated_at = datetime.now(UTC)
+                provider.updated_by = self.user.id
+                provider.updated_at = datetime.now(UTC)
+                await self.session.flush()
+            except Exception:
+                # If we can't even update the provider status, log and continue
+                logger.exception("Failed to update provider status after validation error")
 
-            await self.session.flush()
+            # Return validation failure result instead of raising
+            return ToolProviderValidationResult(
+                valid=False,
+                provider_type=provider.configuration.get("provider_type", "unknown"),
+                validated_at=datetime.now(UTC),
+                error=str(e),
+            )
 
-            msg = f"Provider validation failed: {e}"
-            raise ProviderError(msg) from e
+    async def validate_provider_definition(self, provider: ToolProviderCreate) -> ToolProviderValidationResult:
+        """Validate tool provider definition without saving to database.
+
+        Validates the provider configuration and tests connectivity using the appropriate adapter.
+        This method does not persist any data to the database and never raises exceptions.
+
+        Args:
+            provider: Provider configuration to test
+
+        Returns:
+            ToolProviderValidationResult instance with test results (never raises exceptions)
+
+        """
+        try:
+            validation_result = await self._validate_provider_connection(
+                provider.id, provider.name, provider.configuration
+            )
+
+            # Return validation result as-is (no database updates needed)
+            return ToolProviderValidationResult(
+                valid=validation_result.valid,
+                provider_type=validation_result.provider_type,
+                validated_at=datetime.now(UTC),
+                error=validation_result.error,
+            )
+        except Exception as e:  # noqa: BLE001
+            # Handle all exceptions gracefully and return validation failure result
+            return ToolProviderValidationResult(
+                valid=False,
+                provider_type=provider.configuration["provider_type"],
+                validated_at=datetime.now(UTC),
+                error=str(e),
+            )
 
     async def refresh_tools(self, provider_id: UUID) -> ToolProviderRefreshResult:
         """Refresh tools from tool provider.
@@ -571,6 +762,9 @@ class ToolProviderService:
             # Get provider adapter from factory
             provider_type = provider.configuration["provider_type"]
             config_params = {k: v for k, v in provider.configuration.items() if k != "provider_type"}
+            # Add provider context for adapters that need it
+            config_params["provider_id"] = provider.id
+            config_params["provider_name"] = provider.name
             adapter = self.provider_factory.create_provider_instance(provider_type, **config_params)
 
             # Refresh tools from provider
@@ -578,7 +772,6 @@ class ToolProviderService:
 
             refreshed_count = 0
             updated_count = 0
-            disabled_count = 0
 
             # Get existing tools for this provider
             existing_tools_query = select(Tool).filter(Tool.provider_id == provider_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
@@ -596,35 +789,15 @@ class ToolProviderService:
                 if tool_metadata.name in existing_tools:
                     # Update existing tool
                     tool = existing_tools[tool_metadata.name]
-                    tool.description = tool_metadata.description
-                    tool.last_refreshed_at = datetime.now(UTC)
-                    tool.refresh_error = None
-                    tool.updated_by = self.user.id
-                    tool.updated_at = datetime.now(UTC)
+                    await self._update_existing_tool(tool, tool_metadata)
                     updated_count += 1
                 else:
                     # Create new tool
-                    tool = Tool(
-                        provider_id=provider_id,
-                        name=tool_metadata.name,
-                        namespaced_name=namespaced_name,
-                        description=tool_metadata.description,
-                        enabled=True,
-                        last_refreshed_at=datetime.now(UTC),
-                        created_by=self.user.id,
-                        updated_by=self.user.id,
-                    )
-                    self.session.add(tool)
+                    await self._create_new_tool(provider, tool_metadata, namespaced_name)
                     refreshed_count += 1
 
             # Disable tools that were not found in refresh
-            for tool_name, tool in existing_tools.items():
-                if tool_name not in found_tool_names:
-                    tool.enabled = False
-                    tool.status = ToolStatus.MISSING
-                    tool.updated_by = self.user.id
-                    tool.updated_at = datetime.now(UTC)
-                    disabled_count += 1
+            disabled_count = await self._disable_missing_tools(existing_tools, found_tool_names)
 
             # Update provider metadata
             provider.updated_by = self.user.id

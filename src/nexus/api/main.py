@@ -21,6 +21,7 @@ from nexus.api.v1 import executions, tool_providers, tools, workflow_versions, w
 from nexus.api.v1.invocation import router as invoke_router
 from nexus.api.v1.websocket import build_websocket_router
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
+from nexus.tool_manager.lib.providers.mcp import MCPProvider
 
 logger = logging.getLogger(__name__)
 
@@ -59,12 +60,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     # Startup: Initialize provider factory in app.state
     app.state.provider_factory = ProviderFactory()
 
+    # Register provider types here as they are implemented
+    app.state.provider_factory.register_provider_type("mcp", MCPProvider)
+
     # Register WebSocket router after logging is configured
     # This ensures validation messages use uvicorn's log format
     ws_router = build_websocket_router()
     app.include_router(ws_router)
-
-    # Register provider types here as they are implemented
 
     yield
 

@@ -32,7 +32,7 @@ router = APIRouter(prefix="/tool-providers", tags=["tool-providers"])
 logger = logging.getLogger(__name__)
 
 
-def _create_tool_provider_service(db: AsyncSession, current_user: User) -> ToolProviderService:
+def _create_tool_provider_service(db: AsyncSession, current_user: User, request: Request) -> ToolProviderService:
     """Create a ToolProviderService instance.
 
     This function can be patched in tests to return a service with mock providers registered.
@@ -40,12 +40,14 @@ def _create_tool_provider_service(db: AsyncSession, current_user: User) -> ToolP
     Args:
         db: Database session
         current_user: Current authenticated user
+        request: FastAPI request object (to access app.state.provider_factory)
 
     Returns:
         ToolProviderService instance
 
     """
-    return ToolProviderService(db, current_user)
+    provider_factory = request.app.state.provider_factory
+    return ToolProviderService(db, current_user, provider_factory)
 
 
 @router.get("")
@@ -81,7 +83,7 @@ async def list_tool_providers(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    service = _create_tool_provider_service(db, current_user)
+    service = _create_tool_provider_service(db, current_user, request)
 
     # Extract all query parameters (excluding pagination/sorting params)
     excluded_params = {"limit", "cursor", "sort", "include_total"}
@@ -104,6 +106,7 @@ async def list_tool_providers(
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_tool_provider(
+    request: Request,
     provider_create: ToolProviderCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -114,6 +117,7 @@ async def create_tool_provider(
     The provider starts in 'validating' status.
 
     Args:
+        request: FastAPI request object containing query parameters
         provider_create: Provider configuration and metadata
         db: Database session
         current_user: Authenticated user (admin access required)
@@ -128,7 +132,7 @@ async def create_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    service = _create_tool_provider_service(db, current_user)
+    service = _create_tool_provider_service(db, current_user, request)
 
     try:
         return await service.create_provider(provider_create)
@@ -147,6 +151,7 @@ async def create_tool_provider(
 
 @router.get("/{provider_id}")
 async def get_tool_provider(
+    request: Request,
     provider_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -157,6 +162,7 @@ async def get_tool_provider(
     configuration, status, and metadata.
 
     Args:
+        request: FastAPI request object containing query parameters
         provider_id: UUID of the provider to retrieve
         db: Database session
         current_user: Authenticated user (admin access required)
@@ -171,7 +177,7 @@ async def get_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    service = _create_tool_provider_service(db, current_user)
+    service = _create_tool_provider_service(db, current_user, request)
 
     try:
         return await service.get_provider(provider_id)
@@ -186,6 +192,7 @@ async def get_tool_provider(
 
 @router.put("/{provider_id}")
 async def update_tool_provider(
+    request: Request,
     provider_id: UUID,
     provider_update: ToolProviderCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -197,6 +204,7 @@ async def update_tool_provider(
     All fields in the request body will replace existing values.
 
     Args:
+        request: FastAPI request object containing query parameters
         provider_id: UUID of the provider to update
         provider_update: New provider configuration
         db: Database session
@@ -212,7 +220,7 @@ async def update_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    service = _create_tool_provider_service(db, current_user)
+    service = _create_tool_provider_service(db, current_user, request)
 
     try:
         return await service.update_provider(provider_id, provider_update)
@@ -231,6 +239,7 @@ async def update_tool_provider(
 
 @router.patch("/{provider_id}")
 async def patch_tool_provider(
+    request: Request,
     provider_id: UUID,
     provider_patch: ToolProviderPatch,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -242,6 +251,7 @@ async def patch_tool_provider(
     Only provided fields are updated, configuration objects are replaced.
 
     Args:
+        request: FastAPI request object containing query parameters
         provider_id: UUID of the provider to patch
         provider_patch: Partial update data
         db: Database session
@@ -257,7 +267,7 @@ async def patch_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    service = _create_tool_provider_service(db, current_user)
+    service = _create_tool_provider_service(db, current_user, request)
 
     try:
         return await service.patch_provider(provider_id, provider_patch)
@@ -278,6 +288,7 @@ async def patch_tool_provider(
 
 @router.delete("/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_tool_provider(
+    request: Request,
     provider_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -288,6 +299,7 @@ async def delete_tool_provider(
     The provider will no longer be accessible but remains in the database.
 
     Args:
+        request: FastAPI request object containing query parameters
         provider_id: UUID of the provider to delete
         db: Database session
         current_user: Authenticated user (admin access required)
@@ -299,7 +311,7 @@ async def delete_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    service = _create_tool_provider_service(db, current_user)
+    service = _create_tool_provider_service(db, current_user, request)
 
     try:
         await service.delete_provider(provider_id)
@@ -314,6 +326,7 @@ async def delete_tool_provider(
 
 @router.post("/{provider_id}/validate")
 async def validate_tool_provider(
+    request: Request,
     provider_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -324,28 +337,27 @@ async def validate_tool_provider(
     Updates the provider status based on validation results.
 
     Args:
+        request: FastAPI request object containing query parameters
         provider_id: UUID of the provider to validate
         db: Database session
         current_user: Authenticated user (admin access required)
 
     Returns:
-        Validation result with status and capability details
+        Validation result with status and capability details (always 200)
 
     Raises:
-        HTTPException: 400 for validation failure, 404 if not found, 403 for auth
+        HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
 
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    service = _create_tool_provider_service(db, current_user)
+    service = _create_tool_provider_service(db, current_user, request)
 
     try:
         return await service.validate_provider(provider_id)
     except ProviderNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    except ProviderError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         logger.exception("Unexpected error validating tool provider", exc_info=e)
         raise HTTPException(
@@ -353,8 +365,49 @@ async def validate_tool_provider(
         ) from e
 
 
+@router.post("/test")
+async def validate_tool_provider_definition(
+    request: Request,
+    provider_create: ToolProviderCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ToolProviderValidationResult:
+    """Test Tool Provider definition without saving to database.
+
+    Validates the provider configuration and tests connectivity using the appropriate adapter.
+    This endpoint allows testing provider definitions before registering them.
+
+    Args:
+        request: FastAPI request object containing query parameters
+        provider_create: Provider configuration to test
+        db: Database session (used for adapter resolution)
+        current_user: Authenticated user (admin access required)
+
+    Returns:
+        ToolProviderValidationResult with test results (always 200)
+
+    Raises:
+        HTTPException: 403 for auth, 500 for unexpected errors
+
+    """
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
+    # For now, allowing all authenticated users
+
+    service = _create_tool_provider_service(db, current_user, request)
+
+    try:
+        return await service.validate_provider_definition(provider_create)
+    except Exception as e:
+        logger.exception("Unexpected error validating tool provider definition", exc_info=e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected error validating tool provider definition",
+        ) from e
+
+
 @router.post("/{provider_id}/refresh-tools")
 async def refresh_provider_tools(
+    request: Request,
     provider_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -365,6 +418,7 @@ async def refresh_provider_tools(
     Creates new tools, updates existing ones, and disables missing tools.
 
     Args:
+        request: FastAPI request object containing query parameters
         provider_id: UUID of the provider to refresh
         db: Database session
         current_user: Authenticated user (admin access required)
@@ -379,7 +433,7 @@ async def refresh_provider_tools(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    service = _create_tool_provider_service(db, current_user)
+    service = _create_tool_provider_service(db, current_user, request)
 
     try:
         return await service.refresh_tools(provider_id)

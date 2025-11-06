@@ -188,7 +188,7 @@ class TestToolProvidersPatchContract:
         # First create another provider with the name we'll try to patch to
         conflicting_provider_data = {
             "name": "existing-provider-name",
-            "configuration": {"provider_type": "mock", "base_url": "https://example.com/mcp"},
+            "configuration": {"provider_type": "mock"},
         }
         create_response = await base_client.post("/api/v1/tool-providers", json=conflicting_provider_data)
         assert create_response.status_code == 201

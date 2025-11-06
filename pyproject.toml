@@ -36,8 +36,10 @@ dependencies = [
     "httpx>=0.25.0",
     "langchain>=0.1.0",
     "langchain-openai>=0.0.5",
+    "langchain-mcp-adapters>=0.1.0",
     "langgraph>=0.0.20",
     "python-dotenv>=1.0.0",
+    "beartype>=0.22.5",
 ]
 
 [project.optional-dependencies]
@@ -62,6 +64,8 @@ dev = [
     "types-PyYAML>=6.0.0",  # for mypy type stubs
     "types-jsonschema>=4.0.0",  # for mypy type stubs
     "types-requests>=2.31.0",  # type stubs for requests library
+    # MCP testing infrastructure
+    "fastmcp>=2.13.0",  # for MCP test server creation
 ]
 
 [project.urls]
@@ -150,6 +154,7 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
+    "mcp: marks tests that require MCP server infrastructure (deselect with '-m \"not mcp\"')",
 ]
 
 # Coverage configuration

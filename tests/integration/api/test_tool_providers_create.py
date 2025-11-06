@@ -18,12 +18,10 @@ class TestToolProvidersCreateContract:
     async def test_create_provider_success_contract(self, base_client: AsyncClient) -> None:
         """Test successful provider registration returns 201."""
         provider_data = {
-            "name": "test-mcp-provider",
-            "description": "Test MCP Tool Provider",
+            "name": "test-mock-provider",
+            "description": "Test Mock Tool Provider",
             "configuration": {
-                "provider_type": "mcp",
-                "base_url": "https://localhost:3000/mcp",
-                "api_key": "test-api-key",
+                "provider_type": "mock",
             },
         }
 
@@ -40,28 +38,11 @@ class TestToolProvidersCreateContract:
         assert data["status"] == "validating"
 
     @pytest.mark.asyncio
-    async def test_create_provider_mcp_configuration_contract(self, base_client: AsyncClient) -> None:
-        """Test MCP provider configuration validation."""
-        provider_data = {
-            "name": "mcp-provider-test",
-            "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "valid-key"},
-        }
-
-        response = await base_client.post("/api/v1/tool-providers", json=provider_data)
-
-        # Contract: Must accept valid MCP configuration
-        assert response.status_code == 201
-
-        # Contract: Must return provider with MCP configuration
-        data = response.json()
-        assert data["configuration"]["provider_type"] == "mcp"
-
-    @pytest.mark.asyncio
     async def test_create_provider_duplicate_name_conflict_contract(self, base_client: AsyncClient) -> None:
         """Test 409 conflict for duplicate provider names."""
         provider_data = {
-            "name": "duplicate-name-test",
-            "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
+            "name": "test-mock-provider",
+            "configuration": {"provider_type": "mock"},
         }
 
         # Create first provider
@@ -127,7 +108,7 @@ class TestToolProvidersCreateContract:
         """Test creation with optional fields."""
         provider_data = {
             "name": "optional-fields-test",
-            "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
+            "configuration": {"provider_type": "mock"},
         }
 
         response = await base_client.post("/api/v1/tool-providers", json=provider_data)
@@ -146,7 +127,7 @@ class TestToolProvidersCreateContract:
         """Test response matches OpenAPI specification schema."""
         provider_data = {
             "name": "schema-test-provider",
-            "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
+            "configuration": {"provider_type": "mock"},
         }
 
         response = await base_client.post("/api/v1/tool-providers", json=provider_data)
@@ -195,7 +176,7 @@ class TestToolProvidersCreateContract:
         """Test new provider starts with 'validating' status."""
         provider_data = {
             "name": "validation-status-test",
-            "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
+            "configuration": {"provider_type": "mock"},
         }
 
         response = await base_client.post("/api/v1/tool-providers", json=provider_data)
