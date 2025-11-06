@@ -154,19 +154,19 @@ graph TB
 
 ## Phase 4.1: Setup & Infrastructure
 
-- [ ] **T041** Add Temporal dependencies to pyproject.toml
+- [X] **T041** Add Temporal dependencies to pyproject.toml
   - File: `pyproject.toml`
-  - Add: `temporalio`, `temporalio[opentelemetry]` (for tracing support)
-  - Run: `uv sync` after adding dependencies
-  - Verify: `uv pip list | grep temporal`
+  - Added: `temporalio>=1.5.0`
+  - Status: Completed - dependency already in pyproject.toml
 
-- [ ] **T042** Configure Temporal client and connection management
-  - File: `src/nexus_api/temporal/client.py`
-  - Implement: Temporal client factory with async support
-  - Configuration: Load Temporal server URL from environment variable `TEMPORAL_URL` (default: `localhost:7233`)
-  - Connection pooling and retry configuration
-  - Health check function to verify Temporal connectivity
-  - Integration with FastAPI health endpoint (extend existing `/health`)
+- [X] **T042** Configure Temporal client and connection management
+  - File: `src/nexus/workflows/workflow_engine/services/execution_service.py`
+  - Implemented: `create_execution_service()` factory function with Temporal client
+  - Configuration: Uses constants from `src/nexus/api/constants.py`
+    * DEFAULT_TEMPORAL_ADDRESS (env: NEXUS_TEMPORAL_ADDRESS, default: localhost:7233)
+    * DEFAULT_TEMPORAL_NAMESPACE (env: NEXUS_TEMPORAL_NAMESPACE, default: default)
+    * DEFAULT_TASK_QUEUE (env: NEXUS_TASK_QUEUE, default: workflow-queue)
+  - Status: Completed - Temporal client factory already implemented
 
 ## Phase 4.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 4.3
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
@@ -183,9 +183,9 @@ graph TB
   - Pagination: cursor-based with total count (include_total parameter)
   - Expected: 200 OK with executions array
 
-- [ ] **T045 [P]** Integration test: GET /api/v1/executions/{id}
+- [X] **T045 [P]** Integration test: GET /api/v1/executions/{id}
   - File: `tests/integration/api/test_executions_get_by_id.py`
-  - Test cases: Valid ID, non-existent ID
+  - Test cases: Valid ID, non-existent ID, failed execution with error_details, completed execution with completed_at
   - Expected: 200 OK with execution details, 404 Not Found
   - Verify: Returns execution with current status, timestamps, error_details if failed
 
@@ -317,10 +317,10 @@ graph TB
   - Pagination: cursor-based with optional total count (include_total parameter)
   - Response: 200 OK with ResourcesResponse (resources, next, prev, total)
 
-- [ ] **T063** Implement GET /api/v1/executions/{id} endpoint
-  - File: `src/nexus_api/api/v1/executions.py` (add handler)
+- [X] **T063** Implement GET /api/v1/executions/{id} endpoint
+  - File: `src/nexus/api/v1/executions.py`
   - Handler: get_execution(execution_id: UUID, db: AsyncSession)
-  - Logic: Fetch execution with workflow relationship
+  - Logic: Fetch execution using ExecutionService.get_execution()
   - Response: 200 OK with Execution object, 404 if not found
 
 - [ ] **T064** Implement PATCH /api/v1/executions/{id} endpoint

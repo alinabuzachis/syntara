@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, select
 from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
@@ -37,6 +37,7 @@ from nexus.tool_manager.lib.providers.mcp import MCPProvider
 from nexus.tool_manager.models import Tool, ToolProvider, ToolStatus
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
@@ -45,7 +46,7 @@ from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_
 from tests.fixtures.mock_tool_provider_adapter import MockProvider
 
 # Ensure models are registered with SQLModel metadata
-_ = (Invocation, User, Workflow, WorkflowVersion)
+_ = (Invocation, User, Workflow, WorkflowVersion, Execution)
 
 logger = logging.getLogger(__name__)
 
@@ -353,6 +354,42 @@ async def test_workflow(test_db_session: AsyncSession, test_user: "User") -> "Wo
     await test_db_session.commit()
     await test_db_session.refresh(workflow)
     return workflow
+
+
+@pytest_asyncio.fixture
+async def test_execution(test_db_session: AsyncSession, test_user: "User", test_workflow: "Workflow") -> "Execution":
+    """Create a test execution.
+
+    Args:
+        test_db_session: Test database session
+        test_user: Test user
+        test_workflow: Test workflow
+
+    Returns:
+        Execution: Test execution instance
+
+    """
+    # Get the workflow version ID
+    result = await test_db_session.execute(
+        select(WorkflowVersion.id).where(
+            WorkflowVersion.workflow_id == test_workflow.id,
+            WorkflowVersion.version == test_workflow.current_version,
+        )
+    )
+    version_id = result.scalar_one()
+
+    execution = Execution(
+        workflow_id=test_workflow.id,
+        workflow_version_id=version_id,
+        temporal_workflow_id=f"exec-{uuid4()}",
+        status=ExecutionStatus.PENDING,
+        input_data={},
+        created_by=test_user.id,
+    )
+    test_db_session.add(execution)
+    await test_db_session.commit()
+    await test_db_session.refresh(execution)
+    return execution
 
 
 @pytest_asyncio.fixture

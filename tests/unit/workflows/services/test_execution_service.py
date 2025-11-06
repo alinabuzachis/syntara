@@ -212,8 +212,8 @@ class TestGetExecution:
     """Test get_execution method."""
 
     @pytest.mark.asyncio
-    async def test_get_execution_success(self) -> None:
-        """Test successfully retrieving an execution."""
+    async def test_get_execution_success_without_temporal(self) -> None:
+        """Test successfully retrieving an execution without Temporal sync."""
         mock_session = Mock(spec=AsyncSession)
 
         execution_id = uuid4()
@@ -224,12 +224,45 @@ class TestGetExecution:
         mock_result.scalar_one_or_none = Mock(return_value=execution)
         mock_session.execute = AsyncMock(return_value=mock_result)
 
-        service = ExecutionService(session=mock_session)
+        service = ExecutionService(session=mock_session, temporal_service=None)
 
         result = await service.get_execution(execution_id)
 
         assert result is execution
         mock_session.execute.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_get_execution_success_with_temporal_sync(self) -> None:
+        """Test retrieving execution syncs status from Temporal."""
+        mock_session = Mock(spec=AsyncSession)
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        execution_id = uuid4()
+        execution = Mock(spec=Execution)
+        execution.id = execution_id
+        execution.status = ExecutionStatus.RUNNING
+        execution.temporal_workflow_id = "exec-123"
+
+        mock_result = Mock()
+        mock_result.scalar_one_or_none = Mock(return_value=execution)
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        # Mock Temporal service
+        mock_temporal = Mock()
+        status_response = Mock()
+        status_response.status = "completed"
+        status_response.close_time = "2025-01-31T12:00:00+00:00"
+        mock_temporal.get_workflow_status = AsyncMock(return_value=status_response)
+
+        service = ExecutionService(session=mock_session, temporal_service=mock_temporal)
+
+        result = await service.get_execution(execution_id)
+
+        assert result is execution
+        # Verify status was synced from Temporal
+        mock_temporal.get_workflow_status.assert_awaited_once()
+        mock_session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_get_execution_not_found(self) -> None:
@@ -476,3 +509,79 @@ class TestCountExecutions:
         count = await service.count_executions(workflow_id=uuid4())
 
         assert count == 0
+
+
+class TestListExecutionsWithTemporalSync:
+    """Test list_executions_cursor with Temporal synchronization."""
+
+    @pytest.mark.asyncio
+    async def test_list_syncs_status_from_temporal(self) -> None:
+        """Test listing executions syncs status from Temporal."""
+        mock_session = Mock(spec=AsyncSession)
+        mock_session.commit = AsyncMock()
+
+        # Mock executions with non-terminal status
+        exec1 = Mock(spec=Execution)
+        exec1.id = uuid4()
+        exec1.status = ExecutionStatus.RUNNING
+        exec1.temporal_workflow_id = "exec-1"
+
+        exec2 = Mock(spec=Execution)
+        exec2.id = uuid4()
+        exec2.status = ExecutionStatus.PENDING
+        exec2.temporal_workflow_id = "exec-2"
+
+        mock_result = Mock()
+        mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[exec1, exec2])))
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        # Mock Temporal service
+        mock_temporal = Mock()
+        status_response1 = Mock()
+        status_response1.status = "completed"
+        status_response1.close_time = "2025-01-31T12:00:00+00:00"
+
+        status_response2 = Mock()
+        status_response2.status = "running"
+        status_response2.close_time = None
+
+        mock_temporal.get_workflow_status = AsyncMock(side_effect=[status_response1, status_response2])
+
+        service = ExecutionService(session=mock_session, temporal_service=mock_temporal)
+
+        result = await service.list_executions_cursor(limit=10)
+
+        assert len(result) == 2
+        # Verify Temporal was queried for each execution
+        assert mock_temporal.get_workflow_status.await_count == 2
+        # Verify single commit for all changes
+        mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_list_skips_commit_when_no_status_changes(self) -> None:
+        """Test listing doesn't commit when no status changes occur."""
+        mock_session = Mock(spec=AsyncSession)
+        mock_session.commit = AsyncMock()
+
+        # Mock execution already in terminal state
+        exec1 = Mock(spec=Execution)
+        exec1.id = uuid4()
+        exec1.status = ExecutionStatus.COMPLETED
+        exec1.temporal_workflow_id = "exec-1"
+
+        mock_result = Mock()
+        mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[exec1])))
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_temporal = Mock()
+        mock_temporal.get_workflow_status = AsyncMock()
+
+        service = ExecutionService(session=mock_session, temporal_service=mock_temporal)
+
+        result = await service.list_executions_cursor(limit=10)
+
+        assert len(result) == 1
+        # Verify no Temporal query for terminal state execution
+        mock_temporal.get_workflow_status.assert_not_called()
+        # Verify no commit when no changes
+        mock_session.commit.assert_not_called()

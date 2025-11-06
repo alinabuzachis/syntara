@@ -38,6 +38,7 @@ class WorkflowStatusResponse(BaseModel):
         status: Current workflow status
         start_time: ISO 8601 timestamp when workflow started (None if not started)
         close_time: ISO 8601 timestamp when workflow completed (None if still running)
+        failure_message: Error message if workflow failed (None if not failed)
 
     """
 
@@ -46,6 +47,7 @@ class WorkflowStatusResponse(BaseModel):
     status: str = Field(..., description="Workflow status (running, completed, failed, etc.)")
     start_time: str | None = Field(None, description="ISO 8601 start timestamp")
     close_time: str | None = Field(None, description="ISO 8601 close timestamp")
+    failure_message: str | None = Field(None, description="Error message if workflow failed")
 
 
 class WorkflowResultResponse(BaseModel):

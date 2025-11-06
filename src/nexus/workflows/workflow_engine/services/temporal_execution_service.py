@@ -9,7 +9,9 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from temporalio.client import Client
+from temporalio.api.enums.v1 import EventType
+from temporalio.client import Client, WorkflowHandle, WorkflowHistoryEventFilterType
+from temporalio.exceptions import TemporalError
 
 from nexus.api.constants import (
     DEFAULT_TASK_QUEUE,
@@ -50,6 +52,34 @@ class TemporalExecutionService:
         """
         self.temporal_client = temporal_client
         self.task_queue = task_queue
+
+    async def _extract_failure_message(self, handle: WorkflowHandle[Any, Any]) -> str | None:
+        """Extract failure message from workflow history using optimized filtered query.
+
+        Uses filtered history fetch to only retrieve close event, avoiding the overhead
+        of fetching the entire workflow history.
+
+        Args:
+            handle: Temporal workflow handle
+
+        Returns:
+            Failure message if found, None otherwise
+
+        """
+        try:
+            # Fetch only the close event using filter - much more efficient than full history
+            history = await handle.fetch_history(event_filter_type=WorkflowHistoryEventFilterType.CLOSE_EVENT)
+
+            # Look for WorkflowExecutionFailed event in the filtered results
+            for event in history.events:
+                if event.event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
+                    failed_attrs = event.workflow_execution_failed_event_attributes
+                    if failed_attrs and failed_attrs.failure:
+                        return failed_attrs.failure.message
+                    break
+        except TemporalError as e:
+            logger.warning("Failed to fetch workflow history for failure details: %s", e)
+        return None
 
     async def start_yaml_workflow(
         self,
@@ -163,12 +193,36 @@ class TemporalExecutionService:
             description = await handle.describe()
 
             status_name = description.status.name if description.status else "unknown"
+
+            # Extract failure message if workflow failed
+            failure_message = None
+            if status_name.lower() == "failed":
+                failure_message = await self._extract_failure_message(handle)
+
+            # Format timestamps consistently with 'Z' suffix for UTC
+            start_time = None
+            if description.start_time:
+                # Ensure timezone-aware datetime, default to UTC if naive
+                start_dt = description.start_time
+                if start_dt.tzinfo is None:
+                    start_dt = start_dt.replace(tzinfo=UTC)
+                start_time = start_dt.isoformat()
+
+            close_time = None
+            if description.close_time:
+                # Ensure timezone-aware datetime, default to UTC if naive
+                close_dt = description.close_time
+                if close_dt.tzinfo is None:
+                    close_dt = close_dt.replace(tzinfo=UTC)
+                close_time = close_dt.isoformat()
+
             return WorkflowStatusResponse(
                 temporal_workflow_id=temporal_workflow_id,
                 temporal_run_id=description.run_id,
                 status=status_name.lower(),
-                start_time=description.start_time.isoformat() if description.start_time else None,
-                close_time=description.close_time.isoformat() if description.close_time else None,
+                start_time=start_time,
+                close_time=close_time,
+                failure_message=failure_message,
             )
 
         except Exception:
