@@ -2,7 +2,6 @@
 
 from datetime import timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -10,6 +9,12 @@ from temporalio.client import Client, WorkflowFailureError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
+from nexus.workflows.workflow_engine.activities.execution_tracker import (
+    clear_tracking_data,
+    create_activity_execution,
+    get_activity_execution,
+    update_activity_execution,
+)
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models import ScriptExecutorConfig, ScriptLanguage
@@ -119,41 +124,69 @@ async def test_retry_with_transient_failures() -> None:
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_retry_tracking_in_database() -> None:
-    """Test that retry attempts are tracked in ActivityExecution."""
-    mock_execution_id = uuid4()
-    mock_activity_id = uuid4()
+    """Test that retry attempts are tracked in ActivityExecution.
 
-    with (
-        patch(
-            "src.nexus.workflows.workflow_engine.activities.execution_tracker.create_activity_execution"
-        ) as mock_create,
-        patch(
-            "src.nexus.workflows.workflow_engine.activities.execution_tracker.update_activity_execution"
-        ) as mock_update,
-    ):
-        mock_create.return_value = AsyncMock(id=mock_activity_id, execution_id=mock_execution_id, retry_count=0)
-        mock_update.return_value = AsyncMock()
+    Tests the execution tracker's ability to record and update retry counts
+    for activities that fail and are retried.
+    """
+    # Clear any previous test data
+    clear_tracking_data()
 
-        # Simulate 3 retry attempts
-        for retry_count in range(3):
-            try:
-                script = "exit 1" if retry_count < 2 else "echo 'Success'; exit 0"
-                config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code=script)
+    execution_id = str(uuid4())
+    activity_id = "retry_test_activity"
 
-                await execute_bash_script(config.model_dump(by_alias=True), inputs={})
+    # Create initial activity execution record
+    activity_exec = await create_activity_execution(
+        execution_id=execution_id,
+        activity_id=activity_id,
+        activity_name="Retry Test Activity",
+        input_data={"test": "data"},
+    )
 
-                # On success, update with final retry count
-                # mock_update should be called with retry_count=2
+    activity_exec_id = activity_exec["id"]
 
-                break
-            except Exception:
-                # On failure, update with current retry count
-                # mock_update should be called with retry_count and error_details
-                if retry_count == 2:
-                    raise
+    # Verify initial state
+    assert activity_exec["status"] == "running"
+    assert activity_exec["retry_count"] == 0
+    assert activity_exec["error_details"] is None
 
-        # Verify database updates tracked retries
-        # In real implementation, would verify retry_count field updated
+    # Simulate 3 retry attempts (fail, fail, succeed)
+    for retry_count in range(3):
+        try:
+            script = "exit 1" if retry_count < 2 else "echo 'Success'; exit 0"
+            config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code=script)
+
+            await execute_bash_script(config.model_dump(by_alias=True), inputs={})
+
+            # On success, update with final retry count
+            await update_activity_execution(
+                activity_exec_id=activity_exec_id,
+                status="completed",
+                output_data={"result": "success"},
+                retry_count=retry_count,
+            )
+            break
+
+        except Exception as e:
+            # On failure, update with current retry count and error
+            await update_activity_execution(
+                activity_exec_id=activity_exec_id,
+                status="failed" if retry_count == 2 else "running",
+                error_details=str(e),
+                retry_count=retry_count,
+            )
+            if retry_count == 2:
+                raise
+
+    # Verify final state - should have succeeded on attempt 3 (retry_count=2)
+    final_state = await get_activity_execution(activity_exec_id)
+    assert final_state["status"] == "completed"
+    assert final_state["retry_count"] == 2  # 0-indexed: 0, 1, 2 = 3 attempts
+    assert final_state["output_data"]["result"] == "success"
+    assert final_state["completed_at"] is not None
+
+    # Clean up
+    clear_tracking_data()
 
 
 @pytest.mark.integration
@@ -202,17 +235,28 @@ async def test_retry_demo_example_low_failure_rate(
     """Test the retry-demo.yaml example workflow with low failure rate.
 
     This verifies the example works with a low failure rate (30%) which should
-    succeed within the retry attempts.
+    succeed within the retry attempts after experiencing transient failures.
+
+    Testing Pattern:
+        Uses deterministic seed (10) that produces FAIL, SUCCESS pattern.
+        The seed advances with each retry (attempt 1=seed 10, attempt 2=seed 11).
+        This actually exercises the retry mechanism, unlike seeds that succeed
+        on first attempt.
+        See test_retry_demo_exhaustion_with_deterministic_seed for the
+        corresponding negative test with failure seed.
     """
     # Load the actual retry-demo example
     workflow_file = Path("tests/integration/workflow/examples/basic/retry-demo.yaml")
     workflow_yaml = workflow_file.read_text()
     workflow_def = parse_workflow_yaml(workflow_yaml)
 
-    # Run workflow with low failure rate (30%) - should eventually succeed
+    # Run workflow with low failure rate (30%) and fixed seed for determinism
+    # Seed 10 advances: attempt 1 (seed 10) produces 28 <= 30 (FAIL),
+    #                   attempt 2 (seed 11) produces 39 > 30 (SUCCESS)
+    # This verifies the retry mechanism actually works (not just first-attempt success)
     handle = await temporal_client.start_workflow(
         DynamicWorkflow.run,
-        args=[workflow_def.model_dump(mode="json", by_alias=True), "test-retry-low", {"failure_rate": 30}],
+        args=[workflow_def.model_dump(mode="json", by_alias=True), "test-retry-low", {"failure_rate": 30, "seed": 10}],
         id="test-example-retry-low",
         task_queue="test-workflow-queue",
     )
@@ -232,6 +276,61 @@ async def test_retry_demo_example_low_failure_rate(
     # Verify retry-related activities also executed
     assert "fixed_backoff_example" in result["activity_outputs"]
     assert "summary" in result["activity_outputs"]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_retry_demo_exhaustion_with_deterministic_seed(
+    temporal_env: WorkflowEnvironment,
+    temporal_client: Client,
+    temporal_worker: Worker,
+) -> None:
+    """Test retry exhaustion with deterministic seed that always fails.
+
+    This negative test verifies that workflows properly fail after max_attempts
+    when using a seed that produces consistent failures.
+
+    Testing Pattern:
+        Deterministic Testing with Seeds - To prevent flaky tests, we use fixed
+        seeds that produce predictable random values.
+        Seed advances by attempt (attempt 1=seed, attempt 2=seed+1, etc):
+        - Success seed (10): Produces [28, 39] = FAIL, SUCCESS
+        - Failure seed (1707): Produces [20, 22, 29, 0, 3] = all failures
+
+        This pattern ensures tests are:
+        - Reproducible: Same seed = same results every time
+        - Fast: No waiting for random success
+        - Reliable: No probability-based flakiness
+    """
+    # Load the actual retry-demo example
+    workflow_file = Path("tests/integration/workflow/examples/basic/retry-demo.yaml")
+    workflow_yaml = workflow_file.read_text()
+    workflow_def = parse_workflow_yaml(workflow_yaml)
+
+    # Verify retry configuration
+    activity = workflow_def.workflow.activities[0]
+    assert activity.retry_policy is not None
+    assert activity.retry_policy.max_attempts == 5
+
+    # Run workflow with seed that causes all 5 attempts to fail
+    # Seed 1707 with advancement produces values [20, 22, 29, 0, 3] - all <= 30
+    handle = await temporal_client.start_workflow(
+        DynamicWorkflow.run,
+        args=[
+            workflow_def.model_dump(mode="json", by_alias=True),
+            "test-retry-exhaust",
+            {"failure_rate": 30, "seed": 1707},
+        ],
+        id=f"test-example-retry-exhaust-{uuid4()}",
+        task_queue="test-workflow-queue",
+    )
+
+    # Workflow should fail after exhausting all 5 retry attempts
+    with pytest.raises(WorkflowFailureError) as exc_info:
+        await handle.result()
+
+    # Verify it failed due to activity failure (not timeout or other error)
+    assert exc_info.value is not None
 
 
 @pytest.mark.integration

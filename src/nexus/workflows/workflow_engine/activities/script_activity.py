@@ -162,9 +162,11 @@ def _prepare_script_env(inputs: dict[str, Any], environment: dict[str, str] | No
             env[key] = _sanitize_env_value(value)
 
     # Add input parameters with INPUT_ prefix
+    # Skip None values to avoid serializing them as "None" strings
     if inputs:
         for key, value in inputs.items():
-            env[f"INPUT_{key.upper()}"] = _sanitize_env_value(value)
+            if value is not None:
+                env[f"INPUT_{key.upper()}"] = _sanitize_env_value(value)
 
     return env
 
@@ -314,11 +316,20 @@ async def execute_bash_script(config: dict[str, Any], inputs: dict[str, Any]) ->
     # Validate config using Pydantic V2's model_validate (no deprecation warnings)
     script_config = ScriptExecutorConfig.model_validate(config)
 
+    # Inject Temporal activity attempt number for retry-aware scripts
+    # This allows scripts to use $TEMPORAL_ATTEMPT to advance random seeds
+    enhanced_inputs = inputs.copy()
+    try:
+        enhanced_inputs["temporal_attempt"] = activity.info().attempt
+    except RuntimeError:
+        # Not in activity context (e.g., unit tests), default to attempt 1
+        enhanced_inputs["temporal_attempt"] = 1
+
     # Use common script execution logic
     full_command = ["bash", "-c", script_config.code]
     return await _execute_script_common(
         full_command,
-        inputs,
+        enhanced_inputs,
         script_config.environment,
         timeout_seconds=float(script_config.timeout_seconds),
     )

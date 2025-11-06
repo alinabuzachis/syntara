@@ -123,8 +123,14 @@ async def test_transient_errors_eventually_succeed(
 ) -> None:
     """Verify that transient errors can be retried successfully.
 
-    This uses the transient-errors example which has a random chance of failure
-    but with 5 max attempts, it should eventually succeed.
+    This uses the transient-errors example with a deterministic seed to ensure
+    the test is reproducible and provides real confidence in the retry logic.
+
+    Testing Pattern:
+        Uses deterministic seed (4) that produces FAIL, SUCCESS pattern.
+        The seed advances with each retry (attempt 1=seed 4, attempt 2=seed 5).
+        This actually exercises the retry mechanism, unlike seeds that succeed
+        on first attempt.
     """
     # Load transient-errors example
     workflow_file = Path("tests/integration/workflow/examples/error-handling/transient-errors.yaml")
@@ -137,29 +143,22 @@ async def test_transient_errors_eventually_succeed(
     assert activity.retry_policy.max_attempts == 5
     assert activity.retry_policy.backoff == "exponential"
 
-    # Run workflow - with 70% chance of failure per attempt and 5 max attempts,
-    # there's a very high probability it will eventually succeed
-    # P(all 5 fail) = 0.7^5 = 0.168 = 16.8%, so 83.2% chance of success
+    # Run workflow with fixed seed for determinism
+    # Seed 4 advances: attempt 1 (seed 4) produces 3 < 7 (FAIL),
+    #                  attempt 2 (seed 5) produces 8 >= 7 (SUCCESS)
+    # This verifies the retry mechanism actually works (not just first-attempt success)
     handle = await temporal_client.start_workflow(
         DynamicWorkflow.run,
-        args=[workflow_def.model_dump(mode="json", by_alias=True), "test-transient", {}],
+        args=[workflow_def.model_dump(mode="json", by_alias=True), "test-transient", {"seed": 4}],
         id=f"test-transient-errors-{uuid4()}",
         task_queue="test-workflow-queue",
         execution_timeout=timedelta(seconds=30),
     )
 
-    # Most likely will complete successfully (83% chance)
-    # If it fails, that's ok - we're testing that retries happen
-    try:
-        result = await handle.result()
-        # If successful, verify completion
-        assert result["status"] == "completed"
-        assert "transient_task" in result["activity_outputs"]
-    except WorkflowFailureError:
-        # If all retries failed (16.8% chance), that's also valid behavior
-        # The important thing is that retries were attempted
-        # Not logging here as it's expected test behavior
-        pass
+    # With deterministic seed, workflow should always complete successfully
+    result = await handle.result()
+    assert result["status"] == "completed"
+    assert "transient_task" in result["activity_outputs"]
 
 
 @pytest.mark.integration
