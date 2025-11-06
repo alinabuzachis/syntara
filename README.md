@@ -215,12 +215,47 @@ make temporal-logs        # Temporal server and worker logs
 make temporal-ui-logs     # Temporal UI logs
 ```
 
+#### Running Multiple Instances
+
+You can run multiple isolated instances of Nexus simultaneously using the `PODMAN_PROJECT` environment variable. This is useful for:
+- Running different feature branches side-by-side
+- Maintaining separate dev/staging environments locally
+- Testing interactions between multiple Nexus instances
+
+**Example: Running two instances**:
+```bash
+# Terminal 1: Run default instance
+make services-run
+# Containers: nexus_database_1, nexus_temporal_1, etc.
+
+# Terminal 2: Run a separate dev instance
+PODMAN_PROJECT=nexus-dev make services-run
+# Containers: nexus-dev_database_1, nexus-dev_temporal_1, etc.
+```
+
+**Note**: Each instance requires unique ports. Configure ports via `.env` file or environment variables to avoid conflicts:
+```bash
+# For the second instance
+export PODMAN_PROJECT=nexus-dev
+export NEXUS_DB_PORT=5433
+export NEXUS_API_PORT=8001
+export NEXUS_UI_PORT=8081
+export NEXUS_TEMPORAL_PORT=7234
+export NEXUS_TEMPORAL_UI_PORT=8082
+export VALKEY_PORT=6380
+make services-run
+```
 
 **Environment Variables**:
 
 All services can be configured via `.env` file or environment variables:
 
 ```bash
+# Project Configuration
+PODMAN_PROJECT=nexus  # Project name for container orchestration (default: nexus)
+                      # Use this to run multiple isolated instances of Nexus
+                      # Example: PODMAN_PROJECT=nexus-dev make services-run
+
 # API Configuration
 NEXUS_API_PORT=8000
 

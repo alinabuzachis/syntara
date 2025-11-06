@@ -77,7 +77,6 @@ services:
         condition: service_healthy
 
   nexus:
-    container_name: nexus
     build:
       context: .
       dockerfile: containers/nexus/Containerfile
@@ -112,7 +111,6 @@ services:
 
   # Temporal Worker - Executes workflow and activity tasks
   temporal-worker:
-    container_name: nexus-temporal-worker
     image: ${NEXUS_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
     command: [sh, -c, uv run python -m nexus.workflows.worker]
