@@ -43,6 +43,14 @@ export function NodeComponent(props: {
           props.className
         )}
         onClick={props.onClick}
+        onKeyDown={(e) => {
+          if (props.onClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault()
+            props.onClick(e as unknown as React.MouseEvent<HTMLDivElement, MouseEvent>)
+          }
+        }}
+        role={props.onClick ? 'button' : undefined}
+        tabIndex={props.onClick ? 0 : undefined}
       >
         {props.children}
         {!props.disableTarget && <Handle type="target" id="target" position={Position.Left} style={handleStyle} />}

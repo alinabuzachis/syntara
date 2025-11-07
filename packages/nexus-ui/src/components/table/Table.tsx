@@ -9,7 +9,7 @@ import {
 } from '@ansible/nexus-ui-framework'
 import clsx from 'clsx'
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import type { Column } from './Column'
 import type { LucideIcon } from 'lucide-react'
 import { EllipsisVerticalIcon } from 'lucide-react'
@@ -214,10 +214,9 @@ export function Table<T>(props: {
                             const isDisabled =
                               typeof action.disabled === 'function' ? action.disabled(item) : action.disabled
                             return (
-                              <>
+                              <Fragment key={actionIndex}>
                                 {action.separator && actionIndex > 0 && <MenuSeparator />}
                                 <MenuItem
-                                  key={actionIndex}
                                   onClick={() => !isDisabled && action.onClick(item)}
                                   disabled={isDisabled}
                                   className={clsx(
@@ -229,7 +228,7 @@ export function Table<T>(props: {
                                   {Icon && <Icon className="size-4" />}
                                   {action.label}
                                 </MenuItem>
-                              </>
+                              </Fragment>
                             )
                           })}
                         </MenuItems>

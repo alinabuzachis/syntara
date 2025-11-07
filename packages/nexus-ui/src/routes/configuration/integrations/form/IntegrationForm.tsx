@@ -40,13 +40,7 @@ export function IntegrationForm() {
             name="configuration.provider_type"
             options={[{ label: 'MCP Server', value: 'mcp', icon: <ServerIcon /> }]}
           />
-          <FormInput<ToolProvider>
-            label="Server name / ID"
-            name="name"
-            placeholder="Enter server name / ID"
-            required
-            autoFocus
-          />
+          <FormInput<ToolProvider> label="Server name / ID" name="name" placeholder="Enter server name / ID" required />
           <FormInput<ToolProvider> label="Description" name="description" placeholder="Enter description" />
           <FormInput<ToolProvider> label="API URL" name="configuration.base_url" placeholder="Enter API URL" required />
         </Form>
