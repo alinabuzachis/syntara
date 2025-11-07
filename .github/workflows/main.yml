@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  build-image:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -51,58 +51,3 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/nexus-mock-api:latest
             ghcr.io/${{ github.repository_owner }}/nexus-mock-api:${{ github.sha }}
-
-      - name: Configure SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
-
-      - name: Upload compose.yml and deploy
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          scp -i ~/.ssh/deploy_key compose.yml "$SSH_USER@$SSH_HOST:/home/ubuntu/"
-          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" << EOF
-          cd /home/ubuntu
-
-          # Install docker and docker-compose if not present
-          if ! command -v docker &> /dev/null; then
-            sudo apt update
-            sudo apt install -y docker.io
-            sudo usermod -aG docker $USER
-            newgrp docker
-          fi
-
-          if ! command -v docker-compose &> /dev/null; then
-            echo "Installing docker-compose..."
-            sudo apt install -y docker-compose
-          fi
-
-          # Login to GitHub Container Registry
-          echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-          # Pull the latest images
-          docker pull ghcr.io/${{ github.repository_owner }}/nexus-ui:latest
-          docker pull ghcr.io/${{ github.repository_owner }}/nexus-mock-api:latest
-
-          # Start services using docker-compose
-          docker-compose down
-          docker-compose up -d
-
-          # Logout
-          docker logout ghcr.io
-
-          # docker system prune -a -f
-          EOF
-
-      - name: Cleanup SSH key
-        if: always()
-        run: rm -f ~/.ssh/deploy_key
