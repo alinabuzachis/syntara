@@ -15,6 +15,7 @@ from sqlmodel import DateTime, Field, Relationship, SQLModel
 
 from nexus.core.models import Resource, ResourcesResponse
 from nexus.core.models.base import BaseResource
+from nexus.core.utils.sqlmodel import postgres_enum_column
 
 if TYPE_CHECKING:
     from nexus.tool_manager.models.tool_provider import ToolProvider
@@ -57,7 +58,13 @@ class ToolParameter(BaseResource, table=True):
 
     name: str = Field(max_length=100, description="Parameter name")
 
-    type: ToolParameterType = Field(description="Parameter type")
+    type: ToolParameterType = Field(
+        sa_column=postgres_enum_column(
+            ToolParameterType,
+            "tool_parameter_type",
+        ),
+        description="Parameter type",
+    )
 
     description: str = Field(description="Parameter description")
 
@@ -116,7 +123,15 @@ class Tool(Resource, table=True):
 
     enabled: bool = Field(default=True, description="Whether the tool is enabled")
 
-    status: ToolStatus = Field(default=ToolStatus.AVAILABLE, description="Current status of the tool")
+    status: ToolStatus = Field(
+        default=ToolStatus.AVAILABLE,
+        sa_column=postgres_enum_column(
+            ToolStatus,
+            "tool_status",
+            index=True,
+        ),
+        description="Current status of the tool",
+    )
 
     last_executed_at: datetime | None = Field(
         default=None,

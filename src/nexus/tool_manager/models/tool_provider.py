@@ -15,6 +15,7 @@ from sqlmodel import DateTime, Field, Relationship, SQLModel
 from nexus.core.constants import FieldLimits
 from nexus.core.models import Resource, ResourcesResponse
 from nexus.core.models.base import NamedResource
+from nexus.core.utils.sqlmodel import postgres_enum_column
 
 if TYPE_CHECKING:
     from nexus.tool_manager.models.tool import Tool
@@ -113,6 +114,11 @@ class ToolProvider(Resource, table=True):
 
     status: ProviderStatus = Field(
         default=ProviderStatus.VALIDATING,
+        sa_column=postgres_enum_column(
+            ProviderStatus,
+            "tool_provider_status",
+            index=True,
+        ),
         description="Current status of the provider",
     )
 
