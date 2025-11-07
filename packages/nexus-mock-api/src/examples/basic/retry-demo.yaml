@@ -15,6 +15,16 @@ inputs:
     default: 70
     minimum: 0
     maximum: 100
+  seed:
+    type: integer
+    description: |
+      Random seed for deterministic testing (optional).
+      When provided, ensures reproducible behavior in tests.
+      Seed advances by attempt number (attempt 1=seed, attempt 2=seed+1, etc):
+        - Seed 10: Produces [28, 39] = FAIL, SUCCESS (tests retry mechanism)
+        - Seed 1707: Produces [20, 22, 29, 0, 3] = all failures (tests exhaustion)
+      In production, omit this parameter to use true randomness.
+    required: false
 
 workflow:
   activities:
@@ -38,6 +48,13 @@ workflow:
           echo "Attempt #$ATTEMPT_NUMBER: Calling unreliable service..."
           echo "Failure rate: ${INPUT_FAILURE_RATE}%"
 
+          # Seed RANDOM for deterministic testing if seed provided
+          # Advance seed by attempt number to get different values on each retry
+          if [ -n "$INPUT_SEED" ]; then
+            ATTEMPT=${INPUT_TEMPORAL_ATTEMPT:-1}
+            RANDOM=$(( INPUT_SEED + ATTEMPT - 1 ))
+          fi
+
           # Generate random number between 0-100
           RANDOM_NUM=$((RANDOM % 100))
           echo "Random roll: $RANDOM_NUM (need > $INPUT_FAILURE_RATE to succeed)"
@@ -54,6 +71,7 @@ workflow:
       inputs:
         failure_rate: ${input.failure_rate}
         attempt: '1'
+        seed: ${input.seed}
       outputs:
         result: $.stdout
 

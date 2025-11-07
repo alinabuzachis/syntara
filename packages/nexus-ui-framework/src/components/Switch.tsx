@@ -20,6 +20,10 @@ export function Switch(props: SwitchProps) {
   } = props
   const [checked, setChecked] = React.useState(props?.checked)
 
+  React.useEffect(() => {
+    setChecked(props?.checked)
+  }, [props?.checked])
+
   const handleChange = () => {
     if (readOnly) return
     const newValue = !checked
@@ -37,7 +41,9 @@ export function Switch(props: SwitchProps) {
       >
         <BaseSwitch.Thumb className="aspect-square h-full rounded-full bg-gray-800 shadow-[0_0_1px_1px,0_1px_1px,1px_2px_4px_-1px] shadow-gray-100 transition-transform duration-150 data-[checked]:translate-x-3 dark:shadow-black/25" />
       </BaseSwitch.Root>
-      {showLabels && <span className="text-sm text-white/80">{checked ? enabledLabel : disabledLabel}</span>}
+      {showLabels && (
+        <span className="inline-block min-w-16 text-sm text-white/80">{checked ? enabledLabel : disabledLabel}</span>
+      )}
     </div>
   )
 }

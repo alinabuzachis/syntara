@@ -8,6 +8,17 @@ metadata:
 triggers:
 - type: manual
 
+inputs:
+  seed:
+    type: integer
+    description: |
+      Random seed for deterministic testing (optional).
+      When provided, ensures reproducible behavior in tests.
+      Seed advances by attempt number (attempt 1=seed, attempt 2=seed+1, etc).
+      Example: Seed 4 produces [3, 8] = FAIL, SUCCESS (tests retry mechanism).
+      In production, omit this parameter to use true randomness.
+    required: false
+
 workflow:
   activities:
   - id: transient_task
@@ -25,6 +36,13 @@ workflow:
         language: bash
         code: |
           # Simulate transient failure (e.g., network timeout)
+          # Seed RANDOM for deterministic testing if seed provided
+          # Advance seed by attempt number to get different values on each retry
+          if [ -n "$INPUT_SEED" ]; then
+            ATTEMPT=${INPUT_TEMPORAL_ATTEMPT:-1}
+            RANDOM=$(( INPUT_SEED + ATTEMPT - 1 ))
+          fi
+
           RANDOM_VAL=$((RANDOM % 10))
           if [ $RANDOM_VAL -lt 7 ]; then
             echo "Transient failure occurred"
@@ -33,3 +51,5 @@ workflow:
             echo "Success after retries"
             exit 0
           fi
+      inputs:
+        seed: ${input.seed}

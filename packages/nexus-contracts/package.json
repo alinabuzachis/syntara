@@ -9,7 +9,7 @@
   "main": "./src/index.ts",
   "scripts": {
     "gen": "npm run nexus:checkout && concurrently npm:gen:* -c auto && npm run nexus:clean && cd ../.. && npm run format",
-    "nexus:checkout": "rm -rf nexus && git clone https://github.com/syntara-orchestration/syntara",
+    "nexus:checkout": "rm -rf nexus && git clone git@github.com:syntara-orchestration/syntara.git",
     "gen:tools": "npx openapi-typescript ./nexus/schemas/tool_management/tools.yaml --output ./src/tools.ts --default-non-nullable false",
     "gen:tool-providers": "npx openapi-typescript ./nexus/schemas/tool_management/tool-providers.yaml --output ./src/tool-providers.ts --default-non-nullable false",
     "gen:workflow": "npx openapi-typescript ./nexus/schemas/workflows/workflow-api.yaml --output ./src/workflow-api.ts --default-non-nullable false",

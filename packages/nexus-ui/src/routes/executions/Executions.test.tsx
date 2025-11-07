@@ -106,9 +106,9 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    expect(screen.getByText('completed')).toBeInTheDocument()
-    expect(screen.getByText('running')).toBeInTheDocument()
-    expect(screen.getByText('failed')).toBeInTheDocument()
+    expect(screen.getByText('Completed')).toBeInTheDocument()
+    expect(screen.getByText('Running')).toBeInTheDocument()
+    expect(screen.getByText('Failed')).toBeInTheDocument()
   })
 
   it('renders table headers', () => {

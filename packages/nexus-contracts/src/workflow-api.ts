@@ -916,14 +916,14 @@ export interface components {
        * @description Timestamp when resource was created
        * @example 2025-10-09T12:00:00Z
        */
-      readonly created_at: string
+      readonly createdAt: string
       /**
        * Updated At
        * Format: date-time
        * @description Timestamp when resource was last updated
        * @example 2025-10-09T12:30:00Z
        */
-      readonly updated_at: string
+      readonly updatedAt: string
       /**
        * Labels
        * @description Key-value pairs for resource labeling and filtering

@@ -9,25 +9,38 @@ import { useFuse } from '../../hooks/useFuse'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { useSearch } from 'wouter'
 import { useMemo } from 'react'
+import { CircleDashed, Loader2, Pause, CheckCircle2, XCircle, Ban } from 'lucide-react'
 
 type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
 
-const statusColors: Record<ExecutionStatus, string> = {
-  pending: 'bg-gray-500/30 text-gray-50 border-gray-500/60',
-  running: 'bg-blue-500/30 text-blue-50 border-blue-500/60',
-  paused: 'bg-yellow-500/30 text-yellow-50 border-yellow-500/60',
-  completed: 'bg-green-500/30 text-green-50 border-green-500/60',
-  failed: 'bg-red-500/30 text-red-50 border-red-500/60',
-  cancelled: 'bg-orange-500/30 text-orange-50 border-orange-500/60',
+const statusIcons: Record<ExecutionStatus, React.ComponentType<{ className?: string }>> = {
+  pending: CircleDashed,
+  running: Loader2,
+  paused: Pause,
+  completed: CheckCircle2,
+  failed: XCircle,
+  cancelled: Ban,
 }
 
-function StatusBadge({ status }: { status: ExecutionStatus }) {
+const statusColors: Record<ExecutionStatus, string> = {
+  pending: 'text-gray-400',
+  running: 'text-blue-400',
+  paused: 'text-yellow-400',
+  completed: 'text-green-400',
+  failed: 'text-red-400',
+  cancelled: 'text-orange-400',
+}
+
+function StatusLabel({ status }: { status: ExecutionStatus }) {
+  const Icon = statusIcons[status]
+  const colorClass = statusColors[status]
+  const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1)
+
   return (
-    <span
-      className={`inline-flex items-center rounded-full border-2 px-2.5 py-0.5 text-xs font-semibold ${statusColors[status]}`}
-    >
-      {status}
-    </span>
+    <div className={`flex items-center gap-1.5 ${colorClass}`}>
+      <Icon className="size-4" />
+      <span>{capitalizedStatus}</span>
+    </div>
   )
 }
 
@@ -77,7 +90,7 @@ export default function Executions() {
             label: 'Execution ID',
             width: '250px',
             render: (execution) => (
-              <LinkCell href={`/executions/${execution.id}`}>
+              <LinkCell href={`/automations/${execution.workflow_id}?showHistory=true`}>
                 <code className="text-sm">{execution.id?.slice(0, 8)}...</code>
               </LinkCell>
             ),
@@ -95,7 +108,7 @@ export default function Executions() {
             id: 'status',
             label: 'Status',
             width: '150px',
-            render: (execution) => <StatusBadge status={execution.status!} />,
+            render: (execution) => <StatusLabel status={execution.status!} />,
           },
           {
             id: 'created_at',

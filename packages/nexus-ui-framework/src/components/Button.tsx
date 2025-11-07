@@ -10,12 +10,12 @@ export function Button(props: ButtonProps) {
   return (
     <button
       className={clsx(
-        'cursor-pointer rounded-full',
+        'flex cursor-pointer items-center rounded-full',
         // Variant styles
         {
           'bg-blue-500 text-white hover:bg-blue-600': !variant || variant === 'primary',
           'bg-gray-500 text-white hover:bg-gray-600': variant === 'secondary',
-          'bg-transparent text-gray-700 hover:bg-gray-100': variant === 'plain',
+          'bg-transparent text-white hover:bg-white/10': variant === 'plain',
         },
         // Size styles
         {
