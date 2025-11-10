@@ -37,8 +37,9 @@ services:
     - ${NEXUS_UI_PORT:-8080}:80
     environment:
     - NEXUS_API_URL=${NEXUS_API_URL:-http://nexus:8000}
-    volumes:
-    - ./containers/ui/default.conf.template:/etc/nginx/templates/default.conf.template:z
+    depends_on:
+      nexus:
+        condition: service_healthy
 
   temporal:
     image: mirror.gcr.io/temporalio/auto-setup:1.25.1
