@@ -9,11 +9,15 @@ the worker can successfully process workflows.
 # SLF001: Integration tests need to verify internal state (_worker_task) of the service
 
 import asyncio
+import os
+import signal
+from unittest.mock import patch
 
 import pytest
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
+from nexus.workflows.worker import main
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
@@ -330,3 +334,64 @@ class TestWorkerServiceConfiguration:
             # Should complete successfully
             workflow_result = await execution_service.get_workflow_result(result.temporal_workflow_id)
             assert workflow_result.status == "completed"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+class TestWorkerSignalHandling:
+    """Test worker signal handling and graceful shutdown."""
+
+    @pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
+    async def test_worker_main_graceful_shutdown_on_signal(self, sig: int) -> None:
+        """Test that worker main() function shuts down gracefully on signals.
+
+        This test verifies the signal handling fix that uses loop.add_signal_handler()
+        instead of signal.signal() for proper asyncio integration.
+
+        Args:
+            sig: Signal to send (SIGTERM or SIGINT)
+
+        """
+        # Track whether shutdown completed
+        shutdown_completed = False
+
+        async def mock_start_worker() -> TemporalWorkerService:
+            """Mock start_worker that returns a service without actually connecting."""
+            # Don't actually start - just return the service
+            return TemporalWorkerService(
+                temporal_address="test:7233",
+                namespace="default",
+                task_queue="test-queue",
+            )
+
+        async def mock_stop_worker() -> None:
+            """Mock stop_worker that marks shutdown as completed."""
+            nonlocal shutdown_completed
+            shutdown_completed = True
+
+        with (
+            patch("nexus.workflows.worker.start_worker", side_effect=mock_start_worker),
+            patch("nexus.workflows.worker.stop_worker", side_effect=mock_stop_worker),
+        ):
+            # Run main() in a background task
+            main_task = asyncio.create_task(main())
+
+            # Give main() time to set up signal handlers
+            await asyncio.sleep(0.1)
+
+            # Send signal to our own process
+            # This will be caught by the signal handler registered with loop.add_signal_handler()
+            os.kill(os.getpid(), sig)
+
+            # Give the event loop a chance to process the signal
+            await asyncio.sleep(0.1)
+
+            # Give the worker time to shut down gracefully
+            try:
+                await asyncio.wait_for(main_task, timeout=2.0)
+            except TimeoutError:
+                signal_name = "SIGTERM" if sig == signal.SIGTERM else "SIGINT"
+                pytest.fail(f"Worker did not shut down within timeout on {signal_name}")
+
+            # Verify shutdown completed
+            assert shutdown_completed, f"Worker stop_worker() was not called on signal {sig}"

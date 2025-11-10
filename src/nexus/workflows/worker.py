@@ -20,7 +20,6 @@ import logging
 import os
 import signal
 import sys
-from types import FrameType
 
 from nexus.workflows.workflow_engine.services.temporal_worker import start_worker, stop_worker
 
@@ -40,14 +39,16 @@ async def main() -> None:
 
     # Setup graceful shutdown
     shutdown_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
 
-    def signal_handler(sig: int, frame: FrameType | None) -> None:  # noqa: ARG001
+    def signal_handler(sig: int) -> None:
         """Handle shutdown signals."""
         logger.info("Received signal %s, initiating graceful shutdown...", sig)
         shutdown_event.set()
 
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    # Register signal handlers with the event loop for proper asyncio integration
+    loop.add_signal_handler(signal.SIGINT, lambda: signal_handler(signal.SIGINT))
+    loop.add_signal_handler(signal.SIGTERM, lambda: signal_handler(signal.SIGTERM))
 
     try:
         # Start the worker
