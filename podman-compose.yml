@@ -83,8 +83,8 @@ services:
       dockerfile: containers/nexus/Containerfile
     image: ${NEXUS_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, uv run alembic upgrade head && uv run uvicorn nexus.api.main:app
-        --host 0.0.0.0 --port 8000]
+    command: [sh, -c, uv run alembic upgrade head && uv run tools/load_sample_workflows.py
+        samples && uv run uvicorn nexus.api.main:app --host 0.0.0.0 --port 8000]
     ports:
     - ${NEXUS_API_PORT:-8000}:8000
     environment:

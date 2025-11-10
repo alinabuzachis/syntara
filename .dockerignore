@@ -81,7 +81,7 @@ test_*.py
 *_test.py
 
 # Tools and scripts
-tools/
+# tools/ - Now needed for load_sample_workflows.py
 scripts/
 
 # Temporary files

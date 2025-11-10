@@ -23,6 +23,8 @@ RUN uv sync --frozen
 
 # Copy application code
 COPY src/ ./src/
+COPY tools/ ./tools/
+COPY samples/ ./samples/
 
 # Fix permissions for OpenShift/UBI (runs as arbitrary UID)
 RUN chown -R 1001:0 /opt/app-root && \
