@@ -10,6 +10,15 @@ import { ChatInput } from '../../../../components/chat/ChatInput'
 
 export function IntegrationForm() {
   const { mutate: createIntegration } = toolProvidersClient.useMutation('post', '/tool-providers')
+  const { mutate: validateIntegration } = toolProvidersClient.useMutation(
+    'post',
+    '/tool-providers/{provider_id}/validate'
+  )
+  const { mutate: refreshTools } = toolProvidersClient.useMutation(
+    'post',
+    '/tool-providers/{provider_id}/refresh-tools'
+  )
+
   return (
     <AppPage>
       <AppPageHeader title="Configure Integration">
@@ -28,7 +37,22 @@ export function IntegrationForm() {
           onSubmit={(toolProvider: ToolProvider) => {
             createIntegration(
               { body: toolProvider },
-              { onSuccess: () => navigate(AppRoute.Configuration.Integrations.Root) }
+              {
+                onSuccess: (data) => {
+                  const providerId = data.id
+                  validateIntegration(
+                    { params: { path: { provider_id: providerId } } },
+                    {
+                      onSettled: () => {
+                        refreshTools(
+                          { params: { path: { provider_id: providerId } } },
+                          { onSettled: () => navigate(AppRoute.Configuration.Integrations.Root) }
+                        )
+                      },
+                    }
+                  )
+                },
+              }
             )
           }}
           defaultValues={{
@@ -43,6 +67,7 @@ export function IntegrationForm() {
           <FormInput<ToolProvider> label="Server name / ID" name="name" placeholder="Enter server name / ID" required />
           <FormInput<ToolProvider> label="Description" name="description" placeholder="Enter description" />
           <FormInput<ToolProvider> label="API URL" name="configuration.base_url" placeholder="Enter API URL" required />
+          <FormInput<ToolProvider> label="API key" name="configuration.api_key" placeholder="Enter API key" />
         </Form>
       </Scrollable>
       <ChatInput />

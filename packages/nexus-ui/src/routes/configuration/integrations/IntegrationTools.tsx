@@ -1,5 +1,6 @@
 import type { Tool } from '@ansible/nexus-contracts'
-import { Button, Form } from '@ansible/nexus-ui-framework'
+import { Button, ConfirmDialog, EmptyStateNoData, Form, useAlerts } from '@ansible/nexus-ui-framework'
+import { RefreshCwIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 import { AppPage } from '../../../app/AppPage'
@@ -11,17 +12,17 @@ import { useQueryState } from '../../../components/states/useQueryState'
 import { StringCell } from '../../../components/table/StringCell'
 import { Table } from '../../../components/table/Table'
 import { useFuse } from '../../../hooks/useFuse'
-import { IntegrationEmptyState } from './IntegrationEmptyState.tsx'
 
 export default function IntegrationTools() {
   const params = useParams()
   const [, navigate] = useLocation()
   const provider_id = params?.provider_id || ''
+  const { showAlert } = useAlerts()
+
   const integrationQuery = toolProvidersClient.useQuery('get', '/tool-providers/{provider_id}', {
     params: { path: { provider_id } },
   })
   const provider = integrationQuery.data!
-  //const { mutate: updateTools} = toolsClient.useMutation('patch', '/tools/bulk-update')
   const integrationQueryStatus = useQueryState(integrationQuery, 'Error loading tools')
   const query = toolsClient.useQuery('get', '/tools', {
     params: {
@@ -31,6 +32,35 @@ export default function IntegrationTools() {
     },
   })
   const { mutate: updateTools } = toolsClient.useMutation('patch', '/tools/bulk-update')
+  const { mutate: refreshTools } = toolProvidersClient.useMutation(
+    'post',
+    '/tool-providers/{provider_id}/refresh-tools'
+  )
+
+  const handleRefreshTools = () => {
+    refreshTools(
+      { params: { path: { provider_id } } },
+      {
+        onSuccess: () => {
+          showAlert({
+            title: 'Tools refreshed',
+            description: `Tools for "${provider.name}" have been refreshed successfully.`,
+            variant: 'success',
+            autoDismiss: true,
+          })
+          query.refetch()
+        },
+        onError: (error) => {
+          showAlert({
+            title: 'Refresh failed',
+            description: `Failed to refresh tools for "${provider.name}": ${error.message}`,
+            variant: 'error',
+            autoDismiss: true,
+          })
+        },
+      }
+    )
+  }
 
   const handleSubmit = async () => {
     const enableTools = enabledTools?.map((tool) => tool.id)
@@ -51,6 +81,7 @@ export default function IntegrationTools() {
   }
   const { search, setSearch, items: results } = useFuse(query.data?.resources ?? [], [{ name: 'namespaced_name' }])
   const [enabledTools, setEnabledTools] = useState<Tool[]>([])
+  const [refreshDialogOpen, setRefreshDialogOpen] = useState(false)
 
   if (integrationQueryStatus) return integrationQueryStatus
 
@@ -64,6 +95,9 @@ export default function IntegrationTools() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
+          Refresh tools
+        </Button>
         <Button type="submit" form="tools-form">
           Save
         </Button>
@@ -98,7 +132,15 @@ export default function IntegrationTools() {
               ),
             },
           ]}
-          emptyState={<IntegrationEmptyState />}
+          emptyState={
+            <EmptyStateNoData
+              title="No tools available"
+              description={`No tools found for "${provider?.name}". Click the button below to refresh and fetch the latest tools from this integration.`}
+              buttonText="Refresh tools"
+              icon={RefreshCwIcon}
+              addData={handleRefreshTools}
+            />
+          }
           onSelectionChange={(selected) => {
             setEnabledTools(selected)
             console.log(`${selected.length} tools enabled`)
@@ -106,6 +148,14 @@ export default function IntegrationTools() {
         />
       </Form>
       <ChatInput />
+      <ConfirmDialog
+        open={refreshDialogOpen}
+        onOpenChange={setRefreshDialogOpen}
+        title="Refresh tools"
+        description={`Are you sure you want to refresh tools for "${provider?.name}"? This will fetch the latest tools from the integration.`}
+        confirmLabel="Refresh"
+        onConfirm={handleRefreshTools}
+      />
     </AppPage>
   )
 }

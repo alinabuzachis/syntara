@@ -1,5 +1,6 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
 import {
+  ConfirmDialog,
   EmptyStateFilter,
   Menu,
   MenuGroup,
@@ -8,8 +9,9 @@ import {
   MenuRadioItem,
   MenuTrigger,
   Scrollable,
+  useAlerts,
 } from '@ansible/nexus-ui-framework'
-import { EllipsisVerticalIcon, EyeIcon, Trash2Icon } from 'lucide-react'
+import { CheckCircle2Icon, EllipsisVerticalIcon, EyeIcon, Loader2Icon, Trash2Icon, XCircleIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 import { AppPage } from '../../../app/AppPage'
@@ -24,10 +26,110 @@ import { useFuse } from '../../../hooks/useFuse'
 import { IntegrationCard } from './IntegrationCard'
 import { IntegrationEmptyState } from './IntegrationEmptyState'
 
+type ProviderStatus = 'available' | 'error' | 'validating'
+
+const statusIcons: Record<ProviderStatus, React.ComponentType<{ className?: string }>> = {
+  available: CheckCircle2Icon,
+  error: XCircleIcon,
+  validating: Loader2Icon,
+}
+
+const statusColors: Record<ProviderStatus, string> = {
+  available: 'text-green-400',
+  error: 'text-red-400',
+  validating: 'text-blue-400',
+}
+
+function StatusLabel({ status }: { status: string }) {
+  const providerStatus = status as ProviderStatus
+  const Icon = statusIcons[providerStatus] || XCircleIcon
+  const colorClass = statusColors[providerStatus] || 'text-gray-400'
+  const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1)
+
+  return (
+    <div className={`flex items-center gap-1.5 ${colorClass}`}>
+      <Icon className="size-4" />
+      <span>{capitalizedStatus}</span>
+    </div>
+  )
+}
+
 export default function Integrations() {
   const [, navigate] = useLocation()
   const query = toolProvidersClient.useQuery('get', '/tool-providers', {})
   const { search, setSearch, items: results } = useFuse(query.data?.resources ?? [], [{ name: 'name' }])
+  const { showAlert } = useAlerts()
+
+  const [validateDialogOpen, setValidateDialogOpen] = useState(false)
+  const [providerToValidate, setProviderToValidate] = useState<ToolProvider | null>(null)
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [providerToDelete, setProviderToDelete] = useState<ToolProvider | null>(null)
+
+  const { mutate: validateProvider } = toolProvidersClient.useMutation('post', '/tool-providers/{provider_id}/validate')
+  const { mutate: deleteProvider } = toolProvidersClient.useMutation('delete', '/tool-providers/{provider_id}')
+
+  const handleValidate = () => {
+    if (!providerToValidate) return
+
+    validateProvider(
+      { params: { path: { provider_id: providerToValidate.id } } },
+      {
+        onSuccess: () => {
+          showAlert({
+            title: 'Validation successful',
+            description: `Provider "${providerToValidate.name}" validated successfully.`,
+            variant: 'success',
+            autoDismiss: true,
+          })
+          query.refetch()
+        },
+        onError: (error) => {
+          showAlert({
+            title: 'Validation failed',
+            description: `Failed to validate provider "${providerToValidate.name}": ${error.message}`,
+            variant: 'error',
+            autoDismiss: true,
+          })
+        },
+        onSettled: () => {
+          setValidateDialogOpen(false)
+          setProviderToValidate(null)
+        },
+      }
+    )
+  }
+
+  const handleDelete = () => {
+    if (!providerToDelete) return
+
+    deleteProvider(
+      { params: { path: { provider_id: providerToDelete.id } } },
+      {
+        onSuccess: () => {
+          showAlert({
+            title: 'Integration deleted',
+            description: `Integration "${providerToDelete.name}" has been deleted successfully.`,
+            variant: 'success',
+            autoDismiss: true,
+          })
+          query.refetch()
+        },
+        onError: (error) => {
+          showAlert({
+            title: 'Delete failed',
+            description: `Failed to delete integration "${providerToDelete.name}": ${error.message}`,
+            variant: 'error',
+            autoDismiss: true,
+          })
+        },
+        onSettled: () => {
+          setDeleteDialogOpen(false)
+          setProviderToDelete(null)
+        },
+      }
+    )
+  }
 
   const rowActions = useMemo<IRowAction<ToolProvider>[]>(
     () => [
@@ -39,13 +141,20 @@ export default function Integrations() {
         },
       },
       {
+        label: 'Validate connection',
+        icon: CheckCircle2Icon,
+        onClick: (provider: ToolProvider) => {
+          setProviderToValidate(provider)
+          setValidateDialogOpen(true)
+        },
+      },
+      {
         label: 'Uninstall',
         icon: Trash2Icon,
         variant: 'destructive' as const,
         onClick: (provider: ToolProvider) => {
-          if (confirm(`Are you sure you want to delete "${provider.name}"?`)) {
-            console.log('Uninstall integration:', provider.name)
-          }
+          setProviderToDelete(provider)
+          setDeleteDialogOpen(true)
         },
       },
     ],
@@ -104,7 +213,7 @@ export default function Integrations() {
             {
               id: 'status',
               label: 'Status',
-              render: (item) => <StringCell>{item.status}</StringCell>,
+              render: (item) => <StatusLabel status={item.status} />,
             },
             {
               id: 'configuration',
@@ -129,6 +238,22 @@ export default function Integrations() {
         </Scrollable>
       )}
       <ChatInput />
+      <ConfirmDialog
+        open={validateDialogOpen}
+        onOpenChange={setValidateDialogOpen}
+        title="Validate integration"
+        description={`Are you sure you want to validate the connection for "${providerToValidate?.name}"?`}
+        confirmLabel="Validate"
+        onConfirm={handleValidate}
+      />
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete integration"
+        description={`Are you sure you want to delete "${providerToDelete?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+      />
     </AppPage>
   )
 }

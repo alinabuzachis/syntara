@@ -38,7 +38,9 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 )
 
 describe('IntegrationForm Component', () => {
-  const mockMutate = vi.fn()
+  const mockCreateMutate = vi.fn()
+  const mockValidateMutate = vi.fn()
+  const mockRefreshMutate = vi.fn()
   const mockNavigate = vi.fn()
 
   beforeEach(() => {
@@ -47,25 +49,67 @@ describe('IntegrationForm Component', () => {
     // Get the mocked navigate function
     mockNavigate.mockImplementation(navigate)
 
-    // Mock the mutation hook
-    vi.mocked(toolProvidersClient.useMutation).mockReturnValue({
-      mutate: mockMutate,
-      isPending: false,
-      isError: false,
-      error: null,
-      data: null,
-      reset: vi.fn(),
-      mutateAsync: vi.fn(),
-      isIdle: true,
-      isSuccess: false,
-      failureCount: 0,
-      failureReason: null,
-      context: undefined,
-      submittedAt: 0,
-      variables: undefined,
-      status: 'idle',
-      isPaused: false,
-    })
+    // Mock the mutation hooks - return different mutate functions for each endpoint
+    vi.mocked(toolProvidersClient.useMutation).mockImplementation(((method: string, endpoint: string) => {
+      if (endpoint === '/tool-providers') {
+        return {
+          mutate: mockCreateMutate,
+          isPending: false,
+          isError: false,
+          error: null,
+          data: null,
+          reset: vi.fn(),
+          mutateAsync: vi.fn(),
+          isIdle: true,
+          isSuccess: false,
+          failureCount: 0,
+          failureReason: null,
+          context: undefined,
+          submittedAt: 0,
+          variables: undefined,
+          status: 'idle',
+          isPaused: false,
+        }
+      } else if (endpoint === '/tool-providers/{provider_id}/validate') {
+        return {
+          mutate: mockValidateMutate,
+          isPending: false,
+          isError: false,
+          error: null,
+          data: null,
+          reset: vi.fn(),
+          mutateAsync: vi.fn(),
+          isIdle: true,
+          isSuccess: false,
+          failureCount: 0,
+          failureReason: null,
+          context: undefined,
+          submittedAt: 0,
+          variables: undefined,
+          status: 'idle',
+          isPaused: false,
+        }
+      } else if (endpoint === '/tool-providers/{provider_id}/refresh-tools') {
+        return {
+          mutate: mockRefreshMutate,
+          isPending: false,
+          isError: false,
+          error: null,
+          data: null,
+          reset: vi.fn(),
+          mutateAsync: vi.fn(),
+          isIdle: true,
+          isSuccess: false,
+          failureCount: 0,
+          failureReason: null,
+          context: undefined,
+          submittedAt: 0,
+          variables: undefined,
+          status: 'idle',
+          isPaused: false,
+        }
+      }
+    }) as never)
   })
 
   describe('Rendering', () => {
@@ -158,7 +202,100 @@ describe('IntegrationForm Component', () => {
       fireEvent.click(submitButton)
 
       await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalled()
+        expect(mockCreateMutate).toHaveBeenCalled()
+      })
+    })
+
+    it('chains validate and refresh-tools calls after successful creation', async () => {
+      const mockProviderId = 'test-provider-123'
+
+      // Setup create mutation to call onSuccess callback
+      mockCreateMutate.mockImplementation((variables, options) => {
+        if (options?.onSuccess) {
+          options.onSuccess({ id: mockProviderId })
+        }
+      })
+
+      // Setup validate mutation to call onSettled callback
+      mockValidateMutate.mockImplementation((variables, options) => {
+        if (options?.onSettled) {
+          options.onSettled()
+        }
+      })
+
+      // Setup refresh mutation to call onSettled callback
+      mockRefreshMutate.mockImplementation((variables, options) => {
+        if (options?.onSettled) {
+          options.onSettled()
+        }
+      })
+
+      render(<IntegrationForm />, { wrapper })
+
+      fireEvent.change(screen.getByPlaceholderText('Enter server name / ID'), {
+        target: { value: 'Test Server' },
+      })
+      fireEvent.change(screen.getByPlaceholderText('Enter API URL'), {
+        target: { value: 'https://test.example.com' },
+      })
+
+      const submitButton = screen.getByText('Add integration')
+      fireEvent.click(submitButton)
+
+      await waitFor(() => {
+        // Verify create was called
+        expect(mockCreateMutate).toHaveBeenCalled()
+        // Verify validate was called with the provider ID
+        expect(mockValidateMutate).toHaveBeenCalledWith(
+          { params: { path: { provider_id: mockProviderId } } },
+          expect.objectContaining({ onSettled: expect.any(Function) })
+        )
+        // Verify refresh-tools was called with the provider ID
+        expect(mockRefreshMutate).toHaveBeenCalledWith(
+          { params: { path: { provider_id: mockProviderId } } },
+          expect.objectContaining({ onSettled: expect.any(Function) })
+        )
+      })
+    })
+
+    it('navigates to integrations list after all API calls complete', async () => {
+      const { navigate } = await import('wouter/use-browser-location')
+      const mockNav = vi.mocked(navigate)
+      const mockProviderId = 'test-provider-456'
+
+      // Setup mutation chain
+      mockCreateMutate.mockImplementation((variables, options) => {
+        if (options?.onSuccess) {
+          options.onSuccess({ id: mockProviderId })
+        }
+      })
+
+      mockValidateMutate.mockImplementation((variables, options) => {
+        if (options?.onSettled) {
+          options.onSettled()
+        }
+      })
+
+      mockRefreshMutate.mockImplementation((variables, options) => {
+        if (options?.onSettled) {
+          options.onSettled()
+        }
+      })
+
+      render(<IntegrationForm />, { wrapper })
+
+      fireEvent.change(screen.getByPlaceholderText('Enter server name / ID'), {
+        target: { value: 'Test Server' },
+      })
+      fireEvent.change(screen.getByPlaceholderText('Enter API URL'), {
+        target: { value: 'https://test.example.com' },
+      })
+
+      const submitButton = screen.getByText('Add integration')
+      fireEvent.click(submitButton)
+
+      await waitFor(() => {
+        expect(mockNav).toHaveBeenCalledWith('/configuration/integrations')
       })
     })
   })

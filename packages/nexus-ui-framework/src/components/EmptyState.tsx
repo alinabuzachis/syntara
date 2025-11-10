@@ -28,7 +28,7 @@ export function EmptyState(props: EmptyStateProps) {
           <h2 className="text-lg font-bold text-white">{title}</h2>
           <p className="text-sm text-white/90">{description}</p>
           {buttonText && onButtonClick && (
-            <Button className="mt-2 rounded-full px-4 py-2" onClick={onButtonClick}>
+            <Button type="button" className="mt-2 rounded-full px-4 py-2" onClick={onButtonClick}>
               {buttonText}
             </Button>
           )}

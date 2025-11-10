@@ -10,6 +10,7 @@ import { AlertProvider } from '@ansible/nexus-ui-framework'
 vi.mock('../../../client', () => ({
   toolProvidersClient: {
     useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
   toolsClient: {
     useQuery: vi.fn(),
@@ -46,7 +47,7 @@ describe('IntegrationTools Component', () => {
     id: 'provider-1',
     name: 'Test Provider',
     description: 'A test tool provider',
-    status: 'connected',
+    status: 'available',
     configuration: {
       provider_type: 'mcp-server',
       url: 'https://test.example.com',
@@ -97,11 +98,31 @@ describe('IntegrationTools Component', () => {
       error: null,
     })
 
+    vi.mocked(toolProvidersClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+      data: null,
+      reset: vi.fn(),
+      mutateAsync: vi.fn(),
+      isSuccess: false,
+      isIdle: true,
+      failureCount: 0,
+      failureReason: null,
+      isPaused: false,
+      status: 'idle',
+      submittedAt: 0,
+      variables: undefined,
+      context: undefined,
+    })
+
     vi.mocked(toolsClient.useQuery).mockReturnValue({
       data: { resources: mockTools },
       isPending: false,
       isError: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     vi.mocked(toolsClient.useMutation).mockReturnValue({
@@ -385,13 +406,16 @@ describe('IntegrationTools Component', () => {
         isPending: false,
         isError: false,
         error: null,
+        refetch: vi.fn(),
       })
 
       render(<IntegrationTools />, { wrapper })
 
       // Check for empty state message and button
-      expect(screen.getByText('No integrations have been configured yet.')).toBeInTheDocument()
-      expect(screen.getByText('Add Integration')).toBeInTheDocument()
+      expect(screen.getByText('No tools available')).toBeInTheDocument()
+      expect(screen.getByText(/No tools found for "Test Provider"/)).toBeInTheDocument()
+      // There are two "Refresh tools" buttons: one in header, one in empty state
+      expect(screen.getAllByText('Refresh tools')).toHaveLength(2)
     })
   })
 
@@ -455,6 +479,139 @@ describe('IntegrationTools Component', () => {
       expect(form).toHaveClass('flex')
       expect(form).toHaveClass('grow')
       expect(form).toHaveClass('flex-col')
+    })
+  })
+
+  describe('Refresh Tools Functionality', () => {
+    it('opens confirmation dialog when header Refresh tools button is clicked', () => {
+      render(<IntegrationTools />, { wrapper })
+
+      const refreshButtons = screen.getAllByText('Refresh tools')
+      const headerRefreshButton = refreshButtons[0] // First button is in the header
+
+      fireEvent.click(headerRefreshButton)
+
+      // Check that confirmation dialog is displayed
+      expect(screen.getByText(/Are you sure you want to refresh tools/i)).toBeInTheDocument()
+      expect(screen.getByText(/This will fetch the latest tools from the integration/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    })
+
+    it('calls refresh mutation when confirmation dialog is confirmed', async () => {
+      const mockRefreshMutate = vi.fn()
+      vi.mocked(toolProvidersClient.useMutation).mockReturnValue({
+        mutate: mockRefreshMutate,
+        isPending: false,
+        isError: false,
+        error: null,
+        data: null,
+        reset: vi.fn(),
+        mutateAsync: vi.fn(),
+        isSuccess: false,
+        isIdle: true,
+        failureCount: 0,
+        failureReason: null,
+        isPaused: false,
+        status: 'idle',
+        submittedAt: 0,
+        variables: undefined,
+        context: undefined,
+      })
+
+      render(<IntegrationTools />, { wrapper })
+
+      const refreshButtons = screen.getAllByText('Refresh tools')
+      const headerRefreshButton = refreshButtons[0]
+
+      fireEvent.click(headerRefreshButton)
+
+      const confirmButton = screen.getByRole('button', { name: 'Refresh' })
+      fireEvent.click(confirmButton)
+
+      await waitFor(() => {
+        expect(mockRefreshMutate).toHaveBeenCalled()
+      })
+    })
+
+    it('does not call refresh mutation when confirmation dialog is cancelled', () => {
+      const mockRefreshMutate = vi.fn()
+      vi.mocked(toolProvidersClient.useMutation).mockReturnValue({
+        mutate: mockRefreshMutate,
+        isPending: false,
+        isError: false,
+        error: null,
+        data: null,
+        reset: vi.fn(),
+        mutateAsync: vi.fn(),
+        isSuccess: false,
+        isIdle: true,
+        failureCount: 0,
+        failureReason: null,
+        isPaused: false,
+        status: 'idle',
+        submittedAt: 0,
+        variables: undefined,
+        context: undefined,
+      })
+
+      render(<IntegrationTools />, { wrapper })
+
+      const refreshButtons = screen.getAllByText('Refresh tools')
+      const headerRefreshButton = refreshButtons[0]
+
+      fireEvent.click(headerRefreshButton)
+
+      const cancelButton = screen.getByRole('button', { name: 'Cancel' })
+      fireEvent.click(cancelButton)
+
+      expect(mockRefreshMutate).not.toHaveBeenCalled()
+    })
+
+    it('calls refresh mutation directly when empty state Refresh tools button is clicked', async () => {
+      const mockRefreshMutate = vi.fn()
+      vi.mocked(toolProvidersClient.useMutation).mockReturnValue({
+        mutate: mockRefreshMutate,
+        isPending: false,
+        isError: false,
+        error: null,
+        data: null,
+        reset: vi.fn(),
+        mutateAsync: vi.fn(),
+        isSuccess: false,
+        isIdle: true,
+        failureCount: 0,
+        failureReason: null,
+        isPaused: false,
+        status: 'idle',
+        submittedAt: 0,
+        variables: undefined,
+        context: undefined,
+      })
+
+      // Mock with empty tools
+      vi.mocked(toolsClient.useQuery).mockReturnValue({
+        data: { resources: [] },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<IntegrationTools />, { wrapper })
+
+      const refreshButtons = screen.getAllByText('Refresh tools')
+      const emptyStateRefreshButton = refreshButtons[1] // Second button is in empty state
+
+      fireEvent.click(emptyStateRefreshButton)
+
+      // Should call refresh directly without showing confirmation dialog
+      await waitFor(() => {
+        expect(mockRefreshMutate).toHaveBeenCalled()
+      })
+
+      // Confirmation dialog should not be shown
+      expect(screen.queryByText(/Are you sure you want to refresh tools/i)).not.toBeInTheDocument()
     })
   })
 })

@@ -7,7 +7,8 @@ export type AlertVariant = 'success' | 'error' | 'warning' | 'info'
 export interface AlertProps {
   variant?: AlertVariant
   title?: string
-  message: string
+  message?: string
+  description?: string // Alias for message
   dismissible?: boolean
   autoDismiss?: boolean
   autoDismissDelay?: number // in milliseconds
@@ -22,23 +23,23 @@ export interface AlertConfig extends Omit<AlertProps, 'onDismiss'> {
 const variantConfig = {
   success: {
     icon: CheckCircleIcon,
-    className: 'border-green-500/60 bg-green-500/30 text-green-50',
-    iconClassName: 'text-green-300',
+    className: 'bg-white/5 backdrop-blur-md text-white',
+    iconClassName: 'text-green-500',
   },
   error: {
     icon: XCircleIcon,
-    className: 'border-red-500/60 bg-red-500/30 text-red-50',
-    iconClassName: 'text-red-300',
+    className: 'bg-white/5 backdrop-blur-md text-white',
+    iconClassName: 'text-red-500',
   },
   warning: {
     icon: AlertCircleIcon,
-    className: 'border-yellow-500/60 bg-yellow-500/30 text-yellow-50',
-    iconClassName: 'text-yellow-300',
+    className: 'bg-white/5 backdrop-blur-md text-white',
+    iconClassName: 'text-yellow-500',
   },
   info: {
     icon: InfoIcon,
-    className: 'border-blue-500/60 bg-blue-500/30 text-blue-50',
-    iconClassName: 'text-blue-300',
+    className: 'bg-white/5 backdrop-blur-md text-white',
+    iconClassName: 'text-blue-500',
   },
 }
 
@@ -46,6 +47,7 @@ export function Alert({
   variant = 'info',
   title,
   message,
+  description,
   dismissible = true,
   autoDismiss = false,
   autoDismissDelay = 5000,
@@ -55,6 +57,7 @@ export function Alert({
   const [visible, setVisible] = useState(true)
   const config = variantConfig[variant]
   const Icon = config.icon
+  const displayMessage = message || description || ''
 
   const handleDismiss = useCallback(() => {
     setVisible(false)
@@ -75,17 +78,13 @@ export function Alert({
 
   return (
     <div
-      className={clsx(
-        'flex items-start gap-3 rounded-lg border-2 p-4 shadow-lg transition-all',
-        config.className,
-        className
-      )}
+      className={clsx('flex items-start gap-3 rounded-2xl p-4 shadow-lg transition-all', config.className, className)}
       role="alert"
     >
       <Icon className={clsx('size-5 shrink-0', config.iconClassName)} />
       <div className="flex-1">
         {title && <div className="mb-1 font-semibold">{title}</div>}
-        <div className="text-sm">{message}</div>
+        {displayMessage && <div className="text-sm">{displayMessage}</div>}
       </div>
       {dismissible && (
         <button

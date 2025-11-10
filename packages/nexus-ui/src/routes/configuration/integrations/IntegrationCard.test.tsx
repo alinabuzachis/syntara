@@ -8,7 +8,7 @@ describe('IntegrationCard Component', () => {
     id: '1',
     name: 'Test MCP Server',
     description: 'This is a test integration server for development purposes',
-    status: 'connected',
+    status: 'available',
     configuration: {
       provider_type: 'mcp-server',
       url: 'https://test.example.com',
@@ -84,7 +84,7 @@ describe('IntegrationCard Component', () => {
         id: '2',
         name: 'Minimal Server',
         description: '',
-        status: 'disconnected',
+        status: 'error',
         configuration: {
           provider_type: 'mcp-server',
         },

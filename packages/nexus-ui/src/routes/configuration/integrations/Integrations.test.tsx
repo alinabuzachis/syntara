@@ -10,6 +10,7 @@ import { AlertProvider } from '@ansible/nexus-ui-framework'
 vi.mock('../../../client', () => ({
   toolProvidersClient: {
     useQuery: vi.fn(),
+    useMutation: vi.fn(),
   },
 }))
 
@@ -42,7 +43,7 @@ describe('Integrations Component', () => {
       id: '1',
       name: 'Primary MCP Server',
       description: 'Main integration server for critical workflows',
-      status: 'connected',
+      status: 'available',
       configuration: {
         provider_type: 'mcp-server',
         url: 'https://primary.example.com',
@@ -55,7 +56,7 @@ describe('Integrations Component', () => {
       id: '2',
       name: 'Secondary Test Server',
       description: 'Testing environment integration',
-      status: 'disconnected',
+      status: 'error',
       configuration: {
         provider_type: 'mcp-server',
         url: 'https://secondary.example.com',
@@ -68,7 +69,7 @@ describe('Integrations Component', () => {
       id: '3',
       name: 'Development Server',
       description: 'Development integration for testing new features',
-      status: 'connected',
+      status: 'validating',
       configuration: {
         provider_type: 'mcp-server',
         url: 'https://dev.example.com',
@@ -86,7 +87,27 @@ describe('Integrations Component', () => {
       isPending: false,
       isError: false,
       error: null,
-    })
+      refetch: vi.fn(),
+    } as never)
+
+    vi.mocked(toolProvidersClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+      data: null,
+      reset: vi.fn(),
+      mutateAsync: vi.fn(),
+      isIdle: true,
+      isSuccess: false,
+      failureCount: 0,
+      failureReason: null,
+      context: undefined,
+      submittedAt: 0,
+      variables: undefined,
+      status: 'idle',
+      isPaused: false,
+    } as never)
   })
 
   describe('Rendering', () => {
@@ -271,8 +292,8 @@ describe('Integrations Component', () => {
     it('renders status column', () => {
       render(<Integrations />, { wrapper })
 
-      const statusCells = screen.getAllByText(/connected|disconnected/i)
-      expect(statusCells.length).toBeGreaterThanOrEqual(2)
+      const statusCells = screen.getAllByText(/available|error|validating/i)
+      expect(statusCells.length).toBeGreaterThanOrEqual(3)
     })
 
     it('renders integration type column', () => {
