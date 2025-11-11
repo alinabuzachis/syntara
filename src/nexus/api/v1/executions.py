@@ -14,6 +14,11 @@ from nexus.core.models import User
 from nexus.core.models.base import ResourcesResponse
 from nexus.core.utils.labels import parse_label_filter
 from nexus.core.utils.pagination import generate_response
+from nexus.workflows.exceptions import (
+    ExecutionNotFoundError,
+    WorkflowDisabledError,
+    WorkflowNotFoundError,
+)
 from nexus.workflows.models.execution import (
     Execution,
     ExecutionCreate,
@@ -21,11 +26,6 @@ from nexus.workflows.models.execution import (
     ExecutionStatus,
 )
 from nexus.workflows.services import ExecutionService
-from nexus.workflows.services.execution_service import (
-    ExecutionNotFoundError,
-    WorkflowDisabledError,
-    WorkflowNotFoundError,
-)
 from nexus.workflows.workflow_engine.services.temporal_execution_service import (
     TemporalExecutionService,
     create_temporal_execution_service,

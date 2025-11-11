@@ -25,6 +25,11 @@ from nexus.core.utils.cursor import (
 )
 from nexus.core.utils.labels import apply_label_filters
 from nexus.core.utils.sorting import apply_sorting, parse_sort
+from nexus.workflows.exceptions import (
+    ExecutionNotFoundError,
+    WorkflowDisabledError,
+    WorkflowNotFoundError,
+)
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
@@ -32,33 +37,6 @@ from nexus.workflows.services.utilities import sync_execution_status_from_tempor
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 logger = logging.getLogger(__name__)
-
-
-class WorkflowNotFoundError(Exception):
-    """Raised when a workflow is not found."""
-
-    def __init__(self, workflow_id: UUID) -> None:
-        """Initialize exception with workflow ID."""
-        self.workflow_id = workflow_id
-        super().__init__(f"Workflow {workflow_id} not found")
-
-
-class WorkflowDisabledError(Exception):
-    """Raised when attempting to execute a disabled workflow."""
-
-    def __init__(self, workflow_id: UUID) -> None:
-        """Initialize exception with workflow ID."""
-        self.workflow_id = workflow_id
-        super().__init__(f"Workflow {workflow_id} is disabled")
-
-
-class ExecutionNotFoundError(Exception):
-    """Raised when an execution is not found."""
-
-    def __init__(self, execution_id: UUID) -> None:
-        """Initialize exception with execution ID."""
-        self.execution_id = execution_id
-        super().__init__(f"Execution {execution_id} not found")
 
 
 class ExecutionService:

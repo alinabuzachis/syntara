@@ -14,36 +14,13 @@ from sqlmodel import and_, func, or_, select
 
 from nexus.api.validators import WorkflowDefinitionValidator
 from nexus.core.utils.cursor import PaginationDirection, decode_cursor
+from nexus.workflows.exceptions import (
+    WorkflowNameConflictError,
+    WorkflowNotFoundError,
+    WorkflowVersionNotFoundError,
+)
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
-
-
-class WorkflowNameConflictError(Exception):
-    """Raised when a workflow name already exists."""
-
-    def __init__(self, name: str) -> None:
-        """Initialize exception with workflow name."""
-        self.name = name
-        super().__init__(f"Workflow with name '{name}' already exists")
-
-
-class WorkflowNotFoundError(Exception):
-    """Raised when a workflow is not found."""
-
-    def __init__(self, workflow_id: UUID) -> None:
-        """Initialize exception with workflow ID."""
-        self.workflow_id = workflow_id
-        super().__init__(f"Workflow {workflow_id} not found")
-
-
-class WorkflowVersionNotFoundError(Exception):
-    """Raised when a workflow version is not found."""
-
-    def __init__(self, workflow_id: UUID, version: int) -> None:
-        """Initialize exception with workflow ID and version."""
-        self.workflow_id = workflow_id
-        self.version = version
-        super().__init__(f"Workflow {workflow_id} version {version} not found")
 
 
 def parse_labels_query(labels: str) -> dict[str, str]:

@@ -9,15 +9,15 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus.workflows.models.execution import Execution, ExecutionStatus
-from nexus.workflows.models.workflow import Workflow
-from nexus.workflows.models.workflow_version import WorkflowVersion
-from nexus.workflows.services.execution_service import (
+from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
-    ExecutionService,
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
+from nexus.workflows.models.execution import Execution, ExecutionStatus
+from nexus.workflows.models.workflow import Workflow
+from nexus.workflows.models.workflow_version import WorkflowVersion
+from nexus.workflows.services.execution_service import ExecutionService
 
 
 class TestExecutionServiceInit:
