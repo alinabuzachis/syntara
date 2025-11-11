@@ -451,11 +451,11 @@ class TestToolProvidersListContract:
 
         # Test with invalid cursor
         response = await base_client.get("/api/v1/tool-providers", params={"cursor": "invalid-cursor"})
-        assert response.status_code in [200, 400]  # Either ignored or validation error
+        assert response.status_code in [200, 422]  # Either ignored or validation error
 
         # Test with invalid sort field
         response = await base_client.get("/api/v1/tool-providers", params={"sort": "invalid_field"})
-        assert response.status_code in [200, 400]  # Either ignored or validation error
+        assert response.status_code in [200, 422]  # Either ignored or validation error
 
     @pytest.mark.asyncio
     async def test_list_providers_filter_no_results_contract(
@@ -540,8 +540,8 @@ class TestToolProvidersListContract:
         # Filter with invalid status value
         response = await base_client.get("/api/v1/tool-providers", params={"status[eq]": "nonexistent"})
 
-        # Contract: Must return 400 Bad Request for invalid enum value
-        assert response.status_code == 400
+        # Contract: Must return 422 Unprocessable Entity for invalid enum value
+        assert response.status_code == 422
 
         # Contract: Must return error details
         data = response.json()

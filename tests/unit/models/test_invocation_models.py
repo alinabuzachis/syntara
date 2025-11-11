@@ -475,8 +475,8 @@ class TestInvocationSortableFields:
         assert isinstance(Invocation.__sortable_fields__, list)
 
     def test_sortable_fields_contains_correct_fields(self) -> None:
-        """Test that __sortable_fields__ contains only timestamp fields."""
-        expected_fields = ["created_at", "updated_at", "started_at", "completed_at"]
+        """Test that __sortable_fields__ contains correct fields."""
+        expected_fields = ["created_at", "updated_at", "started_at", "completed_at", "status"]
         assert Invocation.__sortable_fields__ == expected_fields
 
     def test_sortable_fields_are_strings(self) -> None:

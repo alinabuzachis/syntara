@@ -79,41 +79,6 @@ def parse_sort(
     return field_name, direction
 
 
-def parse_multiple_sorts(sort_params: list[str], allowed_fields: list[str]) -> list[tuple[str, SortDirection]]:
-    """Parse multiple sort parameters for multi-field sorting.
-
-    Args:
-        sort_params: List of sort parameters (e.g., ["name", "-created_at"])
-        allowed_fields: List of field names that can be sorted
-
-    Returns:
-        List of (field_name, sort_direction) tuples in priority order
-
-    Raises:
-        ValueError: If any field name is not in allowed_fields
-
-    Examples:
-        >>> parse_multiple_sorts(
-        ...     ["name", "-created_at"],
-        ...     ["name", "created_at", "updated_at"]
-        ... )
-        [("name", SortDirection.ASC), ("created_at", SortDirection.DESC)]
-
-    """
-    result = []
-
-    for sort_param in sort_params:
-        field, direction = parse_sort(
-            sort_param,
-            allowed_fields,
-            default_field="",  # Don't use defaults for multiple parsing
-            default_direction=SortDirection.ASC,
-        )
-        result.append((field, direction))
-
-    return result
-
-
 def apply_sorting(
     query: Select[TP] | SelectOfScalar[TP], sort_tuples: list[tuple[str, SortDirection]], model: type[SQLModel]
 ) -> Select[TP] | SelectOfScalar[TP]:

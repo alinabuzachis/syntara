@@ -99,6 +99,23 @@ class ToolProvider(Resource, table=True):
 
     __tablename__ = "tool_providers"
 
+    # Define filterable fields for API endpoints - extend base Resource fields
+    __filterable_fields__: ClassVar[list[str]] = [
+        *Resource.__filterable_fields__,
+        "status",
+        "enabled",
+        "provider_type",
+        "configuration.provider_type",
+        "configuration.base_url",
+    ]
+
+    # Define sortable fields for API endpoints - extend base Resource fields
+    __sortable_fields__: ClassVar[list[str]] = [
+        *Resource.__sortable_fields__,
+        "status",
+        "enabled",
+    ]
+
     # Override name field from Resource to add unique constraint
     name: str = Field(
         min_length=1,

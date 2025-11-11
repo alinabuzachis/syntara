@@ -66,7 +66,12 @@ class Filter(BaseModel):
 
 # Regex pattern to match bracket notation: field[operator]
 # Allow dots in field names for nested fields like "configuration.provider_type"
-BRACKET_PATTERN = re.compile(r"^([\w.]+)\[(\w+)\]$")
+# Allow any characters inside brackets - validation of operator happens later
+BRACKET_PATTERN = re.compile(r"^([\w.]+)\[([^]]*)\]$")
+
+# Import label pattern to skip label parameters in filter parsing
+# This avoids conflicts between filter parsing and label parsing
+LABEL_PARAM_PATTERN = re.compile(r"^labels\[([^]]+)\]$")
 
 
 def parse_filters(params: dict[str, str], allowed_fields: list[str]) -> list[Filter]:
@@ -95,8 +100,15 @@ def parse_filters(params: dict[str, str], allowed_fields: list[str]) -> list[Fil
     filters: list[Filter] = []
 
     for param_name, param_value in params.items():
+        # Skip label parameters - they should be handled by label filtering logic
+        if LABEL_PARAM_PATTERN.match(param_name):
+            continue
+
         # Try to match bracket notation first
         bracket_match = BRACKET_PATTERN.match(param_name)
+
+        # Query string params is guaranteed to be dict[str, str] however some unit tests use other types.
+        param_str: str = str(param_value)
 
         if bracket_match:
             # Bracket notation: field[operator]=value
@@ -115,7 +127,7 @@ def parse_filters(params: dict[str, str], allowed_fields: list[str]) -> list[Fil
             operator = FilterOperator(operator_str)
 
             # Handle comma-separated values (OR logic)
-            values = param_value.split(",")
+            values = param_str.split(",")
             for value in values:
                 filters.extend([Filter(field=field_name, operator=operator, value=value.strip())])
 
@@ -129,45 +141,11 @@ def parse_filters(params: dict[str, str], allowed_fields: list[str]) -> list[Fil
                 raise ValueError(msg)
 
             # Handle comma-separated values (OR logic)
-            values = param_value.split(",")
+            values = param_str.split(",")
             for value in values:
                 filters.extend([Filter(field=field_name, operator=FilterOperator.EQ, value=value.strip())])
 
     return filters
-
-
-def validate_operator_for_field_type(operator: FilterOperator, field_type: type) -> bool:
-    """Validate that an operator is compatible with a field type.
-
-    Args:
-        operator: Filter operator to validate
-        field_type: Python type of the field being filtered
-
-    Returns:
-        True if operator is compatible with field type
-
-    Field Type Compatibility:
-        - String fields: All operators supported
-        - DateTime/Numeric fields: eq, gt, gte, lt, lte
-        - Boolean fields: eq only
-
-    """
-    # String fields support all operators
-    if field_type is str:
-        return True
-
-    # DateTime and numeric fields support comparison operators
-    if field_type in (int, float, complex) or hasattr(field_type, "timestamp"):
-        return operator in {
-            FilterOperator.EQ,
-            FilterOperator.GT,
-            FilterOperator.GTE,
-            FilterOperator.LT,
-            FilterOperator.LTE,
-        }
-
-    # Boolean and other types only support equality
-    return operator == FilterOperator.EQ
 
 
 def _sanitize_like_value(value: FilterValue) -> str:

@@ -12,15 +12,11 @@ from nexus.agent_orchestrator.models import (
     Invocation,
     InvocationCreateRequest,
     InvocationListResponse,
-    InvocationStatus,
 )
 from nexus.agent_orchestrator.services import InvocationService
+from nexus.api.auth import get_current_user
 from nexus.api.db import get_db
-from nexus.core.utils import generate_response
-from nexus.core.utils.cursor import SortDirection
-from nexus.core.utils.filters import parse_filters
-from nexus.core.utils.labels import parse_label_filter
-from nexus.core.utils.sorting import parse_sort
+from nexus.core.models import User
 
 router = APIRouter(prefix="/invocations", tags=["Invocation"])
 logger = logging.getLogger(__name__)
@@ -35,6 +31,7 @@ logger = logging.getLogger(__name__)
 async def invoke_agent(
     request_body: InvocationCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> Invocation:
     """Accept async invocation request.
 
@@ -44,6 +41,7 @@ async def invoke_agent(
     Args:
         request_body: Validated invocation request
         db: Database session (dependency injected)
+        current_user: Current authenticated user
 
     Returns:
         Created invocation
@@ -53,10 +51,9 @@ async def invoke_agent(
 
     """
     try:
-        service = InvocationService(db)
+        service = InvocationService(db, current_user)
         return await service.create_invocation(
             prompt=request_body.prompt,
-            created_by=request_body.created_by,
             session_id=request_body.session_id,
             context_data=request_body.context_data,
         )
@@ -82,104 +79,55 @@ async def invoke_agent(
 )
 async def list_invocations(
     request: Request,
-    cursor: Annotated[str | None, Query(description="Pagination cursor")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
     limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of results")] = 20,
+    cursor: Annotated[str | None, Query(description="Pagination cursor")] = None,
     sort: Annotated[str | None, Query(description="Sort field (prefix with - for descending)")] = None,
-    invocation_status: Annotated[InvocationStatus | None, Query(alias="status", description="Filter by status")] = None,
     *,
     include_total: Annotated[bool, Query(description="Include total count in response")] = False,
-    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InvocationListResponse:
-    """List invocations with cursor-based pagination and filtering.
+    """List invocations with filtering, sorting, and pagination.
 
-    Supports advanced filtering with operators:
-    - prompt: prompt[contains]=text, prompt[starts_with]=text
-    - created_by: created_by=uuid or created_by[eq]=uuid
-    - session_id: session_id=id, session_id[eq]=id, session_id[contains]=text,
-      session_id[starts_with]=text
-    - labels: labels[key]=value (e.g., labels[environment]=production)
-    - created_at: created_at[gt|gte|lt|lte]=timestamp
-    - updated_at: updated_at[gt|gte|lt|lte]=timestamp
+    Supports filtering using query parameters with advanced operators:
+    - prompt: Filter by prompt text (prompt[contains]=text, prompt[starts_with]=text)
+    - created_by: Filter by creator user ID (created_by=uuid)
+    - session_id: Filter by session ID (session_id=id, session_id[contains]=text)
+    - status: Filter by invocation status (status=created|running|completed|failed)
+    - labels: Filter by labels using bracket notation (labels[environment]=production)
+    - created_at: Filter by creation time (created_at[gt|gte|lt|lte]=timestamp)
+    - updated_at: Filter by update time (updated_at[gt|gte|lt|lte]=timestamp)
+
+    Uses cursor-based pagination for scalability and consistency.
 
     Args:
-        request: FastAPI request object to access query parameters
-        cursor: Pagination cursor for next/previous page
-        limit: Maximum results to return (1-100, default 20)
-        sort: Field to sort by (prefix with - for descending, e.g., "-created_at")
-        invocation_status: Filter by invocation status (query param: status)
-        include_total: Whether to include total count
-        db: Database session (dependency injected)
+        request: FastAPI request object containing query parameters
+        db: Database session
+        current_user: Current authenticated user
+        limit: Maximum results per page (default 20, max 100)
+        cursor: Base64-encoded pagination cursor from previous response
+        sort: Sort parameter (e.g., 'created_at', '-status')
+        include_total: Whether to include total count (default false, expensive)
 
     Returns:
-        Paginated list of invocations with cursors
-
-    Raises:
-        HTTPException: If list operation fails or invalid filter/sort field
+        InvocationListResponse with invocations, pagination metadata, and optional total
 
     """
     try:
-        # Parse query parameters (API layer responsibility)
-        query_params = dict(request.query_params)
+        service = InvocationService(db, current_user)
 
-        # Remove non-filter parameters
-        for param in ["cursor", "limit", "sort", "include_total", "status"]:
-            query_params.pop(param, None)
-
-        # Parse label filters
-        label_filters = parse_label_filter(query_params)
-        for key in query_params.copy():
-            if key.startswith("labels["):
-                query_params.pop(key)
-
-        # Parse advanced filters
-        allowed_fields = [
-            "prompt",
-            "created_by",
-            "session_id",
-            "created_at",
-            "updated_at",
-        ]
-        filters = parse_filters(query_params, allowed_fields)
-
-        # Parse sorting
-        sort_field, sort_direction = parse_sort(
-            sort,
-            Invocation.__sortable_fields__,
-            default_field="created_at",
-            default_direction=SortDirection.DESC,
-        )
-
-        # Call service layer (business logic)
-        service = InvocationService(db)
-        invocations, total_count = await service.list_invocations(
-            filters=filters,
-            label_filters=label_filters,
-            status_filter=invocation_status,
-            sorting=[(sort_field, sort_direction)],
-            limit=limit,
-            include_total=include_total,
-        )
-
-        # Generate response (API layer responsibility)
-        pagination_metadata = generate_response(
-            items=invocations,
+        return await service.list_invocations(
             limit=limit,
             cursor=cursor,
+            sort=sort,
+            query_params_items=request.query_params.items(),
             include_total=include_total,
-            total_count=total_count,
-        )
-
-        return InvocationListResponse(
-            resources=invocations,
-            next=pagination_metadata["next"],
-            prev=pagination_metadata["prev"],
-            total=pagination_metadata["total"],
         )
 
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid filter or sort parameter: {e}",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
         ) from e
     except HTTPException:
         # Re-raise HTTPExceptions without wrapping
@@ -214,6 +162,7 @@ async def get_invocation(
         ),
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> Invocation:
     """Get invocation details including result.
 
@@ -223,6 +172,7 @@ async def get_invocation(
     Args:
         invocation_id: UUID of the invocation
         db: Database session (dependency injected)
+        current_user: Current authenticated user
 
     Returns:
         Full invocation details including:
@@ -251,7 +201,7 @@ async def get_invocation(
 
     # Retrieve invocation from database
     try:
-        service = InvocationService(db)
+        service = InvocationService(db, current_user)
         invocation = await service.get_invocation(uuid_obj)
     except Exception as e:
         logger.exception("Unexpected error retrieving invocation %s", invocation_id)

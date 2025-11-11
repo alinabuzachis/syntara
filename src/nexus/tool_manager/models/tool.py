@@ -113,6 +113,21 @@ class Tool(Resource, table=True):
 
     __tablename__ = "tools"
 
+    # Define filterable fields for API endpoints - extend base Resource fields
+    __filterable_fields__: ClassVar[list[str]] = [
+        *Resource.__filterable_fields__,
+        "enabled",
+        "status",
+        "provider_id",
+        "namespaced_name",
+    ]
+
+    # Define sortable fields for API endpoints - extend base Resource fields
+    __sortable_fields__: ClassVar[list[str]] = [
+        *Resource.__sortable_fields__,
+        "status",
+    ]
+
     provider_id: UUID = Field(
         foreign_key="tool_providers.id", description="UUID of the associated tool provider", index=True
     )

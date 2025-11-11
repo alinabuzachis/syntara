@@ -17,16 +17,15 @@ from nexus.core.utils.cursor import (
 from nexus.core.utils.filters import Filter, FilterOperator, apply_filters, parse_filters
 from nexus.core.utils.labels import (
     apply_label_filters,
-    filter_resources,
     matches,
     parse_label_filter,
+    parse_labels_query,
 )
 from nexus.core.utils.pagination import (
     generate_response,
 )
 from nexus.core.utils.sorting import (
     apply_sorting,
-    parse_multiple_sorts,
     parse_sort,
 )
 
@@ -43,12 +42,11 @@ __all__ = [
     "encode_cursor",
     "extract_pagination_from_cursor",
     "extract_sort_from_cursor",
-    "filter_resources",
     "generate_response",
     "get_pagination_direction",
     "matches",
     "parse_filters",
     "parse_label_filter",
-    "parse_multiple_sorts",
+    "parse_labels_query",
     "parse_sort",
 ]

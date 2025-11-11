@@ -501,3 +501,240 @@ class TestFilterParserSQLAlchemy:
         assert len(result) == 1
         assert result[0].username == "charlie"
         assert result[0].is_active is False
+
+
+@pytest.mark.asyncio
+class TestSQLInjectionProtection:
+    """Test SQL injection protection in filter operations with real database."""
+
+    @pytest_asyncio.fixture
+    async def session(
+        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine
+    ) -> AsyncGenerator[AsyncSession, None]:
+        """Create database session with test data using PostgreSQL.
+
+        Args:
+            test_db_session: Async PostgreSQL test session from conftest
+            test_db_engine: Async PostgreSQL engine from conftest
+
+        Yields:
+            AsyncSession with test data
+
+        """
+        # Create tables for test models
+        async with test_db_engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.create_all)
+
+        # Clear existing data from this test's tables
+        await test_db_session.execute(sqlalchemy.delete(UserModel))
+        await test_db_session.commit()
+
+        # Add test data
+        test_users = [
+            UserModel(
+                id=1,
+                username="alice",
+                email="alice@example.com",
+                full_name="Alice Smith",
+                age=25,
+                is_active=True,
+                created_at=datetime(2025, 1, 1, 10, 0, 0),
+            ),
+            UserModel(
+                id=2,
+                username="bob",
+                email="bob@example.com",
+                full_name="Bob Johnson",
+                age=30,
+                is_active=True,
+                created_at=datetime(2025, 1, 2, 11, 0, 0),
+            ),
+        ]
+
+        for user in test_users:
+            test_db_session.add(user)
+        await test_db_session.commit()
+
+        yield test_db_session
+
+    async def test_like_injection_protection_contains(self, session: AsyncSession) -> None:
+        """Test that LIKE injection attempts are properly sanitized with contains operator."""
+        query = select(UserModel)
+
+        # Test SQL injection attempts through contains operator
+        injection_attempts = [
+            "%'; DROP TABLE users; --",  # Classic injection with wildcard
+            "_' OR '1'='1",  # Injection with underscore wildcard
+            "\\'; DELETE FROM users; --",  # Injection with escaped characters
+            "%' UNION SELECT * FROM passwords --",  # Union-based injection
+        ]
+
+        for injection_value in injection_attempts:
+            filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value=injection_value)]
+            filtered_query = apply_filters(query, filters, UserModel)
+
+            # Should execute safely without SQL injection
+            result = (await session.execute(filtered_query)).scalars().all()
+
+            # Should return empty result since no user has these exact escaped values
+            assert len(result) == 0
+
+    async def test_like_injection_protection_starts_with(self, session: AsyncSession) -> None:
+        """Test that LIKE injection attempts are properly sanitized with starts_with operator."""
+        query = select(UserModel)
+
+        # Test injection attempts through starts_with operator
+        injection_attempts = [
+            "Alice%'; DROP TABLE--",  # Injection after legitimate start
+            "_lice' OR 1=1--",  # Wildcard injection
+            "\\' OR 'a'='a",  # Boolean injection
+        ]
+
+        for injection_value in injection_attempts:
+            filters = [Filter(field="full_name", operator=FilterOperator.STARTS_WITH, value=injection_value)]
+            filtered_query = apply_filters(query, filters, UserModel)
+
+            # Should execute safely without SQL injection
+            result = (await session.execute(filtered_query)).scalars().all()
+
+            # Should return empty result since wildcards are escaped
+            assert len(result) == 0
+
+    async def test_wildcard_escaping_functionality(self, session: AsyncSession) -> None:
+        """Test that wildcards are properly escaped but filtering still works correctly."""
+        query = select(UserModel)
+
+        # Test that % wildcard is escaped in contains
+        filters = [Filter(field="username", operator=FilterOperator.CONTAINS, value="ali%ce")]
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should not match "alice" because % is escaped to literal %
+        assert len(result) == 0
+
+        # Test that _ wildcard is escaped in contains
+        filters = [Filter(field="username", operator=FilterOperator.CONTAINS, value="alic_")]
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should not match "alice" because _ is escaped to literal _
+        assert len(result) == 0
+
+        # Test normal contains still works
+        filters = [Filter(field="username", operator=FilterOperator.CONTAINS, value="lic")]
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match "alice" because no wildcards to escape
+        assert len(result) == 1
+        assert result[0].username == "alice"
+
+    async def test_backslash_escaping_in_filters(self, session: AsyncSession) -> None:
+        """Test proper handling of backslashes in filter values."""
+        query = select(UserModel)
+
+        # Test various backslash patterns
+        backslash_patterns = [
+            "test\\value",  # Single backslash
+            "test\\\\value",  # Double backslash
+            "\\%test",  # Backslash with wildcard
+            "\\_test",  # Backslash with underscore
+        ]
+
+        for pattern in backslash_patterns:
+            filters = [Filter(field="username", operator=FilterOperator.CONTAINS, value=pattern)]
+            filtered_query = apply_filters(query, filters, UserModel)
+
+            # Should execute safely without error
+            result = (await session.execute(filtered_query)).scalars().all()
+            # Should return empty since no users have these patterns in username
+            assert len(result) == 0
+
+    async def test_injection_through_field_values_with_special_chars(self, session: AsyncSession) -> None:
+        """Test injection attempts through special characters in field values."""
+        query = select(UserModel)
+
+        # Test various special character injection attempts
+        special_char_injections = [
+            "'; CREATE TABLE malicious (id INT); --",
+            "' AND 1=1--",
+            "' UNION ALL SELECT NULL--",
+            "'; INSERT INTO users (username) VALUES ('hacker'); --",
+            "' OR username LIKE '%'--",
+        ]
+
+        for injection_value in special_char_injections:
+            # Test with different operators to ensure all are protected
+            for operator in [FilterOperator.EQ, FilterOperator.CONTAINS, FilterOperator.STARTS_WITH]:
+                filters = [Filter(field="username", operator=operator, value=injection_value)]
+                filtered_query = apply_filters(query, filters, UserModel)
+
+                # Should execute safely without SQL injection
+                result = (await session.execute(filtered_query)).scalars().all()
+
+                # Should not find any matches for these injection strings
+                assert len(result) == 0
+
+    async def test_parametrized_query_protection(self, session: AsyncSession) -> None:
+        """Test that SQLAlchemy's parametrized queries protect against injection."""
+        query = select(UserModel)
+
+        # Test that SQLAlchemy correctly parameterizes our filter values
+        # This is more of a verification that our approach is sound
+        dangerous_value = "'; DROP TABLE users; SELECT * FROM users WHERE username='"
+
+        filters = [Filter(field="username", operator=FilterOperator.EQ, value=dangerous_value)]
+        filtered_query = apply_filters(query, filters, UserModel)
+
+        # The query should be safely parameterized - we can inspect it
+        # SQLAlchemy should use bound parameters, not string concatenation
+        compiled_query = filtered_query.compile(compile_kwargs={"literal_binds": False})
+
+        # Should contain parameter placeholders, not the literal dangerous value
+        query_str = str(compiled_query)
+        assert dangerous_value not in query_str
+        assert ":username_1" in query_str or "%(username_1)s" in query_str or "?" in query_str
+
+        # Execute safely
+        result = (await session.execute(filtered_query)).scalars().all()
+        assert len(result) == 0
+
+    async def test_multiple_injection_attempts_combined(self, session: AsyncSession) -> None:
+        """Test multiple simultaneous injection attempts in different fields."""
+        query = select(UserModel)
+
+        # Combine multiple injection attempts in one filter set
+        filters = [
+            Filter(field="username", operator=FilterOperator.CONTAINS, value="'; DROP TABLE--"),
+            Filter(field="full_name", operator=FilterOperator.STARTS_WITH, value="%' OR 1=1--"),
+            Filter(field="email", operator=FilterOperator.EQ, value="' UNION SELECT--"),
+        ]
+
+        filtered_query = apply_filters(query, filters, UserModel)
+
+        # Should execute safely without any SQL injection
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should return empty result since no user matches these injection strings
+        assert len(result) == 0
+
+    async def test_case_insensitive_operations_with_injection(self, session: AsyncSession) -> None:
+        """Test that case-insensitive operations don't introduce injection vulnerabilities."""
+        query = select(UserModel)
+
+        # Test injection attempts with case variations
+        case_injection_attempts = [
+            "Alice'; DROP table USERS;--",
+            "ALICE%'; delete FROM users;--",
+            "alice_' OR '1'='1'--",
+        ]
+
+        for injection_value in case_injection_attempts:
+            filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value=injection_value)]
+            filtered_query = apply_filters(query, filters, UserModel)
+
+            # Should execute safely
+            result = (await session.execute(filtered_query)).scalars().all()
+
+            # Should not match legitimate users due to escaped wildcards
+            assert len(result) == 0

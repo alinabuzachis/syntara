@@ -3,41 +3,139 @@
 These tests verify the business logic layer for execution management.
 """
 
+from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexus.core.models import User
+from nexus.core.models.base import ResourcesResponseBase
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
-from nexus.workflows.models.execution import Execution, ExecutionStatus
+from nexus.workflows.models.execution import Execution, ExecutionRead, ExecutionStatus
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.execution_service import ExecutionService
 
 
+class TestExecutionServiceBase:
+    """Base test class with helper methods for ExecutionService tests."""
+
+    def _create_test_execution(  # noqa: C901
+        self,
+        execution_id: UUID | None = None,
+        workflow_id: UUID | None = None,
+        workflow_version_id: UUID | None = None,
+        temporal_workflow_id: str | None = None,
+        status: ExecutionStatus = ExecutionStatus.COMPLETED,
+        created_by: UUID | None = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
+        updated_by: UUID | None = None,
+        completed_at: datetime | None = None,
+        input_data: dict[str, Any] | None = None,
+        error_details: str | None = None,
+        labels: dict[str, Any] | None = None,
+        deleted_at: datetime | None = None,
+        deleted_by: UUID | None = None,
+    ) -> Execution:
+        """Create a test Execution object with realistic data.
+
+        Args:
+            execution_id: Execution UUID (generates random if None)
+            workflow_id: Workflow UUID (generates random if None)
+            workflow_version_id: Workflow version UUID (generates random if None)
+            temporal_workflow_id: Temporal workflow ID (generates if None)
+            status: Execution status (defaults to COMPLETED)
+            created_by: Creator user UUID (generates random if None)
+            created_at: Creation timestamp (defaults to current time if None)
+            updated_at: Update timestamp (defaults to created_at if None)
+            updated_by: Updater user UUID (defaults to created_by if None)
+            completed_at: Completion timestamp (defaults to updated_at for COMPLETED status)
+            input_data: Input data dict (defaults to empty dict if None)
+            error_details: Error details string (None by default)
+            labels: Labels dict (defaults to empty dict if None)
+            deleted_at: Deletion timestamp (None by default)
+            deleted_by: Deleter user UUID (None by default)
+
+        Returns:
+            Execution object with realistic data suitable for testing
+
+        """
+        if execution_id is None:
+            execution_id = uuid4()
+        if workflow_id is None:
+            workflow_id = uuid4()
+        if workflow_version_id is None:
+            workflow_version_id = uuid4()
+        if temporal_workflow_id is None:
+            temporal_workflow_id = f"temporal-exec-{execution_id}"
+        if created_by is None:
+            created_by = uuid4()
+        if created_at is None:
+            created_at = datetime.now(UTC)
+        if updated_at is None:
+            updated_at = created_at
+        if updated_by is None:
+            updated_by = created_by
+        if completed_at is None and status in (
+            ExecutionStatus.COMPLETED,
+            ExecutionStatus.FAILED,
+            ExecutionStatus.CANCELLED,
+        ):
+            completed_at = updated_at
+        if input_data is None:
+            input_data = {}
+        if labels is None:
+            labels = {}
+
+        return Execution(
+            id=execution_id,
+            workflow_id=workflow_id,
+            workflow_version_id=workflow_version_id,
+            temporal_workflow_id=temporal_workflow_id,
+            status=status,
+            created_by=created_by,
+            created_at=created_at,
+            updated_at=updated_at,
+            updated_by=updated_by,
+            completed_at=completed_at,
+            input_data=input_data,
+            error_details=error_details,
+            labels=labels,
+            deleted_at=deleted_at,
+            deleted_by=deleted_by,
+        )
+
+
 class TestExecutionServiceInit:
     """Test ExecutionService initialization."""
 
-    def test_init_with_session_only(self) -> None:
-        """Test initialization with only database session."""
+    def test_init_with_session_and_user(self) -> None:
+        """Test initialization with database session and user."""
         mock_session = Mock(spec=AsyncSession)
-        service = ExecutionService(session=mock_session)
+        mock_user = Mock(spec=User)
+        service = ExecutionService(session=mock_session, user=mock_user)
 
         assert service.session is mock_session
+        assert service.user is mock_user
         assert service.temporal_service is None
 
     def test_init_with_temporal_service(self) -> None:
         """Test initialization with Temporal service."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
         mock_temporal = Mock()
-        service = ExecutionService(session=mock_session, temporal_service=mock_temporal)
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
 
         assert service.session is mock_session
+        assert service.user is mock_user
         assert service.temporal_service is mock_temporal
 
 
@@ -81,13 +179,14 @@ class TestCreateExecution:
         temporal_result.temporal_run_id = "run-xyz789"
         mock_temporal.start_yaml_workflow = AsyncMock(return_value=temporal_result)
 
-        service = ExecutionService(session=mock_session, temporal_service=mock_temporal)
+        mock_user = Mock(spec=User)
+        mock_user.id = user_id
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
 
         # Execute
         result = await service.create_execution(
             workflow_id=workflow_id,
             input_data={"key": "value"},
-            created_by=user_id,
         )
 
         # Verify
@@ -141,13 +240,14 @@ class TestCreateExecution:
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
 
-        service = ExecutionService(session=mock_session, temporal_service=None)
+        mock_user = Mock(spec=User)
+        mock_user.id = user_id
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
         # Execute
         result = await service.create_execution(
             workflow_id=workflow_id,
             input_data={},
-            created_by=user_id,
         )
 
         # Verify stub temporal_workflow_id was generated
@@ -164,14 +264,14 @@ class TestCreateExecution:
         mock_result.first = Mock(return_value=None)
         mock_session.execute = AsyncMock(return_value=mock_result)
 
-        service = ExecutionService(session=mock_session)
+        mock_user = Mock(spec=User)
+        service = ExecutionService(session=mock_session, user=mock_user)
 
         workflow_id = uuid4()
         with pytest.raises(WorkflowNotFoundError) as exc_info:
             await service.create_execution(
                 workflow_id=workflow_id,
                 input_data={},
-                created_by=uuid4(),
             )
 
         assert str(workflow_id) in str(exc_info.value)
@@ -196,13 +296,13 @@ class TestCreateExecution:
         mock_result.first = Mock(return_value=(workflow, workflow_version))
         mock_session.execute = AsyncMock(return_value=mock_result)
 
-        service = ExecutionService(session=mock_session)
+        mock_user = Mock(spec=User)
+        service = ExecutionService(session=mock_session, user=mock_user)
 
         with pytest.raises(WorkflowDisabledError) as exc_info:
             await service.create_execution(
                 workflow_id=workflow_id,
                 input_data={},
-                created_by=uuid4(),
             )
 
         assert str(workflow_id) in str(exc_info.value)
@@ -224,7 +324,8 @@ class TestGetExecution:
         mock_result.scalar_one_or_none = Mock(return_value=execution)
         mock_session.execute = AsyncMock(return_value=mock_result)
 
-        service = ExecutionService(session=mock_session, temporal_service=None)
+        mock_user = Mock(spec=User)
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
         result = await service.get_execution(execution_id)
 
@@ -255,7 +356,8 @@ class TestGetExecution:
         status_response.close_time = "2025-01-31T12:00:00+00:00"
         mock_temporal.get_workflow_status = AsyncMock(return_value=status_response)
 
-        service = ExecutionService(session=mock_session, temporal_service=mock_temporal)
+        mock_user = Mock(spec=User)
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
 
         result = await service.get_execution(execution_id)
 
@@ -273,7 +375,8 @@ class TestGetExecution:
         mock_result.scalar_one_or_none = Mock(return_value=None)
         mock_session.execute = AsyncMock(return_value=mock_result)
 
-        service = ExecutionService(session=mock_session)
+        mock_user = Mock(spec=User)
+        service = ExecutionService(session=mock_session, user=mock_user)
 
         execution_id = uuid4()
         with pytest.raises(ExecutionNotFoundError) as exc_info:
@@ -282,236 +385,437 @@ class TestGetExecution:
         assert str(execution_id) in str(exc_info.value)
 
 
-class TestListExecutionsCursor:
-    """Test list_executions_cursor method."""
+class TestListExecutions(TestExecutionServiceBase):
+    """Test list_executions method."""
 
     @pytest.mark.asyncio
     async def test_list_executions_basic(self) -> None:
         """Test basic listing without filters."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
 
-        # Mock executions
-        exec1 = Mock(spec=Execution, id=uuid4(), created_at="2025-01-01T10:00:00Z")
-        exec2 = Mock(spec=Execution, id=uuid4(), created_at="2025-01-01T11:00:00Z")
+        # Create real Execution objects using helper method
+        exec1_id = uuid4()
+        exec2_id = uuid4()
 
-        mock_result = Mock()
-        mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[exec1, exec2])))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        exec1 = self._create_test_execution(
+            execution_id=exec1_id,
+            status=ExecutionStatus.COMPLETED,
+            created_at=datetime(2025, 1, 1, 10, 0, 0, tzinfo=UTC),
+        )
 
-        service = ExecutionService(session=mock_session)
+        exec2 = self._create_test_execution(
+            execution_id=exec2_id,
+            status=ExecutionStatus.RUNNING,
+            created_at=datetime(2025, 1, 1, 11, 0, 0, tzinfo=UTC),
+        )
 
-        result = await service.list_executions_cursor(limit=10)
+        # Mock database result for main query
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = [exec1, exec2]
 
-        assert len(result) == 2
-        assert result == [exec1, exec2]
-        mock_session.execute.assert_awaited_once()
+        # Mock database result for count query (if needed)
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = None
+
+        # Set up session.execute to return different results based on query
+        def mock_execute(query: object) -> Mock:
+            # Check if it's a count query or main query based on the query structure
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
+
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
+
+        service = ExecutionService(session=mock_session, user=mock_user)
+        result = await service.list_executions(limit=10)
+
+        assert isinstance(result, ResourcesResponseBase)
+        assert len(result.resources) == 2
+        # Now we expect ExecutionRead objects, not the original Execution objects
+        assert isinstance(result.resources[0], ExecutionRead)
+        assert isinstance(result.resources[1], ExecutionRead)
+        # Check the IDs to verify the conversion worked correctly
+        assert result.resources[0].id == exec1_id
+        assert result.resources[1].id == exec2_id
+        assert result.next is None
+        assert result.prev is None
+        assert result.total is None
 
     @pytest.mark.asyncio
     async def test_list_executions_with_workflow_filter(self) -> None:
         """Test listing with workflow_id filter."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
 
         workflow_id = uuid4()
-        exec1 = Mock(spec=Execution, id=uuid4(), workflow_id=workflow_id)
+        exec1_id = uuid4()
+        exec1 = self._create_test_execution(execution_id=exec1_id, workflow_id=workflow_id)
 
-        mock_result = Mock()
-        mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[exec1])))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        # Mock database result for main query
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = [exec1]
 
-        service = ExecutionService(session=mock_session)
+        # Mock database result for count query (if needed)
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = None
 
-        result = await service.list_executions_cursor(workflow_id=workflow_id, limit=10)
+        def mock_execute(query: object) -> Mock:
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
 
-        assert len(result) == 1
-        assert result[0].workflow_id == workflow_id
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
+
+        service = ExecutionService(session=mock_session, user=mock_user)
+        result = await service.list_executions(query_params_items=[("workflow_id", str(workflow_id))], limit=10)
+
+        assert isinstance(result, ResourcesResponseBase)
+        assert len(result.resources) == 1
+        assert isinstance(result.resources[0], ExecutionRead)
+        assert result.resources[0].workflow_id == workflow_id
 
     @pytest.mark.asyncio
     async def test_list_executions_with_status_filter(self) -> None:
         """Test listing with status filter."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
 
-        exec1 = Mock(spec=Execution, id=uuid4(), status=ExecutionStatus.RUNNING)
+        exec1_id = uuid4()
+        exec1 = self._create_test_execution(execution_id=exec1_id, status=ExecutionStatus.RUNNING)
 
-        mock_result = Mock()
-        mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[exec1])))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        # Mock database result for main query
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = [exec1]
 
-        service = ExecutionService(session=mock_session)
+        # Mock database result for count query (if needed)
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = None
 
-        result = await service.list_executions_cursor(status=ExecutionStatus.RUNNING, limit=10)
+        def mock_execute(query: object) -> Mock:
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
 
-        assert len(result) == 1
-        assert result[0].status == ExecutionStatus.RUNNING
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
+
+        service = ExecutionService(session=mock_session, user=mock_user)
+        result = await service.list_executions(query_params_items=[("status", ExecutionStatus.RUNNING.value)], limit=10)
+
+        assert isinstance(result, ResourcesResponseBase)
+        assert len(result.resources) == 1
+        assert isinstance(result.resources[0], ExecutionRead)
+        assert result.resources[0].status == ExecutionStatus.RUNNING
 
     @pytest.mark.asyncio
     async def test_list_executions_with_created_by_filter(self) -> None:
         """Test listing with created_by filter."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
 
         user_id = uuid4()
-        exec1 = Mock(spec=Execution, id=uuid4(), created_by=user_id)
+        exec1_id = uuid4()
+        exec1 = self._create_test_execution(execution_id=exec1_id, created_by=user_id)
 
-        mock_result = Mock()
-        mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[exec1])))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        # Mock database result for main query
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = [exec1]
 
-        service = ExecutionService(session=mock_session)
+        # Mock database result for count query (if needed)
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = None
 
-        result = await service.list_executions_cursor(created_by=user_id, limit=10)
+        def mock_execute(query: object) -> Mock:
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
 
-        assert len(result) == 1
-        assert result[0].created_by == user_id
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
+
+        service = ExecutionService(session=mock_session, user=mock_user)
+        result = await service.list_executions(query_params_items=[("created_by", str(user_id))], limit=10)
+
+        assert isinstance(result, ResourcesResponseBase)
+        assert len(result.resources) == 1
+        assert isinstance(result.resources[0], ExecutionRead)
+        assert result.resources[0].created_by == user_id
 
     @pytest.mark.asyncio
     async def test_list_executions_with_labels_filter(self) -> None:
         """Test listing with labels filter."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
 
-        exec1 = Mock(spec=Execution, id=uuid4(), labels={"env": "prod"})
+        exec1_id = uuid4()
+        exec1 = self._create_test_execution(execution_id=exec1_id, labels={"env": "prod"})
 
-        mock_result = Mock()
-        mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[exec1])))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        # Mock database result for main query
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = [exec1]
 
-        service = ExecutionService(session=mock_session)
+        # Mock database result for count query (if needed)
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = None
 
-        result = await service.list_executions_cursor(labels_filter={"env": "prod"}, limit=10)
+        def mock_execute(query: object) -> Mock:
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
 
-        assert len(result) == 1
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
+
+        service = ExecutionService(session=mock_session, user=mock_user)
+        # Using cast to avoid mypy issues with dynamic keyword arguments
+        result = await service.list_executions(query_params_items=[("labels[env]", "prod")], limit=10)
+
+        assert isinstance(result, ResourcesResponseBase)
+        assert len(result.resources) == 1
+        assert isinstance(result.resources[0], ExecutionRead)
 
     @pytest.mark.asyncio
-    async def test_list_executions_respects_limit(self) -> None:
-        """Test that limit parameter is respected."""
+    async def test_list_executions_with_multiple_filters(self) -> None:
+        """Test listing with various filters combined."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
 
-        # Create 5 mock executions but limit=3
-        executions = [Mock(spec=Execution, id=uuid4()) for _ in range(3)]
+        workflow_id = uuid4()
+        user_id = uuid4()
+        exec1_id = uuid4()
+        exec1 = self._create_test_execution(execution_id=exec1_id, workflow_id=workflow_id, created_by=user_id)
 
-        mock_result = Mock()
-        mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=executions)))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        # Mock database result for main query
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = [exec1]
 
-        service = ExecutionService(session=mock_session)
+        # Mock database result for count query (if needed)
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = None
 
-        result = await service.list_executions_cursor(limit=3)
+        def mock_execute(query: object) -> Mock:
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
 
-        assert len(result) == 3
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
+
+        service = ExecutionService(session=mock_session, user=mock_user)
+        result = await service.list_executions(
+            query_params_items=[("workflow_id", str(workflow_id)), ("created_by", str(user_id)), ("status", "running")],
+            limit=10,
+        )
+
+        assert isinstance(result, ResourcesResponseBase)
+        assert len(result.resources) == 1
+        assert isinstance(result.resources[0], ExecutionRead)
+        assert result.resources[0].workflow_id == workflow_id
+
+    @pytest.mark.asyncio
+    async def test_list_executions_with_pagination(self) -> None:
+        """Test listing with pagination parameters."""
+        mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
+
+        # Create mock execution with proper attributes for pagination
+        exec_id = uuid4()
+        exec1 = self._create_test_execution(
+            execution_id=exec_id, created_at=datetime.fromisoformat("2025-01-01T10:00:00+00:00").replace(tzinfo=UTC)
+        )
+
+        # Mock database result for main query
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = [exec1]
+
+        # Mock database result for count query (if needed)
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = None
+
+        def mock_execute(query: object) -> Mock:
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
+
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
+
+        service = ExecutionService(session=mock_session, user=mock_user)
+        result = await service.list_executions(limit=5, cursor="some_cursor", sort="-created_at")
+
+        assert isinstance(result, ResourcesResponseBase)
+        assert len(result.resources) == 1
+        assert isinstance(result.resources[0], ExecutionRead)
+        # Note: next/prev cursors are generated by the pagination utility based on the results
+
+    @pytest.mark.asyncio
+    async def test_list_executions_with_total_count(self) -> None:
+        """Test listing with total count included."""
+        mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
+
+        exec1_id = uuid4()
+        exec1 = self._create_test_execution(execution_id=exec1_id)
+
+        # Mock database result for main query
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = [exec1]
+
+        # Mock database result for count query
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = 42
+
+        def mock_execute(query: object) -> Mock:
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
+
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
+
+        service = ExecutionService(session=mock_session, user=mock_user)
+        result = await service.list_executions(include_total=True)
+
+        assert isinstance(result, ResourcesResponseBase)
+        assert len(result.resources) == 1
+        assert isinstance(result.resources[0], ExecutionRead)
+        assert result.total == 42
+
+    @pytest.mark.asyncio
+    async def test_list_executions_with_label_filters(self) -> None:
+        """Test listing with label filters using bracket notation."""
+        mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
+
+        exec1_id = uuid4()
+        exec1 = self._create_test_execution(execution_id=exec1_id, labels={"env": "prod"})
+
+        # Mock database result for main query
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = [exec1]
+
+        # Mock database result for count query (if needed)
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = None
+
+        def mock_execute(query: object) -> Mock:
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
+
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
+
+        service = ExecutionService(session=mock_session, user=mock_user)
+        # Test with bracket notation label filter
+        result = await service.list_executions(query_params_items=[("labels[env]", "prod")])
+
+        assert isinstance(result, ResourcesResponseBase)
+        assert len(result.resources) == 1
+        assert isinstance(result.resources[0], ExecutionRead)
 
     @pytest.mark.asyncio
     async def test_list_executions_empty_result(self) -> None:
         """Test listing when no executions match."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
 
-        mock_result = Mock()
-        mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[])))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        # Mock database result for main query (empty)
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = []
 
-        service = ExecutionService(session=mock_session)
+        # Mock database result for count query (if needed)
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = None
 
-        result = await service.list_executions_cursor(limit=10)
+        def mock_execute(query: object) -> Mock:
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
 
-        assert len(result) == 0
-        assert result == []
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
 
+        service = ExecutionService(session=mock_session, user=mock_user)
+        result = await service.list_executions(limit=10)
 
-class TestCountExecutions:
-    """Test count_executions method."""
-
-    @pytest.mark.asyncio
-    async def test_count_executions_no_filter(self) -> None:
-        """Test counting all executions."""
-        mock_session = Mock(spec=AsyncSession)
-
-        mock_result = Mock()
-        mock_result.scalar_one = Mock(return_value=10)
-        mock_session.execute = AsyncMock(return_value=mock_result)
-
-        service = ExecutionService(session=mock_session)
-
-        count = await service.count_executions()
-
-        assert count == 10
-        mock_session.execute.assert_awaited_once()
+        assert isinstance(result, ResourcesResponseBase)
+        assert len(result.resources) == 0
+        assert result.resources == []
 
     @pytest.mark.asyncio
-    async def test_count_executions_with_workflow_filter(self) -> None:
-        """Test counting executions for specific workflow."""
+    async def test_list_executions_respects_allowed_filters(self) -> None:
+        """Test that only allowed filter fields are processed."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
 
-        workflow_id = uuid4()
-        mock_result = Mock()
-        mock_result.scalar_one = Mock(return_value=5)
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        exec1_id = uuid4()
+        exec1 = self._create_test_execution(execution_id=exec1_id)
 
-        service = ExecutionService(session=mock_session)
+        # Mock database result for main query
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = [exec1]
 
-        count = await service.count_executions(workflow_id=workflow_id)
+        # Mock database result for count query (if needed)
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = None
 
-        assert count == 5
+        def mock_execute(query: object) -> Mock:
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
+
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
+
+        service = ExecutionService(session=mock_session, user=mock_user)
+
+        # Test that valid filters work correctly
+        result = await service.list_executions(query_params_items=[("workflow_id[eq]", str(exec1.id))], limit=10)
+
+        assert isinstance(result, ResourcesResponseBase)
+        assert len(result.resources) == 1
 
     @pytest.mark.asyncio
-    async def test_count_executions_with_status_filter(self) -> None:
-        """Test counting executions by status."""
+    async def test_list_executions_respects_allowed_sort_fields(self) -> None:
+        """Test that only allowed sort fields are processed."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
 
-        mock_result = Mock()
-        mock_result.scalar_one = Mock(return_value=3)
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        exec1_id = uuid4()
+        exec1 = self._create_test_execution(execution_id=exec1_id)
 
-        service = ExecutionService(session=mock_session)
+        # Mock database result for main query
+        mock_main_result = Mock()
+        mock_main_result.scalars.return_value.all.return_value = [exec1]
 
-        count = await service.count_executions(status=ExecutionStatus.COMPLETED)
+        # Mock database result for count query (if needed)
+        mock_count_result = Mock()
+        mock_count_result.scalar.return_value = None
 
-        assert count == 3
+        def mock_execute(query: object) -> Mock:
+            query_str = str(query)
+            if "count(" in query_str.lower():
+                return mock_count_result
+            return mock_main_result
 
-    @pytest.mark.asyncio
-    async def test_count_executions_with_created_by_filter(self) -> None:
-        """Test counting executions by creator."""
-        mock_session = Mock(spec=AsyncSession)
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
 
-        user_id = uuid4()
-        mock_result = Mock()
-        mock_result.scalar_one = Mock(return_value=7)
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        service = ExecutionService(session=mock_session, user=mock_user)
 
-        service = ExecutionService(session=mock_session)
+        # Test with valid sort field
+        result = await service.list_executions(sort="created_at")
+        assert isinstance(result, ResourcesResponseBase)
 
-        count = await service.count_executions(created_by=user_id)
-
-        assert count == 7
-
-    @pytest.mark.asyncio
-    async def test_count_executions_with_labels_filter(self) -> None:
-        """Test counting executions with labels."""
-        mock_session = Mock(spec=AsyncSession)
-
-        mock_result = Mock()
-        mock_result.scalar_one = Mock(return_value=2)
-        mock_session.execute = AsyncMock(return_value=mock_result)
-
-        service = ExecutionService(session=mock_session)
-
-        count = await service.count_executions(labels_filter={"env": "staging"})
-
-        assert count == 2
-
-    @pytest.mark.asyncio
-    async def test_count_executions_zero(self) -> None:
-        """Test counting when no executions match."""
-        mock_session = Mock(spec=AsyncSession)
-
-        mock_result = Mock()
-        mock_result.scalar_one = Mock(return_value=0)
-        mock_session.execute = AsyncMock(return_value=mock_result)
-
-        service = ExecutionService(session=mock_session)
-
-        count = await service.count_executions(workflow_id=uuid4())
-
-        assert count == 0
+        # Test with invalid sort field - should raise ValueError
+        with pytest.raises(ValueError, match="Invalid field: invalid_field"):
+            await service.list_executions(sort="invalid_field")
 
 
-class TestListExecutionsWithTemporalSync:
+class TestListExecutionsWithTemporalSync(TestExecutionServiceBase):
     """Test list_executions_cursor with Temporal synchronization."""
 
     @pytest.mark.asyncio
@@ -520,16 +824,15 @@ class TestListExecutionsWithTemporalSync:
         mock_session = Mock(spec=AsyncSession)
         mock_session.commit = AsyncMock()
 
-        # Mock executions with non-terminal status
-        exec1 = Mock(spec=Execution)
-        exec1.id = uuid4()
-        exec1.status = ExecutionStatus.RUNNING
-        exec1.temporal_workflow_id = "exec-1"
-
-        exec2 = Mock(spec=Execution)
-        exec2.id = uuid4()
-        exec2.status = ExecutionStatus.PENDING
-        exec2.temporal_workflow_id = "exec-2"
+        # Create real execution objects for temporal sync testing
+        exec1_id = uuid4()
+        exec2_id = uuid4()
+        exec1 = self._create_test_execution(
+            execution_id=exec1_id, status=ExecutionStatus.RUNNING, temporal_workflow_id="exec-1"
+        )
+        exec2 = self._create_test_execution(
+            execution_id=exec2_id, status=ExecutionStatus.PENDING, temporal_workflow_id="exec-2"
+        )
 
         mock_result = Mock()
         mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[exec1, exec2])))
@@ -547,11 +850,12 @@ class TestListExecutionsWithTemporalSync:
 
         mock_temporal.get_workflow_status = AsyncMock(side_effect=[status_response1, status_response2])
 
-        service = ExecutionService(session=mock_session, temporal_service=mock_temporal)
+        mock_user = Mock(spec=User)
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
 
-        result = await service.list_executions_cursor(limit=10)
+        result = await service.list_executions(limit=10)
 
-        assert len(result) == 2
+        assert len(result.resources) == 2
         # Verify Temporal was queried for each execution
         assert mock_temporal.get_workflow_status.await_count == 2
         # Verify single commit for all changes
@@ -563,11 +867,11 @@ class TestListExecutionsWithTemporalSync:
         mock_session = Mock(spec=AsyncSession)
         mock_session.commit = AsyncMock()
 
-        # Mock execution already in terminal state
-        exec1 = Mock(spec=Execution)
-        exec1.id = uuid4()
-        exec1.status = ExecutionStatus.COMPLETED
-        exec1.temporal_workflow_id = "exec-1"
+        # Create real execution object in terminal state
+        exec1_id = uuid4()
+        exec1 = self._create_test_execution(
+            execution_id=exec1_id, status=ExecutionStatus.COMPLETED, temporal_workflow_id="exec-1"
+        )
 
         mock_result = Mock()
         mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[exec1])))
@@ -576,11 +880,12 @@ class TestListExecutionsWithTemporalSync:
         mock_temporal = Mock()
         mock_temporal.get_workflow_status = AsyncMock()
 
-        service = ExecutionService(session=mock_session, temporal_service=mock_temporal)
+        mock_user = Mock(spec=User)
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
 
-        result = await service.list_executions_cursor(limit=10)
+        result = await service.list_executions(limit=10)
 
-        assert len(result) == 1
+        assert len(result.resources) == 1
         # Verify no Temporal query for terminal state execution
         mock_temporal.get_workflow_status.assert_not_called()
         # Verify no commit when no changes

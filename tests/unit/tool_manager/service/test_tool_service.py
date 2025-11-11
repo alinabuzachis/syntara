@@ -325,26 +325,26 @@ async def test_list_tools_filtering(
     await test_db_session.commit()
 
     # Test name filtering with contains
-    result = await service.list_tools(**{"name[contains]": "Alpha"})  # type: ignore[arg-type]
+    result = await service.list_tools(query_params_items=[("name[contains]", "Alpha")])
     assert len(result.resources) == 1
     assert result.resources[0].name == "Alpha Tool"
 
     # Test status filtering
-    result = await service.list_tools(status="available")
+    result = await service.list_tools(query_params_items=[("status", "available")])
     assert len(result.resources) == 1
     assert result.resources[0].status == ToolStatus.AVAILABLE
 
     # Test status filtering for error
-    result = await service.list_tools(status="error")
+    result = await service.list_tools(query_params_items=[("status", "error")])
     assert len(result.resources) == 1
     assert result.resources[0].status == ToolStatus.ERROR
 
     # Test provider_id filtering
-    result = await service.list_tools(provider_id=str(test_tool_provider.id))
+    result = await service.list_tools(query_params_items=[("provider_id", str(test_tool_provider.id))])
     assert len(result.resources) >= 3  # At least our 3 test tools
 
     # Test namespaced_name filtering
-    result = await service.list_tools(namespaced_name="test::alpha")
+    result = await service.list_tools(query_params_items=[("namespaced_name", "test::alpha")])
     assert len(result.resources) == 1
     assert result.resources[0].namespaced_name == "test::alpha"
 
@@ -517,12 +517,12 @@ async def test_list_tools_complex_filtering(
     await test_db_session.commit()
 
     # Test status filtering for available tools
-    result = await service.list_tools(status="available")
+    result = await service.list_tools(query_params_items=[("status", "available")])
     assert len(result.resources) == 1
     assert result.resources[0].name == "Test Available Tool"
 
     # Test name contains filtering
-    result = await service.list_tools(**{"name[contains]": "Test"})  # type: ignore[arg-type]
+    result = await service.list_tools(query_params_items=[("name[contains]", "Test")])
     test_tools = [t for t in result.resources if "Test" in t.name]
     assert len(test_tools) == 2
 

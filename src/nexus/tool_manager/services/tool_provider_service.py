@@ -5,29 +5,19 @@ core domain logic with database persistence and transaction management.
 """
 
 import logging
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any, NoReturn
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.core.models import User
-from nexus.core.utils import (
-    Filter,
-    FilterOperator,
-    PaginationDirection,
-    SortDirection,
-    apply_filters,
-    apply_sorting,
-    decode_cursor,
-    extract_pagination_from_cursor,
-    generate_response,
-    parse_filters,
-    parse_sort,
-)
+from nexus.core.services import BaseService
+from nexus.core.utils.filters import Filter
 from nexus.tool_manager.lib.exceptions import (
     ProviderError,
     ProviderNameConflictError,
@@ -51,7 +41,7 @@ SelectToolProvider = Select[tuple[ToolProvider]] | SelectOfScalar[tuple[ToolProv
 logger = logging.getLogger(__name__)
 
 
-class ToolProviderService:
+class ToolProviderService(BaseService):
     """Service for Tool Provider CRUD operations and business logic.
 
     This service handles database persistence, transaction management, and integrates
@@ -67,8 +57,7 @@ class ToolProviderService:
             provider_factory: Shared provider factory instance from application state
 
         """
-        self.session = session
-        self.user = user
+        super().__init__(session, user)
         self.provider_factory = provider_factory
 
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
@@ -104,172 +93,35 @@ class ToolProviderService:
             raise ProviderNameConflictError(provider_name) from e
         raise e
 
-    def _apply_filters_to_query(
-        self, query: SelectToolProvider, query_params: dict[str, str]
-    ) -> tuple[SelectToolProvider, list[Filter]]:
-        """Apply filters to query and return modified query and filter objects.
-
-        Args:
-            query: SQLAlchemy query to filter
-            query_params: Query parameters for filtering
+    def _get_special_field_handlers(self) -> dict[str, Any]:
+        """Get special field handlers for tool provider specific filtering.
 
         Returns:
-            Tuple of (filtered_query, filter_objects)
-
-        Raises:
-            ValidationError: If filter parameters are invalid
+            Dict mapping field names to handler functions
 
         """
-        try:
-            # Expand allowed fields to support bracket notation for all expected fields
-            allowed_filter_fields = [
-                "name",
-                "status",
-                "enabled",
-                "provider_type",
-                "configuration.provider_type",
-                "configuration.base_url",
-            ]
-            filters = parse_filters(query_params, allowed_filter_fields)
 
-            # Apply filters with special handling for JSON fields
-            for filter_obj in filters:
-                if filter_obj.field in ["provider_type", "configuration.provider_type"]:
-                    # Handle provider_type in JSON configuration field
-                    if filter_obj.operator == FilterOperator.EQ:
-                        query = query.filter(ToolProvider.configuration["provider_type"].astext == filter_obj.value)
-                elif filter_obj.field == "configuration.base_url":
-                    # Handle base_url in JSON configuration field
-                    if filter_obj.operator == FilterOperator.EQ:
-                        query = query.filter(ToolProvider.configuration["base_url"].astext == filter_obj.value)
-                    elif filter_obj.operator == FilterOperator.CONTAINS:
-                        query = query.filter(
-                            ToolProvider.configuration["base_url"].astext.ilike(f"%{filter_obj.value}%")
-                        )
-                else:
-                    # Apply regular filters for non-JSON fields
-                    single_filter_query = apply_filters(query, [filter_obj], ToolProvider)
-                    query = single_filter_query
-
-            return query, filters
-        except ValueError as e:
-            msg = f"Invalid filter parameter: {e}"
-            raise ValidationError(msg) from e
-
-    def _apply_sorting_to_query(
-        self, query: SelectToolProvider, sort: str | None
-    ) -> tuple[SelectToolProvider, SortDirection]:
-        """Apply sorting to query and return modified query and sort direction.
-
-        Args:
-            query: SQLAlchemy query to sort
-            sort: Sort parameter
-
-        Returns:
-            Tuple of (sorted_query, sort_direction)
-
-        Raises:
-            ValidationError: If sort parameter is invalid
-
-        """
-        try:
-            allowed_sort_fields = ["name", "created_at", "updated_at", "status", "enabled"]
-            sort_field, sort_direction = parse_sort(sort, allowed_sort_fields)
-            query = apply_sorting(query, [(sort_field, sort_direction)], ToolProvider)
-            return query, sort_direction
-        except ValueError as e:
-            msg = f"Invalid sort parameter: {e}"
-            raise ValidationError(msg) from e
-
-    def _apply_cursor_pagination_to_query(
-        self,
-        query: SelectToolProvider,
-        cursor: str | None,
-        sort_direction: SortDirection,
-    ) -> SelectToolProvider:
-        """Apply cursor-based pagination to query.
-
-        Args:
-            query: SQLAlchemy query to paginate
-            cursor: Cursor token for pagination
-            sort_direction: Sort direction from sorting step
-
-        Returns:
-            Query with cursor-based pagination applied
-
-        """
-        if not cursor:
+        def handle_provider_type(
+            query: SelectToolProvider, filter_obj: Filter, _model: type[ToolProvider]
+        ) -> SelectToolProvider:
+            if filter_obj.operator.value == "eq":
+                return query.filter(ToolProvider.configuration["provider_type"].astext == filter_obj.value)
             return query
 
-        try:
-            cursor_data = decode_cursor(cursor)
-            resource_id, created_at, direction = extract_pagination_from_cursor(cursor_data)
+        def handle_base_url(
+            query: SelectToolProvider, filter_obj: Filter, _model: type[ToolProvider]
+        ) -> SelectToolProvider:
+            if filter_obj.operator.value == "eq":
+                return query.filter(ToolProvider.configuration["base_url"].astext == filter_obj.value)
+            if filter_obj.operator.value == "contains":
+                return query.filter(ToolProvider.configuration["base_url"].astext.ilike(f"%{filter_obj.value}%"))
+            return query
 
-            if resource_id and created_at:
-                # Convert cursor data to proper types
-                cursor_id = UUID(resource_id)
-                cursor_timestamp = datetime.fromisoformat(created_at)
-
-                # Apply cursor-based filtering based on sort direction and pagination direction
-                if direction == PaginationDirection.NEXT:
-                    if sort_direction.value == "desc":
-                        query = query.filter(
-                            (ToolProvider.created_at < cursor_timestamp)  # type: ignore[arg-type]
-                            | ((ToolProvider.created_at == cursor_timestamp) & (ToolProvider.id < cursor_id))
-                        )
-                    else:
-                        query = query.filter(
-                            (ToolProvider.created_at > cursor_timestamp)  # type: ignore[arg-type]
-                            | ((ToolProvider.created_at == cursor_timestamp) & (ToolProvider.id > cursor_id))
-                        )
-                elif sort_direction.value == "desc":
-                    query = query.filter(
-                        (ToolProvider.created_at > cursor_timestamp)  # type: ignore[arg-type]
-                        | ((ToolProvider.created_at == cursor_timestamp) & (ToolProvider.id > cursor_id))
-                    )
-                else:
-                    query = query.filter(
-                        (ToolProvider.created_at < cursor_timestamp)  # type: ignore[arg-type]
-                        | ((ToolProvider.created_at == cursor_timestamp) & (ToolProvider.id < cursor_id))
-                    )
-        except (ValueError, KeyError):
-            # Invalid cursor - ignore and continue without cursor filtering
-            pass
-
-        return query
-
-    async def _get_total_count(self, filters: list[Filter]) -> int | None:
-        """Get total count of providers matching filters.
-
-        Args:
-            filters: List of filter objects to apply
-
-        Returns:
-            Total count of matching providers
-
-        """
-        count_query = select(func.count()).select_from(ToolProvider).filter(ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr]
-
-        # Apply the same filters to count query
-        for filter_obj in filters:
-            if filter_obj.field in ["provider_type", "configuration.provider_type"]:
-                if filter_obj.operator == FilterOperator.EQ:
-                    count_query = count_query.filter(
-                        ToolProvider.configuration["provider_type"].astext == filter_obj.value
-                    )
-            elif filter_obj.field == "configuration.base_url":
-                if filter_obj.operator == FilterOperator.EQ:
-                    count_query = count_query.filter(ToolProvider.configuration["base_url"].astext == filter_obj.value)
-                elif filter_obj.operator == FilterOperator.CONTAINS:
-                    count_query = count_query.filter(
-                        ToolProvider.configuration["base_url"].astext.ilike(f"%{filter_obj.value}%")
-                    )
-            else:
-                single_filter_count_query = apply_filters(count_query, [filter_obj], ToolProvider)
-                count_query = single_filter_count_query  # type: ignore[assignment]
-
-        total_result = await self.session.execute(count_query)
-        return total_result.scalar()
+        return {
+            "provider_type": handle_provider_type,
+            "configuration.provider_type": handle_provider_type,
+            "configuration.base_url": handle_base_url,
+        }
 
     async def _validate_provider_connection(
         self, provider_id: UUID, provider_name: str, configuration: dict[str, Any]
@@ -423,9 +275,9 @@ class ToolProviderService:
         limit: int = 100,
         cursor: str | None = None,
         sort: str | None = None,
+        query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
-        **query_params: Any,  # noqa: ANN401
     ) -> ToolProviderListResponse:
         """List tool providers with filtering, sorting, and pagination.
 
@@ -433,45 +285,26 @@ class ToolProviderService:
             limit: Maximum number of providers to return (max 100)
             cursor: Cursor token for pagination
             sort: Sort parameter (e.g., "name", "-created_at")
+            query_params_items: Raw query parameter items from request (for filtering)
             include_total: Whether to include total count in response
-            **query_params: Additional query parameters for filtering
 
         Returns:
-            Dict with providers list, pagination metadata, and optional total
+            ToolProviderListResponse with providers, pagination metadata, and optional total
 
         """
-        # Build base query with soft delete filter
-        query: SelectToolProvider = select(ToolProvider).filter(ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr]
+        # Get special field handlers for JSON configuration fields
+        special_field_handlers = self._get_special_field_handlers()
 
-        # Apply filters, sorting, and pagination
-        query, filters = self._apply_filters_to_query(query, query_params)
-        query, sort_direction = self._apply_sorting_to_query(query, sort)
-        query = self._apply_cursor_pagination_to_query(query, cursor, sort_direction)
-
-        # Apply limit and execute query
-        query = query.limit(limit)
-        result = await self.session.execute(query)
-        providers = result.scalars().all()
-
-        # Get total count if requested
-        total_count = None
-        if include_total:
-            total_count = await self._get_total_count(filters)
-
-        # Generate pagination response
-        pagination_metadata = generate_response(
-            items=providers,
+        # Use unified list_resources method (fields read from model automatically)
+        return await self.list_resources(
+            model=ToolProvider,
+            response_type=ToolProviderListResponse,
             limit=limit,
             cursor=cursor,
+            sort=sort,
+            special_field_handlers=special_field_handlers,
+            query_params_items=query_params_items,
             include_total=include_total,
-            total_count=total_count,
-        )
-
-        return ToolProviderListResponse(
-            resources=providers,
-            next=pagination_metadata["next"],
-            prev=pagination_metadata["prev"],
-            total=pagination_metadata["total"],
         )
 
     async def create_provider(self, provider_create: ToolProviderCreate) -> ToolProvider:

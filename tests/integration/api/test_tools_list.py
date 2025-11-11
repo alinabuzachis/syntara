@@ -316,8 +316,8 @@ class TestToolsListContract:
         # Filter with invalid status value
         response = await base_client.get("/api/v1/tools", params={"status[eq]": "nonexistent"})
 
-        # Contract: Must return 400 Bad Request for invalid enum value
-        assert response.status_code == 400
+        # Contract: Must return 422 Unprocessable Entity for invalid enum value
+        assert response.status_code == 422
 
         # Contract: Must return error details
         data = response.json()
@@ -401,8 +401,8 @@ class TestToolsListContract:
 
         # Test with invalid cursor
         response = await base_client.get("/api/v1/tools", params={"cursor": "invalid-cursor"})
-        assert response.status_code in [200, 400]  # Either ignored or validation error
+        assert response.status_code in [200, 422]  # Either ignored or validation error
 
         # Test with invalid sort field
         response = await base_client.get("/api/v1/tools", params={"sort": "invalid_field"})
-        assert response.status_code in [200, 400]  # Either ignored or validation error
+        assert response.status_code in [200, 422]  # Either ignored or validation error

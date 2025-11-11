@@ -14,6 +14,7 @@ from nexus.core.utils.filters import (
     Filter,
     FilterOperator,
     _convert_filter_value,
+    _sanitize_like_value,
     parse_filters,
 )
 
@@ -444,3 +445,233 @@ class TestFilterValueConversion:
         field_attr.type.python_type = None
         result = _convert_filter_value("any_value", field_attr)
         assert result == "any_value"
+
+
+class TestSQLInjectionProtection:
+    """Test SQL injection protection in filter values."""
+
+    def test_sanitize_like_value_function_exists(self) -> None:
+        """Test that _sanitize_like_value function exists."""
+        assert callable(_sanitize_like_value)
+
+    def test_sanitize_like_value_escapes_percent_wildcard(self) -> None:
+        """Test that % wildcard is properly escaped."""
+        # Test basic % escape
+        result = _sanitize_like_value("test%value")
+        assert result == "test\\%value"
+
+        # Test multiple % characters
+        result = _sanitize_like_value("%start%middle%end%")
+        assert result == "\\%start\\%middle\\%end\\%"
+
+        # Test SQL injection attempt with %
+        injection_attempt = "'; DROP TABLE users; --"
+        result = _sanitize_like_value(injection_attempt)
+        assert result == injection_attempt  # Should pass through, only escapes % and _
+
+    def test_sanitize_like_value_escapes_underscore_wildcard(self) -> None:
+        """Test that _ wildcard is properly escaped."""
+        # Test basic _ escape
+        result = _sanitize_like_value("test_value")
+        assert result == "test\\_value"
+
+        # Test multiple _ characters
+        result = _sanitize_like_value("_start_middle_end_")
+        assert result == "\\_start\\_middle\\_end\\_"
+
+        # Test combination of patterns
+        result = _sanitize_like_value("file_name.txt")
+        assert result == "file\\_name.txt"
+
+    def test_sanitize_like_value_escapes_backslash(self) -> None:
+        """Test that backslashes are properly escaped."""
+        # Test basic backslash escape
+        result = _sanitize_like_value("path\\to\\file")
+        assert result == "path\\\\to\\\\file"
+
+        # Test backslash with wildcards
+        result = _sanitize_like_value("\\%_test")
+        assert result == "\\\\\\%\\_test"
+
+    def test_sanitize_like_value_combination_patterns(self) -> None:
+        """Test sanitization of values with multiple special characters."""
+        # Test all patterns together
+        result = _sanitize_like_value("test\\_%value%_end")
+        assert result == "test\\\\\\_\\%value\\%\\_end"
+
+        # Test realistic SQL injection attempts
+        injection_patterns = [
+            "user%'; DROP TABLE--",
+            "_admin' OR 1=1--",
+            "\\'; DELETE FROM users WHERE 1=1; --",
+            "%' UNION SELECT * FROM passwords--",
+        ]
+
+        for pattern in injection_patterns:
+            result = _sanitize_like_value(pattern)
+            # Should escape wildcards but leave other characters
+            expected = pattern.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            assert result == expected
+
+    def test_sanitize_like_value_non_string_input(self) -> None:
+        """Test that non-string values are converted to string first."""
+        # Test integer
+        result = _sanitize_like_value(123)
+        assert result == "123"
+
+        # Test float
+        result = _sanitize_like_value(45.67)
+        assert result == "45.67"
+
+        # Test boolean
+        result = _sanitize_like_value(True)  # noqa: FBT003
+        assert result == "True"
+
+    def test_sanitize_like_value_empty_string(self) -> None:
+        """Test sanitization of empty string."""
+        result = _sanitize_like_value("")
+        assert result == ""
+
+    def test_sanitize_like_value_only_wildcards(self) -> None:
+        """Test sanitization of strings containing only wildcards."""
+        result = _sanitize_like_value("%%%")
+        assert result == "\\%\\%\\%"
+
+        result = _sanitize_like_value("___")
+        assert result == "\\_\\_\\_"
+
+        result = _sanitize_like_value("%_%")
+        assert result == "\\%\\_\\%"
+
+
+class TestMalformedFilterSyntax:
+    """Test handling of malformed filter syntax."""
+
+    def test_malformed_bracket_notation_missing_closing(self) -> None:
+        """Test malformed bracket notation with missing closing bracket."""
+        params = {"name[contains": "value"}  # Missing ]
+        allowed_fields = ["name"]
+
+        # Should be treated as shorthand notation (field name is "name[contains")
+        with pytest.raises(ValueError, match="Invalid field"):
+            parse_filters(params, allowed_fields)
+
+    def test_malformed_bracket_notation_missing_opening(self) -> None:
+        """Test malformed bracket notation with missing opening bracket."""
+        params = {"namecontains]": "value"}  # Missing [
+        allowed_fields = ["name"]
+
+        # Should be treated as shorthand notation (field name is "namecontains]")
+        with pytest.raises(ValueError, match="Invalid field"):
+            parse_filters(params, allowed_fields)
+
+    def test_malformed_bracket_notation_empty_operator(self) -> None:
+        """Test malformed bracket notation with empty operator."""
+        params = {"name[]": "value"}  # Empty operator
+        allowed_fields = ["name"]
+
+        # Should fail due to empty operator
+        with pytest.raises(ValueError, match="Invalid operator"):
+            parse_filters(params, allowed_fields)
+
+    def test_malformed_bracket_notation_nested_brackets(self) -> None:
+        """Test malformed bracket notation with nested brackets."""
+        params = {"name[contains[eq]]": "value"}  # Nested brackets
+        allowed_fields = ["name"]
+
+        # Should be treated as shorthand notation
+        with pytest.raises(ValueError, match="Invalid field"):
+            parse_filters(params, allowed_fields)
+
+    def test_malformed_bracket_notation_multiple_brackets(self) -> None:
+        """Test malformed bracket notation with multiple bracket pairs."""
+        params = {"name[contains][eq]": "value"}  # Multiple bracket pairs
+        allowed_fields = ["name"]
+
+        # Should be treated as shorthand notation
+        with pytest.raises(ValueError, match="Invalid field"):
+            parse_filters(params, allowed_fields)
+
+    def test_malformed_bracket_notation_spaces_in_operator(self) -> None:
+        """Test bracket notation with spaces in operator."""
+        params = {"name[contains value]": "test"}  # Space in operator
+        allowed_fields = ["name"]
+
+        # Should fail due to invalid operator
+        with pytest.raises(ValueError, match="Invalid operator"):
+            parse_filters(params, allowed_fields)
+
+    def test_malformed_bracket_notation_special_chars_in_operator(self) -> None:
+        """Test bracket notation with special characters in operator."""
+        invalid_operators = [
+            "name[con-tains]",  # Hyphen
+            "name[con.tains]",  # Dot
+            "name[con/tains]",  # Slash
+            "name[con@tains]",  # At symbol
+            "name[con#tains]",  # Hash
+        ]
+        allowed_fields = ["name"]
+
+        for param_name in invalid_operators:
+            params = {param_name: "value"}
+            with pytest.raises(ValueError, match="Invalid operator"):
+                parse_filters(params, allowed_fields)
+
+    def test_malformed_field_name_patterns(self) -> None:
+        """Test various malformed field name patterns."""
+        malformed_patterns = [
+            "[field]",  # Field name starting with bracket
+            "field]",  # Field name ending with bracket
+            "fie[ld",  # Field name with unmatched bracket
+            "field[[",  # Field name with double brackets
+            "field]]",  # Field name with double closing brackets
+        ]
+        allowed_fields = ["name", "status"]
+
+        for pattern in malformed_patterns:
+            params = {pattern: "value"}
+            # Should fail due to invalid field name
+            with pytest.raises(ValueError, match="Invalid field"):
+                parse_filters(params, allowed_fields)
+
+    def test_malformed_bracket_notation_unicode_operators(self) -> None:
+        """Test bracket notation with unicode characters in operators."""
+        params = {"name[contáins]": "value"}  # Unicode in operator
+        allowed_fields = ["name"]
+
+        with pytest.raises(ValueError, match="Invalid operator"):
+            parse_filters(params, allowed_fields)
+
+    def test_bracket_notation_regex_edge_cases(self) -> None:
+        """Test edge cases for bracket notation regex pattern."""
+        # Valid patterns that should work
+        valid_patterns = {
+            "field.with.dots[eq]": ("field.with.dots", "eq"),
+            "field_with_underscores[contains]": ("field_with_underscores", "contains"),
+            "fieldwithdigits123[starts_with]": ("fieldwithdigits123", "starts_with"),
+        }
+
+        for param_name, (expected_field, expected_operator) in valid_patterns.items():
+            params = {param_name: "test"}
+            allowed_fields = [expected_field]
+
+            filters = parse_filters(params, allowed_fields)
+            assert len(filters) == 1
+            assert filters[0].field == expected_field
+            assert filters[0].operator.value == expected_operator
+
+        # Invalid patterns that should fail
+        invalid_patterns = [
+            "field name[eq]",  # Space in field name
+            "field-name[eq]",  # Hyphen in field name
+            "field/name[eq]",  # Slash in field name
+            "123field[eq]",  # Field starting with number
+        ]
+
+        for param_name in invalid_patterns:
+            params = {param_name: "test"}
+            allowed_fields = ["field", "name"]
+
+            # Should be treated as shorthand notation with invalid field
+            with pytest.raises(ValueError, match="Invalid field"):
+                parse_filters(params, allowed_fields)

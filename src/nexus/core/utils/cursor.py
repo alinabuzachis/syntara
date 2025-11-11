@@ -125,6 +125,38 @@ def create_cursor_data(
     return cursor
 
 
+def _filter_to_cursor_data(raw_data: Any) -> CursorData:  # noqa: ANN401
+    """Filter raw JSON data to only valid CursorData fields.
+
+    Args:
+        raw_data: Raw data from JSON parsing
+
+    Returns:
+        CursorData dictionary with only valid fields
+
+    """
+    # Type safety: Filter to only valid CursorData fields
+    # This ensures the return type matches CursorData TypedDict
+    if not isinstance(raw_data, dict):
+        return {}  # Return empty CursorData for non-dict JSON
+
+    cursor_data: CursorData = {}
+
+    # Only include fields that are part of CursorData structure and are strings
+    if "id" in raw_data and isinstance(raw_data["id"], str):
+        cursor_data["id"] = raw_data["id"]
+    if "created_at" in raw_data and isinstance(raw_data["created_at"], str):
+        cursor_data["created_at"] = raw_data["created_at"]
+    if "direction" in raw_data and isinstance(raw_data["direction"], str):
+        cursor_data["direction"] = raw_data["direction"]
+    if "sort_field" in raw_data and isinstance(raw_data["sort_field"], str):
+        cursor_data["sort_field"] = raw_data["sort_field"]
+    if "sort_direction" in raw_data and isinstance(raw_data["sort_direction"], str):
+        cursor_data["sort_direction"] = raw_data["sort_direction"]
+
+    return cursor_data
+
+
 def encode_cursor(cursor_data: CursorData) -> str:
     """Encode cursor data to a base64 string.
 
@@ -179,7 +211,8 @@ def decode_cursor(cursor: str) -> CursorData:
 
         # Security: Use secure JSON loading with limited depth
         try:
-            return json.loads(cursor_json)  # type: ignore[no-any-return]
+            raw_data = json.loads(cursor_json)
+            return _filter_to_cursor_data(raw_data)
         except RecursionError:
             msg = "Cursor JSON too deeply nested"
             raise ValueError(msg) from None
@@ -217,7 +250,11 @@ def get_pagination_direction(cursor: str | None) -> PaginationDirection:
     try:
         cursor_data = decode_cursor(cursor)
         direction_str = cursor_data.get("direction", "next")
-        return PaginationDirection.NEXT if direction_str == "next" else PaginationDirection.PREV
+        if direction_str == "next":
+            return PaginationDirection.NEXT
+        if direction_str == "prev":
+            return PaginationDirection.PREV
+        return PaginationDirection.NEXT  # Default to forward navigation for invalid direction
     except (ValueError, json.JSONDecodeError):
         return PaginationDirection.NEXT  # Default to forward navigation on invalid cursor
 
@@ -277,90 +314,3 @@ def extract_pagination_from_cursor(cursor_data: CursorData) -> tuple[str | None,
         direction = PaginationDirection.NEXT
 
     return resource_id, created_at, direction
-
-
-def merge_cursor_data(
-    pagination_cursor: CursorData | None = None,
-    sort_cursor: CursorData | None = None,
-    **kwargs: Any,  # noqa: ANN401
-) -> CursorData:
-    """Merge multiple cursor data sources into a unified cursor.
-
-    Args:
-        pagination_cursor: Cursor data containing pagination information
-        sort_cursor: Cursor data containing sorting information
-        **kwargs: Additional cursor fields to include
-
-    Returns:
-        Merged CursorData dictionary
-
-    Examples:
-        >>> pagination = {"id": "uuid", "direction": "next"}
-        >>> sorting = {"sort_field": "name", "sort_direction": "asc"}
-        >>> merge_cursor_data(pagination, sorting)
-        {
-            "id": "uuid",
-            "direction": "next",
-            "sort_field": "name",
-            "sort_direction": "asc"
-        }
-
-    """
-    result: CursorData = {}
-
-    # Merge pagination cursor data
-    if pagination_cursor:
-        result.update(pagination_cursor)
-
-    # Merge sort cursor data (may override pagination fields)
-    if sort_cursor:
-        result.update(sort_cursor)
-
-    # Add any additional fields
-    result.update(kwargs)  # type: ignore[typeddict-item]
-
-    return result
-
-
-def validate_cursor_data(cursor_data: CursorData) -> list[str]:
-    """Validate cursor data structure and return any validation errors.
-
-    Args:
-        cursor_data: CursorData to validate
-
-    Returns:
-        List of validation error messages (empty if valid)
-
-    Examples:
-        >>> validate_cursor_data({"direction": "invalid"})
-        ["Invalid direction: invalid"]
-        >>> validate_cursor_data({"direction": "next", "sort_direction": "asc"})
-        []
-
-    """
-    errors = []
-
-    # Validate direction if present
-    if "direction" in cursor_data:
-        try:
-            PaginationDirection(cursor_data["direction"])
-        except ValueError:
-            errors.append(f"Invalid direction: {cursor_data['direction']}")
-
-    # Validate sort direction if present
-    if "sort_direction" in cursor_data:
-        try:
-            SortDirection(cursor_data["sort_direction"])
-        except ValueError:
-            errors.append(f"Invalid sort_direction: {cursor_data['sort_direction']}")
-
-    # Validate that sort_field and sort_direction go together
-    has_sort_field = "sort_field" in cursor_data
-    has_sort_direction = "sort_direction" in cursor_data
-
-    if has_sort_field and not has_sort_direction:
-        errors.append("sort_field provided without sort_direction")
-    elif has_sort_direction and not has_sort_field:
-        errors.append("sort_direction provided without sort_field")
-
-    return errors

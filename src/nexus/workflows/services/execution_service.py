@@ -5,32 +5,22 @@ HTTP/API concerns in the FastAPI endpoints.
 """
 
 import logging
-from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from collections.abc import Iterable
+from typing import Any
 from uuid import UUID, uuid4
 
 import yaml
-from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import and_, or_, select
+from sqlmodel import and_, select
 
-if TYPE_CHECKING:
-    from sqlmodel.sql.expression import SelectOfScalar
-
-from nexus.core.utils.cursor import (
-    PaginationDirection,
-    SortDirection,
-    decode_cursor,
-    extract_pagination_from_cursor,
-)
-from nexus.core.utils.labels import apply_label_filters
-from nexus.core.utils.sorting import apply_sorting, parse_sort
+from nexus.core.models import User
+from nexus.core.services import BaseService
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
-from nexus.workflows.models.execution import Execution, ExecutionStatus
+from nexus.workflows.models.execution import Execution, ExecutionListResponse, ExecutionRead, ExecutionStatus
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.utilities import sync_execution_status_from_temporal
@@ -39,7 +29,7 @@ from nexus.workflows.workflow_engine.services.temporal_execution_service import 
 logger = logging.getLogger(__name__)
 
 
-class ExecutionService:
+class ExecutionService(BaseService):
     """Service for execution business logic.
 
     This service encapsulates all execution-related business operations,
@@ -49,23 +39,24 @@ class ExecutionService:
     def __init__(
         self,
         session: AsyncSession,
+        user: User,
         temporal_service: TemporalExecutionService | None = None,
     ) -> None:
         """Initialize service with database session.
 
         Args:
             session: Database session for queries
+            user: Current authenticated user
             temporal_service: Optional Temporal execution service for workflow operations
 
         """
-        self.session = session
+        super().__init__(session, user)
         self.temporal_service = temporal_service
 
     async def create_execution(
         self,
         workflow_id: UUID,
         input_data: dict[str, Any],
-        created_by: UUID,
     ) -> Execution:
         """Create and start a new workflow execution.
 
@@ -78,7 +69,6 @@ class ExecutionService:
         Args:
             workflow_id: ID of workflow to execute
             input_data: Input parameters for the workflow
-            created_by: UUID of user creating the execution
 
         Returns:
             Created execution with status=PENDING
@@ -89,7 +79,7 @@ class ExecutionService:
             Exception: If Temporal workflow start fails
 
         """
-        logger.info("Creating execution for workflow %s by user %s", workflow_id, created_by)
+        logger.info("Creating execution for workflow %s by user %s", workflow_id, self.user.id)
 
         # Step 1: Validate workflow exists and is enabled
         result = await self.session.execute(
@@ -151,8 +141,8 @@ class ExecutionService:
             temporal_workflow_id=temporal_workflow_id,
             status=ExecutionStatus.PENDING,
             input_data=input_data,
-            created_by=created_by,
-            updated_by=created_by,
+            created_by=self.user.id,
+            updated_by=self.user.id,
         )
 
         self.session.add(execution)
@@ -199,171 +189,51 @@ class ExecutionService:
 
         return execution
 
-    def _apply_cursor_pagination(
+    async def list_executions(
         self,
-        query: "SelectOfScalar[Execution]",
-        cursor: str,
-        sort_direction: SortDirection,
-    ) -> "SelectOfScalar[Execution]":
-        """Apply cursor-based pagination to query.
-
-        Args:
-            query: SQLAlchemy query to apply pagination to
-            cursor: Base64-encoded pagination cursor
-            sort_direction: Sort direction for pagination
-
-        Returns:
-            Query with cursor pagination applied
-
-        """
-        cursor_data = decode_cursor(cursor)
-        resource_id, created_at_str, direction = extract_pagination_from_cursor(cursor_data)
-
-        if not resource_id or not created_at_str:
-            return query
-
-        cursor_id = UUID(resource_id)
-        cursor_created_at = datetime.fromisoformat(created_at_str)
-
-        # Apply cursor filtering based on sort direction and pagination direction
-        if direction == PaginationDirection.NEXT:
-            if sort_direction == SortDirection.DESC:
-                return query.where(
-                    or_(
-                        Execution.created_at < cursor_created_at,
-                        and_(Execution.created_at == cursor_created_at, Execution.id < cursor_id),
-                    )
-                )
-            return query.where(
-                or_(
-                    Execution.created_at > cursor_created_at,
-                    and_(Execution.created_at == cursor_created_at, Execution.id > cursor_id),
-                )
-            )
-        if sort_direction == SortDirection.DESC:
-            return query.where(
-                or_(
-                    Execution.created_at > cursor_created_at,
-                    and_(Execution.created_at == cursor_created_at, Execution.id > cursor_id),
-                )
-            )
-        return query.where(
-            or_(
-                Execution.created_at < cursor_created_at,
-                and_(Execution.created_at == cursor_created_at, Execution.id < cursor_id),
-            )
-        )
-
-    async def list_executions_cursor(
-        self,
-        *,
-        workflow_id: UUID | None = None,
-        created_by: UUID | None = None,
-        status: ExecutionStatus | None = None,
-        labels_filter: dict[str, str] | None = None,
         limit: int = 20,
         cursor: str | None = None,
         sort: str | None = None,
-    ) -> list[Execution]:
-        """List executions using cursor-based pagination.
-
-        Args:
-            workflow_id: Filter by workflow ID
-            created_by: Filter by user who created the execution
-            status: Filter by execution status
-            labels_filter: Filter by labels (key-value pairs)
-            limit: Maximum number of results to return
-            cursor: Base64-encoded pagination cursor
-            sort: Sort parameter (e.g., "created_at" or "-created_at")
-
-        Returns:
-            List of executions for the current page
-
-        """
-        # Build base query with soft delete filter
-        query = select(Execution).where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
-
-        # Apply field filters
-        if workflow_id:
-            query = query.where(Execution.workflow_id == workflow_id)
-
-        if created_by:
-            query = query.where(Execution.created_by == created_by)
-
-        if status:
-            query = query.where(Execution.status == status)
-
-        # Apply label filters using core utility
-        if labels_filter:
-            query = apply_label_filters(query, labels_filter, Execution)  # type: ignore[assignment]
-
-        # Parse and apply sorting
-        allowed_sort_fields = ["created_at", "updated_at", "completed_at", "status"]
-        sort_field, sort_direction = parse_sort(
-            sort, allowed_sort_fields, default_field="created_at", default_direction=SortDirection.DESC
-        )
-
-        # Apply cursor-based pagination
-        if cursor:
-            query = self._apply_cursor_pagination(query, cursor, sort_direction)
-
-        # Apply sorting with tie-breaker
-        query = apply_sorting(query, [(sort_field, sort_direction), ("id", sort_direction)], Execution)  # type: ignore[assignment]
-
-        # Limit results
-        query = query.limit(limit)
-
-        # Execute query
-        result = await self.session.execute(query)
-        executions = list(result.scalars().all())
-
-        # Sync status from Temporal for each execution if available
-        if self.temporal_service is not None:
-            changes = [
-                await sync_execution_status_from_temporal(execution, self.temporal_service, session=None, persist=False)
-                for execution in executions
-            ]
-
-            # Commit all changes together if any execution status changed
-            if any(changes):
-                await self.session.commit()
-
-        return executions
-
-    async def count_executions(
-        self,
+        query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
-        workflow_id: UUID | None = None,
-        created_by: UUID | None = None,
-        status: ExecutionStatus | None = None,
-        labels_filter: dict[str, str] | None = None,
-    ) -> int:
-        """Count executions matching filters.
+        include_total: bool = False,
+    ) -> "ExecutionListResponse":
+        """List executions with filtering, sorting, and pagination.
 
         Args:
-            workflow_id: Filter by workflow ID
-            created_by: Filter by user who created the execution
-            status: Filter by execution status
-            labels_filter: Filter by labels (key-value pairs)
+            limit: Maximum number of executions to return (default 20)
+            cursor: Cursor token for pagination
+            sort: Sort parameter (e.g., "created_at", "-status")
+            query_params_items: Raw query parameter items from request (for filtering)
+            include_total: Whether to include total count in response
 
         Returns:
-            Total count of matching executions
+            ExecutionListResponse with executions, pagination metadata, and optional total
 
         """
-        # Build count query with same filters as list
-        query = select(func.count()).select_from(Execution).where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
 
-        if workflow_id:
-            query = query.where(Execution.workflow_id == workflow_id)
+        async def sync_from_temporal(executions: list[Execution]) -> None:
+            """Sync execution status from Temporal."""
+            if self.temporal_service is not None:
+                changes = [
+                    await sync_execution_status_from_temporal(
+                        execution, self.temporal_service, session=None, persist=False
+                    )
+                    for execution in executions
+                ]
+                # Commit all changes together if any execution status changed
+                if any(changes):
+                    await self.session.commit()
 
-        if created_by:
-            query = query.where(Execution.created_by == created_by)
-
-        if status:
-            query = query.where(Execution.status == status)
-
-        if labels_filter:
-            query = apply_label_filters(query, labels_filter, Execution)  # type: ignore[assignment]
-
-        result = await self.session.execute(query)
-        return result.scalar_one()
+        # Use unified list_resources method with converter for ExecutionRead
+        return await self.list_resources(
+            model=Execution,
+            response_type=ExecutionListResponse,
+            response_type_converter=lambda execution: ExecutionRead.model_validate(execution),
+            post_query_callback=sync_from_temporal,
+            limit=limit,
+            cursor=cursor,
+            sort=sort or "-created_at",  # Default DESC sort if none provided
+            query_params_items=query_params_items,
+            include_total=include_total,
+        )

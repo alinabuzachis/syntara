@@ -376,33 +376,33 @@ async def test_list_providers_filtering(test_db_session: AsyncSession, test_user
     await test_db_session.commit()
 
     # Test name filtering (exact match - won't match)
-    result = await service.list_providers(name="Test Provider")
+    result = await service.list_providers(query_params_items=[("name", "Test Provider")])
     assert len(result.resources) == 0  # Exact match, no provider has exactly this name
 
     # Test name filtering with contains
-    result = await service.list_providers(**{"name[contains]": "Test Provider"})  # type: ignore[arg-type]
+    result = await service.list_providers(query_params_items=[("name[contains]", "Test Provider")])
     assert len(result.resources) == 2
 
     # Test status filtering
-    result = await service.list_providers(status="available")
+    result = await service.list_providers(query_params_items=[("status", "available")])
     assert len(result.resources) == 2
     assert all(p.status == ProviderStatus.AVAILABLE for p in result.resources)
 
     # Test enabled filtering - boolean conversion in core utils has issue with 'false' string
     # Work around by testing that at least the enabled=true filtering works
-    result = await service.list_providers(enabled="true")
+    result = await service.list_providers(query_params_items=[("enabled", "true")])
     enabled_true_providers = [p for p in result.resources if p.enabled]
     assert len(enabled_true_providers) >= 1  # At least one should be True
 
     # Verify we can find providers by name instead of boolean filtering
-    result = await service.list_providers(**{"name[contains]": "Beta"})  # type: ignore[arg-type]
+    result = await service.list_providers(query_params_items=[("name[contains]", "Beta")])
     beta_providers = [p for p in result.resources if "Beta" in p.name]
     assert len(beta_providers) == 1
     assert beta_providers[0].enabled is False
     assert beta_providers[0].name == "Test Provider Beta"
 
     # Test provider_type filtering
-    result = await service.list_providers(provider_type="prod")
+    result = await service.list_providers(query_params_items=[("provider_type", "prod")])
     assert len(result.resources) == 1
     assert result.resources[0].name == "Production Provider"
 
@@ -562,12 +562,12 @@ async def test_list_providers_complex_filtering(test_db_session: AsyncSession, t
     await test_db_session.commit()
 
     # Test multiple filters: enabled=true AND provider_type=api
-    result = await service.list_providers(enabled="true", provider_type="api")
+    result = await service.list_providers(query_params_items=[("enabled", "true"), ("provider_type", "api")])
     assert len(result.resources) == 1
     assert result.resources[0].name == "Test API Provider"
 
     # Test multiple filters: status=available AND enabled=true
-    result = await service.list_providers(status="available", enabled="true")
+    result = await service.list_providers(query_params_items=[("status", "available"), ("enabled", "true")])
     assert len(result.resources) == 1
     assert result.resources[0].name == "Test API Provider"
 

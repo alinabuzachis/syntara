@@ -5,6 +5,7 @@ with user-provided identification fields (name and description).
 """
 
 from abc import ABC
+from typing import ClassVar
 
 from sqlmodel import Field
 
@@ -49,3 +50,16 @@ class NamedResource(BaseResource, ABC):
     description: str | None = Field(
         default=None, max_length=FieldLimits.DESCRIPTION_MAX_LENGTH, description="Detailed description of the resource"
     )
+
+    # Named resource fields extend base fields
+    __filterable_fields__: ClassVar[list[str]] = [
+        *BaseResource.__filterable_fields__,
+        "name",
+        "description",
+    ]
+
+    # Named resource sortable fields extend base fields
+    __sortable_fields__: ClassVar[list[str]] = [
+        *BaseResource.__sortable_fields__,
+        "name",
+    ]

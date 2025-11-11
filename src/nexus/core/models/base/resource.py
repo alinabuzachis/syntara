@@ -5,6 +5,7 @@ capabilities through multiple inheritance.
 """
 
 from abc import ABC
+from typing import ClassVar
 
 from nexus.core.models.base.named import NamedResource
 from nexus.core.models.base.soft_deletable import SoftDeletableResource
@@ -49,3 +50,25 @@ class Resource(NamedResource, SoftDeletableResource, UserOwnedResource, ABC):
     """
 
     # No additional fields - inherits everything from parent classes
+
+    # Combine filterable fields from all parent classes (deduplicated)
+    __filterable_fields__: ClassVar[list[str]] = list(
+        dict.fromkeys(
+            [
+                *NamedResource.__filterable_fields__,
+                *SoftDeletableResource.__filterable_fields__,
+                *UserOwnedResource.__filterable_fields__,
+            ]
+        )
+    )
+
+    # Combine sortable fields from all parent classes (deduplicated)
+    __sortable_fields__: ClassVar[list[str]] = list(
+        dict.fromkeys(
+            [
+                *NamedResource.__sortable_fields__,
+                *SoftDeletableResource.__sortable_fields__,
+                *UserOwnedResource.__sortable_fields__,
+            ]
+        )
+    )

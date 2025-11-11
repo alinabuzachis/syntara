@@ -4,76 +4,31 @@ This service encapsulates workflow-related business logic, separating it from
 HTTP/API concerns in the FastAPI endpoints.
 """
 
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import and_, func, or_, select
+from sqlmodel import func, select
 
 from nexus.api.validators import WorkflowDefinitionValidator
-from nexus.core.utils.cursor import PaginationDirection, decode_cursor
+from nexus.core.services import BaseService
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowVersionNotFoundError,
 )
-from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
 
 
-def parse_labels_query(labels: str) -> dict[str, str]:
-    """Parse labels query parameter from key-value format.
-
-    Supports two formats:
-    - "key=value,key2=value2" - filters by key-value pairs
-    - "key,key2" - filters by key existence
-
-    Args:
-        labels: Labels query string
-
-    Returns:
-        Dictionary of label filters
-
-    Examples:
-        >>> parse_labels_query("environment=production,team=data")
-        {"environment": "production", "team": "data"}
-        >>> parse_labels_query("environment,team")
-        {"environment": "", "team": ""}
-
-    """
-    result: dict[str, str] = {}
-    if not labels:
-        return result
-
-    for pair_raw in labels.split(","):
-        pair = pair_raw.strip()
-        if "=" in pair:
-            key, value = pair.split("=", 1)
-            result[key.strip()] = value.strip()
-        else:
-            # Key existence check - use empty string as placeholder
-            result[pair] = ""
-
-    return result
-
-
-class WorkflowService:
+class WorkflowService(BaseService):
     """Service for workflow business logic.
 
     This service encapsulates all workflow-related business operations,
     including CRUD operations, validation, and version management.
     """
-
-    def __init__(self, session: AsyncSession) -> None:
-        """Initialize service with database session.
-
-        Args:
-            session: Database session for queries
-
-        """
-        self.session = session
 
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
         """Check if IntegrityError is due to duplicate workflow name.
@@ -118,7 +73,6 @@ class WorkflowService:
         labels: dict[str, Any],
         workflow_definition: WorkflowDefinition,
         is_enabled: bool,  # noqa: FBT001
-        created_by: UUID,
     ) -> tuple[Workflow, WorkflowVersion]:
         """Create a new workflow with initial version.
 
@@ -128,7 +82,6 @@ class WorkflowService:
             labels: Optional key-value labels
             workflow_definition: Workflow definition (will be validated)
             is_enabled: Whether workflow is enabled for execution
-            created_by: UUID of user creating the workflow
 
         Returns:
             Tuple of (created workflow, initial version)
@@ -148,7 +101,7 @@ class WorkflowService:
             description=description,
             labels=labels,
             current_version=1,
-            created_by=created_by,
+            created_by=self.user.id,
             is_enabled=is_enabled,
         )
 
@@ -159,7 +112,7 @@ class WorkflowService:
             version=1,
             schema_version=schema_version,
             workflow_definition=workflow_dict,
-            created_by=created_by,
+            created_by=self.user.id,
             change_description="Initial version",
         )
 
@@ -175,122 +128,37 @@ class WorkflowService:
 
     async def list_workflows_cursor(
         self,
-        *,
-        created_by: UUID | None = None,
-        is_enabled: bool | None = None,
-        labels_filter: dict[str, str] | None = None,
         limit: int = 20,
         cursor: str | None = None,
-    ) -> list[Workflow]:
-        """List workflows using cursor-based pagination.
-
-        Args:
-            created_by: Filter by creator user ID
-            is_enabled: Filter by enabled status
-            labels_filter: Filter by labels (key-value pairs)
-            limit: Maximum number of results to return
-            cursor: Base64-encoded pagination cursor
-
-        Returns:
-            List of workflows for the current page
-
-        """
-        # Build base query with filters
-        query = select(Workflow).filter(Workflow.deleted_at.is_(None))  # type: ignore[union-attr]
-
-        if created_by:
-            query = query.filter(Workflow.created_by == created_by)  # type: ignore[arg-type]
-
-        if is_enabled is not None:
-            query = query.filter(Workflow.is_enabled == is_enabled)  # type: ignore[arg-type]
-
-        if labels_filter:
-            for key, value in labels_filter.items():
-                if value:
-                    # Filter by exact key-value match
-                    query = query.filter(Workflow.labels[key].astext == value)  # type: ignore[attr-defined]
-                else:
-                    # Filter by key existence
-                    query = query.filter(Workflow.labels.has_key(key))  # type: ignore[attr-defined]
-
-        # Apply cursor-based filtering
-        if cursor:
-            cursor_data = decode_cursor(cursor)
-            cursor_id = UUID(cursor_data["id"])
-            # Parse created_at from ISO format string to datetime
-            cursor_created_at = datetime.fromisoformat(cursor_data["created_at"])
-            direction = cursor_data.get("direction", PaginationDirection.NEXT)
-
-            if direction == PaginationDirection.NEXT:
-                # Get items after cursor (created before, since we sort DESC)
-                query = query.filter(
-                    or_(
-                        Workflow.created_at < cursor_created_at,
-                        and_(
-                            Workflow.created_at == cursor_created_at,
-                            Workflow.id < cursor_id,
-                        ),
-                    )
-                )
-            else:  # PREV
-                # Get items before cursor (created after, since we sort DESC)
-                query = query.filter(
-                    or_(
-                        Workflow.created_at > cursor_created_at,
-                        and_(
-                            Workflow.created_at == cursor_created_at,
-                            Workflow.id > cursor_id,
-                        ),
-                    )
-                )
-
-        # Order by created_at DESC, id DESC for consistent cursor ordering
-        query = query.order_by(Workflow.created_at.desc(), Workflow.id.desc())  # type: ignore[attr-defined]
-
-        # Limit results
-        query = query.limit(limit)
-
-        # Execute query
-        result = await self.session.execute(query)
-        return list(result.scalars().all())
-
-    async def count_workflows(
-        self,
+        sort: str | None = None,
+        query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
-        created_by: UUID | None = None,
-        is_enabled: bool | None = None,
-        labels_filter: dict[str, str] | None = None,
-    ) -> int:
-        """Count total workflows matching filters.
-
-        Only called when include_total=true to avoid unnecessary computation.
+        include_total: bool = False,
+    ) -> "WorkflowListResponse":
+        """List workflows with filtering, sorting, and pagination.
 
         Args:
-            created_by: Filter by creator user ID
-            is_enabled: Filter by enabled status
-            labels_filter: Filter by labels (key-value pairs)
+            limit: Maximum number of workflows to return (default 20)
+            cursor: Cursor token for pagination
+            sort: Sort parameter (e.g., "name", "-created_at")
+            query_params_items: Raw query parameter items from request (for filtering)
+            include_total: Whether to include total count in response
 
         Returns:
-            Total count of workflows matching filters
+            WorkflowListResponse with workflows, pagination metadata, and optional total
 
         """
-        query = select(func.count()).select_from(Workflow).filter(Workflow.deleted_at.is_(None))  # type: ignore[union-attr]
-
-        if created_by:
-            query = query.filter(Workflow.created_by == created_by)  # type: ignore[arg-type]
-
-        if is_enabled is not None:
-            query = query.filter(Workflow.is_enabled == is_enabled)  # type: ignore[arg-type]
-
-        if labels_filter:
-            for key, value in labels_filter.items():
-                if value:
-                    query = query.filter(Workflow.labels[key].astext == value)  # type: ignore[attr-defined]
-                else:
-                    query = query.filter(Workflow.labels.has_key(key))  # type: ignore[attr-defined]
-
-        result = await self.session.execute(query)
-        return result.scalar() or 0
+        # Use unified list_resources method (fields read from model automatically)
+        return await self.list_resources(
+            model=Workflow,
+            response_type=WorkflowListResponse,
+            response_type_converter=lambda workflow: WorkflowRead.model_validate(workflow),
+            limit=limit,
+            cursor=cursor,
+            sort=sort or "-created_at",  # Default DESC sort if none provided
+            query_params_items=query_params_items,
+            include_total=include_total,
+        )
 
     async def get_workflow_by_id(self, workflow_id: UUID) -> Workflow:
         """Get a workflow by ID.
@@ -358,7 +226,6 @@ class WorkflowService:
         labels: dict[str, Any] | None = None,
         *,
         is_enabled: bool | None = None,
-        updated_by: UUID | None = None,
     ) -> None:
         """Update workflow metadata fields.
 
@@ -368,7 +235,6 @@ class WorkflowService:
             description: New description (optional)
             labels: New labels (optional)
             is_enabled: New enabled status (optional)
-            updated_by: UUID of user making the update
 
         Raises:
             ValueError: If name is empty string
@@ -394,15 +260,13 @@ class WorkflowService:
 
         # Always update these fields when any metadata changes
         workflow.updated_at = datetime.now(UTC)
-        if updated_by:
-            workflow.updated_by = updated_by
+        workflow.updated_by = self.user.id
 
     async def create_workflow_version(
         self,
         workflow: Workflow,
         workflow_definition: WorkflowDefinition,
         change_description: str | None,
-        created_by: UUID,
     ) -> WorkflowVersion | None:
         """Create new workflow version from workflow_definition.
 
@@ -410,7 +274,6 @@ class WorkflowService:
             workflow: Workflow to create version for
             workflow_definition: New workflow definition (will be validated)
             change_description: Description of changes
-            created_by: UUID of user creating the version
 
         Returns:
             New WorkflowVersion if definition changed, None if unchanged
@@ -458,7 +321,7 @@ class WorkflowService:
             schema_version=schema_version,
             workflow_definition=workflow_dict,
             change_description=change_description or f"Update to version {next_version}",
-            created_by=created_by,
+            created_by=self.user.id,
         )
 
         # Update workflow's current version
@@ -477,7 +340,6 @@ class WorkflowService:
         is_enabled: bool | None = None,
         workflow_definition: WorkflowDefinition | None = None,
         change_description: str | None = None,
-        updated_by: UUID | None = None,
     ) -> tuple[Workflow, WorkflowVersion]:
         """Update workflow metadata and/or create new version.
 
@@ -489,7 +351,6 @@ class WorkflowService:
             is_enabled: New enabled status (optional)
             workflow_definition: New workflow definition (optional, creates version)
             change_description: Description of changes (for version history)
-            updated_by: UUID of user making the update
 
         Returns:
             Tuple of (updated workflow, current version)
@@ -512,7 +373,6 @@ class WorkflowService:
                 description=description,
                 labels=labels,
                 is_enabled=is_enabled,
-                updated_by=updated_by,
             )
 
         # Handle workflow_definition - creates new version
@@ -521,7 +381,6 @@ class WorkflowService:
                 workflow,
                 workflow_definition=workflow_definition,
                 change_description=change_description,
-                created_by=updated_by or workflow.created_by,
             )
 
         # Commit changes with duplicate name check (use workflow.name since it may have been updated)
@@ -533,12 +392,11 @@ class WorkflowService:
 
         return workflow, current_version
 
-    async def delete_workflow(self, workflow_id: UUID, deleted_by: UUID) -> None:
+    async def delete_workflow(self, workflow_id: UUID) -> None:
         """Soft delete a workflow.
 
         Args:
             workflow_id: UUID of workflow to delete
-            deleted_by: UUID of user performing the deletion
 
         Raises:
             WorkflowNotFoundError: If workflow not found
@@ -547,5 +405,5 @@ class WorkflowService:
         workflow = await self.get_workflow_by_id(workflow_id)
 
         # Soft delete
-        workflow.soft_delete(deleted_by)
+        workflow.soft_delete(self.user.id)
         await self.session.commit()

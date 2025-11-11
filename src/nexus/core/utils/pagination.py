@@ -18,30 +18,6 @@ from nexus.core.utils.cursor import (
 )
 
 
-def encode_pagination_cursor(last_item: BaseResource, direction: PaginationDirection = PaginationDirection.NEXT) -> str:
-    """Encode cursor token from the last item in current page.
-
-    Args:
-        last_item: The last resource item in the current page
-        direction: Direction of pagination (PaginationDirection.NEXT or PaginationDirection.PREV)
-
-    Returns:
-        Base64-encoded cursor string
-
-    Examples:
-        >>> # item = MockResource(id="550e8400-e29b-41d4-a716-446655440000")
-        >>> # encode_pagination_cursor(item)
-        >>> # "eyJjcmVhdGVkX2F0IjoiMjAyNS0wMS0wMVQx......"
-
-    """
-    cursor_data = create_cursor_data(
-        resource_id=last_item.id,
-        created_at=last_item.created_at,
-        direction=direction,
-    )
-    return encode_cursor(cursor_data)
-
-
 def generate_response(
     items: Sequence[BaseResource],
     limit: int,
@@ -82,8 +58,12 @@ def generate_response(
 
     # Generate next cursor if more items available (items count equals limit)
     if len(items) >= limit:
-        next_cursor = encode_pagination_cursor(items[-1], direction=PaginationDirection.NEXT)
-        response["next"] = next_cursor
+        cursor_data = create_cursor_data(
+            resource_id=items[-1].id,
+            created_at=items[-1].created_at,
+            direction=PaginationDirection.NEXT,
+        )
+        response["next"] = encode_cursor(cursor_data)
     else:
         response["next"] = None
 
@@ -93,8 +73,12 @@ def generate_response(
         response["prev"] = None
     elif len(items) > 0:
         # Not the first page and we have items - generate prev cursor from first item
-        prev_cursor = encode_pagination_cursor(items[0], direction=PaginationDirection.PREV)
-        response["prev"] = prev_cursor
+        cursor_data = create_cursor_data(
+            resource_id=items[0].id,
+            created_at=items[0].created_at,
+            direction=PaginationDirection.PREV,
+        )
+        response["prev"] = encode_cursor(cursor_data)
     else:
         # Empty page - no previous page
         response["prev"] = None

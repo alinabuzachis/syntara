@@ -11,7 +11,7 @@ from uuid import UUID
 from pydantic import ConfigDict
 from sqlmodel import Field, Index, Relationship, SQLModel, text
 
-from nexus.core.models.base import Resource
+from nexus.core.models.base import Resource, ResourcesResponse
 
 if TYPE_CHECKING:
     from nexus.workflows.models.execution import Execution
@@ -45,6 +45,17 @@ class Workflow(Resource, table=True):
     """
 
     __tablename__ = "workflows"
+
+    # Define filterable fields for API endpoints - extend base Resource fields
+    __filterable_fields__: ClassVar[list[str]] = [
+        *Resource.__filterable_fields__,
+        "is_enabled",
+    ]
+
+    # Define sortable fields for API endpoints - extend base Resource fields
+    __sortable_fields__: ClassVar[list[str]] = [
+        *Resource.__sortable_fields__,
+    ]
 
     # Workflow-specific fields
     current_version: int = Field(
@@ -177,3 +188,10 @@ class WorkflowReadWithVersion(WorkflowRead):
     """
 
     version: "WorkflowVersionRead" = Field(..., description="Current active version details")
+
+
+# ============================================================================
+# List Response Type Alias
+# ============================================================================
+
+WorkflowListResponse = ResourcesResponse[WorkflowRead]

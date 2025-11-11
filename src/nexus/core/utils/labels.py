@@ -12,8 +12,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import SQLModel, and_, cast
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
-from nexus.core.models.base import BaseResource
-
 # Type variable for generic Query/Select type
 TP = TypeVar("TP", bound=tuple[Any, ...])
 
@@ -93,39 +91,40 @@ def parse_label_filter(params: dict[str, str]) -> dict[str, str]:
     return label_filters
 
 
-def filter_resources(
-    resources: list[BaseResource], label_filters: dict[str, str], label_field: str = "labels"
-) -> list[BaseResource]:
-    """Filter a list of resources by label criteria.
+def parse_labels_query(labels: str) -> dict[str, str]:
+    """Parse labels query parameter from key-value format.
+
+    Supports two formats:
+    - "key=value,key2=value2" - filters by key-value pairs
+    - "key,key2" - filters by key existence (empty string value)
 
     Args:
-        resources: List of resource objects to filter
-        label_filters: Label key-value pairs to match
-        label_field: Name of the labels field on resource objects
+        labels: Labels query string
 
     Returns:
-        Filtered list of resources that match all label criteria
+        Dictionary of label filters
 
     Examples:
-        >>> resources = [
-        ...     MockResource(labels={"env": "prod", "team": "api"}),
-        ...     MockResource(labels={"env": "staging", "team": "api"}),
-        ...     MockResource(labels={"env": "prod", "team": "web"})
-        ... ]
-        >>> filter_resources(resources, {"env": "prod"})
-        [MockResource(...), MockResource(...)]  # First and third
+        >>> parse_labels_query("environment=production,team=data")
+        {"environment": "production", "team": "data"}
+        >>> parse_labels_query("environment,team")
+        {"environment": "", "team": ""}
 
     """
-    if not label_filters:
-        return resources
+    result: dict[str, str] = {}
+    if not labels:
+        return result
 
-    filtered: list[BaseResource] = []
-    for resource in resources:
-        resource_labels = getattr(resource, label_field, None)
-        if matches(resource_labels, label_filters):
-            filtered.append(resource)
+    for pair_raw in labels.split(","):
+        pair = pair_raw.strip()
+        if "=" in pair:
+            key, value = pair.split("=", 1)
+            result[key.strip()] = value.strip()
+        else:
+            # Key existence check - use empty string as placeholder
+            result[pair] = ""
 
-    return filtered
+    return result
 
 
 def apply_label_filters(

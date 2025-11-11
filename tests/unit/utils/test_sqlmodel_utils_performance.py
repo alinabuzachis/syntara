@@ -12,9 +12,9 @@ from uuid import uuid4
 
 from nexus.core.models.base import NamedResource
 from nexus.core.utils import matches, parse_filters, parse_label_filter
-from nexus.core.utils.cursor import decode_cursor
-from nexus.core.utils.pagination import encode_pagination_cursor, generate_response
-from nexus.core.utils.sorting import parse_multiple_sorts, parse_sort
+from nexus.core.utils.cursor import SortDirection, create_cursor_data, decode_cursor, encode_cursor
+from nexus.core.utils.pagination import generate_response
+from nexus.core.utils.sorting import parse_sort
 
 if TYPE_CHECKING:
     from nexus.core.utils import CursorData
@@ -113,7 +113,8 @@ class TestPaginationHelperPerformance:
         # Run encoding 1000 times to get average
         cursor = ""
         for _ in range(1000):
-            cursor = encode_pagination_cursor(resource)
+            cursor_data = create_cursor_data(resource_id=resource.id, created_at=resource.created_at)
+            cursor = encode_cursor(cursor_data)
 
         end_time = time.perf_counter()
         avg_time = (end_time - start_time) / 1000
@@ -125,7 +126,8 @@ class TestPaginationHelperPerformance:
     def test_cursor_decoding_performance(self) -> None:
         """Test cursor decoding performance (<5ms)."""
         resource = MockResource()
-        cursor = encode_pagination_cursor(resource)
+        cursor_data = create_cursor_data(resource_id=resource.id, created_at=resource.created_at)
+        cursor = encode_cursor(cursor_data)
 
         start_time = time.perf_counter()
 
@@ -220,10 +222,16 @@ class TestSortParserPerformance:
 
         start_time = time.perf_counter()
 
-        # Run parsing 100 times to get average
+        # Run parsing 100 times to get average (using individual parse_sort calls)
         results = []
         for _ in range(100):
-            results = parse_multiple_sorts(sort_params, allowed_fields)
+            parsed_sorts = []
+            for sort_param in sort_params:
+                field, direction = parse_sort(
+                    sort_param, allowed_fields, default_field="", default_direction=SortDirection.ASC
+                )
+                parsed_sorts.append((field, direction))
+            results = parsed_sorts
 
         end_time = time.perf_counter()
         avg_time = (end_time - start_time) / 100

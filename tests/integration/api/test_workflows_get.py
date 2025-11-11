@@ -233,7 +233,7 @@ async def test_get_workflows_filter_by_labels(base_client: AsyncClient) -> None:
     await base_client.post("/api/v1/workflows", json=workflow2)
 
     # Filter by label using key-value format (as per contract spec)
-    response = await base_client.get("/api/v1/workflows?labels=environment=production")
+    response = await base_client.get("/api/v1/workflows?labels[environment]=production")
 
     assert response.status_code == 200
     data = response.json()
@@ -274,46 +274,3 @@ async def test_get_workflows_default_page_size(base_client: AsyncClient) -> None
     assert len(data["resources"]) == 20
     # Total should show all 25 workflows exist
     assert data["total"] == 25
-
-
-@pytest.mark.asyncio
-async def test_get_workflows_filter_by_label_key_only(base_client: AsyncClient) -> None:
-    """Test filtering workflows by label key existence (no value).
-
-    Expected: 200 OK with workflows that have the specified label key
-    """
-    # Create workflow with label
-    workflow1 = {
-        "name": "workflow-with-label",
-        "workflow_definition": create_minimal_workflow_definition(
-            name="workflow-with-label",
-            description="Workflow with experimental label",
-            activity_id="activity_with_label",
-        ),
-        "labels": {"feature": "experimental", "team": "platform"},
-    }
-
-    # Create workflow without that label
-    workflow2 = {
-        "name": "workflow-without-label",
-        "workflow_definition": create_minimal_workflow_definition(
-            name="workflow-without-label",
-            description="Workflow without experimental label",
-            activity_id="activity_without_label",
-        ),
-        "labels": {"team": "platform"},
-    }
-
-    await base_client.post("/api/v1/workflows", json=workflow1)
-    await base_client.post("/api/v1/workflows", json=workflow2)
-
-    # Filter by key-only (no value specified)
-    response = await base_client.get("/api/v1/workflows?labels=feature")
-
-    assert response.status_code == 200
-    data = response.json()
-
-    # Should return only workflow with "feature" label
-    assert len(data["resources"]) == 1
-    assert data["resources"][0]["name"] == "workflow-with-label"
-    assert "feature" in data["resources"][0]["labels"]

@@ -56,13 +56,22 @@ class Invocation(UserOwnedResource, table=True):
     # Define composite indexes
     __table_args__ = (Index("ix_invocations_created_by_status", "created_by", "status"),)
 
-    # Define sortable fields for API endpoints
-    # Only timestamp fields are sortable as they have meaningful ordering
-    __sortable_fields__: ClassVar[list[str]] = [
-        "created_at",
-        "updated_at",
+    # Define filterable fields for API endpoints - extend base UserOwnedResource fields
+    __filterable_fields__: ClassVar[list[str]] = [
+        *UserOwnedResource.__filterable_fields__,
+        "status",
+        "session_id",
         "started_at",
         "completed_at",
+        "prompt",
+    ]
+
+    # Define sortable fields for API endpoints - extend base UserOwnedResource fields
+    __sortable_fields__: ClassVar[list[str]] = [
+        *UserOwnedResource.__sortable_fields__,
+        "started_at",
+        "completed_at",
+        "status",
     ]
 
     # Required fields

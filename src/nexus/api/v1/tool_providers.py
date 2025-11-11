@@ -58,26 +58,32 @@ async def list_tool_providers(
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
     cursor: Annotated[str | None, Query()] = None,
     sort: Annotated[str | None, Query()] = None,
-    include_total: Annotated[bool, Query()] = False,  # noqa: FBT002
+    *,
+    include_total: Annotated[bool, Query()] = False,
 ) -> ToolProviderListResponse:
-    """List all registered Tool Providers with filtering and pagination.
+    """List tool providers with filtering, sorting, and pagination.
 
-    Supports keyset pagination and bracket filter notation for advanced filtering.
+    Supports filtering using query parameters with standard operators:
+    - name: Filter by provider name (name=provider_name, name[contains]=text)
+    - status: Filter by provider status (status=validating|available|error)
+    - enabled: Filter by enabled status (enabled=true|false)
+    - provider_type: Filter by provider type (provider_type=openapi)
+    - configuration.base_url: Filter by base URL (configuration.base_url[contains]=localhost)
+    - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+    Uses cursor-based pagination for scalability and consistency.
 
     Args:
         request: FastAPI request object containing query parameters
         db: Database session
-        current_user: Authenticated user (admin access required)
-        limit: Maximum number of providers to return (1-100)
-        cursor: Cursor token for pagination
-        sort: Sort parameter (e.g., "name", "-created_at")
-        include_total: Whether to include total count in response
+        current_user: Current authenticated user
+        limit: Maximum results per page (default 100, max 100)
+        cursor: Base64-encoded pagination cursor from previous response
+        sort: Sort parameter (e.g., 'name', '-created_at')
+        include_total: Whether to include total count (default false, expensive)
 
     Returns:
-        Dictionary with providers list and pagination metadata
-
-    Raises:
-        HTTPException: 403 if user lacks admin access
+        ToolProviderListResponse with providers, pagination metadata, and optional total
 
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
@@ -85,18 +91,16 @@ async def list_tool_providers(
 
     service = _create_tool_provider_service(db, current_user, request)
 
-    # Extract all query parameters (excluding pagination/sorting params)
-    excluded_params = {"limit", "cursor", "sort", "include_total"}
-    query_params: dict[str, str] = {
-        key: value for key, value in request.query_params.items() if key not in excluded_params
-    }
-
     try:
         return await service.list_providers(
-            limit=limit, cursor=cursor, sort=sort, include_total=include_total, **query_params
+            limit=limit,
+            cursor=cursor,
+            sort=sort,
+            query_params_items=request.query_params.items(),
+            include_total=include_total,
         )
-    except ValidationError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
     except Exception as e:
         logger.exception("Unexpected error listing tool providers", exc_info=e)
         raise HTTPException(

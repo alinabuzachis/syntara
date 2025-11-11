@@ -11,20 +11,12 @@ from temporalio.service import RPCError
 from nexus.api.auth import get_current_user
 from nexus.api.db import get_db
 from nexus.core.models import User
-from nexus.core.models.base import ResourcesResponse
-from nexus.core.utils.labels import parse_label_filter
-from nexus.core.utils.pagination import generate_response
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
-from nexus.workflows.models.execution import (
-    Execution,
-    ExecutionCreate,
-    ExecutionRead,
-    ExecutionStatus,
-)
+from nexus.workflows.models.execution import Execution, ExecutionCreate, ExecutionListResponse, ExecutionRead
 from nexus.workflows.services import ExecutionService
 from nexus.workflows.workflow_engine.services.temporal_execution_service import (
     TemporalExecutionService,
@@ -60,6 +52,7 @@ async def get_temporal_execution_service() -> TemporalExecutionService | None:
 
 async def get_execution_service(
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
     temporal_service: Annotated[
         TemporalExecutionService | None,
         Depends(get_temporal_execution_service),
@@ -72,89 +65,62 @@ async def get_execution_service(
 
     Args:
         db: Database session (injected by FastAPI)
+        current_user: Current authenticated user
         temporal_service: Temporal service (injected by FastAPI, may be None)
 
     Returns:
         ExecutionService configured with database and optional Temporal integration
 
     """
-    return ExecutionService(db, temporal_service=temporal_service)
+    return ExecutionService(db, current_user, temporal_service=temporal_service)
 
 
 @router.get("")
 async def list_executions(
     request: Request,
     service: Annotated[ExecutionService, Depends(get_execution_service)],
-    workflow_id: Annotated[UUID | None, Query(description="Filter by workflow ID")] = None,
-    created_by: Annotated[UUID | None, Query(description="Filter by user who created execution")] = None,
-    status_param: Annotated[
-        ExecutionStatus | None, Query(alias="status", description="Filter by execution status")
-    ] = None,
     limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of results")] = 20,
     cursor: Annotated[str | None, Query(description="Pagination cursor")] = None,
     sort: Annotated[str | None, Query(description="Sort parameter (e.g., 'created_at' or '-created_at')")] = None,
-    include_total: Annotated[bool, Query(description="Include total count in response")] = False,  # noqa: FBT002
-) -> ResourcesResponse[ExecutionRead]:
-    """List workflow executions with cursor-based pagination (spec 006 compliant).
+    *,
+    include_total: Annotated[bool, Query(description="Include total count in response")] = False,
+) -> ExecutionListResponse:
+    """List executions with filtering, sorting, and pagination.
 
-    Supports filtering by workflow_id, created_by, status, and labels.
+    Supports filtering using query parameters with standard operators:
+    - workflow_id: Filter by workflow ID (workflow_id=uuid)
+    - created_by: Filter by creator user ID (created_by=uuid)
+    - status: Filter by execution status (status=pending|running|completed|failed|cancelled)
+    - labels: Filter by labels using bracket notation (labels[environment]=production)
+
     Uses cursor-based pagination for scalability and consistency.
 
     Args:
-        request: FastAPI request object for extracting label filters
+        request: FastAPI request object containing query parameters
         service: Execution service (injected by FastAPI)
-        workflow_id: Filter by workflow ID
-        created_by: Filter by user who created the execution
-        status_param: Filter by execution status
         limit: Maximum results per page (default 20, max 100)
         cursor: Base64-encoded pagination cursor from previous response
-        sort: Sort parameter (default: "-created_at")
+        sort: Sort parameter (e.g., 'created_at', '-status')
         include_total: Whether to include total count (default false, expensive)
 
     Returns:
-        ResourcesResponse with executions, next/prev cursors, and optional total
+        ExecutionListResponse with executions, pagination metadata, and optional total
 
     """
-    # Parse label filters from query parameters (e.g., labels[environment]=production)
-    query_params = dict(request.query_params)
-    labels_filter = parse_label_filter(query_params)
-
-    # Get executions using cursor-based pagination
-    executions = await service.list_executions_cursor(
-        workflow_id=workflow_id,
-        created_by=created_by,
-        status=status_param,
-        labels_filter=labels_filter,
-        limit=limit,
-        cursor=cursor,
-        sort=sort,
-    )
-
-    # Optionally compute total count (only when requested)
-    total = None
-    if include_total:
-        total = await service.count_executions(
-            workflow_id=workflow_id,
-            created_by=created_by,
-            status=status_param,
-            labels_filter=labels_filter,
+    # Use unified list method with query parameters
+    try:
+        return await service.list_executions(
+            limit=limit,
+            cursor=cursor,
+            sort=sort,
+            query_params_items=request.query_params.items(),
+            include_total=include_total,
         )
-
-    # Generate pagination metadata (next/prev cursors)
-    pagination = generate_response(
-        items=executions,
-        limit=limit,
-        cursor=cursor,
-        include_total=include_total,
-        total_count=total,
-    )
-
-    return ResourcesResponse[ExecutionRead](
-        resources=executions,
-        next=pagination["next"],
-        prev=pagination["prev"],
-        total=pagination["total"],
-    )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        ) from e
 
 
 @router.post("", response_model=ExecutionRead, status_code=status.HTTP_201_CREATED)
@@ -196,7 +162,6 @@ async def create_execution(
         return await service.create_execution(
             workflow_id=request.workflow_id,
             input_data=request.input_data,
-            created_by=current_user.id,
         )
     except WorkflowNotFoundError as e:
         raise HTTPException(

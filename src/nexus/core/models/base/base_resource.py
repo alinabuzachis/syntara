@@ -96,3 +96,16 @@ class BaseResource(SQLModel, ABC):
         validate_assignment=True,
         extra="forbid",  # Reject unknown fields
     )  # type: ignore[assignment]
+
+    # Base filterable fields - common to all resources
+    __filterable_fields__: ClassVar[list[str]] = [
+        "id",
+        "created_at",
+        "updated_at",
+    ]
+
+    # Base sortable fields - common to all resources
+    __sortable_fields__: ClassVar[list[str]] = [
+        "created_at",
+        "updated_at",
+    ]

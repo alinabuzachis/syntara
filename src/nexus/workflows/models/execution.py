@@ -14,7 +14,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import CheckConstraint, Column, DateTime, Field, Index, Relationship, SQLModel
 
-from nexus.core.models.base import SoftDeletableResource, UserOwnedResource
+from nexus.core.models.base import ResourcesResponse, SoftDeletableResource, UserOwnedResource
 
 if TYPE_CHECKING:
     from nexus.workflows.models.workflow import Workflow
@@ -64,6 +64,31 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
     """
 
     __tablename__ = "executions"
+
+    # Define filterable fields for API endpoints - extend base class fields (deduplicated)
+    __filterable_fields__: ClassVar[list[str]] = list(
+        dict.fromkeys(
+            [
+                *UserOwnedResource.__filterable_fields__,
+                *SoftDeletableResource.__filterable_fields__,
+                "workflow_id",
+                "status",
+                "completed_at",
+            ]
+        )
+    )
+
+    # Define sortable fields for API endpoints - extend base class fields (deduplicated)
+    __sortable_fields__: ClassVar[list[str]] = list(
+        dict.fromkeys(
+            [
+                *UserOwnedResource.__sortable_fields__,
+                *SoftDeletableResource.__sortable_fields__,
+                "completed_at",
+                "status",
+            ]
+        )
+    )
 
     # Foreign keys
     workflow_id: UUID = Field(
@@ -220,3 +245,10 @@ class ExecutionRead(SQLModel):
     )
     deleted_at: datetime | None = None
     deleted_by: UUID | None = None
+
+
+# ============================================================================
+# List Response Schema
+# ============================================================================
+
+ExecutionListResponse = ResourcesResponse[ExecutionRead]
