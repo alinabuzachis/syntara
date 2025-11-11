@@ -17,6 +17,7 @@ def postgres_enum_column(
     *,
     nullable: bool = False,
     index: bool = False,
+    create_constraint: bool = False,
 ) -> Column[Any]:
     """Create a SQLAlchemy Column for PostgreSQL enum types.
 
@@ -32,6 +33,8 @@ def postgres_enum_column(
             (e.g., "tool_provider_status", "tool_status")
         nullable: Whether column allows NULL values (default: False)
         index: Whether to create an index on this column (default: False)
+        create_constraint: Whether to create a CHECK constraint for enum values
+            at the database level (default: False)
 
     Returns:
         Configured Column for use with SQLModel Field's sa_column parameter
@@ -52,6 +55,17 @@ def postgres_enum_column(
         ...     ),
         ...     description="Current status of the provider",
         ... )
+        >>>
+        >>> # With CHECK constraint for additional database-level validation
+        >>> role: UserRole = Field(
+        ...     sa_column=postgres_enum_column(
+        ...         UserRole,
+        ...         "userrole",
+        ...         index=True,
+        ...         create_constraint=True,
+        ...     ),
+        ...     description="User role for access control",
+        ... )
 
     Note:
         This pattern is used to ensure that SQLModel/SQLAlchemy references
@@ -65,6 +79,7 @@ def postgres_enum_column(
             enum_type,
             name=postgres_name,
             create_type=False,  # Use existing enum from migration
+            create_constraint=create_constraint,
             values_callable=lambda obj: [e.value for e in obj],
         ),
         nullable=nullable,

@@ -10,11 +10,11 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict
-from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import CheckConstraint, Column, DateTime, Field, Index, Relationship, SQLModel
 
 from nexus.core.models.base import ResourcesResponse, SoftDeletableResource, UserOwnedResource
+from nexus.core.utils.sqlmodel import postgres_enum_column
 
 if TYPE_CHECKING:
     from nexus.workflows.models.workflow import Workflow
@@ -119,16 +119,11 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
     status: ExecutionStatus = Field(
         default=ExecutionStatus.PENDING,
         description="Current execution status",
-        sa_column=Column(
-            SAEnum(
-                ExecutionStatus,
-                name="workflowexecutionstatus",
-                create_constraint=True,
-                native_enum=True,
-                values_callable=lambda x: [e.value for e in x],
-            ),
-            nullable=False,
+        sa_column=postgres_enum_column(
+            ExecutionStatus,
+            "workflowexecutionstatus",
             index=True,
+            create_constraint=True,
         ),
     )
 

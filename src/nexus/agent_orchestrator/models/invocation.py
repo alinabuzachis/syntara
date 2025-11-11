@@ -4,13 +4,13 @@ from datetime import datetime
 from enum import Enum
 from typing import ClassVar
 
-from sqlalchemy import Column, Index, Text
-from sqlalchemy import Enum as SAEnum
+from sqlalchemy import Index, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import DateTime
 from sqlmodel import Field
 
 from nexus.core.models.base import ResourcesResponse, UserOwnedResource
+from nexus.core.utils.sqlmodel import postgres_enum_column
 
 
 class InvocationStatus(str, Enum):
@@ -90,14 +90,9 @@ class Invocation(UserOwnedResource, table=True):
 
     status: InvocationStatus = Field(
         default=InvocationStatus.CREATED,
-        sa_column=Column(
-            SAEnum(
-                InvocationStatus,
-                name="invocationstatus",
-                create_type=False,
-                values_callable=lambda obj: [e.value for e in obj],
-            ),
-            nullable=False,
+        sa_column=postgres_enum_column(
+            InvocationStatus,
+            "invocationstatus",
             index=True,
         ),
         description="Current invocation status",

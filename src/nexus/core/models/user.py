@@ -8,10 +8,10 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import Enum as SAEnum
-from sqlmodel import JSON, Column, DateTime, Field, Index, text
+from sqlmodel import JSON, DateTime, Field, Index, text
 
 from nexus.core.models.base import SoftDeletableResource
+from nexus.core.utils.sqlmodel import postgres_enum_column
 
 
 class UserRole(str, Enum):
@@ -70,16 +70,11 @@ class User(SoftDeletableResource, table=True):
     )
 
     role: UserRole = Field(
-        sa_column=Column(
-            SAEnum(
-                UserRole,
-                name="userrole",
-                create_constraint=True,
-                native_enum=True,
-                values_callable=lambda x: [e.value for e in x],
-            ),
-            nullable=False,
+        sa_column=postgres_enum_column(
+            UserRole,
+            "userrole",
             index=True,
+            create_constraint=True,
         ),
         description="User role for access control",
     )
