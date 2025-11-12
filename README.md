@@ -24,8 +24,8 @@ Nexus UI is a cutting-edge React application designed for building and managing 
 
 ```bash
 # Clone the repository
-git clone https://github.com/jamestalton/next-ui.git
-cd next-ui
+git clone https://github.com/syntara-orchestration/syntara-ui.git
+cd nexus-ui
 
 # Install dependencies
 npm ci
@@ -35,6 +35,19 @@ npm ci
 
 ```bash
 # Start all services (framework, UI, mock API)
+npm start
+```
+
+### Connecting to Real Backend
+
+To use the real Nexus backend instead of the mock API:
+
+1. Clone and setup the backend from https://github.com/syntara-orchestration/syntara
+2. Follow the backend README to start the API server
+3. Export the backend URL and start the UI:
+
+```bash
+export VITE_API_URL=http://localhost:8000
 npm start
 ```
 
@@ -78,7 +91,7 @@ npm run gen
 This is a monorepo using npm workspaces:
 
 ```
-next-ui/
+nexus-ui/
 ├── packages/
 │   ├── nexus-ui/              # Main React 19 application
 │   ├── nexus-ui-framework/    # Shared UI component library

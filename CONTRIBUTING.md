@@ -17,8 +17,8 @@ We're excited that you're interested in contributing to the Nexus UI project. Th
 1. Fork the repository on GitHub
 2. Clone your forked repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/next-ui.git
-   cd next-ui
+   git clone https://github.com/YOUR_USERNAME/nexus-ui.git
+   cd nexus-ui
    ```
 
 ### 2. Set Up Development Environment
