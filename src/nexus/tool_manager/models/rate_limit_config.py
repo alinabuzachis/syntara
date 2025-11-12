@@ -7,8 +7,10 @@ with rate limiting configuration fields as defined in the OpenAPI specification.
 from datetime import datetime
 from enum import Enum
 
+from sqlalchemy import String
 from sqlmodel import DateTime, Field
 
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base.user_owned import UserOwnedResource
 
 
@@ -41,9 +43,20 @@ class RateLimit(UserOwnedResource, table=True):
 
     target_type: TargetType = Field(description="Limit scope: provider, tool, or user", index=True)
 
-    target_id: str = Field(description="Target identifier (UUID for provider/tool, string for user)", index=True)
+    target_id: str = Field(
+        min_length=1,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Target identifier (UUID for provider/tool, string for user)",
+        index=True,
+    )
 
-    target_name: str | None = Field(default=None, description="Human-readable target name for display")
+    target_name: str | None = Field(
+        default=None,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Human-readable target name for display",
+    )
 
     requests_per_window: int = Field(ge=1, description="Maximum requests allowed")
 

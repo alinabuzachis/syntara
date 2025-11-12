@@ -8,8 +8,10 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
+from sqlalchemy import String
 from sqlmodel import JSON, DateTime, Field, Index, text
 
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base import SoftDeletableResource
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
@@ -51,21 +53,24 @@ class User(SoftDeletableResource, table=True):
     # Required fields
     username: str = Field(
         min_length=1,
-        max_length=255,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
         description="Unique username for authentication",
         index=True,
     )
 
     email: str = Field(
         min_length=1,
-        max_length=255,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
         description="Unique email address",
         index=True,
     )
 
     full_name: str = Field(
         min_length=1,
-        max_length=255,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
         description="User's display name",
     )
 

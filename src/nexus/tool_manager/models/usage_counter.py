@@ -8,8 +8,10 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
+from sqlalchemy import String
 from sqlmodel import DateTime, Field
 
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base.user_owned import UserOwnedResource
 
 
@@ -61,7 +63,13 @@ class UsageCounter(UserOwnedResource, table=True):
 
     user_id: UUID | None = Field(default=None, description="User identifier", index=True)
 
-    time_window: str = Field(description="Time window identifier (e.g., '2025-01-01-14')", index=True)
+    time_window: str = Field(
+        min_length=1,
+        max_length=FieldLimits.TIME_WINDOW_MAX_LENGTH,
+        sa_type=String(FieldLimits.TIME_WINDOW_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Time window identifier (e.g., '2025-01-01-14')",
+        index=True,
+    )
 
     window_duration: WindowDuration = Field(description="Window duration: hour, day, month")
 

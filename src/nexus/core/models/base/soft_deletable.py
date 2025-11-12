@@ -52,7 +52,12 @@ class SoftDeletableResource(BaseResource, ABC):
         index=True,
     )
 
-    deleted_by: UUID | None = Field(default=None, description="User who performed the soft delete", index=True)
+    deleted_by: UUID | None = Field(
+        default=None,
+        foreign_key="users.id",
+        description="User who performed the soft delete",
+        index=True,
+    )
 
     def is_deleted(self) -> bool:
         """Check if the resource is soft deleted.

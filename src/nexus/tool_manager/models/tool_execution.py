@@ -6,9 +6,11 @@ from typing import Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict
+from sqlalchemy import String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, SQLModel
 
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base.user_owned import UserOwnedResource
 
 
@@ -66,9 +68,18 @@ class ToolExecution(UserOwnedResource, table=True):
 
     output_data: dict[str, Any] | None = Field(default=None, sa_type=JSONB, description="Tool output data")
 
-    error_message: str | None = Field(default=None, description="Error description for failed executions")
+    error_message: str | None = Field(
+        default=None,
+        sa_type=Text(),  # type: ignore[call-overload]
+        description="Error description for failed executions",
+    )
 
-    error_code: str | None = Field(default=None, description="Structured error code")
+    error_code: str | None = Field(
+        default=None,
+        max_length=FieldLimits.ERROR_CODE_MAX_LENGTH,
+        sa_type=String(FieldLimits.ERROR_CODE_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Structured error code",
+    )
 
 
 class ToolMetricsSummary(SQLModel):

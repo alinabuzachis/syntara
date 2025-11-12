@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -105,8 +106,8 @@ def test_tool_namespaced_name_validation(test_user: User) -> None:
     )
     assert tool.namespaced_name == "valid_name"
 
-    # Empty string should raise ValueError
-    with pytest.raises(ValueError, match="namespaced_name cannot be empty"):
+    # Empty string should raise ValidationError
+    with pytest.raises(ValidationError, match="String should have at least 1 character"):
         Tool(
             id=uuid4(),
             provider_id=uuid4(),
@@ -115,7 +116,7 @@ def test_tool_namespaced_name_validation(test_user: User) -> None:
             created_by=test_user.id,
         )
 
-    # Whitespace-only string should raise ValueError
+    # Whitespace-only string should raise ValueError (passes min_length, caught by custom validator)
     with pytest.raises(ValueError, match="namespaced_name cannot be empty"):
         Tool(
             id=uuid4(),

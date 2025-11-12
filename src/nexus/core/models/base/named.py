@@ -7,6 +7,7 @@ with user-provided identification fields (name and description).
 from abc import ABC
 from typing import ClassVar
 
+from sqlalchemy import String
 from sqlmodel import Field
 
 from nexus.core.constants import FieldLimits
@@ -43,12 +44,16 @@ class NamedResource(BaseResource, ABC):
     name: str = Field(
         min_length=1,
         max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
         description="Human-readable name for the resource",
         index=True,
     )
 
     description: str | None = Field(
-        default=None, max_length=FieldLimits.DESCRIPTION_MAX_LENGTH, description="Detailed description of the resource"
+        default=None,
+        max_length=FieldLimits.DESCRIPTION_MAX_LENGTH,
+        sa_type=String(FieldLimits.DESCRIPTION_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Detailed description of the resource",
     )
 
     # Named resource fields extend base fields

@@ -113,7 +113,7 @@ ignore = [
     "ARG001",   # Allow unused test fixture arguments
 ]
 "src/nexus/api/repositories/*.py" = ["ANN401"]  # Allow Any for database row types
-"src/nexus/api/alembic/**/*.py" = ["INP001", "D400", "D415"]  # Alembic files
+"src/nexus/api/alembic/**/*.py" = ["INP001", "D400", "D415", "PLR0915"]  # Alembic files (auto-generated)
 "src/nexus/api/main.py" = ["S104"]  # Binding to all interfaces for development
 
 # MyPy configuration

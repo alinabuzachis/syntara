@@ -9,9 +9,11 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict
+from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Index, Relationship, SQLModel
 
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base import SoftDeletableResource, UserOwnedResource
 
 if TYPE_CHECKING:
@@ -62,7 +64,9 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
     )
 
     schema_version: str = Field(
-        max_length=50,
+        min_length=1,
+        max_length=FieldLimits.SCHEMA_VERSION_MAX_LENGTH,
+        sa_type=String(FieldLimits.SCHEMA_VERSION_MAX_LENGTH),  # type: ignore[call-overload]
         description="Workflow schema version (e.g., '1.0.0')",
         index=True,
     )
@@ -74,7 +78,8 @@ class WorkflowVersion(UserOwnedResource, SoftDeletableResource, table=True):
 
     change_description: str | None = Field(
         default=None,
-        max_length=2000,
+        max_length=FieldLimits.DESCRIPTION_MAX_LENGTH,
+        sa_type=String(FieldLimits.DESCRIPTION_MAX_LENGTH),  # type: ignore[call-overload]
         description="Description of changes in this version",
     )
 

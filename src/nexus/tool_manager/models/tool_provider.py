@@ -9,6 +9,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import ConfigDict, field_validator
+from sqlalchemy import Index, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 
@@ -116,18 +117,18 @@ class ToolProvider(Resource, table=True):
         "enabled",
     ]
 
-    # Override name field from Resource to add unique constraint
+    # Override name field from Resource - unique constraint handled in __table_args__
     name: str = Field(
         min_length=1,
         max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
         description="Human-readable provider name",
         index=True,
-        unique=True,
     )
 
     configuration: dict[str, Any] = Field(sa_type=JSONB, description="Provider-specific configuration")
 
-    enabled: bool = Field(default=True, description="Enable/disable the provider")
+    enabled: bool = Field(default=True, description="Enable/disable the provider", index=True)
 
     status: ProviderStatus = Field(
         default=ProviderStatus.VALIDATING,
@@ -146,10 +147,27 @@ class ToolProvider(Resource, table=True):
         index=True,
     )
 
-    validation_error: str | None = Field(default=None, description="Error message from last validation attempt")
+    validation_error: str | None = Field(
+        default=None,
+        sa_type=Text(),  # type: ignore[call-overload]
+        description="Error message from last validation attempt",
+    )
 
     # Relationships
     tools: list["Tool"] = Relationship(back_populates="provider", cascade_delete=True)
+
+    # Table arguments for partial unique constraint
+    __table_args__ = (
+        # Partial unique index for name (only for non-deleted providers)
+        Index(
+            "ix_tool_providers_name_unique",
+            "name",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        # Composite index for pagination queries
+        Index("ix_tool_providers_created_at_id", "created_at", "id"),
+    )
 
     @field_validator("configuration")
     @classmethod

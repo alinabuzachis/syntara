@@ -4,11 +4,12 @@ from datetime import datetime
 from enum import Enum
 from typing import ClassVar
 
-from sqlalchemy import Index, Text
+from sqlalchemy import Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import DateTime
 from sqlmodel import Field
 
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base import ResourcesResponse, UserOwnedResource
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
@@ -76,14 +77,16 @@ class Invocation(UserOwnedResource, table=True):
 
     # Required fields
     prompt: str = Field(
-        sa_type=Text,
         min_length=1,
         max_length=10000,
+        sa_type=Text(),  # type: ignore[call-overload]
         description="Natural language user request",
     )
 
     session_id: str = Field(
-        max_length=255,
+        min_length=1,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
         description="Session identifier for multi-tenant isolation",
         index=True,
     )
@@ -137,7 +140,7 @@ class Invocation(UserOwnedResource, table=True):
     # Optional text fields
     error_message: str | None = Field(
         default=None,
-        sa_type=Text,
+        sa_type=Text(),  # type: ignore[call-overload]
         description="Error message if invocation failed",
     )
 

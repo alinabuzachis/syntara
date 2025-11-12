@@ -10,9 +10,11 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict
+from sqlalchemy import BigInteger, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import CheckConstraint, Column, DateTime, Field, Index, Relationship, SQLModel
 
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base import ResourcesResponse, SoftDeletableResource, UserOwnedResource
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
@@ -110,7 +112,9 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
 
     # Temporal workflow ID
     temporal_workflow_id: str = Field(
-        max_length=255,
+        min_length=1,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
         nullable=False,
         unique=True,
         index=True,
@@ -126,6 +130,7 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
             "workflowexecutionstatus",
             index=True,
             create_constraint=True,
+            server_default=text("'pending'::workflowexecutionstatus"),
         ),
     )
 
@@ -140,20 +145,21 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
     # Input data and error details
     input_data: dict[str, Any] = Field(
         default_factory=dict,
-        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+        sa_column=Column(JSONB, nullable=False, server_default=text("'{}'::jsonb")),
         description="Input data for workflow execution",
     )
 
     error_details: str | None = Field(
         default=None,
         nullable=True,
+        sa_type=Text(),  # type: ignore[call-overload]
         description="Error message if execution failed",
     )
 
     # Incremental sync tracking (internal use only, not exposed in API)
     last_processed_event_id: int = Field(
         default=0,
-        nullable=False,
+        sa_column=Column(BigInteger, nullable=False, server_default=text("0")),
         description="Last Temporal event ID processed for incremental activity sync (0 = never synced)",
     )
 

@@ -10,6 +10,7 @@ from typing import ClassVar
 from uuid import UUID, uuid4
 
 from pydantic import ConfigDict, field_validator
+from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, SQLModel
 
@@ -51,10 +52,12 @@ class BaseResource(SQLModel, ABC):
 
     # Automatic timestamps
     # NOTE: These fields store timezone-aware datetime objects (always UTC).
+    # Server defaults ensure consistency even for direct DB inserts.
     created_at: datetime = Field(
         default_factory=_utc_now,
         description="Timestamp when resource was created",
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        sa_column_kwargs={"server_default": text("now()")},
         index=True,
     )
 
@@ -62,12 +65,17 @@ class BaseResource(SQLModel, ABC):
         default_factory=_utc_now,
         description="Timestamp when resource was last updated",
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        sa_column_kwargs={"server_default": text("now()")},
         index=True,
     )
 
     # Labels as JSONB column for key-value pairs
+    # Server default ensures consistency even for direct DB inserts.
     labels: dict[str, str] = Field(
-        default_factory=dict, sa_type=JSONB, description="Key-value pairs for resource labeling and filtering"
+        default_factory=dict,
+        sa_type=JSONB,
+        sa_column_kwargs={"server_default": text("'{}'::jsonb")},
+        description="Key-value pairs for resource labeling and filtering",
     )
 
     @field_validator("labels", mode="before")

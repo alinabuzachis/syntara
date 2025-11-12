@@ -10,9 +10,11 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict, field_validator
+from sqlalchemy import Index, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 
+from nexus.core.constants import FieldLimits
 from nexus.core.models import Resource, ResourcesResponse
 from nexus.core.models.base import BaseResource
 from nexus.core.utils.sqlmodel import postgres_enum_column
@@ -54,9 +56,14 @@ class ToolParameter(BaseResource, table=True):
 
     __tablename__ = "tool_parameters"
 
-    tool_id: UUID = Field(foreign_key="tools.id", index=True)
+    tool_id: UUID = Field(foreign_key="tools.id", ondelete="CASCADE", index=True)
 
-    name: str = Field(max_length=100, description="Parameter name")
+    name: str = Field(
+        min_length=1,
+        max_length=FieldLimits.PARAMETER_NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.PARAMETER_NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Parameter name",
+    )
 
     type: ToolParameterType = Field(
         sa_column=postgres_enum_column(
@@ -66,7 +73,10 @@ class ToolParameter(BaseResource, table=True):
         description="Parameter type",
     )
 
-    description: str = Field(description="Parameter description")
+    description: str = Field(
+        sa_type=Text(),  # type: ignore[call-overload]
+        description="Parameter description",
+    )
 
     required: bool = Field(description="Whether this parameter is required")
 
@@ -129,14 +139,21 @@ class Tool(Resource, table=True):
     ]
 
     provider_id: UUID = Field(
-        foreign_key="tool_providers.id", description="UUID of the associated tool provider", index=True
+        foreign_key="tool_providers.id",
+        ondelete="CASCADE",
+        description="UUID of the associated tool provider",
+        index=True,
     )
 
     namespaced_name: str = Field(
-        max_length=200, description="Unique namespaced name for the tool", index=True, unique=True
+        min_length=1,
+        max_length=FieldLimits.NAMESPACED_NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAMESPACED_NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Unique namespaced name for the tool",
+        index=True,
     )
 
-    enabled: bool = Field(default=True, description="Whether the tool is enabled")
+    enabled: bool = Field(default=True, description="Whether the tool is enabled", index=True)
 
     status: ToolStatus = Field(
         default=ToolStatus.AVAILABLE,
@@ -162,12 +179,31 @@ class Tool(Resource, table=True):
         index=True,
     )
 
-    refresh_error: str | None = Field(default=None, description="Error message from last refresh attempt")
+    refresh_error: str | None = Field(
+        default=None,
+        sa_type=Text(),  # type: ignore[call-overload]
+        description="Error message from last refresh attempt",
+    )
 
     # Relationships
     parameters: list["ToolParameter"] = Relationship(back_populates="tool", cascade_delete=True)
 
     provider: "ToolProvider" = Relationship(back_populates="tools")
+
+    # Table arguments for partial unique constraint and composite indexes
+    __table_args__ = (
+        # Partial unique index for namespaced_name (only for non-deleted tools)
+        Index(
+            "ix_tools_namespaced_name_unique",
+            "namespaced_name",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        # Composite index for pagination queries
+        Index("ix_tools_created_at_id", "created_at", "id"),
+        # Composite index for provider queries with pagination
+        Index("ix_tools_provider_id_created_at_id", "provider_id", "created_at", "id"),
+    )
 
     @field_validator("namespaced_name")
     @classmethod

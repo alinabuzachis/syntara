@@ -9,6 +9,7 @@ from typing import Any
 
 from sqlalchemy import Column
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy.sql.elements import TextClause
 
 
 def postgres_enum_column(
@@ -18,6 +19,7 @@ def postgres_enum_column(
     nullable: bool = False,
     index: bool = False,
     create_constraint: bool = False,
+    server_default: TextClause | None = None,
 ) -> Column[Any]:
     """Create a SQLAlchemy Column for PostgreSQL enum types.
 
@@ -35,6 +37,7 @@ def postgres_enum_column(
         index: Whether to create an index on this column (default: False)
         create_constraint: Whether to create a CHECK constraint for enum values
             at the database level (default: False)
+        server_default: Server-side default value (default: None)
 
     Returns:
         Configured Column for use with SQLModel Field's sa_column parameter
@@ -84,4 +87,5 @@ def postgres_enum_column(
         ),
         nullable=nullable,
         index=index,
+        server_default=server_default,
     )

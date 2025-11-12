@@ -10,11 +10,12 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Column, DateTime, Index, UniqueConstraint
+from sqlalchemy import CheckConstraint, Column, DateTime, Index, String, Text, UniqueConstraint, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship
 
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource
 
 if TYPE_CHECKING:
@@ -74,13 +75,25 @@ class ActivityExecution(BaseResource, table=True):
     execution: "Execution" = Relationship(back_populates="activities")
 
     # Activity identity
-    activity_name: str = Field(..., description="Activity ID from workflow definition")
+    activity_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Activity ID from workflow definition",
+    )
     activity_definition: dict[str, Any] | None = Field(
         default=None, sa_column=Column(JSONB), description="Snapshot of activity configuration from workflow definition"
     )
 
     # Temporal identity
-    temporal_activity_id: str = Field(..., description="Temporal activity execution ID")
+    temporal_activity_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Temporal activity execution ID",
+    )
 
     # Status and timing
     status: ActivityStatus = Field(
@@ -111,15 +124,21 @@ class ActivityExecution(BaseResource, table=True):
 
     # Data
     input_data: dict[str, Any] = Field(
-        default_factory=dict, sa_column=Column(JSONB), description="Runtime input parameters"
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+        description="Runtime input parameters",
     )
     output_data: dict[str, Any] | None = Field(
         default=None, sa_column=Column(JSONB), description="Activity results (if completed)"
     )
-    error_details: str | None = Field(None, description="Error information if failed")
+    error_details: str | None = Field(
+        None,
+        sa_type=Text(),  # type: ignore[call-overload]
+        description="Error information if failed",
+    )
 
     # Retry tracking
-    retry_count: int = Field(0, description="Number of retry attempts")
+    retry_count: int = Field(0, sa_column_kwargs={"server_default": text("0")}, description="Number of retry attempts")
 
     # Loop tracking
     iteration: int | None = Field(None, description="Iteration number if activity is within a loop (0-indexed)")

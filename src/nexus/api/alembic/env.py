@@ -12,10 +12,31 @@ from sqlmodel import SQLModel
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.api.db.session import DATABASE_URL
 from nexus.core.models import User
+from nexus.tool_manager.models.rate_limit_config import RateLimit
+from nexus.tool_manager.models.tool import Tool, ToolParameter
+from nexus.tool_manager.models.tool_execution import ToolExecution
+from nexus.tool_manager.models.tool_provider import ToolProvider
+from nexus.tool_manager.models.usage_counter import UsageCounter
 from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.models.activity_execution import ActivityExecution
+from nexus.workflows.models.execution import Execution
 
 # Ensure models are registered with SQLModel metadata
-_ = (Invocation, User, Workflow, WorkflowVersion)
+
+_ = (
+    Invocation,
+    User,
+    Workflow,
+    WorkflowVersion,
+    Execution,
+    ActivityExecution,
+    ToolProvider,
+    Tool,
+    ToolParameter,
+    RateLimit,
+    ToolExecution,
+    UsageCounter,
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
