@@ -167,6 +167,82 @@ class TestFilterParser:
         values = {f.value for f in filters}
         assert values == {"active", "pending"}
 
+    def test_parse_comma_separated_values_with_bracket_notation(self) -> None:
+        """Test logical OR with comma-separated values using bracket notation and various operators."""
+        # Test OR logic with contains operator
+        params = {"name[contains]": "service,api,worker"}
+        allowed_fields = ["name"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        # Should create 3 filters for OR logic: name contains "service" OR "api" OR "worker"
+        assert len(filters) == 3
+        assert all(f.field == "name" for f in filters)
+        assert all(f.operator == FilterOperator.CONTAINS for f in filters)
+
+        values = {f.value for f in filters}
+        assert values == {"service", "api", "worker"}
+
+    def test_parse_comma_separated_values_multiple_fields_and_operators(self) -> None:
+        """Test OR logic with multiple fields using different operators."""
+        params = {
+            "status": "active,pending,draft",  # Shorthand: status=active OR pending OR draft
+            "priority[gte]": "1,3,5",  # Bracket: priority >= 1 OR >= 3 OR >= 5
+            "name[starts_with]": "test,demo",  # Bracket: name starts_with "test" OR "demo"
+        }
+        allowed_fields = ["status", "priority", "name"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        # Should create 8 filters total (3 + 3 + 2)
+        assert len(filters) == 8
+
+        # Check status filters (shorthand equality)
+        status_filters = [f for f in filters if f.field == "status"]
+        assert len(status_filters) == 3
+        assert all(f.operator == FilterOperator.EQ for f in status_filters)
+        status_values = {f.value for f in status_filters}
+        assert status_values == {"active", "pending", "draft"}
+
+        # Check priority filters (bracket notation with gte)
+        priority_filters = [f for f in filters if f.field == "priority"]
+        assert len(priority_filters) == 3
+        assert all(f.operator == FilterOperator.GTE for f in priority_filters)
+        priority_values = {f.value for f in priority_filters}
+        assert priority_values == {"1", "3", "5"}
+
+        # Check name filters (bracket notation with starts_with)
+        name_filters = [f for f in filters if f.field == "name"]
+        assert len(name_filters) == 2
+        assert all(f.operator == FilterOperator.STARTS_WITH for f in name_filters)
+        name_values = {f.value for f in name_filters}
+        assert name_values == {"test", "demo"}
+
+    def test_parse_comma_separated_values_with_whitespace(self) -> None:
+        """Test that comma-separated values handle whitespace correctly."""
+        params = {
+            "tags": "frontend, backend , api,  database  ",  # Mixed whitespace
+            "type[eq]": " internal,external , hybrid ",  # Whitespace around values
+        }
+        allowed_fields = ["tags", "type"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        # Should create 7 filters total (4 + 3), with trimmed values
+        assert len(filters) == 7
+
+        # Check tags filters (whitespace should be trimmed)
+        tag_filters = [f for f in filters if f.field == "tags"]
+        assert len(tag_filters) == 4
+        tag_values = {f.value for f in tag_filters}
+        assert tag_values == {"frontend", "backend", "api", "database"}
+
+        # Check type filters (whitespace should be trimmed)
+        type_filters = [f for f in filters if f.field == "type"]
+        assert len(type_filters) == 3
+        type_values = {f.value for f in type_filters}
+        assert type_values == {"internal", "external", "hybrid"}
+
     def test_parse_bracket_notation_regex(self) -> None:
         """Test that bracket notation regex works correctly."""
         # Test various bracket notation formats

@@ -738,3 +738,347 @@ class TestSQLInjectionProtection:
 
             # Should not match legitimate users due to escaped wildcards
             assert len(result) == 0
+
+
+@pytest.mark.asyncio
+class TestLogicalORFiltering:
+    """Test logical OR functionality with comma-separated values at parser level.
+
+    Note: The current apply_filters implementation uses AND logic between all filters.
+    These tests demonstrate the parsing layer's support for OR logic via comma-separated values,
+    showing how multiple Filter objects are created for potential OR application.
+    """
+
+    @pytest_asyncio.fixture
+    async def session(
+        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine
+    ) -> AsyncGenerator[AsyncSession, None]:
+        """Create database session with test data for OR testing.
+
+        Args:
+            test_db_session: Async PostgreSQL test session from conftest
+            test_db_engine: Async PostgreSQL engine from conftest
+
+        Yields:
+            AsyncSession with test data
+
+        """
+        # Create tables for test models
+        async with test_db_engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.create_all)
+
+        # Clear existing data from this test's tables
+        await test_db_session.execute(sqlalchemy.delete(UserModel))
+        await test_db_session.commit()
+
+        # Add test data with varied statuses and names for OR testing
+        test_users = [
+            UserModel(
+                id=1,
+                username="alice",
+                email="alice@example.com",
+                full_name="Alice Smith",
+                age=25,
+                is_active=True,
+                created_at=datetime(2025, 1, 1, 10, 0, 0),
+            ),
+            UserModel(
+                id=2,
+                username="bob",
+                email="bob@example.com",
+                full_name="Bob Johnson",
+                age=30,
+                is_active=True,
+                created_at=datetime(2025, 1, 2, 11, 0, 0),
+            ),
+            UserModel(
+                id=3,
+                username="charlie",
+                email="charlie@example.com",
+                full_name="Charlie Brown",
+                age=35,
+                is_active=False,
+                created_at=datetime(2025, 1, 3, 12, 0, 0),
+            ),
+            UserModel(
+                id=4,
+                username="diana",
+                email="diana@example.com",
+                full_name="Diana Prince",
+                age=28,
+                is_active=True,
+                created_at=datetime(2025, 1, 4, 13, 0, 0),
+            ),
+            UserModel(
+                id=5,
+                username="eve",
+                email="eve@example.com",
+                full_name="Eve Wilson",
+                age=32,
+                is_active=False,
+                created_at=datetime(2025, 1, 5, 14, 0, 0),
+            ),
+        ]
+
+        for user in test_users:
+            test_db_session.add(user)
+        await test_db_session.commit()
+
+        yield test_db_session
+
+    async def test_logical_or_with_comma_separated_equality_filters(self, session: AsyncSession) -> None:
+        """Test OR logic with comma-separated values for equality filters."""
+        # Parse comma-separated username values
+        params = {"username": "alice,charlie,eve"}
+        allowed_fields = ["username"]
+        filters = parse_filters(params, allowed_fields)
+
+        # Should create 3 separate filters for OR logic
+        assert len(filters) == 3
+        assert all(f.field == "username" for f in filters)
+        assert all(f.operator == FilterOperator.EQ for f in filters)
+
+        # Apply to query - should match users with username = 'alice' OR 'charlie' OR 'eve'
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match alice, charlie, and eve
+        assert len(result) == 3
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "charlie", "eve"}
+
+    async def test_logical_or_with_bracket_notation_contains(self, session: AsyncSession) -> None:
+        """Test OR logic with bracket notation using contains operator."""
+        # Parse comma-separated values with contains operator
+        params = {"full_name[contains]": "Smith,Johnson,Prince"}
+        allowed_fields = ["full_name"]
+        filters = parse_filters(params, allowed_fields)
+
+        # Should create 3 separate filters for OR logic
+        assert len(filters) == 3
+        assert all(f.field == "full_name" for f in filters)
+        assert all(f.operator == FilterOperator.CONTAINS for f in filters)
+
+        # Apply to query - should match users whose full_name contains 'Smith' OR 'Johnson' OR 'Prince'
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match Alice Smith, Bob Johnson, and Diana Prince
+        assert len(result) == 3
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "bob", "diana"}
+
+    async def test_logical_or_with_numeric_comparison_filters(self, session: AsyncSession) -> None:
+        """Test OR logic with numeric comparison operators."""
+        # Parse comma-separated age values with gte operator: age >= 25 OR >= 32 OR >= 35
+        params = {"age[gte]": "25,32,35"}
+        allowed_fields = ["age"]
+        filters = parse_filters(params, allowed_fields)
+
+        # Should create 3 separate filters
+        assert len(filters) == 3
+        assert all(f.field == "age" for f in filters)
+        assert all(f.operator == FilterOperator.GTE for f in filters)
+
+        # Apply to query
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Since it's OR logic with >=, anyone with age >= 25 will match (which is everyone)
+        # This demonstrates that OR with overlapping conditions can be broader than expected
+        assert len(result) == 5  # All users have age >= 25
+
+    async def test_logical_or_with_non_overlapping_numeric_conditions(self, session: AsyncSession) -> None:
+        """Test OR logic with non-overlapping numeric conditions."""
+        # Test specific age values: age = 25 OR = 32 OR = 35
+        params = {"age": "25,32,35"}
+        allowed_fields = ["age"]
+        filters = parse_filters(params, allowed_fields)
+
+        # Apply to query
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match alice (25), eve (32), and charlie (35)
+        assert len(result) == 3
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "eve", "charlie"}
+
+    async def test_logical_or_with_boolean_values(self, session: AsyncSession) -> None:
+        """Test OR logic with boolean values (though OR with boolean is unusual)."""
+        # Test is_active = true OR = false (which should match everyone)
+        params = {"is_active": "true,false"}
+        allowed_fields = ["is_active"]
+        filters = parse_filters(params, allowed_fields)
+
+        # Apply to query
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match all users since everyone is either active or inactive
+        assert len(result) == 5
+
+    async def test_logical_or_mixed_with_and_conditions(self, session: AsyncSession) -> None:
+        """Test OR conditions mixed with AND conditions across different fields."""
+        # username = 'alice' OR 'bob' OR 'charlie' AND is_active = true
+        params = {
+            "username": "alice,bob,charlie",  # OR logic within username field
+            "is_active": "true",  # AND logic with is_active field
+        }
+        allowed_fields = ["username", "is_active"]
+        filters = parse_filters(params, allowed_fields)
+
+        # Should create 4 filters total: 3 for username OR + 1 for is_active
+        assert len(filters) == 4
+
+        # Apply to query
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match only alice and bob (charlie is not active)
+        assert len(result) == 2
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "bob"}
+
+    async def test_logical_or_with_starts_with_operator(self, session: AsyncSession) -> None:
+        """Test OR logic with starts_with operator."""
+        # full_name starts_with 'Alice' OR 'Bob' OR 'Eve'
+        params = {"full_name[starts_with]": "Alice,Bob,Eve"}
+        allowed_fields = ["full_name"]
+        filters = parse_filters(params, allowed_fields)
+
+        # Apply to query
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match Alice Smith, Bob Johnson, and Eve Wilson
+        assert len(result) == 3
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "bob", "eve"}
+
+    async def test_logical_or_with_whitespace_handling(self, session: AsyncSession) -> None:
+        """Test that OR logic properly handles whitespace in comma-separated values."""
+        # Test with various whitespace patterns
+        params = {"username": " alice , bob,  charlie  ,diana"}
+        allowed_fields = ["username"]
+        filters = parse_filters(params, allowed_fields)
+
+        # Should create 4 filters with trimmed values
+        assert len(filters) == 4
+        filter_values = {f.value for f in filters}
+        assert filter_values == {"alice", "bob", "charlie", "diana"}
+
+        # Apply to query
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match all four users
+        assert len(result) == 4
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "bob", "charlie", "diana"}
+
+    async def test_logical_or_with_datetime_fields(self, session: AsyncSession) -> None:
+        """Test OR logic with datetime comparison operators."""
+        # created_at >= '2025-01-02' OR >= '2025-01-04' (overlapping conditions)
+        params = {"created_at[gte]": "2025-01-02T00:00:00,2025-01-04T00:00:00"}
+        allowed_fields = ["created_at"]
+        filters = parse_filters(params, allowed_fields)
+
+        # Apply to query
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match bob, charlie, diana, and eve (created on/after Jan 2)
+        assert len(result) == 4
+        usernames = {user.username for user in result}
+        assert usernames == {"bob", "charlie", "diana", "eve"}
+
+    async def test_logical_or_complex_multi_field_scenario(self, session: AsyncSession) -> None:
+        """Test complex scenario with OR logic across multiple fields and operators."""
+        # Complex query: (username = 'alice' OR 'eve') AND (age >= 30 OR age >= 25) AND is_active
+        params = {
+            "username": "alice,eve",  # OR within username
+            "age[gte]": "30,25",  # OR within age (overlapping: anyone >= 25)
+            "is_active": "true",  # Single condition
+        }
+        allowed_fields = ["username", "age", "is_active"]
+        filters = parse_filters(params, allowed_fields)
+
+        # Should create 5 filters total: 2 + 2 + 1
+        assert len(filters) == 5
+
+        # Apply to query
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match only alice (username='alice' AND age>=25 AND is_active=true)
+        # eve is excluded because is_active=false
+        assert len(result) == 1
+        assert result[0].username == "alice"
+
+    async def test_logical_or_case_insensitive_operations(self, session: AsyncSession) -> None:
+        """Test that OR logic works correctly with case-insensitive operations."""
+        # Test contains with different cases
+        params = {"full_name[contains]": "SMITH,johnson,brown"}
+        allowed_fields = ["full_name"]
+        filters = parse_filters(params, allowed_fields)
+
+        # Apply to query
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match Alice Smith, Bob Johnson, and Charlie Brown (case-insensitive)
+        assert len(result) == 3
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "bob", "charlie"}
+
+    async def test_end_to_end_or_filtering_workflow(self, session: AsyncSession) -> None:
+        """Test complete end-to-end workflow with OR filtering from query params to results."""
+        # Simulate real API query with multiple OR conditions
+        params = {
+            "username": "alice,diana",  # Simple OR
+            "full_name[starts_with]": "Bob,Charlie",  # Bracket notation OR
+            # This creates: (username='alice' OR 'diana') AND (full_name starts_with 'Bob' OR 'Charlie')
+        }
+        allowed_fields = ["username", "full_name"]
+
+        # Parse filters
+        filters = parse_filters(params, allowed_fields)
+        assert len(filters) == 4  # 2 + 2
+
+        # Apply filters
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should find no matches because no user satisfies both conditions:
+        # - alice/diana usernames don't have full names starting with Bob/Charlie
+        # - Bob/Charlie full names don't have alice/diana usernames
+        assert len(result) == 0
+
+        # Test a more permissive scenario
+        params = {
+            "username": "alice,bob",  # Users alice and bob
+            "is_active": "true",  # Both are active
+        }
+        filters = parse_filters(params, [*allowed_fields, "is_active"])
+
+        query = select(UserModel)
+        filtered_query = apply_filters(query, filters, UserModel)
+        result = (await session.execute(filtered_query)).scalars().all()
+
+        # Should match both alice and bob (both active)
+        assert len(result) == 2
+        usernames = {user.username for user in result}
+        assert usernames == {"alice", "bob"}

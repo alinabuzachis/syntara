@@ -12,7 +12,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 from sqlalchemy import Select
-from sqlmodel import SQLModel, and_
+from sqlmodel import SQLModel, and_, or_
 
 # We need to import this protected type to pass mypy type-checking
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
@@ -387,6 +387,10 @@ def apply_filters(
 ) -> Select[TP] | SelectOfScalar[TP]:
     """Apply filters to a SQLAlchemy Query or SQLModel Select using Query API.
 
+    Groups filters by field and applies OR logic within each field group,
+    then AND logic between different field groups. This enables comma-separated
+    values to work as logical OR (e.g., ?name=alice,bob becomes name='alice' OR name='bob').
+
     Args:
         query: SQLAlchemy Query object or SQLModel Select statement to filter
         filters: List of Filter objects to apply
@@ -396,32 +400,50 @@ def apply_filters(
         Filtered query object of the same type as input
 
     Examples:
-        >>> # With SQLAlchemy Query
-        >>> query = session.query(User)
-        >>> filtered_query = apply_filters(query, filters, User)
+        >>> # Single field with OR: ?name=alice,bob
+        >>> # Becomes: WHERE name = 'alice' OR name = 'bob'
 
-        >>> # With SQLModel Select
-        >>> stmt = select(User)
-        >>> filtered_stmt = apply_filters(stmt, filters, User)
+        >>> # Multiple fields with AND: ?name=alice,bob&status=active
+        >>> # Becomes: WHERE (name = 'alice' OR name = 'bob') AND status = 'active'
 
     """
     if not filters:
         return query
 
-    conditions = []
+    # Group filters by field name for OR logic within each field
+    field_groups: dict[str, list[Filter]] = {}
 
     for filter_obj in filters:
-        # Get the model attribute for the field
+        # Validate field exists on model
         if not hasattr(model, filter_obj.field):
             msg = f"Field '{filter_obj.field}' not found on model {model.__name__}"
             raise ValueError(msg)
 
-        field_attr = getattr(model, filter_obj.field)
-        condition = _build_condition(field_attr, filter_obj.operator, filter_obj.value)
-        conditions.append(condition)
+        if filter_obj.field not in field_groups:
+            field_groups[filter_obj.field] = []
+        field_groups[filter_obj.field].append(filter_obj)
 
-    # Apply all conditions with AND logic
-    if conditions:
-        query = query.filter(and_(*conditions))
+    # Build conditions: OR within each field, AND between fields
+    field_conditions = []
+
+    for field_name, field_filters in field_groups.items():
+        field_attr = getattr(model, field_name)
+
+        # Build conditions for this field
+        filter_conditions = []
+        for filter_obj in field_filters:
+            condition = _build_condition(field_attr, filter_obj.operator, filter_obj.value)
+            filter_conditions.append(condition)
+
+        # If multiple conditions for this field, combine with OR
+        # If only one condition, use it directly
+        if len(filter_conditions) == 1:
+            field_conditions.append(filter_conditions[0])
+        else:
+            field_conditions.append(or_(*filter_conditions))
+
+    # Apply all field conditions with AND logic
+    if field_conditions:
+        query = query.filter(and_(*field_conditions))
 
     return query
