@@ -176,18 +176,20 @@ run-all: ## Start all services (foreground, Ctrl+C to stop)
 	@echo "📍 Valkey Cache: valkey://localhost:$${VALKEY_PORT:-6379}"
 	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
 	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
+	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	$(COMPOSE_FINAL_CMD) up
 
 .PHONY: services-run
-services-run: ## Start all services (database + valkey + temporal + UI + worker) in background
-	@echo "🚀 Starting all services (database + valkey + temporal + UI + worker)..."
+services-run: ## Start all services (database + valkey + temporal + UI + worker + MCP) in background
+	@echo "🚀 Starting all services (database + valkey + temporal + UI + worker + MCP)..."
 	@echo "📍 Database: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
 	@echo "📍 Valkey Cache: valkey://localhost:$${VALKEY_PORT:-6379}"
 	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
 	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
-	$(COMPOSE_FINAL_CMD) up -d database valkey temporal temporal-ui temporal-worker
+	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
+	$(COMPOSE_FINAL_CMD) up -d database valkey temporal temporal-ui temporal-worker mcp-server
 	@echo "✅ All services started in background"
 	@echo "   Use 'make services-logs' to view logs"
 	@echo "   Use 'make services-stop' to stop services"
@@ -205,7 +207,7 @@ services-logs: ## View logs from all services
 	@echo ""
 	$(COMPOSE_FINAL_CMD) ps
 	@echo ""
-	$(COMPOSE_FINAL_CMD) logs -f database valkey temporal temporal-ui temporal-worker
+	$(COMPOSE_FINAL_CMD) logs -f database valkey temporal temporal-ui temporal-worker mcp-server
 
 
 .PHONY: db-logs
@@ -227,6 +229,26 @@ temporal-logs: ## View Temporal server and worker logs
 temporal-ui-logs: ## View Temporal UI logs only
 	@echo "📋 Viewing Temporal UI logs (project: $(PODMAN_PROJECT))..."
 	$(COMPOSE_FINAL_CMD) logs -f temporal-ui
+
+.PHONY: mcp-start
+mcp-start: ## Start MCP server in background
+	@echo "🚀 Starting MCP server..."
+	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
+	$(COMPOSE_FINAL_CMD) up -d mcp-server
+	@echo "✅ MCP server started in background"
+	@echo "   Use 'make mcp-logs' to view logs"
+	@echo "   Use 'make mcp-stop' to stop server"
+
+.PHONY: mcp-stop
+mcp-stop: ## Stop MCP server
+	@echo "🛑 Stopping MCP server..."
+	$(COMPOSE_FINAL_CMD) stop mcp-server
+	@echo "✅ MCP server stopped"
+
+.PHONY: mcp-logs
+mcp-logs: ## View MCP server logs only
+	@echo "📋 Viewing MCP server logs (project: $(PODMAN_PROJECT))..."
+	$(COMPOSE_FINAL_CMD) logs -f mcp-server
 
 .PHONY: run-clean
 run-clean: ## Stop all services and remove all data (destructive)

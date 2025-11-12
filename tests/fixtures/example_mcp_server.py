@@ -9,6 +9,8 @@ from typing import Any
 
 import uvicorn
 from fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +98,16 @@ class ExampleMCPServer:
                 "message": message,
                 "greeting_type": "formal" if formal else "casual",
             }
+
+        @self.mcp_app.custom_route("/health", methods=["GET"])
+        async def health_check(request: Request) -> PlainTextResponse:
+            """Health check endpoint.
+
+            Returns:
+                Plain text response indicating server health
+
+            """
+            return PlainTextResponse("OK")
 
     async def start(self) -> None:
         """Start the test MCP server."""

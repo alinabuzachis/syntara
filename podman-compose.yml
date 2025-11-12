@@ -132,6 +132,26 @@ services:
       retries: 3
       start_period: 10s
 
+  # MCP Server - Test MCP server for integration testing
+  mcp-server:
+    build:
+      context: .
+      dockerfile: containers/mcp/Containerfile
+    image: ${MCP_IMAGE:-localhost/nexus-mcp:latest}
+    restart: unless-stopped
+    ports:
+    - ${MCP_PORT:-8765}:8765
+    environment:
+    - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    - MCP_HOST=0.0.0.0
+    - MCP_PORT=8765
+    healthcheck:
+      test: [CMD, curl, -f, http://localhost:8765/health]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 volumes:
   nexus_postgres_data:
     driver: local

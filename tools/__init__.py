@@ -1,1 +1,1 @@
-"""Utility tooling package for CI helpers."""
+"""Tools package for Nexus utilities."""

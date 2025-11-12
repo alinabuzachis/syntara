@@ -1,0 +1,46 @@
+FROM registry.access.redhat.com/ubi9/python-312:latest
+
+# Switch to root to install dependencies
+USER root
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install uv for fast dependency management
+RUN pip install --no-cache-dir uv
+
+# Set working directory
+WORKDIR /opt/app-root
+
+# Install only FastMCP dependency needed for MCP server
+RUN uv init --no-readme --no-workspace --python 3.12
+RUN uv add "fastmcp>=2.13.0"
+
+# Create necessary directory structure
+RUN mkdir -p tests/fixtures
+
+# Copy application code and test fixtures
+COPY tests/__init__.py ./tests/
+COPY tests/fixtures/example_mcp_server.py ./tests/fixtures/
+
+# Create minimal __init__.py for fixtures
+RUN echo '"""Test fixtures for MCP server."""' > ./tests/fixtures/__init__.py
+
+# Copy specific files needed for MCP server
+COPY tools/run_mcp_server.py .
+
+# Fix permissions for OpenShift/UBI (runs as arbitrary UID)
+RUN chown -R 1001:0 /opt/app-root && \
+    chmod -R g=u /opt/app-root
+
+# Switch back to non-root user (UBI default user)
+USER 1001
+
+# Expose MCP server port
+EXPOSE 8765
+
+# Default command runs the MCP server
+CMD ["sh", "-c", "uv run python run_mcp_server.py"]

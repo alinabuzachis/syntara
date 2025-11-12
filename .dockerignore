@@ -77,11 +77,17 @@ Containerfile
 
 # Tests
 tests/
+!tests/__init__.py
+!tests/fixtures/
+!tests/fixtures/__init__.py
+!tests/fixtures/example_mcp_server.py
 test_*.py
 *_test.py
 
 # Tools and scripts
-# tools/ - Now needed for load_sample_workflows.py
+# tools/ - Now needed for:
+# - load_sample_workflows.py
+# - run_mcp_server.py
 scripts/
 
 # Temporary files
