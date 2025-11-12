@@ -101,6 +101,7 @@ def upgrade() -> None:
         ["created_by", "is_enabled"],
         unique=False,
     )
+
     # GIN index for JSONB labels
     op.create_index(
         op.f("ix_workflows_labels"),
@@ -109,6 +110,7 @@ def upgrade() -> None:
         unique=False,
         postgresql_using="gin",
     )
+
     # Partial unique index for name (only for non-deleted workflows)
     op.create_index(
         "ix_workflows_name_unique",

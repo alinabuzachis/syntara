@@ -18,6 +18,7 @@ from nexus.api.constants import (
     DEFAULT_TEMPORAL_ADDRESS,
     DEFAULT_TEMPORAL_NAMESPACE,
 )
+from nexus.workflows.utils.datetime import ensure_timezone_aware
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models.responses import (
     WorkflowCancellationResponse,
@@ -202,19 +203,11 @@ class TemporalExecutionService:
             # Format timestamps consistently with 'Z' suffix for UTC
             start_time = None
             if description.start_time:
-                # Ensure timezone-aware datetime, default to UTC if naive
-                start_dt = description.start_time
-                if start_dt.tzinfo is None:
-                    start_dt = start_dt.replace(tzinfo=UTC)
-                start_time = start_dt.isoformat()
+                start_time = ensure_timezone_aware(description.start_time).isoformat()
 
             close_time = None
             if description.close_time:
-                # Ensure timezone-aware datetime, default to UTC if naive
-                close_dt = description.close_time
-                if close_dt.tzinfo is None:
-                    close_dt = close_dt.replace(tzinfo=UTC)
-                close_time = close_dt.isoformat()
+                close_time = ensure_timezone_aware(description.close_time).isoformat()
 
             return WorkflowStatusResponse(
                 temporal_workflow_id=temporal_workflow_id,

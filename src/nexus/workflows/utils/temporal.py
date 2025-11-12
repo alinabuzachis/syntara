@@ -1,4 +1,7 @@
-"""Utility functions for workflow services."""
+"""Temporal-specific utility functions.
+
+Provides utilities for Temporal workflow status conversion and synchronization.
+"""
 
 import logging
 from datetime import datetime

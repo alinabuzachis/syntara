@@ -17,6 +17,7 @@ from nexus.core.models.base import ResourcesResponse, SoftDeletableResource, Use
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
 if TYPE_CHECKING:
+    from nexus.workflows.models.activity_execution import ActivityExecution
     from nexus.workflows.models.workflow import Workflow
     from nexus.workflows.models.workflow_version import WorkflowVersion
 
@@ -54,6 +55,7 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         completed_at: Timestamp when execution completed/failed/cancelled
         input_data: Input data passed to workflow execution (JSONB)
         error_details: Error message if execution failed
+        last_processed_event_id: Last Temporal event ID processed (internal, for incremental sync)
 
     Relationships:
         workflow: Parent workflow
@@ -148,6 +150,13 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         description="Error message if execution failed",
     )
 
+    # Incremental sync tracking (internal use only, not exposed in API)
+    last_processed_event_id: int = Field(
+        default=0,
+        nullable=False,
+        description="Last Temporal event ID processed for incremental activity sync (0 = never synced)",
+    )
+
     # Relationships
     workflow: "Workflow" = Relationship(
         back_populates="executions",
@@ -158,6 +167,8 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         back_populates="executions",
         sa_relationship_kwargs={"foreign_keys": "[Execution.workflow_version_id]"},
     )
+
+    activities: list["ActivityExecution"] = Relationship(back_populates="execution")
 
     # Note: creator and updater relationships inherited from UserOwnedResource
     # creator = User who started the execution (created_by)

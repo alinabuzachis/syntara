@@ -11,6 +11,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 from nexus.api.constants import MAX_LOOP_ITERATIONS
+from nexus.workflows.utils.activity_traversal import traverse_activities
 from nexus.workflows.workflow_engine import settings
 
 
@@ -419,30 +420,8 @@ class WorkflowSpec(BaseModel):
         This validator recursively checks all activities, including nested activities
         in parallel branches, sequences, conditions, and loops.
         """
-
-        def collect_activity_ids(activities_list: list[Activity], path: str = "workflow") -> list[tuple[str, str]]:
-            """Recursively collect all activity IDs with their paths."""
-            ids_with_paths = []
-            for idx, activity in enumerate(activities_list):
-                current_path = f"{path}.activities[{idx}]"
-                ids_with_paths.append((activity.id, current_path))
-
-                # Recursively check nested activities
-                if activity.branches:
-                    ids_with_paths.extend(collect_activity_ids(activity.branches, f"{current_path}.branches"))
-                if activity.steps:
-                    ids_with_paths.extend(collect_activity_ids(activity.steps, f"{current_path}.steps"))
-                if activity.then:
-                    ids_with_paths.extend(collect_activity_ids(activity.then, f"{current_path}.then"))
-                if activity.else_:
-                    ids_with_paths.extend(collect_activity_ids(activity.else_, f"{current_path}.else"))
-                if activity.loop and hasattr(activity.loop, "do"):
-                    ids_with_paths.extend(collect_activity_ids(activity.loop.do, f"{current_path}.loop.do"))
-
-            return ids_with_paths
-
-        # Collect all activity IDs
-        all_ids_with_paths = collect_activity_ids(activities)
+        # Collect all activity IDs using shared traversal utility
+        all_ids_with_paths = traverse_activities(activities, lambda activity, path: (activity.id, path))
 
         # Check for duplicates
         seen_ids: dict[str, str] = {}

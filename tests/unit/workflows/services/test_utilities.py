@@ -8,7 +8,7 @@ import pytest
 from temporalio.service import RPCError, RPCStatusCode
 
 from nexus.workflows.models.execution import Execution, ExecutionStatus
-from nexus.workflows.services.utilities import (
+from nexus.workflows.utils.temporal import (
     sync_execution_status_from_temporal,
     temporal_status_to_execution_status,
 )

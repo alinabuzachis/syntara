@@ -16,7 +16,13 @@ from nexus.workflows.exceptions import (
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
-from nexus.workflows.models.execution import Execution, ExecutionCreate, ExecutionListResponse, ExecutionRead
+from nexus.workflows.models.activity_execution import ActivityExecution
+from nexus.workflows.models.execution import (
+    Execution,
+    ExecutionCreate,
+    ExecutionListResponse,
+    ExecutionRead,
+)
 from nexus.workflows.services import ExecutionService
 from nexus.workflows.workflow_engine.services.temporal_execution_service import (
     TemporalExecutionService,
@@ -205,4 +211,43 @@ async def get_execution(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
+        ) from e
+
+
+@router.get("/{execution_id}/activities")
+async def list_execution_activities(
+    execution_id: UUID,
+    service: Annotated[ExecutionService, Depends(get_execution_service)],
+) -> list[ActivityExecution]:
+    """List all activities for a workflow execution.
+
+    Returns persisted activity data from database. Activities are synced from Temporal
+    and stored to enable querying after Temporal's retention period expires.
+
+    Args:
+        execution_id: Execution ID
+        service: Execution service (injected by FastAPI)
+
+    Returns:
+        List of activity executions
+
+    Raises:
+        HTTPException: 404 if execution not found
+        HTTPException: 500 if Temporal query fails
+
+    """
+    logger.info("Listing activities for execution %s", execution_id)
+
+    try:
+        return await service.get_execution_activities(execution_id)
+    except ExecutionNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except Exception as e:
+        logger.exception("Failed to list activities for execution %s", execution_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list activities: {e}",
         ) from e
