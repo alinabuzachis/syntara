@@ -538,4 +538,126 @@ describe('Automations Component', () => {
       })
     })
   })
+
+  describe('Pagination', () => {
+    beforeEach(() => {
+      vi.clearAllMocks()
+    })
+
+    it('displays pagination controls when next or prev cursors are available', () => {
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockWorkflows,
+          next: 'next-cursor-xyz',
+          prev: null,
+          total: 30,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Automations />, { wrapper })
+
+      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+
+      expect(nextButton).toBeInTheDocument()
+      expect(prevButton).toBeInTheDocument()
+      expect(nextButton).not.toBeDisabled()
+      expect(prevButton).toBeDisabled()
+    })
+
+    it('displays total count when available', () => {
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockWorkflows,
+          next: 'next-cursor',
+          prev: null,
+          total: 30,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Automations />, { wrapper })
+
+      expect(screen.getByText(/2 automations/)).toBeInTheDocument()
+      expect(screen.getByText(/\(of 30 total\)/)).toBeInTheDocument()
+    })
+
+    it('enables both buttons when both cursors are available', () => {
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockWorkflows,
+          next: 'next-cursor',
+          prev: 'prev-cursor-xyz',
+          total: 30,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Automations />, { wrapper })
+
+      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+
+      expect(nextButton).not.toBeDisabled()
+      expect(prevButton).not.toBeDisabled()
+    })
+
+    it('hides pagination when no cursors are available', () => {
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockWorkflows,
+          next: null,
+          prev: null,
+          total: 3,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Automations />, { wrapper })
+
+      expect(screen.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Previous page' })).not.toBeInTheDocument()
+    })
+
+    it('handles navigation back to first page correctly', () => {
+      // Simulate being on last page with only prev cursor available (no next)
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockWorkflows,
+          next: null,
+          prev: 'cursor-page1',
+          total: 4,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Automations />, { wrapper })
+
+      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+      const nextButton = screen.queryByRole('button', { name: 'Next page' })
+
+      // Previous should be enabled, Next should be disabled
+      expect(prevButton).not.toBeDisabled()
+      expect(nextButton).toBeDisabled()
+
+      // Clicking previous should work without errors
+      expect(() => fireEvent.click(prevButton)).not.toThrow()
+    })
+  })
 })

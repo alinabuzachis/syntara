@@ -17,7 +17,16 @@ import { useLocation } from 'wouter'
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
 export default function Automations() {
-  const workflowsQuery = workflowClient.useQuery('get', '/workflows')
+  const [cursor, setCursor] = useState<string | null>(null)
+  const workflowsQuery = workflowClient.useQuery('get', '/workflows', {
+    params: {
+      query: {
+        cursor: cursor ?? undefined,
+        limit: 20,
+        include_total: true,
+      },
+    },
+  })
   const workflows = workflowsQuery.data?.resources ?? []
   const { mutate: executeAutomation } = workflowClient.useMutation('post', '/executions')
   const { showSuccess, showError } = useAlerts()
@@ -82,6 +91,16 @@ export default function Automations() {
         items={automations}
         rowActions={rowActions}
         keyFn={(item) => item.id}
+        itemLabel="automation"
+        itemLabelPlural="automations"
+        pagination={{
+          next: workflowsQuery.data?.next,
+          prev: workflowsQuery.data?.prev,
+          total: workflowsQuery.data?.total,
+        }}
+        onPageChange={(newCursor) => {
+          setCursor(newCursor)
+        }}
         columns={[
           {
             id: 'name',

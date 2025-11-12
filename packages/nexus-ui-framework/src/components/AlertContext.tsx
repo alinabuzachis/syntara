@@ -11,12 +11,20 @@ export interface AlertContextType {
   clearAllAlerts: () => void
 }
 
-export const AlertContext = createContext<AlertContextType | undefined>(undefined)
+// Create a default no-op implementation for safety during initialization
+const noopAlertContext: AlertContextType = {
+  showAlert: () => {},
+  showSuccess: () => {},
+  showError: () => {},
+  showWarning: () => {},
+  showInfo: () => {},
+  dismissAlert: () => {},
+  clearAllAlerts: () => {},
+}
+
+export const AlertContext = createContext<AlertContextType>(noopAlertContext)
 
 export function useAlerts() {
   const context = useContext(AlertContext)
-  if (!context) {
-    throw new Error('useAlerts must be used within an AlertProvider')
-  }
   return context
 }

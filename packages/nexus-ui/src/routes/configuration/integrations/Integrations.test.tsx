@@ -326,4 +326,91 @@ describe('Integrations Component', () => {
       expect(rows.length).toBeGreaterThanOrEqual(4)
     })
   })
+
+  describe('Pagination', () => {
+    it('displays pagination controls when next or prev cursors are available', () => {
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockIntegrations,
+          next: 'next-cursor-abc',
+          prev: null,
+          total: 25,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Integrations />, { wrapper })
+
+      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+
+      expect(nextButton).toBeInTheDocument()
+      expect(prevButton).toBeInTheDocument()
+      expect(nextButton).not.toBeDisabled()
+      expect(prevButton).toBeDisabled()
+    })
+
+    it('displays total count when available', () => {
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockIntegrations,
+          next: 'next-cursor',
+          prev: null,
+          total: 25,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Integrations />, { wrapper })
+
+      expect(screen.getByText('3 integrations')).toBeInTheDocument()
+      expect(screen.getByText('(of 25 total)')).toBeInTheDocument()
+    })
+
+    it('enables Previous button when prev cursor is available', () => {
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockIntegrations,
+          next: 'next-cursor',
+          prev: 'prev-cursor-abc',
+          total: 25,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Integrations />, { wrapper })
+
+      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+      expect(prevButton).not.toBeDisabled()
+    })
+
+    it('hides pagination when no cursors are available', () => {
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockIntegrations,
+          next: null,
+          prev: null,
+          total: 3,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Integrations />, { wrapper })
+
+      expect(screen.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Previous page' })).not.toBeInTheDocument()
+    })
+  })
 })

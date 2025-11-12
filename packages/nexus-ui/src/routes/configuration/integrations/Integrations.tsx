@@ -56,7 +56,16 @@ function StatusLabel({ status }: { status: string }) {
 
 export default function Integrations() {
   const [, navigate] = useLocation()
-  const query = toolProvidersClient.useQuery('get', '/tool-providers', {})
+  const [cursor, setCursor] = useState<string | null>(null)
+  const query = toolProvidersClient.useQuery('get', '/tool-providers', {
+    params: {
+      query: {
+        cursor: cursor ?? undefined,
+        limit: 20,
+        include_total: true,
+      },
+    },
+  })
   const { search, setSearch, items: results } = useFuse(query.data?.resources ?? [], [{ name: 'name' }])
   const { showAlert } = useAlerts()
 
@@ -204,6 +213,16 @@ export default function Integrations() {
           items={results}
           rowActions={rowActions}
           keyFn={(item) => item.id}
+          itemLabel="integration"
+          itemLabelPlural="integrations"
+          pagination={{
+            next: query.data?.next,
+            prev: query.data?.prev,
+            total: query.data?.total,
+          }}
+          onPageChange={(newCursor) => {
+            setCursor(newCursor)
+          }}
           columns={[
             {
               id: 'name',

@@ -18,6 +18,7 @@ export default function IntegrationTools() {
   const [, navigate] = useLocation()
   const provider_id = params?.provider_id || ''
   const { showAlert } = useAlerts()
+  const [cursor, setCursor] = useState<string | null>(null)
 
   const integrationQuery = toolProvidersClient.useQuery('get', '/tool-providers/{provider_id}', {
     params: { path: { provider_id } },
@@ -28,6 +29,9 @@ export default function IntegrationTools() {
     params: {
       query: {
         provider_id: provider_id,
+        cursor: cursor ?? undefined,
+        limit: 50,
+        include_total: true,
       },
     },
   })
@@ -118,6 +122,17 @@ export default function IntegrationTools() {
           showSelect
           isSelected={(item) => item.enabled}
           keyFn={(item) => item.id}
+          itemLabel="tool"
+          itemLabelPlural="tools"
+          selectedLabel="enabled"
+          pagination={{
+            next: query.data?.next,
+            prev: query.data?.prev,
+            total: query.data?.total,
+          }}
+          onPageChange={(newCursor) => {
+            setCursor(newCursor)
+          }}
           columns={[
             {
               id: 'name',

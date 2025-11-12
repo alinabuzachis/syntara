@@ -12,7 +12,7 @@ import type { ReactNode } from 'react'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import type { Column } from './Column'
 import type { LucideIcon } from 'lucide-react'
-import { EllipsisVerticalIcon } from 'lucide-react'
+import { ChevronLeftIcon, ChevronRightIcon, EllipsisVerticalIcon } from 'lucide-react'
 
 export interface IRowAction<T> {
   label: string
@@ -30,6 +30,12 @@ export interface IBulkAction<T> {
   variant?: 'default' | 'destructive'
 }
 
+export interface PaginationInfo {
+  next?: string | null
+  prev?: string | null
+  total?: number | null
+}
+
 export function Table<T>(props: {
   items: T[]
   columns: Column<T>[]
@@ -40,6 +46,11 @@ export function Table<T>(props: {
   showSelect?: boolean
   isSelected?: (item: T) => boolean
   onSelectionChange?: (selectedItems: T[]) => void
+  pagination?: PaginationInfo
+  onPageChange?: (cursor: string | null, direction: 'next' | 'prev') => void
+  itemLabel?: string // Custom label for items (e.g., "tool", "integration")
+  itemLabelPlural?: string // Custom plural label (e.g., "tools", "integrations")
+  selectedLabel?: string // Custom label for selected state (defaults to "selected")
 }) {
   const { items, columns, bulkActions, keyFn, isSelected, onSelectionChange, showSelect } = props
   const [atTop, setAtTop] = useState<boolean | undefined>(true)
@@ -113,6 +124,20 @@ export function Table<T>(props: {
 
   // Show bulk actions toolbar
   const showBulkActions = showSelect || (bulkActions && bulkActions.length > 0)
+
+  // Get item label text
+  const getItemLabel = (count: number) => {
+    if (count === 1) {
+      return props.itemLabel || 'item'
+    }
+    return props.itemLabelPlural || props.itemLabel ? `${props.itemLabel}s` : 'items'
+  }
+
+  // Get selected label text
+  const getSelectedLabel = () => {
+    return props.selectedLabel || 'selected'
+  }
+
   if (!props?.items || (props?.items?.length < 1 && props.emptyState)) {
     return props.emptyState
   }
@@ -123,7 +148,7 @@ export function Table<T>(props: {
         <div className="glass sticky top-0 z-20 border-b border-violet-300/20 bg-violet-600/20 px-8 py-3">
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium">
-              {selectedItems.size} {selectedItems.size === 1 ? 'item' : 'items'} selected
+              {selectedItems.size} {getItemLabel(selectedItems.size)} {getSelectedLabel()}
             </span>
             {bulkActions && bulkActions.length > 0 && (
               <div className="flex gap-2">
@@ -251,13 +276,56 @@ export function Table<T>(props: {
         ></div>
       </Scrollable>
       <div className="glass sticky bottom-0 z-10 h-16 min-h-12 border-t">
-        <div className="flex h-full items-center bg-white/5 px-8">
-          {selectedItems.size > 0 ? (
-            <>
-              {selectedItems.size} of {items.length} items selected
-            </>
-          ) : (
-            <>{items.length} items</>
+        <div className="flex h-full items-center justify-between bg-white/5 px-8">
+          <div>
+            {selectedItems.size > 0 ? (
+              <>
+                {selectedItems.size} of {items.length} {getItemLabel(items.length)} {getSelectedLabel()}
+              </>
+            ) : (
+              <>
+                {items.length} {getItemLabel(items.length)}
+                {props.pagination?.total && props.pagination.total > items.length && (
+                  <span className="text-white/60"> (of {props.pagination.total} total)</span>
+                )}
+              </>
+            )}
+          </div>
+          {props.pagination && props.onPageChange && (props.pagination.prev || props.pagination.next) && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (props.pagination?.prev !== undefined) {
+                    props.onPageChange?.(props.pagination.prev, 'prev')
+                  }
+                }}
+                disabled={!props.pagination.prev}
+                className={clsx(
+                  'flex h-8 items-center gap-1 rounded-lg px-3 text-sm transition-colors',
+                  props.pagination.prev ? 'hover:bg-white/10' : 'cursor-not-allowed opacity-50'
+                )}
+                aria-label="Previous page"
+              >
+                <ChevronLeftIcon className="size-4" />
+                Previous
+              </button>
+              <button
+                onClick={() => {
+                  if (props.pagination?.next !== undefined) {
+                    props.onPageChange?.(props.pagination.next, 'next')
+                  }
+                }}
+                disabled={!props.pagination.next}
+                className={clsx(
+                  'flex h-8 items-center gap-1 rounded-lg px-3 text-sm transition-colors',
+                  props.pagination.next ? 'hover:bg-white/10' : 'cursor-not-allowed opacity-50'
+                )}
+                aria-label="Next page"
+              >
+                Next
+                <ChevronRightIcon className="size-4" />
+              </button>
+            </div>
           )}
         </div>
       </div>
