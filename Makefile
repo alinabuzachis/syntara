@@ -179,7 +179,7 @@ run-all: ## Start all services (foreground, Ctrl+C to stop)
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	$(COMPOSE_FINAL_CMD) up
+	$(COMPOSE_FINAL_CMD) up --build
 
 .PHONY: services-run
 services-run: ## Start all services (database + valkey + temporal + UI + worker + MCP) in background
@@ -189,7 +189,7 @@ services-run: ## Start all services (database + valkey + temporal + UI + worker 
 	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
 	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
-	$(COMPOSE_FINAL_CMD) up -d database valkey temporal temporal-ui temporal-worker mcp-server
+	$(COMPOSE_FINAL_CMD) up --build -d database valkey temporal temporal-ui temporal-worker mcp-server
 	@echo "✅ All services started in background"
 	@echo "   Use 'make services-logs' to view logs"
 	@echo "   Use 'make services-stop' to stop services"
@@ -234,7 +234,7 @@ temporal-ui-logs: ## View Temporal UI logs only
 mcp-start: ## Start MCP server in background
 	@echo "🚀 Starting MCP server..."
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
-	$(COMPOSE_FINAL_CMD) up -d mcp-server
+	$(COMPOSE_FINAL_CMD) up --build -d mcp-server
 	@echo "✅ MCP server started in background"
 	@echo "   Use 'make mcp-logs' to view logs"
 	@echo "   Use 'make mcp-stop' to stop server"
