@@ -30,6 +30,10 @@ class WorkflowService(BaseService):
     including CRUD operations, validation, and version management.
     """
 
+    def _convert_response_type(self, resource: Workflow) -> WorkflowRead:  # type: ignore[override]
+        """Convert Workflow to WorkflowRead format."""
+        return WorkflowRead.model_validate(resource)
+
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
         """Check if IntegrityError is due to duplicate workflow name.
 
@@ -148,11 +152,10 @@ class WorkflowService(BaseService):
             WorkflowListResponse with workflows, pagination metadata, and optional total
 
         """
-        # Use unified list_resources method (fields read from model automatically)
+        # Use unified list_resources method with overridden methods
         return await self.list_resources(
             model=Workflow,
             response_type=WorkflowListResponse,
-            response_type_converter=lambda workflow: WorkflowRead.model_validate(workflow),
             limit=limit,
             cursor=cursor,
             sort=sort or "-created_at",  # Default DESC sort if none provided

@@ -12,6 +12,7 @@ Usage:
 
 from .activity_execution import ActivityExecution, ActivityStatus
 from .execution import Execution, ExecutionListResponse, ExecutionStatus
+from .query_params import ExecutionListParams, WorkflowListParams
 from .workflow import (
     Workflow,
     WorkflowCreate,
@@ -26,10 +27,12 @@ __all__ = [
     "ActivityExecution",
     "ActivityStatus",
     "Execution",
+    "ExecutionListParams",
     "ExecutionListResponse",
     "ExecutionStatus",
     "Workflow",
     "WorkflowCreate",
+    "WorkflowListParams",
     "WorkflowListResponse",
     "WorkflowRead",
     "WorkflowReadWithVersion",

@@ -17,6 +17,7 @@ from nexus.tool_manager.lib.exceptions import (
     ProviderNotFoundError,
     ValidationError,
 )
+from nexus.tool_manager.models import ToolProviderListParams
 from nexus.tool_manager.models.tool_provider import (
     ToolProvider,
     ToolProviderCreate,
@@ -55,11 +56,7 @@ async def list_tool_providers(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-    limit: Annotated[int, Query(ge=1, le=100)] = 100,
-    cursor: Annotated[str | None, Query()] = None,
-    sort: Annotated[str | None, Query()] = None,
-    *,
-    include_total: Annotated[bool, Query()] = False,
+    params: Annotated[ToolProviderListParams, Query()],
 ) -> ToolProviderListResponse:
     """List tool providers with filtering, sorting, and pagination.
 
@@ -77,10 +74,7 @@ async def list_tool_providers(
         request: FastAPI request object containing query parameters
         db: Database session
         current_user: Current authenticated user
-        limit: Maximum results per page (default 100, max 100)
-        cursor: Base64-encoded pagination cursor from previous response
-        sort: Sort parameter (e.g., 'name', '-created_at')
-        include_total: Whether to include total count (default false, expensive)
+        params: Query parameters for pagination and filtering
 
     Returns:
         ToolProviderListResponse with providers, pagination metadata, and optional total
@@ -93,11 +87,11 @@ async def list_tool_providers(
 
     try:
         return await service.list_providers(
-            limit=limit,
-            cursor=cursor,
-            sort=sort,
+            limit=params.limit,
+            cursor=params.cursor,
+            sort=params.sort,
             query_params_items=request.query_params.items(),
-            include_total=include_total,
+            include_total=params.include_total,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e

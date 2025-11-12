@@ -4,7 +4,7 @@ This module provides a single base class that ALL services must inherit from to 
 consistent filtering, sorting, pagination, and label handling across the entire system.
 """
 
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any, TypeVar
 from uuid import UUID
@@ -318,12 +318,36 @@ class BaseService:
                     error_message = f"Invalid value for field '{field_name}': {error_detail}"
                     raise ValueError(error_message) from e
 
+    def _convert_response_type(self, resource: TModel) -> Any:  # noqa: ANN401
+        """Convert database resource to response format.
+
+        This is a no-op implementation that returns the resource as-is.
+        Subclasses can override this method to provide custom conversion logic.
+
+        Args:
+            resource: Database resource to convert
+
+        Returns:
+            Converted resource (by default, returns the resource unchanged)
+
+        """
+        return resource
+
+    async def _post_query_callback(self, resources: list[TModel]) -> None:
+        """Process resources after database query but before response conversion.
+
+        This is a no-op implementation that does nothing.
+        Subclasses can override this method to provide custom processing logic.
+
+        Args:
+            resources: List of database resources to process
+
+        """
+
     async def list_resources(
         self,
         model: type[TModel],
         response_type: type[TResponse],
-        response_type_converter: Callable[[TModel], Any] | None = None,
-        post_query_callback: Callable[[list[TModel]], Awaitable[None]] | None = None,
         limit: int = 100,
         cursor: str | None = None,
         sort: str | None = None,
@@ -340,11 +364,12 @@ class BaseService:
         Filterable and sortable fields are automatically read from the model's
         __filterable_fields__ and __sortable_fields__ class attributes.
 
+        Services can override _convert_response_type() and _post_query_callback() methods
+        to provide custom response conversion and post-query processing logic.
+
         Args:
-            model: BaseResource class to query (must have __filterable_fields__ and __sortable_fields__)
+            model: BaseResource class to query (e.g., Workflow)
             response_type: ResourcesResponse subclass to return (e.g., WorkflowListResponse)
-            response_type_converter: Optional function to convert database objects to response objects
-            post_query_callback: Optional async callback to process database objects before conversion
             limit: Maximum number of resources to return
             cursor: Cursor token for pagination
             sort: Sort parameter (e.g., "name", "-created_at")
@@ -391,9 +416,8 @@ class BaseService:
         result = await self.session.execute(query)
         resources = result.scalars().all()
 
-        # Call post-query callback with database objects if provided
-        if post_query_callback:
-            await post_query_callback(list(resources))
+        # Call post-query callback with database objects
+        await self._post_query_callback(list(resources))
 
         # Get total count if requested
         total_count = None
@@ -409,10 +433,8 @@ class BaseService:
             total_count=total_count,
         )
 
-        # Convert database objects to response objects if converter provided
-        converted_resources = (
-            [response_type_converter(resource) for resource in resources] if response_type_converter else resources
-        )
+        # Convert database objects to response objects
+        converted_resources = [self._convert_response_type(resource) for resource in resources]
 
         # Construct and return typed response object
         return response_type(

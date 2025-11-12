@@ -14,6 +14,7 @@ from nexus.tool_manager.lib.exceptions import (
     ToolNotFoundError,
     ValidationError,
 )
+from nexus.tool_manager.models import ToolListParams
 from nexus.tool_manager.models.tool import (
     Tool,
     ToolListResponse,
@@ -32,11 +33,7 @@ async def list_tools(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-    limit: Annotated[int, Query(ge=1, le=100)] = 100,
-    cursor: Annotated[str | None, Query()] = None,
-    sort: Annotated[str | None, Query()] = None,
-    *,
-    include_total: Annotated[bool, Query()] = False,
+    params: Annotated[ToolListParams, Query()],
 ) -> ToolListResponse:
     """List tools with filtering, sorting, and pagination.
 
@@ -54,10 +51,7 @@ async def list_tools(
         request: FastAPI request object containing query parameters
         db: Database session
         current_user: Current authenticated user
-        limit: Maximum results per page (default 100, max 100)
-        cursor: Base64-encoded pagination cursor from previous response
-        sort: Sort parameter (e.g., 'name', '-created_at')
-        include_total: Whether to include total count (default false, expensive)
+        params: Query parameters for pagination and filtering
 
     Returns:
         ToolListResponse with tools, pagination metadata, and optional total
@@ -70,11 +64,11 @@ async def list_tools(
 
     try:
         return await service.list_tools(
-            limit=limit,
-            cursor=cursor,
-            sort=sort,
+            limit=params.limit,
+            cursor=params.cursor,
+            sort=params.sort,
             query_params_items=request.query_params.items(),
-            include_total=include_total,
+            include_total=params.include_total,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e

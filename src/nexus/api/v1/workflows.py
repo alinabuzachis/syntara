@@ -16,6 +16,7 @@ from nexus.workflows.exceptions import (
     WorkflowNotFoundError,
     WorkflowVersionNotFoundError,
 )
+from nexus.workflows.models import WorkflowListParams
 from nexus.workflows.models.workflow import (
     Workflow,
     WorkflowCreate,
@@ -77,11 +78,7 @@ async def list_workflows(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-    limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of results")] = 20,
-    cursor: Annotated[str | None, Query(description="Pagination cursor")] = None,
-    sort: Annotated[str | None, Query(description="Sort parameter (e.g., 'name', '-created_at')")] = None,
-    *,
-    include_total: Annotated[bool, Query(description="Include total count in response")] = False,
+    params: Annotated[WorkflowListParams, Query()],
 ) -> WorkflowListResponse:
     """List workflows with filtering, sorting, and pagination.
 
@@ -96,10 +93,7 @@ async def list_workflows(
         request: FastAPI request object containing query parameters
         db: Database session
         current_user: Current authenticated user
-        limit: Maximum results per page (default 20, max 100)
-        cursor: Base64-encoded pagination cursor from previous response
-        sort: Sort parameter (e.g., 'name', '-created_at')
-        include_total: Whether to include total count (default false, expensive)
+        params: Query parameters for pagination and filtering
 
     Returns:
         WorkflowListResponse with workflows, pagination metadata, and optional total
@@ -109,11 +103,11 @@ async def list_workflows(
 
     try:
         return await service.list_workflows_cursor(
-            limit=limit,
-            cursor=cursor,
-            sort=sort,
+            limit=params.limit,
+            cursor=params.cursor,
+            sort=params.sort,
             query_params_items=request.query_params.items(),
-            include_total=include_total,
+            include_total=params.include_total,
         )
     except ValueError as e:
         raise HTTPException(

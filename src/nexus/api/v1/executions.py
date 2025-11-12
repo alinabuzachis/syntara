@@ -16,6 +16,7 @@ from nexus.workflows.exceptions import (
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
+from nexus.workflows.models import ExecutionListParams
 from nexus.workflows.models.activity_execution import ActivityExecution
 from nexus.workflows.models.execution import (
     Execution,
@@ -85,11 +86,7 @@ async def get_execution_service(
 async def list_executions(
     request: Request,
     service: Annotated[ExecutionService, Depends(get_execution_service)],
-    limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of results")] = 20,
-    cursor: Annotated[str | None, Query(description="Pagination cursor")] = None,
-    sort: Annotated[str | None, Query(description="Sort parameter (e.g., 'created_at' or '-created_at')")] = None,
-    *,
-    include_total: Annotated[bool, Query(description="Include total count in response")] = False,
+    params: Annotated[ExecutionListParams, Query()],
 ) -> ExecutionListResponse:
     """List executions with filtering, sorting, and pagination.
 
@@ -104,10 +101,7 @@ async def list_executions(
     Args:
         request: FastAPI request object containing query parameters
         service: Execution service (injected by FastAPI)
-        limit: Maximum results per page (default 20, max 100)
-        cursor: Base64-encoded pagination cursor from previous response
-        sort: Sort parameter (e.g., 'created_at', '-status')
-        include_total: Whether to include total count (default false, expensive)
+        params: Query parameters for pagination and filtering
 
     Returns:
         ExecutionListResponse with executions, pagination metadata, and optional total
@@ -116,11 +110,11 @@ async def list_executions(
     # Use unified list method with query parameters
     try:
         return await service.list_executions(
-            limit=limit,
-            cursor=cursor,
-            sort=sort,
+            limit=params.limit,
+            cursor=params.cursor,
+            sort=params.sort,
             query_params_items=request.query_params.items(),
-            include_total=include_total,
+            include_total=params.include_total,
         )
     except ValueError as e:
         raise HTTPException(

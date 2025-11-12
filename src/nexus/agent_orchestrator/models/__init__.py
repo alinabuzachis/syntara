@@ -6,12 +6,14 @@ from nexus.agent_orchestrator.models.invocation import (
     InvocationListResponse,
     InvocationStatus,
 )
+from nexus.agent_orchestrator.models.query_params import InvocationListParams
 from nexus.agent_orchestrator.models.request import InvocationCreateRequest
 
 __all__ = [
     "GenericAgentResponse",
     "Invocation",
     "InvocationCreateRequest",
+    "InvocationListParams",
     "InvocationListResponse",
     "InvocationStatus",
 ]

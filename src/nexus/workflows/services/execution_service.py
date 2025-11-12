@@ -60,6 +60,21 @@ class ExecutionService(BaseService):
         super().__init__(session, user)
         self.temporal_service = temporal_service
 
+    def _convert_response_type(self, resource: Execution) -> ExecutionRead:  # type: ignore[override]
+        """Convert Execution to ExecutionRead format."""
+        return ExecutionRead.model_validate(resource)
+
+    async def _post_query_callback(self, resources: list[Execution]) -> None:  # type: ignore[override]
+        """Sync execution status from Temporal after database query."""
+        if self.temporal_service is not None:
+            changes = [
+                await sync_execution_status_from_temporal(execution, self.temporal_service, session=None, persist=False)
+                for execution in resources
+            ]
+            # Commit all changes together if any execution status changed
+            if any(changes):
+                await self.session.commit()
+
     async def create_execution(
         self,
         workflow_id: UUID,
@@ -119,7 +134,6 @@ class ExecutionService(BaseService):
         )
 
         # Step 2: Start Temporal workflow FIRST (if temporal_service is available)
-        temporal_workflow_id = None
         if self.temporal_service is not None:
             # Convert workflow definition to YAML for Temporal
             workflow_yaml = yaml.dump(workflow_version.workflow_definition)
@@ -218,26 +232,10 @@ class ExecutionService(BaseService):
             ExecutionListResponse with executions, pagination metadata, and optional total
 
         """
-
-        async def sync_from_temporal(executions: list[Execution]) -> None:
-            """Sync execution status from Temporal."""
-            if self.temporal_service is not None:
-                changes = [
-                    await sync_execution_status_from_temporal(
-                        execution, self.temporal_service, session=None, persist=False
-                    )
-                    for execution in executions
-                ]
-                # Commit all changes together if any execution status changed
-                if any(changes):
-                    await self.session.commit()
-
-        # Use unified list_resources method with converter for ExecutionRead
+        # Use unified list_resources method with overridden methods
         return await self.list_resources(
             model=Execution,
             response_type=ExecutionListResponse,
-            response_type_converter=lambda execution: ExecutionRead.model_validate(execution),
-            post_query_callback=sync_from_temporal,
             limit=limit,
             cursor=cursor,
             sort=sort or "-created_at",  # Default DESC sort if none provided

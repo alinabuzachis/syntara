@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nexus.agent_orchestrator.models import (
     Invocation,
     InvocationCreateRequest,
+    InvocationListParams,
     InvocationListResponse,
 )
 from nexus.agent_orchestrator.services import InvocationService
@@ -81,11 +82,7 @@ async def list_invocations(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-    limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of results")] = 20,
-    cursor: Annotated[str | None, Query(description="Pagination cursor")] = None,
-    sort: Annotated[str | None, Query(description="Sort field (prefix with - for descending)")] = None,
-    *,
-    include_total: Annotated[bool, Query(description="Include total count in response")] = False,
+    params: Annotated[InvocationListParams, Query()],
 ) -> InvocationListResponse:
     """List invocations with filtering, sorting, and pagination.
 
@@ -104,10 +101,7 @@ async def list_invocations(
         request: FastAPI request object containing query parameters
         db: Database session
         current_user: Current authenticated user
-        limit: Maximum results per page (default 20, max 100)
-        cursor: Base64-encoded pagination cursor from previous response
-        sort: Sort parameter (e.g., 'created_at', '-status')
-        include_total: Whether to include total count (default false, expensive)
+        params: Query parameters for pagination and filtering
 
     Returns:
         InvocationListResponse with invocations, pagination metadata, and optional total
@@ -117,11 +111,11 @@ async def list_invocations(
         service = InvocationService(db, current_user)
 
         return await service.list_invocations(
-            limit=limit,
-            cursor=cursor,
-            sort=sort,
+            limit=params.limit,
+            cursor=params.cursor,
+            sort=params.sort,
             query_params_items=request.query_params.items(),
-            include_total=include_total,
+            include_total=params.include_total,
         )
 
     except ValueError as e:

@@ -1,5 +1,6 @@
 """Database models for nexus.tool_manager."""
 
+from nexus.tool_manager.models.query_params import ToolListParams, ToolProviderListParams
 from nexus.tool_manager.models.rate_limit_config import RateLimit, TargetType
 from nexus.tool_manager.models.tool import (
     Tool,
@@ -34,11 +35,13 @@ __all__ = [
     "Tool",
     "ToolBulkUpdate",
     "ToolExecution",
+    "ToolListParams",
     "ToolListResponse",
     "ToolMetricsSummary",
     "ToolParameter",
     "ToolParameterType",
     "ToolProvider",
+    "ToolProviderListParams",
     "ToolProviderListResponse",
     "ToolProviderRefreshResult",
     "ToolProviderValidationResult",
