@@ -106,7 +106,7 @@ describe('Automations Component', () => {
       expect(screen.getByText('Automations')).toBeInTheDocument()
 
       // Check search input
-      const searchInput = screen.getByPlaceholderText('Search integrations...')
+      const searchInput = screen.getByPlaceholderText('Search automations...')
       expect(searchInput).toBeInTheDocument()
     })
 
@@ -124,7 +124,7 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search integrations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search automations...') as HTMLInputElement
 
       // Simulate typing in the search input
       const searchTerm = 'project'
@@ -138,7 +138,7 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search integrations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search automations...') as HTMLInputElement
 
       // Simulate searching for "project"
       fireEvent.change(searchInput, { target: { value: 'project' } })
@@ -162,7 +162,7 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search integrations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search automations...') as HTMLInputElement
 
       // Simulate searching for "team"
       fireEvent.change(searchInput, { target: { value: 'team' } })
@@ -182,7 +182,7 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search integrations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search automations...') as HTMLInputElement
 
       // Clear the search input
       fireEvent.change(searchInput, { target: { value: '' } })
@@ -238,7 +238,7 @@ describe('Automations Component', () => {
 
       const workflow1Link = screen.getByText('Important Project Workflow')
       expect(workflow1Link).toBeInTheDocument()
-      expect(workflow1Link.closest('a')).toHaveAttribute('href', '/automations/1')
+      expect(workflow1Link.closest('a')).toHaveAttribute('href', '/automation-builder/1')
     })
 
     it('renders labels column', () => {

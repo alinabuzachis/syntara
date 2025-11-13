@@ -7,7 +7,7 @@ import { LabelsCell } from '../../components/table/LabelsCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { Table, type IRowAction } from '../../components/table/Table'
 import { useFuse } from '../../hooks/useFuse'
-import { PlayIcon, ListIcon } from 'lucide-react'
+import { PlayIcon, ListIcon, PencilIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { ConfirmDialog, useAlerts } from '@ansible/nexus-ui-framework'
@@ -56,6 +56,13 @@ export default function Automations() {
   const rowActions = useMemo<IRowAction<Workflow>[]>(
     () => [
       {
+        label: 'Edit automation',
+        icon: PencilIcon,
+        onClick: (workflow) => {
+          setLocation(`/automation-builder/${workflow.id}`)
+        },
+      },
+      {
         label: 'Run automation',
         icon: PlayIcon,
         onClick: (workflow) => {
@@ -82,10 +89,16 @@ export default function Automations() {
       <AppPageHeader title="Automations">
         <input
           className="search grow"
-          placeholder="Search integrations..."
+          placeholder="Search automations..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <button
+          className="rounded-full bg-blue-400/70 px-4 py-1"
+          onClick={() => setLocation('/automation-builder/new')}
+        >
+          Create Automation
+        </button>
       </AppPageHeader>
       <Table
         items={automations}
@@ -105,7 +118,7 @@ export default function Automations() {
           {
             id: 'name',
             label: 'Name',
-            render: (workflow) => <LinkCell href={`/automations/${workflow.id}`}>{workflow.name}</LinkCell>,
+            render: (workflow) => <LinkCell href={`/automation-builder/${workflow.id}`}>{workflow.name}</LinkCell>,
           },
           {
             id: 'created_at',

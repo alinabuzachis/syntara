@@ -1,25 +1,23 @@
 import type { ConditionActivity } from '@ansible/nexus-contracts'
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
-import { SplitIcon } from 'lucide-react'
-import { CodeBlock } from '../../../../components/details/CodeBlock'
-import { Detail } from '../../../../components/details/Detail'
 import { Details } from '../../../../components/details/Details'
+import { renderCondition, renderOutputs, renderJson } from './common/detailRenderers'
 import { handleStyle } from './common/handleStyle'
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { NodeExpandedContext } from './common/NodeExpandedContext'
-import { NodeExpandToggle } from './common/NodeExpandToggle'
-import { NodeHeader } from './common/NodeHeader'
-import { NodeIcon } from './common/NodeIcon'
-import { NodeTitle } from './common/NodeTitle'
+import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { nodeMetadata } from './nodeMetadata'
 
 export type ConditionNode = { type: 'condition' } & Node<ConditionActivity>
 
 export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
+  const metadata = nodeMetadata.condition
+  const Icon = metadata.icon!
   return (
-    <NodeComponent className="rounded-4xl" nodeProps={props}>
+    <NodeComponent className={metadata.className} nodeProps={props}>
       <NodeExpandedContext.Provider value={null}>
-        <ConditionNodeDetails conditionActivity={props.data}>
+        <ConditionNodeDetails conditionActivity={props.data} icon={<Icon />}>
           <NodeHandles>
             <NodeHandle id="then">then</NodeHandle>
             {props.data.else && props.data.else.length > 0 && <NodeHandle id="else">else</NodeHandle>}
@@ -34,34 +32,18 @@ export function ConditionNodeDetails(props: {
   conditionActivity: ConditionActivity
   children?: React.ReactNode
   showJson?: boolean
+  icon?: React.ReactNode
 }) {
+  const metadata = nodeMetadata.condition
   return (
     <>
-      <NodeHeader>
-        <NodeIcon>
-          <SplitIcon />
-        </NodeIcon>
-        <NodeTitle title={props.conditionActivity.name} subTitle="Condition" />
-        <NodeExpandToggle />
-      </NodeHeader>
+      <StandardNodeHeader icon={props.icon} title={props.conditionActivity.name} subtitle={metadata.label} expandable />
       <div className="flex justify-end overflow-hidden">
         <NodeBody>
           <Details>
-            {props.conditionActivity.condition && (
-              <Detail label="Condition">
-                <CodeBlock>{props.conditionActivity.condition}</CodeBlock>
-              </Detail>
-            )}
-            {props.conditionActivity.outputs && (
-              <Detail label="Outputs">
-                <CodeBlock jsonObject={props.conditionActivity.outputs} />
-              </Detail>
-            )}
-            {props.showJson && (
-              <Detail label="Full Definition">
-                <CodeBlock jsonObject={props.conditionActivity} />
-              </Detail>
-            )}
+            {renderCondition(props.conditionActivity.condition)}
+            {renderOutputs(props.conditionActivity.outputs)}
+            {renderJson(props.conditionActivity, props.showJson, 'Full Definition')}
           </Details>
         </NodeBody>
         {props.children}

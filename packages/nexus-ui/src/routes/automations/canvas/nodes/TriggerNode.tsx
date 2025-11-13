@@ -1,14 +1,12 @@
 import { type Node, type NodeProps } from '@xyflow/react'
-import { PlayCircleIcon } from 'lucide-react'
 import type { WorkflowAPI } from 'nexus-contracts'
 import { CodeBlock } from '../../../../components/details/CodeBlock'
 import { Detail } from '../../../../components/details/Detail'
 import { Details } from '../../../../components/details/Details'
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
-import { NodeHeader } from './common/NodeHeader'
-import { NodeIcon } from './common/NodeIcon'
-import { NodeTitle } from './common/NodeTitle'
+import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { nodeMetadata } from './nodeMetadata'
 
 export type TriggerNode = { type: 'trigger' } & Node<{
   label: string
@@ -16,9 +14,11 @@ export type TriggerNode = { type: 'trigger' } & Node<{
 }>
 
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
+  const metadata = nodeMetadata.trigger
+  const Icon = metadata.icon!
   return (
-    <NodeComponent disableTarget className="rounded-4xl rounded-l-[48px] border-l-8 pl-2" nodeProps={props}>
-      <TriggerNodeDetails node={props.data} />
+    <NodeComponent disableTarget={metadata.disableTarget} className={metadata.className} nodeProps={props}>
+      <TriggerNodeDetails node={props.data} icon={<Icon />} />
     </NodeComponent>
   )
 }
@@ -28,17 +28,14 @@ export function TriggerNodeDetails(props: {
     label: string
     inputs?: WorkflowAPI.components['schemas']['workflow-definition.schema']['inputs']
   }
+  icon?: React.ReactNode
 }) {
   const nodeData = props.node
+  const metadata = nodeMetadata.trigger
 
   return (
     <>
-      <NodeHeader>
-        <NodeIcon>
-          <PlayCircleIcon />
-        </NodeIcon>
-        <NodeTitle subTitle="Trigger" title={nodeData.label} />
-      </NodeHeader>
+      <StandardNodeHeader icon={props.icon} title={nodeData.label} subtitle={metadata.label} />
       {nodeData.inputs && Object.keys(nodeData.inputs).length > 0 && (
         <NodeBody>
           <Details>

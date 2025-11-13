@@ -1,0 +1,28 @@
+import { BotIcon } from 'lucide-react'
+import { NodeRegistry } from '../NodeRegistry'
+import { AIAgentNodeForm } from '../../node-forms/AIAgentNodeForm'
+
+/**
+ * Register the AI Agent node type
+ */
+export function registerAIAgentNode() {
+  NodeRegistry.register({
+    id: 'agent',
+    label: 'AI Agent',
+    icon: BotIcon,
+    category: 'action',
+    description: 'Execute tasks using AI agents',
+    keywords: ['ai', 'agent', 'llm', 'gpt', 'intelligent', 'autonomous'],
+    order: 20,
+    formComponent: AIAgentNodeForm,
+    onSubmit: (data, onSuccess, onError) => {
+      try {
+        // AI Agent submission logic will be implemented
+        // when the form provides proper data structure
+        onSuccess()
+      } catch (error) {
+        onError(error instanceof Error ? error.message : 'Failed to add AI Agent')
+      }
+    },
+  })
+}

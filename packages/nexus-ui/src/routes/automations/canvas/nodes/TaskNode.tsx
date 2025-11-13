@@ -1,26 +1,25 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
-import { BrainIcon, FileTerminalIcon } from 'lucide-react'
-import { CodeBlock } from '../../../../components/details/CodeBlock'
-import { Detail } from '../../../../components/details/Detail'
 import { Details } from '../../../../components/details/Details'
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
-import { NodeExpandToggle } from './common/NodeExpandToggle'
-import { NodeHeader } from './common/NodeHeader'
-import { NodeIcon } from './common/NodeIcon'
-import { NodeTitle } from './common/NodeTitle'
+import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { nodeMetadata, executorMetadata } from './nodeMetadata'
+import {
+  renderCondition,
+  renderInputs,
+  renderOutputs,
+  renderJson,
+  renderObject,
+  renderText,
+} from './common/detailRenderers'
 
 export type TaskNode = { type: 'task' } & Node<TaskActivity>
 
-const executorMetadata: Record<string, { icon: React.ReactNode; label: string }> = {
-  script: { icon: <FileTerminalIcon />, label: 'Script' },
-  agentic: { icon: <BrainIcon />, label: 'Agentic' },
-}
-
 export function TaskNodeComponent(props: NodeProps<TaskNode>) {
+  const metadata = nodeMetadata.task
   return (
-    <NodeComponent className="rounded-3xl" nodeProps={props}>
+    <NodeComponent className={metadata.className} nodeProps={props}>
       <TaskActivityDetails data={props.data} />
     </NodeComponent>
   )
@@ -30,48 +29,26 @@ export function TaskActivityDetails(props: { data: TaskActivity; showJson?: bool
   const { icon: Icon, label: taskExecutor } = executorMetadata[props.data.task.executor]
   return (
     <>
-      <NodeHeader>
-        <NodeIcon>{Icon}</NodeIcon>
-        <NodeTitle title={props.data.name} subTitle={taskExecutor} />
-        <NodeExpandToggle />
-      </NodeHeader>
+      <StandardNodeHeader icon={<Icon />} title={props.data.name} subtitle={taskExecutor} expandable />
       <NodeBody>
         <Details>
-          {props.data.condition && (
-            <Detail label="Condition">
-              <CodeBlock>{props.data.condition}</CodeBlock>
-            </Detail>
-          )}
+          {renderCondition(props.data.condition)}
           {props.data.task.executor === 'script' && (
             <>
-              <Detail label={props.data.task.config.language}>
-                <CodeBlock>{props.data.task.config.code}</CodeBlock>
-              </Detail>
-              {props.data.task.inputs && (
-                <Detail label="Inputs">
-                  <CodeBlock>
-                    {Object.entries(props.data.task.inputs)
-                      .map(([key, value]) => `${key}: ${value}`)
-                      .join('\n')}
-                  </CodeBlock>
-                </Detail>
-              )}
-              {props.data.task.outputs && (
-                <Detail label="Outputs">
-                  <CodeBlock>
-                    {Object.entries(props.data.task.outputs)
-                      .map(([key, value]) => `${key}: ${value}`)
-                      .join('\n')}
-                  </CodeBlock>
-                </Detail>
-              )}
+              {renderText(props.data.task.config.language, props.data.task.config.code)}
+              {renderInputs(props.data.task.inputs)}
+              {renderOutputs(props.data.task.outputs)}
             </>
           )}
-          {props.showJson && (
-            <Detail label="JSON">
-              <CodeBlock jsonObject={props.data} />
-            </Detail>
+          {props.data.task.executor === 'api' && (
+            <>
+              {renderText('Method', props.data.task.config.method)}
+              {renderText('URL', props.data.task.config.url)}
+              {renderObject('Headers', props.data.task.config.headers)}
+              {renderObject('Body', props.data.task.config.body)}
+            </>
           )}
+          {renderJson(props.data, props.showJson)}
         </Details>
       </NodeBody>
     </>

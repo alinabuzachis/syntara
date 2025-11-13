@@ -4,6 +4,8 @@ import { AppRoute } from './AppRoute'
 
 const Automation = lazy(() => import('../routes/automations/Automation'))
 const Automations = lazy(() => import('../routes/automations/Automations'))
+const BuilderNew = lazy(() => import('../routes/builder/BuilderNew'))
+const BuilderEdit = lazy(() => import('../routes/builder/BuilderEdit'))
 const Executions = lazy(() => import('../routes/executions/Executions'))
 const IntegrationForm = lazy(() =>
   import('../routes/configuration/integrations/form/IntegrationForm').then((m) => ({ default: m.IntegrationForm }))
@@ -19,7 +21,8 @@ export const navigationItems: INavigationItem[] = [
   },
   {
     label: 'Builder',
-    path: AppRoute.AutomationBuilder,
+    path: AppRoute.AutomationBuilder.New,
+    element: <BuilderNew />,
   },
   {
     label: 'Automations',
@@ -99,5 +102,12 @@ export const navigationItems: INavigationItem[] = [
         element: <Glossary />,
       },
     ],
+  },
+  // Hidden routes (not shown in navigation, but needed for routing)
+  {
+    label: 'Edit Workflow',
+    path: AppRoute.AutomationBuilder.Edit,
+    element: <BuilderEdit />,
+    hidden: true,
   },
 ]

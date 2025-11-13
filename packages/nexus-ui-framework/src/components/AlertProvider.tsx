@@ -20,7 +20,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   }
 
   const showError = (message: string, title?: string) => {
-    showAlert({ variant: 'error', message, title, autoDismiss: false })
+    showAlert({ variant: 'error', message, title, autoDismiss: true })
   }
 
   const showWarning = (message: string, title?: string) => {

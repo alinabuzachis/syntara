@@ -24,4 +24,5 @@ export type INavigationItem = {
   path: string
   element?: React.ReactNode
   children?: INavigationItem[]
+  hidden?: boolean // Hide from navigation but keep for routing
 }

@@ -1,22 +1,22 @@
 import type { LoopActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
-import { RepeatIcon } from 'lucide-react'
 import { NodeComponent } from './common/NodeComponent'
-import { NodeHeader } from './common/NodeHeader'
-import { NodeIcon } from './common/NodeIcon'
-import { NodeTitle } from './common/NodeTitle'
+import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { nodeMetadata } from './nodeMetadata'
 
 export type LoopNode = { type: 'loop' } & Node<LoopActivity>
 
 export function LoopNodeComponent(props: NodeProps<LoopNode>) {
+  const metadata = nodeMetadata.loop
+  const Icon = metadata.icon!
   return (
-    <NodeComponent className="rounded-4xl" enableEnd enableStart nodeProps={props}>
-      <NodeHeader>
-        <NodeIcon>
-          <RepeatIcon />
-        </NodeIcon>
-        <NodeTitle title={props.data.name} subTitle="Loop" />
-      </NodeHeader>
+    <NodeComponent
+      className={metadata.className}
+      enableEnd={metadata.enableEnd}
+      enableStart={metadata.enableStart}
+      nodeProps={props}
+    >
+      <StandardNodeHeader icon={<Icon />} title={props.data.name} subtitle={metadata.label} />
     </NodeComponent>
   )
 }
