@@ -306,33 +306,9 @@ typecheck: ## Run type checking only with mypy
 	uv run mypy --strict src/ tests/
 	@echo "✅ Type checking completed"
 
-.PHONY: check-migration-conflicts
-check-migration-conflicts: ## Check for migration conflicts and integrity (no DB required)
-	@echo "🔍 Checking migration integrity..."
-	@echo "   Validating migration chain..."
-	@if ! uv run alembic history >/dev/null 2>&1; then \
-		echo "❌ Migration chain is broken!"; \
-		echo ""; \
-		echo "This usually means:"; \
-		echo "  - A migration file was deleted"; \
-		echo "  - A migration references a missing parent"; \
-		echo "  - Merge conflicts weren't properly resolved"; \
-		echo ""; \
-		echo "Run 'alembic history' to see the error details"; \
-		exit 1; \
-	fi
-	@echo "   Checking for multiple heads..."
-	@HEADS_COUNT=$$(uv run alembic heads 2>/dev/null | wc -l | tr -d ' '); \
-	if [ $$HEADS_COUNT -gt 1 ]; then \
-		echo "❌ Multiple migration heads detected ($$HEADS_COUNT heads)!"; \
-		echo ""; \
-		echo "Migration branches:"; \
-		uv run alembic branches -v; \
-		echo ""; \
-		echo "You need to merge migrations using: alembic merge -m 'merge heads' <rev1> <rev2>"; \
-		exit 1; \
-	fi
-	@echo "✅ Migration integrity check passed"
+.PHONY: check-migrations
+check-migrations: ## Validate migrations: conflicts, pending changes, and upgrade/downgrade (requires DB)
+	@tools/ci/check_migrations.sh
 
 
 # Pre-commit targets

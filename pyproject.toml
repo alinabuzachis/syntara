@@ -40,6 +40,7 @@ dependencies = [
     "langgraph>=0.0.20",
     "python-dotenv>=1.0.0",
     "beartype>=0.22.5",
+    "alembic-postgresql-enum>=1.8.0",
 ]
 
 [project.optional-dependencies]

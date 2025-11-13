@@ -71,8 +71,8 @@ jobs:
     - name: Install dependencies
       run: make install
 
-    - name: Check for migration conflicts
-      run: make check-migration-conflicts
+    - name: Check migrations
+      run: make check-migrations
 
     - name: Run tests (excluding MCP) with coverage
       run: make test-coverage
