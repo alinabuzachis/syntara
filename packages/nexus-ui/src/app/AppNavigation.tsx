@@ -16,6 +16,7 @@ export function AppNavigation() {
             to={item.path}
             label={item.label}
             disabled={!item.element && !item.children?.length}
+            matchPattern={item.matchPattern}
           />
         ))}
       </div>

@@ -1,7 +1,6 @@
-import { Button, Scrollable } from '@ansible/nexus-ui-framework'
-import { PlusIcon, XIcon } from 'lucide-react'
 import { useState, useMemo } from 'react'
-import clsx from 'clsx'
+import { PlusIcon } from 'lucide-react'
+import { SelectableCardWithForm, SelectableCardList, SidePanel } from '@ansible/nexus-ui-framework'
 import { NodeRegistry } from './registry/NodeRegistry'
 
 interface AddNodePanelProps {
@@ -38,8 +37,8 @@ export function AddNodePanel(props: AddNodePanelProps) {
           selectedNode.onSubmit(
             data,
             () => {
-              // Success callback - just close the panel, no alert
-              props.onClose()
+              // Success callback - deselect the node to allow adding another
+              setSelectedNodeType(null)
             },
             (error) => {
               // Error callback - show error alert
@@ -55,47 +54,25 @@ export function AddNodePanel(props: AddNodePanelProps) {
   }
 
   return (
-    <div className={clsx('glass flex max-h-full w-64 flex-col gap-4 rounded-4xl border-2 py-6')}>
-      <header className="flex items-center justify-between px-6">
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <PlusIcon className="size-5" />
-          Add Node
-        </h2>
-        <Button variant="plain" onClick={props.onClose} className="p-1">
-          <XIcon className="size-4" />
-        </Button>
-      </header>
+    <SidePanel onClose={props.onClose} title="Add Node" icon={PlusIcon} width="md">
+      <SelectableCardList>
+        {nodeTypes.map((nodeType) => {
+          const isSelected = selectedNodeType === nodeType.id
 
-      <Scrollable className="px-6">
-        <div className="flex flex-col gap-1.5">
-          {nodeTypes.map((nodeType) => {
-            const Icon = nodeType.icon
-            const isSelected = selectedNodeType === nodeType.id
-
-            return (
-              <div key={nodeType.id} className="flex flex-col gap-2">
-                <button
-                  onClick={() => handleNodeClick(nodeType.id)}
-                  className={clsx(
-                    'glass flex items-start gap-2.5 rounded-lg border px-3 py-3 text-left transition-all',
-                    isSelected ? 'border-blue-400/70 bg-blue-400/10' : 'hover:border-blue-400/50 hover:bg-white/5'
-                  )}
-                  title={nodeType.description}
-                >
-                  <Icon className="size-4 flex-shrink-0 text-blue-400/70" />
-                  <div className="flex-1">
-                    <div className="text-xs font-medium">{nodeType.label}</div>
-                    {nodeType.description && (
-                      <div className="mt-1 text-[10px] leading-relaxed text-gray-400">{nodeType.description}</div>
-                    )}
-                  </div>
-                </button>
-                {isSelected && <div className="ml-0">{renderForm()}</div>}
-              </div>
-            )
-          })}
-        </div>
-      </Scrollable>
-    </div>
+          return (
+            <SelectableCardWithForm
+              key={nodeType.id}
+              icon={nodeType.icon}
+              label={nodeType.label}
+              description={nodeType.description}
+              isSelected={isSelected}
+              onClick={() => handleNodeClick(nodeType.id)}
+              title={nodeType.description}
+              form={renderForm()}
+            />
+          )
+        })}
+      </SelectableCardList>
+    </SidePanel>
   )
 }

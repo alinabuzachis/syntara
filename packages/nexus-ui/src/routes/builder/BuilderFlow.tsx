@@ -7,11 +7,19 @@ import { edgeTypes } from '../automations/canvas/edges/EdgeType'
 import { CanvasControls } from '../automations/canvas/CanvasControls'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 
-// Type alias from API contracts
+// Type aliases from API contracts
 type Trigger =
   | WorkflowAPI['components']['schemas']['manualTrigger']
   | WorkflowAPI['components']['schemas']['scheduledTrigger']
   | WorkflowAPI['components']['schemas']['eventTrigger']
+
+type Activity = WorkflowAPI['components']['schemas']['activity']
+type TaskActivity = Extract<Activity, { type: 'task' }>
+type ConditionActivity = Extract<Activity, { type: 'condition' }>
+type SequenceActivity = Extract<Activity, { type: 'sequence' }>
+type ParallelActivity = Extract<Activity, { type: 'parallel' }>
+type LoopActivity = Extract<Activity, { type: 'loop' }>
+type JoinActivity = Extract<Activity, { type: 'join' }>
 
 const markerEnd = { type: MarkerType.ArrowClosed }
 
@@ -71,8 +79,211 @@ function getTriggerLabel(trigger: Trigger): string {
   }
 }
 
+// Helper functions to add activities with proper branching logic
+function addActivity(
+  activity: Activity,
+  nodes: NodeType[],
+  edges: EdgeType[],
+  previousIds: string[],
+  sourceHandle?: string
+): string {
+  switch (activity.type) {
+    case 'task':
+      return addTaskActivity(activity, nodes, edges, previousIds, sourceHandle)
+    case 'condition':
+      return addConditionActivity(activity, nodes, edges, previousIds, sourceHandle)
+    case 'sequence':
+      return addSequenceActivity(activity, nodes, edges, previousIds, sourceHandle)
+    case 'parallel':
+      return addParallelActivity(activity, nodes, edges, previousIds, sourceHandle)
+    case 'loop':
+      return addLoopActivity(activity, nodes, edges, previousIds, sourceHandle)
+    case 'join':
+      return addJoinActivity(activity, nodes, edges, previousIds, sourceHandle)
+  }
+}
+
+function addTaskActivity(
+  taskActivity: TaskActivity,
+  nodes: NodeType[],
+  edges: EdgeType[],
+  previousIds: string[],
+  sourceHandle?: string
+) {
+  nodes.push({
+    id: taskActivity.id,
+    type: 'task',
+    position: { x: 0, y: 0 },
+    data: taskActivity,
+  })
+  for (const id of previousIds) {
+    edges.push({
+      id: `${id}-${taskActivity.id}`,
+      source: id,
+      target: taskActivity.id,
+      sourceHandle,
+    })
+  }
+  previousIds.length = 0
+  previousIds.push(taskActivity.id)
+  return taskActivity.id
+}
+
+function addConditionActivity(
+  conditionActivity: ConditionActivity,
+  nodes: NodeType[],
+  edges: EdgeType[],
+  previousIds: string[],
+  sourceHandle?: string
+) {
+  nodes.push({
+    id: conditionActivity.id,
+    type: 'condition',
+    position: { x: 0, y: 0 },
+    data: conditionActivity,
+  })
+  for (const id of previousIds) {
+    edges.push({ id: `${id}-${conditionActivity.id}`, source: id, target: conditionActivity.id, sourceHandle })
+  }
+
+  previousIds = [conditionActivity.id]
+  for (const branch of conditionActivity.then ?? []) {
+    for (const id of previousIds) {
+      edges.push({
+        id: `${id}-${branch.id}-then`,
+        source: id,
+        target: branch.id,
+        sourceHandle: id === conditionActivity.id ? 'then' : 'source',
+      })
+    }
+    addActivity(branch, nodes, edges, previousIds, 'then')
+  }
+
+  previousIds = [conditionActivity.id]
+  for (const branch of conditionActivity.else ?? []) {
+    for (const id of previousIds) {
+      edges.push({
+        id: `${id}-${branch.id}-else`,
+        source: id,
+        target: branch.id,
+        sourceHandle: id === conditionActivity.id ? 'else' : 'source',
+      })
+    }
+    addActivity(branch, nodes, edges, previousIds, 'else')
+  }
+
+  return conditionActivity.id
+}
+
+function addSequenceActivity(
+  sequenceActivity: SequenceActivity,
+  nodes: NodeType[],
+  edges: EdgeType[],
+  previousIds: string[],
+  sourceHandle?: string
+) {
+  let seqPreviousIds = [...previousIds]
+  for (const step of sequenceActivity.steps ?? []) {
+    const added = addActivity(step, nodes, edges, seqPreviousIds, sourceHandle)
+    if (added) {
+      seqPreviousIds = [step.id]
+    }
+  }
+  return sequenceActivity.id
+}
+
+function addParallelActivity(
+  parallelActivity: ParallelActivity,
+  nodes: NodeType[],
+  edges: EdgeType[],
+  previousIds: string[],
+  sourceHandle?: string
+) {
+  const ids: string[] = []
+  for (const branch of parallelActivity.branches ?? []) {
+    ids.push(addActivity(branch, nodes, edges, [...previousIds], sourceHandle))
+  }
+
+  previousIds.length = 0
+  previousIds.push(...ids)
+
+  return parallelActivity.id
+}
+
+function addLoopActivity(
+  loopActivity: LoopActivity,
+  nodes: NodeType[],
+  edges: EdgeType[],
+  previousIds: string[],
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  sourceHandle?: string
+) {
+  nodes.push({
+    id: loopActivity.id,
+    type: 'loop',
+    position: { x: 0, y: 0 },
+    data: loopActivity,
+  })
+  for (const id of previousIds) {
+    edges.push({
+      id: `${id}-${loopActivity.id}`,
+      source: id,
+      target: loopActivity.id,
+      targetHandle: 'target',
+    })
+  }
+
+  let lastId: string = loopActivity.id
+
+  for (const step of loopActivity.loop.do ?? []) {
+    const id = addActivity(step, nodes, edges, [lastId], 'start')
+    lastId = id
+  }
+
+  edges.push({
+    id: `${lastId}-${loopActivity.id}`,
+    source: lastId,
+    target: loopActivity.id,
+    targetHandle: 'end',
+  })
+
+  previousIds.length = 0
+  previousIds.push(loopActivity.id)
+
+  return loopActivity.id
+}
+
+function addJoinActivity(
+  joinActivity: JoinActivity,
+  nodes: NodeType[],
+  edges: EdgeType[],
+  previousIds: string[],
+  sourceHandle?: string
+) {
+  nodes.push({
+    id: joinActivity.id,
+    type: 'join',
+    position: { x: 0, y: 0 },
+    data: joinActivity,
+  })
+  for (const id of previousIds) {
+    edges.push({
+      id: `${id}-${joinActivity.id}`,
+      source: id,
+      target: joinActivity.id,
+      sourceHandle,
+    })
+  }
+
+  previousIds.length = 0
+  previousIds.push(joinActivity.id)
+
+  return joinActivity.id
+}
+
 interface BuilderFlowProps {
   triggerLayout?: number
+  panelOpen?: boolean
 }
 
 export function BuilderFlow(props: BuilderFlowProps) {
@@ -83,6 +294,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const { fitView, getViewport } = useReactFlow()
   const [isInitialized, setIsInitialized] = useState(false)
   const hasRunInitialLayoutRef = useRef(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Reset initialization when workflow is replaced via setWorkflow (e.g., after save/redirect)
   const workflowVersionRef = useRef(workflowVersion)
@@ -119,31 +331,11 @@ export function BuilderFlow(props: BuilderFlowProps) {
       previousIds.push(triggerId)
     })
 
-    // Add activities
+    // Add activities - use helper functions for proper branching logic
     const activities = currentWorkflow?.workflow.activities || []
-    activities.forEach((activity) => {
-      if (activity.type === 'task') {
-        nodes.push({
-          id: activity.id,
-          type: 'task',
-          position: { x: 0, y: 0 },
-          data: activity,
-        })
-
-        // Connect to previous nodes
-        previousIds.forEach((prevId) => {
-          edges.push({
-            id: `${prevId}-${activity.id}`,
-            source: prevId,
-            target: activity.id,
-          })
-        })
-
-        // Update previous IDs for next iteration
-        previousIds.length = 0
-        previousIds.push(activity.id)
-      }
-    })
+    for (const activity of activities) {
+      addActivity(activity, nodes, edges, previousIds)
+    }
 
     return { nodes, edges }
   }, [currentWorkflow])
@@ -177,8 +369,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
           if (!isNaN(triggerIndex)) {
             removeTrigger(triggerIndex)
           }
-        } else if (node.type === 'task') {
-          // Node id for tasks is the activity id
+        } else {
+          // For all activity types (task, condition, sequence, parallel, loop, join)
+          // Node id is the activity id
           removeActivity(node.id)
         }
       })
@@ -203,13 +396,24 @@ export function BuilderFlow(props: BuilderFlowProps) {
   // Update nodes when workflow changes
   useEffect(() => {
     // Check if initialNodes/initialEdges actually changed by comparing with previous values
+    // Use efficient comparison for structure, JSON.stringify only for data content
     const nodesDataChanged =
-      JSON.stringify(initialNodes.map((n) => ({ id: n.id, type: n.type, data: n.data }))) !==
-      JSON.stringify(previousInitialNodesRef.current.map((n) => ({ id: n.id, type: n.type, data: n.data })))
+      initialNodes.length !== previousInitialNodesRef.current.length ||
+      initialNodes.some((node, i) => {
+        const prevNode = previousInitialNodesRef.current[i]
+        return (
+          node.id !== prevNode?.id ||
+          node.type !== prevNode?.type ||
+          JSON.stringify(node.data) !== JSON.stringify(prevNode?.data)
+        )
+      })
 
     const edgesDataChanged =
-      JSON.stringify(initialEdges.map((e) => ({ id: e.id, source: e.source, target: e.target }))) !==
-      JSON.stringify(previousInitialEdgesRef.current.map((e) => ({ id: e.id, source: e.source, target: e.target })))
+      initialEdges.length !== previousInitialEdgesRef.current.length ||
+      initialEdges.some((edge, i) => {
+        const prevEdge = previousInitialEdgesRef.current[i]
+        return edge.id !== prevEdge?.id || edge.source !== prevEdge?.source || edge.target !== prevEdge?.target
+      })
 
     // If nothing changed, skip the entire update
     if (!nodesDataChanged && !edgesDataChanged && isInitialized) {
@@ -321,7 +525,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
       if (nodesToPosition.length > 0) {
         // Get current viewport to position new nodes in top right corner
         const viewport = getViewport()
-        const viewportWidth = window.innerWidth
+        // Use the actual container width instead of window width to account for open panels
+        const viewportWidth = containerRef.current?.clientWidth ?? window.innerWidth
         const padding = 50
         const newNodeX = (-viewport.x + viewportWidth - 350 - padding) / viewport.zoom
         const newNodeY = (-viewport.y + padding) / viewport.zoom
@@ -340,24 +545,37 @@ export function BuilderFlow(props: BuilderFlowProps) {
     }
   }, [nodes, isInitialized, getViewport, setNodes])
 
+  // Adjust viewport when panel opens/closes
+  useEffect(() => {
+    if (isInitialized) {
+      // Small delay to allow CSS transition to complete
+      const timer = setTimeout(() => {
+        fitView({ duration: 300, padding: 0.1 })
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [props.panelOpen, fitView, isInitialized])
+
   return (
-    <ReactFlow<NodeType, EdgeType>
-      className=""
-      colorMode="dark"
-      nodes={nodes}
-      edges={edges}
-      nodeTypes={nodeTypes}
-      edgeTypes={edgeTypes}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onNodesDelete={onNodesDelete}
-      proOptions={{ hideAttribution: true }}
-      fitView
-      minZoom={0.1}
-      maxZoom={1}
-      deleteKeyCode="Delete"
-    >
-      <CanvasControls onLayout={onLayout} />
-    </ReactFlow>
+    <div ref={containerRef} className="size-full">
+      <ReactFlow<NodeType, EdgeType>
+        className=""
+        colorMode="dark"
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodesDelete={onNodesDelete}
+        proOptions={{ hideAttribution: true }}
+        fitView
+        minZoom={0.1}
+        maxZoom={1}
+        deleteKeyCode="Delete"
+      >
+        <CanvasControls onLayout={onLayout} />
+      </ReactFlow>
+    </div>
   )
 }

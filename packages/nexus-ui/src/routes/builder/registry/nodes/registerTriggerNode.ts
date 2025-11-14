@@ -1,4 +1,4 @@
-import { FlagTriangleRightIcon } from 'lucide-react'
+import { PlayIcon } from 'lucide-react'
 import { NodeRegistry } from '../NodeRegistry'
 import { TriggerNodeForm } from '../../node-forms/TriggerNodeForm'
 import type { TriggerFormData } from '../../../hooks/useNodeCreation'
@@ -16,7 +16,7 @@ export function registerTriggerNode() {
   NodeRegistry.register<TriggerFormData>({
     id: 'trigger',
     label: 'Triggers',
-    icon: FlagTriangleRightIcon,
+    icon: PlayIcon,
     category: 'trigger',
     description: 'Start workflow execution with manual, scheduled, or event triggers',
     keywords: ['start', 'begin', 'manual', 'schedule', 'event', 'webhook'],

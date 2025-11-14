@@ -13,7 +13,7 @@ export function registerApprovalNode() {
     category: 'logic',
     description: 'Require human approval before continuing workflow',
     keywords: ['approve', 'approval', 'review', 'manual', 'gate', 'checkpoint'],
-    order: 45,
+    order: 50,
     formComponent: ApprovalNodeForm,
     onSubmit: (data, onSuccess, onError) => {
       try {

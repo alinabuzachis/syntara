@@ -1,4 +1,4 @@
-import { BotIcon } from 'lucide-react'
+import { BrainIcon } from 'lucide-react'
 import { NodeRegistry } from '../NodeRegistry'
 import { AIAgentNodeForm } from '../../node-forms/AIAgentNodeForm'
 
@@ -9,7 +9,7 @@ export function registerAIAgentNode() {
   NodeRegistry.register({
     id: 'agent',
     label: 'AI Agent',
-    icon: BotIcon,
+    icon: BrainIcon,
     category: 'action',
     description: 'Execute tasks using AI agents',
     keywords: ['ai', 'agent', 'llm', 'gpt', 'intelligent', 'autonomous'],

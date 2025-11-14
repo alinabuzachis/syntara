@@ -11,10 +11,10 @@ export function registerAAPNode() {
     id: 'aap',
     label: 'AAP Job Execution',
     icon: AnsibleIcon,
-    category: 'integration',
+    category: 'action',
     description: 'Execute Ansible Automation Platform jobs',
     keywords: ['ansible', 'aap', 'automation', 'playbook', 'job', 'template'],
-    order: 50,
+    order: 40,
     formComponent: AAPNodeForm,
     onSubmit: (data, onSuccess, onError) => {
       try {

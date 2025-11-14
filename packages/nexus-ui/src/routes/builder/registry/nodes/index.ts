@@ -18,9 +18,9 @@ export function registerAllNodes() {
   registerTriggerNode()
   registerAIAgentNode()
   registerActionNode()
+  registerAAPNode()
   registerLogicNode()
   registerApprovalNode()
-  registerAAPNode()
 }
 
 // Re-export the registry for convenience

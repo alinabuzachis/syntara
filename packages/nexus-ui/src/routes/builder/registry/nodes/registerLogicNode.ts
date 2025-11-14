@@ -13,7 +13,7 @@ export function registerLogicNode() {
     category: 'logic',
     description: 'Add conditional logic and branching to workflows',
     keywords: ['if', 'else', 'condition', 'branch', 'switch', 'case', 'decision'],
-    order: 40,
+    order: 50,
     formComponent: LogicNodeForm,
     onSubmit: (data, onSuccess, onError) => {
       try {

@@ -23,6 +23,7 @@ export const navigationItems: INavigationItem[] = [
     label: 'Builder',
     path: AppRoute.AutomationBuilder.New,
     element: <BuilderNew />,
+    matchPattern: '/automation-builder/:workflowId',
   },
   {
     label: 'Automations',

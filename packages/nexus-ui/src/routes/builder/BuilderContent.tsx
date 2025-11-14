@@ -55,6 +55,8 @@ export function BuilderContent(props: BuilderContentProps) {
     },
     {
       enabled: !!workflowId && !isNew,
+      staleTime: 30000, // Consider fresh for 30 seconds
+      gcTime: 300000, // Keep in cache for 5 minutes
     }
   )
 
@@ -217,6 +219,9 @@ export function BuilderContent(props: BuilderContentProps) {
     setDetailsOpen((prev) => {
       const newState = !prev
       if (newState) {
+        // Close other panels when opening details
+        setAddNodePanelOpen(false)
+        setHistoryCardOpen(false)
         reactFlowInstance.setNodes((nodes) => nodes.map((node) => ({ ...node, selected: false })))
       }
       return newState
@@ -227,9 +232,24 @@ export function BuilderContent(props: BuilderContentProps) {
     const newHistoryState = !historyCardOpen
     setHistoryCardOpen(newHistoryState)
     if (newHistoryState) {
+      // Close other panels when opening history
+      setAddNodePanelOpen(false)
+      setDetailsOpen(false)
       executionsQuery.refetch()
     }
   }, [historyCardOpen, executionsQuery])
+
+  const handleToggleAddNodePanel = useCallback(() => {
+    setAddNodePanelOpen((prev) => {
+      const newState = !prev
+      if (newState) {
+        // Close other panels when opening add node panel
+        setDetailsOpen(false)
+        setHistoryCardOpen(false)
+      }
+      return newState
+    })
+  }, [])
 
   const handleCancel = useCallback(() => {
     setWorkflow(null)
@@ -239,119 +259,115 @@ export function BuilderContent(props: BuilderContentProps) {
   return (
     <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
       <AppPage>
-        <div className="relative flex grow flex-col gap-4">
-          <AppPageHeader
-            title={
-              <input
-                type="text"
-                value={workflowName}
-                onChange={(e) => setWorkflowName(e.target.value)}
-                className="-ml-2 rounded bg-transparent px-2 py-1 text-lg font-semibold outline-none focus:ring-2 focus:ring-blue-400/50"
-                placeholder="Workflow name"
-              />
-            }
-          >
-            <Button variant="plain" onClick={() => setAddNodePanelOpen(true)} className="text-sm whitespace-nowrap">
-              <PlusIcon className="mr-1.5 size-3.5" />
-              Add Node
-            </Button>
-
-            <div className="h-8 w-px bg-white/20" />
-
-            {!isNew && workflow?.id && (
-              <>
-                <Button variant="plain" onClick={() => setConfirmDialogOpen(true)} className="text-sm">
-                  <PlayIcon className="mr-1.5 size-3.5" />
-                  Run
-                </Button>
-                <div className="h-8 w-px bg-white/20" />
-              </>
-            )}
-
-            <Tooltip content="Workflow details">
-              <Button variant="plain" onClick={handleToggleDetails}>
-                <FileCode className="size-3.5" />
+        <div className="relative flex grow gap-4 overflow-hidden">
+          <div className="relative flex min-w-0 grow flex-col gap-2 overflow-hidden transition-all duration-300">
+            <AppPageHeader
+              title={
+                <input
+                  type="text"
+                  value={workflowName}
+                  onChange={(e) => setWorkflowName(e.target.value)}
+                  className="-ml-2 w-full truncate rounded bg-transparent px-2 py-1 text-base font-semibold outline-none focus:ring-2 focus:ring-blue-400/50"
+                  placeholder="Workflow name"
+                />
+              }
+            >
+              <Button variant="plain" onClick={handleToggleAddNodePanel} className="text-sm whitespace-nowrap">
+                <PlusIcon className="mr-1.5 size-3.5" />
+                Add Node
               </Button>
-            </Tooltip>
 
-            {!isNew && workflow?.id && (
-              <Tooltip content="Run history">
-                <Button variant="plain" onClick={handleToggleHistory}>
-                  <ClockIcon className="size-3.5" />
+              <div className="h-8 w-px bg-white/20" />
+
+              {!isNew && workflow?.id && (
+                <>
+                  <Button variant="plain" onClick={() => setConfirmDialogOpen(true)} className="text-sm">
+                    <PlayIcon className="mr-1.5 size-3.5" />
+                    Run
+                  </Button>
+                  <div className="h-8 w-px bg-white/20" />
+                </>
+              )}
+
+              <Tooltip content="Workflow details">
+                <Button variant="plain" onClick={handleToggleDetails}>
+                  <FileCode className="size-3.5" />
                 </Button>
               </Tooltip>
-            )}
 
-            <div className="h-8 w-px bg-white/20" />
+              {!isNew && workflow?.id && (
+                <Tooltip content="Run history">
+                  <Button variant="plain" onClick={handleToggleHistory}>
+                    <ClockIcon className="size-3.5" />
+                  </Button>
+                </Tooltip>
+              )}
 
-            <Button variant="plain" onClick={handleSaveWorkflow} disabled={isPending} className="text-sm">
-              <SaveIcon className="mr-1.5 size-3.5" />
-              {isPending ? 'Saving...' : 'Save'}
-            </Button>
+              <div className="h-8 w-px bg-white/20" />
 
-            <Button variant="plain" onClick={handleCancel} className="text-sm">
-              <XIcon className="mr-1.5 size-3.5" />
-              Cancel
-            </Button>
+              <Button variant="plain" onClick={handleSaveWorkflow} disabled={isPending} className="text-sm">
+                <SaveIcon className="mr-1.5 size-3.5" />
+                {isPending ? 'Saving...' : 'Save'}
+              </Button>
 
-            {!isNew && (
-              <>
-                <div className="h-8 w-px bg-white/20" />
-                <Switch
-                  checked={isEnabled}
-                  handleChange={setIsEnabled}
-                  showLabels
-                  enabledLabel="Enabled"
-                  disabledLabel="Disabled"
+              <Button variant="plain" onClick={handleCancel} className="text-sm">
+                <XIcon className="mr-1.5 size-3.5" />
+                Cancel
+              </Button>
+
+              {!isNew && (
+                <>
+                  <div className="h-8 w-px bg-white/20" />
+                  <Switch
+                    checked={isEnabled}
+                    handleChange={setIsEnabled}
+                    showLabels
+                    enabledLabel="Enabled"
+                    disabledLabel="Disabled"
+                  />
+                </>
+              )}
+            </AppPageHeader>
+
+            <div className="relative flex min-w-0 grow gap-2 overflow-hidden">
+              <div className="relative isolate flex min-w-0 grow gap-2 overflow-hidden">
+                <div className="glass absolute inset-0 rounded-4xl border-2"></div>
+                <BuilderFlow panelOpen={addNodePanelOpen} />
+              </div>
+
+              {addNodePanelOpen && (
+                <AddNodePanel
+                  onClose={() => setAddNodePanelOpen(false)}
+                  onNodeSelect={showSuccess}
+                  onNodeError={showError}
                 />
-              </>
-            )}
-          </AppPageHeader>
+              )}
 
-          <div className="relative flex grow gap-4 overflow-hidden">
-            <div className="relative isolate flex grow gap-4 overflow-hidden">
-              <div className="glass absolute inset-0 rounded-4xl border-2"></div>
-              <BuilderFlow />
+              {historyCardOpen && !isNew && (
+                <AutomationHistoryCard
+                  executions={executionsQuery.data?.resources ?? []}
+                  onClose={() => setHistoryCardOpen(false)}
+                />
+              )}
+
+              {detailsOpen && workflow && (
+                <WorkflowSidepanel
+                  workflow={workflow}
+                  workflowName={workflowName}
+                  workflowDescription={workflowDescription}
+                  onNameChange={setWorkflowName}
+                  onDescriptionChange={setWorkflowDescription}
+                  onClose={() => setDetailsOpen(false)}
+                />
+              )}
+
+              {sidePanelState[0] && (
+                <Scrollable className="glass h-full max-w-100 rounded-4xl border-2 text-xs">
+                  {sidePanelState[0]}
+                </Scrollable>
+              )}
             </div>
-
-            {sidePanelState[0] && (
-              <Scrollable className="glass max-h-full max-w-100 rounded-4xl border-2 text-xs">
-                {sidePanelState[0]}
-              </Scrollable>
-            )}
           </div>
-
-          {historyCardOpen && !isNew && (
-            <div className="absolute inset-0 right-0 z-10 flex items-stretch justify-end">
-              <AutomationHistoryCard
-                executions={executionsQuery.data?.resources ?? []}
-                onClose={() => setHistoryCardOpen(false)}
-              />
-            </div>
-          )}
-
-          {detailsOpen && workflow && (
-            <div className="absolute inset-0 right-0 z-20 flex items-stretch justify-end">
-              <WorkflowSidepanel
-                workflow={workflow}
-                workflowName={workflowName}
-                workflowDescription={workflowDescription}
-                onNameChange={setWorkflowName}
-                onDescriptionChange={setWorkflowDescription}
-                onClose={() => setDetailsOpen(false)}
-              />
-            </div>
-          )}
-
-          {addNodePanelOpen && (
-            <div className="absolute inset-0 right-0 z-20 flex items-stretch justify-end">
-              <AddNodePanel
-                onClose={() => setAddNodePanelOpen(false)}
-                onNodeSelect={showSuccess}
-                onNodeError={showError}
-              />
-            </div>
-          )}
         </div>
 
         <ConfirmDialog
