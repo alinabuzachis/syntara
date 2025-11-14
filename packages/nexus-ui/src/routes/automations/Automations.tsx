@@ -10,7 +10,7 @@ import { useFuse } from '../../hooks/useFuse'
 import { PlayIcon, ListIcon, PencilIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { ConfirmDialog, useAlerts } from '@ansible/nexus-ui-framework'
+import { ConfirmDialog, useAlerts, Input, Button } from '@ansible/nexus-ui-framework'
 import { SwitchCell } from '../../components/table/SwitchCell.tsx'
 import { useLocation } from 'wouter'
 
@@ -87,18 +87,15 @@ export default function Automations() {
   return (
     <AppPage>
       <AppPageHeader title="Automations">
-        <input
+        <Input
           className="search grow"
           placeholder="Search automations..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button
-          className="rounded-full bg-blue-400/70 px-4 py-1"
-          onClick={() => setLocation('/automation-builder/new')}
-        >
+        <Button variant="primary" onClick={() => setLocation('/automation-builder/new')}>
           Create Automation
-        </button>
+        </Button>
       </AppPageHeader>
       <Table
         items={automations}

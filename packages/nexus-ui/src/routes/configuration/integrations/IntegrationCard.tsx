@@ -1,10 +1,10 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
-import { Menu, MenuItem, MenuItems, MenuTrigger } from '@ansible/nexus-ui-framework'
+import { Menu, MenuItem, MenuItems, MenuTrigger, Card } from '@ansible/nexus-ui-framework'
 import { EllipsisVerticalIcon } from 'lucide-react'
 
 export function IntegrationCard(props: { integration: ToolProvider }) {
   return (
-    <div className="glass flex flex-col gap-4 rounded-2xl border p-8">
+    <Card variant="glass" padding="lg" className="flex flex-col gap-4 rounded-2xl">
       <div>
         <div className="flex items-center justify-between">
           <div className="text-lg font-bold">{props.integration.name}</div>
@@ -46,6 +46,6 @@ export function IntegrationCard(props: { integration: ToolProvider }) {
           </>
         )}
       </dl> */}
-    </div>
+    </Card>
   )
 }

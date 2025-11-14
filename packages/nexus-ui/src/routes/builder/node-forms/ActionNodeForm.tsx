@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
-import { Button } from '@ansible/nexus-ui-framework'
+import { Button, Card, Heading, Input, Textarea } from '@ansible/nexus-ui-framework'
 import { useState } from 'react'
 
 interface ActionNodeFormProps {
@@ -41,16 +41,18 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
   }
 
   return (
-    <div className="glass flex flex-col gap-3 rounded-lg border p-4">
-      <h3 className="text-sm font-semibold">Configure Action Task</h3>
+    <Card variant="glass" padding="md" className="flex flex-col gap-3">
+      <Heading level={3} size="sm">
+        Configure Action Task
+      </Heading>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-gray-300">Activity Name</label>
-          <input
+          <Input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
+            className="text-xs"
             placeholder="Enter activity name"
             required
           />
@@ -82,10 +84,10 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-gray-300">Code</label>
-              <textarea
+              <Textarea
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="rounded-md bg-white/5 px-3 py-1.5 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
+                className="text-xs"
                 placeholder="Enter your code..."
                 rows={5}
                 required
@@ -112,31 +114,31 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-gray-300">URL</label>
-              <input
+              <Input
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
+                className="text-xs"
                 placeholder="https://api.example.com/endpoint"
                 required
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-gray-300">Headers (JSON)</label>
-              <textarea
+              <Textarea
                 value={headers}
                 onChange={(e) => setHeaders(e.target.value)}
-                className="rounded-md bg-white/5 px-3 py-1.5 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
+                className="text-xs"
                 placeholder='{"Content-Type": "application/json"}'
                 rows={2}
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-gray-300">Body (JSON)</label>
-              <textarea
+              <Textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                className="rounded-md bg-white/5 px-3 py-1.5 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
+                className="text-xs"
                 placeholder='{"key": "value"}'
                 rows={3}
               />
@@ -148,6 +150,6 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
           Add Task
         </Button>
       </form>
-    </div>
+    </Card>
   )
 }

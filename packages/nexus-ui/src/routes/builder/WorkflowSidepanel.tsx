@@ -1,4 +1,4 @@
-import { Button, Scrollable } from '@ansible/nexus-ui-framework'
+import { Button, Scrollable, Input, Textarea, Card, Heading } from '@ansible/nexus-ui-framework'
 import { FileCode, XIcon } from 'lucide-react'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import clsx from 'clsx'
@@ -19,12 +19,16 @@ interface WorkflowSidepanelProps {
 
 export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
   return (
-    <div className={clsx('glass flex max-h-full max-w-100 flex-col gap-4 rounded-4xl border-2 py-6')}>
+    <Card
+      variant="glass"
+      padding="none"
+      className={clsx('flex max-h-full max-w-100 flex-col gap-4 rounded-4xl border-2 py-6')}
+    >
       <header className="flex items-center justify-between px-6">
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
+        <Heading level={2} size="lg" className="flex items-center gap-2">
           <FileCode className="size-5" />
           Workflow Details
-        </h2>
+        </Heading>
         <Button variant="plain" onClick={props.onClose} className="p-1">
           <XIcon className="size-4" />
         </Button>
@@ -32,18 +36,18 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
       <Scrollable className="px-6">
         <Details>
           <Detail label="Workflow Name">
-            <input
+            <Input
               type="text"
               value={props.workflowName}
               onChange={(e) => props.onNameChange(e.target.value)}
-              className="w-full rounded-lg bg-white/5 px-3 py-2 text-sm"
+              className="w-full text-sm"
             />
           </Detail>
           <Detail label="Description">
-            <textarea
+            <Textarea
               value={props.workflowDescription}
               onChange={(e) => props.onDescriptionChange(e.target.value)}
-              className="w-full rounded-lg bg-white/5 px-3 py-2 text-sm"
+              className="w-full text-sm"
               rows={3}
             />
           </Detail>
@@ -54,6 +58,6 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
           )}
         </Details>
       </Scrollable>
-    </div>
+    </Card>
   )
 }

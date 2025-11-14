@@ -129,7 +129,9 @@ describe('IntegrationCard Component', () => {
       const { container } = render(<IntegrationCard integration={mockIntegration} />)
 
       const card = container.firstChild as HTMLElement
-      expect(card).toHaveClass('glass', 'flex', 'flex-col', 'gap-4', 'rounded-2xl', 'border', 'p-8')
+      // Card component with variant="glass" padding="lg" applies: glass, border, rounded-lg, p-6
+      // Plus custom classes: flex, flex-col, gap-4, rounded-2xl
+      expect(card).toHaveClass('glass', 'flex', 'flex-col', 'gap-4', 'rounded-2xl', 'border', 'p-6')
     })
 
     it('applies correct styling to description', () => {
