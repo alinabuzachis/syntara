@@ -58,6 +58,60 @@ npm run format:check       # Check formatting
 - Styling: TailwindCSS 4
 - Form handling: react-hook-form
 
+### Component Development Guidelines
+
+**CRITICAL: Always prioritize reusing and extending existing components from `nexus-ui-framework`**
+
+Before writing any new UI code, follow this checklist:
+
+1. **Check for Existing Components**
+   - Search `packages/nexus-ui-framework/src/components/` for existing components
+   - Review current components: Button, Alert, Switch, Table, Dialog, EmptyState, Menu, Tooltip, Checkbox, etc.
+   - Verify if an existing component can be reused or extended
+
+2. **Component Location Strategy**
+   - **Reusable/Generic components** → `packages/nexus-ui-framework/src/components/`
+   - **Application-specific components** → `packages/nexus-ui/src/components/`
+   - When in doubt, prefer framework location for better reusability
+
+3. **Building New Framework Components**
+   - ALWAYS use `@base-ui-components/react` as the foundation
+   - Build headless, accessible components following Base UI patterns
+   - Include comprehensive tests (see existing `.test.tsx` files)
+   - Export from `packages/nexus-ui-framework/src/index.tsx`
+
+4. **Custom Hooks**
+   - Extract reusable logic into custom hooks
+   - Place hooks in `packages/nexus-ui-framework/src/hooks/` (create if needed)
+   - Follow naming convention: `useXxx`
+   - Include TypeScript types
+
+5. **Code Abstraction**
+   - Identify and eliminate redundant code patterns
+   - Create shared utilities for common operations
+   - Use composition over duplication
+   - Follow DRY (Don't Repeat Yourself) principles
+
+6. **React Best Practices**
+   - Leverage React 19 features
+   - Use functional components and hooks
+   - Use proper TypeScript typing (avoid `any`)
+   - Implement proper error boundaries
+   - Follow component composition patterns
+   - Use proper key props for lists
+   - Prefer controlled components for forms (react-hook-form)
+   - Use proper semantic HTML
+
+**Example Workflow:**
+
+```text
+User Request: "Add a confirmation dialog"
+Step 1: Check nexus-ui-framework for Dialog component ✓ (exists)
+Step 2: Check for ConfirmDialog variant ✓ (exists)
+Step 3: Use existing ConfirmDialog from framework
+Result: No new code needed, use import from 'nexus-ui-framework'
+```
+
 ### Critical Development Workflows
 
 1. Dependency Management
@@ -86,8 +140,8 @@ npm run format:check       # Check formatting
 
 ### Port Configuration
 
-- UI: http://localhost:5173
-- Mock API: http://localhost:3000
+- UI: <http://localhost:5173>
+- Mock API: <http://localhost:3000>
 
 ## Deployment Considerations
 
