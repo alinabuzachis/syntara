@@ -1,7 +1,11 @@
-import { render, screen } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import Executions from './Executions'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { useSearch } from 'wouter'
+
+import { workflowClient } from '../../client'
+
+import Executions from './Executions'
 
 // Mock the workflowClient
 vi.mock('../../client', () => ({
@@ -19,9 +23,6 @@ vi.mock('wouter', async (importOriginal) => {
     useSearch: vi.fn(() => ''),
   }
 })
-
-import { workflowClient } from '../../client'
-import { useSearch } from 'wouter'
 
 describe('Executions Component', () => {
   const mockExecutions: WorkflowAPI.components['schemas']['Execution'][] = [

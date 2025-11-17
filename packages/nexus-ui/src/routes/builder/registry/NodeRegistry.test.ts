@@ -1,7 +1,8 @@
+import { PlayIcon, PauseIcon } from 'lucide-react'
 import { describe, it, expect, beforeEach } from 'vitest'
+
 import { NodeRegistry } from './NodeRegistry'
 import type { NodeTypeDefinition } from './NodeRegistry'
-import { PlayIcon, PauseIcon } from 'lucide-react'
 
 // Mock form component for testing
 const MockForm = () => null
@@ -29,9 +30,7 @@ describe('NodeRegistry', () => {
       expect(registered?.label).toBe('Test Node')
     })
 
-    it('should warn when overwriting existing node', () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
+    it('should allow overwriting existing node', () => {
       NodeRegistry.register({
         id: 'duplicate',
         label: 'First',
@@ -48,12 +47,8 @@ describe('NodeRegistry', () => {
         onSubmit: () => {},
       })
 
-      expect(consoleSpy).toHaveBeenCalledWith('Node type "duplicate" is already registered. Overwriting.')
-
       const registered = NodeRegistry.get('duplicate')
       expect(registered?.label).toBe('Second')
-
-      consoleSpy.mockRestore()
     })
 
     it('should set default values for optional fields', () => {

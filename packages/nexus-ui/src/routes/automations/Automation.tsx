@@ -16,6 +16,7 @@ import {
 import type { WorkflowWithVersion, WorkflowAPI } from 'nexus-contracts'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useParams, useSearch } from 'wouter'
+
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
@@ -23,6 +24,7 @@ import { CodeBlock } from '../../components/details/CodeBlock'
 import { Detail } from '../../components/details/Detail'
 import { Details } from '../../components/details/Details'
 import { useQueryState } from '../../components/states/useQueryState'
+
 import { AutomationFlow } from './canvas/AutomationFlow'
 import { NodeExpandedAllContext } from './canvas/nodes/common/NodeExpandedAllContext'
 import { useSelectedNodes } from './canvas/nodes/common/useSelectedNode'
@@ -80,7 +82,7 @@ function AutomationContent(props: {
       {
         onSuccess: () => {
           showSuccess(`Successfully started automation "${workflow.name}"`, 'Automation Started')
-          executionsQuery.refetch()
+          void executionsQuery.refetch()
         },
         onError: (error) => {
           showError(
@@ -120,7 +122,7 @@ function AutomationContent(props: {
     const newHistoryState = !historyCardOpen
     setHistoryCardOpen(newHistoryState)
     if (newHistoryState) {
-      executionsQuery.refetch()
+      void executionsQuery.refetch()
     }
   }
 

@@ -1,4 +1,5 @@
 import { type NodeTypes } from '@xyflow/react'
+
 import { type ConditionNode, ConditionNodeComponent } from './ConditionNode'
 import { type JoinNode, JoinNodeComponent } from './JoinNode'
 import { type LoopNode, LoopNodeComponent } from './LoopNode'

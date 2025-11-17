@@ -1,5 +1,5 @@
-import { create } from 'zustand'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { create } from 'zustand'
 
 // Type aliases from API contracts
 type WorkflowDefinition = WorkflowAPI['components']['schemas']['workflow-definition.schema']

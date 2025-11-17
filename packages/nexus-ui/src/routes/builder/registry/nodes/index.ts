@@ -3,12 +3,12 @@
  * Import and call all registration functions here
  */
 
-import { registerTriggerNode } from './registerTriggerNode'
+import { registerAAPNode } from './registerAAPNode'
 import { registerActionNode } from './registerActionNode'
 import { registerAIAgentNode } from './registerAIAgentNode'
-import { registerLogicNode } from './registerLogicNode'
-import { registerAAPNode } from './registerAAPNode'
 import { registerApprovalNode } from './registerApprovalNode'
+import { registerLogicNode } from './registerLogicNode'
+import { registerTriggerNode } from './registerTriggerNode'
 
 /**
  * Register all node types

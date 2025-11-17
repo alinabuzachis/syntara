@@ -3,6 +3,7 @@ import { Button, ConfirmDialog, EmptyStateNoData, Form, useAlerts } from '@ansib
 import { RefreshCwIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useLocation, useParams } from 'wouter'
+
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute.tsx'
@@ -52,7 +53,7 @@ export default function IntegrationTools() {
             variant: 'success',
             autoDismiss: true,
           })
-          query.refetch()
+          void query.refetch()
         },
         onError: (error) => {
           showAlert({
@@ -113,7 +114,7 @@ export default function IntegrationTools() {
         id="tools-form"
         onSubmit={() => {
           //e.preventDefault()
-          handleSubmit()
+          void handleSubmit()
         }}
         className="flex grow flex-col overflow-hidden"
       >
@@ -158,7 +159,6 @@ export default function IntegrationTools() {
           }
           onSelectionChange={(selected) => {
             setEnabledTools(selected)
-            console.log(`${selected.length} tools enabled`)
           }}
         />
       </Form>

@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+
 import { ErrorState } from './states/ErrorState'
 
 interface ErrorBoundaryProps {
@@ -21,8 +22,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, errorInfo: unknown) {
-    console.error('Error caught by boundary:', error, errorInfo)
+  componentDidCatch() {
+    // Error boundary caught an error
   }
 
   render() {

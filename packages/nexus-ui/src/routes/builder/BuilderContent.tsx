@@ -1,20 +1,21 @@
-import { Button, ConfirmDialog, Switch, Tooltip, useAlerts } from '@ansible/nexus-ui-framework'
+import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { Button, ConfirmDialog, Switch, Tooltip, useAlerts, Scrollable } from '@ansible/nexus-ui-framework'
 import { useReactFlow } from '@xyflow/react'
 import { PlayIcon, SaveIcon, PlusIcon, XIcon, FileCode, ClockIcon } from 'lucide-react'
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { useMemo, useState, useEffect, type ReactNode, useCallback } from 'react'
 import { useLocation } from 'wouter'
+
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
 import { workflowClient } from '../../client'
-import { Scrollable } from '@ansible/nexus-ui-framework'
-import { NodeExpandedAllContext } from '../automations/canvas/nodes/common/NodeExpandedAllContext'
-import { AddNodePanel } from './AddNodePanel'
-import { BuilderFlow } from './BuilderFlow'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
-import { WorkflowSidepanel } from './WorkflowSidepanel'
+import { NodeExpandedAllContext } from '../automations/canvas/nodes/common/NodeExpandedAllContext'
+
+import { AddNodePanel } from './AddNodePanel'
 import { AutomationHistoryCard } from './AutomationHistoryCard'
+import { BuilderFlow } from './BuilderFlow'
+import { WorkflowSidepanel } from './WorkflowSidepanel'
 
 // Type aliases from API contracts
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
@@ -235,7 +236,7 @@ export function BuilderContent(props: BuilderContentProps) {
       // Close other panels when opening history
       setAddNodePanelOpen(false)
       setDetailsOpen(false)
-      executionsQuery.refetch()
+      void executionsQuery.refetch()
     }
   }, [historyCardOpen, executionsQuery])
 

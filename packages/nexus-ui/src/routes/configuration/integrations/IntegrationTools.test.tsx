@@ -1,10 +1,12 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-import type { ReactNode } from 'react'
-import IntegrationTools from './IntegrationTools'
-import { toolProvidersClient, toolsClient } from '../../../client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AlertProvider } from '@ansible/nexus-ui-framework'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+
+import { toolProvidersClient, toolsClient } from '../../../client'
+
+import IntegrationTools from './IntegrationTools'
 
 // Mock dependencies
 vi.mock('../../../client', () => ({
@@ -454,8 +456,6 @@ describe('IntegrationTools Component', () => {
 
   describe('Selection Callback', () => {
     it('calls onSelectionChange when tools are selected', () => {
-      const consoleSpy = vi.spyOn(console, 'log')
-
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
@@ -464,8 +464,8 @@ describe('IntegrationTools Component', () => {
       // Select tool-2
       fireEvent.click(tool2Checkbox)
 
-      // Console log should be called with selection count
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('tools enabled'))
+      // Verify enabledTools state was updated
+      expect(tool2Checkbox).toBeChecked()
     })
   })
 

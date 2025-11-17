@@ -1,9 +1,10 @@
-import { FileCode } from 'lucide-react'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { SidePanel } from '@ansible/nexus-ui-framework'
+import { FileCode } from 'lucide-react'
+
+import { CodeBlock } from '../../components/details/CodeBlock'
 import { Detail } from '../../components/details/Detail'
 import { Details } from '../../components/details/Details'
-import { CodeBlock } from '../../components/details/CodeBlock'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 

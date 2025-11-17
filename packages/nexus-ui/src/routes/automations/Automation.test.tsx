@@ -1,11 +1,13 @@
+import type { WorkflowWithVersion } from '@ansible/nexus-contracts'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
-import { workflowClient } from '../../client'
-import Automation, { AutomationSidepanel } from './Automation'
-import type { WorkflowWithVersion } from '@ansible/nexus-contracts'
-import * as useSelectedNodeModule from './canvas/nodes/common/useSelectedNode'
 import type { Node } from '@xyflow/react'
+import { describe, expect, it, vi } from 'vitest'
+
+import { workflowClient } from '../../client'
+
+import Automation, { AutomationSidepanel } from './Automation'
+import * as useSelectedNodeModule from './canvas/nodes/common/useSelectedNode'
 
 // Mock ResizeObserver
 class ResizeObserverMock {

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
 import { FormProvider, useForm } from 'react-hook-form'
+import { describe, it, expect } from 'vitest'
+
 import { FormTextarea } from './FormTextarea'
 
 type TestFormData = {

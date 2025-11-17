@@ -1,5 +1,6 @@
 import { Collapsible, Scrollable } from '@ansible/nexus-ui-framework'
 import { useContext, type ReactNode } from 'react'
+
 import { NodeExpandedContext } from './NodeExpandedContext'
 
 export function NodeBody(props: { children: ReactNode; className?: string }) {

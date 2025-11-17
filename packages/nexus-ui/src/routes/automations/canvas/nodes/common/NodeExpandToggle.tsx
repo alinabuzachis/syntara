@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { ChevronDownIcon } from 'lucide-react'
 import { useContext } from 'react'
+
 import { NodeExpandedContext } from './NodeExpandedContext'
 
 export function NodeExpandToggle() {

@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+
 import type { NodeTypeDefinition } from '../registry/NodeRegistry'
 
 interface NodeTypeButtonProps {

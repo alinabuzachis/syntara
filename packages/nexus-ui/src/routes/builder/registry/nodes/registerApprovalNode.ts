@@ -1,6 +1,7 @@
 import { UserCheckIcon } from 'lucide-react'
-import { NodeRegistry } from '../NodeRegistry'
+
 import { ApprovalNodeForm } from '../../node-forms/ApprovalNodeForm'
+import { NodeRegistry } from '../NodeRegistry'
 
 /**
  * Register the Approval node type

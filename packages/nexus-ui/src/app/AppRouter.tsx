@@ -1,7 +1,9 @@
 import { Suspense } from 'react'
 import { Redirect, Route, Switch } from 'wouter'
+
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { LoadingState } from '../components/states/LoadingState'
+
 import { navigationItems } from './navigationItems'
 
 export function AppRouter() {

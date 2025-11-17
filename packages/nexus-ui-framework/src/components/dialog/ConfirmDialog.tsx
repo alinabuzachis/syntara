@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react'
+
+import { Button } from '../Button'
+
 import { Dialog } from './Dialog'
+import { DialogDescription } from './DialogDescription'
 import { DialogPopup } from './DialogPopup'
 import { DialogTitle } from './DialogTitle'
-import { DialogDescription } from './DialogDescription'
-import { Button } from '../Button'
 
 export interface ConfirmDialogProps {
   open: boolean

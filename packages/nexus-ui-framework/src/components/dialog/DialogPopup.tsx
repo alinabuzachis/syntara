@@ -1,6 +1,6 @@
 import { Dialog as BaseDialog } from '@base-ui-components/react'
-import type { ReactNode } from 'react'
 import clsx from 'clsx'
+import type { ReactNode } from 'react'
 
 export function DialogPopup({ children, className }: { children?: ReactNode; className?: string }) {
   return (

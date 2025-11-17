@@ -1,4 +1,5 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
+
 import { statusIcons, statusColors } from './executionStatusConstants'
 
 type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']

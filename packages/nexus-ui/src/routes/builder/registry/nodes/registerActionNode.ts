@@ -1,8 +1,9 @@
 import { AppWindowIcon } from 'lucide-react'
-import { NodeRegistry } from '../NodeRegistry'
-import { ActionNodeForm } from '../../node-forms/ActionNodeForm'
-import type { ActionFormData } from '../../../hooks/useNodeCreation'
+
 import { createScriptActivity, createApiActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
+import type { ActionFormData } from '../../../hooks/useNodeCreation'
+import { ActionNodeForm } from '../../node-forms/ActionNodeForm'
+import { NodeRegistry } from '../NodeRegistry'
 
 /**
  * Register the Action node type

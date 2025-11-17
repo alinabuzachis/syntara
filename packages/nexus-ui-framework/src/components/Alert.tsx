@@ -1,6 +1,6 @@
+import clsx from 'clsx'
 import { AlertCircleIcon, CheckCircleIcon, InfoIcon, XCircleIcon, XIcon } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import clsx from 'clsx'
 
 export type AlertVariant = 'success' | 'error' | 'warning' | 'info'
 

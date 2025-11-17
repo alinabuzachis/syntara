@@ -1,8 +1,10 @@
 import { type Node, type NodeProps } from '@xyflow/react'
 import type { WorkflowAPI } from 'nexus-contracts'
+
 import { CodeBlock } from '../../../../components/details/CodeBlock'
 import { Detail } from '../../../../components/details/Detail'
 import { Details } from '../../../../components/details/Details'
+
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'

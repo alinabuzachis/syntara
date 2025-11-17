@@ -1,10 +1,8 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
+
 import { Details } from '../../../../components/details/Details'
-import { NodeBody } from './common/NodeBody'
-import { NodeComponent } from './common/NodeComponent'
-import { StandardNodeHeader } from './common/StandardNodeHeader'
-import { nodeMetadata, executorMetadata } from './nodeMetadata'
+
 import {
   renderCondition,
   renderInputs,
@@ -13,6 +11,10 @@ import {
   renderObject,
   renderText,
 } from './common/detailRenderers'
+import { NodeBody } from './common/NodeBody'
+import { NodeComponent } from './common/NodeComponent'
+import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { nodeMetadata, executorMetadata } from './nodeMetadata'
 
 export type TaskNode = { type: 'task' } & Node<TaskActivity>
 

@@ -1,5 +1,6 @@
 import { EmptyStateNoData } from '@ansible/nexus-ui-framework'
 import { navigate } from 'wouter/use-browser-location'
+
 import { AppRoute } from '../../../app/AppRoute.tsx'
 
 export function IntegrationEmptyState() {

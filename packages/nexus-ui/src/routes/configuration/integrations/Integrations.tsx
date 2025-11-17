@@ -14,6 +14,7 @@ import {
 import { CheckCircle2Icon, EllipsisVerticalIcon, EyeIcon, Loader2Icon, Trash2Icon, XCircleIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
+
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
@@ -23,6 +24,7 @@ import { useQueryState } from '../../../components/states/useQueryState'
 import { StringCell } from '../../../components/table/StringCell'
 import { Table, type IRowAction } from '../../../components/table/Table'
 import { useFuse } from '../../../hooks/useFuse'
+
 import { IntegrationCard } from './IntegrationCard'
 import { IntegrationEmptyState } from './IntegrationEmptyState'
 
@@ -91,7 +93,7 @@ export default function Integrations() {
             variant: 'success',
             autoDismiss: true,
           })
-          query.refetch()
+          void query.refetch()
         },
         onError: (error) => {
           showAlert({
@@ -122,7 +124,7 @@ export default function Integrations() {
             variant: 'success',
             autoDismiss: true,
           })
-          query.refetch()
+          void query.refetch()
         },
         onError: (error) => {
           showAlert({

@@ -14,8 +14,9 @@
  */
 
 import { BellIcon } from 'lucide-react'
-import { NodeRegistry } from '../NodeRegistry'
+
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore'
+import { NodeRegistry } from '../NodeRegistry'
 import type { BaseNodeFormProps } from '../NodeRegistry'
 
 // 1. Define your form data type

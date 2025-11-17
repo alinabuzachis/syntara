@@ -1,8 +1,10 @@
 import { Scrollable } from '@ansible/nexus-ui-framework'
 import Fuse from 'fuse.js'
 import { useState } from 'react'
+
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
+
 import { useGlossaryTerms } from './useGlossaryTerms'
 
 export default function Glossary() {

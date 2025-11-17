@@ -1,7 +1,8 @@
+import type { ToolProvider } from '@ansible/nexus-contracts'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+
 import { IntegrationCard } from './IntegrationCard'
-import type { ToolProvider } from '@ansible/nexus-contracts'
 
 describe('IntegrationCard Component', () => {
   const mockIntegration: ToolProvider = {

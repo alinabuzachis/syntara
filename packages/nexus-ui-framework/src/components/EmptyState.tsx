@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+
 import { Button } from './Button'
 
 export interface EmptyStateProps {

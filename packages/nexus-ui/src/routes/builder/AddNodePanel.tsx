@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
-import { PlusIcon } from 'lucide-react'
 import { SelectableCardWithForm, SelectableCardList, SidePanel } from '@ansible/nexus-ui-framework'
+import { PlusIcon } from 'lucide-react'
+import { useState, useMemo } from 'react'
+
 import { NodeRegistry } from './registry/NodeRegistry'
 
 interface AddNodePanelProps {

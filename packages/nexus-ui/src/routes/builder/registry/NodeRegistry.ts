@@ -1,5 +1,5 @@
-import type { ComponentType } from 'react'
 import type { LucideIcon } from 'lucide-react'
+import type { ComponentType } from 'react'
 
 /**
  * Base form props that all node forms must accept
@@ -56,7 +56,7 @@ class NodeRegistryClass {
    */
   register<TFormData = unknown>(definition: NodeTypeDefinition<TFormData>): void {
     if (this.nodes.has(definition.id)) {
-      console.warn(`Node type "${definition.id}" is already registered. Overwriting.`)
+      // Node type is already registered, overwriting
     }
 
     this.nodes.set(definition.id, {

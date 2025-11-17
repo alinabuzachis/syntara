@@ -1,6 +1,7 @@
-import { ClockIcon } from 'lucide-react'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { SidePanel } from '@ansible/nexus-ui-framework'
+import { ClockIcon } from 'lucide-react'
+
 import { StatusLabel } from './ExecutionStatus'
 
 type Execution = WorkflowAPI.components['schemas']['Execution']

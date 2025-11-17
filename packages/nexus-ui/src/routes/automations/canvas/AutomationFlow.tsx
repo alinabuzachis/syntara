@@ -11,6 +11,7 @@ import type {
 import Dagre from '@dagrejs/dagre'
 import { MarkerType, ReactFlow, useEdgesState, useNodesState, useReactFlow, type EdgeProps } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
 import { CanvasControls } from './CanvasControls'
 import { edgeTypes } from './edges/EdgeType'
 import { nodeTypes, type NodeType } from './nodes/NodeType'
@@ -100,7 +101,7 @@ function AutomationBuilderFlow(props: { initialNodes: NodeType[]; initialEdges: 
     const layouted = getLayoutedElements(nodes, edges, { direction: 'LR' })
     setNodes([...layouted.nodes])
     setEdges([...layouted.edges])
-    fitView({ maxZoom: 1 })
+    void fitView({ maxZoom: 1 })
   }, [nodes, edges, setNodes, setEdges, fitView])
 
   // Store latest onLayout in a ref to avoid it being a dependency

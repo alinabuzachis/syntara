@@ -1,5 +1,7 @@
 import { lazy } from 'react'
+
 import type { INavigationItem } from '../components/nav/NavItem'
+
 import { AppRoute } from './AppRoute'
 
 const Automation = lazy(() => import('../routes/automations/Automation'))

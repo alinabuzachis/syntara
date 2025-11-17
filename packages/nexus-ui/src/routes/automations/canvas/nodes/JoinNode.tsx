@@ -1,7 +1,9 @@
 import type { JoinActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
+
 import { Detail } from '../../../../components/details/Detail'
 import { Details } from '../../../../components/details/Details'
+
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'

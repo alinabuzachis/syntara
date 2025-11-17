@@ -1,7 +1,7 @@
 // @ts-expect-error - SVG import as React component
 import AnsibleIcon from '../../../../assets/ansible-light.svg?react'
-import { NodeRegistry } from '../NodeRegistry'
 import { AAPNodeForm } from '../../node-forms/AAPNodeForm'
+import { NodeRegistry } from '../NodeRegistry'
 
 /**
  * Register the AAP (Ansible Automation Platform) Job Execution node type

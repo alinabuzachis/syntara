@@ -1,6 +1,6 @@
 import { Field } from '@base-ui-components/react'
-import type React from 'react'
 import clsx from 'clsx'
+import type React from 'react'
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const { className, ...rest } = props

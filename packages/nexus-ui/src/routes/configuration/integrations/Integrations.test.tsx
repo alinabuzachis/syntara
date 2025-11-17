@@ -1,10 +1,12 @@
-import { render, screen, fireEvent, within } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-import type { ReactNode } from 'react'
-import Integrations from './Integrations'
-import { toolProvidersClient } from '../../../client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AlertProvider } from '@ansible/nexus-ui-framework'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen, fireEvent, within } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+
+import { toolProvidersClient } from '../../../client'
+
+import Integrations from './Integrations'
 
 // Mock dependencies
 vi.mock('../../../client', () => ({

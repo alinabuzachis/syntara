@@ -1,6 +1,7 @@
 import { BrainIcon } from 'lucide-react'
-import { NodeRegistry } from '../NodeRegistry'
+
 import { AIAgentNodeForm } from '../../node-forms/AIAgentNodeForm'
+import { NodeRegistry } from '../NodeRegistry'
 
 /**
  * Register the AI Agent node type

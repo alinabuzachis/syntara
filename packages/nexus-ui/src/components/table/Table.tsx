@@ -8,11 +8,12 @@ import {
   Scrollable,
 } from '@ansible/nexus-ui-framework'
 import clsx from 'clsx'
-import type { ReactNode } from 'react'
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import type { Column } from './Column'
 import type { LucideIcon } from 'lucide-react'
 import { ChevronLeftIcon, ChevronRightIcon, EllipsisVerticalIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+
+import type { Column } from './Column'
 
 export interface IRowAction<T> {
   label: string

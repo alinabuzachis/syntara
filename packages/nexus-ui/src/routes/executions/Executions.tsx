@@ -1,3 +1,8 @@
+import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { CircleDashed, Loader2, Pause, CheckCircle2, XCircle, Ban } from 'lucide-react'
+import { useMemo } from 'react'
+import { useSearch } from 'wouter'
+
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
@@ -6,10 +11,6 @@ import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { Table } from '../../components/table/Table'
 import { useFuse } from '../../hooks/useFuse'
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { useSearch } from 'wouter'
-import { useMemo } from 'react'
-import { CircleDashed, Loader2, Pause, CheckCircle2, XCircle, Ban } from 'lucide-react'
 
 type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
 

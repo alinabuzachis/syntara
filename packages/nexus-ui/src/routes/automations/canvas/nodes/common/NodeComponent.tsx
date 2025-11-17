@@ -1,6 +1,7 @@
 import { Handle, type NodeProps, Position } from '@xyflow/react'
 import clsx from 'clsx'
 import React, { useEffect, useState } from 'react'
+
 import { handleStyle } from './handleStyle'
 import { NodeExpandedAllContext } from './NodeExpandedAllContext'
 import { NodeExpandedContext } from './NodeExpandedContext'

@@ -3,7 +3,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { navigate } from 'wouter/use-browser-location'
+
 import { toolProvidersClient } from '../../../../client'
+
 import { IntegrationForm } from './IntegrationForm'
 
 // Mock dependencies

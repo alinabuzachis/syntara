@@ -1,4 +1,5 @@
 import { RedHatIcon } from '../components/icons/RedHatIcon'
+
 import { AppNavigation } from './AppNavigation'
 
 export function AppHeader() {

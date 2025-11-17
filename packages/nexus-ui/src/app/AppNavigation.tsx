@@ -1,5 +1,7 @@
 import { useLocation } from 'wouter'
+
 import { NavItem } from '../components/nav/NavItem'
+
 import { navigationItems } from './navigationItems'
 
 export function AppNavigation() {

@@ -1,6 +1,8 @@
 import type { ConditionActivity } from '@ansible/nexus-contracts'
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
+
 import { Details } from '../../../../components/details/Details'
+
 import { renderCondition, renderOutputs, renderJson } from './common/detailRenderers'
 import { handleStyle } from './common/handleStyle'
 import { NodeBody } from './common/NodeBody'

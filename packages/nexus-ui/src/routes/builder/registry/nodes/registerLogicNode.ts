@@ -1,6 +1,7 @@
 import { SplitIcon } from 'lucide-react'
-import { NodeRegistry } from '../NodeRegistry'
+
 import { LogicNodeForm } from '../../node-forms/LogicNodeForm'
+import { NodeRegistry } from '../NodeRegistry'
 
 /**
  * Register the Logic node type

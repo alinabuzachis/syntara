@@ -2,6 +2,8 @@ import js from '@eslint/js'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import jsxA11y from 'eslint-plugin-jsx-a11y'
+import importPlugin from 'eslint-plugin-import'
+import noOnlyTests from 'eslint-plugin-no-only-tests'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 import eslintConfigPrettier from 'eslint-config-prettier'
@@ -29,17 +31,36 @@ export default tseslint.config(
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
       'jsx-a11y': jsxA11y,
+      import: importPlugin,
+      'no-only-tests': noOnlyTests,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
       ...jsxA11y.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Essential bug prevention rules
+      '@typescript-eslint/no-floating-promises': 'error', // Catch unhandled promises
+      '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }], // Allow promises in event handlers
+      '@typescript-eslint/no-explicit-any': 'error', // Enforce proper TypeScript typing
+      'no-console': 'error', // No console.log in production
+      'no-only-tests/no-only-tests': 'error', // Prevent .only() in tests
+      // Import organization
+      'import/order': [
+        'error',
+        {
+          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+          'newlines-between': 'always',
+          alphabetize: { order: 'asc', caseInsensitive: true },
+        },
+      ],
+      'import/no-duplicates': 'error',
     },
   },
   {
-    files: ['**/index.tsx'],
+    files: ['**/index.tsx', '**/main.tsx'],
     rules: {
       'react-refresh/only-export-components': 'off',
+      'no-console': 'off',
     },
   },
   eslintConfigPrettier

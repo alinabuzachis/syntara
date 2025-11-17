@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react'
+import clsx from 'clsx'
 import type { LucideIcon } from 'lucide-react'
 import { XIcon } from 'lucide-react'
-import clsx from 'clsx'
+import type { ReactNode } from 'react'
+
 import { Button } from './Button'
 import { Scrollable } from './Scrollable'
 

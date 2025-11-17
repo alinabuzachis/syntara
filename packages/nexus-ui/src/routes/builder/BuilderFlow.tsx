@@ -1,11 +1,12 @@
-import { MarkerType, ReactFlow, useEdgesState, useNodesState, useReactFlow, type OnNodesDelete } from '@xyflow/react'
-import Dagre from '@dagrejs/dagre'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useWorkflowStore } from '../../stores/useWorkflowStore'
-import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
-import { edgeTypes } from '../automations/canvas/edges/EdgeType'
-import { CanvasControls } from '../automations/canvas/CanvasControls'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import Dagre from '@dagrejs/dagre'
+import { MarkerType, ReactFlow, useEdgesState, useNodesState, useReactFlow, type OnNodesDelete } from '@xyflow/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { CanvasControls } from '../automations/canvas/CanvasControls'
+import { edgeTypes } from '../automations/canvas/edges/EdgeType'
+import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
 
 // Type aliases from API contracts
 type Trigger =
@@ -351,7 +352,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     const layouted = getLayoutedElements(nodes, edges, { direction: 'LR' })
     setNodes([...layouted.nodes])
     setEdges([...layouted.edges])
-    fitView({ maxZoom: 1 })
+    void fitView({ maxZoom: 1 })
   }, [nodes, edges, setNodes, setEdges, fitView])
 
   // Store latest onLayout in a ref to avoid it being a dependency
@@ -550,7 +551,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     if (isInitialized) {
       // Small delay to allow CSS transition to complete
       const timer = setTimeout(() => {
-        fitView({ duration: 300, padding: 0.1 })
+        void fitView({ duration: 300, padding: 0.1 })
       }, 100)
       return () => clearTimeout(timer)
     }
