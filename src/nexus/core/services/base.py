@@ -4,7 +4,7 @@ This module provides a single base class that ALL services must inherit from to 
 consistent filtering, sorting, pagination, and label handling across the entire system.
 """
 
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -223,21 +223,53 @@ class BaseService:
         query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]],
         sort: str | None,
         model: type[TModel],
+        *,
+        reverse_for_backward: bool = False,
     ) -> tuple[Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]], SortDirection]:
-        """Apply sorting to query.
+        """Apply sorting to query with automatic ID tiebreaker.
+
+        This method ensures stable, deterministic ordering by:
+        1. Applying the requested sort field (e.g., created_at DESC)
+        2. Adding ID as a tiebreaker to prevent non-deterministic ordering when
+           multiple items have identical values for the sort field
+
+        The ID tiebreaker is CRITICAL for cursor-based pagination to prevent:
+        - Duplicate items appearing across pages
+        - Items being skipped during pagination
+        - Inconsistent ordering between forward and backward navigation
+
+        For backward pagination, the sort direction is reversed to fetch items
+        in the opposite order, which are then reversed in memory to maintain
+        display consistency.
 
         Args:
             query: SQLAlchemy query to sort
-            sort: Sort parameter
+            sort: Sort parameter (e.g., "-created_at" for DESC, "name" for ASC)
             model: BaseResource class to apply sorting to (reads __sortable_fields__)
+            reverse_for_backward: If True, reverse the sort direction for backward pagination
 
         Returns:
-            Tuple of (sorted_query, sort_direction)
+            Tuple of (sorted_query, original_sort_direction)
+
+        Example:
+            For sort="-created_at":
+            - Forward: ORDER BY created_at DESC, id DESC
+            - Backward: ORDER BY created_at ASC, id ASC (reversed for fetching)
+                       Results are then reversed in memory to display as DESC
 
         """
         sort_field, sort_direction = parse_sort(sort, model.__sortable_fields__)
-        sorted_query = apply_sorting(query, [(sort_field, sort_direction)], model)
-        return sorted_query, sort_direction
+
+        # Reverse sort direction if doing backward pagination
+        actual_sort_direction = sort_direction
+        if reverse_for_backward:
+            actual_sort_direction = SortDirection.ASC if sort_direction == SortDirection.DESC else SortDirection.DESC
+
+        # Always add id as a tiebreaker to ensure stable ordering
+        # This is critical for cursor-based pagination when multiple items have the same sort field value
+        sort_tuples = [(sort_field, actual_sort_direction), ("id", actual_sort_direction)]
+        sorted_query = apply_sorting(query, sort_tuples, model)
+        return sorted_query, sort_direction  # Return original direction for cursor logic
 
     def _apply_cursor_pagination(
         self,
@@ -245,56 +277,159 @@ class BaseService:
         cursor: str | None,
         sort_direction: SortDirection,
         model: type[TModel],
-    ) -> Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]]:
-        """Apply standard cursor-based pagination to query.
+    ) -> tuple[Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]], bool]:
+        """Apply cursor-based pagination using keyset pagination technique.
 
         This is the ONLY pagination method that should be used across all services.
+        It implements the "keyset pagination" or "seek method" pattern, which:
+        - Uses indexed columns (created_at + id) to mark position
+        - Avoids OFFSET for consistent performance at any depth
+        - Handles real-time data changes gracefully
+
+        Cursor Format:
+            {
+                "id": "uuid-of-boundary-item",
+                "created_at": "2025-11-12T14:30:00+00:00",
+                "direction": "next" or "prev"
+            }
+
+        Forward Pagination (direction="next"):
+            WHERE (created_at < cursor_timestamp)
+               OR (created_at = cursor_timestamp AND id < cursor_id)
+            ORDER BY created_at DESC, id DESC
+
+        Backward Pagination (direction="prev"):
+            WHERE (created_at > cursor_timestamp)
+               OR (created_at = cursor_timestamp AND id > cursor_id)
+            ORDER BY created_at ASC, id ASC  (reversed)
+            Results reversed in memory afterward
+
+        The compound WHERE clause handles the tiebreaker case where multiple
+        items have identical timestamps by also comparing UUIDs.
 
         Args:
             query: SQLAlchemy query to paginate
-            cursor: Cursor token for pagination
+            cursor: Cursor token for pagination (None for first page)
             sort_direction: Sort direction from sorting step
             model: BaseResource class to get field attributes from
 
         Returns:
-            Query with cursor-based pagination applied
+            Tuple of (query with cursor-based pagination applied, needs_reverse flag)
+            The needs_reverse flag indicates if results need to be reversed after fetching
 
         """
         if not cursor:
-            return query
+            return query, False
+
+        needs_reverse = False
 
         cursor_data = decode_cursor(cursor)
         resource_id, created_at, direction = extract_pagination_from_cursor(cursor_data)
 
-        if resource_id and created_at:
-            # Convert cursor data to proper types
-            cursor_id = UUID(resource_id)
-            cursor_timestamp = datetime.fromisoformat(created_at)
+        try:
+            if resource_id and created_at:
+                # Convert cursor data to proper types
+                cursor_id = UUID(resource_id)
+                cursor_timestamp = datetime.fromisoformat(created_at)
 
-            # Apply cursor-based filtering based on sort direction and pagination direction
-            if direction == PaginationDirection.NEXT:
-                if sort_direction.value == "desc":
-                    query = query.filter(
-                        (model.created_at < cursor_timestamp)  # type: ignore[arg-type]
-                        | ((model.created_at == cursor_timestamp) & (model.id < cursor_id))
-                    )
-                else:
+                # Apply cursor-based filtering based on sort direction and pagination direction
+                if direction == PaginationDirection.NEXT:
+                    # Forward pagination - standard behavior
+                    if sort_direction.value == "desc":
+                        query = query.filter(
+                            (model.created_at < cursor_timestamp)  # type: ignore[arg-type]
+                            | ((model.created_at == cursor_timestamp) & (model.id < cursor_id))
+                        )
+                    else:  # asc
+                        query = query.filter(
+                            (model.created_at > cursor_timestamp)  # type: ignore[arg-type]
+                            | ((model.created_at == cursor_timestamp) & (model.id > cursor_id))
+                        )
+                # Backward pagination - reverse comparison and will need to reverse results
+                elif sort_direction.value == "desc":
                     query = query.filter(
                         (model.created_at > cursor_timestamp)  # type: ignore[arg-type]
                         | ((model.created_at == cursor_timestamp) & (model.id > cursor_id))
                     )
-            elif sort_direction.value == "desc":
-                query = query.filter(
-                    (model.created_at > cursor_timestamp)  # type: ignore[arg-type]
-                    | ((model.created_at == cursor_timestamp) & (model.id > cursor_id))
-                )
-            else:
-                query = query.filter(
-                    (model.created_at < cursor_timestamp)  # type: ignore[arg-type]
-                    | ((model.created_at == cursor_timestamp) & (model.id < cursor_id))
-                )
+                    # Note: Results will come back in wrong order, need to reverse after limit
+                    needs_reverse = True
+                else:  # asc
+                    query = query.filter(
+                        (model.created_at < cursor_timestamp)  # type: ignore[arg-type]
+                        | ((model.created_at == cursor_timestamp) & (model.id < cursor_id))
+                    )
+                    # Note: Results will come back in wrong order, need to reverse after limit
+                    needs_reverse = True
+        except (ValueError, KeyError):
+            # Invalid cursor - ignore and continue without cursor filtering
+            pass
 
-        return query
+        return query, needs_reverse
+
+    async def _check_has_items_before(
+        self,
+        first_item: TModel,
+        query_params: dict[str, str],
+        filters: list[Filter],
+        sort: str | None,
+        model: type[TModel],
+        special_field_handlers: dict[str, Any] | None = None,
+    ) -> bool:
+        """Check if any items exist before the given item (toward first page).
+
+        This method is used during backward pagination to determine if we've reached
+        the first page. It executes a separate query to check for items that would
+        appear BEFORE the first item in the current result set.
+
+        During backward pagination with DESC sort:
+        - "Before" means items with created_at > first_item.created_at
+        - These are newer items (toward the first page)
+
+        During backward pagination with ASC sort:
+        - "Before" means items with created_at < first_item.created_at
+        - These are older items (toward the first page)
+
+        Args:
+            first_item: The first item in the current result set
+            query_params: Query parameters for filtering
+            filters: List of filter objects to apply
+            sort: Sort parameter (e.g., "-created_at")
+            model: BaseResource class to query
+            special_field_handlers: Dict mapping field names to custom handler functions
+
+        Returns:
+            True if items exist before first_item (not on first page)
+            False if no items exist before first_item (on first page)
+
+        """
+        # Build query with same filters as main query
+        check_query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]] = select(model)
+        if hasattr(model, "deleted_at"):
+            check_query = check_query.filter(model.deleted_at.is_(None))  # type: ignore[attr-defined]
+
+        # Apply same filters as main query
+        check_query, _ = self._apply_standard_filters(check_query, query_params, model, special_field_handlers)
+        check_query, _ = self._apply_label_filters(check_query, query_params, model)
+        if special_field_handlers:
+            check_query = self._apply_special_filters(check_query, filters, model, special_field_handlers)
+
+        # Check if any items exist before first_item (using original sort direction, not reversed)
+        _, original_sort_direction = parse_sort(sort or "-created_at", model.__sortable_fields__)
+        if original_sort_direction.value == "desc":
+            # DESC: check if any items have created_at > first_item (newer items toward first page)
+            check_query = check_query.filter(
+                (model.created_at > first_item.created_at)  # type: ignore[arg-type]
+                | ((model.created_at == first_item.created_at) & (model.id > first_item.id))
+            )
+        else:
+            # ASC: check if any items have created_at < first_item (older items toward first page)
+            check_query = check_query.filter(
+                (model.created_at < first_item.created_at)  # type: ignore[arg-type]
+                | ((model.created_at == first_item.created_at) & (model.id < first_item.id))
+            )
+
+        check_result = await self.session.execute(check_query.limit(1))
+        return check_result.scalar_one_or_none() is not None
 
     async def _get_total_count(
         self,
@@ -383,10 +518,12 @@ class BaseService:
                     error_message = f"Invalid value for field '{field_name}': {error_detail}"
                     raise ValueError(error_message) from e
 
-    async def list_resources(
+    async def list_resources(  # noqa: C901, PLR0912, PLR0915
         self,
         model: type[TModel],
         response_type: type[TResponse],
+        response_type_converter: Callable[[TModel], Any] | None = None,
+        post_query_callback: Callable[[list[TModel]], Awaitable[None]] | None = None,
         limit: int = 100,
         cursor: str | None = None,
         sort: str | None = None,
@@ -395,13 +532,40 @@ class BaseService:
         *,
         include_total: bool = False,
     ) -> TResponse:
-        """List resources with unified filtering, sorting, and pagination.
+        """List resources with unified filtering, sorting, and cursor-based pagination.
 
         This method provides the unified way to handle filtering, sorting, pagination,
         and label filtering. ALL services MUST use this method for consistency.
 
-        Filterable and sortable fields are automatically read from the model's
-        __filterable_fields__ and __sortable_fields__ class attributes.
+        Pagination Strategy:
+            Uses industry-standard "Fetch N+1" pattern for cursor-based pagination:
+            1. Fetches limit+1 items to detect if more pages exist
+            2. Trims to limit items for response
+            3. Generates cursors based on boundary items
+            4. For backward pagination, requires second query to detect first page
+
+            Benefits:
+            - Consistent performance at any page depth (no OFFSET)
+            - Handles real-time data changes gracefully
+            - Prevents duplicate/missing items with identical timestamps
+            - Aligns with Stripe, GitHub, Shopify, GraphQL Relay standards
+
+        Cursor Format:
+            Opaque base64-encoded JSON containing:
+            - id: UUID of boundary item
+            - created_at: Timestamp of boundary item
+            - direction: "next" or "prev"
+
+        Filtering:
+            Filterable fields are read from model's __filterable_fields__ attribute.
+            Supports:
+            - Standard field filters (e.g., ?status=active)
+            - Label filters (e.g., ?labels[env]=prod)
+            - Special field handlers for complex types (JSON, arrays, etc.)
+
+        Sorting:
+            Sortable fields are read from model's __sortable_fields__ attribute.
+            Always includes ID as tiebreaker for stable ordering.
 
         Services can override _handle_response_conversion(), _handle_post_processing() and
         _handle_query_enrichment() methods to provide custom response conversion and post-query processing logic.
@@ -409,15 +573,31 @@ class BaseService:
         Args:
             model: BaseResource class to query (e.g., Workflow)
             response_type: ResourcesResponse subclass to return (e.g., WorkflowListResponse)
-            limit: Maximum number of resources to return
-            cursor: Cursor token for pagination
+            response_type_converter: Optional function to convert database objects to response objects
+            post_query_callback: Optional async callback to process database objects before conversion
+            limit: Maximum number of resources to return (fetches limit+1 for N+1 pattern)
+            cursor: Cursor token for pagination (None for first page)
             sort: Sort parameter (e.g., "name", "-created_at")
             special_field_handlers: Dict mapping field names to custom handler functions
             query_params_items: Raw query parameter items from request (for filtering)
-            include_total: Whether to include total count in response
+            include_total: Whether to include total count in response (requires extra COUNT query)
 
         Returns:
-            Typed response object (e.g., WorkflowListResponse, ToolProviderListResponse)
+            Typed response object containing:
+            - resources: List of items (length <= limit)
+            - next: Cursor for next page (null if last page)
+            - prev: Cursor for previous page (null if first page)
+            - total: Total count (only if include_total=True)
+
+        Example:
+            response = await service.list_resources(
+                model=Workflow,
+                response_type=WorkflowListResponse,
+                limit=10,
+                cursor=None,
+                sort="-created_at",
+                query_params_items=[("status", "active")],
+            )
 
         """
         # Extract filtering parameters from query params, excluding pagination/sorting params
@@ -446,39 +626,90 @@ class BaseService:
         if special_field_handlers:
             query = self._apply_special_filters(query, filters, model, special_field_handlers)
 
-        # Apply sorting and pagination
-        query, sort_direction = self._apply_sorting(query, sort, model)
-        query = self._apply_cursor_pagination(query, cursor, sort_direction, model)
+        # Detect if this is backward pagination before applying sorting
+        is_backward_pagination = False
+        if cursor:
+            try:
+                cursor_data = decode_cursor(cursor)
+                direction_str = cursor_data.get("direction", "next")
+                is_backward_pagination = direction_str == PaginationDirection.PREV.value
+            except (ValueError, KeyError):
+                pass
 
-        # Apply limit
-        query = query.limit(limit)
+        # Apply sorting (reversed if backward pagination) and pagination
+        query, sort_direction = self._apply_sorting(query, sort, model, reverse_for_backward=is_backward_pagination)
+        query, needs_reverse = self._apply_cursor_pagination(query, cursor, sort_direction, model)
+
+        # Apply limit+1 for N+1 pattern (fetch one extra to detect if more pages exist)
+        query = query.limit(limit + 1)
 
         # Allow subclasses to extend the query with additional options
         query = self.enrich_query_mixin.enrich(query)
 
         # Execute query
         result = await self.session.execute(query)
-        resources = result.scalars().all()
+        resources_list = list(result.scalars().all())
 
-        # Call post-query callback with database objects
-        await self.post_processing_mixin.post_process(list(resources))
+        # Reverse results if backward pagination requires it
+        if needs_reverse:
+            resources_list.reverse()
+
+        resources = resources_list
 
         # Get total count if requested
         total_count = None
         if include_total:
             total_count = await self._get_total_count(filters, model, special_field_handlers, label_filters)
 
-        # Generate pagination response
+        # Detect if we're on the first page during backward pagination
+        # N+1 pattern can detect "has more" in fetch direction, but during backward pagination
+        # we need to check if there are items BEFORE (newer than) the current page
+        is_first_page = False
+        if is_backward_pagination and len(resources) > 0:
+            # Check if any items exist before the first item in our results
+            has_items_before = await self._check_has_items_before(
+                first_item=resources[0],
+                query_params=query_params,
+                filters=filters,
+                sort=sort,
+                model=model,
+                special_field_handlers=special_field_handlers,
+            )
+            is_first_page = not has_items_before
+
+        # Generate pagination response using N+1 pattern
+        # The generate_response function will trim items and detect edges
         pagination_metadata = generate_response(
             items=resources,
             limit=limit,
             cursor=cursor,
             include_total=include_total,
             total_count=total_count,
+            is_first_page=is_first_page,
         )
 
+        # Extract trimmed items from pagination response
+        trimmed_items = pagination_metadata["trimmed_items"]
+        if not isinstance(trimmed_items, list):
+            trimmed_resources: list[TModel] = []
+        else:
+            trimmed_resources = trimmed_items  # type: ignore[assignment]
+
+        # Call post-query callback with TRIMMED database objects
+        # Use parameter callback if provided, otherwise use mixin method
+        if post_query_callback:
+            await post_query_callback(trimmed_resources)
+        else:
+            await self.post_processing_mixin.post_process(trimmed_resources)
+
         # Convert database objects to response objects
-        converted_resources = [self.convert_resource_mixin.convert_resource(resource) for resource in resources]
+        # Use parameter converter if provided, otherwise use mixin method
+        if response_type_converter:
+            converted_resources = [response_type_converter(resource) for resource in trimmed_resources]
+        else:
+            converted_resources = [
+                self.convert_resource_mixin.convert_resource(resource) for resource in trimmed_resources
+            ]
 
         # Construct and return typed response object
         return response_type(

@@ -124,8 +124,8 @@ class TestPaginationFunctions:
 
     def test_generate_response_first_page(self) -> None:
         """Test generating pagination response for first page."""
-        # Create mock resources
-        resources = [MockResource(id=uuid4(), created_at=datetime.now(UTC), name=f"Resource {i}") for i in range(20)]
+        # Create mock resources (limit+1 for N+1 pattern)
+        resources = [MockResource(id=uuid4(), created_at=datetime.now(UTC), name=f"Resource {i}") for i in range(21)]
 
         response = generate_response(
             items=resources,
@@ -139,11 +139,17 @@ class TestPaginationFunctions:
         assert "next" in response
         assert "prev" in response
         assert "total" in response
+        assert "trimmed_items" in response
+
+        # Should have trimmed items
+        trimmed = response["trimmed_items"]
+        assert isinstance(trimmed, list)
+        assert len(trimmed) == 20
 
         # First page should have no prev cursor
         assert response["prev"] is None
 
-        # Should have next cursor if items == limit
+        # Should have next cursor since we got limit+1 items (has more)
         assert response["next"] is not None
         assert isinstance(response["next"], str)
 
@@ -152,7 +158,8 @@ class TestPaginationFunctions:
 
     def test_generate_response_middle_page(self) -> None:
         """Test generating pagination response for middle page."""
-        resources = [MockResource(id=uuid4(), created_at=datetime.now(UTC), name=f"Resource {i}") for i in range(20)]
+        # Create limit+1 resources for N+1 pattern
+        resources = [MockResource(id=uuid4(), created_at=datetime.now(UTC), name=f"Resource {i}") for i in range(21)]
 
         # Simulate middle page with existing cursor
         existing_cursor = base64.b64encode(json.dumps({"id": str(uuid4())}).encode()).decode()
@@ -164,7 +171,12 @@ class TestPaginationFunctions:
             include_total=False,
         )
 
-        # Should have next cursor (since items == limit)
+        # Should have trimmed items
+        trimmed = response["trimmed_items"]
+        assert isinstance(trimmed, list)
+        assert len(trimmed) == 20
+
+        # Should have next cursor (since we got limit+1 items)
         assert response["next"] is not None
         assert isinstance(response["next"], str)
 
