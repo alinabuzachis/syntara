@@ -176,6 +176,11 @@ class ToolProvider(Resource, table=True):
         return _validate_provider_configuration(v)
 
 
+# ============================================================================
+# API Request/Response Schemas
+# ============================================================================
+
+
 class ToolProviderCreate(NamedResource):
     """ToolProviderCreate model for creating new tool providers.
 
@@ -250,5 +255,8 @@ class ToolProviderPatch(SQLModel):
     )  # type: ignore[assignment]
 
 
-# Type alias for ToolProvider list responses using the standard pagination model
+# ============================================================================
+# List Response Type Alias
+# ============================================================================
+
 ToolProviderListResponse = ResourcesResponse[ToolProvider]

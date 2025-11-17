@@ -91,9 +91,13 @@ class ToolParameter(BaseResource, table=True):
     # Relationships
     tool: "Tool" = Relationship(back_populates="parameters")
 
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="forbid",  # Reject unknown fields
+    )
 
-class Tool(Resource, table=True):
-    """Tool database model.
+
+class ToolBase(Resource):
+    """Tool base model.
 
     Represents a tool provided by an external tool provider.
     Extends the Resource base class with tool-specific fields.
@@ -120,23 +124,6 @@ class Tool(Resource, table=True):
         labels: Optional key-value metadata
 
     """
-
-    __tablename__ = "tools"
-
-    # Define filterable fields for API endpoints - extend base Resource fields
-    __filterable_fields__: ClassVar[list[str]] = [
-        *Resource.__filterable_fields__,
-        "enabled",
-        "status",
-        "provider_id",
-        "namespaced_name",
-    ]
-
-    # Define sortable fields for API endpoints - extend base Resource fields
-    __sortable_fields__: ClassVar[list[str]] = [
-        *Resource.__sortable_fields__,
-        "status",
-    ]
 
     provider_id: UUID = Field(
         foreign_key="tool_providers.id",
@@ -185,6 +172,31 @@ class Tool(Resource, table=True):
         description="Error message from last refresh attempt",
     )
 
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="forbid",  # Reject unknown fields
+    )  # type: ignore[assignment]
+
+
+class Tool(ToolBase, table=True):
+    """Tool database model."""
+
+    __tablename__ = "tools"
+
+    # Define filterable fields for API endpoints - extend base Resource fields
+    __filterable_fields__: ClassVar[list[str]] = [
+        *Resource.__filterable_fields__,
+        "enabled",
+        "status",
+        "provider_id",
+        "namespaced_name",
+    ]
+
+    # Define sortable fields for API endpoints - extend base Resource fields
+    __sortable_fields__: ClassVar[list[str]] = [
+        *Resource.__sortable_fields__,
+        "status",
+    ]
+
     # Relationships
     parameters: list["ToolParameter"] = Relationship(back_populates="tool", cascade_delete=True)
 
@@ -214,7 +226,20 @@ class Tool(Resource, table=True):
             raise ValueError(msg)
         return v.strip()
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)  # type: ignore[assignment]
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="forbid",  # Reject unknown fields
+    )
+
+
+# ============================================================================
+# API Request/Response Schemas
+# ============================================================================
+
+
+class ToolWithParameters(ToolBase):
+    """Schema for Tool response with ToolParameter details."""
+
+    parameters: list[ToolParameter] = Field(..., description="Tool parameters")
 
 
 class ToolUpdate(SQLModel):
@@ -227,5 +252,8 @@ class ToolUpdate(SQLModel):
     )  # type: ignore[assignment]
 
 
-# Type alias for Tool list responses using the standard pagination model
-ToolListResponse = ResourcesResponse[Tool]
+# ============================================================================
+# List Response Type Alias
+# ============================================================================
+
+ToolListResponse = ResourcesResponse[ToolWithParameters]

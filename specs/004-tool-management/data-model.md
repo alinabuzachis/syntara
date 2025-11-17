@@ -15,6 +15,11 @@ Users (1) -----> (N) ToolParameter (created_by, updated_by, deleted_by)
 Users (1) -----> (N) ToolExecution (user_id, created_by, updated_by, deleted_by)
 Users (1) -----> (N) RateLimitConfig (created_by, updated_by, deleted_by)
 Users (1) -----> (N) UsageCounter (user_id, created_by, updated_by, deleted_by)
+
+# Model Inheritance Hierarchy
+Resource (Base Model)
+└── Tool (database table, extends Resource)
+    └── ToolWithParameters (API response, extends Tool)
 ```
 
 ## Core Entities
@@ -100,31 +105,44 @@ API model for partial updates (PATCH operations).
 ### Tool
 Represents an individual capability exposed by a Tool Provider with enablement control.
 
+**Extends:** `Resource`
+
+**Table:** `tools`
+
 | Field                | Data Type | Description                                            |
 |----------------------|-----------|--------------------------------------------------------|
-| `id`                 | UUID | Primary key                                            |
 | `provider_id`        | UUID | Foreign key to ToolProvider                           |
-| `name`               | string (max 255 chars) | Tool name from provider                                |
 | `namespaced_name`    | string (max 200 chars, unique) | Provider-prefixed name                                 |
-| `description`        | text | Tool description from provider                         |
-| `parameters`         | Array | Array of ToolParameter objects                        |
 | `enabled`            | boolean (default true) | Tool enabled for use. Available tools may be disabled. |
 | `status`             | enum | Tool status: "available", "missing", "error"           |
-| `last_refreshed_at`  | datetime | Last successful refresh timestamp                     |
+| `last_refreshed_at`  | datetime (nullable) | Last successful refresh timestamp                     |
 | `refresh_error`      | text (nullable) | Last refresh error message                             |
 | `last_executed_at`   | datetime (nullable) | Last execution timestamp                               |
-| `created_at`         | datetime | First discovery timestamp                              |
-| `created_by`         | UUID | Foreign key to Users table - Administrator who created tool |
-| `updated_at`         | datetime | Last metadata update timestamp                         |
-| `updated_by`         | UUID | Foreign key to Users table - Administrator who last updated tool |
-| `deleted_at`         | datetime (nullable) | Soft delete timestamp                                  |
-| `deleted_by`         | UUID (nullable) | Foreign key to Users table - Administrator who deleted tool |
+
+**Inherits from Resource:**
+- `id`: UUID primary key
+- `name`: Human-readable name (1-255 chars)  
+- `description`: Optional detailed description (max 2000 chars)
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+- `created_by`: UUID of user who created the resource
+- `updated_by`: Optional UUID of user who last updated the resource
+- `deleted_at`: Optional timestamp when resource was soft deleted
+- `deleted_by`: Optional UUID of user who performed the soft delete
+- `labels`: Optional key-value metadata
+
+**Relationships:**
+- `parameters`: One-to-many relationship with ToolParameter (cascade delete)
+- `provider`: Many-to-one relationship with ToolProvider
+
+**Database Attributes:**
+- Database indexes and constraints
+- Filterable and sortable field definitions
 
 **Validation Rules:**
 - `name` must be valid identifier (alphanumeric, underscore, hyphen)
 - `namespaced_name` follows pattern "{provider_name}::{tool_name}"
 - `namespaced_name` must be unique across all tools
-- `parameters` array contains ToolParameter objects
 - Tool can only be enabled if status is "available"
 
 **State Transitions:**
@@ -132,6 +150,21 @@ Represents an individual capability exposed by a Tool Provider with enablement c
 - Missing from provider during refresh → status="missing", enabled=false
 - Refresh error → status="error" with refresh_error message
 - Admin can toggle enabled independently of status
+
+### ToolWithParameters
+API response model for tools that includes parameter details.
+
+**Extends:** `Tool`
+
+| Field                | Data Type | Description                                            |
+|----------------------|-----------|--------------------------------------------------------|
+| `parameters`         | Array | Array of ToolParameter objects                        |
+
+**Usage:**
+- Used in API responses for GET `/api/v1/tools` (list endpoint)
+- Used in API responses for GET `/api/v1/tools/{tool_id}` (detail endpoint)
+- Used in API responses for PATCH `/api/v1/tools/{tool_id}` (update endpoint)
+- Provides complete tool information including parameter definitions for client consumption
 
 ### ToolParameter
 Represents individual input requirements for tools with validation rules.

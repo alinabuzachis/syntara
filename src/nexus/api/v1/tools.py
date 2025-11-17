@@ -16,9 +16,9 @@ from nexus.tool_manager.lib.exceptions import (
 )
 from nexus.tool_manager.models import ToolListParams
 from nexus.tool_manager.models.tool import (
-    Tool,
     ToolListResponse,
     ToolUpdate,
+    ToolWithParameters,
 )
 from nexus.tool_manager.models.tool_bulk_update import ToolBulkUpdate
 from nexus.tool_manager.services.tool_service import ToolService
@@ -84,7 +84,7 @@ async def get_tool(
     tool_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> Tool:
+) -> ToolWithParameters:
     """Get tool details by ID.
 
     Returns detailed information about a specific tool including
@@ -96,7 +96,7 @@ async def get_tool(
         current_user: Authenticated user (admin access required)
 
     Returns:
-        Tool instance with full details
+        ToolWithParameters instance with full details
 
     Raises:
         HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
@@ -109,6 +109,7 @@ async def get_tool(
 
     try:
         return await service.get_tool_detail(tool_id)
+
     except ToolNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
     except Exception as e:
@@ -163,7 +164,7 @@ async def update_tool(
     tool_update: ToolUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> Tool:
+) -> ToolWithParameters:
     """Update tool status (enable/disable).
 
     Updates the tool's status to enable or disable it for use.
@@ -189,6 +190,7 @@ async def update_tool(
 
     try:
         return await service.update_tool(tool_id, enabled=tool_update.enabled)
+
     except ToolNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
     except ValidationError as e:

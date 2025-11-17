@@ -184,6 +184,7 @@ class TestToolsListContract:
                 "updated_at",
                 "created_by",
                 "updated_by",
+                "parameters",
             ]
             for field in required_fields:
                 assert field in tool, f"Missing required field: {field}"
@@ -406,3 +407,52 @@ class TestToolsListContract:
         # Test with invalid sort field
         response = await base_client.get("/api/v1/tools", params={"sort": "invalid_field"})
         assert response.status_code in [200, 422]  # Either ignored or validation error
+
+    @pytest.mark.asyncio
+    async def test_list_tools_parameters_eager_loading(
+        self,
+        base_client: AsyncClient,
+        tool_factory: "ToolFactory",
+    ) -> None:
+        """Test that ToolParameters are eagerly loaded in list_tools endpoint to avoid N+1 queries.
+
+        This integration test verifies that the list_tools endpoint efficiently loads
+        tool parameters without generating N+1 queries when serializing tools to JSON.
+        """
+        # Create tools with parameters using the factory method
+        await tool_factory.create_tools_with_parameters()
+
+        # Make HTTP request to list tools - this is end-to-end testing
+        response = await base_client.get("/api/v1/tools")
+
+        # Verify successful response
+        assert response.status_code == 200
+        data = response.json()
+        assert "resources" in data
+        assert isinstance(data["resources"], list)
+
+        # Find our Calculator Tool in the response
+        calculator_tool = None
+        for tool_data in data["resources"]:
+            if tool_data["name"] == "Calculator Tool":
+                calculator_tool = tool_data
+                break
+
+        assert calculator_tool is not None, "Calculator Tool not found in response"
+
+        # Verify tool parameters are included in the response (proving eager loading)
+        assert "parameters" in calculator_tool, "Tool parameters should be included in response"
+        assert isinstance(calculator_tool["parameters"], list)
+        assert len(calculator_tool["parameters"]) == 4  # operation, operand_a, operand_b, precision
+
+        # Verify specific parameter details to ensure complete loading
+        param_names = [param["name"] for param in calculator_tool["parameters"]]
+        expected_params = ["operation", "operand_a", "operand_b", "precision"]
+        for expected_param in expected_params:
+            assert expected_param in param_names
+
+        # Verify parameter structure
+        operation_param = next(p for p in calculator_tool["parameters"] if p["name"] == "operation")
+        assert operation_param["type"] == "string"
+        assert operation_param["description"] == "Mathematical operation to perform"
+        assert operation_param["required"] is True

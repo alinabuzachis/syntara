@@ -71,7 +71,7 @@ paths:
                     resources:
                       type: array
                       items:
-                        $ref: '#/components/schemas/Tool'
+                        $ref: '#/components/schemas/ToolWithParameters'
                       maxItems: 100
                   required:
                   - resources
@@ -99,7 +99,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Tool'
+                $ref: '#/components/schemas/ToolWithParameters'
         '403':
           description: Admin access required
           content:
@@ -135,7 +135,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Tool'
+                $ref: '#/components/schemas/ToolWithParameters'
         '400':
           description: Invalid tool configuration
           content:
@@ -215,36 +215,52 @@ components:
           provider_id:
             type: string
             format: uuid
+            description: UUID of the associated tool provider
           namespaced_name:
             type: string
             maxLength: 200
+            description: Unique namespaced name for the tool
           enabled:
             type: boolean
             default: true
+            description: Whether the tool is enabled
           status:
             type: string
             enum: [available, missing, error]
             default: available
+            description: Current status of the tool
           last_executed_at:
             type: string
             format: date-time
             nullable: true
+            description: Timestamp of last execution
           last_refreshed_at:
             type: string
             format: date-time
             nullable: true
+            description: Timestamp of last refresh from provider
           refresh_error:
             type: string
             nullable: true
-          parameters:
-            type: array
-            items:
-              $ref: '#/components/schemas/ToolParameter'
+            description: Error message from last refresh attempt
         required:
         - provider_id
         - namespaced_name
         - enabled
         - status
+
+    ToolWithParameters:
+      allOf:
+      - $ref: '#/components/schemas/Tool'
+      - type: object
+        properties:
+          parameters:
+            type: array
+            items:
+              $ref: '#/components/schemas/ToolParameter'
+            description: Tool parameters
+        required:
+        - parameters
 
     ToolParameter:
       type: object

@@ -19,6 +19,7 @@ from temporalio.exceptions import TemporalError
 
 from nexus.core.models import User
 from nexus.core.services import BaseService
+from nexus.core.services.extensions import ConvertResourceMixin, PostProcessingMixin
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     WorkflowDisabledError,
@@ -34,6 +35,44 @@ from nexus.workflows.utils.temporal import sync_execution_status_from_temporal
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 logger = logging.getLogger(__name__)
+
+
+class ExecutionsConvertResourceMixin(ConvertResourceMixin):
+    """Execution-specific resource conversion to ExecutionRead format."""
+
+    def convert_resource(self, resource: Execution) -> ExecutionRead:  # type: ignore[override]
+        """Convert Execution to ExecutionRead format."""
+        return ExecutionRead.model_validate(resource)
+
+
+class ExecutionsPostProcessingMixin(PostProcessingMixin):
+    """Post-processing mixin to sync execution status from Temporal after database queries."""
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        temporal_service: TemporalExecutionService | None = None,
+    ) -> None:
+        """Initialize mixin with database session and temporal service.
+
+        Args:
+            session: Database session for queries
+            temporal_service: Optional Temporal execution service for workflow operations
+
+        """
+        self.session = session
+        self.temporal_service = temporal_service
+
+    async def post_process(self, resources: list[Execution]) -> None:  # type: ignore[override]
+        """Sync execution status from Temporal after database query."""
+        if self.temporal_service is not None:
+            changes = [
+                await sync_execution_status_from_temporal(execution, self.temporal_service, session=None, persist=False)
+                for execution in resources
+            ]
+            # Commit all changes together if any execution status changed
+            if any(changes):
+                await self.session.commit()
 
 
 class ExecutionService(BaseService):
@@ -57,23 +96,13 @@ class ExecutionService(BaseService):
             temporal_service: Optional Temporal execution service for workflow operations
 
         """
-        super().__init__(session, user)
+        super().__init__(
+            session,
+            user,
+            convert_resource_mixin=ExecutionsConvertResourceMixin(),
+            post_processing_mixin=ExecutionsPostProcessingMixin(session, temporal_service),
+        )
         self.temporal_service = temporal_service
-
-    def _convert_response_type(self, resource: Execution) -> ExecutionRead:  # type: ignore[override]
-        """Convert Execution to ExecutionRead format."""
-        return ExecutionRead.model_validate(resource)
-
-    async def _post_query_callback(self, resources: list[Execution]) -> None:  # type: ignore[override]
-        """Sync execution status from Temporal after database query."""
-        if self.temporal_service is not None:
-            changes = [
-                await sync_execution_status_from_temporal(execution, self.temporal_service, session=None, persist=False)
-                for execution in resources
-            ]
-            # Commit all changes together if any execution status changed
-            if any(changes):
-                await self.session.commit()
 
     async def create_execution(
         self,

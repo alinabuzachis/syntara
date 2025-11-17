@@ -10,10 +10,13 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, select
 
 from nexus.api.validators import WorkflowDefinitionValidator
+from nexus.core.models import User
 from nexus.core.services import BaseService
+from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
@@ -23,6 +26,14 @@ from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead,
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
 
 
+class WorkflowConvertResourceMixin(ConvertResourceMixin):
+    """Workflow-specific resource conversion to WorkflowRead format."""
+
+    def convert_resource(self, resource: Workflow) -> WorkflowRead:  # type: ignore[override]
+        """Convert Workflow to WorkflowRead format."""
+        return WorkflowRead.model_validate(resource)
+
+
 class WorkflowService(BaseService):
     """Service for workflow business logic.
 
@@ -30,9 +41,9 @@ class WorkflowService(BaseService):
     including CRUD operations, validation, and version management.
     """
 
-    def _convert_response_type(self, resource: Workflow) -> WorkflowRead:  # type: ignore[override]
-        """Convert Workflow to WorkflowRead format."""
-        return WorkflowRead.model_validate(resource)
+    def __init__(self, session: AsyncSession, user: User) -> None:
+        """Initialize WorkflowService with database session and user context."""
+        super().__init__(session, user, convert_resource_mixin=WorkflowConvertResourceMixin())
 
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
         """Check if IntegrityError is due to duplicate workflow name.

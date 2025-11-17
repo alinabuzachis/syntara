@@ -11,9 +11,13 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Select, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+from nexus.core.models import User
 from nexus.core.services import BaseService
+from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin
 from nexus.tool_manager.lib.exceptions import (
     ToolNotFoundError,
     ValidationError,
@@ -21,6 +25,7 @@ from nexus.tool_manager.lib.exceptions import (
 from nexus.tool_manager.models.tool import (
     Tool,
     ToolListResponse,
+    ToolWithParameters,
 )
 from nexus.tool_manager.models.tool_bulk_update import MAX_BULK_UPDATES
 
@@ -29,12 +34,39 @@ SelectTool = Select[tuple[Tool]] | SelectOfScalar[tuple[Tool]]
 logger = logging.getLogger(__name__)
 
 
+class ToolServiceEnrichQuery(EnrichQueryMixin):
+    """Tool-specific query enrichment to eager load tool parameters."""
+
+    def enrich(  # type: ignore[override]
+        self, query: Select[tuple[Tool]] | SelectOfScalar[tuple[Tool]]
+    ) -> Select[tuple[Tool]] | SelectOfScalar[tuple[Tool]]:
+        """Extend the query to eager load tool parameters."""
+        return query.options(selectinload(Tool.parameters))  # type: ignore[arg-type]
+
+
+class ToolServiceConvertResourceMixin(ConvertResourceMixin):
+    """Mixin for converting Tool resources to ToolWithParameters format."""
+
+    def convert_resource(self, resource: Tool) -> ToolWithParameters:  # type: ignore[override]
+        """Convert Tool to ToolWithParameters format."""
+        return ToolWithParameters.model_validate(resource)
+
+
 class ToolService(BaseService):
     """Service for Tool CRUD operations and business logic.
 
     This service handles database persistence, transaction management, and provides
     all core tool management functions with proper filtering and pagination.
     """
+
+    def __init__(self, session: AsyncSession, user: User) -> None:
+        """Initialize ToolService with database session and user context."""
+        super().__init__(
+            session,
+            user,
+            enrich_query_mixin=ToolServiceEnrichQuery(),
+            convert_resource_mixin=ToolServiceConvertResourceMixin(),
+        )
 
     async def list_tools(
         self,
@@ -58,7 +90,7 @@ class ToolService(BaseService):
             ToolListResponse with tools, pagination metadata, and optional total
 
         """
-        # Use unified list_resources method (fields read from model automatically)
+        # Use unified list_resources method with _extend_query for parameter loading
         return await self.list_resources(
             model=Tool,
             response_type=ToolListResponse,
@@ -69,7 +101,7 @@ class ToolService(BaseService):
             include_total=include_total,
         )
 
-    async def get_tool_detail(self, tool_id: UUID) -> Tool:
+    async def get_tool_detail(self, tool_id: UUID) -> ToolWithParameters:
         """Get a tool by ID with full details including parameters.
 
         Args:
@@ -82,7 +114,9 @@ class ToolService(BaseService):
             ToolNotFoundError: If tool doesn't exist or is deleted
 
         """
-        query = select(Tool).filter(Tool.id == tool_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
+        query = (
+            select(Tool).options(selectinload(Tool.parameters)).filter(Tool.id == tool_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
+        )
 
         result = await self.session.execute(query)
         tool = result.scalar_one_or_none()
@@ -91,9 +125,9 @@ class ToolService(BaseService):
             msg = f"Tool {tool_id} not found"
             raise ToolNotFoundError(msg)
 
-        return tool
+        return ToolWithParameters.model_validate(tool)
 
-    async def update_tool(self, tool_id: UUID, *, enabled: bool) -> Tool:
+    async def update_tool(self, tool_id: UUID, *, enabled: bool) -> ToolWithParameters:
         """Enable/disable individual tool by changing status.
 
         Args:
@@ -108,7 +142,16 @@ class ToolService(BaseService):
             ValidationError: If update data is invalid
 
         """
-        tool = await self.get_tool_detail(tool_id)
+        query = (
+            select(Tool).options(selectinload(Tool.parameters)).filter(Tool.id == tool_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
+        )
+
+        result = await self.session.execute(query)
+        tool = result.scalar_one_or_none()
+
+        if not tool:
+            msg = f"Tool {tool_id} not found"
+            raise ToolNotFoundError(msg)
 
         tool.enabled = enabled
         tool.updated_by = self.user.id
@@ -116,7 +159,8 @@ class ToolService(BaseService):
 
         await self.session.flush()
         await self.session.refresh(tool)
-        return tool
+
+        return await self.get_tool_detail(tool.id)
 
     async def bulk_update_tools(self, tool_ids: list[UUID], *, enabled: bool) -> dict[str, Any]:
         """Batch enable/disable operations with transaction management.

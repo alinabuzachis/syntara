@@ -6,7 +6,7 @@ consistent filtering, sorting, pagination, and label handling across the entire 
 
 from collections.abc import Iterable
 from datetime import datetime
-from typing import Any, TypeVar
+from typing import Any
 from uuid import UUID
 
 from pydantic import TypeAdapter, ValidationError
@@ -15,7 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.core.models import User
-from nexus.core.models.base import BaseResource, ResourcesResponse
+from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin, PostProcessingMixin
+from nexus.core.services.types import TModel, TResponse
 
 # Import individual utilities to avoid circular imports
 from nexus.core.utils.cursor import (
@@ -29,9 +30,60 @@ from nexus.core.utils.labels import apply_label_filters, parse_label_filter, par
 from nexus.core.utils.pagination import generate_response
 from nexus.core.utils.sorting import apply_sorting, parse_sort
 
-# Type variables for BaseResource types and ResourcesResponse types
-TModel = TypeVar("TModel", bound=BaseResource)
-TResponse = TypeVar("TResponse", bound="ResourcesResponse[Any]")
+
+class DefaultEnrichQueryMixin(EnrichQueryMixin):
+    """Default implementation of EnrichQueryMixin that performs no query enrichment."""
+
+    def enrich(
+        self, query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]]
+    ) -> Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]]:
+        """Extend the query with custom options before execution.
+
+        This is a no-op implementation that returns the query unchanged.
+        Subclasses can override this method to add query options like selectinload.
+
+        Args:
+            query: The SQLAlchemy query to extend
+
+        Returns:
+            Extended query (by default, returns the query unchanged)
+
+        """
+        return query
+
+
+class DefaultConvertResourceMixin(ConvertResourceMixin):
+    """Default implementation of ConvertResourceMixin that performs no conversion."""
+
+    def convert_resource(self, resource: TModel) -> Any:  # noqa: ANN401
+        """Convert database resource to response format.
+
+        This is a no-op implementation that returns the resource as-is.
+        Subclasses can override this method to provide custom conversion logic.
+
+        Args:
+            resource: Database resource to convert
+
+        Returns:
+            Converted resource (by default, returns the resource unchanged)
+
+        """
+        return resource
+
+
+class DefaultPostProcessingMixin(PostProcessingMixin):
+    """Default implementation of PostProcessingMixin that performs no post-processing."""
+
+    async def post_process(self, resources: list[TModel]) -> None:
+        """Process resources after database query but before response conversion.
+
+        This is a no-op implementation that does nothing.
+        Subclasses can override this method to provide custom processing logic.
+
+        Args:
+            resources: List of database resources to process
+
+        """
 
 
 class BaseService:
@@ -42,16 +94,33 @@ class BaseService:
     class and use these methods to ensure consistency.
     """
 
-    def __init__(self, session: AsyncSession, user: User) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        user: User,
+        enrich_query_mixin: EnrichQueryMixin | None = None,
+        convert_resource_mixin: ConvertResourceMixin | None = None,
+        post_processing_mixin: PostProcessingMixin | None = None,
+    ) -> None:
         """Initialize service with database session and current user.
 
         Args:
             session: Async database session for operations
             user: Current authenticated user for audit tracking
+            enrich_query_mixin: Mixin to support extending database queries before execution
+            convert_resource_mixin: Mixin to support converting database objects to response objects
+            post_processing_mixin: Mixin to support post-processing of database objects
 
         """
         self.session = session
         self.user = user
+        self.enrich_query_mixin = enrich_query_mixin if enrich_query_mixin is not None else DefaultEnrichQueryMixin()
+        self.convert_resource_mixin = (
+            convert_resource_mixin if convert_resource_mixin is not None else DefaultConvertResourceMixin()
+        )
+        self.post_processing_mixin = (
+            post_processing_mixin if post_processing_mixin is not None else DefaultPostProcessingMixin()
+        )
 
     def _apply_standard_filters(
         self,
@@ -318,32 +387,6 @@ class BaseService:
                     error_message = f"Invalid value for field '{field_name}': {error_detail}"
                     raise ValueError(error_message) from e
 
-    def _convert_response_type(self, resource: TModel) -> Any:  # noqa: ANN401
-        """Convert database resource to response format.
-
-        This is a no-op implementation that returns the resource as-is.
-        Subclasses can override this method to provide custom conversion logic.
-
-        Args:
-            resource: Database resource to convert
-
-        Returns:
-            Converted resource (by default, returns the resource unchanged)
-
-        """
-        return resource
-
-    async def _post_query_callback(self, resources: list[TModel]) -> None:
-        """Process resources after database query but before response conversion.
-
-        This is a no-op implementation that does nothing.
-        Subclasses can override this method to provide custom processing logic.
-
-        Args:
-            resources: List of database resources to process
-
-        """
-
     async def list_resources(
         self,
         model: type[TModel],
@@ -364,8 +407,8 @@ class BaseService:
         Filterable and sortable fields are automatically read from the model's
         __filterable_fields__ and __sortable_fields__ class attributes.
 
-        Services can override _convert_response_type() and _post_query_callback() methods
-        to provide custom response conversion and post-query processing logic.
+        Services can override _handle_response_conversion(), _handle_post_processing() and
+        _handle_query_enrichment() methods to provide custom response conversion and post-query processing logic.
 
         Args:
             model: BaseResource class to query (e.g., Workflow)
@@ -411,13 +454,18 @@ class BaseService:
         query, sort_direction = self._apply_sorting(query, sort, model)
         query = self._apply_cursor_pagination(query, cursor, sort_direction, model)
 
-        # Apply limit and execute query
+        # Apply limit
         query = query.limit(limit)
+
+        # Allow subclasses to extend the query with additional options
+        query = self.enrich_query_mixin.enrich(query)
+
+        # Execute query
         result = await self.session.execute(query)
         resources = result.scalars().all()
 
         # Call post-query callback with database objects
-        await self._post_query_callback(list(resources))
+        await self.post_processing_mixin.post_process(list(resources))
 
         # Get total count if requested
         total_count = None
@@ -434,7 +482,7 @@ class BaseService:
         )
 
         # Convert database objects to response objects
-        converted_resources = [self._convert_response_type(resource) for resource in resources]
+        converted_resources = [self.convert_resource_mixin.convert_resource(resource) for resource in resources]
 
         # Construct and return typed response object
         return response_type(

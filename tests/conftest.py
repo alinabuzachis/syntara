@@ -35,6 +35,7 @@ from nexus.core.models import User, UserRole
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
 from nexus.tool_manager.lib.providers.mcp import MCPProvider
 from nexus.tool_manager.models import Tool, ToolProvider, ToolStatus
+from nexus.tool_manager.models.tool import ToolParameter, ToolParameterType
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
@@ -720,6 +721,169 @@ class ToolFactory:
 
         await self.session.commit()
 
+        for tool in tools:
+            await self.session.refresh(tool)
+
+        return tools
+
+    async def create_tools_with_parameters(self) -> list[Tool]:
+        """Create tools with parameters for testing eager loading scenarios.
+
+        Creates a variety of tools each with multiple parameters to test:
+        - Eager loading of parameters in list operations
+        - Parameter serialization in API responses
+        - N+1 query prevention
+
+        Returns:
+            List of Tool objects with associated ToolParameter objects
+
+        """
+        # Define tools with their parameters
+        tool_configs = [
+            {
+                "name": "Calculator Tool",
+                "namespaced_name": "test::calculator_tool",
+                "description": "Mathematical calculator with multiple parameter types",
+                "enabled": True,
+                "status": ToolStatus.AVAILABLE,
+                "parameters": [
+                    {
+                        "name": "operation",
+                        "type": ToolParameterType.STRING,
+                        "description": "Mathematical operation to perform",
+                        "required": True,
+                    },
+                    {
+                        "name": "operand_a",
+                        "type": ToolParameterType.NUMBER,
+                        "description": "First number for calculation",
+                        "required": True,
+                    },
+                    {
+                        "name": "operand_b",
+                        "type": ToolParameterType.NUMBER,
+                        "description": "Second number for calculation",
+                        "required": True,
+                    },
+                    {
+                        "name": "precision",
+                        "type": ToolParameterType.NUMBER,
+                        "description": "Decimal precision for result",
+                        "required": False,
+                        "default_value": {"value": 2},
+                    },
+                ],
+            },
+            {
+                "name": "Text Processor Tool",
+                "namespaced_name": "test::text_processor_tool",
+                "description": "Text processing tool with string and boolean parameters",
+                "enabled": True,
+                "status": ToolStatus.AVAILABLE,
+                "parameters": [
+                    {
+                        "name": "input_text",
+                        "type": ToolParameterType.STRING,
+                        "description": "Text to process",
+                        "required": True,
+                    },
+                    {
+                        "name": "case_sensitive",
+                        "type": ToolParameterType.BOOLEAN,
+                        "description": "Whether processing should be case sensitive",
+                        "required": False,
+                        "default_value": {"value": False},
+                    },
+                    {
+                        "name": "max_length",
+                        "type": ToolParameterType.NUMBER,
+                        "description": "Maximum length of processed text",
+                        "required": False,
+                        "default_value": {"value": 1000},
+                    },
+                ],
+            },
+            {
+                "name": "Data Export Tool",
+                "namespaced_name": "test::data_export_tool",
+                "description": "Tool for exporting data with complex parameters",
+                "enabled": False,
+                "status": ToolStatus.ERROR,
+                "parameters": [
+                    {
+                        "name": "export_format",
+                        "type": ToolParameterType.STRING,
+                        "description": "Format for data export (json, csv, xml)",
+                        "required": True,
+                    },
+                    {
+                        "name": "include_headers",
+                        "type": ToolParameterType.BOOLEAN,
+                        "description": "Whether to include column headers",
+                        "required": False,
+                        "default_value": {"value": True},
+                    },
+                    {
+                        "name": "compression_level",
+                        "type": ToolParameterType.NUMBER,
+                        "description": "Compression level (0-9)",
+                        "required": False,
+                    },
+                    {
+                        "name": "metadata",
+                        "type": ToolParameterType.OBJECT,
+                        "description": "Additional metadata for export",
+                        "required": False,
+                        "example_value": {"author": "test", "version": "1.0"},
+                    },
+                    {
+                        "name": "filters",
+                        "type": ToolParameterType.ARRAY,
+                        "description": "Array of filters to apply",
+                        "required": False,
+                        "example_value": {"filters": ["active", "recent"]},
+                    },
+                ],
+            },
+        ]
+
+        tools = []
+        for tool_config in tool_configs:
+            # Create the tool
+            tool = Tool(
+                provider_id=self.provider.id,
+                name=tool_config["name"],
+                description=tool_config["description"],
+                namespaced_name=tool_config["namespaced_name"],
+                enabled=tool_config["enabled"],
+                status=tool_config["status"],
+                created_by=self.user.id,
+                updated_by=self.user.id,
+            )
+            tools.append(tool)
+            self.session.add(tool)
+
+        # Flush to get tool IDs
+        await self.session.flush()
+
+        # Create parameters for each tool
+        for tool, tool_config in zip(tools, tool_configs, strict=True):
+            for param_config in tool_config["parameters"]:  # type: ignore[attr-defined]
+                parameter = ToolParameter(
+                    tool_id=tool.id,
+                    name=param_config["name"],
+                    type=param_config["type"],
+                    description=param_config["description"],
+                    required=param_config["required"],
+                    default_value=param_config.get("default_value"),
+                    example_value=param_config.get("example_value"),
+                )
+                self.session.add(parameter)
+
+        # Commit all changes
+        await self.session.commit()
+
+        # Refresh tools to get updated relationships
         for tool in tools:
             await self.session.refresh(tool)
 

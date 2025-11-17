@@ -63,6 +63,7 @@ class TestToolsGetContract:
             "updated_by",
             "deleted_at",
             "deleted_by",
+            "parameters",
         ]
         for field in required_fields:
             assert field in data, f"Missing required field: {field}"
@@ -226,3 +227,53 @@ class TestToolsGetContract:
         assert data["provider_id"] == str(test_tool.provider_id)
         assert data["namespaced_name"] == test_tool.namespaced_name
         assert data["status"] == test_tool.status.value
+
+    @pytest.mark.asyncio
+    async def test_get_tool_parameters_eager_loading(
+        self,
+        base_client: AsyncClient,
+        tool_factory,
+    ) -> None:
+        """Test that ToolParameters are eagerly loaded in get_tool endpoint to avoid N+1 queries.
+
+        This integration test verifies that the get_tool endpoint efficiently loads
+        tool parameters without generating N+1 queries when serializing tool to JSON.
+        """
+        # Create tools with parameters using the factory method
+        tools_with_params = await tool_factory.create_tools_with_parameters()
+        calculator_tool = next(tool for tool in tools_with_params if tool.name == "Calculator Tool")
+
+        # Make HTTP request to get specific tool - this is end-to-end testing
+        response = await base_client.get(f"/api/v1/tools/{calculator_tool.id}")
+
+        # Verify successful response
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify tool data
+        assert data["id"] == str(calculator_tool.id)
+        assert data["name"] == "Calculator Tool"
+        assert data["namespaced_name"] == "test::calculator_tool"
+        assert data["description"] == "Mathematical calculator with multiple parameter types"
+
+        # Verify tool parameters are included in the response (proving eager loading)
+        assert "parameters" in data, "Tool parameters should be included in response"
+        assert isinstance(data["parameters"], list)
+        assert len(data["parameters"]) == 4  # operation, operand_a, operand_b, precision
+
+        # Verify specific parameter details to ensure complete loading
+        param_names = [param["name"] for param in data["parameters"]]
+        expected_params = ["operation", "operand_a", "operand_b", "precision"]
+        for expected_param in expected_params:
+            assert expected_param in param_names
+
+        # Verify parameter structure
+        operation_param = next(p for p in data["parameters"] if p["name"] == "operation")
+        assert operation_param["type"] == "string"
+        assert operation_param["description"] == "Mathematical operation to perform"
+        assert operation_param["required"] is True
+
+        precision_param = next(p for p in data["parameters"] if p["name"] == "precision")
+        assert precision_param["type"] == "number"
+        assert precision_param["required"] is False
+        assert precision_param["default_value"] == {"value": 2}
