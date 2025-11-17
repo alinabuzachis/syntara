@@ -1,6 +1,8 @@
 import type { LucideIcon } from 'lucide-react'
 import type { ComponentType } from 'react'
 
+import type { NodeCategory } from './categories'
+
 /**
  * Base form props that all node forms must accept
  */
@@ -24,7 +26,7 @@ export interface NodeTypeDefinition<TFormData = unknown> {
   icon: LucideIcon | ComponentType
 
   /** Category for grouping (optional) */
-  category?: 'trigger' | 'action' | 'logic' | 'integration' | 'other'
+  category?: NodeCategory
 
   /** Description shown in UI (optional) */
   description?: string

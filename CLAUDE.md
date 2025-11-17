@@ -44,11 +44,15 @@ npm run format:check       # Check formatting
 - Centralized in `packages/nexus-ui/src/app/AppRoute.tsx`
 - Lazy-loaded components via `navigationItems.tsx`
 - Lightweight routing with Wouter
+- Path params for entity selection and mode switching
+- Query params for filtering and optional selections
 
 #### State Management
 
-- Server state via TanStack Query
-- Type-safe API interactions
+- **Server State**: TanStack Query for all API data
+- **Client State**: React useState/useContext for local UI state
+- **Workflow State**: Zustand store (`useWorkflowStore`) for builder workflows
+- Type-safe API interactions via openapi-react-query
 - Automatic memoization through React Compiler
 
 #### Component Ecosystem
@@ -57,6 +61,126 @@ npm run format:check       # Check formatting
 - Shared library in `nexus-ui-framework`
 - Styling: TailwindCSS 4
 - Form handling: react-hook-form
+- Icons: Lucide React
+- Workflow canvas: ReactFlow (@xyflow/react)
+
+#### Workflow Builder Architecture
+
+- Plugin-based architecture for registering workflow node types
+- Located in `packages/nexus-ui/src/routes/builder/registry/`
+- Singleton registry pattern with `NodeRegistry` class
+- **Auto-discovery system** using `import.meta.glob` - automatically registers all `register*.ts` files
+- Type-safe categories with centralized metadata (`categories.ts`)
+
+**Node Registration System:**
+
+```typescript
+// Each node type has its own registration file (e.g., registerTriggerNode.ts)
+// Files matching register*.ts are automatically discovered and registered
+// MUST export the registration function as default
+
+// Basic nodes (placeholder implementations):
+import { createBasicNode } from '../helpers/nodeTemplates'
+import { NodeRegistry } from '../NodeRegistry'
+
+export default function registerApprovalNode() {
+  NodeRegistry.register(
+    createBasicNode({
+      id: 'approval',
+      label: 'Approval',
+      icon: UserCheckIcon,
+      category: 'logic', // Type-safe - must be a valid NodeCategory
+      description: 'Require human approval before continuing workflow',
+      keywords: ['approve', 'approval', 'review', 'manual'],
+      order: 50,
+      formComponent: ApprovalNodeForm,
+    })
+  )
+}
+
+// Complex nodes (with workflow store integration):
+import { createCustomNode } from '../helpers/nodeTemplates'
+
+export default function registerTriggerNode() {
+  NodeRegistry.register(
+    createCustomNode<TriggerFormData>(
+      {
+        id: 'trigger',
+        label: 'Triggers',
+        icon: PlayIcon,
+        category: 'trigger', // Type-safe category
+        description: 'Start workflow execution',
+        keywords: ['start', 'begin', 'manual', 'schedule'],
+        order: 10,
+        formComponent: TriggerNodeForm,
+      },
+      (data, onSuccess, onError) => {
+        // Custom submission logic
+        const trigger = createManualTrigger(data.requiresApproval)
+        useWorkflowStore.getState().addTrigger(trigger)
+        onSuccess()
+      }
+    )
+  )
+}
+
+// AUTO-REGISTRATION: registerAllNodes() automatically discovers and calls
+// all registration functions - no manual imports needed!
+```
+
+**Adding New Nodes:**
+
+1. Create a file matching `register*.ts` in `registry/nodes/`
+2. Export your registration function as **default**
+3. That's it! Auto-discovery handles the rest
+
+**Available Templates:**
+
+- `createBasicNode(config, errorMessage?)` - For placeholder nodes that just call onSuccess
+- `createCustomNode(config, onSubmit)` - For nodes with custom submission logic
+
+**Node Categories (Type-Safe):**
+Categories are defined in `registry/categories.ts` with full metadata:
+
+- `trigger` - Start workflow execution (order: 1)
+- `action` - Execute tasks or API calls (order: 2)
+- `logic` - Conditional branching and control flow (order: 3)
+- `integration` - External service integrations (order: 4)
+- `approval` - Human approval gates (order: 5)
+- `other` - Miscellaneous nodes (order: 99)
+
+Access category metadata: `getCategoryMetadata('trigger')` or `CATEGORY_METADATA.trigger`
+
+**Registry API:**
+
+```typescript
+NodeRegistry.register(definition) // Register a node type
+NodeRegistry.get(id) // Get node by ID
+NodeRegistry.getAll() // Get all enabled nodes
+NodeRegistry.search(query) // Search nodes by label/keywords
+NodeRegistry.getByCategory(cat) // Get nodes by category
+```
+
+**ReactFlow Integration:**
+
+- Layout initialization uses dagre for automatic positioning
+- Separate initialization state from layout execution
+- Use setTimeout(50ms) to ensure nodes are measured before layout
+
+**Zustand State Management for Workflows:**
+
+- `useWorkflowStore` manages current workflow state
+- `workflowVersion` counter tracks workflow replacements (increments on setWorkflow)
+- Actions: `addTrigger`, `removeTrigger`, `addActivity`, `removeActivity`, `updateActivity`
+- Located at `packages/nexus-ui/src/stores/useWorkflowStore.ts`
+- Use selective subscriptions to avoid unnecessary re-renders
+
+**Builder Component Pattern:**
+
+- Separate components for new (`BuilderNew.tsx`) and edit (`BuilderEdit.tsx`) workflows
+- `BuilderContent` component encapsulates all shared UI logic
+- `ReactFlowProvider` wraps the entire builder UI
+- Routes: `/automation-builder/new` (new) and `/automation-builder/:workflowId` (edit)
 
 ### Component Development Guidelines
 

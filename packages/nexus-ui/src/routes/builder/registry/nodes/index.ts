@@ -1,26 +1,39 @@
 /**
  * Central registration point for all node types
- * Import and call all registration functions here
+ * Auto-discovers and registers all node types using import.meta.glob
  */
 
-import { registerAAPNode } from './registerAAPNode'
-import { registerActionNode } from './registerActionNode'
-import { registerAIAgentNode } from './registerAIAgentNode'
-import { registerApprovalNode } from './registerApprovalNode'
-import { registerLogicNode } from './registerLogicNode'
-import { registerTriggerNode } from './registerTriggerNode'
+// Auto-discover all registration modules matching the pattern register*.ts
+// Using eager: true to load them synchronously during app initialization
+const nodeModules = import.meta.glob<{ default: () => void }>('./register*.ts', { eager: true })
 
 /**
  * Register all node types
  * Call this once during app initialization
+ *
+ * This function automatically discovers and registers all nodes
+ * by importing any file matching the pattern register*.ts
  */
 export function registerAllNodes() {
-  registerTriggerNode()
-  registerAIAgentNode()
-  registerActionNode()
-  registerAAPNode()
-  registerLogicNode()
-  registerApprovalNode()
+  // Iterate through all discovered modules and call their default export
+  Object.entries(nodeModules).forEach(([path, module]) => {
+    if (typeof module.default === 'function') {
+      try {
+        module.default()
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error(`Failed to register node from ${path}:`, error)
+      }
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(`Module ${path} does not export a registration function as default`)
+    }
+  })
+
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.log(`✓ Registered ${Object.keys(nodeModules).length} node types`)
+  }
 }
 
 // Re-export the registry for convenience
