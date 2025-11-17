@@ -647,7 +647,7 @@ class TestListExecutions(TestExecutionServiceBase):
         mock_session.execute = AsyncMock(side_effect=mock_execute)
 
         service = ExecutionService(session=mock_session, user=mock_user)
-        result = await service.list_executions(limit=5, cursor="some_cursor", sort="-created_at")
+        result = await service.list_executions(limit=5, sort="-created_at")
 
         assert isinstance(result, ResourcesResponseBase)
         assert len(result.resources) == 1

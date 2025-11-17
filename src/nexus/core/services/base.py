@@ -263,40 +263,36 @@ class BaseService:
         if not cursor:
             return query
 
-        try:
-            cursor_data = decode_cursor(cursor)
-            resource_id, created_at, direction = extract_pagination_from_cursor(cursor_data)
+        cursor_data = decode_cursor(cursor)
+        resource_id, created_at, direction = extract_pagination_from_cursor(cursor_data)
 
-            if resource_id and created_at:
-                # Convert cursor data to proper types
-                cursor_id = UUID(resource_id)
-                cursor_timestamp = datetime.fromisoformat(created_at)
+        if resource_id and created_at:
+            # Convert cursor data to proper types
+            cursor_id = UUID(resource_id)
+            cursor_timestamp = datetime.fromisoformat(created_at)
 
-                # Apply cursor-based filtering based on sort direction and pagination direction
-                if direction == PaginationDirection.NEXT:
-                    if sort_direction.value == "desc":
-                        query = query.filter(
-                            (model.created_at < cursor_timestamp)  # type: ignore[arg-type]
-                            | ((model.created_at == cursor_timestamp) & (model.id < cursor_id))
-                        )
-                    else:
-                        query = query.filter(
-                            (model.created_at > cursor_timestamp)  # type: ignore[arg-type]
-                            | ((model.created_at == cursor_timestamp) & (model.id > cursor_id))
-                        )
-                elif sort_direction.value == "desc":
-                    query = query.filter(
-                        (model.created_at > cursor_timestamp)  # type: ignore[arg-type]
-                        | ((model.created_at == cursor_timestamp) & (model.id > cursor_id))
-                    )
-                else:
+            # Apply cursor-based filtering based on sort direction and pagination direction
+            if direction == PaginationDirection.NEXT:
+                if sort_direction.value == "desc":
                     query = query.filter(
                         (model.created_at < cursor_timestamp)  # type: ignore[arg-type]
                         | ((model.created_at == cursor_timestamp) & (model.id < cursor_id))
                     )
-        except (ValueError, KeyError):
-            # Invalid cursor - ignore and continue without cursor filtering
-            pass
+                else:
+                    query = query.filter(
+                        (model.created_at > cursor_timestamp)  # type: ignore[arg-type]
+                        | ((model.created_at == cursor_timestamp) & (model.id > cursor_id))
+                    )
+            elif sort_direction.value == "desc":
+                query = query.filter(
+                    (model.created_at > cursor_timestamp)  # type: ignore[arg-type]
+                    | ((model.created_at == cursor_timestamp) & (model.id > cursor_id))
+                )
+            else:
+                query = query.filter(
+                    (model.created_at < cursor_timestamp)  # type: ignore[arg-type]
+                    | ((model.created_at == cursor_timestamp) & (model.id < cursor_id))
+                )
 
         return query
 

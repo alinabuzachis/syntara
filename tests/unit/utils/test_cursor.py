@@ -312,6 +312,14 @@ class TestDecodeCursor:
         decoded = decode_cursor(encoded)
         assert decoded == {}
 
+    def test_decode_malformed_cursor_raises_exception(self) -> None:
+        """Test that malformed cursor strings raise appropriate exceptions."""
+        # Test cursor with invalid characters that can't be base64 decoded
+        malformed_cursor = "invalid_base64!!!!"
+
+        with pytest.raises(ValueError, match="Invalid cursor format"):
+            decode_cursor(malformed_cursor)
+
 
 class TestGetPaginationDirection:
     """Tests for get_pagination_direction function."""
