@@ -10,12 +10,13 @@ Tests cover:
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from uuid import UUID
 
 import pytest
 
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
-from tests.fixtures import MockProvider
+from nexus.tool_manager.lib.providers.mcp import MCPProvider
 
 
 class TestProviderFactory:
@@ -33,36 +34,35 @@ class TestProviderFactory:
         """Test successful provider type registration."""
         factory = ProviderFactory()
 
-        # Register MockProvider
-        factory.register_provider_type("mock", MockProvider)
+        # Register MCPProvider
+        factory.register_provider_type("mcp", MCPProvider)
 
         # Should be registered
-        assert factory.is_registered("mock")
-        assert "mock" in factory.get_registered_provider_types()
-        assert factory.get_registered_provider_types() == ["mock"]
+        assert factory.is_registered("mcp")
+        assert factory.get_registered_provider_types() == ["mcp"]
 
     def test_register_multiple_provider_types(self) -> None:
         """Test registering multiple provider types."""
         factory = ProviderFactory()
 
         # Define additional mock provider classes
-        class MockProviderA(MockProvider):
+        class MCPProviderA(MCPProvider):
             pass
 
-        class MockProviderB(MockProvider):
+        class MCPProviderB(MCPProvider):
             pass
 
         # Register multiple types
-        factory.register_provider_type("mock_a", MockProviderA)
-        factory.register_provider_type("mock_b", MockProviderB)
-        factory.register_provider_type("mock_original", MockProvider)
+        factory.register_provider_type("mcp_a", MCPProviderA)
+        factory.register_provider_type("mcp_b", MCPProviderB)
+        factory.register_provider_type("mcp_original", MCPProvider)
 
         # Should have all types registered
         registered_types = factory.get_registered_provider_types()
         assert len(registered_types) == 3
-        assert "mock_a" in registered_types
-        assert "mock_b" in registered_types
-        assert "mock_original" in registered_types
+        assert "mcp_a" in registered_types
+        assert "mcp_b" in registered_types
+        assert "mcp_original" in registered_types
 
         # Should be sorted
         assert registered_types == sorted(registered_types)
@@ -73,15 +73,15 @@ class TestProviderFactory:
 
         # Empty provider type should raise ValueError
         with pytest.raises(ValueError, match="Provider type must be a non-empty string"):
-            factory.register_provider_type("", MockProvider)
+            factory.register_provider_type("", MCPProvider)
 
         # None provider type should raise ValueError
         with pytest.raises(ValueError, match="Provider type must be a non-empty string"):
-            factory.register_provider_type(None, MockProvider)  # type: ignore[arg-type]
+            factory.register_provider_type(None, MCPProvider)  # type: ignore[arg-type]
 
         # Non-string provider type should raise ValueError
         with pytest.raises(ValueError, match="Provider type must be a non-empty string"):
-            factory.register_provider_type(123, MockProvider)  # type: ignore[arg-type]
+            factory.register_provider_type(123, MCPProvider)  # type: ignore[arg-type]
 
         # Non-callable provider class should raise TypeError
         with pytest.raises(TypeError, match="Provider class must be callable"):
@@ -92,42 +92,34 @@ class TestProviderFactory:
         factory = ProviderFactory()
 
         # Register once
-        factory.register_provider_type("mock", MockProvider)
+        factory.register_provider_type("mcp", MCPProvider)
 
         # Try to register again should raise ValueError
-        with pytest.raises(ValueError, match="Provider type 'mock' is already registered"):
-            factory.register_provider_type("mock", MockProvider)
+        with pytest.raises(ValueError, match="Provider type 'mcp' is already registered"):
+            factory.register_provider_type("mcp", MCPProvider)
 
     def test_create_provider_instance_success(self) -> None:
         """Test successful provider instance creation."""
         factory = ProviderFactory()
-        factory.register_provider_type("mock", MockProvider)
+        factory.register_provider_type("mcp", MCPProvider)
 
-        # Create instance
-        instance = factory.create_provider_instance("mock")
+        # Create instance with required parameters
+        instance = factory.create_provider_instance("mcp", base_url="http://localhost:8080", api_key="test-key")
 
         # Should be correct type and implement protocol
-        assert isinstance(instance, MockProvider)
+        assert isinstance(instance, MCPProvider)
         assert isinstance(instance, ToolProviderAdapter)
 
     def test_create_provider_instance_with_kwargs(self) -> None:
         """Test provider instance creation with keyword arguments."""
         factory = ProviderFactory()
-        factory.register_provider_type("mock", MockProvider)
+        factory.register_provider_type("mcp", MCPProvider)
 
-        # Create instance with kwargs
-        instance = factory.create_provider_instance(
-            "mock",
-            provider_name="test_provider",
-            simulate_timeout=True,
-            response_delay_ms=100,
-        )
+        # Create instance with kwargs (MCP uses different parameters)
+        instance = factory.create_provider_instance("mcp", base_url="http://localhost:8080", api_key="test-key")
 
         # Should have correct configuration
-        assert isinstance(instance, MockProvider)
-        assert instance.provider_name == "test_provider"
-        assert instance.simulate_timeout is True
-        assert instance.response_delay_ms == 100
+        assert isinstance(instance, MCPProvider)
 
     def test_create_provider_instance_invalid_type(self) -> None:
         """Test creating instance with unregistered provider type."""
@@ -140,7 +132,7 @@ class TestProviderFactory:
     def test_create_provider_instance_invalid_inputs(self) -> None:
         """Test provider instance creation with invalid inputs."""
         factory = ProviderFactory()
-        factory.register_provider_type("mock", MockProvider)
+        factory.register_provider_type("mcp", MCPProvider)
 
         # Empty provider type should raise ValueError
         with pytest.raises(ValueError, match="Provider type must be a non-empty string"):
@@ -154,9 +146,17 @@ class TestProviderFactory:
         """Test provider instance creation when constructor fails."""
         factory = ProviderFactory()
 
-        class FailingProvider(MockProvider):
-            def __init__(self, **_kwargs: object) -> None:
-                super().__init__()
+        class FailingProvider(MCPProvider):
+            def __init__(
+                self,
+                base_url: str,
+                api_key: str,
+                provider_id: UUID | None = None,
+                provider_name: str | None = "mcp-provider",
+            ) -> None:
+                super().__init__(
+                    provider_id=provider_id, provider_name=provider_name, base_url=base_url, api_key=api_key
+                )
                 msg = "Intentional construction failure"
                 raise RuntimeError(msg)
 
@@ -169,16 +169,16 @@ class TestProviderFactory:
     def test_unregister_provider_type_success(self) -> None:
         """Test successful provider type unregistration."""
         factory = ProviderFactory()
-        factory.register_provider_type("mock", MockProvider)
+        factory.register_provider_type("mcp", MCPProvider)
 
         # Should be registered
-        assert factory.is_registered("mock")
+        assert factory.is_registered("mcp")
 
         # Unregister
-        factory.unregister_provider_type("mock")
+        factory.unregister_provider_type("mcp")
 
         # Should no longer be registered
-        assert not factory.is_registered("mock")
+        assert not factory.is_registered("mcp")
         assert factory.get_registered_provider_types() == []
 
     def test_unregister_provider_type_not_registered(self) -> None:
@@ -196,13 +196,13 @@ class TestProviderFactory:
 
         def register_provider(provider_type: str) -> None:
             try:
-                factory.register_provider_type(provider_type, MockProvider)
+                factory.register_provider_type(provider_type, MCPProvider)
             except (ValueError, TypeError) as e:
                 registration_errors.append(e)
 
         # Register multiple providers concurrently
         with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = [executor.submit(register_provider, f"mock_{i}") for i in range(20)]
+            futures = [executor.submit(register_provider, f"mcp_{i}") for i in range(20)]
 
             # Wait for all to complete
             for future in as_completed(futures):
@@ -217,7 +217,7 @@ class TestProviderFactory:
 
         # All should be registered
         for i in range(20):
-            assert factory.is_registered(f"mock_{i}")
+            assert factory.is_registered(f"mcp_{i}")
 
     def test_thread_safety_duplicate_registration(self) -> None:
         """Test thread safety when multiple threads try to register same type."""
@@ -227,7 +227,7 @@ class TestProviderFactory:
 
         def register_same_provider() -> None:
             try:
-                factory.register_provider_type("duplicate", MockProvider)
+                factory.register_provider_type("duplicate", MCPProvider)
                 successful_registrations.append(True)
             except ValueError as e:
                 if "already registered" in str(e):
@@ -253,14 +253,14 @@ class TestProviderFactory:
     def test_thread_safety_creation(self) -> None:
         """Test thread safety of provider instance creation."""
         factory = ProviderFactory()
-        factory.register_provider_type("mock", MockProvider)
+        factory.register_provider_type("mcp", MCPProvider)
 
         created_instances = []
         creation_errors = []
 
         def create_provider() -> None:
             try:
-                instance = factory.create_provider_instance("mock", provider_name="thread_test")
+                instance = factory.create_provider_instance("mcp", base_url="http://localhost:8080", api_key="test-key")
                 created_instances.append(instance)
             except (ValueError, TypeError) as e:
                 creation_errors.append(e)
@@ -279,10 +279,9 @@ class TestProviderFactory:
         # Should have 50 instances
         assert len(created_instances) == 50
 
-        # All should be MockProvider instances
+        # All should be MCPProvider instances
         for instance in created_instances:
-            assert isinstance(instance, MockProvider)
-            assert instance.provider_name == "thread_test"
+            assert isinstance(instance, MCPProvider)
 
     def test_registry_management(self) -> None:
         """Test comprehensive registry management operations."""
@@ -292,9 +291,9 @@ class TestProviderFactory:
         assert factory.get_registered_provider_types() == []
 
         # Register some providers
-        factory.register_provider_type("provider_a", MockProvider)
-        factory.register_provider_type("provider_b", MockProvider)
-        factory.register_provider_type("provider_c", MockProvider)
+        factory.register_provider_type("provider_a", MCPProvider)
+        factory.register_provider_type("provider_b", MCPProvider)
+        factory.register_provider_type("provider_c", MCPProvider)
 
         # Check registry state
         registered = factory.get_registered_provider_types()
@@ -320,14 +319,14 @@ class TestProviderFactory:
         assert "provider_c" in registered
 
         # Can re-register after unregistering
-        factory.register_provider_type("provider_b", MockProvider)
+        factory.register_provider_type("provider_b", MCPProvider)
         assert factory.is_registered("provider_b")
 
     def test_error_messages_contain_available_types(self) -> None:
         """Test that error messages include available provider types."""
         factory = ProviderFactory()
-        factory.register_provider_type("provider_x", MockProvider)
-        factory.register_provider_type("provider_y", MockProvider)
+        factory.register_provider_type("provider_x", MCPProvider)
+        factory.register_provider_type("provider_y", MCPProvider)
 
         # Error message should list available types
         with pytest.raises(ValueError, match="Unknown provider type 'nonexistent'") as exc_info:
@@ -345,7 +344,7 @@ class TestProviderFactory:
         start_time = time.time()
 
         for i in range(num_providers):
-            factory.register_provider_type(f"provider_{i:04d}", MockProvider)
+            factory.register_provider_type(f"provider_{i:04d}", MCPProvider)
 
         registration_time = time.time() - start_time
 
@@ -359,8 +358,10 @@ class TestProviderFactory:
         start_time = time.time()
 
         for i in range(10):  # Create fewer instances to keep test fast
-            instance = factory.create_provider_instance(f"provider_{i:04d}")
-            assert isinstance(instance, MockProvider)
+            instance = factory.create_provider_instance(
+                f"provider_{i:04d}", base_url="http://localhost:8080", api_key="test-key"
+            )
+            assert isinstance(instance, MCPProvider)
 
         creation_time = time.time() - start_time
         assert creation_time < 0.1  # Should be very fast for 10 instances

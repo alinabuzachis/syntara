@@ -53,6 +53,18 @@ paths:
         description: |
           Filter providers by provider type.
           - Exact match: `provider_type=mcp`
+      - name: enabled
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: Filter by enabled status
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Sort field and direction (e.g., 'name', '-created_at')
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
@@ -75,7 +87,7 @@ paths:
                     resources:
                       type: array
                       items:
-                        $ref: '#/components/schemas/ToolProvider'
+                        $ref: '#/components/schemas/ToolProviderWithConfiguration'
                       maxItems: 100
                   required:
                   - resources
@@ -101,7 +113,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ToolProvider'
+                $ref: '#/components/schemas/ToolProviderWithConfiguration'
         '400':
           description: Invalid provider configuration
           content:
@@ -138,7 +150,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ToolProvider'
+                $ref: '#/components/schemas/ToolProviderWithConfiguration'
         '403':
           description: Admin access required
           content:
@@ -174,7 +186,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ToolProvider'
+                $ref: '#/components/schemas/ToolProviderWithConfiguration'
         '400':
           description: Invalid provider configuration
           content:
@@ -216,7 +228,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ToolProvider'
+                $ref: '#/components/schemas/ToolProviderWithConfiguration'
         '400':
           description: Invalid provider configuration
           content:
@@ -275,13 +287,7 @@ paths:
           format: uuid
       responses:
         '200':
-          description: Provider validation successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolProviderValidationResult'
-        '400':
-          description: Provider validation failed
+          description: Provider validation completed (check 'valid' field for success/failure)
           content:
             application/json:
               schema:
@@ -350,13 +356,8 @@ paths:
               $ref: '#/components/schemas/ToolProviderCreate'
       responses:
         '200':
-          description: Provider definition test completed successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolProviderValidationResult'
-        '400':
-          description: Invalid provider configuration or test failed
+          description: Provider definition test completed (check 'valid' field for
+            success/failure)
           content:
             application/json:
               schema:
@@ -370,13 +371,15 @@ paths:
 
 components:
   schemas:
-    ToolProvider:
+    ToolProviderWithConfiguration:
       allOf:
       - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Resource
       - type: object
         properties:
           configuration:
             description: Provider-specific configuration
+            discriminator:
+              propertyName: provider_type
             oneOf:
             - $ref: '#/components/schemas/MCPConfiguration'
           enabled:
@@ -397,16 +400,29 @@ components:
         - configuration
 
     ToolProviderCreate:
-      allOf:
-      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
-      - type: object
-        properties:
-          configuration:
-            description: Provider-specific configuration
-            oneOf:
-            - $ref: '#/components/schemas/MCPConfiguration'
-        required:
-        - configuration
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          title: Name
+          description: Human-readable name for the provider
+        description:
+          type: string
+          nullable: true
+          maxLength: 2000
+          title: Description
+          description: Detailed description of the provider
+        configuration:
+          description: Provider-specific configuration
+          discriminator:
+            propertyName: provider_type
+          oneOf:
+          - $ref: '#/components/schemas/MCPConfiguration'
+      required:
+      - name
+      - configuration
 
     ToolProviderPatch:
       type: object
@@ -423,6 +439,8 @@ components:
           description: Detailed description of the provider
         configuration:
           description: Provider-specific configuration
+          discriminator:
+            propertyName: provider_type
           oneOf:
           - $ref: '#/components/schemas/MCPConfiguration'
         enabled:
@@ -446,6 +464,7 @@ components:
           api_key:
             type: string
         required:
+        - provider_type
         - base_url
         - api_key
 

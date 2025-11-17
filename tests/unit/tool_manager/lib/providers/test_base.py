@@ -11,15 +11,15 @@ import inspect
 from datetime import UTC, datetime
 
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
+from nexus.tool_manager.lib.providers.mcp import MCPProvider
 from nexus.tool_manager.models import ToolProviderValidationResult, ToolSchema, ToolValidationResult
 from nexus.tool_manager.models.tool import Tool
-from tests.fixtures import MockProvider
 
 
 def test_tool_provider_adapter_is_runtime_checkable() -> None:
     """Test that ToolProviderAdapter is runtime checkable."""
-    # MockProvider implements the protocol
-    provider = MockProvider()
+    # MCPProvider implements the protocol
+    provider = MCPProvider(base_url="http://localhost:8080", api_key="test-key")
 
     # Runtime isinstance check should work
     assert isinstance(provider, ToolProviderAdapter)
@@ -45,11 +45,11 @@ def test_tool_provider_adapter_protocol_methods() -> None:
     assert expected_methods.issubset(protocol_methods)
 
 
-def test_mock_provider_implements_protocol() -> None:
-    """Test that MockProvider correctly implements ToolProviderAdapter protocol."""
-    provider = MockProvider()
+def test_mcp_provider_implements_protocol() -> None:
+    """Test that MCPProvider correctly implements ToolProviderAdapter protocol."""
+    provider = MCPProvider(base_url="http://localhost:8080", api_key="test-key")
 
-    # Verify MockProvider is recognized as implementing the protocol
+    # Verify MCPProvider is recognized as implementing the protocol
     assert isinstance(provider, ToolProviderAdapter)
 
     # Verify all required methods are present and callable
@@ -107,10 +107,10 @@ def test_protocol_typing_behavior() -> None:
         """Accept a ToolProviderAdapter."""
         return f"Provider: {type(provider).__name__}"
 
-    # Should accept MockProvider
-    mock_provider = MockProvider()
-    result = accepts_provider(mock_provider)
-    assert "MockProvider" in result
+    # Should accept MCPProvider
+    mcp_provider = MCPProvider(base_url="http://localhost:8080", api_key="test-key")
+    result = accepts_provider(mcp_provider)
+    assert "MCPProvider" in result
 
     # Should accept any object that implements the protocol
     complete_provider = CompleteProvider()
@@ -120,8 +120,8 @@ def test_protocol_typing_behavior() -> None:
 
 def test_protocol_method_signatures() -> None:
     """Test that protocol methods have correct signatures."""
-    # Test MockProvider has correct method signatures
-    provider = MockProvider()
+    # Test MCPProvider has correct method signatures
+    provider = MCPProvider(base_url="http://localhost:8080", api_key="test-key")
 
     # validate_connection should be async and take no args (except self)
     sig = inspect.signature(provider.validate_connection)

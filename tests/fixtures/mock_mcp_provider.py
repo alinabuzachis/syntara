@@ -1,10 +1,9 @@
 """Mock provider implementation for testing purposes."""
 
-import asyncio
 import random
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from nexus.tool_manager.lib.exceptions import ProviderError, ToolNotFoundError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
@@ -18,36 +17,27 @@ from nexus.tool_manager.models import (
 )
 
 
-class MockProvider(ToolProviderAdapter):
+class MockMCPProvider(ToolProviderAdapter):
     """Mock tool provider for testing core abstractions."""
 
     def __init__(
         self,
+        base_url: str,  # noqa: ARG002
+        api_key: str,  # noqa: ARG002
         provider_id: UUID | None = None,
-        provider_name: str = "mock_provider",
-        *,
-        simulate_timeout: bool = False,
-        simulate_connection_error: bool = False,
-        simulate_auth_failure: bool = False,
-        response_delay_ms: int = 0,
+        provider_name: str | None = "mcp-provider",
     ) -> None:
-        """Initialize mock provider with configurable behavior.
+        """Initialize MCP provider with configuration.
 
         Args:
-            provider_id: Provider ID
-            provider_name: Name of the mock provider
-            simulate_timeout: Whether to simulate timeout errors
-            simulate_connection_error: Whether to simulate connection errors
-            simulate_auth_failure: Whether to simulate authentication failures
-            response_delay_ms: Artificial delay in milliseconds for testing
+            base_url: URL of the MCP server
+            api_key: Authentication key for the MCP server
+            provider_id: Unique identifier for this provider instance (optional for factory)
+            provider_name: Human-readable name for the provider (optional for factory)
 
         """
-        self.provider_id = provider_id
+        self.provider_id = provider_id or uuid4()
         self.provider_name = provider_name
-        self.simulate_timeout = simulate_timeout
-        self.simulate_connection_error = simulate_connection_error
-        self.simulate_auth_failure = simulate_auth_failure
-        self.response_delay_ms = response_delay_ms
 
         # Mock tool schemas (separate from Tool models to match new design)
         self._tool_schemas = {
@@ -195,41 +185,16 @@ class MockProvider(ToolProviderAdapter):
             ),
         ]
 
-    async def _apply_delay(self) -> None:
-        """Apply artificial delay if configured."""
-        if self.response_delay_ms > 0:
-            await asyncio.sleep(self.response_delay_ms / 1000.0)
-
-    async def _check_error_conditions(self) -> None:
-        """Check for simulated error conditions."""
-        if self.simulate_timeout:
-            msg = "Simulated timeout error"
-            raise TimeoutError(msg)
-
-        if self.simulate_connection_error:
-            msg = "Simulated connection error"
-            raise ConnectionError(msg)
-
-        if self.simulate_auth_failure:
-            msg = "Simulated authentication failure"
-            raise ProviderError(msg)
-
     async def validate_connection(self) -> ToolProviderValidationResult:
         """Validate connection to the mock provider."""
-        await self._apply_delay()
-        await self._check_error_conditions()
-
         return ToolProviderValidationResult(
             valid=True,
-            provider_type="mock",
+            provider_type="mcp",
             validated_at=datetime.now(UTC),
         )
 
     async def refresh_tools(self) -> list[Tool]:
         """Refresh and discover tools from the mock provider."""
-        await self._apply_delay()
-        await self._check_error_conditions()
-
         # Return a single tool when refreshed
         # Note: Only set the metadata fields, not database fields like created_by, provider_id
         return [
@@ -250,9 +215,6 @@ class MockProvider(ToolProviderAdapter):
 
     async def get_tool_schema(self, tool_name: str) -> ToolSchema:
         """Get detailed schema for a specific tool."""
-        await self._apply_delay()
-        await self._check_error_conditions()
-
         # Find tool by name
         tool = None
         for mock_tool in self._mock_tools:
@@ -276,11 +238,8 @@ class MockProvider(ToolProviderAdapter):
     async def validate_tool(self, tool_name: str, parameters: dict[str, Any] | None = None) -> ToolValidationResult:
         """Validate tool functionality and server communication."""
         start_time = datetime.now(UTC)
-        await self._apply_delay()
 
         try:
-            await self._check_error_conditions()
-
             # Find tool by name
             tool = None
             for mock_tool in self._mock_tools:
@@ -385,23 +344,3 @@ class MockProvider(ToolProviderAdapter):
 
         msg = f"Unknown tool for execution simulation: {tool_name}"
         raise ProviderError(msg)
-
-    def get_tool_names(self) -> list[str]:
-        """Get list of available tool names (helper for testing)."""
-        return [tool.name for tool in self._mock_tools]
-
-    def set_error_simulation(
-        self,
-        *,
-        timeout: bool = False,
-        connection_error: bool = False,
-        auth_failure: bool = False,
-    ) -> None:
-        """Configure error simulation for testing scenarios."""
-        self.simulate_timeout = timeout
-        self.simulate_connection_error = connection_error
-        self.simulate_auth_failure = auth_failure
-
-    def set_response_delay(self, delay_ms: int) -> None:
-        """Set artificial response delay for testing."""
-        self.response_delay_ms = max(0, delay_ms)

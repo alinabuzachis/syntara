@@ -14,10 +14,10 @@ class TestToolProvidersGetContract:
 
     @pytest.mark.asyncio
     async def test_get_provider_success_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test successful provider retrieval returns 200."""
-        response = await base_client.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
 
         # Contract: Must return 200 OK for existing provider
         assert response.status_code == 200
@@ -35,10 +35,10 @@ class TestToolProvidersGetContract:
 
     @pytest.mark.asyncio
     async def test_get_provider_all_fields_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test response includes all required fields."""
-        response = await base_client.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -64,10 +64,10 @@ class TestToolProvidersGetContract:
 
     @pytest.mark.asyncio
     async def test_get_provider_last_validated_at_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test response includes last_validated_at field."""
-        response = await base_client.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -80,11 +80,11 @@ class TestToolProvidersGetContract:
             assert isinstance(data["last_validated_at"], str)
 
     @pytest.mark.asyncio
-    async def test_get_provider_not_found_contract(self, base_client: AsyncClient) -> None:
+    async def test_get_provider_not_found_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test 404 error for non-existent provider."""
         provider_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await base_client.get(f"/api/v1/tool-providers/{provider_id}")
+        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{provider_id}")
 
         # Contract: Must return 404 Not Found
         assert response.status_code == 404
@@ -94,11 +94,11 @@ class TestToolProvidersGetContract:
         assert "error" in data or "detail" in data
 
     @pytest.mark.asyncio
-    async def test_get_provider_invalid_uuid_contract(self, base_client: AsyncClient) -> None:
+    async def test_get_provider_invalid_uuid_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test 400 error for invalid UUID format."""
         invalid_id = "not-a-uuid"
 
-        response = await base_client.get(f"/api/v1/tool-providers/{invalid_id}")
+        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{invalid_id}")
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID format
         assert response.status_code == 422
@@ -109,10 +109,10 @@ class TestToolProvidersGetContract:
 
     @pytest.mark.asyncio
     async def test_get_provider_configuration_format_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test configuration field format in response."""
-        response = await base_client.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -124,14 +124,14 @@ class TestToolProvidersGetContract:
         assert "provider_type" in data["configuration"]
 
         # Verify configuration matches test provider
-        assert data["configuration"]["provider_type"] == "mock"
+        assert data["configuration"]["provider_type"] == "mcp"
 
     @pytest.mark.asyncio
     async def test_get_provider_status_values_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test status field contains valid values."""
-        response = await base_client.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -144,10 +144,10 @@ class TestToolProvidersGetContract:
 
     @pytest.mark.asyncio
     async def test_get_provider_timestamps_format_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test timestamp fields are properly formatted."""
-        response = await base_client.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -160,3 +160,46 @@ class TestToolProvidersGetContract:
             assert isinstance(data[field], str)
             # Basic ISO format validation (contains T and Z/+)
             assert "T" in data[field]
+
+    @pytest.mark.asyncio
+    async def test_get_provider_configuration_eager_loading(
+        self,
+        base_client_with_provider_factory: AsyncClient,
+        test_tool_provider: ToolProvider,
+    ) -> None:
+        """Test that configuration is correctly loaded and typed in get_provider endpoint.
+
+        This integration test verifies that the get_provider endpoint returns
+        strongly-typed configuration objects rather than raw JSON, ensuring
+        proper deserialization and type safety for API consumers.
+        """
+        # Make HTTP request to get specific provider - this is end-to-end testing
+        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+
+        # Verify successful response
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify provider data
+        assert data["id"] == str(test_tool_provider.id)
+        assert data["name"] == test_tool_provider.name
+        assert data["status"] == test_tool_provider.status.value
+
+        # Verify configuration is included and properly typed (proving eager loading/transformation)
+        assert "configuration" in data, "Provider configuration should be included in response"
+        assert isinstance(data["configuration"], dict), "Configuration should be a dictionary object"
+
+        # Verify configuration structure matches expected MCP provider format
+        config = data["configuration"]
+        assert "provider_type" in config, "Configuration should include provider_type"
+        assert config["provider_type"] == "mcp", "Provider type should be 'mcp'"
+
+        # Verify MCP-specific fields are present and properly typed
+        expected_mcp_fields = ["base_url", "api_key"]
+        for field in expected_mcp_fields:
+            assert field in config, f"MCP configuration should include {field}"
+            assert isinstance(config[field], str), f"MCP {field} should be a string"
+
+        # Verify configuration values match expected test data
+        assert config["base_url"] == "http://localhost:8080"
+        assert config["api_key"] == "test-key"

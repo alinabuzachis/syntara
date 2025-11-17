@@ -13,10 +13,14 @@ from nexus.tool_manager.models.tool import (
 from nexus.tool_manager.models.tool_bulk_update import MAX_BULK_UPDATES, ToolBulkUpdate
 from nexus.tool_manager.models.tool_execution import ExecutionStatus, ToolExecution, ToolMetricsSummary
 from nexus.tool_manager.models.tool_provider import (
-    MCPConfiguration,
     ProviderStatus,
     ToolProvider,
     ToolProviderListResponse,
+)
+from nexus.tool_manager.models.tool_provider_configuration import (
+    MCPConfiguration,
+    ProviderConfiguration,
+    ProviderConfigurationTypes,
 )
 from nexus.tool_manager.models.tool_provider_refresh_result import ToolProviderRefreshResult
 from nexus.tool_manager.models.tool_provider_validation_result import ToolProviderValidationResult
@@ -29,6 +33,8 @@ __all__ = [
     "CounterType",
     "ExecutionStatus",
     "MCPConfiguration",
+    "ProviderConfiguration",
+    "ProviderConfigurationTypes",
     "ProviderStatus",
     "RateLimit",
     "TargetType",

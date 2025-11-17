@@ -14,7 +14,7 @@ class TestToolProvidersRefreshContract:
 
     @pytest.mark.asyncio
     async def test_refresh_tools_success_contract(
-        self, auth_client: AsyncClient, test_tool_provider: ToolProvider, test_db_session
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider, test_db_session
     ) -> None:
         """Test successful tool refresh returns 200."""
         # Set provider status to AVAILABLE for refresh to work
@@ -23,7 +23,9 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
         await test_db_session.refresh(test_tool_provider)
 
-        response = await auth_client.post(f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+        )
 
         # Contract: Must return 200 OK for successful refresh
         assert response.status_code == 200
@@ -37,7 +39,7 @@ class TestToolProvidersRefreshContract:
 
     @pytest.mark.asyncio
     async def test_refresh_tools_response_counts_contract(
-        self, auth_client: AsyncClient, test_tool_provider: ToolProvider, test_db_session
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider, test_db_session
     ) -> None:
         """Test response includes all required count fields."""
         # Set provider status to AVAILABLE for refresh to work
@@ -46,7 +48,9 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
         await test_db_session.refresh(test_tool_provider)
 
-        response = await auth_client.post(f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -60,7 +64,7 @@ class TestToolProvidersRefreshContract:
 
     @pytest.mark.asyncio
     async def test_refresh_tools_timestamp_format_contract(
-        self, auth_client: AsyncClient, test_tool_provider: ToolProvider, test_db_session
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider, test_db_session
     ) -> None:
         """Test refreshed_at timestamp format."""
         # Set provider status to AVAILABLE for refresh to work
@@ -69,7 +73,9 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
         await test_db_session.refresh(test_tool_provider)
 
-        response = await auth_client.post(f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -83,7 +89,7 @@ class TestToolProvidersRefreshContract:
 
     @pytest.mark.asyncio
     async def test_refresh_tools_failure_contract(
-        self, auth_client: AsyncClient, test_tool_provider: ToolProvider, test_db_session
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider, test_db_session
     ) -> None:
         """Test refresh failure returns 400 with error details."""
         # Set provider status to ERROR to cause refresh failure
@@ -92,7 +98,9 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
         await test_db_session.refresh(test_tool_provider)
 
-        response = await auth_client.post(f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+        )
 
         # Contract: Must return 400 Bad Request for refresh failure
         assert response.status_code == 400
@@ -102,11 +110,11 @@ class TestToolProvidersRefreshContract:
         assert "error" in data or "detail" in data
 
     @pytest.mark.asyncio
-    async def test_refresh_tools_not_found_contract(self, auth_client: AsyncClient) -> None:
+    async def test_refresh_tools_not_found_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test 404 error for non-existent provider."""
         provider_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await auth_client.post(f"/api/v1/tool-providers/{provider_id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(f"/api/v1/tool-providers/{provider_id}/refresh-tools")
 
         # Contract: Must return 404 Not Found
         assert response.status_code == 404
@@ -117,7 +125,7 @@ class TestToolProvidersRefreshContract:
 
     @pytest.mark.asyncio
     async def test_refresh_tools_unavailable_provider_contract(
-        self, auth_client: AsyncClient, test_tool_provider: ToolProvider, test_db_session
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider, test_db_session
     ) -> None:
         """Test error when provider is not available."""
         # Set provider status to ERROR to make it unavailable for refresh
@@ -126,7 +134,9 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
         await test_db_session.refresh(test_tool_provider)
 
-        response = await auth_client.post(f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+        )
 
         # Contract: Must return 400 for unavailable provider
         assert response.status_code == 400
@@ -138,12 +148,14 @@ class TestToolProvidersRefreshContract:
 
     @pytest.mark.asyncio
     async def test_refresh_tools_validating_provider_fails_contract(
-        self, auth_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test refresh fails when provider is in VALIDATING status."""
         # test_tool_provider starts with VALIDATING status by default
         # This should fail because only AVAILABLE providers can be refreshed
-        response = await auth_client.post(f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+        )
 
         # Contract: Must return 400 for non-available provider
         assert response.status_code == 400
@@ -155,7 +167,7 @@ class TestToolProvidersRefreshContract:
 
     @pytest.mark.asyncio
     async def test_refresh_tools_disabled_tools_contract(
-        self, auth_client: AsyncClient, test_tool_provider: ToolProvider, test_db_session
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider, test_db_session
     ) -> None:
         """Test refresh correctly handles disabled tools."""
         # Set provider status to AVAILABLE for refresh to work
@@ -164,7 +176,9 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
         await test_db_session.refresh(test_tool_provider)
 
-        response = await auth_client.post(f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -176,18 +190,18 @@ class TestToolProvidersRefreshContract:
         assert data["disabled_count"] >= 0
 
     @pytest.mark.asyncio
-    async def test_refresh_tools_invalid_uuid_contract(self, auth_client: AsyncClient) -> None:
+    async def test_refresh_tools_invalid_uuid_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test 422 error for invalid UUID format."""
         invalid_id = "not-a-uuid"
 
-        response = await auth_client.post(f"/api/v1/tool-providers/{invalid_id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(f"/api/v1/tool-providers/{invalid_id}/refresh-tools")
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID
         assert response.status_code == 422
 
     @pytest.mark.asyncio
     async def test_refresh_tools_concurrent_refresh_contract(
-        self, auth_client: AsyncClient, test_tool_provider: ToolProvider, test_db_session
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider, test_db_session
     ) -> None:
         """Test concurrent refresh operations are handled safely."""
         # Set provider status to AVAILABLE for refresh to work
@@ -197,7 +211,9 @@ class TestToolProvidersRefreshContract:
         await test_db_session.refresh(test_tool_provider)
 
         # This test ensures the API can handle concurrent refresh operations
-        response = await auth_client.post(f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+        )
 
         # Contract: Must return 200 OK for valid refresh
         assert response.status_code == 200

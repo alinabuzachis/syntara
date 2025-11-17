@@ -15,17 +15,19 @@ class TestToolProvidersCreateContract:
     """Contract tests for tool providers create endpoint."""
 
     @pytest.mark.asyncio
-    async def test_create_provider_success_contract(self, base_client: AsyncClient) -> None:
+    async def test_create_provider_success_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test successful provider registration returns 201."""
         provider_data = {
-            "name": "test-mock-provider",
-            "description": "Test Mock Tool Provider",
+            "name": "test-mcp-provider",
+            "description": "Test MCP Tool Provider",
             "configuration": {
-                "provider_type": "mock",
+                "provider_type": "mcp",
+                "base_url": "http://localhost:8000/mcp",
+                "api_key": "api-key",
             },
         }
 
-        response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
 
         # Contract: Must return 201 Created
         assert response.status_code == 201
@@ -34,22 +36,30 @@ class TestToolProvidersCreateContract:
         data = response.json()
         assert "id" in data
         assert data["name"] == provider_data["name"]
-        assert data["configuration"] == provider_data["configuration"]
+        # Configuration should include the input fields plus defaults for mock provider
+        expected_config = {
+            "provider_type": "mcp",
+            "base_url": "http://localhost:8000/mcp",
+            "api_key": "api-key",
+        }
+        assert data["configuration"] == expected_config
         assert data["status"] == "validating"
 
     @pytest.mark.asyncio
-    async def test_create_provider_duplicate_name_conflict_contract(self, base_client: AsyncClient) -> None:
+    async def test_create_provider_duplicate_name_conflict_contract(
+        self, base_client_with_provider_factory: AsyncClient
+    ) -> None:
         """Test 409 conflict for duplicate provider names."""
         provider_data = {
-            "name": "test-mock-provider",
-            "configuration": {"provider_type": "mock"},
+            "name": "test-provider",
+            "configuration": {"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
         }
 
         # Create first provider
-        response1 = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        response1 = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
 
         # Attempt to create duplicate
-        response2 = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        response2 = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
 
         # Contract: First creation must succeed
         assert response1.status_code == 201
@@ -62,11 +72,13 @@ class TestToolProvidersCreateContract:
         assert "error" in error_data or "detail" in error_data
 
     @pytest.mark.asyncio
-    async def test_create_provider_missing_configuration_contract(self, base_client: AsyncClient) -> None:
+    async def test_create_provider_missing_configuration_contract(
+        self, base_client_with_provider_factory: AsyncClient
+    ) -> None:
         """Test validation error for missing configuration."""
         provider_data = {"name": "missing-config-test"}
 
-        response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
 
         # Contract: Must return 422 Unprocessable Entity
         assert response.status_code == 422
@@ -76,14 +88,16 @@ class TestToolProvidersCreateContract:
         assert "error" in data or "detail" in data
 
     @pytest.mark.asyncio
-    async def test_create_provider_missing_provider_type_contract(self, base_client: AsyncClient) -> None:
+    async def test_create_provider_missing_provider_type_contract(
+        self, base_client_with_provider_factory: AsyncClient
+    ) -> None:
         """Test validation error for missing provider_type."""
         provider_data = {
             "name": "missing-type-test",
             "configuration": {"base_url": "https://example.com/mcp", "api_key": "test-key"},
         }
 
-        response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
 
         # Contract: Must return 422 Unprocessable Entity
         assert response.status_code == 422
@@ -94,9 +108,9 @@ class TestToolProvidersCreateContract:
         assert "provider_type" in error_message.lower()
 
     @pytest.mark.asyncio
-    async def test_create_provider_invalid_json_contract(self, base_client: AsyncClient) -> None:
+    async def test_create_provider_invalid_json_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test 422 error for invalid JSON."""
-        response = await base_client.post(
+        response = await base_client_with_provider_factory.post(
             "/api/v1/tool-providers", json={}, headers={"Content-Type": "application/json"}
         )
 
@@ -104,14 +118,16 @@ class TestToolProvidersCreateContract:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_provider_optional_fields_contract(self, base_client: AsyncClient) -> None:
+    async def test_create_provider_optional_fields_contract(
+        self, base_client_with_provider_factory: AsyncClient
+    ) -> None:
         """Test creation with optional fields."""
         provider_data = {
             "name": "optional-fields-test",
-            "configuration": {"provider_type": "mock"},
+            "configuration": {"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
         }
 
-        response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
 
         # Contract: Must return 201 Created
         assert response.status_code == 201
@@ -120,17 +136,21 @@ class TestToolProvidersCreateContract:
         data = response.json()
         assert data["name"] == provider_data["name"]
         assert data["description"] is None
-        assert data["configuration"] == provider_data["configuration"]
+        # Configuration should include defaults for mock provider
+        expected_config = {"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"}
+        assert data["configuration"] == expected_config
 
     @pytest.mark.asyncio
-    async def test_create_provider_response_schema_contract(self, base_client: AsyncClient) -> None:
+    async def test_create_provider_response_schema_contract(
+        self, base_client_with_provider_factory: AsyncClient
+    ) -> None:
         """Test response matches OpenAPI specification schema."""
         provider_data = {
             "name": "schema-test-provider",
-            "configuration": {"provider_type": "mock"},
+            "configuration": {"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
         }
 
-        response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
 
         # Contract: Must return 201 Created
         assert response.status_code == 201
@@ -143,7 +163,7 @@ class TestToolProvidersCreateContract:
 
     @pytest.mark.asyncio
     async def test_create_provider_integrity_error_non_name_conflict_contract(
-        self, base_client: AsyncClient, monkeypatch
+        self, base_client_with_provider_factory: AsyncClient, monkeypatch
     ) -> None:
         """Test 400 error for IntegrityError that is NOT a name conflict."""
 
@@ -161,7 +181,7 @@ class TestToolProvidersCreateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
         }
 
-        response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
 
         # Contract: Must return 400 Bad Request for non-name-conflict IntegrityError
         assert response.status_code == 400
@@ -172,14 +192,16 @@ class TestToolProvidersCreateContract:
         assert "CHECK constraint failed" in error_message
 
     @pytest.mark.asyncio
-    async def test_create_provider_validation_status_contract(self, base_client: AsyncClient) -> None:
+    async def test_create_provider_validation_status_contract(
+        self, base_client_with_provider_factory: AsyncClient
+    ) -> None:
         """Test new provider starts with 'validating' status."""
         provider_data = {
             "name": "validation-status-test",
-            "configuration": {"provider_type": "mock"},
+            "configuration": {"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
         }
 
-        response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
 
         # Contract: Must return 201 Created
         assert response.status_code == 201

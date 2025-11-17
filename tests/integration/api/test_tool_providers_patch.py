@@ -18,12 +18,12 @@ class TestToolProvidersPatchContract:
 
     @pytest.mark.asyncio
     async def test_patch_provider_success_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test successful partial provider update returns 200."""
         patch_data = {"description": "Partially updated description", "enabled": False}
 
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -36,17 +36,23 @@ class TestToolProvidersPatchContract:
         data = response.json()
         assert data["name"] == test_tool_provider.name
         assert data["description"] == patch_data["description"]
-        assert data["configuration"] == test_tool_provider.configuration
+        # Configuration should match the expected mock configuration
+        expected_config = {
+            "provider_type": "mcp",
+            "base_url": "http://localhost:8080",
+            "api_key": "test-key",
+        }
+        assert data["configuration"] == expected_config
         assert data["enabled"] == patch_data["enabled"]
 
     @pytest.mark.asyncio
     async def test_patch_provider_content_type_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test application/merge-patch+json content type is required."""
         patch_data = {"enabled": False}
 
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -59,22 +65,29 @@ class TestToolProvidersPatchContract:
         data = response.json()
         assert data["name"] == test_tool_provider.name
         assert data["description"] == test_tool_provider.description
-        assert data["configuration"] == test_tool_provider.configuration
+        # Configuration should be the mock configuration with defaults
+        expected_config = {
+            "provider_type": "mcp",
+            "base_url": "http://localhost:8080",
+            "api_key": "test-key",
+        }
+        assert data["configuration"] == expected_config
         assert data["enabled"] == patch_data["enabled"]
 
     @pytest.mark.asyncio
     async def test_patch_provider_preserve_existing_fields_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test existing fields are preserved."""
         patch_data = {
             "configuration": {
-                "provider_type": test_tool_provider.configuration["provider_type"],
-                "base_url": "https://updated.example.com/mcp",
+                "provider_type": test_tool_provider.configuration.provider_type,
+                "base_url": "http://somewhere:8000",
+                "api_key": "new-key",
             }
         }
 
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -87,16 +100,18 @@ class TestToolProvidersPatchContract:
         data = response.json()
         assert data["name"] == test_tool_provider.name
         assert data["description"] == test_tool_provider.description
-        assert data["configuration"] == test_tool_provider.configuration
+        # Configuration should be updated with simulate_timeout = True
+        expected_config = {
+            "provider_type": "mcp",
+            "base_url": "http://somewhere:8000",
+            "api_key": "new-key",
+        }
+        assert data["configuration"] == expected_config
         assert data["enabled"] == test_tool_provider.enabled
-
-        assert "provider_type" in data["configuration"]
-        assert "base_url" in data["configuration"]
-        assert data["configuration"]["base_url"] == "https://updated.example.com/mcp"
 
     @pytest.mark.asyncio
     async def test_patch_provider_validation_error_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test validation error when removing required fields."""
         patch_data = {
@@ -105,7 +120,7 @@ class TestToolProvidersPatchContract:
             }
         }
 
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -120,12 +135,12 @@ class TestToolProvidersPatchContract:
         assert "provider_type" in error_message.lower()
 
     @pytest.mark.asyncio
-    async def test_patch_provider_not_found_contract(self, base_client: AsyncClient) -> None:
+    async def test_patch_provider_not_found_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test 404 error for non-existent provider."""
         provider_id = "99999999-9999-9999-9999-999999999999"
         patch_data = {"enabled": False}
 
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{provider_id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -136,12 +151,12 @@ class TestToolProvidersPatchContract:
 
     @pytest.mark.asyncio
     async def test_patch_provider_minimal_update_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test PATCH with single field update."""
         patch_data = {"enabled": False}
 
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -154,17 +169,23 @@ class TestToolProvidersPatchContract:
         data = response.json()
         assert data["name"] == test_tool_provider.name
         assert data["description"] == test_tool_provider.description
-        assert data["configuration"] == test_tool_provider.configuration
+        # Configuration should be the mock configuration with defaults
+        expected_config = {
+            "provider_type": "mcp",
+            "base_url": "http://localhost:8080",
+            "api_key": "test-key",
+        }
+        assert data["configuration"] == expected_config
         assert data["enabled"] == patch_data["enabled"]
 
     @pytest.mark.asyncio
     async def test_patch_provider_empty_patch_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test PATCH with empty object."""
         patch_data: dict[str, str] = {}
 
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -177,26 +198,34 @@ class TestToolProvidersPatchContract:
         data = response.json()
         assert data["name"] == test_tool_provider.name
         assert data["description"] == test_tool_provider.description
-        assert data["configuration"] == test_tool_provider.configuration
+        # Configuration should be the mock configuration with defaults
+        expected_config = {
+            "provider_type": "mcp",
+            "base_url": "http://localhost:8080",
+            "api_key": "test-key",
+        }
+        assert data["configuration"] == expected_config
         assert data["enabled"] == test_tool_provider.enabled
 
     @pytest.mark.asyncio
     async def test_patch_provider_name_conflict_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test 409 conflict when patching to existing name."""
         # First create another provider with the name we'll try to patch to
         conflicting_provider_data = {
             "name": "existing-provider-name",
-            "configuration": {"provider_type": "mock"},
+            "configuration": {"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         }
-        create_response = await base_client.post("/api/v1/tool-providers", json=conflicting_provider_data)
+        create_response = await base_client_with_provider_factory.post(
+            "/api/v1/tool-providers", json=conflicting_provider_data
+        )
         assert create_response.status_code == 201
 
         # Now try to patch the test provider to use the same name
         patch_data = {"name": "existing-provider-name"}
 
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -207,7 +236,7 @@ class TestToolProvidersPatchContract:
 
     @pytest.mark.asyncio
     async def test_patch_provider_integrity_error_non_name_conflict_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider, monkeypatch
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider, monkeypatch
     ) -> None:
         """Test 400 error for IntegrityError that is NOT a name conflict."""
 
@@ -222,7 +251,7 @@ class TestToolProvidersPatchContract:
 
         patch_data = {"description": "Updated description"}
 
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -238,12 +267,12 @@ class TestToolProvidersPatchContract:
 
     @pytest.mark.asyncio
     async def test_patch_provider_without_enabled_preserves_existing_value_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test that patch without 'enabled' field preserves the existing enabled value."""
         # First, set the provider's enabled status to False
         patch_data_disable = {"enabled": False}
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data_disable,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -255,12 +284,13 @@ class TestToolProvidersPatchContract:
         patch_data_no_enabled = {
             "description": "Updated description without enabled field",
             "configuration": {
-                "provider_type": test_tool_provider.configuration["provider_type"],
-                "new_field": "added_value",
+                "provider_type": test_tool_provider.configuration.provider_type,
+                "base_url": "http://localhost:8080",
+                "api_key": "test-key",
             },
         }
 
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data_no_enabled,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -273,11 +303,12 @@ class TestToolProvidersPatchContract:
         data = response.json()
         assert data["enabled"] is False
         assert data["description"] == "Updated description without enabled field"
-        assert data["configuration"]["new_field"] == "added_value"
+        assert data["configuration"]["base_url"] == "http://localhost:8080"
+        assert data["configuration"]["api_key"] == "test-key"
 
         # Now enable the provider and test again
         patch_data_enable = {"enabled": True}
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data_enable,
             headers={"Content-Type": "application/merge-patch+json"},
@@ -288,7 +319,7 @@ class TestToolProvidersPatchContract:
         # Patch again without 'enabled' field - should preserve True
         patch_data_no_enabled_2 = {"description": "Another update without enabled field"}
 
-        response = await base_client.patch(
+        response = await base_client_with_provider_factory.patch(
             f"/api/v1/tool-providers/{test_tool_provider.id}",
             json=patch_data_no_enabled_2,
             headers={"Content-Type": "application/merge-patch+json"},

@@ -19,42 +19,42 @@ async def multiple_test_providers(test_db_session: AsyncSession, test_user: User
         ToolProvider(
             name="Alpha Provider",
             description="First provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://alpha.example.com"},
+            configuration={"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
             enabled=True,
             created_by=test_user.id,
         ),
         ToolProvider(
             name="Beta Provider",
             description="Second provider for testing",
-            configuration={"provider_type": "python", "module": "beta_module"},
+            configuration={"provider_type": "mcp", "base_url": "https://beta.example.com", "api_key": "beta-key"},
             enabled=False,
             created_by=test_user.id,
         ),
         ToolProvider(
             name="Gamma Provider",
             description="Third provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://gamma.example.com"},
+            configuration={"provider_type": "mcp", "base_url": "https://gamma.example.com", "api_key": "gamma-key"},
             enabled=True,
             created_by=test_user.id,
         ),
         ToolProvider(
             name="Delta Provider",
             description="Fourth provider for testing",
-            configuration={"provider_type": "python", "module": "delta_module"},
+            configuration={"provider_type": "mcp", "base_url": "https://delta.example.com", "api_key": "delta-key"},
             enabled=True,
             created_by=test_user.id,
         ),
         ToolProvider(
             name="Echo Provider",
             description="Fifth provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://echo.example.com"},
+            configuration={"provider_type": "mcp", "base_url": "https://echo.example.com", "api_key": "echo-key"},
             enabled=False,
             created_by=test_user.id,
         ),
         ToolProvider(
             name="Foxtrot Provider",
             description="Sixth provider for testing",
-            configuration={"provider_type": "python", "module": "foxtrot_module"},
+            configuration={"provider_type": "mcp", "base_url": "https://foxtrot.example.com", "api_key": "foxtrot-key"},
             enabled=True,
             created_by=test_user.id,
         ),
@@ -77,11 +77,11 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_basic_success(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test basic GET /api/v1/tool-providers returns 200."""
-        response = await base_client.get("/api/v1/tool-providers")
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -107,11 +107,11 @@ class TestToolProvidersListContract:
 
     @pytest.mark.asyncio
     async def test_list_providers_pagination_contract(
-        self, base_client: AsyncClient, multiple_test_providers: list[ToolProvider]
+        self, base_client_with_provider_factory: AsyncClient, multiple_test_providers: list[ToolProvider]
     ) -> None:
         """Test pagination parameters are accepted and response format is correct."""
         # Test with limit smaller than total count to ensure pagination works
-        response = await base_client.get("/api/v1/tool-providers", params={"limit": "3"})
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"limit": "3"})
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -131,7 +131,7 @@ class TestToolProvidersListContract:
 
         # Test pagination with cursor
         if data["next"]:
-            next_response = await base_client.get(
+            next_response = await base_client_with_provider_factory.get(
                 "/api/v1/tool-providers", params={"limit": "3", "cursor": data["next"]}
             )
             assert next_response.status_code == 200
@@ -147,12 +147,12 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_bracket_filters_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test bracket filter notation is accepted."""
         # Test filtering by enabled status
-        response = await base_client.get("/api/v1/tool-providers", params={"enabled[eq]": "true"})
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"enabled[eq]": "true"})
         assert response.status_code == 200
         data = response.json()
         assert "resources" in data
@@ -165,7 +165,7 @@ class TestToolProvidersListContract:
         assert len(data["resources"]) == 4
 
         # Test filtering by provider type in configuration
-        mcp_response = await base_client.get(
+        mcp_response = await base_client_with_provider_factory.get(
             "/api/v1/tool-providers", params={"configuration.provider_type[eq]": "mcp"}
         )
         assert mcp_response.status_code == 200
@@ -175,11 +175,13 @@ class TestToolProvidersListContract:
         for provider in mcp_data["resources"]:
             assert provider["configuration"]["provider_type"] == "mcp"
 
-        # Should return 3 MCP providers (Alpha, Gamma, Echo)
-        assert len(mcp_data["resources"]) == 3
+        # Should return 6 MCP providers (Alpha, Beta, Gamma, Delta, Echo, Foxtrot)
+        assert len(mcp_data["resources"]) == 6
 
         # Test name contains filter
-        alpha_response = await base_client.get("/api/v1/tool-providers", params={"name[contains]": "Alpha"})
+        alpha_response = await base_client_with_provider_factory.get(
+            "/api/v1/tool-providers", params={"name[contains]": "Alpha"}
+        )
         assert alpha_response.status_code == 200
         alpha_data = alpha_response.json()
         assert len(alpha_data["resources"]) == 1
@@ -188,11 +190,13 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_include_total_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test include_total parameter returns total count."""
-        response = await base_client.get("/api/v1/tool-providers", params={"include_total": "true"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool-providers", params={"include_total": "true"}
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -206,11 +210,11 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_response_schema_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test response matches OpenAPI specification schema."""
-        response = await base_client.get("/api/v1/tool-providers")
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -247,18 +251,20 @@ class TestToolProvidersListContract:
             assert isinstance(provider["status"], str)
 
     @pytest.mark.asyncio
-    async def test_list_providers_invalid_parameters_contract(self, base_client: AsyncClient) -> None:
+    async def test_list_providers_invalid_parameters_contract(
+        self, base_client_with_provider_factory: AsyncClient
+    ) -> None:
         """Test validation of query parameters."""
         # Test with invalid limit parameter
-        response = await base_client.get("/api/v1/tool-providers", params={"limit": "invalid"})
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"limit": "invalid"})
 
         # Contract: Must return 422 Unprocessable Entity for invalid parameters
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_list_providers_empty_result_contract(self, base_client: AsyncClient) -> None:
+    async def test_list_providers_empty_result_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test response format when no providers exist."""
-        response = await base_client.get("/api/v1/tool-providers")
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
 
         # Contract: Must return 200 even for empty results
         assert response.status_code == 200
@@ -271,11 +277,11 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_cursor_format_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test cursor token format in response."""
-        response = await base_client.get("/api/v1/tool-providers", params={"limit": "1"})
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"limit": "1"})
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -295,12 +301,12 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_sorting_by_name_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test sorting providers by name."""
         # Test ascending sort
-        response = await base_client.get("/api/v1/tool-providers", params={"sort": "name"})
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"sort": "name"})
         assert response.status_code == 200
 
         data = response.json()
@@ -313,7 +319,7 @@ class TestToolProvidersListContract:
         assert names[-1] == "Gamma Provider"  # Last alphabetically
 
         # Test descending sort
-        desc_response = await base_client.get("/api/v1/tool-providers", params={"sort": "-name"})
+        desc_response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"sort": "-name"})
         assert desc_response.status_code == 200
 
         desc_data = desc_response.json()
@@ -323,11 +329,11 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_sorting_by_created_at_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test sorting providers by creation date."""
-        response = await base_client.get("/api/v1/tool-providers", params={"sort": "created_at"})
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"sort": "created_at"})
         assert response.status_code == 200
 
         data = response.json()
@@ -335,7 +341,9 @@ class TestToolProvidersListContract:
         assert created_dates == sorted(created_dates)
 
         # Test descending sort (newest first)
-        desc_response = await base_client.get("/api/v1/tool-providers", params={"sort": "-created_at"})
+        desc_response = await base_client_with_provider_factory.get(
+            "/api/v1/tool-providers", params={"sort": "-created_at"}
+        )
         assert desc_response.status_code == 200
 
         desc_data = desc_response.json()
@@ -345,12 +353,14 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_combined_filter_and_sort_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test combining filters and sorting."""
         # Filter enabled providers and sort by name
-        response = await base_client.get("/api/v1/tool-providers", params={"enabled[eq]": "true", "sort": "name"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool-providers", params={"enabled[eq]": "true", "sort": "name"}
+        )
         assert response.status_code == 200
 
         data = response.json()
@@ -366,12 +376,14 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_combined_filter_and_sort_contract_disabled(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test combining filters and sorting."""
         # Filter enabled providers and sort by name
-        response = await base_client.get("/api/v1/tool-providers", params={"enabled[eq]": "false", "sort": "-name"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool-providers", params={"enabled[eq]": "false", "sort": "-name"}
+        )
         assert response.status_code == 200
 
         data = response.json()
@@ -387,33 +399,35 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_filter_by_multiple_criteria_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test filtering by multiple criteria."""
         # Filter enabled MCP providers
-        response = await base_client.get(
+        response = await base_client_with_provider_factory.get(
             "/api/v1/tool-providers", params={"enabled[eq]": "true", "configuration.provider_type[eq]": "mcp"}
         )
         assert response.status_code == 200
 
         data = response.json()
-        assert len(data["resources"]) == 2  # Alpha and Gamma
+        assert len(data["resources"]) == 4  # Alpha, Gamma, Delta and Foxtrot
 
         for provider in data["resources"]:
             assert provider["enabled"] is True
             assert provider["configuration"]["provider_type"] == "mcp"
-            assert provider["name"] in ["Alpha Provider", "Gamma Provider"]
+            assert provider["name"] in ["Alpha Provider", "Gamma Provider", "Delta Provider", "Foxtrot Provider"]
 
     @pytest.mark.asyncio
     async def test_list_providers_pagination_with_filters_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test pagination works correctly with filters."""
         # Get enabled providers with pagination
-        response = await base_client.get("/api/v1/tool-providers", params={"enabled[eq]": "true", "limit": "2"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool-providers", params={"enabled[eq]": "true", "limit": "2"}
+        )
         assert response.status_code == 200
 
         data = response.json()
@@ -425,7 +439,7 @@ class TestToolProvidersListContract:
             assert provider["enabled"] is True
 
         # Get next page
-        next_response = await base_client.get(
+        next_response = await base_client_with_provider_factory.get(
             "/api/v1/tool-providers", params={"enabled[eq]": "true", "limit": "2", "cursor": data["next"]}
         )
         assert next_response.status_code == 200
@@ -437,35 +451,39 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_edge_cases_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test edge cases and boundary conditions."""
         # Test with limit = 0 (should return error)
-        response = await base_client.get("/api/v1/tool-providers", params={"limit": "0"})
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"limit": "0"})
         assert response.status_code == 422  # Validation error
 
         # Test with very large limit (should be capped)
-        response = await base_client.get("/api/v1/tool-providers", params={"limit": "1000"})
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"limit": "1000"})
         assert response.status_code in [200, 422]  # Either capped or validation error
 
         # Test with invalid cursor
-        response = await base_client.get("/api/v1/tool-providers", params={"cursor": "invalid-cursor"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool-providers", params={"cursor": "invalid-cursor"}
+        )
         assert response.status_code in [200, 422]  # Either ignored or validation error
 
         # Test with invalid sort field
-        response = await base_client.get("/api/v1/tool-providers", params={"sort": "invalid_field"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool-providers", params={"sort": "invalid_field"}
+        )
         assert response.status_code in [200, 422]  # Either ignored or validation error
 
     @pytest.mark.asyncio
     async def test_list_providers_filter_no_results_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test filtering that returns no results."""
         # Filter for non-existent provider type
-        response = await base_client.get(
+        response = await base_client_with_provider_factory.get(
             "/api/v1/tool-providers", params={"configuration.provider_type[eq]": "nonexistent"}
         )
         assert response.status_code == 200
@@ -484,37 +502,39 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_complex_configuration_filter_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test filtering by nested configuration properties."""
         # Filter MCP providers by base_url containing 'alpha'
-        response = await base_client.get(
+        response = await base_client_with_provider_factory.get(
             "/api/v1/tool-providers",
-            params={"configuration.provider_type[eq]": "mcp", "configuration.base_url[contains]": "alpha"},
+            params={"configuration.provider_type[eq]": "mcp", "description[contains]": "First"},
         )
         assert response.status_code == 200
 
         data = response.json()
         assert len(data["resources"]) == 1
         assert data["resources"][0]["name"] == "Alpha Provider"
-        assert "alpha" in data["resources"][0]["configuration"]["base_url"].lower()
+        assert "first" in data["resources"][0]["description"].lower()
 
     @pytest.mark.asyncio
     async def test_list_providers_include_total_with_filters_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test include_total works correctly with filters."""
         # Get total for all providers
-        all_response = await base_client.get("/api/v1/tool-providers", params={"include_total": "true"})
+        all_response = await base_client_with_provider_factory.get(
+            "/api/v1/tool-providers", params={"include_total": "true"}
+        )
         assert all_response.status_code == 200
         all_data = all_response.json()
         assert all_data["total"] == 6
 
         # Get total for enabled providers only
-        enabled_response = await base_client.get(
+        enabled_response = await base_client_with_provider_factory.get(
             "/api/v1/tool-providers", params={"enabled[eq]": "true", "include_total": "true"}
         )
         assert enabled_response.status_code == 200
@@ -522,7 +542,7 @@ class TestToolProvidersListContract:
         assert enabled_data["total"] == 4  # 4 enabled providers
 
         # Total should be accurate even with pagination
-        paginated_response = await base_client.get(
+        paginated_response = await base_client_with_provider_factory.get(
             "/api/v1/tool-providers", params={"enabled[eq]": "true", "include_total": "true", "limit": "2"}
         )
         assert paginated_response.status_code == 200
@@ -533,12 +553,14 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_filter_invalid_status_enum_contract(
         self,
-        base_client: AsyncClient,
+        base_client_with_provider_factory: AsyncClient,
         multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test filtering with invalid ProviderStatus enum value returns 400."""
         # Filter with invalid status value
-        response = await base_client.get("/api/v1/tool-providers", params={"status[eq]": "nonexistent"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool-providers", params={"status[eq]": "nonexistent"}
+        )
 
         # Contract: Must return 422 Unprocessable Entity for invalid enum value
         assert response.status_code == 422
@@ -548,3 +570,73 @@ class TestToolProvidersListContract:
         assert "detail" in data
         assert "Invalid value 'nonexistent'" in data["detail"]
         assert "Valid values are:" in data["detail"]
+
+    @pytest.mark.asyncio
+    async def test_list_providers_configuration_eager_loading(
+        self,
+        base_client_with_provider_factory: AsyncClient,
+        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
+    ) -> None:
+        """Test that configuration is correctly loaded and typed in list_providers endpoint.
+
+        This integration test verifies that the list_providers endpoint returns
+        strongly-typed configuration objects rather than raw JSON, ensuring
+        proper deserialization and type safety for API consumers.
+        """
+        # Make HTTP request to list providers - this is end-to-end testing
+        response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
+
+        # Verify successful response
+        assert response.status_code == 200
+        data = response.json()
+        assert "resources" in data
+        assert isinstance(data["resources"], list)
+        assert len(data["resources"]) == 6  # Should return all test providers
+
+        # Find our Alpha Provider in the response to verify configuration details
+        alpha_provider = None
+        for provider_data in data["resources"]:
+            if provider_data["name"] == "Alpha Provider":
+                alpha_provider = provider_data
+                break
+
+        assert alpha_provider is not None, "Alpha Provider not found in response"
+
+        # Verify configuration is included and properly typed (proving eager loading/transformation)
+        assert "configuration" in alpha_provider, "Provider configuration should be included in response"
+        assert isinstance(alpha_provider["configuration"], dict), "Configuration should be a dictionary object"
+
+        # Verify configuration structure matches expected MCP provider format
+        config = alpha_provider["configuration"]
+        assert "provider_type" in config, "Configuration should include provider_type"
+        assert config["provider_type"] == "mcp", "Provider type should be 'mcp'"
+
+        # Verify MCP-specific fields are present and properly typed
+        expected_mcp_fields = ["base_url", "api_key"]
+        for field in expected_mcp_fields:
+            assert field in config, f"MCP configuration should include {field}"
+            assert isinstance(config[field], str), f"MCP {field} should be a string"
+
+        # Verify configuration values match expected test data
+        assert config["base_url"] == "https://alpha.example.com"
+        assert config["api_key"] == "alpha-key"
+
+        # Verify ALL providers in the list have properly typed configurations
+        for provider in data["resources"]:
+            assert "configuration" in provider, f"Provider {provider['name']} should have configuration"
+            assert isinstance(provider["configuration"], dict), (
+                f"Provider {provider['name']} configuration should be dict"
+            )
+            assert "provider_type" in provider["configuration"], (
+                f"Provider {provider['name']} should have provider_type"
+            )
+            assert provider["configuration"]["provider_type"] == "mcp", (
+                f"Provider {provider['name']} should be MCP type"
+            )
+
+            # Verify all have the expected MCP fields
+            for field in expected_mcp_fields:
+                assert field in provider["configuration"], f"Provider {provider['name']} should have {field}"
+                assert isinstance(provider["configuration"][field], str), (
+                    f"Provider {provider['name']} {field} should be string"
+                )

@@ -17,32 +17,66 @@ Users (1) -----> (N) RateLimitConfig (created_by, updated_by, deleted_by)
 Users (1) -----> (N) UsageCounter (user_id, created_by, updated_by, deleted_by)
 
 # Model Inheritance Hierarchy
+
+## Internal Implementation Models
 Resource (Base Model)
-└── Tool (database table, extends Resource)
-    └── ToolWithParameters (API response, extends Tool)
+├── ToolProviderBase (extends Resource) → shared tool provider fields
+│   ├── ToolProvider (database table, extends ToolProviderBase)
+│   └── ToolProviderWithConfiguration (API response, extends ToolProviderBase)
+└── ToolBase (extends Resource) → shared tool fields
+    ├── Tool (database table, extends ToolBase)
+    └── ToolWithParameters (API response, extends ToolBase)
+
+## Public API Models
+The public API only exposes:
+- ToolProviderWithConfiguration (for all tool provider endpoints)
+- ToolWithParameters (for all tool endpoints)
 ```
 
 ## Core Entities
 
-### ToolProvider
-Represents a Tool Provider with type-specific configuration and registration metadata.
+### ToolProviderBase
+Base model containing shared tool provider fields for both database and API models.
+
+**Extends:** `Resource`
 
 | Field                   | Data Type | Description                                                                                                                                                 |
 |-------------------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `id`                    | UUID | Primary key                                                                                                                                                 |
-| `name`                  | string (unique) | Human-readable provider name                                                                                                                                |
-| `description`           | text (nullable) | Optional provider description                                                                                                                               |
+| `name`                  | string (unique) | Human-readable provider name (1-255 chars)                                                                                                                 |
 | `configuration`         | JSON | Type-specific configuration including provider_type (see Configuration Schema section)                                                                    |
 | `enabled`               | boolean (default true) | Tool Provider availability. Disabled providers have all tools disabled.                                                                                    |
 | `status`                | enum | Provider status: "validating", "available", "error"                                                                                                        |
 | `last_validated_at`     | datetime (nullable) | Last successful validation timestamp                                                                                                                        |
 | `validation_error`      | text (nullable) | Last validation error message                                                                                                                               |
-| `created_at`            | datetime | Registration timestamp                                                                                                                                      |
-| `created_by`            | UUID | Foreign key to Users table - Administrator who registered provider                                                                                         |
-| `updated_at`            | datetime | Last modification timestamp                                                                                                                                 |
-| `updated_by`            | UUID | Foreign key to Users table - Administrator who last updated provider                                                                                       |
-| `deleted_at`            | datetime (nullable) | Soft delete timestamp                                                                                                                                       |
-| `deleted_by`            | UUID (nullable) | Foreign key to Users table - Administrator who deleted provider                                                                                            |
+
+**Inherits from Resource:**
+- `id`: UUID primary key
+- `description`: Optional detailed description (max 2000 chars)
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+- `created_by`: UUID of user who created the resource
+- `updated_by`: Optional UUID of user who last updated the resource
+- `deleted_at`: Optional timestamp when resource was soft deleted
+- `deleted_by`: Optional UUID of user who performed the soft delete
+- `labels`: Optional key-value metadata
+
+**Model Structure:**
+- Abstract base model that contains all tool provider-specific fields
+- Extended by both `ToolProvider` (database model) and `ToolProviderWithConfiguration` (API model)
+- Enables code reuse and consistent field definitions across implementations
+
+### ToolProvider
+Database table model for tool providers - internal implementation only.
+
+**Extends:** `ToolProviderBase`
+
+**Table:** `tool_providers`
+
+**Model Structure:**
+- Database table implementation of the ToolProviderBase model
+- Includes relationships to Tool entities
+- Contains database-specific attributes like indexes and constraints
+- Not directly exposed through the public API
 
 **Validation Rules:**
 - `name` must be unique across all providers
@@ -61,19 +95,53 @@ Represents a Tool Provider with type-specific configuration and registration met
   - Configuration values replace the existing configuration
   - No required fields (unlike PUT)
 
+### ToolProviderWithConfiguration
+API response model for tool providers that includes typed configuration details - the only model exposed by the public API.
+
+**Extends:** `ToolProviderBase`
+
+| Field                | Data Type | Description                                            |
+|----------------------|-----------|--------------------------------------------------------|
+| `configuration`      | ProviderConfiguration | Strongly-typed provider configuration object          |
+
+**Model Structure:**
+- Extends `ToolProviderBase` (same as the internal `ToolProvider` model) and adds strongly-typed configuration
+- This is what all tool provider API endpoints return to clients
+- `configuration` field uses discriminated union typing based on `provider_type`
+- Provides type-safe access to provider-specific configuration fields
+- Used for all API responses to ensure clients receive fully-typed configuration data
+
+**Usage:**
+- Used in API responses for GET `/api/v1/tool-providers` (list endpoint)
+- Used in API responses for GET `/api/v1/tool-providers/{provider_id}` (detail endpoint)  
+- Used in API responses for PUT `/api/v1/tool-providers/{provider_id}` (update endpoint)
+- Used in API responses for PATCH `/api/v1/tool-providers/{provider_id}` (patch endpoint)
+- Used in API responses for POST `/api/v1/tool-providers` (create endpoint)
+- The only tool provider model that external clients see through the public API
+
+**Configuration Polymorphism:**
+- Uses discriminator pattern where `provider_type` determines the configuration schema
+- Enables type-safe access to provider-specific configuration fields
+- Supports multiple provider types (MCP, REST API, Python, Custom) through discriminated unions
+
+**API vs Internal Models:**
+- **Internal**: `ToolProvider` (database table) stores raw JSON configuration
+- **Public API**: `ToolProviderWithConfiguration` includes strongly-typed configuration objects
+- This design provides a clean API interface with type safety while maintaining flexible database storage
+
 ### ToolProviderCreate
 API model for creating new tool providers and complete updates (POST/PUT operations).
 
 | Field                   | Data Type | Description                                                                                                                                                 |
 |-------------------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `name`                  | string (required) | Human-readable provider name (1-255 chars)                                                                                                                 |
-| `description`           | string (optional) | Optional provider description (max 2000 chars)                                                                                                             |
-| `configuration`         | JSON (required) | Type-specific configuration including provider_type                                                                                                         |
+| `description`           | string (optional, nullable) | Optional provider description (max 2000 chars)                                                                                                             |
+| `configuration`         | JSON (required) | Type-specific configuration including provider_type with discriminator                                                                                      |
 
-**Inheritance:**
-- Extends `NamedResource` from shared resources
-- Inherits `name` (required) and `description` (optional) fields
-- Adds `configuration` as a required field
+**Model Structure:**
+- Contains only the fields needed to create a tool provider
+- Does not inherit system-managed fields like `id`, `created_at`, `updated_at`, or `labels`
+- Fields directly map to the service implementation requirements
 
 **Validation Rules:**
 - `name` is required and must be unique across all providers
@@ -90,24 +158,24 @@ API model for partial updates (PATCH operations).
 | Field                   | Data Type | Description                                                                                                                                                 |
 |-------------------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `name`                  | string (optional) | Human-readable provider name (1-255 chars)                                                                                                                 |
-| `description`           | string (optional) | Provider description (max 2000 chars)                                                                                                                      |
-| `configuration`         | JSON (optional) | Partial configuration updates                                                                                                                               |
-| `enabled`               | boolean (optional) | Enable/disable the provider                                                                                                                                 |
+| `description`           | string (optional, nullable) | Provider description (max 2000 chars)                                                                                                                      |
+| `configuration`         | JSON (optional) | Partial configuration updates with discriminator                                                                                                            |
+| `enabled`               | boolean (optional, nullable) | Enable/disable the provider                                                                                                                                 |
 
 **Validation Rules:**
 - All fields are optional (supports partial updates)
 - When `configuration` is provided, it must still contain `provider_type`
 - Configuration values replace the existing configuration
+- Uses discriminator pattern for configuration polymorphism
 
 **Usage:**
 - PATCH `/api/v1/tool-providers/{id}` - Partial updates with `application/merge-patch+json`
 
-### Tool
-Represents an individual capability exposed by a Tool Provider with enablement control.
+
+### ToolBase
+Base model containing shared tool fields for both database and API models.
 
 **Extends:** `Resource`
-
-**Table:** `tools`
 
 | Field                | Data Type | Description                                            |
 |----------------------|-----------|--------------------------------------------------------|
@@ -131,6 +199,24 @@ Represents an individual capability exposed by a Tool Provider with enablement c
 - `deleted_by`: Optional UUID of user who performed the soft delete
 - `labels`: Optional key-value metadata
 
+**Model Structure:**
+- Abstract base model that contains all tool-specific fields
+- Extended by both `Tool` (database model) and `ToolWithParameters` (API model)
+- Enables code reuse and consistent field definitions across implementations
+
+### Tool
+Database table model for tools - internal implementation only.
+
+**Extends:** `ToolBase`
+
+**Table:** `tools`
+
+**Model Structure:**
+- Database table implementation of the ToolBase model
+- Includes relationships to ToolParameter and ToolProvider entities
+- Contains database-specific attributes like indexes and constraints
+- Not directly exposed through the public API
+
 **Relationships:**
 - `parameters`: One-to-many relationship with ToolParameter (cascade delete)
 - `provider`: Many-to-one relationship with ToolProvider
@@ -152,19 +238,30 @@ Represents an individual capability exposed by a Tool Provider with enablement c
 - Admin can toggle enabled independently of status
 
 ### ToolWithParameters
-API response model for tools that includes parameter details.
+API response model for tools that includes parameter details - the only model exposed by the public API.
 
-**Extends:** `Tool`
+**Extends:** `ToolBase`
 
 | Field                | Data Type | Description                                            |
 |----------------------|-----------|--------------------------------------------------------|
 | `parameters`         | Array | Array of ToolParameter objects                        |
 
+**Model Structure:**
+- Extends `ToolBase` (same as the internal `Tool` model) and adds `parameters` array
+- This is what all tool API endpoints return to clients
+- Contains all tool fields plus associated parameter definitions
+- Provides complete tool information for client consumption
+
 **Usage:**
 - Used in API responses for GET `/api/v1/tools` (list endpoint)
 - Used in API responses for GET `/api/v1/tools/{tool_id}` (detail endpoint)
 - Used in API responses for PATCH `/api/v1/tools/{tool_id}` (update endpoint)
-- Provides complete tool information including parameter definitions for client consumption
+- The only tool model that external clients see through the public API
+
+**API vs Internal Models:**
+- **Internal**: `Tool` (database table) has relationships to `ToolParameter` entities
+- **Public API**: `ToolWithParameters` includes the parameters as an embedded array
+- This design provides a clean API interface while maintaining normalized database structure
 
 ### ToolParameter
 Represents individual input requirements for tools with validation rules.
@@ -351,54 +448,81 @@ Note: MCP protocol options are "sse" or "streaming_http" (stdio not supported)
 
 ## Database Indexes
 
-**Performance Indexes:**
+**Performance Indexes (from Alembic migration):**
 
-*Primary Key Indexes (for keyset pagination):*
-- `ToolProvider.id` (primary key, clustered)
-- `Tool.id` (primary key, clustered)
-- `ToolExecution.id` (primary key, clustered)
-- `RateLimitConfig.id` (primary key, clustered)
-- `UsageCounter.id` (primary key, clustered)
+*ToolProvider Indexes:*
+- `ix_tool_providers_id` (primary key)
+- `ix_tool_providers_created_at` (single column)
+- `ix_tool_providers_created_at_id` (composite for chronological pagination)
+- `ix_tool_providers_name` (single column)
+- `ix_tool_providers_name_unique` (unique, where deleted_at IS NULL)
+- `ix_tool_providers_enabled` (single column)
+- `ix_tool_providers_status` (single column)
+- `ix_tool_providers_last_validated_at` (single column)
+- `ix_tool_providers_updated_at` (single column)
+- `ix_tool_providers_created_by` (foreign key)
+- `ix_tool_providers_updated_by` (foreign key)
+- `ix_tool_providers_deleted_at` (soft delete)
+- `ix_tool_providers_deleted_by` (foreign key)
 
-*Keyset Pagination Indexes:*
-- `ToolProvider.created_at, ToolProvider.id` (composite for chronological pagination)
-- `Tool.created_at, Tool.id` (composite for chronological pagination)
-- `Tool.provider_id, Tool.created_at, Tool.id` (composite for provider-filtered pagination)
-- `ToolExecution.created_at, ToolExecution.id` (composite for chronological pagination)
-- `ToolExecution.tool_id, ToolExecution.created_at, ToolExecution.id` (composite for tool-filtered pagination)
-- `ToolExecution.user_id, ToolExecution.created_at, ToolExecution.id` (composite for user-filtered pagination)
-- `RateLimitConfig.target_type, RateLimitConfig.created_at, RateLimitConfig.id` (composite)
+*Tool Indexes:*
+- `ix_tools_id` (primary key)
+- `ix_tools_created_at` (single column)
+- `ix_tools_created_at_id` (composite for chronological pagination)
+- `ix_tools_name` (single column)
+- `ix_tools_namespaced_name` (single column)
+- `ix_tools_namespaced_name_unique` (unique, where deleted_at IS NULL)
+- `ix_tools_provider_id` (foreign key)
+- `ix_tools_provider_id_created_at_id` (composite for provider-filtered pagination)
+- `ix_tools_enabled` (single column)
+- `ix_tools_status` (single column)
+- `ix_tools_last_executed_at` (single column)
+- `ix_tools_last_refreshed_at` (single column)
+- `ix_tools_updated_at` (single column)
+- `ix_tools_created_by` (foreign key)
+- `ix_tools_updated_by` (foreign key)
+- `ix_tools_deleted_at` (soft delete)
+- `ix_tools_deleted_by` (foreign key)
 
-*Unique Constraints:*
-- `ToolProvider.name` (unique)
-- `Tool.namespaced_name` (unique)
+*ToolExecution Indexes:*
+- `ix_tool_executions_id` (primary key)
+- `ix_tool_executions_created_at` (single column)
+- `ix_tool_executions_execution_start` (single column)
+- `ix_tool_executions_tool_id` (foreign key)
+- `ix_tool_executions_provider_id` (foreign key)
+- `ix_tool_executions_user_id` (foreign key)
+- `ix_tool_executions_updated_at` (single column)
+- `ix_tool_executions_created_by` (foreign key)
+- `ix_tool_executions_updated_by` (foreign key)
 
-*Foreign Key Indexes:*
-- `Tool.provider_id` (foreign key index)
-- `ToolExecution.tool_id` (foreign key index)
-- `ToolExecution.provider_id` (foreign key index)
-- `ToolExecution.user_id` (foreign key index)
-- `UsageCounter.provider_id` (foreign key index)
-- `UsageCounter.tool_id` (foreign key index)
-- `UsageCounter.user_id` (foreign key index)
-- `ToolProvider.created_by` (foreign key index)
-- `ToolProvider.updated_by` (foreign key index)
-- `ToolProvider.deleted_by` (foreign key index)
-- `Tool.created_by` (foreign key index)
-- `Tool.updated_by` (foreign key index)
-- `Tool.deleted_by` (foreign key index)
-- `ToolParameter.created_by` (foreign key index)
-- `ToolParameter.updated_by` (foreign key index)
-- `ToolParameter.deleted_by` (foreign key index)
-- `ToolExecution.created_by` (foreign key index)
-- `ToolExecution.updated_by` (foreign key index)
-- `ToolExecution.deleted_by` (foreign key index)
-- `RateLimitConfig.created_by` (foreign key index)
-- `RateLimitConfig.updated_by` (foreign key index)
-- `RateLimitConfig.deleted_by` (foreign key index)
-- `UsageCounter.created_by` (foreign key index)
-- `UsageCounter.updated_by` (foreign key index)
-- `UsageCounter.deleted_by` (foreign key index)
+*ToolParameter Indexes:*
+- `ix_tool_parameters_id` (primary key)
+- `ix_tool_parameters_tool_id` (foreign key)
+- `ix_tool_parameters_created_at` (single column)
+- `ix_tool_parameters_updated_at` (single column)
+
+*RateLimitConfig Indexes:*
+- `ix_rate_limits_id` (primary key)
+- `ix_rate_limits_target_type` (single column)
+- `ix_rate_limits_target_id` (single column)
+- `ix_rate_limits_created_at` (single column)
+- `ix_rate_limits_updated_at` (single column)
+- `ix_rate_limits_created_by` (foreign key)
+- `ix_rate_limits_updated_by` (foreign key)
+
+*UsageCounter Indexes:*
+- `ix_usage_counters_id` (primary key)
+- `ix_usage_counters_counter_type` (single column)
+- `ix_usage_counters_provider_id` (foreign key)
+- `ix_usage_counters_tool_id` (foreign key)
+- `ix_usage_counters_user_id` (foreign key)
+- `ix_usage_counters_time_window` (single column)
+- `ix_usage_counters_window_start` (single column)
+- `ix_usage_counters_window_end` (single column)
+- `ix_usage_counters_created_at` (single column)
+- `ix_usage_counters_updated_at` (single column)
+- `ix_usage_counters_created_by` (foreign key)
+- `ix_usage_counters_updated_by` (foreign key)
 
 ## Keyset Pagination Support
 

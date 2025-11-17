@@ -319,13 +319,13 @@ async def test_tool_namespaced_name_unique_constraint(test_db_session: AsyncSess
     provider1 = ToolProvider(
         id=uuid4(),
         name="Provider 1",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         created_by=test_user.id,
     )
     provider2 = ToolProvider(
         id=uuid4(),
         name="Provider 2",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         created_by=test_user.id,
     )
     test_db_session.add_all([provider1, provider2])

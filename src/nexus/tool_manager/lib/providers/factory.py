@@ -1,10 +1,11 @@
 """Provider factory for creating and registering tool provider adapters."""
 
 import threading
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
+from nexus.tool_manager.lib.providers.mcp import MCPProvider
 
 
 class ProviderFactory:
@@ -135,3 +136,23 @@ class ProviderFactory:
                 raise ValueError(msg)
 
             del self._provider_types[provider_type]
+
+
+# ===================================================
+# Generator for dependency injection
+# ---------------------------------------------------
+_provider_factory: ProviderFactory = ProviderFactory()
+_provider_factory.register_provider_type("mcp", MCPProvider)
+
+
+async def get_provider_factory() -> AsyncGenerator[ProviderFactory]:
+    """Create a ProviderFactory for dependency injection.
+
+    Yields:
+        ProviderFactory for dependency injection
+
+    """
+    yield _provider_factory
+
+
+# ===================================================

@@ -44,7 +44,7 @@ class MCPProvider(ToolProviderAdapter):
         base_url: str,
         api_key: str,
         provider_id: UUID | None = None,
-        provider_name: str | None = None,
+        provider_name: str | None = "mcp-provider",
     ) -> None:
         """Initialize MCP provider with configuration.
 
@@ -60,7 +60,7 @@ class MCPProvider(ToolProviderAdapter):
 
         """
         self.provider_id = provider_id or uuid4()
-        self.provider_name = provider_name or "mcp-provider"
+        self.provider_name = provider_name
 
         # Create MCPConfiguration from parameters
         self.configuration = MCPConfiguration(
@@ -87,8 +87,10 @@ class MCPProvider(ToolProviderAdapter):
             try:
                 # Configure server connection for langchain MCP client
                 # Using streamable_http as the primary transport (as per AAP-55733)
+                # Use provider_name or fallback to a default key
+                server_key = self.provider_name or "mcp-server"
                 server_config: dict[str, dict[str, Any]] = {
-                    self.provider_name: {
+                    server_key: {
                         "transport": "streamable_http",  # Note: underscore not hyphen
                         "url": self.configuration.base_url,
                     }
@@ -96,9 +98,7 @@ class MCPProvider(ToolProviderAdapter):
 
                 # Add API key as Authorization header if provided
                 if self.configuration.api_key:
-                    server_config[self.provider_name]["headers"] = {
-                        "Authorization": f"Bearer {self.configuration.api_key}"
-                    }
+                    server_config[server_key]["headers"] = {"Authorization": f"Bearer {self.configuration.api_key}"}
 
                 # Initialize the MultiServerMCPClient
                 self._client = MultiServerMCPClient(server_config)

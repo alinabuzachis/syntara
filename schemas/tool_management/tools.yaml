@@ -49,6 +49,21 @@ paths:
           type: string
           format: uuid
         description: Filter tools by provider ID
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Sort field and direction (e.g., 'name', '-created_at')
+      - name: namespaced_name
+        in: query
+        required: false
+        style: deepObject
+        explode: true
+        schema:
+          type: string
+          description: Filter by namespaced name (namespaced_name[contains]=text)
+        description: Filter tools by namespaced name with text matching
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
       - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
@@ -126,7 +141,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: '#/components/schemas/ToolUpdate'
       responses:
@@ -164,34 +179,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                tool_ids:
-                  type: array
-                  items:
-                    type: string
-                    format: uuid
-                  maxItems: 50
-                enabled:
-                  type: boolean
-              required:
-              - tool_ids
-              - enabled
+              $ref: '#/components/schemas/ToolBulkUpdate'
       responses:
         '200':
           description: Tools updated successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  updated_count:
-                    type: integer
-                  skipped_count:
-                    type: integer
-                  updated_at:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/ToolBulkUpdateResponse'
         '400':
           description: Invalid request
           content:
@@ -207,7 +202,7 @@ paths:
 
 components:
   schemas:
-    Tool:
+    ToolWithParameters:
       allOf:
       - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Resource
       - type: object
@@ -243,23 +238,16 @@ components:
             type: string
             nullable: true
             description: Error message from last refresh attempt
-        required:
-        - provider_id
-        - namespaced_name
-        - enabled
-        - status
-
-    ToolWithParameters:
-      allOf:
-      - $ref: '#/components/schemas/Tool'
-      - type: object
-        properties:
           parameters:
             type: array
             items:
               $ref: '#/components/schemas/ToolParameter'
             description: Tool parameters
         required:
+        - provider_id
+        - namespaced_name
+        - enabled
+        - status
         - parameters
 
     ToolParameter:
@@ -296,3 +284,39 @@ components:
           type: boolean
       required:
       - enabled
+
+    ToolBulkUpdate:
+      type: object
+      properties:
+        tool_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 50
+          minItems: 1
+          description: List of tool UUIDs to update (max 50)
+        enabled:
+          type: boolean
+          description: Enable/disable the tools
+      required:
+      - tool_ids
+      - enabled
+
+    ToolBulkUpdateResponse:
+      type: object
+      properties:
+        updated_count:
+          type: integer
+          description: Number of tools successfully updated
+        skipped_count:
+          type: integer
+          description: Number of tools skipped (already in target state)
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when bulk update completed
+      required:
+      - updated_count
+      - skipped_count
+      - updated_at

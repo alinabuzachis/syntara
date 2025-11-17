@@ -10,13 +10,14 @@ from datetime import UTC, datetime
 from typing import Any, NoReturn
 from uuid import UUID
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.core.models import User
 from nexus.core.services import BaseService
+from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.core.utils.filters import Filter
 from nexus.tool_manager.lib.exceptions import (
     ProviderError,
@@ -29,16 +30,27 @@ from nexus.tool_manager.models.tool import Tool, ToolParameter, ToolStatus
 from nexus.tool_manager.models.tool_provider import (
     ProviderStatus,
     ToolProvider,
+    ToolProviderBase,
     ToolProviderCreate,
     ToolProviderListResponse,
     ToolProviderPatch,
+    ToolProviderWithConfiguration,
 )
+from nexus.tool_manager.models.tool_provider_configuration import ProviderConfiguration
 from nexus.tool_manager.models.tool_provider_refresh_result import ToolProviderRefreshResult
 from nexus.tool_manager.models.tool_provider_validation_result import ToolProviderValidationResult
 
 SelectToolProvider = Select[tuple[ToolProvider]] | SelectOfScalar[tuple[ToolProvider]]
 
 logger = logging.getLogger(__name__)
+
+
+class ToolProviderServiceConvertResourceMixin(ConvertResourceMixin):
+    """Mixin for converting ToolProvider resources to ToolProviderWithConfiguration format."""
+
+    def convert_resource(self, resource: ToolProvider) -> ToolProviderWithConfiguration:  # type: ignore[override]
+        """Convert ToolProvider to ToolProviderWithConfiguration format."""
+        return ToolProviderWithConfiguration.model_validate(resource)
 
 
 class ToolProviderService(BaseService):
@@ -57,7 +69,7 @@ class ToolProviderService(BaseService):
             provider_factory: Shared provider factory instance from application state
 
         """
-        super().__init__(session, user)
+        super().__init__(session, user, convert_resource_mixin=ToolProviderServiceConvertResourceMixin())
         self.provider_factory = provider_factory
 
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
@@ -105,33 +117,23 @@ class ToolProviderService(BaseService):
             query: SelectToolProvider, filter_obj: Filter, _model: type[ToolProvider]
         ) -> SelectToolProvider:
             if filter_obj.operator.value == "eq":
-                return query.filter(ToolProvider.configuration["provider_type"].astext == filter_obj.value)
-            return query
-
-        def handle_base_url(
-            query: SelectToolProvider, filter_obj: Filter, _model: type[ToolProvider]
-        ) -> SelectToolProvider:
-            if filter_obj.operator.value == "eq":
-                return query.filter(ToolProvider.configuration["base_url"].astext == filter_obj.value)
-            if filter_obj.operator.value == "contains":
-                return query.filter(ToolProvider.configuration["base_url"].astext.ilike(f"%{filter_obj.value}%"))
+                return query.filter(text("configuration->>'provider_type' = :value")).params(value=filter_obj.value)
             return query
 
         return {
             "provider_type": handle_provider_type,
             "configuration.provider_type": handle_provider_type,
-            "configuration.base_url": handle_base_url,
         }
 
     async def _validate_provider_connection(
-        self, provider_id: UUID, provider_name: str, configuration: dict[str, Any]
+        self, provider_name: str, configuration: ProviderConfiguration, provider_id: UUID | None = None
     ) -> ToolProviderValidationResult:
         """Perform connection validation using configuration without updating database.
 
         Args:
-            provider_id: Provider ID
             provider_name: Provider name
-            configuration: Provider configuration dictionary containing provider_type and parameters
+            configuration: Provider configuration containing provider_type and parameters
+            provider_id: Optional provider ID (will generate temporary ID if not provided)
 
         Returns:
             ToolProviderValidationResult from the adapter's validate_connection method
@@ -143,8 +145,8 @@ class ToolProviderService(BaseService):
         """
         try:
             # Extract provider type and configuration parameters
-            provider_type = configuration["provider_type"]
-            config_params = {k: v for k, v in configuration.items() if k != "provider_type"}
+            provider_type = configuration.provider_type
+            config_params = {k: v for k, v in configuration.model_dump().items() if k != "provider_type"}
             # Add provider context for adapters that need it
             config_params["provider_id"] = provider_id
             config_params["provider_name"] = provider_name
@@ -211,7 +213,7 @@ class ToolProviderService(BaseService):
         )
         await self._create_or_update_tool_parameters(tool, existing_tool_parameters)
 
-    async def _create_new_tool(self, provider: ToolProvider, tool_metadata: Tool, namespaced_name: str) -> Tool:
+    async def _create_new_tool(self, provider: ToolProviderBase, tool_metadata: Tool, namespaced_name: str) -> Tool:
         """Create a new tool from provider metadata.
 
         Args:
@@ -307,7 +309,7 @@ class ToolProviderService(BaseService):
             include_total=include_total,
         )
 
-    async def create_provider(self, provider_create: ToolProviderCreate) -> ToolProvider:
+    async def create_provider(self, provider_create: ToolProviderCreate) -> ToolProviderWithConfiguration:
         """Create a new tool provider without validation or tool discovery.
 
         This method only creates the provider instance with VALIDATING status.
@@ -342,12 +344,12 @@ class ToolProviderService(BaseService):
             await self.session.flush()
             await self.session.refresh(provider)
             logger.info("Successfully created provider '%s' with VALIDATING status", provider.name)
-            return provider
+            return ToolProviderWithConfiguration.model_validate(provider)
 
         except IntegrityError as e:
             await self._handle_integrity_error(e, provider_create.name)
 
-    async def get_provider(self, provider_id: UUID) -> ToolProvider:
+    async def get_provider(self, provider_id: UUID) -> ToolProviderWithConfiguration:
         """Get a tool provider by ID.
 
         Args:
@@ -369,9 +371,11 @@ class ToolProviderService(BaseService):
             msg = f"Provider {provider_id} not found"
             raise ProviderNotFoundError(msg)
 
-        return provider
+        return ToolProviderWithConfiguration.model_validate(provider)
 
-    async def update_provider(self, provider_id: UUID, provider_update: ToolProviderCreate) -> ToolProvider:
+    async def update_provider(
+        self, provider_id: UUID, provider_update: ToolProviderCreate
+    ) -> ToolProviderWithConfiguration:
         """Update a tool provider (complete replacement).
 
         Args:
@@ -387,7 +391,14 @@ class ToolProviderService(BaseService):
             ProviderNameConflictError: If new name conflicts with existing provider
 
         """
-        provider = await self.get_provider(provider_id)
+        query = select(ToolProvider).filter(ToolProvider.id == provider_id, ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
+
+        result = await self.session.execute(query)
+        provider = result.scalar_one_or_none()
+
+        if not provider:
+            msg = f"Provider {provider_id} not found"
+            raise ProviderNotFoundError(msg)
 
         # Update fields from ToolProviderCreate
         provider.name = provider_update.name
@@ -400,11 +411,14 @@ class ToolProviderService(BaseService):
         try:
             await self.session.flush()
             await self.session.refresh(provider)
-            return provider
+            return await self.get_provider(provider.id)
+
         except IntegrityError as e:
             await self._handle_integrity_error(e, provider_update.name)
 
-    async def patch_provider(self, provider_id: UUID, provider_patch: ToolProviderPatch) -> ToolProvider:
+    async def patch_provider(
+        self, provider_id: UUID, provider_patch: ToolProviderPatch
+    ) -> ToolProviderWithConfiguration:
         """Patch a tool provider.
 
         Args:
@@ -420,7 +434,14 @@ class ToolProviderService(BaseService):
             ProviderNameConflictError: If new name conflicts with existing provider
 
         """
-        provider = await self.get_provider(provider_id)
+        query = select(ToolProvider).filter(ToolProvider.id == provider_id, ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
+
+        result = await self.session.execute(query)
+        provider = result.scalar_one_or_none()
+
+        if not provider:
+            msg = f"Provider {provider_id} not found"
+            raise ProviderNotFoundError(msg)
 
         # Capture the name that will be used (for error handling if needed)
         provider_name = provider_patch.name if provider_patch.name is not None else provider.name
@@ -445,7 +466,8 @@ class ToolProviderService(BaseService):
         try:
             await self.session.flush()
             await self.session.refresh(provider)
-            return provider
+            return await self.get_provider(provider.id)
+
         except IntegrityError as e:
             # Use the captured provider name for error handling (don't access provider.name after rollback)
             await self._handle_integrity_error(e, provider_name)
@@ -460,7 +482,14 @@ class ToolProviderService(BaseService):
             ProviderNotFoundError: If provider doesn't exist
 
         """
-        provider = await self.get_provider(provider_id)
+        query = select(ToolProvider).filter(ToolProvider.id == provider_id, ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
+
+        result = await self.session.execute(query)
+        provider = result.scalar_one_or_none()
+
+        if not provider:
+            msg = f"Provider {provider_id} not found"
+            raise ProviderNotFoundError(msg)
 
         # Soft delete provider
         provider.deleted_at = datetime.now(UTC)
@@ -490,12 +519,19 @@ class ToolProviderService(BaseService):
             ProviderNotFoundError: If provider doesn't exist
 
         """
-        provider = await self.get_provider(provider_id)
+        query = select(ToolProvider).filter(ToolProvider.id == provider_id, ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
+
+        result = await self.session.execute(query)
+        provider = result.scalar_one_or_none()
+
+        if not provider:
+            msg = f"Provider {provider_id} not found"
+            raise ProviderNotFoundError(msg)
 
         try:
             # Use shared validation method
             validation_result = await self._validate_provider_connection(
-                provider.id, provider.name, provider.configuration
+                provider.name, provider.configuration, provider.id
             )
 
             # Update provider status based on validation
@@ -525,6 +561,7 @@ class ToolProviderService(BaseService):
                 provider.updated_by = self.user.id
                 provider.updated_at = datetime.now(UTC)
                 await self.session.flush()
+
             except Exception:
                 # If we can't even update the provider status, log and continue
                 logger.exception("Failed to update provider status after validation error")
@@ -532,7 +569,7 @@ class ToolProviderService(BaseService):
             # Return validation failure result instead of raising
             return ToolProviderValidationResult(
                 valid=False,
-                provider_type=provider.configuration.get("provider_type", "unknown"),
+                provider_type=provider.configuration.provider_type,
                 validated_at=datetime.now(UTC),
                 error=str(e),
             )
@@ -551,9 +588,8 @@ class ToolProviderService(BaseService):
 
         """
         try:
-            validation_result = await self._validate_provider_connection(
-                provider.id, provider.name, provider.configuration
-            )
+            # Validate provider configuration
+            validation_result = await self._validate_provider_connection(provider.name, provider.configuration)
 
             # Return validation result as-is (no database updates needed)
             return ToolProviderValidationResult(
@@ -562,11 +598,12 @@ class ToolProviderService(BaseService):
                 validated_at=datetime.now(UTC),
                 error=validation_result.error,
             )
+
         except Exception as e:  # noqa: BLE001
             # Handle all exceptions gracefully and return validation failure result
             return ToolProviderValidationResult(
                 valid=False,
-                provider_type=provider.configuration["provider_type"],
+                provider_type=provider.configuration.provider_type,
                 validated_at=datetime.now(UTC),
                 error=str(e),
             )
@@ -593,8 +630,8 @@ class ToolProviderService(BaseService):
 
         try:
             # Get provider adapter from factory
-            provider_type = provider.configuration["provider_type"]
-            config_params = {k: v for k, v in provider.configuration.items() if k != "provider_type"}
+            provider_type = provider.configuration.provider_type
+            config_params = {k: v for k, v in provider.configuration.model_dump().items() if k != "provider_type"}
             # Add provider context for adapters that need it
             config_params["provider_id"] = provider.id
             config_params["provider_name"] = provider.name

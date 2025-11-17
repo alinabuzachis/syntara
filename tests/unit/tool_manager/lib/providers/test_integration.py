@@ -8,14 +8,13 @@ Tests cover:
 """
 
 import asyncio
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
-from tests.fixtures import MockProvider
+from tests.fixtures.mock_mcp_provider import MockMCPProvider
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
@@ -31,33 +30,37 @@ class TestProviderIntegration:
         factory = ProviderFactory()
 
         # Register MockProvider
-        factory.register_provider_type("mock", MockProvider)
+        factory.register_provider_type("mcp", MockMCPProvider)
 
         # Create instance with custom configuration
         provider = factory.create_provider_instance(
-            "mock",
+            "mcp",
             provider_name="integration_test",
-            response_delay_ms=50,
+            base_url="http://localhost:8000/mcp",
+            api_key="api-key",
         )
 
         # Verify correct type and configuration
-        assert isinstance(provider, MockProvider)
+        assert isinstance(provider, MockMCPProvider)
         assert provider.provider_name == "integration_test"
-        assert provider.response_delay_ms == 50
 
     @pytest.mark.asyncio
     async def test_factory_created_provider_functionality(self) -> None:
         """Test that factory-created providers work correctly."""
         factory = ProviderFactory()
-        factory.register_provider_type("mock", MockProvider)
+        factory.register_provider_type("mcp", MockMCPProvider)
 
         # Create provider instance
-        provider = factory.create_provider_instance("mock")
+        provider = factory.create_provider_instance(
+            "mcp",
+            base_url="http://localhost:8000/mcp",
+            api_key="api-key",
+        )
 
         # Test connection validation
         connection_result = await provider.validate_connection()
         assert connection_result.valid is True
-        assert connection_result.provider_type == "mock"
+        assert connection_result.provider_type == "mcp"
 
         # Test tool refresh
         tools = await provider.refresh_tools()
@@ -77,10 +80,10 @@ class TestProviderIntegration:
         factory = ProviderFactory()
 
         # Create different provider classes
-        class MockProviderTypeA(MockProvider):
+        class MockProviderTypeA(MockMCPProvider):
             provider_type = "type_a"
 
-        class MockProviderTypeB(MockProvider):
+        class MockProviderTypeB(MockMCPProvider):
             provider_type = "type_b"
 
         # Register multiple types
@@ -88,30 +91,24 @@ class TestProviderIntegration:
         factory.register_provider_type("type_b", MockProviderTypeB)
 
         # Create instances of each type
-        provider_a = factory.create_provider_instance("type_a", provider_name="provider_a")
-        provider_b = factory.create_provider_instance("type_b", provider_name="provider_b")
+        provider_a = factory.create_provider_instance(
+            "type_a",
+            provider_name="provider_a",
+            base_url="http://localhost:8000/mcp",
+            api_key="api-key",
+        )
+        provider_b = factory.create_provider_instance(
+            "type_b",
+            provider_name="provider_b",
+            base_url="http://localhost:8001/mcp",
+            api_key="api-key",
+        )
 
         # Verify correct types
         assert isinstance(provider_a, MockProviderTypeA)
         assert isinstance(provider_b, MockProviderTypeB)
         assert provider_a.provider_name == "provider_a"
         assert provider_b.provider_name == "provider_b"
-
-    @pytest.mark.asyncio
-    async def test_provider_error_simulation_through_factory(self) -> None:
-        """Test error simulation with factory-created providers."""
-        factory = ProviderFactory()
-        factory.register_provider_type("mock", MockProvider)
-
-        # Create provider with error simulation
-        provider = factory.create_provider_instance(
-            "mock",
-            simulate_timeout=True,
-        )
-
-        # Should raise timeout error
-        with pytest.raises(TimeoutError):
-            await provider.validate_connection()
 
     def test_factory_provider_lifecycle(self) -> None:
         """Test complete provider lifecycle through factory."""
@@ -121,17 +118,27 @@ class TestProviderIntegration:
         assert len(factory.get_registered_provider_types()) == 0
 
         # Register provider type
-        factory.register_provider_type("lifecycle_test", MockProvider)
+        factory.register_provider_type("lifecycle_test", MockMCPProvider)
         assert factory.is_registered("lifecycle_test")
 
         # Create multiple instances
-        provider1 = factory.create_provider_instance("lifecycle_test", provider_name="instance1")
-        provider2 = factory.create_provider_instance("lifecycle_test", provider_name="instance2")
+        provider1 = factory.create_provider_instance(
+            "lifecycle_test",
+            provider_name="instance1",
+            base_url="http://localhost:8000/mcp",
+            api_key="api-key",
+        )
+        provider2 = factory.create_provider_instance(
+            "lifecycle_test",
+            provider_name="instance2",
+            base_url="http://localhost:8000/mcp",
+            api_key="api-key",
+        )
 
         # Both should be valid but different instances
         assert provider1 is not provider2
-        assert cast("MockProvider", provider1).provider_name == "instance1"
-        assert cast("MockProvider", provider2).provider_name == "instance2"
+        assert cast("MockMCPProvider", provider1).provider_name == "instance1"
+        assert cast("MockMCPProvider", provider2).provider_name == "instance2"
 
         # Unregister type
         factory.unregister_provider_type("lifecycle_test")
@@ -142,17 +149,25 @@ class TestProviderIntegration:
             factory.create_provider_instance("lifecycle_test")
 
         # But existing instances still work (they're independent)
-        assert cast("MockProvider", provider1).provider_name == "instance1"
-        assert cast("MockProvider", provider2).provider_name == "instance2"
+        assert cast("MockMCPProvider", provider1).provider_name == "instance1"
+        assert cast("MockMCPProvider", provider2).provider_name == "instance2"
 
     @pytest.mark.asyncio
     async def test_concurrent_provider_operations(self) -> None:
         """Test concurrent operations with multiple provider instances."""
         factory = ProviderFactory()
-        factory.register_provider_type("concurrent", MockProvider)
+        factory.register_provider_type("concurrent", MockMCPProvider)
 
         # Create multiple provider instances
-        providers = [factory.create_provider_instance("concurrent", provider_name=f"provider_{i}") for i in range(5)]
+        providers = [
+            factory.create_provider_instance(
+                "concurrent",
+                provider_name=f"provider_{i}",
+                base_url=f"http://localhost:800{i}/mcp",
+                api_key="api-key",
+            )
+            for i in range(5)
+        ]
 
         # Run concurrent operations
         tasks: list[Coroutine[Any, Any, Any]] = []
@@ -182,7 +197,7 @@ class TestProviderIntegration:
 
         # Test provider registration error handling
         with pytest.raises(ValueError, match="Provider type must be a non-empty string"):
-            factory.register_provider_type("", MockProvider)
+            factory.register_provider_type("", MockMCPProvider)
 
         with pytest.raises(TypeError, match="Provider class must be callable"):
             factory.register_provider_type("test", "not_callable")  # type: ignore[arg-type]
@@ -192,54 +207,24 @@ class TestProviderIntegration:
             factory.create_provider_instance("nonexistent")
 
         # Register valid provider
-        factory.register_provider_type("valid", MockProvider)
+        factory.register_provider_type("valid", MockMCPProvider)
 
         # Test duplicate registration
         with pytest.raises(ValueError, match="already registered"):
-            factory.register_provider_type("valid", MockProvider)
+            factory.register_provider_type("valid", MockMCPProvider)
 
         # Test successful creation after registration
-        provider = factory.create_provider_instance("valid")
-        assert isinstance(provider, MockProvider)
-
-    @pytest.mark.asyncio
-    async def test_provider_configuration_persistence(self) -> None:
-        """Test that provider configuration persists correctly."""
-        factory = ProviderFactory()
-        factory.register_provider_type("configurable", MockProvider)
-
-        # Create provider with specific configuration
         provider = factory.create_provider_instance(
-            "configurable",
-            provider_name="config_test",
-            simulate_timeout=False,
-            simulate_connection_error=False,
-            response_delay_ms=100,
+            "valid",
+            base_url="http://localhost:8000/mcp",
+            api_key="api-key",
         )
-
-        # Verify configuration
-        mock_provider = cast("MockProvider", provider)
-        assert mock_provider.provider_name == "config_test"
-        assert mock_provider.simulate_timeout is False
-        assert mock_provider.simulate_connection_error is False
-        assert mock_provider.response_delay_ms == 100
-
-        # Test that provider operations work with this configuration
-        connection_result = await provider.validate_connection()
-        assert connection_result.valid is True
-
-        # Verify delay is applied (timing test)
-        start_time = time.time()
-        await provider.validate_connection()
-        elapsed_time = time.time() - start_time
-
-        # Should take at least 100ms due to delay setting
-        assert elapsed_time >= 0.09  # Allow some tolerance
+        assert isinstance(provider, MockMCPProvider)
 
     def test_factory_thread_safety_with_provider_creation(self) -> None:
         """Test thread safety when creating providers concurrently."""
         factory = ProviderFactory()
-        factory.register_provider_type("thread_safe", MockProvider)
+        factory.register_provider_type("thread_safe", MockMCPProvider)
 
         created_providers = []
         creation_errors = []
@@ -249,6 +234,8 @@ class TestProviderIntegration:
                 instance = factory.create_provider_instance(
                     "thread_safe",
                     provider_name=f"thread_{thread_id}",
+                    base_url="http://localhost:8000/mcp",
+                    api_key="api-key",
                 )
                 created_providers.append(instance)
             except (ValueError, TypeError) as e:
@@ -266,9 +253,9 @@ class TestProviderIntegration:
         assert len(created_providers) == 20
 
         # All should have unique names
-        provider_names = {cast("MockProvider", p).provider_name for p in created_providers}
+        provider_names = {cast("MockMCPProvider", p).provider_name for p in created_providers}
         assert len(provider_names) == 20  # All unique names
 
         # All should be correct type
         for provider in created_providers:
-            assert isinstance(provider, MockProvider)
+            assert isinstance(provider, MockMCPProvider)

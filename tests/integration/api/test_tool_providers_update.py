@@ -14,7 +14,7 @@ class TestToolProvidersUpdateContract:
 
     @pytest.mark.asyncio
     async def test_update_provider_success_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test successful provider update returns 200."""
         update_data = {
@@ -27,7 +27,9 @@ class TestToolProvidersUpdateContract:
             },
         }
 
-        response = await base_client.put(f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data)
+        response = await base_client_with_provider_factory.put(
+            f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -40,7 +42,7 @@ class TestToolProvidersUpdateContract:
 
     @pytest.mark.asyncio
     async def test_update_provider_complete_replacement_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test PUT performs complete configuration replacement."""
         update_data = {
@@ -49,11 +51,12 @@ class TestToolProvidersUpdateContract:
                 "provider_type": "mcp",
                 "base_url": "https://newurl.example.com/mcp",
                 "api_key": "new-key",
-                "new_field": "new_value",
             },
         }
 
-        response = await base_client.put(f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data)
+        response = await base_client_with_provider_factory.put(
+            f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -64,7 +67,7 @@ class TestToolProvidersUpdateContract:
 
     @pytest.mark.asyncio
     async def test_update_provider_required_fields_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test validation of required fields in request body."""
         invalid_data = {
@@ -72,7 +75,9 @@ class TestToolProvidersUpdateContract:
             # Missing required configuration field
         }
 
-        response = await base_client.put(f"/api/v1/tool-providers/{test_tool_provider.id}", json=invalid_data)
+        response = await base_client_with_provider_factory.put(
+            f"/api/v1/tool-providers/{test_tool_provider.id}", json=invalid_data
+        )
 
         # Contract: Must return 422 Unprocessable Entity for missing required fields
         assert response.status_code == 422
@@ -83,7 +88,7 @@ class TestToolProvidersUpdateContract:
 
     @pytest.mark.asyncio
     async def test_update_provider_configuration_validation_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test configuration validation in update."""
         invalid_data = {
@@ -95,7 +100,9 @@ class TestToolProvidersUpdateContract:
             },
         }
 
-        response = await base_client.put(f"/api/v1/tool-providers/{test_tool_provider.id}", json=invalid_data)
+        response = await base_client_with_provider_factory.put(
+            f"/api/v1/tool-providers/{test_tool_provider.id}", json=invalid_data
+        )
 
         # Contract: Must return 422 Unprocessable Entity for invalid configuration
         assert response.status_code == 422
@@ -106,7 +113,7 @@ class TestToolProvidersUpdateContract:
         assert "provider_type" in error_message.lower()
 
     @pytest.mark.asyncio
-    async def test_update_provider_not_found_contract(self, base_client: AsyncClient) -> None:
+    async def test_update_provider_not_found_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test 404 error for non-existent provider."""
         provider_id = "99999999-9999-9999-9999-999999999999"
         update_data = {
@@ -114,37 +121,43 @@ class TestToolProvidersUpdateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
         }
 
-        response = await base_client.put(f"/api/v1/tool-providers/{provider_id}", json=update_data)
+        response = await base_client_with_provider_factory.put(
+            f"/api/v1/tool-providers/{provider_id}", json=update_data
+        )
 
         # Contract: Must return 404 Not Found
         assert response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_update_provider_name_conflict_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test 409 conflict when updating to existing name."""
         # First create another provider with the name we'll try to update to
         conflicting_provider_data = {
             "name": "existing-provider-name",
-            "configuration": {"provider_type": "mock"},
+            "configuration": {"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         }
-        create_response = await base_client.post("/api/v1/tool-providers", json=conflicting_provider_data)
+        create_response = await base_client_with_provider_factory.post(
+            "/api/v1/tool-providers", json=conflicting_provider_data
+        )
         assert create_response.status_code == 201
 
         # Now try to update the test provider to use the same name
         update_data = {
             "name": "existing-provider-name",  # Name already taken by another provider
-            "configuration": {"provider_type": "mock"},
+            "configuration": {"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         }
 
-        response = await base_client.put(f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data)
+        response = await base_client_with_provider_factory.put(
+            f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data
+        )
 
         # Contract: Must return 409 Conflict for duplicate name
         assert response.status_code == 409
 
     @pytest.mark.asyncio
-    async def test_update_provider_invalid_uuid_contract(self, base_client: AsyncClient) -> None:
+    async def test_update_provider_invalid_uuid_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test 422 Unprocessable Entity error for invalid UUID format."""
         invalid_id = "not-a-uuid"
         update_data = {
@@ -152,14 +165,14 @@ class TestToolProvidersUpdateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
         }
 
-        response = await base_client.put(f"/api/v1/tool-providers/{invalid_id}", json=update_data)
+        response = await base_client_with_provider_factory.put(f"/api/v1/tool-providers/{invalid_id}", json=update_data)
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID
         assert response.status_code == 422
 
     @pytest.mark.asyncio
     async def test_update_provider_response_schema_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test response matches OpenAPI specification schema."""
         update_data = {
@@ -167,7 +180,9 @@ class TestToolProvidersUpdateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
         }
 
-        response = await base_client.put(f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data)
+        response = await base_client_with_provider_factory.put(
+            f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -185,7 +200,7 @@ class TestToolProvidersUpdateContract:
 
     @pytest.mark.asyncio
     async def test_update_provider_timestamps_updated_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test updated_at timestamp is modified."""
         update_data = {
@@ -193,7 +208,9 @@ class TestToolProvidersUpdateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
         }
 
-        response = await base_client.put(f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data)
+        response = await base_client_with_provider_factory.put(
+            f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200

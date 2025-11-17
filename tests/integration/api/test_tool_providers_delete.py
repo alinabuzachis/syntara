@@ -13,11 +13,11 @@ class TestToolProvidersDeleteContract:
     """Contract tests for tool provider delete endpoint."""
 
     @pytest.mark.asyncio
-    async def test_delete_provider_not_found_contract(self, base_client: AsyncClient) -> None:
+    async def test_delete_provider_not_found_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test 404 error for non-existent provider."""
         provider_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await base_client.delete(f"/api/v1/tool-providers/{provider_id}")
+        response = await base_client_with_provider_factory.delete(f"/api/v1/tool-providers/{provider_id}")
 
         # Contract: Must return 404 Not Found
         assert response.status_code == 404
@@ -27,11 +27,11 @@ class TestToolProvidersDeleteContract:
         assert "error" in data or "detail" in data
 
     @pytest.mark.asyncio
-    async def test_delete_provider_invalid_uuid_contract(self, base_client: AsyncClient) -> None:
+    async def test_delete_provider_invalid_uuid_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test 400 error for invalid UUID format."""
         invalid_id = "not-a-uuid"
 
-        response = await base_client.delete(f"/api/v1/tool-providers/{invalid_id}")
+        response = await base_client_with_provider_factory.delete(f"/api/v1/tool-providers/{invalid_id}")
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID format
         assert response.status_code == 422
@@ -42,14 +42,16 @@ class TestToolProvidersDeleteContract:
 
     @pytest.mark.asyncio
     async def test_delete_provider_soft_delete_behavior_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test soft delete - provider still exists in database but not accessible.
 
         Also verifies cascade behavior where associated tools are soft deleted.
         """
         # Delete the provider
-        delete_response = await base_client.delete(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        delete_response = await base_client_with_provider_factory.delete(
+            f"/api/v1/tool-providers/{test_tool_provider.id}"
+        )
 
         # Contract: Must return 204 No Content
         assert delete_response.status_code == 204
@@ -58,11 +60,11 @@ class TestToolProvidersDeleteContract:
         assert len(delete_response.content) == 0
 
         # Verify provider is not accessible via GET
-        get_response = await base_client.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        get_response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
         assert get_response.status_code == 404
 
         # Verify provider is not in list
-        list_response = await base_client.get("/api/v1/tool-providers")
+        list_response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
         assert list_response.status_code == 200
         data = list_response.json()
         provider_ids = [p["id"] for p in data["resources"]]
@@ -73,15 +75,15 @@ class TestToolProvidersDeleteContract:
 
     @pytest.mark.asyncio
     async def test_delete_provider_idempotent_contract(
-        self, base_client: AsyncClient, test_tool_provider: ToolProvider
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test delete operation is idempotent for already deleted providers."""
         # First deletion
-        response1 = await base_client.delete(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response1 = await base_client_with_provider_factory.delete(f"/api/v1/tool-providers/{test_tool_provider.id}")
         assert response1.status_code == 204
 
         # Second deletion attempt
-        response2 = await base_client.delete(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response2 = await base_client_with_provider_factory.delete(f"/api/v1/tool-providers/{test_tool_provider.id}")
 
         # Contract: Second deletion should return 404 (not found)
         assert response2.status_code == 404

@@ -32,8 +32,7 @@ from nexus.api.auth.dependencies import get_current_user
 from nexus.api.db import get_db
 from nexus.api.main import app
 from nexus.core.models import User, UserRole
-from nexus.tool_manager.lib.providers.factory import ProviderFactory
-from nexus.tool_manager.lib.providers.mcp import MCPProvider
+from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
 from nexus.tool_manager.models import Tool, ToolProvider, ToolStatus
 from nexus.tool_manager.models.tool import ToolParameter, ToolParameterType
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
@@ -44,7 +43,7 @@ from nexus.workflows.workflow_engine.activities.script_activity import execute_b
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
 from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
-from tests.fixtures.mock_tool_provider_adapter import MockProvider
+from tests.fixtures.mock_mcp_provider import MockMCPProvider
 
 # Ensure models are registered with SQLModel metadata
 _ = (Invocation, User, Workflow, WorkflowVersion, Execution)
@@ -276,6 +275,28 @@ async def base_client(test_db_session: AsyncSession) -> AsyncGenerator[AsyncClie
 
 
 @pytest_asyncio.fixture
+async def base_client_with_provider_factory(
+    base_client: AsyncClient, test_provider_factory: ProviderFactory
+) -> AsyncClient:
+    """Create a base test client with dependency overrides.
+
+        - Database session (no authentication).
+        - ProviderFactory (MockMCPProvider registered).
+
+    Yields:
+        AsyncClient for API testing without authentication and MockMCPProvider
+
+    """
+
+    async def override_get_provider_factory() -> ProviderFactory:
+        return test_provider_factory
+
+    app.dependency_overrides[get_provider_factory] = override_get_provider_factory
+
+    return base_client
+
+
+@pytest_asyncio.fixture
 async def test_user(test_db_session: AsyncSession) -> "User":
     """Create a test user.
 
@@ -410,6 +431,7 @@ async def auth_client(base_client: AsyncClient, test_user: "User") -> AsyncClien
         return test_user
 
     app.dependency_overrides[get_current_user] = override_get_current_user
+
     return base_client
 
 
@@ -902,7 +924,11 @@ async def test_tool_provider(test_db_session: AsyncSession, test_user: User) -> 
         ToolProvider: Test Tool Provider instance
 
     """
-    tool_provider = ToolProvider(name="mock-provider", configuration={"provider_type": "mock"}, created_by=test_user.id)
+    tool_provider = ToolProvider(
+        name="mock-provider",
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
+        created_by=test_user.id,
+    )
     test_db_session.add(tool_provider)
     await test_db_session.commit()
     await test_db_session.refresh(tool_provider)
@@ -958,39 +984,31 @@ async def tool_factory(test_db_session: AsyncSession, test_tool_provider: ToolPr
 
 
 @pytest_asyncio.fixture
-async def test_tool_provider_service(test_db_session: AsyncSession, test_user: User) -> "ToolProviderService":
-    """Create a ToolProviderService with mock provider registered for testing.
+async def test_provider_factory() -> "ProviderFactory":
+    """Create a ProviderFactory with MockMCPProvider registered for testing.
+
+    Returns:
+        ProviderFactory: Provider Factory instance with MockMCPProvider registered
+
+    """
+    provider_factory = ProviderFactory()
+    provider_factory.register_provider_type("mcp", MockMCPProvider)
+    return provider_factory
+
+
+@pytest_asyncio.fixture
+async def test_tool_provider_service(
+    test_db_session: AsyncSession, test_user: User, test_provider_factory: ProviderFactory
+) -> "ToolProviderService":
+    """Create a ToolProviderService with MCP provider registered for testing.
 
     Args:
         test_db_session: Test database session
         test_user: Test User
+        test_provider_factory: Test Provider Factory
 
     Returns:
-        ToolProviderService: Service instance with mock provider registered
+        ToolProviderService: Service instance with MCP provider registered
 
     """
-    provider_factory = ProviderFactory()
-    provider_factory.register_provider_type("mock", MockProvider)
-    return ToolProviderService(test_db_session, test_user, provider_factory)
-
-
-@pytest.fixture(autouse=True)
-def mock_provider_for_integration_tests(monkeypatch) -> Callable[[Any, Any], ToolProviderService]:
-    """Patch API service creation to include mock provider for integration tests.
-
-    This fixture automatically runs for every test and patches the API's
-    _create_tool_provider_service function to return services with the mock provider registered.
-    This allows integration tests to work with mock providers without polluting production code.
-    """
-
-    def patched_create_service(db, current_user, request=None) -> "ToolProviderService":
-        """Create a ToolProviderService with mock provider registered."""
-        provider_factory = ProviderFactory()
-        provider_factory.register_provider_type("mock", MockProvider)
-        provider_factory.register_provider_type("mcp", MCPProvider)
-        return ToolProviderService(db, current_user, provider_factory)
-
-    # Patch the API function that creates ToolProviderService instances
-    monkeypatch.setattr("nexus.api.v1.tool_providers._create_tool_provider_service", patched_create_service)
-
-    return patched_create_service
+    return ToolProviderService(test_db_session, test_user, test_provider_factory)

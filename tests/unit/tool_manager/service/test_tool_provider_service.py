@@ -10,8 +10,7 @@ Tests cover:
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -32,10 +31,9 @@ from nexus.tool_manager.models.tool_provider import (
     ToolProviderCreate,
     ToolProviderPatch,
 )
+from nexus.tool_manager.models.tool_provider_configuration import MCPConfiguration
+from nexus.tool_manager.models.tool_provider_validation_result import ToolProviderValidationResult
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
-
-if TYPE_CHECKING:
-    from nexus.tool_manager.models import ToolProviderValidationResult
 
 
 @pytest.mark.asyncio
@@ -46,14 +44,14 @@ async def test_create_provider_success(
     provider_create = ToolProviderCreate(
         name="Test Provider",
         description="A test provider for unit testing",
-        configuration={"provider_type": "mock"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     provider = await test_tool_provider_service.create_provider(provider_create)
 
     assert provider.name == "Test Provider"
     assert provider.description == "A test provider for unit testing"
-    assert provider.configuration == {"provider_type": "mock"}
+    assert provider.configuration.provider_type == "mcp"
     assert provider.enabled is True
     assert provider.status == ProviderStatus.VALIDATING
     assert provider.created_by == test_user.id
@@ -78,7 +76,7 @@ async def test_create_provider_missing_configuration(test_db_session: AsyncSessi
 @pytest.mark.asyncio
 async def test_create_provider_missing_provider_type(test_db_session: AsyncSession, test_user: User) -> None:
     """Test provider creation fails without provider_type in configuration."""
-    with pytest.raises(ValueError, match="configuration must contain 'provider_type' field"):
+    with pytest.raises(Exception, match="Unable to extract tag using discriminator 'provider_type'"):
         ToolProviderCreate(
             name="Test Provider",
             configuration={"endpoint": "http://localhost:8080"},  # Missing provider_type
@@ -92,7 +90,7 @@ async def test_create_provider_prevents_duplicate_names(
     """Test provider creation prevents duplicate names due to unique constraint."""
     provider_create = ToolProviderCreate(
         name="Duplicate Provider",
-        configuration={"provider_type": "mock"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     # Create first provider
@@ -158,14 +156,14 @@ async def test_update_provider_success(
     provider_update: ToolProviderCreate = ToolProviderCreate(
         name="Updated Provider",
         description="Updated description",
-        configuration={"provider_type": "updated", "new_field": "value"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     updated_provider = await service.update_provider(test_tool_provider.id, provider_update)
 
     assert updated_provider.name == "Updated Provider"
     assert updated_provider.description == "Updated description"
-    assert updated_provider.configuration == {"provider_type": "updated", "new_field": "value"}
+    assert updated_provider.configuration.provider_type == "mcp"
     assert updated_provider.enabled is True
     assert updated_provider.updated_by == test_user.id
     # updated_at should be updated (allowing for same millisecond)
@@ -186,7 +184,7 @@ async def test_update_provider_invalid_configuration(
     mock_provider_update.description = "Updated description"
     mock_provider_update.configuration = {"invalid": "config"}  # Missing provider_type
 
-    with pytest.raises(ValueError, match="configuration must contain 'provider_type' field"):
+    with pytest.raises(Exception, match=r"3 validation errors for ToolProvider"):
         await service.update_provider(test_tool_provider.id, mock_provider_update)
 
 
@@ -199,13 +197,15 @@ async def test_patch_provider_success(
     service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Set initial configuration
-    test_tool_provider.configuration = {"provider_type": "test", "existing": "value"}
+    test_tool_provider.configuration = MCPConfiguration(
+        provider_type="mcp", base_url="http://localhost:8080", api_key="test-key"
+    )
     await test_db_session.commit()
 
     provider_patch: ToolProviderPatch = ToolProviderPatch(
         name="Test",
         description="Patched description",
-        configuration={"provider_type": "test", "new_field": "new_value"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     patched_provider = await service.patch_provider(test_tool_provider.id, provider_patch)
@@ -213,8 +213,8 @@ async def test_patch_provider_success(
     assert patched_provider.name == "Test"
     assert patched_provider.description == "Patched description"
     assert patched_provider.enabled is True
-    # Configuration should be merged (keeping existing fields)
-    assert patched_provider.configuration == {"provider_type": "test", "new_field": "new_value"}
+    # Configuration should be valid
+    assert patched_provider.configuration.provider_type == "mcp"
     assert patched_provider.updated_by == test_user.id
     # updated_at should be updated
     assert patched_provider.updated_at >= test_tool_provider.updated_at
@@ -229,18 +229,14 @@ async def test_patch_provider_configuration_merge(
     service = ToolProviderService(test_db_session, test_user, provider_factory)
 
     # Set initial configuration
-    test_tool_provider.configuration = {
-        "provider_type": "test",
-        "existing_field": "existing_value",
-    }
+    test_tool_provider.configuration = MCPConfiguration(
+        provider_type="mcp", base_url="http://localhost:8080", api_key="test-key"
+    )
     await test_db_session.commit()
 
     provider_patch: ToolProviderPatch = ToolProviderPatch(
         name="Test",
-        configuration={
-            "provider_type": "test",
-            "new_field": "added_value",
-        },
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     patched_provider = await service.patch_provider(test_tool_provider.id, provider_patch)
@@ -248,7 +244,7 @@ async def test_patch_provider_configuration_merge(
     assert patched_provider.name == "Test"
     assert patched_provider.description == test_tool_provider.description
     assert patched_provider.enabled == test_tool_provider.enabled
-    assert patched_provider.configuration == {"provider_type": "test", "new_field": "added_value"}
+    assert patched_provider.configuration.provider_type == "mcp"
 
 
 @pytest.mark.asyncio
@@ -347,7 +343,7 @@ async def test_list_providers_filtering(test_db_session: AsyncSession, test_user
     provider1 = ToolProvider(
         id=uuid4(),
         name="Test Provider Alpha",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         enabled=True,
         status=ProviderStatus.AVAILABLE,
         created_by=test_user.id,
@@ -356,7 +352,7 @@ async def test_list_providers_filtering(test_db_session: AsyncSession, test_user
     provider2 = ToolProvider(
         id=uuid4(),
         name="Test Provider Beta",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         enabled=False,
         status=ProviderStatus.ERROR,
         created_by=test_user.id,
@@ -365,7 +361,7 @@ async def test_list_providers_filtering(test_db_session: AsyncSession, test_user
     provider3 = ToolProvider(
         id=uuid4(),
         name="Production Provider",
-        configuration={"provider_type": "prod"},
+        configuration={"provider_type": "mcp", "base_url": "https://api.example.com", "api_key": "test-key"},
         enabled=True,
         status=ProviderStatus.AVAILABLE,
         created_by=test_user.id,
@@ -401,10 +397,15 @@ async def test_list_providers_filtering(test_db_session: AsyncSession, test_user
     assert beta_providers[0].enabled is False
     assert beta_providers[0].name == "Test Provider Beta"
 
-    # Test provider_type filtering
-    result = await service.list_providers(query_params_items=[("provider_type", "prod")])
-    assert len(result.resources) == 1
-    assert result.resources[0].name == "Production Provider"
+    # Test provider_type filtering - all providers are MCP type, so filter for specific base_url instead
+    # Note: Since we removed MockProvider, all providers now have "mcp" type
+    result = await service.list_providers(query_params_items=[("provider_type", "mcp")])
+    assert len(result.resources) == 3  # All providers have MCP type now
+
+    # Test filtering by a specific attribute instead
+    production_providers = [p for p in result.resources if "Production" in p.name]
+    assert len(production_providers) == 1
+    assert production_providers[0].name == "Production Provider"
 
 
 @pytest.mark.asyncio
@@ -417,21 +418,21 @@ async def test_list_providers_sorting(test_db_session: AsyncSession, test_user: 
     provider1 = ToolProvider(
         id=uuid4(),
         name="Charlie Provider",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         created_by=test_user.id,
         updated_by=test_user.id,
     )
     provider2 = ToolProvider(
         id=uuid4(),
         name="Alpha Provider",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         created_by=test_user.id,
         updated_by=test_user.id,
     )
     provider3 = ToolProvider(
         id=uuid4(),
         name="Beta Provider",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         created_by=test_user.id,
         updated_by=test_user.id,
     )
@@ -467,7 +468,7 @@ async def test_list_providers_pagination(test_db_session: AsyncSession, test_use
         provider = ToolProvider(
             id=uuid4(),
             name=f"Provider {i:02d}",
-            configuration={"provider_type": "test"},
+            configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
             created_by=test_user.id,
             updated_by=test_user.id,
         )
@@ -495,7 +496,7 @@ async def test_list_providers_excludes_soft_deleted(test_db_session: AsyncSessio
     active_provider = ToolProvider(
         id=uuid4(),
         name="Active Provider",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         created_by=test_user.id,
         updated_by=test_user.id,
     )
@@ -504,7 +505,7 @@ async def test_list_providers_excludes_soft_deleted(test_db_session: AsyncSessio
     deleted_provider = ToolProvider(
         id=uuid4(),
         name="Deleted Provider",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         created_by=test_user.id,
         updated_by=test_user.id,
         deleted_at=datetime.now(UTC),
@@ -531,7 +532,7 @@ async def test_list_providers_complex_filtering(test_db_session: AsyncSession, t
     provider1 = ToolProvider(
         id=uuid4(),
         name="Test API Provider",
-        configuration={"provider_type": "api"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         enabled=True,
         status=ProviderStatus.AVAILABLE,
         created_by=test_user.id,
@@ -541,7 +542,7 @@ async def test_list_providers_complex_filtering(test_db_session: AsyncSession, t
     provider2 = ToolProvider(
         id=uuid4(),
         name="Test MCP Provider",
-        configuration={"provider_type": "mcp"},
+        configuration={"provider_type": "mcp", "base_url": "https://api.example.com", "api_key": "test-key"},
         enabled=True,
         status=ProviderStatus.ERROR,
         created_by=test_user.id,
@@ -551,7 +552,7 @@ async def test_list_providers_complex_filtering(test_db_session: AsyncSession, t
     provider3 = ToolProvider(
         id=uuid4(),
         name="Production API Provider",
-        configuration={"provider_type": "api"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         enabled=False,
         status=ProviderStatus.AVAILABLE,
         created_by=test_user.id,
@@ -561,10 +562,12 @@ async def test_list_providers_complex_filtering(test_db_session: AsyncSession, t
     test_db_session.add_all([provider1, provider2, provider3])
     await test_db_session.commit()
 
-    # Test multiple filters: enabled=true AND provider_type=api
-    result = await service.list_providers(query_params_items=[("enabled", "true"), ("provider_type", "api")])
-    assert len(result.resources) == 1
-    assert result.resources[0].name == "Test API Provider"
+    # Test multiple filters: enabled=true AND provider_type=mcp
+    result = await service.list_providers(query_params_items=[("enabled", "true"), ("provider_type", "mcp")])
+    assert len(result.resources) == 2  # Both Test API Provider and Test MCP Provider are enabled
+    enabled_names = {p.name for p in result.resources}
+    assert "Test API Provider" in enabled_names
+    assert "Test MCP Provider" in enabled_names
 
     # Test multiple filters: status=available AND enabled=true
     result = await service.list_providers(query_params_items=[("status", "available"), ("enabled", "true")])
@@ -630,7 +633,7 @@ async def test_list_providers_with_cursor_and_sorting(test_db_session: AsyncSess
         provider = ToolProvider(
             id=uuid4(),
             name=f"Provider {chr(65 + i)}",  # Provider A, B, C
-            configuration={"provider_type": "test"},
+            configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
             created_by=test_user.id,
             updated_by=test_user.id,
         )
@@ -655,7 +658,7 @@ async def test_create_provider_defaults(
     """Test provider creation with default values and VALIDATING status."""
     provider_data: ToolProviderCreate = ToolProviderCreate(
         name="Minimal Provider",
-        configuration={"provider_type": "mock"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         # No enabled or description provided
     )
 
@@ -677,14 +680,14 @@ async def test_update_provider_prevents_duplicate_names(test_db_session: AsyncSe
     provider1 = ToolProvider(
         id=uuid4(),
         name="Provider One",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         created_by=test_user.id,
         updated_by=test_user.id,
     )
     provider2 = ToolProvider(
         id=uuid4(),
         name="Provider Two",
-        configuration={"provider_type": "test"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         created_by=test_user.id,
         updated_by=test_user.id,
     )
@@ -693,7 +696,10 @@ async def test_update_provider_prevents_duplicate_names(test_db_session: AsyncSe
     await test_db_session.commit()
 
     # Attempt to update provider2 to have same name as provider1 (should fail)
-    update_data: ToolProviderCreate = ToolProviderCreate(name="Provider One", configuration={"provider_type": "test"})
+    update_data: ToolProviderCreate = ToolProviderCreate(
+        name="Provider One",
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
+    )
 
     with pytest.raises(ProviderNameConflictError, match="Provider with name 'Provider One' already exists"):
         await service.update_provider(provider2.id, update_data)
@@ -714,7 +720,7 @@ async def test_patch_provider_without_enabled_preserves_existing_value(
     # Patch provider without specifying 'enabled' field
     provider_patch: ToolProviderPatch = ToolProviderPatch(
         description="Updated description without enabled field",
-        configuration={"provider_type": "test", "new_field": "value"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     patched_provider = await service.patch_provider(test_tool_provider.id, provider_patch)
@@ -722,7 +728,7 @@ async def test_patch_provider_without_enabled_preserves_existing_value(
     # The 'enabled' value should remain unchanged (False)
     assert patched_provider.enabled is False
     assert patched_provider.description == "Updated description without enabled field"
-    assert patched_provider.configuration["new_field"] == "value"
+    assert patched_provider.configuration.provider_type == "mcp"
 
     # Now test with initial enabled state as True
     test_tool_provider.enabled = True
@@ -748,21 +754,27 @@ async def test_validate_provider_definition_success(
     provider_create = ToolProviderCreate(
         name="Test Provider",
         description="A test provider for validation testing",
-        configuration={"provider_type": "mock"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
-    result: ToolProviderValidationResult = await test_tool_provider_service.validate_provider_definition(
-        provider_create
-    )
+    # Patch MockMCPProvider.validate_connection to return successful validation
+    with patch("nexus.tool_manager.lib.providers.mcp.MCPProvider.validate_connection") as mock_validate:
+        mock_validate.return_value = ToolProviderValidationResult(
+            valid=True, provider_type="mcp", validated_at=datetime.now(UTC)
+        )
 
-    assert result.valid is True
-    assert result.provider_type == "mock"
-    assert result.error is None
-    assert result.validated_at is not None
+        result: ToolProviderValidationResult = await test_tool_provider_service.validate_provider_definition(
+            provider_create
+        )
 
-    # Verify no provider was created in database
-    providers = await test_tool_provider_service.list_providers()
-    assert len(providers.resources) == 0
+        assert result.valid is True
+        assert result.provider_type == "mcp"
+        assert result.error is None
+        assert result.validated_at is not None
+
+        # Verify no provider was created in database
+        providers = await test_tool_provider_service.list_providers()
+        assert len(providers.resources) == 0
 
 
 @pytest.mark.asyncio
@@ -770,15 +782,17 @@ async def test_validate_provider_definition_invalid_provider_type(
     test_db_session: AsyncSession, test_user: User, test_tool_provider_service: ToolProviderService
 ) -> None:
     """Test provider definition validation with invalid provider type."""
-    provider_create = ToolProviderCreate(
-        name="Invalid Provider",
-        description="Provider with unknown type",
-        configuration={"provider_type": "unknown_type"},
-    )
+    # Since discriminator validation now prevents invalid provider types at the Pydantic level,
+    # we need to test this by mocking the provider configuration directly
 
-    result: ToolProviderValidationResult = await test_tool_provider_service.validate_provider_definition(
-        provider_create
-    )
+    # Create a mock ToolProviderCreate with an invalid provider_type
+    mock_provider = Mock()
+    mock_provider.name = "Invalid Provider"
+    mock_provider.configuration = Mock()
+    mock_provider.configuration.provider_type = "unknown_type"
+    mock_provider.configuration.model_dump.return_value = {"provider_type": "unknown_type"}
+
+    result: ToolProviderValidationResult = await test_tool_provider_service.validate_provider_definition(mock_provider)
 
     assert not result.valid
     assert result.provider_type == "unknown_type"
@@ -795,21 +809,24 @@ async def test_validate_provider_definition_connection_error(
     provider_create = ToolProviderCreate(
         name="Connection Error Provider",
         description="Provider that simulates connection error",
-        configuration={
-            "provider_type": "mock",
-            "simulate_connection_error": True,
-        },
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
-    result: ToolProviderValidationResult = await test_tool_provider_service.validate_provider_definition(
-        provider_create
-    )
+    # Patch MockMCPProvider.validate_connection to return failed validation
+    with patch("tests.fixtures.mock_mcp_provider.MockMCPProvider.validate_connection") as mock_validate:
+        mock_validate.return_value = ToolProviderValidationResult(
+            valid=False, provider_type="mcp", validated_at=datetime.now(UTC), error="Simulated connection error"
+        )
 
-    assert not result.valid
-    assert result.provider_type == "mock"
-    assert result.validated_at is not None
-    assert result.error is not None
-    assert "Provider connection validation failed: Simulated connection error" in result.error
+        result: ToolProviderValidationResult = await test_tool_provider_service.validate_provider_definition(
+            provider_create
+        )
+
+        assert not result.valid
+        assert result.provider_type == "mcp"
+        assert result.validated_at is not None
+        assert result.error is not None
+        assert "Simulated connection error" in result.error
 
 
 @pytest.mark.asyncio
@@ -821,7 +838,7 @@ async def test_validate_provider_definition_vs_validate_provider_comparison(
     provider_create = ToolProviderCreate(
         name="Comparison Provider",
         description="For comparing validation methods",
-        configuration={"provider_type": "mock"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     created_provider = await test_tool_provider_service.create_provider(provider_create)
@@ -855,7 +872,7 @@ async def test_full_provider_workflow_success(
     provider_create = ToolProviderCreate(
         name="Workflow Test Provider",
         description="Testing complete workflow",
-        configuration={"provider_type": "mock"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     provider = await test_tool_provider_service.create_provider(provider_create)
@@ -866,23 +883,23 @@ async def test_full_provider_workflow_success(
     # Step 2: Validate provider (status should become AVAILABLE)
     validation_result = await test_tool_provider_service.validate_provider(provider.id)
     assert validation_result.valid is True
-    assert validation_result.provider_type == "mock"
+    assert validation_result.provider_type == "mcp"
     assert validation_result.error is None
 
     # Refresh provider from database to check updated status
-    await test_db_session.refresh(provider)
+    provider = await test_tool_provider_service.get_provider(provider.id)
     assert provider.status.value == ProviderStatus.AVAILABLE.value
     assert provider.validation_error is None
     assert provider.last_validated_at is not None
 
     # Step 3: Refresh tools (should create tools and parameters)
-    refresh_result = await test_tool_provider_service.refresh_tools(provider.id)  # type: ignore[unreachable]
+    refresh_result = await test_tool_provider_service.refresh_tools(provider.id)
     assert refresh_result.refreshed_count > 0  # Should create some tools
 
     # Verify tools were created
     tools_query = select(Tool).filter(
-        Tool.provider_id == provider.id,
-        Tool.deleted_at.is_(None),
+        Tool.provider_id == provider.id,  # type: ignore[arg-type]
+        Tool.deleted_at.is_(None),  # type: ignore[union-attr]
     )
     tools_result = await test_db_session.execute(tools_query)
     tools = tools_result.scalars().all()
@@ -897,7 +914,7 @@ async def test_validate_provider_transitions_status_from_validating_to_available
     # Create provider
     provider_create = ToolProviderCreate(
         name="Status Transition Test",
-        configuration={"provider_type": "mock"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     provider = await test_tool_provider_service.create_provider(provider_create)
@@ -908,7 +925,7 @@ async def test_validate_provider_transitions_status_from_validating_to_available
     assert validation_result.valid is True
 
     # Check status was updated in database
-    await test_db_session.refresh(provider)
+    provider = await test_tool_provider_service.get_provider(provider.id)
     assert provider.status.value == ProviderStatus.AVAILABLE.value
     assert provider.last_validated_at is not None
     assert provider.validation_error is None
@@ -922,22 +939,25 @@ async def test_validate_provider_transitions_status_from_validating_to_error(
     # Create provider with configuration that will fail validation
     provider_create = ToolProviderCreate(
         name="Error Transition Test",
-        configuration={
-            "provider_type": "mock",
-            "simulate_connection_error": True,  # This should cause validation to fail
-        },
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     provider = await test_tool_provider_service.create_provider(provider_create)
     assert provider.status.value == ProviderStatus.VALIDATING.value
 
-    # Validate provider (should fail)
-    validation_result = await test_tool_provider_service.validate_provider(provider.id)
-    assert validation_result.valid is False
-    assert validation_result.error is not None
+    # Patch MockMCPProvider.validate_connection to return failed validation
+    with patch("tests.fixtures.mock_mcp_provider.MockMCPProvider.validate_connection") as mock_validate:
+        mock_validate.return_value = ToolProviderValidationResult(
+            valid=False, provider_type="mcp", validated_at=datetime.now(UTC), error="Simulated connection error"
+        )
+
+        # Validate provider (should fail)
+        validation_result = await test_tool_provider_service.validate_provider(provider.id)
+        assert validation_result.valid is False
+        assert validation_result.error is not None
 
     # Check status was updated to ERROR in database
-    await test_db_session.refresh(provider)
+    provider = await test_tool_provider_service.get_provider(provider.id)
     assert provider.status.value == ProviderStatus.ERROR.value
     assert provider.last_validated_at is not None
     assert provider.validation_error is not None
@@ -951,7 +971,7 @@ async def test_refresh_tools_only_works_with_available_provider(
     # Create provider (status will be VALIDATING)
     provider_create = ToolProviderCreate(
         name="Refresh Tools Test",
-        configuration={"provider_type": "mock"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     provider = await test_tool_provider_service.create_provider(provider_create)
@@ -963,7 +983,7 @@ async def test_refresh_tools_only_works_with_available_provider(
 
     # Validate provider to make it AVAILABLE
     await test_tool_provider_service.validate_provider(provider.id)
-    await test_db_session.refresh(provider)
+    provider = await test_tool_provider_service.get_provider(provider.id)
     assert provider.status.value == ProviderStatus.AVAILABLE.value
 
     # Now refresh_tools should work
@@ -979,7 +999,7 @@ async def test_create_provider_does_not_create_tools(
     # Create provider
     provider_create = ToolProviderCreate(
         name="No Tools Test",
-        configuration={"provider_type": "mock"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     provider = await test_tool_provider_service.create_provider(provider_create)
@@ -993,7 +1013,7 @@ async def test_create_provider_does_not_create_tools(
 
     # Even after validation, tools should still not exist until refresh_tools is called
     await test_tool_provider_service.validate_provider(provider.id)
-    await test_db_session.refresh(provider)
+    provider = await test_tool_provider_service.get_provider(provider.id)
     assert provider.status.value == ProviderStatus.AVAILABLE.value
 
     # Still no tools
@@ -1019,7 +1039,7 @@ async def test_workflow_with_tool_parameters(
     # Create and validate provider
     provider_create = ToolProviderCreate(
         name="Parameters Test Provider",
-        configuration={"provider_type": "mock"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     provider = await test_tool_provider_service.create_provider(provider_create)
@@ -1056,7 +1076,7 @@ async def test_refresh_tools_multiple_times_works_correctly(
     # Create and validate provider
     provider_create = ToolProviderCreate(
         name="Multiple Refresh Test Provider",
-        configuration={"provider_type": "mock"},
+        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
     )
 
     provider = await test_tool_provider_service.create_provider(provider_create)

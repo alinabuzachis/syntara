@@ -6,38 +6,19 @@ with tool provider specific fields as defined in the OpenAPI specification.
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
-from pydantic import ConfigDict, field_validator
+from pydantic import ConfigDict
 from sqlalchemy import Index, String, Text, text
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models import Resource, ResourcesResponse
-from nexus.core.models.base import NamedResource
-from nexus.core.utils.sqlmodel import postgres_enum_column
+from nexus.core.utils.sqlmodel import DiscriminatedJSONB, postgres_enum_column
+from nexus.tool_manager.models.tool_provider_configuration import ProviderConfiguration, ProviderConfigurationTypes
 
 if TYPE_CHECKING:
     from nexus.tool_manager.models.tool import Tool
-
-
-def _validate_provider_configuration(v: dict[str, Any]) -> dict[str, Any]:
-    """Shared validation logic for provider configuration."""
-    if not isinstance(v, dict):
-        msg = "configuration must be a dictionary"  # type: ignore[unreachable]
-        raise ValueError(msg)  # noqa: TRY004
-
-    if "provider_type" not in v:
-        msg = "configuration must contain 'provider_type' field"
-        raise ValueError(msg)
-
-    provider_type = v.get("provider_type")
-    if not isinstance(provider_type, str) or not provider_type.strip():
-        msg = "provider_type must be a non-empty string"
-        raise ValueError(msg)
-
-    return v
 
 
 class ProviderStatus(str, Enum):
@@ -48,37 +29,13 @@ class ProviderStatus(str, Enum):
     VALIDATING = "validating"
 
 
-class MCPConfiguration(SQLModel):
-    """Configuration for MCP (Model Context Protocol) providers."""
-
-    provider_type: str = Field(default="mcp", description="Provider type - always 'mcp' for MCP providers")
-
-    base_url: str = Field(description="Base URL for the MCP provider")
-
-    api_key: str = Field(description="API key for authentication")
-
-    @field_validator("provider_type")
-    @classmethod
-    def validate_provider_type(cls, v: str) -> str:
-        """Ensure provider_type is 'mcp' for MCP configurations."""
-        if v != "mcp":
-            msg = "provider_type must be 'mcp' for MCPConfiguration"
-            raise ValueError(msg)
-        return v
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        extra="forbid",  # Reject unknown fields
-    )  # type: ignore[assignment]
-
-
-class ToolProvider(Resource, table=True):
-    """ToolProvider database model.
+class ToolProviderBase(Resource):
+    """ToolProvider base model.
 
     Represents an external tool provider that can provide multiple tools.
     Extends the Resource base class with provider-specific fields.
 
     Attributes:
-        configuration: Provider-specific configuration (stored as JSON)
         enabled: Whether the provider is enabled (default: True)
         status: Current status of the provider (default: validating)
         last_validated_at: Timestamp of last validation (nullable)
@@ -98,25 +55,6 @@ class ToolProvider(Resource, table=True):
 
     """
 
-    __tablename__ = "tool_providers"
-
-    # Define filterable fields for API endpoints - extend base Resource fields
-    __filterable_fields__: ClassVar[list[str]] = [
-        *Resource.__filterable_fields__,
-        "status",
-        "enabled",
-        "provider_type",
-        "configuration.provider_type",
-        "configuration.base_url",
-    ]
-
-    # Define sortable fields for API endpoints - extend base Resource fields
-    __sortable_fields__: ClassVar[list[str]] = [
-        *Resource.__sortable_fields__,
-        "status",
-        "enabled",
-    ]
-
     # Override name field from Resource - unique constraint handled in __table_args__
     name: str = Field(
         min_length=1,
@@ -125,8 +63,6 @@ class ToolProvider(Resource, table=True):
         description="Human-readable provider name",
         index=True,
     )
-
-    configuration: dict[str, Any] = Field(sa_type=JSONB, description="Provider-specific configuration")
 
     enabled: bool = Field(default=True, description="Enable/disable the provider", index=True)
 
@@ -153,6 +89,33 @@ class ToolProvider(Resource, table=True):
         description="Error message from last validation attempt",
     )
 
+
+class ToolProvider(ToolProviderBase, table=True):
+    """ToolProvider database model."""
+
+    __tablename__ = "tool_providers"
+
+    # Define filterable fields for API endpoints - extend base Resource fields
+    __filterable_fields__: ClassVar[list[str]] = [
+        *Resource.__filterable_fields__,
+        "status",
+        "enabled",
+        "provider_type",
+        "configuration.provider_type",
+    ]
+
+    # Define sortable fields for API endpoints - extend base Resource fields
+    __sortable_fields__: ClassVar[list[str]] = [
+        *Resource.__sortable_fields__,
+        "status",
+        "enabled",
+    ]
+
+    configuration: ProviderConfigurationTypes = Field(
+        sa_type=DiscriminatedJSONB(ProviderConfiguration),  # type: ignore[call-overload]
+        description="Provider-specific configuration",
+    )
+
     # Relationships
     tools: list["Tool"] = Relationship(back_populates="provider", cascade_delete=True)
 
@@ -169,46 +132,40 @@ class ToolProvider(Resource, table=True):
         Index("ix_tool_providers_created_at_id", "created_at", "id"),
     )
 
-    @field_validator("configuration")
-    @classmethod
-    def validate_configuration(cls, v: dict[str, Any]) -> dict[str, Any]:
-        """Validate configuration using shared validation logic."""
-        return _validate_provider_configuration(v)
-
 
 # ============================================================================
 # API Request/Response Schemas
 # ============================================================================
 
 
-class ToolProviderCreate(NamedResource):
+class ToolProviderWithConfiguration(ToolProviderBase):
+    """Schema for ToolProvider response with ProviderConfiguration details."""
+
+    configuration: ProviderConfigurationTypes = Field(..., description="ToolProvider configuration")
+
+
+class ToolProviderCreate(SQLModel):
     """ToolProviderCreate model for creating new tool providers.
 
-    Extends NamedResource with provider-specific configuration field.
+    Contains only the fields needed to create a new tool provider.
     This model is used for API requests when creating new tool providers.
 
     Attributes:
-        configuration: Provider-specific configuration (required)
-
-    Inherits from NamedResource:
         name: Human-readable name (required, 1-255 chars)
         description: Optional detailed description (max 2000 chars)
-
-    Inherits from BaseResource:
-        id: UUID primary key
-        created_at: Creation timestamp
-        updated_at: Last update timestamp
-        labels: Optional key-value metadata
+        configuration: Provider configuration (required)
 
     """
 
-    configuration: dict[str, Any] = Field(description="Provider-specific configuration")
+    name: str = Field(
+        min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="Human-readable name for the provider"
+    )
 
-    @field_validator("configuration")
-    @classmethod
-    def validate_configuration(cls, v: dict[str, Any]) -> dict[str, Any]:
-        """Validate configuration using shared validation logic."""
-        return _validate_provider_configuration(v)
+    description: str | None = Field(
+        default=None, max_length=FieldLimits.DESCRIPTION_MAX_LENGTH, description="Detailed description of the provider"
+    )
+
+    configuration: ProviderConfiguration = Field(description="Provider configuration", discriminator="provider_type")
 
 
 class ToolProviderPatch(SQLModel):
@@ -237,18 +194,13 @@ class ToolProviderPatch(SQLModel):
         description="Detailed description of the provider",
     )
 
-    configuration: dict[str, Any] | None = Field(
+    configuration: ProviderConfiguration | None = Field(
         default=None,
         description="Provider-specific configuration",
+        discriminator="provider_type",
     )
 
     enabled: bool | None = Field(default=None, description="Enable/disable the provider")
-
-    @field_validator("configuration")
-    @classmethod
-    def validate_configuration(cls, v: dict[str, Any]) -> dict[str, Any]:
-        """Validate configuration using shared validation logic."""
-        return _validate_provider_configuration(v)
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",  # Reject unknown fields
@@ -259,4 +211,4 @@ class ToolProviderPatch(SQLModel):
 # List Response Type Alias
 # ============================================================================
 
-ToolProviderListResponse = ResourcesResponse[ToolProvider]
+ToolProviderListResponse = ResourcesResponse[ToolProviderWithConfiguration]
