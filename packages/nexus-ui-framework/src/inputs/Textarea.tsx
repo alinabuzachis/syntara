@@ -12,7 +12,7 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
           {...fieldProps}
           {...rest}
           className={clsx(
-            'w-full rounded-lg bg-black/20 px-3 py-2 font-mono text-sm text-white/90 ring ring-white/10 focus:outline-blue-800',
+            'w-full rounded-md bg-white/5 px-3 py-2 font-mono text-xs transition-shadow outline-none focus:ring-2 focus:ring-blue-400/50',
             className
           )}
         />

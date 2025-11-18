@@ -81,12 +81,97 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
     set((state) => {
       if (!state.currentWorkflow) return state
 
+      // Helper function to recursively remove activity and clean up parent structures
+      const removeFromActivities = (activities: Activity[]): Activity[] => {
+        const filtered: Activity[] = []
+
+        for (const activity of activities) {
+          // Skip the activity we're removing
+          if (activity.id === activityId) {
+            continue
+          }
+
+          // For other activities, recursively check nested structures
+          if (activity.type === 'parallel') {
+            const updatedBranches = activity.branches
+              ?.map((branch) => removeFromActivities([branch])[0])
+              .filter((branch): branch is Activity => branch !== undefined)
+
+            // If parallel has less than 2 branches, it's invalid - skip it
+            if (!updatedBranches || updatedBranches.length < 2) {
+              // If only one branch remains, promote it to replace the parallel activity
+              if (updatedBranches?.length === 1) {
+                filtered.push(updatedBranches[0])
+              }
+              continue
+            }
+
+            filtered.push({
+              ...activity,
+              branches: updatedBranches,
+            })
+          } else if (activity.type === 'sequence') {
+            const updatedSteps = activity.steps ? removeFromActivities(activity.steps) : []
+
+            // If sequence has no steps, skip it
+            if (updatedSteps.length === 0) {
+              continue
+            }
+
+            // If sequence has only one step, promote it
+            if (updatedSteps.length === 1) {
+              filtered.push(updatedSteps[0])
+              continue
+            }
+
+            filtered.push({
+              ...activity,
+              steps: updatedSteps,
+            })
+          } else if (activity.type === 'condition') {
+            const updatedThen = activity.then ? removeFromActivities(activity.then) : []
+            const updatedElse = activity.else ? removeFromActivities(activity.else) : undefined
+
+            filtered.push({
+              ...activity,
+              then: updatedThen,
+              else: updatedElse,
+            })
+          } else if (activity.type === 'loop') {
+            const updatedDo = activity.loop.do ? removeFromActivities(activity.loop.do) : []
+
+            // If loop has no body, skip it
+            if (updatedDo.length === 0) {
+              continue
+            }
+
+            filtered.push({
+              ...activity,
+              loop: {
+                ...activity.loop,
+                do: updatedDo,
+              },
+            })
+          } else if (activity.type === 'join') {
+            // For join activities, we need to check if any source activities were removed
+            // This is handled by the structure - if sources are removed, edges will be gone
+            // The join activity itself stays, but may become unreachable
+            filtered.push(activity)
+          } else {
+            // For task and other activities, just keep them
+            filtered.push(activity)
+          }
+        }
+
+        return filtered
+      }
+
       return {
         currentWorkflow: {
           ...state.currentWorkflow,
           workflow: {
             ...state.currentWorkflow.workflow,
-            activities: state.currentWorkflow.workflow.activities.filter((a) => a.id !== activityId),
+            activities: removeFromActivities(state.currentWorkflow.workflow.activities),
           },
         },
       }

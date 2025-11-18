@@ -89,7 +89,7 @@ export default function Automations() {
     <AppPage>
       <AppPageHeader title="Automations">
         <Input
-          className="search grow"
+          className="search flex-1"
           placeholder="Search automations..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
