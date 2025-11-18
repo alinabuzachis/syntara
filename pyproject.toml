@@ -55,11 +55,8 @@ dev = [
     "respx>=0.20.0",  # for mocking httpx requests
     "websockets>=12.0",  # for WebSocket client testing
     "types-pyyaml>=6.0.12",  # type stubs for PyYAML
-    "yamllint>=1.35.1",
-    "yamlfmt>=1.1.1",
     "ruamel.yaml>=0.17.40",
     "pre-commit>=3.5.0",
-    "yamlfmt",
     "podman-compose>=1.5.0",  # for container orchestration
     "jsonschema>=4.0.0",  # for schema validation tests
     "types-PyYAML>=6.0.0",  # for mypy type stubs

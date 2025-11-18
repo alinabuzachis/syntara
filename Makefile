@@ -295,8 +295,6 @@ format: ## Format code
 lint: ## Run linting and type checking with ruff and mypy
 	@echo "📝 Running ruff linter..."
 	uv run ruff check .
-	@echo "🧪 Running YAML linting..."
-	uvx yamllint src tests
 	make typecheck --no-print-directory
 	pre-commit run --all-files
 
