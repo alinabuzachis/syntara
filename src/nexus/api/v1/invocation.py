@@ -1,13 +1,17 @@
 """Invocation API endpoints for v1."""
 
+import json
 import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Path, Query, Request, UploadFile, status
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexus.agent_orchestrator.context_manager.file_manager.validators import (
+    ValidationError as FileValidationError,
+)
 from nexus.agent_orchestrator.models import (
     Invocation,
     InvocationCreateRequest,
@@ -23,46 +27,138 @@ router = APIRouter(prefix="/invocations", tags=["Invocation"])
 logger = logging.getLogger(__name__)
 
 
+def _validate_multipart_required_fields(prompt: str | None, session_id: str | None) -> tuple[str, str]:
+    """Validate required fields for multipart requests.
+
+    Args:
+        prompt: Prompt field
+        session_id: Session ID field
+
+    Returns:
+        Tuple of (prompt, session_id) after validation
+
+    Raises:
+        HTTPException: If required fields are missing
+
+    """
+    if prompt is None or session_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="prompt and session_id are required",
+        )
+    return (prompt, session_id)
+
+
 @router.post(
     "",
     status_code=status.HTTP_202_ACCEPTED,
     summary="Create Invocation (Async)",
-    description="Accept async agent invocation request and return invocation ID immediately",
+    description="Accept async agent invocation request and return invocation ID immediately. "
+    "Supports both application/json and multipart/form-data with optional file uploads.",
 )
 async def invoke_agent(
-    request_body: InvocationCreateRequest,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
+    request_body: Annotated[InvocationCreateRequest | None, Body()] = None,
+    prompt: Annotated[str | None, Form()] = None,
+    session_id: Annotated[str | None, Form()] = None,
+    context_data: Annotated[str | None, Form()] = None,
+    files: Annotated[list[UploadFile] | None, File()] = None,
 ) -> Invocation:
     """Accept async invocation request.
 
-    Supports both camelCase (API contract) and snake_case field names
-    via Pydantic field aliasing with populate_by_name=True.
+    Supports both formats:
+    1. application/json (backward compatible, no file support)
+    2. multipart/form-data (with optional file uploads)
 
     Args:
-        request_body: Validated invocation request
+        request: FastAPI request object (for determining content type)
         db: Database session (dependency injected)
         current_user: Current authenticated user
+        request_body: JSON request body (for application/json)
+        prompt: Prompt field (for multipart/form-data)
+        session_id: Session ID field (for multipart/form-data)
+        context_data: Context data JSON string (for multipart/form-data)
+        files: File uploads (multipart/form-data only, 1-10 files, max 10MB each by default)
 
     Returns:
-        Created invocation
+        Created invocation with file_metadata in context_data if files uploaded
 
     Raises:
-        HTTPException: If invocation creation fails
+        HTTPException: 400 for validation errors, 500 for storage failures
+
+    Note:
+        To upload files, use Content-Type: multipart/form-data.
+        JSON requests (Content-Type: application/json) do not support file uploads.
 
     """
     try:
+        # Check content type to determine request format
+        content_type = request.headers.get("content-type", "")
+        is_json_request = "application/json" in content_type
+        is_multipart_request = "multipart/form-data" in content_type
+
+        # Determine request format and extract data
+        final_prompt: str
+        final_session_id: str
+        final_context_data: dict[str, object] | None
+        final_files: list[UploadFile] | None
+
+        if is_json_request:
+            # JSON request (backward compatible, no file support)
+            # Parse JSON manually because FastAPI gets confused with mixed Body() and Form() params
+            if request_body is not None:
+                # FastAPI successfully parsed it
+                body = request_body
+            else:
+                # Manually parse JSON from request
+                json_data = await request.json()
+                body = InvocationCreateRequest.model_validate(json_data)
+
+            final_prompt = body.prompt
+            final_session_id = body.session_id
+            final_context_data = body.context_data
+            final_files = None  # Files not supported in JSON mode
+        elif is_multipart_request or prompt is not None or session_id is not None:
+            # Multipart form data request (supports files)
+            final_prompt, final_session_id = _validate_multipart_required_fields(prompt, session_id)
+            # Parse context_data JSON string if provided
+            parsed_context: dict[str, object] | None = json.loads(context_data) if context_data else None
+            final_context_data = parsed_context
+            final_files = files
+        else:
+            raise HTTPException(  # noqa: TRY301
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Request must be either application/json or multipart/form-data",
+            )
+
         service = InvocationService(db, current_user)
         return await service.create_invocation(
-            prompt=request_body.prompt,
-            session_id=request_body.session_id,
-            context_data=request_body.context_data,
+            prompt=final_prompt,
+            session_id=final_session_id,
+            context_data=final_context_data,
+            files=final_files,
         )
 
+    except FileValidationError as e:
+        # File validation errors (count, size, MIME type) - 400 Bad Request
+        logger.warning("File validation error in invocation request", exc_info=e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+    except (OSError, PermissionError) as e:
+        # Storage failures (disk full, permission denied, I/O errors) - 500 Internal Server Error
+        logger.exception("File storage error creating invocation")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process file upload",
+        ) from e
     except ValidationError as e:
         logger.warning("Pydantic validation error in invocation request", exc_info=e)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Invalid request data",
         ) from e
     except Exception as e:

@@ -14,6 +14,7 @@ Usage:
     llm = get_openrouter_llm(api_key=settings.openrouter_api_key)
 """
 
+import tempfile
 from functools import lru_cache
 
 from pydantic import Field, SecretStr
@@ -50,7 +51,47 @@ class OpenRouterSettings(BaseSettings):
     )
 
 
-class Settings(OpenRouterSettings):
+class FileUploadSettings(BaseSettings):
+    """File upload configuration settings.
+
+    Settings for file attachment support in invocations.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    file_upload_max_size_mb: int = Field(
+        default=10,
+        description="Maximum file size in MB per file",
+    )
+
+    file_upload_max_files: int = Field(
+        default=10,
+        description="Maximum number of files per invocation",
+    )
+
+    file_upload_storage_dir: str = Field(
+        default_factory=tempfile.gettempdir,
+        description="Storage directory for uploaded files",
+    )
+
+    file_upload_allowed_mime_types: list[str] = Field(
+        default=[
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain",
+            "text/markdown",
+        ],
+        description="Allowed MIME types for file uploads",
+    )
+
+
+class Settings(OpenRouterSettings, FileUploadSettings):
     """Application-wide settings.
 
     Combines all configuration sections into a single settings object.

@@ -47,3 +47,12 @@ class ValidationMessages:
     LABELS_VALUE_MUST_BE_STRING = "labels value for key '{key}' must be a string, got {type_name}"
     CURSOR_TOO_LARGE = "Cursor too large (max {max_size} bytes)"
     CURSOR_INVALID_FORMAT = "Invalid cursor format: {error}"
+
+
+# File upload validation constants
+# Minimum file size for reliable MIME type detection (in bytes)
+# python-magic requires sufficient bytes to accurately identify file types
+MIME_TYPE_DETECTION_MIN_BYTES = 512
+
+# Context data keys for invocation context_data JSONB field
+CONTEXT_KEY_FILE_METADATA = "file_metadata"  # Key for file metadata array in invocation context_data

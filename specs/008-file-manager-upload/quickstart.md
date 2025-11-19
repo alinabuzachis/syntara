@@ -42,24 +42,27 @@ curl -X POST http://localhost:8000/api/v1/invocations \
 #   "context_data": {
 #     "file_metadata": [
 #       {
+#         "file_id": "550e8400-e29b-41d4-a716-446655440000",
 #         "filename": "sample.pdf",
 #         "size_bytes": 512000,
 #         "mime_type": "application/pdf",
-#         "file_path": "/tmp/nexus-550e8400-...-sample.pdf",
 #         "status": "pending_parse"
 #       }
 #     ]
 #   }
 # }
+#
+# Note: file_path is stored internally but NOT exposed in API responses for security.
+# Use file_id for public file references.
 ```
 
 **Validation Steps**:
 1. ✅ Response status is 202 Accepted
 2. ✅ `context_data.file_metadata` is array with 1 element
-3. ✅ `context_data.file_metadata[0]` present with correct filename
+3. ✅ `context_data.file_metadata[0]` present with correct filename and file_id
 4. ✅ `context_data.file_metadata[0].status` is "pending_parse"
-5. ✅ `context_data.file_metadata[0].file_path` references file in `/tmp`
-6. ✅ File exists at `file_path` location (not deleted in this ticket)
+5. ✅ `file_path` is NOT present in response (security requirement)
+6. ✅ File is stored internally but path not exposed to client
 
 ---
 
@@ -236,9 +239,11 @@ curl -X POST http://localhost:8000/api/v1/invocations \
 
 ---
 
-### Scenario 8: File Storage Verification
+### Scenario 8: File Storage Verification (Backend/Testing Only)
 
-**Goal**: Verify files are saved to `/tmp` directory
+**Goal**: Verify files are saved to storage directory (backend verification only)
+
+**Note**: This scenario is for backend/testing verification only. The `file_path` is NOT exposed in API responses for security reasons. This verification requires backend access to the storage directory.
 
 ```bash
 # Create invocation with file
@@ -250,18 +255,29 @@ RESPONSE=$(curl -X POST http://localhost:8000/api/v1/invocations \
   -F "files=@tests/fixtures/files/sample.pdf")
 
 INVOCATION_ID=$(echo $RESPONSE | jq -r '.id')
-FILE_PATH=$(echo $RESPONSE | jq -r '.context_data.file_metadata[0].file_path')
+FILE_ID=$(echo $RESPONSE | jq -r '.context_data.file_metadata[0].file_id')
 
-# Verify file exists at the path
-ls -la $FILE_PATH
-# Expected: File exists at /tmp/nexus-{invocation_id}-sample.pdf
+# Note: file_path is NOT in API response (security requirement)
+# For testing, verify file exists in storage directory directly
+
+# Get the actual temp directory (system-dependent)
+TEMP_DIR=$(python3 -c "import tempfile; print(tempfile.gettempdir())")
+
+# Verify file exists (use quotes to prevent glob expansion issues in zsh)
+ls -la "$TEMP_DIR"/nexus-${INVOCATION_ID}-*
+
+# Expected: File exists at {temp_dir}/nexus-{invocation_id}-sample.pdf
+# Example paths:
+#   Linux:  /tmp/nexus-{invocation_id}-sample.pdf
+#   macOS:  /var/folders/.../T/nexus-{invocation_id}-sample.pdf
 ```
 
 **Validation**:
-1. ✅ File saved to `/tmp` directory
-2. ✅ File path includes invocation ID in filename
-3. ✅ File exists at `file_metadata.file_path` location
-4. ✅ File is NOT deleted (will be handled in future parsing ticket)
+1. ✅ File saved to storage directory (default `/tmp`)
+2. ✅ File path includes invocation ID in filename (backend only)
+3. ✅ Response includes `file_id` (public identifier)
+4. ✅ Response does NOT include `file_path` (security requirement)
+5. ✅ File is NOT deleted (will be handled in future parsing ticket)
 
 ---
 
@@ -288,8 +304,8 @@ wait
 **Validation**:
 1. ✅ All requests succeed with 202 Accepted
 2. ✅ No file conflicts (unique filenames with invocation_id)
-3. ✅ All files saved to `/tmp` directory
-4. ✅ All file_metadata records have unique file_path values
+3. ✅ All files saved to storage directory (backend verification)
+4. ✅ Each response includes unique file_id (no file_path exposed)
 
 ---
 
@@ -315,44 +331,48 @@ curl -X POST http://localhost:8000/api/v1/invocations \
 #   "context_data": {
 #     "file_metadata": [
 #       {
+#         "file_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
 #         "filename": "sample.pdf",
 #         "size_bytes": 512000,
 #         "mime_type": "application/pdf",
-#         "file_path": "/tmp/nexus-550e8400-...-sample.pdf",
 #         "status": "pending_parse"
 #       },
 #       {
+#         "file_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
 #         "filename": "sample.docx",
 #         "size_bytes": 204800,
 #         "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-#         "file_path": "/tmp/nexus-550e8400-...-sample.docx",
 #         "status": "pending_parse"
 #       },
 #       {
+#         "file_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
 #         "filename": "sample.txt",
 #         "size_bytes": 10240,
 #         "mime_type": "text/plain",
-#         "file_path": "/tmp/nexus-550e8400-...-sample.txt",
 #         "status": "pending_parse"
 #       }
 #     ]
 #   }
 # }
+#
+# Note: file_path is stored internally but NOT exposed in API responses for security.
 ```
 
 **Validation**:
 1. ✅ Response status is 202 Accepted
 2. ✅ `context_data.file_metadata` is array with 3 elements
-3. ✅ Each file in array has correct filename, size, mime_type, file_path
+3. ✅ Each file in array has correct file_id, filename, size, mime_type
 4. ✅ All files have status="pending_parse"
-5. ✅ All 3 files exist at their respective file_path locations
-6. ✅ Each file_path is unique with invocation_id
+5. ✅ `file_path` is NOT present in response (security requirement)
+6. ✅ Each file has unique file_id for public references
 
 ---
 
 ### Scenario 11: Context Data Integration
 
 **Goal**: Verify file metadata available in invocation context
+
+**Note**: The actual API does NOT expose `file_path` for security. The example below shows the correct API response structure.
 
 ```python
 # Integration test (Python)
@@ -381,23 +401,29 @@ async def test_context_includes_file_metadata():
     assert isinstance(context_data["file_metadata"], list)
     assert len(context_data["file_metadata"]) == 1
     assert context_data["file_metadata"][0]["status"] == "pending_parse"
-    assert context_data["file_metadata"][0]["file_path"].startswith("/tmp/nexus-")
 
-    # Verify file metadata structure
+    # Verify file metadata structure (API response)
     metadata = context_data["file_metadata"][0]
+    assert "file_id" in metadata  # Public identifier
     assert "filename" in metadata
     assert "size_bytes" in metadata
     assert "mime_type" in metadata
-    assert "file_path" in metadata
+    assert "status" in metadata
+
+    # Security validation: file_path must NOT be in API response
+    assert "file_path" not in metadata
+
     assert metadata["filename"] == "sample.pdf"
 ```
 
 **Validation**:
 1. ✅ File metadata array accessible via invocation API
 2. ✅ file_metadata is array type
-3. ✅ Metadata properly formatted with all required fields
-4. ✅ status is "pending_parse" for each file
-5. ✅ Chunks managed by Context Manager (not in invocation)
+3. ✅ Metadata includes file_id (public identifier)
+4. ✅ Metadata properly formatted with all required fields
+5. ✅ status is "pending_parse" for each file
+6. ✅ file_path is NOT in response (security requirement verified)
+7. ✅ Chunks managed by Context Manager (not in invocation)
 
 ---
 
@@ -407,19 +433,16 @@ Run all quickstart scenarios as integration tests:
 
 ```bash
 # Run file upload integration tests
-uv run pytest tests/integration/api/test_file_upload.py -v
+uv run pytest tests/integration/file_upload/test_all.py -v
 
-# Expected output:
+# Expected output (9 tests):
 # test_upload_pdf_file PASSED
 # test_upload_docx_file PASSED
-# test_upload_text_file PASSED
-# test_upload_markdown_file PASSED
+# test_upload_text_and_markdown PASSED
 # test_invocation_without_files PASSED
 # test_file_too_large_error PASSED
 # test_unsupported_format_error PASSED
 # test_too_many_files_error PASSED
-# test_file_storage PASSED
-# test_concurrent_uploads PASSED
 # test_multiple_files_upload PASSED
 # test_context_metadata PASSED
 ```
@@ -429,10 +452,16 @@ uv run pytest tests/integration/api/test_file_upload.py -v
 After testing, verify files are properly stored:
 
 ```bash
-# Check for uploaded temp files
-find /tmp -name "nexus-*" -type f
+# Get the system temp directory
+TEMP_DIR=$(python3 -c "import tempfile; print(tempfile.gettempdir())")
 
-# Expected: Files present in /tmp directory (cleanup will be added in future parsing ticket)
+# Check for uploaded files
+find "$TEMP_DIR" -name "nexus-*" -type f | head -20
+
+# Expected: Files present in temp directory (cleanup will be added in future parsing ticket)
+# Example locations:
+#   Linux:  /tmp/nexus-*
+#   macOS:  /var/folders/.../T/nexus-*
 ```
 
 ## Summary
@@ -448,7 +477,10 @@ This quickstart validates:
 - ✅ Concurrent upload handling
 - ✅ File metadata array accessible via API
 - ✅ Multiple files in single request
+- ✅ **Security**: file_path NOT exposed in API responses (file_id used instead)
 
 **Note**: File parsing and cleanup will be added in a future ticket
 
-**Status**: Ready for implementation
+**Security Note**: All API responses use `file_id` for public file references. The `file_path` is stored internally but NEVER exposed in API responses to prevent filesystem disclosure.
+
+**Status**: Implementation complete and verified

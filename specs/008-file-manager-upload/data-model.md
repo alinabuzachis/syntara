@@ -16,37 +16,53 @@ This feature extends the existing `Invocation` model to support optional file at
 
 **No Schema Changes Required** - leveraging existing JSONB flexibility
 
-**Extended context_data Structure (This Ticket)**:
+**Extended context_data Structure - API Response (This Ticket)**:
 ```json
 {
   "file_metadata": [
     {
+      "file_id": "string",           // Public file identifier (UUID) - for future file retrieval
       "filename": "string",          // Original filename
-      "size_bytes": "integer",       // File size in bytes
+      "size_bytes": "integer",       // File size in bytes (must be > 0)
       "mime_type": "string",         // MIME type (application/pdf, etc.)
-      "file_path": "string",         // Path to file in storage dir (for future parsing ticket)
       "status": "pending_parse"      // Always "pending_parse" in this ticket
     }
   ]
 }
 ```
 
-**Example with multiple files**:
+**Security Note**: `file_path` is stored internally but **NOT exposed in API responses** to prevent filesystem path disclosure. Use `file_id` for public file references.
+
+**Internal Storage Structure (not in API response)**:
+The FileManager internally stores complete metadata including `file_path` for future parsing:
+```python
+# Internal FileMetadata structure
+{
+  "file_id": "uuid-string",
+  "filename": "string",
+  "size_bytes": integer,
+  "mime_type": "string",
+  "file_path": "/tmp/nexus-uuid-filename.pdf",  // Internal only - for future parsing ticket
+  "status": "pending_parse"
+}
+```
+
+**Example API Response with multiple files**:
 ```json
 {
   "file_metadata": [
     {
+      "file_id": "123e4567-e89b-12d3-a456-426614174000",
       "filename": "document.pdf",
       "size_bytes": 524288,
       "mime_type": "application/pdf",
-      "file_path": "/tmp/nexus-uuid-document.pdf",
       "status": "pending_parse"
     },
     {
+      "file_id": "234e5678-f90c-23e4-b567-537725285111",
       "filename": "appendix.docx",
       "size_bytes": 102400,
       "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "file_path": "/tmp/nexus-uuid-appendix.docx",
       "status": "pending_parse"
     }
   ]

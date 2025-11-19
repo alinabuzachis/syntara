@@ -1,0 +1,54 @@
+"""Abstract base retriever for file management.
+
+This module defines the abstract interface for file retrievers, enabling
+support for multiple storage backends (local filesystem, cloud storage, etc.).
+"""
+
+from abc import ABC, abstractmethod
+
+
+class BaseRetriever(ABC):
+    """Abstract base class for file retrieval operations.
+
+    This class defines the interface that all file retrievers must implement,
+    enabling a pluggable storage architecture that can support local filesystem,
+    cloud storage (S3, Google Cloud Storage), or other backends.
+
+    Future implementations might include:
+    - GoogleDocsRetriever: Retrieve files from Google Drive
+    - DropboxRetriever: Retrieve files from Dropbox
+    - AtlassianRetriever: Retrieve files from Confluence/Jira
+    """
+
+    @abstractmethod
+    async def save_file(
+        self,
+        file_content: bytes,
+        file_path: str,
+    ) -> str:
+        """Save file content to storage backend.
+
+        Args:
+            file_content: Raw file content as bytes
+            file_path: Destination path for the file (format depends on backend:
+                       relative path for local storage, key for cloud storage)
+
+        Returns:
+            Storage-specific identifier for the saved file:
+            - LocalFileRetriever: Absolute filesystem path (e.g., /tmp/nexus-uuid-file.pdf)
+            - S3FileRetriever: s3://bucket/key URL (future implementation)
+            - GCSFileRetriever: gs://bucket/path URL (future implementation)
+
+            This identifier is stored in FileMetadata.file_path and used internally
+            for file retrieval operations. It is NOT exposed in API responses.
+
+        Raises:
+            OSError: If save operation fails (disk full, I/O error)
+            PermissionError: If insufficient permissions to write to destination
+
+        Note:
+            Implementations should ensure idempotent behavior where possible.
+            If the file already exists at the destination, it should be overwritten
+            to maintain consistency in retry scenarios.
+
+        """

@@ -4,13 +4,17 @@ import hashlib
 import logging
 from collections.abc import Iterable
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
+from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexus.agent_orchestrator.agents import GenericAgent
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
+from nexus.agent_orchestrator.context_manager.file_manager import FileManager
+from nexus.agent_orchestrator.context_manager.file_manager import utils as file_utils
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
+from nexus.core.constants import CONTEXT_KEY_FILE_METADATA
 from nexus.core.models import User
 from nexus.core.services import BaseService
 
@@ -53,6 +57,7 @@ class InvocationService(BaseService):
         prompt: str,
         session_id: str,
         context_data: dict[str, object] | None = None,
+        files: list[UploadFile] | None = None,
     ) -> Invocation:
         """Create a new invocation.
 
@@ -60,33 +65,82 @@ class InvocationService(BaseService):
             prompt: Natural language prompt
             session_id: Session identifier
             context_data: Optional context data
+            files: Optional list of file uploads
 
         Returns:
             Created invocation
 
-        """
-        invocation = Invocation(
-            prompt=prompt,
-            created_by=self.user.id,
-            session_id=session_id,
-            status=InvocationStatus.CREATED,  # Start in created state
-            context_data=context_data or {},
-        )
+        Raises:
+            ValidationError: If file validation fails (count, size, MIME type)
+            OSError: If file storage fails (disk full, permission denied, I/O error)
 
-        self.session.add(invocation)
-        await self.session.flush()
-        await self.session.refresh(invocation)
+        """
+        # Generate invocation ID upfront for file naming
+        invocation_id = uuid4()
+
+        # Process files if provided - validate BEFORE creating invocation
+        final_context_data = context_data or {}
+        saved_file_paths: list[str] = []
+
+        if files:
+            # Create FileManager
+            # FileManager internally gets settings and selects retriever
+            file_manager = FileManager()
+
+            # Validate and save files (may raise ValidationError or OSError)
+            # This happens BEFORE creating the invocation in DB
+            # FileManager handles cleanup if validation/storage fails
+            file_metadata_list = await file_manager.validate_and_save_files(
+                files=files,
+                invocation_id=str(invocation_id),
+            )
+
+            # Build file_metadata array for context_data
+            # Exclude file_path for security - never expose internal filesystem paths in API
+            # Structure: {"file_metadata": [{"file_id": str, "filename": str, ...}, ...]}
+            final_context_data[CONTEXT_KEY_FILE_METADATA] = [
+                fm.model_dump(exclude={"file_path"}) for fm in file_metadata_list
+            ]
+
+            # Track file paths for cleanup on DB failure
+            saved_file_paths = [fm.file_path for fm in file_metadata_list]
+
+        # Create invocation (single code path for both file and non-file cases)
+        try:
+            invocation = Invocation(
+                id=invocation_id,
+                prompt=prompt,
+                created_by=self.user.id,
+                session_id=session_id,
+                status=InvocationStatus.CREATED,
+                context_data=final_context_data,
+            )
+            self.session.add(invocation)
+            await self.session.commit()
+            await self.session.refresh(invocation)
+
+        except Exception:
+            # Database commit failed - cleanup saved files if any
+            if saved_file_paths:
+                logger.warning(
+                    "Invocation creation failed, cleaning up %d saved files",
+                    len(saved_file_paths),
+                )
+                await file_utils.cleanup_files(saved_file_paths, context="after DB failure")
+            raise
 
         # Execute invocation with routing and agent selection
         # Background execution - don't await to keep 202 response fast
         # In production, this would be a background task (Celery, Temporal, etc.)
         # For now, we'll execute synchronously but could spawn task later
+        # Store ID before execution to avoid accessing detached object on error
+        invocation_id = invocation.id
         try:
             await self._execute_invocation(invocation)
         except Exception:
             logger.exception(
                 "Error executing invocation (invocation_id=%s)",
-                invocation.id,
+                invocation_id,
             )
             # Don't fail the create_invocation - invocation was created successfully
             # Error will be stored in invocation.error_message
@@ -122,6 +176,9 @@ class InvocationService(BaseService):
             logger.error("Invocation failed (invocation_id=%s): %s", invocation.id, msg)
             return
 
+        # Store ID for logging in case of session errors
+        exec_invocation_id = invocation.id
+
         try:
             # Mark invocation as started
             invocation.started_at = datetime.now(UTC)
@@ -131,7 +188,7 @@ class InvocationService(BaseService):
             # Execute GenericAgent (only agent implemented in NEXUS-002-4)
             response = await self.generic_agent.execute(
                 prompt=invocation.prompt,
-                invocation_id=invocation.id,
+                invocation_id=exec_invocation_id,
             )
 
             # Store result and mark as completed
@@ -142,19 +199,25 @@ class InvocationService(BaseService):
 
             logger.info(
                 "Invocation completed successfully (invocation_id=%s)",
-                invocation.id,
+                exec_invocation_id,
             )
 
         except Exception as e:
             logger.exception(
                 "Invocation execution failed (invocation_id=%s)",
-                invocation.id,
+                exec_invocation_id,
             )
-            # Mark invocation as failed
-            invocation.status = InvocationStatus.FAILED
-            invocation.error_message = str(e)
-            invocation.completed_at = datetime.now(UTC)
-            await self.session.commit()
+            # Rollback session to clear any pending changes from the error
+            await self.session.rollback()
+
+            # Re-fetch invocation to get fresh instance attached to session
+            fresh_invocation = await self.session.get(Invocation, exec_invocation_id)
+            if fresh_invocation:
+                # Mark invocation as failed
+                fresh_invocation.status = InvocationStatus.FAILED
+                fresh_invocation.error_message = str(e)
+                fresh_invocation.completed_at = datetime.now(UTC)
+                await self.session.commit()
 
     async def get_invocation(self, invocation_id: UUID) -> Invocation | None:
         """Get invocation by ID including result.

@@ -749,10 +749,10 @@ components:
               environment: production
               app_id: customer-svc
               file_metadata:
-              - filename: document.pdf
+              - file_id: 550e8400-e29b-41d4-a716-446655440000
+                filename: document.pdf
                 size_bytes: 524288
                 mime_type: application/pdf
-                file_path: /tmp/nexus-uuid-document.pdf
                 status: pending_parse
           result:
             type: object
