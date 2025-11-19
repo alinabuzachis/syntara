@@ -30,6 +30,8 @@ export interface ActionFormData {
   url?: string
   headers?: string
   body?: string
+  parameters?: string
+  requiresApproval?: boolean
 }
 
 export function useNodeCreation(onSuccess: () => void) {

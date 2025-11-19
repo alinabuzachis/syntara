@@ -1,9 +1,16 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
-import { Button } from '@ansible/nexus-ui-framework'
+import { Button, Checkbox } from '@ansible/nexus-ui-framework'
 import { useState } from 'react'
 
 interface AIAgentNodeFormProps {
-  onSubmit: (data: { name: string; agent: string; tools: string; prompt: string; model: string }) => void
+  onSubmit: (data: {
+    name: string
+    agent: string
+    tools: string
+    prompt: string
+    model: string
+    requiresApproval?: boolean
+  }) => void
   onCancel: () => void
 }
 
@@ -13,18 +20,20 @@ export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
   const [tools, setTools] = useState('')
   const [prompt, setPrompt] = useState('')
   const [model, setModel] = useState('claude-3-sonnet')
+  const [requiresApproval, setRequiresApproval] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    props.onSubmit({ name, agent, tools, prompt, model })
+    props.onSubmit({ name, agent, tools, prompt, model, requiresApproval: requiresApproval || undefined })
   }
 
   return (
     <div className="glass flex flex-col gap-3 rounded-lg border p-4">
-      <h3 className="text-sm font-semibold">Configure AI Agent Task</h3>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Activity Name</label>
+          <label className="text-xs font-medium text-gray-300">
+            Activity Name <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={name}
@@ -35,7 +44,9 @@ export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Agent / MCP Server</label>
+          <label className="text-xs font-medium text-gray-300">
+            Agent / MCP Server <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={agent}
@@ -79,8 +90,13 @@ export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
             rows={3}
           />
         </div>
-        <Button type="submit" variant="primary" className="w-full text-xs">
-          Add Task
+        <Checkbox
+          checked={requiresApproval}
+          onCheckedChange={(checked) => setRequiresApproval(!!checked)}
+          label="Require approval"
+        />
+        <Button type="submit" variant="primary" className="w-full justify-center text-xs">
+          Add node
         </Button>
       </form>
     </div>

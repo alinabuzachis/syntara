@@ -18,7 +18,7 @@ export function Checkbox(
           {checkboxProps.indeterminate ? <MinusIcon className="size-3.5" /> : <CheckIcon className="size-3.5" />}
         </BaseCheckbox.Indicator>
       </BaseCheckbox.Root>
-      {label && <span className="text-sm select-none">{label}</span>}
+      {label && <span className="text-xs select-none">{label}</span>}
     </label>
   )
 }

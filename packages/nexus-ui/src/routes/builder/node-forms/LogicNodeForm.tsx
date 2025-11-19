@@ -13,16 +13,26 @@ interface LogicNodeFormProps {
     maxIterations?: number
   }) => void
   onCancel: () => void
+  submitButtonText?: string
+  initialData?: {
+    name?: string
+    logicType?: string
+    condition?: string
+    loopType?: string
+    items?: string
+    count?: number
+    maxIterations?: number
+  }
 }
 
 export function LogicNodeForm(props: LogicNodeFormProps) {
-  const [name, setName] = useState('')
-  const [logicType, setLogicType] = useState('condition')
-  const [condition, setCondition] = useState('')
-  const [loopType, setLoopType] = useState('forEach')
-  const [items, setItems] = useState('')
-  const [count, setCount] = useState(10)
-  const [maxIterations, setMaxIterations] = useState(1000)
+  const [name, setName] = useState(props.initialData?.name ?? '')
+  const [logicType, setLogicType] = useState(props.initialData?.logicType ?? 'condition')
+  const [condition, setCondition] = useState(props.initialData?.condition ?? '')
+  const [loopType, setLoopType] = useState(props.initialData?.loopType ?? 'forEach')
+  const [items, setItems] = useState(props.initialData?.items ?? '')
+  const [count, setCount] = useState(props.initialData?.count ?? 10)
+  const [maxIterations, setMaxIterations] = useState(props.initialData?.maxIterations ?? 1000)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,10 +49,11 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
 
   return (
     <div className="glass flex flex-col gap-3 rounded-lg border p-4">
-      <h3 className="text-sm font-semibold">Configure Logic</h3>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Activity Name</label>
+          <label className="text-xs font-medium text-gray-300">
+            Activity Name <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={name}
@@ -66,7 +77,9 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
 
         {logicType === 'condition' && (
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-gray-300">Condition Expression</label>
+            <label className="text-xs font-medium text-gray-300">
+              Condition Expression <span className="text-red-500">*</span>
+            </label>
             <textarea
               value={condition}
               onChange={(e) => setCondition(e.target.value)}
@@ -95,7 +108,9 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
 
             {loopType === 'forEach' && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-gray-300">Items Expression</label>
+                <label className="text-xs font-medium text-gray-300">
+                  Items Expression <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   value={items}
@@ -110,7 +125,9 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
             {loopType === 'while' && (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-gray-300">Condition Expression</label>
+                  <label className="text-xs font-medium text-gray-300">
+                    Condition Expression <span className="text-red-500">*</span>
+                  </label>
                   <textarea
                     value={condition}
                     onChange={(e) => setCondition(e.target.value)}
@@ -135,7 +152,9 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
 
             {loopType === 'count' && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-gray-300">Iteration Count</label>
+                <label className="text-xs font-medium text-gray-300">
+                  Iteration Count <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="number"
                   value={count}
@@ -149,8 +168,8 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
           </>
         )}
 
-        <Button type="submit" variant="primary" className="w-full text-xs">
-          Add Logic
+        <Button type="submit" variant="primary" className="w-full justify-center text-xs">
+          {props.submitButtonText ?? 'Add node'}
         </Button>
       </form>
     </div>

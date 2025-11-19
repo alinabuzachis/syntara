@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
+import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { SelectableCard } from './SelectableCard'
@@ -22,6 +23,8 @@ interface SelectableCardWithFormProps {
   className?: string
   /** Additional CSS classes for the form container */
   formClassName?: string
+  /** Handler for closing the form */
+  onClose?: () => void
 }
 
 /**
@@ -29,7 +32,7 @@ interface SelectableCardWithFormProps {
  * Combines SelectableCard with conditional form rendering.
  */
 export function SelectableCardWithForm(props: SelectableCardWithFormProps) {
-  const { icon, label, description, isSelected, onClick, title, form, className, formClassName } = props
+  const { icon, label, description, isSelected, onClick, title, form, className, formClassName, onClose } = props
 
   return (
     <div className="flex flex-col gap-2">
@@ -42,7 +45,24 @@ export function SelectableCardWithForm(props: SelectableCardWithFormProps) {
         title={title}
         className={className}
       />
-      {isSelected && form && <div className={formClassName}>{form}</div>}
+      {isSelected && form && (
+        <div className={`relative ${formClassName || ''}`}>
+          {onClose && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onClose()
+              }}
+              className="absolute top-2 right-2 z-10 flex size-6 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+              aria-label="Close form"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+          {form}
+        </div>
+      )}
     </div>
   )
 }

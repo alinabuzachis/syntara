@@ -1,9 +1,15 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
-import { Button } from '@ansible/nexus-ui-framework'
+import { Button, Checkbox } from '@ansible/nexus-ui-framework'
 import { useState } from 'react'
 
 interface AAPNodeFormProps {
-  onSubmit: (data: { name: string; connectorId: string; operation: string; parameters: string }) => void
+  onSubmit: (data: {
+    name: string
+    connectorId: string
+    operation: string
+    parameters: string
+    requiresApproval?: boolean
+  }) => void
   onCancel: () => void
 }
 
@@ -12,18 +18,20 @@ export function AAPNodeForm(props: AAPNodeFormProps) {
   const [connectorId, setConnectorId] = useState('')
   const [operation, setOperation] = useState('launch_job')
   const [parameters, setParameters] = useState('')
+  const [requiresApproval, setRequiresApproval] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    props.onSubmit({ name, connectorId, operation, parameters })
+    props.onSubmit({ name, connectorId, operation, parameters, requiresApproval: requiresApproval || undefined })
   }
 
   return (
     <div className="glass flex flex-col gap-3 rounded-lg border p-4">
-      <h3 className="text-sm font-semibold">Configure AAP Job Task</h3>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Activity Name</label>
+          <label className="text-xs font-medium text-gray-300">
+            Activity Name <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={name}
@@ -34,7 +42,9 @@ export function AAPNodeForm(props: AAPNodeFormProps) {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Connector ID</label>
+          <label className="text-xs font-medium text-gray-300">
+            Connector ID <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={connectorId}
@@ -67,8 +77,13 @@ export function AAPNodeForm(props: AAPNodeFormProps) {
             rows={4}
           />
         </div>
-        <Button type="submit" variant="primary" className="w-full text-xs">
-          Add Task
+        <Checkbox
+          checked={requiresApproval}
+          onCheckedChange={(checked) => setRequiresApproval(!!checked)}
+          label="Require approval"
+        />
+        <Button type="submit" variant="primary" className="w-full justify-center text-xs">
+          Add node
         </Button>
       </form>
     </div>

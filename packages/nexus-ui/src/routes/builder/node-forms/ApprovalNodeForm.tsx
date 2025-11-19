@@ -21,10 +21,11 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
 
   return (
     <div className="glass flex flex-col gap-3 rounded-lg border p-4">
-      <h3 className="text-sm font-semibold">Configure Approval</h3>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Activity Name</label>
+          <label className="text-xs font-medium text-gray-300">
+            Activity Name <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={name}
@@ -35,7 +36,9 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Approvers (comma-separated)</label>
+          <label className="text-xs font-medium text-gray-300">
+            Approvers (comma-separated) <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={approvers}
@@ -46,7 +49,9 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Approval Prompt</label>
+          <label className="text-xs font-medium text-gray-300">
+            Approval Prompt <span className="text-red-500">*</span>
+          </label>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -79,8 +84,8 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
             <option value="reject">Auto-Reject</option>
           </select>
         </div>
-        <Button type="submit" variant="primary" className="w-full text-xs">
-          Add Approval
+        <Button type="submit" variant="primary" className="w-full justify-center text-xs">
+          Add node
         </Button>
       </form>
     </div>

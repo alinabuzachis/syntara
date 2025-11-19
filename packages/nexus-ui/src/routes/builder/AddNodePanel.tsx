@@ -70,6 +70,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
               onClick={() => handleNodeClick(nodeType.id)}
               title={nodeType.description}
               form={renderForm()}
+              onClose={handleFormCancel}
             />
           )
         })}

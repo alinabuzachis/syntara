@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
-import { Button, Card, Heading, Input, Textarea } from '@ansible/nexus-ui-framework'
+import { Button, Card, Input, Textarea, Checkbox } from '@ansible/nexus-ui-framework'
 import { useState } from 'react'
 
 interface ActionNodeFormProps {
@@ -10,21 +10,41 @@ interface ActionNodeFormProps {
     code?: string
     method?: string
     url?: string
+    authentication?: string
     headers?: string
     body?: string
+    parameters?: string
+    requiresApproval?: boolean
   }) => void
   onCancel: () => void
+  submitButtonText?: string
+  initialData?: {
+    name?: string
+    executor?: string
+    language?: string
+    code?: string
+    method?: string
+    url?: string
+    authentication?: string
+    headers?: string
+    body?: string
+    parameters?: string
+    requiresApproval?: boolean
+  }
 }
 
 export function ActionNodeForm(props: ActionNodeFormProps) {
-  const [name, setName] = useState('')
-  const [executor, setExecutor] = useState('script')
-  const [language, setLanguage] = useState('python')
-  const [code, setCode] = useState('')
-  const [method, setMethod] = useState('GET')
-  const [url, setUrl] = useState('')
-  const [headers, setHeaders] = useState('')
-  const [body, setBody] = useState('')
+  const [name, setName] = useState(props.initialData?.name ?? '')
+  const [executor, setExecutor] = useState(props.initialData?.executor ?? 'script')
+  const [language, setLanguage] = useState(props.initialData?.language ?? 'python')
+  const [code, setCode] = useState(props.initialData?.code ?? '')
+  const [method, setMethod] = useState(props.initialData?.method ?? 'GET')
+  const [url, setUrl] = useState(props.initialData?.url ?? '')
+  const [authentication, setAuthentication] = useState(props.initialData?.authentication ?? '')
+  const [headers, setHeaders] = useState(props.initialData?.headers ?? '')
+  const [body, setBody] = useState(props.initialData?.body ?? '')
+  const [parameters, setParameters] = useState(props.initialData?.parameters ?? '')
+  const [requiresApproval, setRequiresApproval] = useState(props.initialData?.requiresApproval ?? false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,30 +55,19 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
       code: executor === 'script' ? code : undefined,
       method: executor === 'api' ? method : undefined,
       url: executor === 'api' ? url : undefined,
+      authentication: executor === 'api' && authentication ? authentication : undefined,
       headers: executor === 'api' ? headers : undefined,
       body: executor === 'api' ? body : undefined,
+      parameters: parameters || undefined,
+      requiresApproval: requiresApproval || undefined,
     })
   }
 
   return (
     <Card variant="glass" padding="md" className="flex flex-col gap-3">
-      <Heading level={3} size="sm">
-        Configure Action Task
-      </Heading>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Activity Name</label>
-          <Input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="text-xs"
-            placeholder="Enter activity name"
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Executor Type</label>
+          <label className="text-xs font-medium text-gray-300">Action Type</label>
           <select
             value={executor}
             onChange={(e) => setExecutor(e.target.value)}
@@ -67,6 +76,19 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
             <option value="script">Script</option>
             <option value="api">API Call</option>
           </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-gray-300">
+            Name <span className="text-red-500">*</span>
+          </label>
+          <Input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="text-xs"
+            placeholder="Enter activity name"
+            required
+          />
         </div>
 
         {executor === 'script' && (
@@ -83,7 +105,9 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">Code</label>
+              <label className="text-xs font-medium text-gray-300">
+                Code <span className="text-red-500">*</span>
+              </label>
               <Textarea
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
@@ -93,11 +117,35 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
                 required
               />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-300">Input parameters</label>
+              <Textarea
+                value={parameters}
+                onChange={(e) => setParameters(e.target.value)}
+                className="text-xs"
+                placeholder='{"key": "value"}'
+                rows={3}
+              />
+              <p className="text-xs text-gray-400">Optional: Define inputs for this task</p>
+            </div>
           </>
         )}
 
         {executor === 'api' && (
           <>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-300">
+                URL <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="text-xs"
+                placeholder="https://api.example.com/endpoint"
+                required
+              />
+            </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-gray-300">HTTP Method</label>
               <select
@@ -113,18 +161,17 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">URL</label>
+              <label className="text-xs font-medium text-gray-300">Authentication</label>
               <Input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                type="text"
+                value={authentication}
+                onChange={(e) => setAuthentication(e.target.value)}
                 className="text-xs"
-                placeholder="https://api.example.com/endpoint"
-                required
+                placeholder="Bearer token or API key"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">Headers (JSON)</label>
+              <label className="text-xs font-medium text-gray-300">Headers</label>
               <Textarea
                 value={headers}
                 onChange={(e) => setHeaders(e.target.value)}
@@ -134,7 +181,7 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">Body (JSON)</label>
+              <label className="text-xs font-medium text-gray-300">Body</label>
               <Textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -146,8 +193,14 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
           </>
         )}
 
-        <Button type="submit" variant="primary" className="w-full text-xs">
-          Add Task
+        <Checkbox
+          checked={requiresApproval}
+          onCheckedChange={(checked) => setRequiresApproval(!!checked)}
+          label="Require approval"
+        />
+
+        <Button type="submit" variant="primary" className="w-full justify-center text-xs">
+          {props.submitButtonText ?? 'Add node'}
         </Button>
       </form>
     </Card>

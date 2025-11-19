@@ -30,7 +30,13 @@ export default function registerActionNode() {
           let activity
 
           if (data.executor === 'script' && data.language && data.code) {
-            activity = createScriptActivity(activityId, data.name, data.language as 'python' | 'javascript', data.code)
+            activity = createScriptActivity(
+              activityId,
+              data.name,
+              data.language as 'python' | 'javascript',
+              data.code,
+              data.parameters
+            )
           } else if (data.executor === 'api' && data.method && data.url) {
             activity = createApiActivity(
               activityId,
@@ -38,11 +44,16 @@ export default function registerActionNode() {
               data.method as 'GET' | 'POST' | 'PUT' | 'DELETE',
               data.url,
               data.headers,
-              data.body
+              data.body,
+              data.parameters
             )
           }
 
           if (activity) {
+            // Set requiresApproval if specified
+            if (data.requiresApproval) {
+              activity.requiresApproval = true
+            }
             useWorkflowStore.getState().addActivity(activity)
             onSuccess()
           } else {

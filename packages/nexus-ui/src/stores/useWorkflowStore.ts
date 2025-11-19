@@ -182,14 +182,51 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
     set((state) => {
       if (!state.currentWorkflow) return state
 
+      // Helper function to recursively update activity in nested structures
+      const updateInActivities = (activities: Activity[]): Activity[] => {
+        return activities.map((activity) => {
+          // If this is the activity we're looking for, update it
+          if (activity.id === activityId) {
+            return { ...activity, ...updates } as Activity
+          }
+
+          // Otherwise, recursively search nested structures
+          if (activity.type === 'parallel') {
+            return {
+              ...activity,
+              branches: activity.branches ? updateInActivities(activity.branches) : activity.branches,
+            }
+          } else if (activity.type === 'sequence') {
+            return {
+              ...activity,
+              steps: activity.steps ? updateInActivities(activity.steps) : activity.steps,
+            }
+          } else if (activity.type === 'condition') {
+            return {
+              ...activity,
+              then: activity.then ? updateInActivities(activity.then) : activity.then,
+              else: activity.else ? updateInActivities(activity.else) : activity.else,
+            }
+          } else if (activity.type === 'loop') {
+            return {
+              ...activity,
+              loop: {
+                ...activity.loop,
+                do: activity.loop.do ? updateInActivities(activity.loop.do) : activity.loop.do,
+              },
+            }
+          }
+
+          return activity
+        })
+      }
+
       return {
         currentWorkflow: {
           ...state.currentWorkflow,
           workflow: {
             ...state.currentWorkflow.workflow,
-            activities: state.currentWorkflow.workflow.activities.map((a) =>
-              a.id === activityId ? { ...a, ...updates } : a
-            ),
+            activities: updateInActivities(state.currentWorkflow.workflow.activities),
           },
         },
       }
@@ -260,9 +297,10 @@ export function createScriptActivity(
   id: string,
   name: string,
   language: 'python' | 'javascript' | 'bash' | 'powershell',
-  code: string
+  code: string,
+  inputs?: string
 ): TaskActivity {
-  return {
+  const activity: TaskActivity = {
     type: 'task',
     id,
     name,
@@ -274,6 +312,16 @@ export function createScriptActivity(
       },
     },
   }
+
+  if (inputs) {
+    try {
+      activity.task.inputs = JSON.parse(inputs)
+    } catch {
+      // If inputs is not valid JSON, skip it
+    }
+  }
+
+  return activity
 }
 
 export function createApiActivity(
@@ -282,7 +330,8 @@ export function createApiActivity(
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   url: string,
   headers?: string,
-  body?: string
+  body?: string,
+  inputs?: string
 ): TaskActivity {
   const activity: TaskActivity = {
     type: 'task',
@@ -311,6 +360,14 @@ export function createApiActivity(
     } catch {
       // If body is not valid JSON, use as string
       activity.task.config.body = body
+    }
+  }
+
+  if (inputs) {
+    try {
+      activity.task.inputs = JSON.parse(inputs)
+    } catch {
+      // If inputs is not valid JSON, skip it
     }
   }
 

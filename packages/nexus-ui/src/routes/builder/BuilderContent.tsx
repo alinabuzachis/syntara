@@ -1,6 +1,6 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Button, ConfirmDialog, Switch, Tooltip, useAlerts, Scrollable } from '@ansible/nexus-ui-framework'
-import { useReactFlow } from '@xyflow/react'
+import { useReactFlow, type Node } from '@xyflow/react'
 import { PlayIcon, SaveIcon, PlusIcon, XIcon, FileCode, ClockIcon } from 'lucide-react'
 import { useMemo, useState, useEffect, type ReactNode, useCallback } from 'react'
 import { useLocation } from 'wouter'
@@ -11,10 +11,12 @@ import { AppRoute } from '../../app/AppRoute'
 import { workflowClient } from '../../client'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import { NodeExpandedAllContext } from '../automations/canvas/nodes/common/NodeExpandedAllContext'
+import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
 import { AddNodePanel } from './AddNodePanel'
 import { AutomationHistoryCard } from './AutomationHistoryCard'
 import { BuilderFlow } from './BuilderFlow'
+import { NodeDetailsPanel } from './NodeDetailsPanel'
 import { WorkflowSidepanel } from './WorkflowSidepanel'
 
 // Type aliases from API contracts
@@ -39,6 +41,7 @@ export function BuilderContent(props: BuilderContentProps) {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [historyCardOpen, setHistoryCardOpen] = useState(false)
   const [addNodePanelOpen, setAddNodePanelOpen] = useState(false)
+  const [selectedNode, setSelectedNode] = useState<Node<NodeType['data']> | null>(null)
   const [workflowName, setWorkflowName] = useState('New Workflow')
   const [workflowDescription, setWorkflowDescription] = useState('New Workflow')
   const [isEnabled, setIsEnabled] = useState(false)
@@ -223,6 +226,7 @@ export function BuilderContent(props: BuilderContentProps) {
         // Close other panels when opening details
         setAddNodePanelOpen(false)
         setHistoryCardOpen(false)
+        setSelectedNode(null)
         reactFlowInstance.setNodes((nodes) => nodes.map((node) => ({ ...node, selected: false })))
       }
       return newState
@@ -236,6 +240,7 @@ export function BuilderContent(props: BuilderContentProps) {
       // Close other panels when opening history
       setAddNodePanelOpen(false)
       setDetailsOpen(false)
+      setSelectedNode(null)
       void executionsQuery.refetch()
     }
   }, [historyCardOpen, executionsQuery])
@@ -247,6 +252,7 @@ export function BuilderContent(props: BuilderContentProps) {
         // Close other panels when opening add node panel
         setDetailsOpen(false)
         setHistoryCardOpen(false)
+        setSelectedNode(null)
       }
       return newState
     })
@@ -256,6 +262,14 @@ export function BuilderContent(props: BuilderContentProps) {
     setWorkflow(null)
     navigate(AppRoute.Automations.Root)
   }, [setWorkflow, navigate])
+
+  const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node<NodeType['data']>) => {
+    setSelectedNode(node)
+    // Close other panels when opening node details
+    setAddNodePanelOpen(false)
+    setDetailsOpen(false)
+    setHistoryCardOpen(false)
+  }, [])
 
   return (
     <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
@@ -333,7 +347,7 @@ export function BuilderContent(props: BuilderContentProps) {
             <div className="relative flex min-w-0 grow gap-2 overflow-hidden">
               <div className="relative isolate flex min-w-0 grow gap-2 overflow-hidden">
                 <div className="glass absolute inset-0 rounded-4xl border-2"></div>
-                <BuilderFlow panelOpen={addNodePanelOpen} />
+                <BuilderFlow panelOpen={addNodePanelOpen || !!selectedNode} onNodeClick={handleNodeClick} />
               </div>
 
               {addNodePanelOpen && (
@@ -360,6 +374,10 @@ export function BuilderContent(props: BuilderContentProps) {
                   onDescriptionChange={setWorkflowDescription}
                   onClose={() => setDetailsOpen(false)}
                 />
+              )}
+
+              {selectedNode && (
+                <NodeDetailsPanel key={selectedNode.id} node={selectedNode} onClose={() => setSelectedNode(null)} />
               )}
 
               {sidePanelState[0] && (

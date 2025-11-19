@@ -18,7 +18,7 @@ interface TriggerNodeFormProps {
 }
 
 export function TriggerNodeForm(props: TriggerNodeFormProps) {
-  const [name] = useState('')
+  const [name, setName] = useState('')
   const [triggerType, setTriggerType] = useState('manual')
   const [requiresApproval, setRequiresApproval] = useState(false)
   const [scheduleType, setScheduleType] = useState('cron')
@@ -45,8 +45,20 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
 
   return (
     <div className="glass flex flex-col gap-3 rounded-lg border p-4">
-      <h3 className="text-sm font-semibold">Configure Trigger</h3>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-gray-300">
+            Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
+            placeholder="Enter trigger name"
+            required
+          />
+        </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-gray-300">Trigger Type</label>
           <select
@@ -93,7 +105,9 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
             {scheduleType === 'cron' && (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-gray-300">Cron Expression</label>
+                  <label className="text-xs font-medium text-gray-300">
+                    Cron Expression <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={cron}
@@ -118,7 +132,9 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
 
             {scheduleType === 'interval' && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-gray-300">Interval (ISO 8601)</label>
+                <label className="text-xs font-medium text-gray-300">
+                  Interval (ISO 8601) <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   value={interval}
@@ -135,7 +151,9 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
         {triggerType === 'event' && (
           <>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">Event Source</label>
+              <label className="text-xs font-medium text-gray-300">
+                Event Source <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={eventSource}
@@ -146,7 +164,9 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">Event Type</label>
+              <label className="text-xs font-medium text-gray-300">
+                Event Type <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={eventType}
@@ -159,8 +179,8 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
           </>
         )}
 
-        <Button type="submit" variant="primary" className="w-full text-xs">
-          Add Trigger
+        <Button type="submit" variant="primary" className="w-full justify-center text-xs">
+          Add node
         </Button>
       </form>
     </div>

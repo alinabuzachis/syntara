@@ -1,6 +1,14 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import Dagre from '@dagrejs/dagre'
-import { MarkerType, ReactFlow, useEdgesState, useNodesState, useReactFlow, type OnNodesDelete } from '@xyflow/react'
+import {
+  MarkerType,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
+  type OnNodesDelete,
+  type NodeMouseHandler,
+} from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
@@ -285,6 +293,7 @@ function addJoinActivity(
 interface BuilderFlowProps {
   triggerLayout?: number
   panelOpen?: boolean
+  onNodeClick?: NodeMouseHandler<NodeType>
 }
 
 export function BuilderFlow(props: BuilderFlowProps) {
@@ -472,6 +481,24 @@ export function BuilderFlow(props: BuilderFlowProps) {
       })
       setEdges(initialEdges.map((edge) => ({ ...edge, markerEnd })))
       previousNodeIdsRef.current = currentNodeIds
+    } else if (isInitialized && nodesDataChanged) {
+      // Handle data changes to existing nodes (no additions or deletions)
+      setNodes((prevNodes) => {
+        const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
+
+        return initialNodes.map((newNode) => {
+          const existingNode = prevNodeMap.get(newNode.id)
+          if (existingNode) {
+            // Update node data while keeping existing position and measured dimensions
+            return { ...newNode, position: existingNode.position, measured: existingNode.measured }
+          } else {
+            return newNode
+          }
+        })
+      })
+      if (edgesDataChanged) {
+        setEdges(initialEdges.map((edge) => ({ ...edge, markerEnd })))
+      }
     } else if (!isInitialized) {
       // Initial load - use positions from initialNodes and run layout
       setNodes(initialNodes)
@@ -569,6 +596,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodesDelete={onNodesDelete}
+        onNodeClick={props.onNodeClick}
         proOptions={{ hideAttribution: true }}
         fitView
         minZoom={0.1}
