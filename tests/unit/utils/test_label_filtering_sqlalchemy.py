@@ -29,6 +29,7 @@ class ResourceModel(SQLModel, table=True):
     """Test model for label filtering SQLAlchemy integration tests."""
 
     __tablename__ = "test_resources"
+    # TODO(alex): Rework this test to avoid create_all. AAP-58759
 
     id: int = Field(primary_key=True)
     name: str = Field(index=True)

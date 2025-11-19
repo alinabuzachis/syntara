@@ -27,6 +27,7 @@ class UserModel(SQLModel, table=True):
     """Test model for FilterParser SQLAlchemy integration tests."""
 
     __tablename__ = "test_users_filtering"
+    # TODO(alex): Rework this test to avoid create_all. AAP-58759
 
     id: int = Field(primary_key=True)
     username: str = Field(index=True)

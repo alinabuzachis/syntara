@@ -50,8 +50,8 @@ if config.config_file_name is not None:
 # Set target metadata from models
 target_metadata = SQLModel.metadata
 
-# Use the same DATABASE_URL from the application's session module
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+# Use the same DATABASE_URL from the application's session module unless overridden.
+config.set_main_option("sqlalchemy.url", config.get_main_option("sqlalchemy.url") or DATABASE_URL)
 
 
 def run_migrations_offline() -> None:
