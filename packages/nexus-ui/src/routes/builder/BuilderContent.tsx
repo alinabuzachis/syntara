@@ -1,8 +1,8 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { Button, ConfirmDialog, Switch, Tooltip, useAlerts, Scrollable } from '@ansible/nexus-ui-framework'
+import { Button, ConfirmDialog, Switch, Tooltip, useAlerts } from '@ansible/nexus-ui-framework'
 import { useReactFlow, type Node } from '@xyflow/react'
-import { PlayIcon, SaveIcon, PlusIcon, XIcon, FileCode, ClockIcon } from 'lucide-react'
-import { useMemo, useState, useEffect, type ReactNode, useCallback } from 'react'
+import { ClockIcon, FileCode, PlayIcon, PlusIcon, SaveIcon, XIcon } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
@@ -22,7 +22,7 @@ import { WorkflowSidepanel } from './WorkflowSidepanel'
 // Type aliases from API contracts
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 type WorkflowInput = WorkflowAPI.paths['/workflows']['post']['requestBody']['content']['application/json']
-type WorkflowDefinition = WorkflowAPI['components']['schemas']['workflow-definition.schema']
+type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
 
 interface BuilderContentProps {
   workflow?: Workflow
@@ -35,18 +35,20 @@ export function BuilderContent(props: BuilderContentProps) {
   const [, navigate] = useLocation()
   const { showSuccess, showError } = useAlerts()
   const reactFlowInstance = useReactFlow()
-  const { setWorkflow, currentWorkflow } = useWorkflowStore()
+  const { setWorkflow, currentWorkflow, setEdges: setStoredEdges } = useWorkflowStore()
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [historyCardOpen, setHistoryCardOpen] = useState(false)
   const [addNodePanelOpen, setAddNodePanelOpen] = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node<NodeType['data']> | null>(null)
+  const [sourceNodeId, setSourceNodeId] = useState<string | null>(null)
+  const [targetNodeId, setTargetNodeId] = useState<string | null>(null)
+  const [edgeIdToReplace, setEdgeIdToReplace] = useState<string | null>(null)
   const [workflowName, setWorkflowName] = useState('New Workflow')
   const [workflowDescription, setWorkflowDescription] = useState('New Workflow')
   const [isEnabled, setIsEnabled] = useState(false)
 
-  const sidePanelState = useState<ReactNode>(null)
   const expandAllEvent = useMemo(() => new EventTarget(), [])
   const collapseAllEvent = useMemo(() => new EventTarget(), [])
 
@@ -67,7 +69,8 @@ export function BuilderContent(props: BuilderContentProps) {
   // Clear workflow store on mount to ensure fresh state
   useEffect(() => {
     setWorkflow(null)
-  }, [setWorkflow])
+    setStoredEdges([])
+  }, [setWorkflow, setStoredEdges])
 
   useEffect(() => {
     if (isNew) {
@@ -88,10 +91,16 @@ export function BuilderContent(props: BuilderContentProps) {
         setWorkflowName('New Workflow')
         setWorkflowDescription('New Workflow')
         setIsEnabled(false)
+        setStoredEdges([])
       })
-    } else if (workflow?.version?.workflow_definition) {
+    } else if (
+      workflow &&
+      (workflow as unknown as { version?: { workflow_definition?: WorkflowDefinition } }).version?.workflow_definition
+    ) {
       // Load existing workflow - always reload when workflow data is available
-      const workflowDef = workflow.version.workflow_definition
+      const workflowDef = (workflow as unknown as { version: { workflow_definition: WorkflowDefinition } }).version
+        .workflow_definition
+
       queueMicrotask(() => {
         setWorkflow(workflowDef)
         setWorkflowName(workflow.name)
@@ -99,7 +108,7 @@ export function BuilderContent(props: BuilderContentProps) {
         setIsEnabled(workflow.is_enabled ?? false)
       })
     }
-  }, [isNew, workflow, setWorkflow])
+  }, [isNew, workflow, setWorkflow, setStoredEdges])
 
   // Sync state when workflow data changes (e.g., after refetch)
   useEffect(() => {
@@ -115,7 +124,7 @@ export function BuilderContent(props: BuilderContentProps) {
   const { mutate: createWorkflow, isPending: isCreating } = workflowClient.useMutation('post', '/workflows')
   const { mutate: updateWorkflow, isPending: isUpdating } = workflowClient.useMutation(
     'patch',
-    '/workflows/{workflow_id}'
+    '/workflows/{workflowId}'
   )
   const { mutate: executeAutomation } = workflowClient.useMutation('post', '/executions')
 
@@ -127,7 +136,10 @@ export function BuilderContent(props: BuilderContentProps) {
       return {
         schemaVersion: '1.0.0',
         version: 1,
-        metadata: { name: workflowName, description: workflowDescription },
+        metadata: {
+          name: workflowName,
+          description: workflowDescription,
+        },
         workflow: { activities: [] },
       }
     }
@@ -144,12 +156,13 @@ export function BuilderContent(props: BuilderContentProps) {
   }, [currentWorkflow, workflowName, workflowDescription])
 
   const handleSaveWorkflow = useCallback(() => {
+    const workflowDef = getWorkflowDefinition()
     const workflowData = {
       name: workflowName,
       description: workflowDescription,
       is_enabled: isEnabled,
       labels: workflow?.labels ?? {},
-      workflow_definition: getWorkflowDefinition(),
+      workflow_definition: workflowDef,
     }
 
     const onSaveSuccess = (successMessage: string, workflowIdToNavigate?: string) => {
@@ -169,7 +182,7 @@ export function BuilderContent(props: BuilderContentProps) {
     if (workflowId && !isNew) {
       updateWorkflow(
         {
-          params: { path: { workflow_id: workflowId } },
+          params: { path: { workflowId } },
           body: workflowData as WorkflowInput,
         },
         {
@@ -245,23 +258,11 @@ export function BuilderContent(props: BuilderContentProps) {
     }
   }, [historyCardOpen, executionsQuery])
 
-  const handleToggleAddNodePanel = useCallback(() => {
-    setAddNodePanelOpen((prev) => {
-      const newState = !prev
-      if (newState) {
-        // Close other panels when opening add node panel
-        setDetailsOpen(false)
-        setHistoryCardOpen(false)
-        setSelectedNode(null)
-      }
-      return newState
-    })
-  }, [])
-
   const handleCancel = useCallback(() => {
     setWorkflow(null)
+    setStoredEdges([])
     navigate(AppRoute.Automations.Root)
-  }, [setWorkflow, navigate])
+  }, [setWorkflow, setStoredEdges, navigate])
 
   const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node<NodeType['data']>) => {
     setSelectedNode(node)
@@ -274,118 +275,225 @@ export function BuilderContent(props: BuilderContentProps) {
   return (
     <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
       <AppPage>
-        <div className="relative flex grow gap-4 overflow-hidden">
-          <div className="relative flex min-w-0 grow flex-col gap-2 overflow-hidden transition-all duration-300">
-            <AppPageHeader
-              title={
-                <input
-                  type="text"
-                  value={workflowName}
-                  onChange={(e) => setWorkflowName(e.target.value)}
-                  className="-ml-2 w-full truncate rounded bg-transparent px-2 py-1 text-base font-semibold outline-none focus:ring-2 focus:ring-blue-400/50"
-                  placeholder="Workflow name"
-                />
-              }
+        <div className="relative flex grow flex-col gap-4">
+          <AppPageHeader
+            title={
+              <input
+                type="text"
+                value={workflowName}
+                onChange={(e) => setWorkflowName(e.target.value)}
+                className="-ml-2 rounded bg-transparent px-2 py-1 text-lg font-semibold outline-none focus:ring-2 focus:ring-blue-400/50"
+                placeholder="Workflow name"
+              />
+            }
+          >
+            <Button
+              variant="plain"
+              onClick={() => {
+                setSourceNodeId(null) // No source node when adding from header
+                setTargetNodeId(null)
+                setEdgeIdToReplace(null)
+                setAddNodePanelOpen(true)
+              }}
+              className="text-sm whitespace-nowrap"
             >
-              <Button variant="plain" onClick={handleToggleAddNodePanel} className="text-sm whitespace-nowrap">
-                <PlusIcon className="mr-1.5 size-3.5" />
-                Add Node
+              <PlusIcon className="mr-1.5 size-3.5" />
+              Add Node
+            </Button>
+
+            <div className="h-8 w-px bg-white/20" />
+
+            {!isNew && workflow?.id && (
+              <>
+                <Button variant="plain" onClick={() => setConfirmDialogOpen(true)} className="text-sm">
+                  <PlayIcon className="mr-1.5 size-3.5" />
+                  Run
+                </Button>
+                <div className="h-8 w-px bg-white/20" />
+              </>
+            )}
+
+            <Tooltip content="Workflow details">
+              <Button variant="plain" onClick={handleToggleDetails}>
+                <FileCode className="size-3.5" />
               </Button>
+            </Tooltip>
 
-              <div className="h-8 w-px bg-white/20" />
-
-              {!isNew && workflow?.id && (
-                <>
-                  <Button variant="plain" onClick={() => setConfirmDialogOpen(true)} className="text-sm">
-                    <PlayIcon className="mr-1.5 size-3.5" />
-                    Run
-                  </Button>
-                  <div className="h-8 w-px bg-white/20" />
-                </>
-              )}
-
-              <Tooltip content="Workflow details">
-                <Button variant="plain" onClick={handleToggleDetails}>
-                  <FileCode className="size-3.5" />
+            {!isNew && workflow?.id && (
+              <Tooltip content="Run history">
+                <Button variant="plain" onClick={handleToggleHistory}>
+                  <ClockIcon className="size-3.5" />
                 </Button>
               </Tooltip>
+            )}
 
-              {!isNew && workflow?.id && (
-                <Tooltip content="Run history">
-                  <Button variant="plain" onClick={handleToggleHistory}>
-                    <ClockIcon className="size-3.5" />
-                  </Button>
-                </Tooltip>
-              )}
+            <div className="h-8 w-px bg-white/20" />
 
-              <div className="h-8 w-px bg-white/20" />
+            <Button variant="plain" onClick={handleSaveWorkflow} disabled={isPending} className="text-sm">
+              <SaveIcon className="mr-1.5 size-3.5" />
+              {isPending ? 'Saving...' : 'Save'}
+            </Button>
 
-              <Button variant="plain" onClick={handleSaveWorkflow} disabled={isPending} className="text-sm">
-                <SaveIcon className="mr-1.5 size-3.5" />
-                {isPending ? 'Saving...' : 'Save'}
-              </Button>
+            <Button variant="plain" onClick={handleCancel} className="text-sm">
+              <XIcon className="mr-1.5 size-3.5" />
+              Cancel
+            </Button>
 
-              <Button variant="plain" onClick={handleCancel} className="text-sm">
-                <XIcon className="mr-1.5 size-3.5" />
-                Cancel
-              </Button>
-
-              {!isNew && (
-                <>
-                  <div className="h-8 w-px bg-white/20" />
-                  <Switch
-                    checked={isEnabled}
-                    handleChange={setIsEnabled}
-                    showLabels
-                    enabledLabel="Enabled"
-                    disabledLabel="Disabled"
-                  />
-                </>
-              )}
-            </AppPageHeader>
-
-            <div className="relative flex min-w-0 grow gap-2 overflow-hidden">
-              <div className="relative isolate flex min-w-0 grow gap-2 overflow-hidden">
-                <div className="glass absolute inset-0 rounded-4xl border-2"></div>
-                <BuilderFlow panelOpen={addNodePanelOpen || !!selectedNode} onNodeClick={handleNodeClick} />
-              </div>
-
-              {addNodePanelOpen && (
-                <AddNodePanel
-                  onClose={() => setAddNodePanelOpen(false)}
-                  onNodeSelect={showSuccess}
-                  onNodeError={showError}
+            {!isNew && (
+              <>
+                <div className="h-8 w-px bg-white/20" />
+                <Switch
+                  checked={isEnabled}
+                  handleChange={setIsEnabled}
+                  showLabels
+                  enabledLabel="Enabled"
+                  disabledLabel="Disabled"
                 />
-              )}
+              </>
+            )}
+          </AppPageHeader>
 
-              {historyCardOpen && !isNew && (
-                <AutomationHistoryCard
-                  executions={executionsQuery.data?.resources ?? []}
-                  onClose={() => setHistoryCardOpen(false)}
-                />
-              )}
-
-              {detailsOpen && workflow && (
-                <WorkflowSidepanel
-                  workflow={workflow}
-                  workflowName={workflowName}
-                  workflowDescription={workflowDescription}
-                  onNameChange={setWorkflowName}
-                  onDescriptionChange={setWorkflowDescription}
-                  onClose={() => setDetailsOpen(false)}
-                />
-              )}
-
-              {selectedNode && (
-                <NodeDetailsPanel key={selectedNode.id} node={selectedNode} onClose={() => setSelectedNode(null)} />
-              )}
-
-              {sidePanelState[0] && (
-                <Scrollable className="glass h-full max-w-100 rounded-4xl border-2 text-xs">
-                  {sidePanelState[0]}
-                </Scrollable>
-              )}
+          <div className="relative flex min-w-0 grow gap-2 overflow-hidden">
+            <div className="relative isolate flex min-w-0 grow gap-2 overflow-hidden">
+              <div className="glass absolute inset-0 rounded-4xl border-2"></div>
+              <BuilderFlow
+                panelOpen={addNodePanelOpen || !!selectedNode}
+                onNodeClick={handleNodeClick}
+                onAddNodeFromEdge={(sourceId, targetId, edgeId) => {
+                  setSourceNodeId(sourceId)
+                  setTargetNodeId(targetId || null)
+                  setEdgeIdToReplace(edgeId || null)
+                  setAddNodePanelOpen(true)
+                }}
+              />
             </div>
+
+            {addNodePanelOpen && (
+              <AddNodePanel
+                onClose={() => {
+                  setAddNodePanelOpen(false)
+                  setSourceNodeId(null)
+                  setTargetNodeId(null)
+                  setEdgeIdToReplace(null)
+                }}
+                onNodeSelect={showSuccess}
+                onNodeError={showError}
+                sourceNodeId={sourceNodeId}
+                onConnect={(sourceId, targetId) => {
+                  // Wait for target node to be rendered and measured by React Flow
+                  // Check every 50ms for up to 2 seconds
+                  let attempts = 0
+                  const maxAttempts = 40
+
+                  const checkAndConnect = () => {
+                    const nodes = reactFlowInstance.getNodes()
+                    const targetNode = nodes.find((n) => n.id === targetId)
+
+                    if (targetNode?.measured) {
+                      // Get current edges
+                      const currentEdges = reactFlowInstance.getEdges()
+
+                      // Remove button edge from source node
+                      let filteredEdges = currentEdges.filter((e) => e.id !== `button-${sourceId}`)
+
+                      // If we're inserting between two nodes, remove the old edge
+                      if (edgeIdToReplace && targetNodeId) {
+                        filteredEdges = filteredEdges.filter((e) => e.id !== edgeIdToReplace)
+
+                        // Add edge from source to new node
+                        filteredEdges.push({
+                          id: `${sourceId}-${targetId}`,
+                          source: sourceId,
+                          target: targetId,
+                          sourceHandle: 'source',
+                          targetHandle: 'target',
+                          type: 'default',
+                          markerEnd: { type: 'arrowclosed', width: 12, height: 12, color: '#6b7280' },
+                          data: {
+                            onAddNode: (srcId: string, tgtId: string, edId: string) => {
+                              setSourceNodeId(srcId)
+                              setTargetNodeId(tgtId)
+                              setEdgeIdToReplace(edId)
+                              setAddNodePanelOpen(true)
+                            },
+                          },
+                        })
+
+                        // Add edge from new node to original target
+                        filteredEdges.push({
+                          id: `${targetId}-${targetNodeId}`,
+                          source: targetId,
+                          target: targetNodeId,
+                          sourceHandle: 'source',
+                          targetHandle: 'target',
+                          type: 'default',
+                          markerEnd: { type: 'arrowclosed', width: 12, height: 12, color: '#6b7280' },
+                          data: {
+                            onAddNode: (srcId: string, tgtId: string, edId: string) => {
+                              setSourceNodeId(srcId)
+                              setTargetNodeId(tgtId)
+                              setEdgeIdToReplace(edId)
+                              setAddNodePanelOpen(true)
+                            },
+                          },
+                        })
+
+                        reactFlowInstance.setEdges(filteredEdges)
+                      } else {
+                        // Normal connection - just add one edge
+                        reactFlowInstance.setEdges([
+                          ...filteredEdges,
+                          {
+                            id: `${sourceId}-${targetId}`,
+                            source: sourceId,
+                            target: targetId,
+                            sourceHandle: 'source',
+                            targetHandle: 'target',
+                            type: 'default',
+                            markerEnd: { type: 'arrowclosed', width: 12, height: 12, color: '#6b7280' },
+                            data: {
+                              onAddNode: (srcId: string, tgtId: string, edId: string) => {
+                                setSourceNodeId(srcId)
+                                setTargetNodeId(tgtId)
+                                setEdgeIdToReplace(edId)
+                                setAddNodePanelOpen(true)
+                              },
+                            },
+                          },
+                        ])
+                      }
+                    } else if (attempts < maxAttempts) {
+                      attempts++
+                      setTimeout(checkAndConnect, 50)
+                    }
+                  }
+
+                  checkAndConnect()
+                }}
+              />
+            )}
+
+            {historyCardOpen && !isNew && (
+              <AutomationHistoryCard
+                executions={executionsQuery.data?.resources ?? []}
+                onClose={() => setHistoryCardOpen(false)}
+              />
+            )}
+
+            {detailsOpen && workflow && (
+              <WorkflowSidepanel
+                workflow={workflow}
+                workflowName={workflowName}
+                workflowDescription={workflowDescription}
+                onNameChange={setWorkflowName}
+                onDescriptionChange={setWorkflowDescription}
+                onClose={() => setDetailsOpen(false)}
+              />
+            )}
+
+            {selectedNode && (
+              <NodeDetailsPanel key={selectedNode.id} node={selectedNode} onClose={() => setSelectedNode(null)} />
+            )}
           </div>
         </div>
 

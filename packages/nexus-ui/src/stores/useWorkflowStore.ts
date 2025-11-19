@@ -2,18 +2,28 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { create } from 'zustand'
 
 // Type aliases from API contracts
-type WorkflowDefinition = WorkflowAPI['components']['schemas']['workflow-definition.schema']
+type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
 type Trigger =
-  | WorkflowAPI['components']['schemas']['manualTrigger']
-  | WorkflowAPI['components']['schemas']['scheduledTrigger']
-  | WorkflowAPI['components']['schemas']['eventTrigger']
-type Activity = WorkflowAPI['components']['schemas']['activity']
+  | WorkflowAPI.components['schemas']['manualTrigger']
+  | WorkflowAPI.components['schemas']['scheduledTrigger']
+  | WorkflowAPI.components['schemas']['eventTrigger']
+type Activity = WorkflowAPI.components['schemas']['activity']
 type TaskActivity = Extract<Activity, { type: 'task' }>
+
+interface EdgeConnection {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string
+  targetHandle?: string
+}
 
 interface WorkflowStore {
   currentWorkflow: WorkflowDefinition | null
   workflowVersion: number // Incremented only when setWorkflow is called
+  edges: EdgeConnection[]
   setWorkflow: (workflow: WorkflowDefinition | null) => void
+  setEdges: (edges: EdgeConnection[]) => void
   addTrigger: (trigger: Trigger) => void
   removeTrigger: (index: number) => void
   addActivity: (activity: Activity) => void
@@ -24,12 +34,17 @@ interface WorkflowStore {
 export const useWorkflowStore = create<WorkflowStore>((set) => ({
   currentWorkflow: null,
   workflowVersion: 0,
+  edges: [],
 
   setWorkflow: (workflow) => {
     set((state) => ({
       currentWorkflow: workflow,
       workflowVersion: state.workflowVersion + 1,
     }))
+  },
+
+  setEdges: (edges) => {
+    set({ edges })
   },
 
   addTrigger: (trigger) => {
@@ -235,7 +250,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
 }))
 
 // Helper functions to create triggers (return plain objects)
-export function createManualTrigger(requiresApproval?: boolean): WorkflowAPI['components']['schemas']['manualTrigger'] {
+export function createManualTrigger(requiresApproval?: boolean): WorkflowAPI.components['schemas']['manualTrigger'] {
   return {
     type: 'manual',
     ...(requiresApproval !== undefined && { requiresApproval }),
@@ -249,7 +264,7 @@ export function createScheduledTrigger(
     timezone?: string
     interval?: string
   }
-): WorkflowAPI['components']['schemas']['scheduledTrigger'] {
+): WorkflowAPI.components['schemas']['scheduledTrigger'] {
   if (scheduleType === 'cron' && config.cron) {
     return {
       type: 'scheduled',
@@ -272,6 +287,7 @@ export function createScheduledTrigger(
       type: 'scheduled',
       schedule: {
         scheduleType: 'continuous',
+        continuous: true,
       },
     }
   }
@@ -281,7 +297,7 @@ export function createEventTrigger(
   source: string,
   eventType: string,
   filter?: Record<string, unknown>
-): WorkflowAPI['components']['schemas']['eventTrigger'] {
+): WorkflowAPI.components['schemas']['eventTrigger'] {
   return {
     type: 'event',
     event: {
@@ -333,22 +349,19 @@ export function createApiActivity(
   body?: string,
   inputs?: string
 ): TaskActivity {
-  const activity: TaskActivity = {
-    type: 'task',
-    id,
-    name,
-    task: {
-      executor: 'api',
-      config: {
-        method,
-        url,
-      },
-    },
+  const config: {
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+    url: string
+    headers?: { [key: string]: string }
+    body?: unknown
+  } = {
+    method,
+    url,
   }
 
   if (headers) {
     try {
-      activity.task.config.headers = JSON.parse(headers)
+      config.headers = JSON.parse(headers) as { [key: string]: string }
     } catch {
       // If headers is not valid JSON, skip it
     }
@@ -356,11 +369,21 @@ export function createApiActivity(
 
   if (body) {
     try {
-      activity.task.config.body = JSON.parse(body)
+      config.body = JSON.parse(body)
     } catch {
       // If body is not valid JSON, use as string
-      activity.task.config.body = body
+      config.body = body
     }
+  }
+
+  const activity: TaskActivity = {
+    type: 'task',
+    id,
+    name,
+    task: {
+      executor: 'api',
+      config,
+    },
   }
 
   if (inputs) {

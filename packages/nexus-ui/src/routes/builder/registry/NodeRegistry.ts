@@ -38,7 +38,7 @@ export interface NodeTypeDefinition<TFormData = unknown> {
   formComponent: ComponentType<BaseNodeFormProps<TFormData>>
 
   /** Handler function when form is submitted */
-  onSubmit: (data: TFormData, onSuccess: () => void, onError: (error: string) => void) => void
+  onSubmit: (data: TFormData, onSuccess: (newNodeId?: string) => void, onError: (error: string) => void) => void
 
   /** Whether this node type is enabled (default: true) */
   enabled?: boolean

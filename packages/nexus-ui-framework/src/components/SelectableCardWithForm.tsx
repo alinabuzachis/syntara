@@ -1,12 +1,12 @@
 import type { LucideIcon } from 'lucide-react'
 import { X } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 
 import { SelectableCard } from './SelectableCard'
 
 interface SelectableCardWithFormProps {
   /** The icon component to display */
-  icon: LucideIcon
+  icon: LucideIcon | ComponentType
   /** The main label text */
   label: string
   /** Optional description text */

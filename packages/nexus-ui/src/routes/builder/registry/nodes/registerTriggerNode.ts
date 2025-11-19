@@ -1,12 +1,12 @@
 import { PlayIcon } from 'lucide-react'
 
 import {
+  createEventTrigger,
   createManualTrigger,
   createScheduledTrigger,
-  createEventTrigger,
   useWorkflowStore,
 } from '../../../../stores/useWorkflowStore'
-import type { TriggerFormData } from '../../../hooks/useNodeCreation'
+import type { TriggerFormData } from '../../hooks/useNodeCreation'
 import { TriggerNodeForm } from '../../node-forms/TriggerNodeForm'
 import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'

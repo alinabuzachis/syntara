@@ -1,12 +1,12 @@
 import { useCallback } from 'react'
 
 import {
-  useWorkflowStore,
+  createApiActivity,
+  createEventTrigger,
   createManualTrigger,
   createScheduledTrigger,
-  createEventTrigger,
   createScriptActivity,
-  createApiActivity,
+  useWorkflowStore,
 } from '../../../stores/useWorkflowStore'
 
 export interface TriggerFormData {

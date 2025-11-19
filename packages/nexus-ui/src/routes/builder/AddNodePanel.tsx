@@ -1,6 +1,6 @@
-import { SelectableCardWithForm, SelectableCardList, SidePanel } from '@ansible/nexus-ui-framework'
+import { SelectableCardList, SelectableCardWithForm, SidePanel } from '@ansible/nexus-ui-framework'
 import { PlusIcon } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import { NodeRegistry } from './registry/NodeRegistry'
 
@@ -8,6 +8,8 @@ interface AddNodePanelProps {
   onClose: () => void
   onNodeSelect?: (message: string, title: string) => void
   onNodeError?: (error: string, title: string) => void
+  sourceNodeId?: string | null
+  onConnect?: (sourceId: string, targetId: string) => void
 }
 
 export function AddNodePanel(props: AddNodePanelProps) {
@@ -37,9 +39,13 @@ export function AddNodePanel(props: AddNodePanelProps) {
         onSubmit={(data) => {
           selectedNode.onSubmit(
             data,
-            () => {
-              // Success callback - deselect the node to allow adding another
+            (newNodeId?: string) => {
+              // Success callback - connect if sourceNodeId exists
+              if (props.sourceNodeId && newNodeId && props.onConnect) {
+                props.onConnect(props.sourceNodeId, newNodeId)
+              }
               setSelectedNodeType(null)
+              props.onClose()
             },
             (error) => {
               // Error callback - show error alert

@@ -1,9 +1,10 @@
 import clsx from 'clsx'
 import type { LucideIcon } from 'lucide-react'
+import type { ComponentType } from 'react'
 
 interface SelectableCardProps {
   /** The icon component to display */
-  icon: LucideIcon
+  icon: LucideIcon | ComponentType
   /** The main label text */
   label: string
   /** Optional description text */
