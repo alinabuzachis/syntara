@@ -1,3 +1,4 @@
+import { Button as BaseButton } from '@base-ui-components/react/button'
 import clsx from 'clsx'
 import type { LucideIcon } from 'lucide-react'
 import type { ComponentType } from 'react'
@@ -27,7 +28,7 @@ export function SelectableCard(props: SelectableCardProps) {
   const { icon: Icon, label, description, isSelected = false, onClick, title, className } = props
 
   return (
-    <button
+    <BaseButton
       onClick={onClick}
       className={clsx(
         'glass flex items-start gap-2.5 rounded-xl border px-3 py-3 text-left transition-all',
@@ -41,6 +42,6 @@ export function SelectableCard(props: SelectableCardProps) {
         <div className="text-sm font-medium">{label}</div>
         {description && <div className="mt-1 text-xs leading-relaxed text-gray-400">{description}</div>}
       </div>
-    </button>
+    </BaseButton>
   )
 }

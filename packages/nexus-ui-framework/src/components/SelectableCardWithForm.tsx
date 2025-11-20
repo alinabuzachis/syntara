@@ -1,3 +1,4 @@
+import { Button as BaseButton } from '@base-ui-components/react/button'
 import type { LucideIcon } from 'lucide-react'
 import { X } from 'lucide-react'
 import type { ComponentType, ReactNode } from 'react'
@@ -48,7 +49,7 @@ export function SelectableCardWithForm(props: SelectableCardWithFormProps) {
       {isSelected && form && (
         <div className={`relative ${formClassName || ''}`}>
           {onClose && (
-            <button
+            <BaseButton
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
@@ -58,7 +59,7 @@ export function SelectableCardWithForm(props: SelectableCardWithFormProps) {
               aria-label="Close form"
             >
               <X className="size-4" />
-            </button>
+            </BaseButton>
           )}
           {form}
         </div>

@@ -1,3 +1,4 @@
+import { Button as BaseButton } from '@base-ui-components/react/button'
 import clsx from 'clsx'
 
 type ButtonProps = {
@@ -5,10 +6,11 @@ type ButtonProps = {
   size?: 'sm' | 'md' | 'lg'
   children: React.ReactNode
 } & React.ButtonHTMLAttributes<HTMLButtonElement>
+
 export function Button(props: ButtonProps) {
   const { variant, size, children, className, ...rest } = props
   return (
-    <button
+    <BaseButton
       className={clsx(
         'flex cursor-pointer items-center rounded-full',
         // Variant styles
@@ -28,6 +30,6 @@ export function Button(props: ButtonProps) {
       {...rest}
     >
       {children}
-    </button>
+    </BaseButton>
   )
 }

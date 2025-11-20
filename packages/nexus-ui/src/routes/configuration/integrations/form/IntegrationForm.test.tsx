@@ -141,9 +141,10 @@ describe('IntegrationForm Component', () => {
       const typeField = screen.getByRole('radiogroup', { name: /integration type/i })
       expect(typeField).toBeInTheDocument()
 
-      const mcpOption = screen.getByRole('radio', { name: /mcp server/i })
+      // Base UI Radio renders with data-checked attribute in test environment
+      const mcpOption = typeField.querySelector('[data-checked]')
       expect(mcpOption).toBeInTheDocument()
-      expect(mcpOption).toBeChecked()
+      expect(mcpOption).toHaveTextContent('MCP Server')
     })
 
     it('renders server name field as required', () => {

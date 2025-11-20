@@ -26,11 +26,13 @@ export function FormButtonGroup<TFieldValues extends FieldValues>(props: FormBut
             value={field.value}
             onValueChange={(value) => field.onChange(value)}
             disabled={props.disabled}
+            aria-labelledby={`${props.name}-label`}
           >
             {props.options.map((option) => (
               <Radio.Root
                 key={option.value}
                 value={option.value}
+                aria-label={option.label}
                 className={clsx(
                   'flex min-w-[220px] cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 px-6 py-3 transition-all',
                   'hover:border-blue-400 hover:bg-blue-500/10',

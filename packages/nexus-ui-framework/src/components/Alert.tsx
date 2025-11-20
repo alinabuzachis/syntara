@@ -1,3 +1,4 @@
+import { Button as BaseButton } from '@base-ui-components/react/button'
 import clsx from 'clsx'
 import { AlertCircleIcon, CheckCircleIcon, InfoIcon, XCircleIcon, XIcon } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
@@ -87,13 +88,13 @@ export function Alert({
         {displayMessage && <div className="text-sm">{displayMessage}</div>}
       </div>
       {dismissible && (
-        <button
+        <BaseButton
           onClick={handleDismiss}
           className="shrink-0 rounded p-1 transition-colors hover:bg-white/10"
           aria-label="Dismiss alert"
         >
           <XIcon className="size-4" />
-        </button>
+        </BaseButton>
       )}
     </div>
   )
