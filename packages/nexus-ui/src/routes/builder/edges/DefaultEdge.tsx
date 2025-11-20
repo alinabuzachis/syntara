@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react'
 interface DefaultEdgeProps extends EdgeProps {
   data?: {
     onAddNode?: (sourceNodeId: string, targetNodeId: string, edgeId: string) => void
+    isActive?: boolean
   }
 }
 
@@ -32,12 +33,13 @@ export function DefaultEdge(props: DefaultEdgeProps) {
   const { setEdges } = useReactFlow()
   const [isHovered, setIsHovered] = useState(false)
   const [isEdgeHovered, setIsEdgeHovered] = useState(false)
+  const [isAddButtonHovered, setIsAddButtonHovered] = useState(false)
   const hoverTimeoutRef = React.useRef<number | null>(null)
 
-  // Switch to a custom marker ID when selected or hovered
+  // Switch to a custom marker ID when selected, hovered, or active
   const effectiveMarkerEnd = selected
     ? "url('#selected-arrow-marker')"
-    : isEdgeHovered
+    : isEdgeHovered || data?.isActive
       ? "url('#hover-arrow-marker')"
       : markerEnd
 
@@ -116,10 +118,11 @@ export function DefaultEdge(props: DefaultEdgeProps) {
         markerEnd={effectiveMarkerEnd}
         style={{
           ...style,
-          stroke: selected || isEdgeHovered ? '#e5e7eb' : '#6b7280',
+          stroke: selected || isEdgeHovered || data?.isActive ? '#e5e7eb' : '#6b7280',
           strokeWidth: 2,
           pointerEvents: 'none',
-          filter: selected || isEdgeHovered ? 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))' : 'none',
+          filter:
+            selected || isEdgeHovered || data?.isActive ? 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))' : 'none',
         }}
       />
       {/* Invisible wider path for hover detection - rendered after so it's on top */}
@@ -159,7 +162,7 @@ export function DefaultEdge(props: DefaultEdgeProps) {
           </div>
         </EdgeLabelRenderer>
       )}
-      {isHovered && (
+      {(isHovered || data?.isActive) && (
         <EdgeLabelRenderer>
           <div
             style={{
@@ -185,10 +188,23 @@ export function DefaultEdge(props: DefaultEdgeProps) {
           >
             <button
               onClick={handleAddNode}
-              className="flex cursor-pointer items-center justify-center rounded bg-transparent p-1 text-gray-400 transition-colors hover:text-white"
+              onMouseEnter={() => setIsAddButtonHovered(true)}
+              onMouseLeave={() => setIsAddButtonHovered(false)}
+              className={`flex cursor-pointer items-center justify-center rounded bg-transparent p-1 transition-colors ${data?.isActive ? 'text-white' : 'text-gray-400 hover:text-white'}`}
               title="Add node"
             >
-              <svg width="14" height="14" viewBox="-7 -7 14 14" style={{ pointerEvents: 'none' }}>
+              <svg
+                width="14"
+                height="14"
+                viewBox="-7 -7 14 14"
+                style={{
+                  pointerEvents: 'none',
+                  filter:
+                    isAddButtonHovered || data?.isActive
+                      ? 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.6))'
+                      : 'none',
+                }}
+              >
                 <rect x={-7} y={-7} width={14} height={14} fill="none" stroke="currentColor" strokeWidth={1.5} rx={2} />
                 <line x1={-4} y1={0} x2={4} y2={0} stroke="currentColor" strokeWidth={1.5} />
                 <line x1={0} y1={-4} x2={0} y2={4} stroke="currentColor" strokeWidth={1.5} />

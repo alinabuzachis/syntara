@@ -3,6 +3,7 @@ import { BaseEdge, type EdgeProps, Position } from '@xyflow/react'
 interface ButtonEdgeProps extends EdgeProps {
   data?: {
     onButtonClick?: () => void
+    isActive?: boolean
   }
 }
 
@@ -66,10 +67,27 @@ export function ButtonEdge(props: ButtonEdgeProps) {
       {/* Visible thin stroke */}
       <path d={edgePath} fill="none" stroke="#6b7280" strokeWidth={2} pointerEvents="none" />
       {/* Plus icon - visual elements (non-interactive) */}
-      <g transform={`translate(${buttonX}, ${buttonY})`} pointerEvents="none">
-        <rect x={-7} y={-7} width={14} height={14} fill="none" stroke="#9ca3af" strokeWidth={1.5} rx={2} />
-        <line x1={-4} y1={0} x2={4} y2={0} stroke="#9ca3af" strokeWidth={1.5} />
-        <line x1={0} y1={-4} x2={0} y2={4} stroke="#9ca3af" strokeWidth={1.5} />
+      <g
+        transform={`translate(${buttonX}, ${buttonY})`}
+        pointerEvents="none"
+        style={{
+          filter: data?.isActive
+            ? 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.6))'
+            : 'none',
+        }}
+      >
+        <rect
+          x={-7}
+          y={-7}
+          width={14}
+          height={14}
+          fill="none"
+          stroke={data?.isActive ? '#ffffff' : '#9ca3af'}
+          strokeWidth={1.5}
+          rx={2}
+        />
+        <line x1={-4} y1={0} x2={4} y2={0} stroke={data?.isActive ? '#ffffff' : '#9ca3af'} strokeWidth={1.5} />
+        <line x1={0} y1={-4} x2={0} y2={4} stroke={data?.isActive ? '#ffffff' : '#9ca3af'} strokeWidth={1.5} />
       </g>
       {/* Large clickable button area on top */}
       <rect

@@ -359,6 +359,8 @@ export function BuilderContent(props: BuilderContentProps) {
                 <div className="glass absolute inset-0 rounded-4xl border-2"></div>
                 <BuilderFlow
                   panelOpen={addNodePanelOpen || !!selectedNode}
+                  activeEdgeButtonNodeId={addNodePanelOpen ? sourceNodeId : null}
+                  activeEdgeId={addNodePanelOpen ? edgeIdToReplace : null}
                   onNodeClick={handleNodeClick}
                   onAddNodeFromEdge={(sourceId, targetId, edgeId) => {
                     setSourceNodeId(sourceId)

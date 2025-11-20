@@ -336,21 +336,28 @@ function addJoinActivity(
 interface BuilderFlowProps {
   triggerLayout?: number
   panelOpen?: boolean
+  activeEdgeButtonNodeId?: string | null
+  activeEdgeId?: string | null
   onNodeClick?: NodeMouseHandler<NodeType>
   onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string) => void
 }
 
 export function BuilderFlow(props: BuilderFlowProps) {
+  // Destructure props to use in callbacks
+  const { triggerLayout, panelOpen, activeEdgeButtonNodeId, activeEdgeId, onNodeClick, onAddNodeFromEdge } = props
+
   const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow)
   const workflowVersion = useWorkflowStore((state) => state.workflowVersion)
   const removeActivity = useWorkflowStore((state) => state.removeActivity)
   const removeTrigger = useWorkflowStore((state) => state.removeTrigger)
   const storedEdges = useWorkflowStore((state) => state.edges)
   const setStoredEdges = useWorkflowStore((state) => state.setEdges)
-  const { fitView, getViewport } = useReactFlow()
+  const reactFlowInstance = useReactFlow()
+  const { fitView, getViewport } = reactFlowInstance
   const [isInitialized, setIsInitialized] = useState(false)
   const hasRunInitialLayoutRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const skipButtonEdgeMaintenanceRef = useRef(false)
 
   // Reset initialization when workflow is replaced via setWorkflow (e.g., after save/redirect)
   const workflowVersionRef = useRef(workflowVersion)
@@ -431,7 +438,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
             type: 'default',
             markerEnd,
             data: {
-              onAddNode: props.onAddNodeFromEdge,
+              onAddNode: onAddNodeFromEdge,
             },
           })
         }
@@ -439,7 +446,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     }
 
     return { nodes, edges }
-  }, [currentWorkflow, storedEdges, props.onAddNodeFromEdge])
+  }, [currentWorkflow, storedEdges, onAddNodeFromEdge])
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
@@ -479,18 +486,96 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
       // Clean up edges connected to deleted nodes
       const deletedNodeIds = new Set(deletedNodes.map((n) => n.id))
-      setEdges((currentEdges) =>
-        currentEdges.filter((edge) => {
-          // Remove edges where source or target is a deleted node
-          return !deletedNodeIds.has(edge.source) && !deletedNodeIds.has(edge.target)
-        })
-      )
 
-      // Clean up placeholder nodes associated with deleted nodes
+      // Also clean up button edges from the deleted nodes
+      const buttonEdgeIdsToRemove = Array.from(deletedNodeIds).map((id) => `button-${id}`)
       const placeholderIdsToRemove = deletedNodes.map((n) => `placeholder-${n.id}`)
-      setNodes((currentNodes) => currentNodes.filter((node) => !placeholderIdsToRemove.includes(node.id)))
+
+      // Get current nodes and edges to determine what button edges are needed
+      const currentNodes = reactFlowInstance.getNodes() as NodeType[]
+      const currentEdges = reactFlowInstance.getEdges() as EdgeType[]
+
+      // Filter edges
+      const filteredEdges = currentEdges.filter((edge) => {
+        return (
+          !deletedNodeIds.has(edge.source) &&
+          !deletedNodeIds.has(edge.target) &&
+          !buttonEdgeIdsToRemove.includes(edge.id)
+        )
+      }) as EdgeType[]
+
+      // Check which nodes need button edges
+      const nodesWithOutgoing = new Set<string>()
+      filteredEdges.forEach((edge) => {
+        if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-')) {
+          nodesWithOutgoing.add(edge.source)
+        }
+      })
+
+      const realNodes = currentNodes.filter(
+        (node: NodeType) => !node.id.startsWith('placeholder-') && !deletedNodeIds.has(node.id)
+      )
+      const placeholderNodesToAdd: NodeType[] = []
+      const buttonEdgesToAdd: EdgeType[] = []
+
+      realNodes.forEach((node: NodeType) => {
+        const buttonEdgeId = `button-${node.id}`
+        const hasRealOutgoing = nodesWithOutgoing.has(node.id)
+        const hasButtonEdge = filteredEdges.some((e) => e.id === buttonEdgeId)
+
+        if (!hasRealOutgoing && !hasButtonEdge) {
+          const placeholderId = `placeholder-${node.id}`
+
+          // Collect placeholder node to add
+          placeholderNodesToAdd.push({
+            id: placeholderId,
+            type: 'placeholder',
+            position: { x: node.position.x + 200, y: node.position.y },
+            data: {},
+            draggable: false,
+            selectable: false,
+          } as unknown as NodeType)
+
+          // Collect button edge to add
+          buttonEdgesToAdd.push({
+            id: buttonEdgeId,
+            source: node.id,
+            sourceHandle: 'source',
+            target: placeholderId,
+            targetHandle: 'target',
+            type: 'buttonEdge',
+            selectable: false,
+            data: {
+              onButtonClick: () => onAddNodeFromEdge?.(node.id),
+              isActive: activeEdgeButtonNodeId === node.id,
+            },
+          } as unknown as EdgeType)
+        }
+      })
+
+      // Skip button edge maintenance temporarily since we're handling it here
+      if (buttonEdgesToAdd.length > 0) {
+        skipButtonEdgeMaintenanceRef.current = true
+        setTimeout(() => {
+          skipButtonEdgeMaintenanceRef.current = false
+        }, 300)
+      }
+
+      // Clean up placeholder nodes and add new ones
+      setNodes((currentNodes) => {
+        const filtered = currentNodes.filter((node) => !placeholderIdsToRemove.includes(node.id))
+        if (placeholderNodesToAdd.length > 0) {
+          return [...filtered, ...placeholderNodesToAdd]
+        }
+        return filtered
+      })
+
+      // Update edges - remove deleted edges and add button edges
+      setEdges(() => {
+        return buttonEdgesToAdd.length > 0 ? [...filteredEdges, ...buttonEdgesToAdd] : filteredEdges
+      })
     },
-    [removeActivity, removeTrigger, setEdges, setNodes]
+    [removeActivity, removeTrigger, setEdges, setNodes, reactFlowInstance, onAddNodeFromEdge, activeEdgeButtonNodeId]
   )
 
   // Trigger layout after node deletion
@@ -509,6 +594,11 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   // Update nodes when workflow changes
   useEffect(() => {
+    // Skip if button edges are being handled by onNodesDelete
+    if (skipButtonEdgeMaintenanceRef.current) {
+      return
+    }
+
     // Check if initialNodes/initialEdges actually changed by comparing with previous values
     // Use efficient comparison for structure, JSON.stringify only for data content
     const nodesDataChanged =
@@ -671,10 +761,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   // Trigger layout when requested from parent
   useEffect(() => {
-    if (props.triggerLayout && isInitialized) {
+    if (triggerLayout && isInitialized) {
       onLayoutRef.current()
     }
-  }, [props.triggerLayout, isInitialized])
+  }, [triggerLayout, isInitialized])
 
   // Position newly added nodes after they've been measured
   useEffect(() => {
@@ -717,7 +807,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
       }, 100)
       return () => clearTimeout(timer)
     }
-  }, [props.panelOpen, fitView, isInitialized])
+  }, [panelOpen, fitView, isInitialized])
 
   // Save real edges (not button edges) to store whenever they change
   useEffect(() => {
@@ -760,7 +850,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         type: 'default', // Explicitly set to use our DefaultEdge component
         markerEnd,
         data: {
-          onAddNode: props.onAddNodeFromEdge,
+          onAddNode: onAddNodeFromEdge,
         },
       }
 
@@ -785,7 +875,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
           })
       )
     },
-    [setEdges, setNodes, props.onAddNodeFromEdge]
+    [setEdges, setNodes, onAddNodeFromEdge]
   )
 
   // Track the source node when starting a connection from a button edge
@@ -823,10 +913,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
       if (isCanvas) {
         // User dragged to open area, open add node panel
-        props.onAddNodeFromEdge?.(sourceNodeId)
+        onAddNodeFromEdge?.(sourceNodeId)
       }
     },
-    [props]
+    [onAddNodeFromEdge]
   )
 
   // Memoize real node IDs (excluding placeholders) to use as stable dependency
@@ -838,7 +928,16 @@ export function BuilderFlow(props: BuilderFlowProps) {
       .join(',')
   }, [nodes])
 
-  // Ensure all default edges have the onAddNode callback and markerEnd
+  // Memoize real edges count to track edge changes for button edge maintenance
+  const realEdgesSignature = useMemo(() => {
+    const realEdges = edges.filter((edge) => edge.type !== 'buttonEdge' && !edge.id.startsWith('button-'))
+    return realEdges
+      .map((edge) => `${edge.source}-${edge.target}`)
+      .sort()
+      .join('|')
+  }, [edges])
+
+  // Ensure all default edges have the onAddNode callback, markerEnd, and isActive state
   useEffect(() => {
     setEdges((currentEdges) => {
       let updated = false
@@ -846,15 +945,17 @@ export function BuilderFlow(props: BuilderFlowProps) {
         if (edge.type === 'default') {
           const needsData = !edge.data || !edge.data.onAddNode
           const needsMarker = !edge.markerEnd
+          const needsActiveUpdate = edge.data?.isActive !== (activeEdgeId === edge.id)
 
-          if (needsData || needsMarker) {
+          if (needsData || needsMarker || needsActiveUpdate) {
             updated = true
             return {
               ...edge,
               markerEnd: edge.markerEnd || markerEnd,
               data: {
                 ...edge.data,
-                onAddNode: edge.data?.onAddNode || props.onAddNodeFromEdge,
+                onAddNode: edge.data?.onAddNode || onAddNodeFromEdge,
+                isActive: activeEdgeId === edge.id,
               },
             }
           }
@@ -863,7 +964,31 @@ export function BuilderFlow(props: BuilderFlowProps) {
       })
       return updated ? updatedEdges : currentEdges
     })
-  }, [setEdges, props.onAddNodeFromEdge])
+  }, [setEdges, onAddNodeFromEdge, activeEdgeId])
+
+  // Update button edge active state when activeEdgeButtonNodeId changes
+  useEffect(() => {
+    if (!isInitialized) {
+      return
+    }
+
+    setEdges((currentEdges) =>
+      currentEdges.map((edge) => {
+        if (edge.type === 'buttonEdge' || edge.id.startsWith('button-')) {
+          // Extract the node ID from the button edge ID (format: button-{nodeId})
+          const nodeId = edge.source
+          return {
+            ...edge,
+            data: {
+              ...edge.data,
+              isActive: activeEdgeButtonNodeId === nodeId,
+            },
+          }
+        }
+        return edge
+      })
+    )
+  }, [activeEdgeButtonNodeId, isInitialized, setEdges])
 
   // Maintain button edges: add to nodes without outgoing edges, remove from nodes with outgoing edges
   useEffect(() => {
@@ -871,9 +996,28 @@ export function BuilderFlow(props: BuilderFlowProps) {
       return
     }
 
+    // Skip if we just handled button edges in delete handler
+    if (skipButtonEdgeMaintenanceRef.current) {
+      return
+    }
+
     // Use a small delay to ensure nodes are fully loaded and measured
     const timeoutId = setTimeout(() => {
+      // First get current nodes, then update edges
+      let currentRealNodes: NodeType[] = []
+
+      setNodes((currentNodes) => {
+        currentRealNodes = currentNodes.filter((node) => !node.id.startsWith('placeholder-'))
+        return currentNodes // Return unchanged
+      })
+
+      // Collect placeholder nodes to add
+      const placeholderNodesToAdd: NodeType[] = []
+
+      // Now update edges with knowledge of current nodes
       setEdges((currentEdges) => {
+        const realNodes = currentRealNodes
+
         const nodesWithOutgoing = new Set<string>()
 
         // Find which nodes have real outgoing edges
@@ -887,10 +1031,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
         const buttonEdgeIds = new Set<string>()
         const nodeIdsWithButtonEdges = new Set<string>()
 
-        // Check each node and determine which button edges are needed
-        // Filter out placeholder nodes to avoid infinite loop
-        const realNodes = nodes.filter((node) => !node.id.startsWith('placeholder-'))
-
         realNodes.forEach((node) => {
           const buttonEdgeId = `button-${node.id}`
           const hasRealOutgoing = nodesWithOutgoing.has(node.id)
@@ -901,24 +1041,16 @@ export function BuilderFlow(props: BuilderFlowProps) {
             // Node needs a button edge - add it
             const placeholderId = `placeholder-${node.id}`
 
-            // Add placeholder node
-            setNodes((currentNodes) => {
-              if (currentNodes.find((n) => n.id === placeholderId)) {
-                return currentNodes
-              }
-              return [
-                ...currentNodes,
-                {
-                  id: placeholderId,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  type: 'placeholder' as any, // Custom node type for invisible edge targets
-                  position: { x: node.position.x + 200, y: node.position.y },
-                  data: {}, // No data needed for placeholder nodes
-                  draggable: false,
-                  selectable: false,
-                } as NodeType,
-              ]
-            })
+            // Collect placeholder node to add later
+            placeholderNodesToAdd.push({
+              id: placeholderId,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              type: 'placeholder' as any, // Custom node type for invisible edge targets
+              position: { x: node.position.x + 200, y: node.position.y },
+              data: {}, // No data needed for placeholder nodes
+              draggable: false,
+              selectable: false,
+            } as NodeType)
 
             const newEdge = {
               id: buttonEdgeId,
@@ -929,7 +1061,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
               type: 'buttonEdge', // Our custom edge with the plus button
               selectable: false, // Button edges can't be selected
               data: {
-                onButtonClick: () => props.onAddNodeFromEdge?.(node.id),
+                onButtonClick: () => onAddNodeFromEdge?.(node.id),
+                isActive: activeEdgeButtonNodeId === node.id,
               },
             } as unknown
             edgesToAdd.push(newEdge as EdgeType)
@@ -983,11 +1116,23 @@ export function BuilderFlow(props: BuilderFlowProps) {
         // No changes needed
         return currentEdges
       })
+
+      // Add placeholder nodes if any were collected
+      if (placeholderNodesToAdd.length > 0) {
+        setNodes((currentNodes) => {
+          const existingIds = new Set(currentNodes.map((n) => n.id))
+          const nodesToAdd = placeholderNodesToAdd.filter((n) => !existingIds.has(n.id))
+          if (nodesToAdd.length > 0) {
+            return [...currentNodes, ...nodesToAdd]
+          }
+          return currentNodes
+        })
+      }
     }, 50) // Small delay to let React Flow settle
 
     return () => clearTimeout(timeoutId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [realNodeIds, isInitialized, setEdges, setNodes, nodes])
+  }, [realNodeIds, realEdgesSignature, isInitialized, setEdges, setNodes, nodes, reactFlowInstance])
 
   return (
     <div ref={containerRef} className="size-full">
@@ -1068,7 +1213,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodesDelete={onNodesDelete}
-        onNodeClick={props.onNodeClick}
+        onNodeClick={onNodeClick}
         onConnect={onConnect}
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
