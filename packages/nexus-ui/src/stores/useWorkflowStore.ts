@@ -26,6 +26,7 @@ interface WorkflowStore {
   setEdges: (edges: EdgeConnection[]) => void
   addTrigger: (trigger: Trigger) => void
   removeTrigger: (index: number) => void
+  updateTrigger: (index: number, trigger: Trigger) => void
   addActivity: (activity: Activity) => void
   removeActivity: (activityId: string) => void
   updateActivity: (activityId: string, updates: Partial<Activity>) => void
@@ -67,6 +68,21 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
 
       const triggers = [...state.currentWorkflow.triggers]
       triggers.splice(index, 1)
+      return {
+        currentWorkflow: {
+          ...state.currentWorkflow,
+          triggers,
+        },
+      }
+    })
+  },
+
+  updateTrigger: (index, trigger) => {
+    set((state) => {
+      if (!state.currentWorkflow?.triggers) return state
+
+      const triggers = [...state.currentWorkflow.triggers]
+      triggers[index] = trigger
       return {
         currentWorkflow: {
           ...state.currentWorkflow,

@@ -291,6 +291,11 @@ export function BuilderContent(props: BuilderContentProps) {
               <Button
                 variant="plain"
                 onClick={() => {
+                  // Close other panels when opening add node panel
+                  setSelectedNode(null)
+                  setDetailsOpen(false)
+                  setHistoryCardOpen(false)
+                  // Set up add node panel state
                   setSourceNodeId(null) // No source node when adding from header
                   setTargetNodeId(null)
                   setEdgeIdToReplace(null)
@@ -363,6 +368,11 @@ export function BuilderContent(props: BuilderContentProps) {
                   activeEdgeId={addNodePanelOpen ? edgeIdToReplace : null}
                   onNodeClick={handleNodeClick}
                   onAddNodeFromEdge={(sourceId, targetId, edgeId) => {
+                    // Close other panels when opening add node panel
+                    setSelectedNode(null)
+                    setDetailsOpen(false)
+                    setHistoryCardOpen(false)
+                    // Set up add node panel state
                     setSourceNodeId(sourceId)
                     setTargetNodeId(targetId || null)
                     setEdgeIdToReplace(edgeId || null)

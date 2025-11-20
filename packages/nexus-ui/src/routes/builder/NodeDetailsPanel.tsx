@@ -3,9 +3,10 @@ import { SidePanel } from '@ansible/nexus-ui-framework'
 import type { Node } from '@xyflow/react'
 import { FileTextIcon } from 'lucide-react'
 
+import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
-import { ConditionNodeDetails, LoopNodeDetails, TaskNodeDetails } from './node-details'
+import { ConditionNodeDetails, LoopNodeDetails, TaskNodeDetails, TriggerNodeDetails } from './node-details'
 import { NodeRawDataView } from './NodeRawDataView'
 
 // Type aliases
@@ -20,6 +21,7 @@ interface NodeDetailsPanelProps {
 
 export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   const { node, onClose } = props
+  const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow)
 
   const getNodeTitle = () => {
     if (node.type === 'trigger') {
@@ -41,6 +43,17 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   }
 
   const renderContent = () => {
+    // Handle trigger node
+    if (node.type === 'trigger') {
+      // Get trigger from workflow by index (assuming node id is "trigger-0", "trigger-1", etc.)
+      const triggerIndex = parseInt(node.id.split('-')[1] || '0')
+      const trigger = currentWorkflow?.triggers?.[triggerIndex]
+
+      if (trigger) {
+        return <TriggerNodeDetails trigger={trigger} triggerIndex={triggerIndex} onClose={onClose} />
+      }
+    }
+
     // Render appropriate form based on node type
     if (node.type === 'task') {
       const taskData = node.data as TaskActivity
