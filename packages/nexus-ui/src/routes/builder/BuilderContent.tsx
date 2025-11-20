@@ -275,175 +275,134 @@ export function BuilderContent(props: BuilderContentProps) {
   return (
     <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
       <AppPage>
-        <div className="relative flex grow flex-col gap-4">
-          <AppPageHeader
-            title={
-              <input
-                type="text"
-                value={workflowName}
-                onChange={(e) => setWorkflowName(e.target.value)}
-                className="-ml-2 rounded bg-transparent px-2 py-1 text-lg font-semibold outline-none focus:ring-2 focus:ring-blue-400/50"
-                placeholder="Workflow name"
-              />
-            }
-          >
-            <Button
-              variant="plain"
-              onClick={() => {
-                setSourceNodeId(null) // No source node when adding from header
-                setTargetNodeId(null)
-                setEdgeIdToReplace(null)
-                setAddNodePanelOpen(true)
-              }}
-              className="text-sm whitespace-nowrap"
-            >
-              <PlusIcon className="mr-1.5 size-3.5" />
-              Add Node
-            </Button>
-
-            <div className="h-8 w-px bg-white/20" />
-
-            {!isNew && workflow?.id && (
-              <>
-                <Button variant="plain" onClick={() => setConfirmDialogOpen(true)} className="text-sm">
-                  <PlayIcon className="mr-1.5 size-3.5" />
-                  Run
-                </Button>
-                <div className="h-8 w-px bg-white/20" />
-              </>
-            )}
-
-            <Tooltip content="Workflow details">
-              <Button variant="plain" onClick={handleToggleDetails}>
-                <FileCode className="size-3.5" />
-              </Button>
-            </Tooltip>
-
-            {!isNew && workflow?.id && (
-              <Tooltip content="Run history">
-                <Button variant="plain" onClick={handleToggleHistory}>
-                  <ClockIcon className="size-3.5" />
-                </Button>
-              </Tooltip>
-            )}
-
-            <div className="h-8 w-px bg-white/20" />
-
-            <Button variant="plain" onClick={handleSaveWorkflow} disabled={isPending} className="text-sm">
-              <SaveIcon className="mr-1.5 size-3.5" />
-              {isPending ? 'Saving...' : 'Save'}
-            </Button>
-
-            <Button variant="plain" onClick={handleCancel} className="text-sm">
-              <XIcon className="mr-1.5 size-3.5" />
-              Cancel
-            </Button>
-
-            {!isNew && (
-              <>
-                <div className="h-8 w-px bg-white/20" />
-                <Switch
-                  checked={isEnabled}
-                  handleChange={setIsEnabled}
-                  showLabels
-                  enabledLabel="Enabled"
-                  disabledLabel="Disabled"
+        <div className="relative flex grow gap-4 overflow-hidden">
+          <div className="relative flex min-w-0 grow flex-col gap-2 overflow-hidden transition-all duration-300">
+            <AppPageHeader
+              title={
+                <input
+                  type="text"
+                  value={workflowName}
+                  onChange={(e) => setWorkflowName(e.target.value)}
+                  className="-ml-2 rounded bg-transparent px-2 py-1 text-lg font-semibold outline-none focus:ring-2 focus:ring-blue-400/50"
+                  placeholder="Workflow name"
                 />
-              </>
-            )}
-          </AppPageHeader>
-
-          <div className="relative flex min-w-0 grow gap-2 overflow-hidden">
-            <div className="relative isolate flex min-w-0 grow gap-2 overflow-hidden">
-              <div className="glass absolute inset-0 rounded-4xl border-2"></div>
-              <BuilderFlow
-                panelOpen={addNodePanelOpen || !!selectedNode}
-                onNodeClick={handleNodeClick}
-                onAddNodeFromEdge={(sourceId, targetId, edgeId) => {
-                  setSourceNodeId(sourceId)
-                  setTargetNodeId(targetId || null)
-                  setEdgeIdToReplace(edgeId || null)
-                  setAddNodePanelOpen(true)
-                }}
-              />
-            </div>
-
-            {addNodePanelOpen && (
-              <AddNodePanel
-                onClose={() => {
-                  setAddNodePanelOpen(false)
-                  setSourceNodeId(null)
+              }
+            >
+              <Button
+                variant="plain"
+                onClick={() => {
+                  setSourceNodeId(null) // No source node when adding from header
                   setTargetNodeId(null)
                   setEdgeIdToReplace(null)
+                  setAddNodePanelOpen(true)
                 }}
-                onNodeSelect={showSuccess}
-                onNodeError={showError}
-                sourceNodeId={sourceNodeId}
-                onConnect={(sourceId, targetId) => {
-                  // Wait for target node to be rendered and measured by React Flow
-                  // Check every 50ms for up to 2 seconds
-                  let attempts = 0
-                  const maxAttempts = 40
+                className="text-sm whitespace-nowrap"
+              >
+                <PlusIcon className="mr-1.5 size-3.5" />
+                Add Node
+              </Button>
 
-                  const checkAndConnect = () => {
-                    const nodes = reactFlowInstance.getNodes()
-                    const targetNode = nodes.find((n) => n.id === targetId)
+              <div className="h-8 w-px bg-white/20" />
 
-                    if (targetNode?.measured) {
-                      // Get current edges
-                      const currentEdges = reactFlowInstance.getEdges()
+              {!isNew && workflow?.id && (
+                <>
+                  <Button variant="plain" onClick={() => setConfirmDialogOpen(true)} className="text-sm">
+                    <PlayIcon className="mr-1.5 size-3.5" />
+                    Run
+                  </Button>
+                  <div className="h-8 w-px bg-white/20" />
+                </>
+              )}
 
-                      // Remove button edge from source node
-                      let filteredEdges = currentEdges.filter((e) => e.id !== `button-${sourceId}`)
+              <Tooltip content="Workflow details">
+                <Button variant="plain" onClick={handleToggleDetails}>
+                  <FileCode className="size-3.5" />
+                </Button>
+              </Tooltip>
 
-                      // If we're inserting between two nodes, remove the old edge
-                      if (edgeIdToReplace && targetNodeId) {
-                        filteredEdges = filteredEdges.filter((e) => e.id !== edgeIdToReplace)
+              {!isNew && workflow?.id && (
+                <Tooltip content="Run history">
+                  <Button variant="plain" onClick={handleToggleHistory}>
+                    <ClockIcon className="size-3.5" />
+                  </Button>
+                </Tooltip>
+              )}
 
-                        // Add edge from source to new node
-                        filteredEdges.push({
-                          id: `${sourceId}-${targetId}`,
-                          source: sourceId,
-                          target: targetId,
-                          sourceHandle: 'source',
-                          targetHandle: 'target',
-                          type: 'default',
-                          markerEnd: { type: 'arrowclosed', width: 12, height: 12, color: '#6b7280' },
-                          data: {
-                            onAddNode: (srcId: string, tgtId: string, edId: string) => {
-                              setSourceNodeId(srcId)
-                              setTargetNodeId(tgtId)
-                              setEdgeIdToReplace(edId)
-                              setAddNodePanelOpen(true)
-                            },
-                          },
-                        })
+              <div className="h-8 w-px bg-white/20" />
 
-                        // Add edge from new node to original target
-                        filteredEdges.push({
-                          id: `${targetId}-${targetNodeId}`,
-                          source: targetId,
-                          target: targetNodeId,
-                          sourceHandle: 'source',
-                          targetHandle: 'target',
-                          type: 'default',
-                          markerEnd: { type: 'arrowclosed', width: 12, height: 12, color: '#6b7280' },
-                          data: {
-                            onAddNode: (srcId: string, tgtId: string, edId: string) => {
-                              setSourceNodeId(srcId)
-                              setTargetNodeId(tgtId)
-                              setEdgeIdToReplace(edId)
-                              setAddNodePanelOpen(true)
-                            },
-                          },
-                        })
+              <Button variant="plain" onClick={handleSaveWorkflow} disabled={isPending} className="text-sm">
+                <SaveIcon className="mr-1.5 size-3.5" />
+                {isPending ? 'Saving...' : 'Save'}
+              </Button>
 
-                        reactFlowInstance.setEdges(filteredEdges)
-                      } else {
-                        // Normal connection - just add one edge
-                        reactFlowInstance.setEdges([
-                          ...filteredEdges,
-                          {
+              <Button variant="plain" onClick={handleCancel} className="text-sm">
+                <XIcon className="mr-1.5 size-3.5" />
+                Cancel
+              </Button>
+
+              {!isNew && (
+                <>
+                  <div className="h-8 w-px bg-white/20" />
+                  <Switch
+                    checked={isEnabled}
+                    handleChange={setIsEnabled}
+                    showLabels
+                    enabledLabel="Enabled"
+                    disabledLabel="Disabled"
+                  />
+                </>
+              )}
+            </AppPageHeader>
+
+            <div className="relative flex min-w-0 grow gap-2 overflow-hidden">
+              <div className="relative isolate flex min-w-0 grow gap-2 overflow-hidden">
+                <div className="glass absolute inset-0 rounded-4xl border-2"></div>
+                <BuilderFlow
+                  panelOpen={addNodePanelOpen || !!selectedNode}
+                  onNodeClick={handleNodeClick}
+                  onAddNodeFromEdge={(sourceId, targetId, edgeId) => {
+                    setSourceNodeId(sourceId)
+                    setTargetNodeId(targetId || null)
+                    setEdgeIdToReplace(edgeId || null)
+                    setAddNodePanelOpen(true)
+                  }}
+                />
+              </div>
+
+              {addNodePanelOpen && (
+                <AddNodePanel
+                  onClose={() => {
+                    setAddNodePanelOpen(false)
+                    setSourceNodeId(null)
+                    setTargetNodeId(null)
+                    setEdgeIdToReplace(null)
+                  }}
+                  onNodeSelect={showSuccess}
+                  onNodeError={showError}
+                  sourceNodeId={sourceNodeId}
+                  onConnect={(sourceId, targetId) => {
+                    // Wait for target node to be rendered and measured by React Flow
+                    // Check every 50ms for up to 2 seconds
+                    let attempts = 0
+                    const maxAttempts = 40
+
+                    const checkAndConnect = () => {
+                      const nodes = reactFlowInstance.getNodes()
+                      const targetNode = nodes.find((n) => n.id === targetId)
+
+                      if (targetNode?.measured) {
+                        // Get current edges
+                        const currentEdges = reactFlowInstance.getEdges()
+
+                        // Remove button edge from source node
+                        let filteredEdges = currentEdges.filter((e) => e.id !== `button-${sourceId}`)
+
+                        // If we're inserting between two nodes, remove the old edge
+                        if (edgeIdToReplace && targetNodeId) {
+                          filteredEdges = filteredEdges.filter((e) => e.id !== edgeIdToReplace)
+
+                          // Add edge from source to new node
+                          filteredEdges.push({
                             id: `${sourceId}-${targetId}`,
                             source: sourceId,
                             target: targetId,
@@ -459,41 +418,84 @@ export function BuilderContent(props: BuilderContentProps) {
                                 setAddNodePanelOpen(true)
                               },
                             },
-                          },
-                        ])
+                          })
+
+                          // Add edge from new node to original target
+                          filteredEdges.push({
+                            id: `${targetId}-${targetNodeId}`,
+                            source: targetId,
+                            target: targetNodeId,
+                            sourceHandle: 'source',
+                            targetHandle: 'target',
+                            type: 'default',
+                            markerEnd: { type: 'arrowclosed', width: 12, height: 12, color: '#6b7280' },
+                            data: {
+                              onAddNode: (srcId: string, tgtId: string, edId: string) => {
+                                setSourceNodeId(srcId)
+                                setTargetNodeId(tgtId)
+                                setEdgeIdToReplace(edId)
+                                setAddNodePanelOpen(true)
+                              },
+                            },
+                          })
+
+                          reactFlowInstance.setEdges(filteredEdges)
+                        } else {
+                          // Normal connection - just add one edge
+                          reactFlowInstance.setEdges([
+                            ...filteredEdges,
+                            {
+                              id: `${sourceId}-${targetId}`,
+                              source: sourceId,
+                              target: targetId,
+                              sourceHandle: 'source',
+                              targetHandle: 'target',
+                              type: 'default',
+                              markerEnd: { type: 'arrowclosed', width: 12, height: 12, color: '#6b7280' },
+                              data: {
+                                onAddNode: (srcId: string, tgtId: string, edId: string) => {
+                                  setSourceNodeId(srcId)
+                                  setTargetNodeId(tgtId)
+                                  setEdgeIdToReplace(edId)
+                                  setAddNodePanelOpen(true)
+                                },
+                              },
+                            },
+                          ])
+                        }
+                      } else if (attempts < maxAttempts) {
+                        attempts++
+                        setTimeout(checkAndConnect, 50)
                       }
-                    } else if (attempts < maxAttempts) {
-                      attempts++
-                      setTimeout(checkAndConnect, 50)
                     }
-                  }
 
-                  checkAndConnect()
-                }}
-              />
-            )}
+                    checkAndConnect()
+                  }}
+                />
+              )}
 
-            {historyCardOpen && !isNew && (
-              <AutomationHistoryCard
-                executions={executionsQuery.data?.resources ?? []}
-                onClose={() => setHistoryCardOpen(false)}
-              />
-            )}
+              {historyCardOpen && !isNew && (
+                <AutomationHistoryCard
+                  executions={executionsQuery.data?.resources ?? []}
+                  onClose={() => setHistoryCardOpen(false)}
+                />
+              )}
 
-            {detailsOpen && workflow && (
-              <WorkflowSidepanel
-                workflow={workflow}
-                workflowName={workflowName}
-                workflowDescription={workflowDescription}
-                onNameChange={setWorkflowName}
-                onDescriptionChange={setWorkflowDescription}
-                onClose={() => setDetailsOpen(false)}
-              />
-            )}
+              {detailsOpen && workflow && (
+                <WorkflowSidepanel
+                  workflow={workflow}
+                  workflowName={workflowName}
+                  workflowDescription={workflowDescription}
+                  onNameChange={setWorkflowName}
+                  onDescriptionChange={setWorkflowDescription}
+                  onClose={() => setDetailsOpen(false)}
+                />
+              )}
 
-            {selectedNode && (
-              <NodeDetailsPanel key={selectedNode.id} node={selectedNode} onClose={() => setSelectedNode(null)} />
-            )}
+              {selectedNode && (
+                <NodeDetailsPanel key={selectedNode.id} node={selectedNode} onClose={() => setSelectedNode(null)} />
+              )}
+            </div>
           </div>
         </div>
 
