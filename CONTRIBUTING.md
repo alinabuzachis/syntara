@@ -12,6 +12,59 @@ We're excited that you're interested in contributing to the Nexus UI project. Th
 
 ## Getting Started
 
+### Specification-Driven Development with GitHub Spec Kit
+
+This project utilizes [GitHub's Spec Kit](https://github.com/github/spec-kit) for specification-driven development. This aligns our development workflow with the backend repository.
+
+#### Setup
+
+1.  **Configuration**: The project is already configured with:
+    - `.specify/` - Templates and configuration
+    - `.cursor/commands/` - Cursor AI commands (prefixed with `speckit.`)
+
+    To sync new commands from `.claude/` to `.cursor/`, run:
+
+    ```bash
+    npm run sync-cursor-commands
+    ```
+
+#### Workflow (Using Cursor AI)
+
+We use **Cursor Composer** (Cmd+I / Ctrl+I) to drive the Spec Kit workflow.
+
+1.  **Specify** (`@speckit.specify`)
+    - Open Composer and type: `@speckit.specify "Description of your feature"`
+    - This generates a specification file in `specs/NNN-feature-name/spec.md`.
+    - Review and refine the generated spec.
+
+2.  **Plan** (`@speckit.plan`)
+    - With the spec file open or referenced, type: `@speckit.plan`
+    - This generates an implementation plan in `specs/NNN-feature-name/plan.md`.
+    - It covers architecture, data models, and technical approach.
+
+3.  **Tasks** (`@speckit.tasks`)
+    - With the plan file open, type: `@speckit.tasks`
+    - This breaks the plan into actionable, sequential tasks in `specs/NNN-feature-name/tasks.md`.
+
+4.  **Implement** (`@speckit.implement`)
+    - Type: `@speckit.implement`
+    - The agent will read the tasks and start implementing them one by one.
+    - It will create/edit files, run tests, and mark tasks as complete.
+
+### Spec Numbering and Branching
+
+To align with the backend process:
+
+1.  **One Branch Per Feature**: Create a branch for your feature (e.g., `feature/dark-mode`).
+2.  **Numbered Specs**: Specs must be placed in `specs/` with a sequential number prefix.
+    - Example: `specs/011-theme-switcher/`
+    - Check the `specs/` directory to find the next available number.
+    - You can verify the sequence by running:
+      ```bash
+      npm run check-specs
+      ```
+3.  **Commit Specs**: The spec files (`spec.md`, `plan.md`, `tasks.md`) should be committed to the repository to serve as permanent documentation.
+
 ### 1. Fork and Clone the Repository
 
 1. Fork the repository on GitHub

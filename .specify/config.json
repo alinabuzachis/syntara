@@ -1,0 +1,10 @@
+{
+  "features": {
+    "mermaid-diagrams": {
+      "specify": true,
+      "plan": true,
+      "clarify": true,
+      "tasks": true
+    }
+  }
+}
