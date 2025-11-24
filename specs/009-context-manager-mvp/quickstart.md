@@ -33,7 +33,7 @@ This quickstart validates that the Context Manager MVP scaffolding successfully 
    planner = ContextManagerPlanner()
    result = planner.plan_request(
        run_id="quickstart-test-001",
-       tenant_id="test-tenant",
+       session_id="test-session",
        query="sample context query"
    )
    ```

@@ -30,7 +30,7 @@ class ContextManagerPlanner:
     def plan_request(
         self,
         correlation_id: str,
-        tenant_id: str,
+        session_id: str,
         query: str,
     ) -> ContextPackage:
         """Plan and execute a context request.
@@ -42,7 +42,7 @@ class ContextManagerPlanner:
 
         Args:
             correlation_id: Correlation identifier for distributed tracing
-            tenant_id: Tenant identifier for multi-tenancy
+            session_id: Session identifier for grouping related invocations
             query: User query string for context retrieval
 
         Returns:
@@ -52,7 +52,7 @@ class ContextManagerPlanner:
         start_time = time.time()
 
         logger.info("Starting context planning for correlation_id: %s", correlation_id)
-        logger.debug("Context planning - Tenant: %s, Query: %s", tenant_id, query)
+        logger.debug("Context planning - Tenant: %s, Query: %s", session_id, query)
 
         # Initialize timing metadata
         timing_data = {}
@@ -100,8 +100,7 @@ class ContextManagerPlanner:
 
         # Create metadata
         package_metadata = {
-            "tenant_id": tenant_id,
-            "trace_id": f"trace_{correlation_id}",
+            "session_id": session_id,
             "sections": [],  # Empty for MVP
             "token_count": 0,  # Zero for MVP
             **timing_data,

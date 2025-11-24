@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12"
 
 [[package]]
@@ -1255,6 +1255,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "respx" },
+    { name = "types-aiofiles" },
 ]
 
 [package.metadata]
@@ -1304,7 +1305,10 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "respx", specifier = ">=0.22.0" }]
+dev = [
+    { name = "respx", specifier = ">=0.22.0" },
+    { name = "types-aiofiles", specifier = ">=25.1.0.20251011" },
+]
 
 [[package]]
 name = "nexus-rpc"

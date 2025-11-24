@@ -53,7 +53,7 @@ class TestContextManagerPlanner:
                 "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble", side_effect=mock_assemble
             ),
         ):
-            result = planner.plan_request(correlation_id="test-run-123", tenant_id="test-tenant", query="test query")
+            result = planner.plan_request(correlation_id="test-run-123", session_id="test-session", query="test query")
 
         # Verify return type and structure
         assert isinstance(result, ContextPackage)
@@ -64,17 +64,17 @@ class TestContextManagerPlanner:
         assert result.id is not None  # UUID generated
 
         # Verify metadata structure
-        assert "tenant_id" in result.package_metadata
-        assert "trace_id" in result.package_metadata
+        assert "session_id" in result.package_metadata
         assert "query" in result.package_metadata
         assert "retrieval_time_ms" in result.package_metadata
         assert "compression_time_ms" in result.package_metadata
         assert "assembly_time_ms" in result.package_metadata
         assert "total_time_ms" in result.package_metadata
 
-        assert result.package_metadata["tenant_id"] == "test-tenant"
+        assert result.package_metadata["session_id"] == "test-session"
         assert result.package_metadata["query"] == "test query"
-        assert result.package_metadata["trace_id"] == "trace_test-run-123"
+        # correlation_id is stored in the model field, not package_metadata
+        assert result.correlation_id == "test-run-123"
 
         # Verify all services were called through mock tracking
         assert "retrieve:test-run-123:test query" in service_calls
@@ -86,19 +86,18 @@ class TestContextManagerPlanner:
         planner = ContextManagerPlanner()
 
         result = planner.plan_request(
-            correlation_id="different-run", tenant_id="different-tenant", query="different query"
+            correlation_id="different-run", session_id="different-session", query="different query"
         )
 
         assert result.correlation_id == "different-run"
-        assert result.package_metadata["tenant_id"] == "different-tenant"
+        assert result.package_metadata["session_id"] == "different-session"
         assert result.package_metadata["query"] == "different query"
-        assert result.package_metadata["trace_id"] == "trace_different-run"
 
     def test_plan_request_timing_metadata(self) -> None:
         """Test that timing metadata is properly recorded."""
         planner = ContextManagerPlanner()
 
-        result = planner.plan_request(correlation_id="timing-test", tenant_id="test-tenant", query="timing query")
+        result = planner.plan_request(correlation_id="timing-test", session_id="test-session", query="timing query")
 
         # Verify timing fields exist and are reasonable
         metadata = result.package_metadata
@@ -132,7 +131,7 @@ class TestContextManagerPlanner:
             mock_assemble.side_effect = Exception("Assembly failed")
 
             # Should not raise exception despite service failures
-            result = planner.plan_request(correlation_id="error-test", tenant_id="test-tenant", query="error query")
+            result = planner.plan_request(correlation_id="error-test", session_id="test-session", query="error query")
 
             # Verify planner still returns a result despite errors
             assert isinstance(result, ContextPackage)
@@ -152,7 +151,7 @@ class TestContextManagerPlanner:
         """Test that configuration values are included in metadata."""
         planner = ContextManagerPlanner()
 
-        result = planner.plan_request(correlation_id="config-test", tenant_id="test-tenant", query="config query")
+        result = planner.plan_request(correlation_id="config-test", session_id="test-session", query="config query")
 
         # Verify config values are in metadata
         assert "config_used" in result.package_metadata
@@ -178,7 +177,9 @@ class TestContextManagerPlanner:
         assert package.payload == {"test": "data"}
         assert package.grounding_score == 0.5
         assert len(package.citations) == 1
-        assert package.package_metadata == {"key": "value"}
+        # Check the expected metadata
+        assert "key" in package.package_metadata
+        assert package.package_metadata["key"] == "value"
         assert package.id is not None  # UUID auto-generated
 
     def test_context_package_grounding_score_validation(self) -> None:

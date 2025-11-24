@@ -52,7 +52,7 @@ Hardcoded configuration values for MVP scaffolding (non-SQLModel).
 
 ### RetrieverService Interface
 
-**Input**: `correlation_id: str`, `tenant_id: str`, `query: str`
+**Input**: `correlation_id: str`, `session_id: str`, `query: str`
 **Output**: `dict[str, Any]` (retrieved content data)
 **Purpose**: Find and retrieve relevant documents/content
 

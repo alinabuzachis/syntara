@@ -135,7 +135,7 @@ graph TB
 
 ### API Specification Standards Compliance
 - [x] **OpenAPI/AsyncAPI Compliance**: N/A for MVP scaffolding (internal orchestration services, no external APIs exposed)
-- [x] **Naming Convention**: All internal interfaces follow snake_case pattern (run_id, tenant_id, package_metadata)
+- [x] **Naming Convention**: All internal interfaces follow snake_case pattern (session_id, package_metadata)
 - [x] **Documentation Completeness**: All service interfaces fully documented with docstrings, type hints, and examples
 - [x] **RFC 9457 Error Format**: Error handling follows structured logging patterns (deferred to API layer when exposed)
 - [x] **Error Message Safety**: Error messages use structured logging without exposing internal details

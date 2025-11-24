@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexus.agent_orchestrator.agents import GenericAgent
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
+from nexus.agent_orchestrator.context_manager import ContextManagerPlanner
 from nexus.agent_orchestrator.context_manager.file_manager import FileManager
 from nexus.agent_orchestrator.context_manager.file_manager import utils as file_utils
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
@@ -185,22 +186,101 @@ class InvocationService(BaseService):
             invocation.status = InvocationStatus.RUNNING
             await self.session.commit()
 
-            # Execute GenericAgent (only agent implemented in NEXUS-002-4)
+            # Attempt context enhancement with graceful fallback
+            context_package = None
+            enhanced_prompt = invocation.prompt
+
+            try:
+                # Initiate context building through Context Manager
+                # Extract correlation_id from workflow context, fallback to invocation_id
+                correlation_id = str(invocation.context_data.get("correlation_id", invocation.id))
+
+                context_planner = ContextManagerPlanner()
+                context_package = context_planner.plan_request(
+                    correlation_id=correlation_id, session_id=invocation.session_id, query=invocation.prompt
+                )
+
+                logger.info(
+                    "Context package created (invocation_id=%s, correlation_id=%s, grounding_score=%f)",
+                    invocation.id,
+                    correlation_id,
+                    context_package.grounding_score,
+                )
+
+                # Format context for prompt enhancement - always include delimiters for observability
+                context_content = self._format_context_for_prompt(context_package.payload)
+                enhanced_prompt = f"""{invocation.prompt}
+
+--- CONTEXT ---
+{context_content}
+--- END CONTEXT ---"""
+
+                logger.debug(
+                    "Prompt enhanced with context (invocation_id=%s, original_length=%d, enhanced_length=%d)",
+                    invocation.id,
+                    len(invocation.prompt),
+                    len(enhanced_prompt),
+                )
+
+            except Exception as context_error:  # noqa: BLE001 - Need to catch all exceptions for graceful fallback
+                # Log context error but continue with original prompt (graceful fallback)
+                logger.warning(
+                    "Context Manager failed, proceeding with original prompt (invocation_id=%s): %s",
+                    invocation.id,
+                    str(context_error),
+                    exc_info=context_error,
+                )
+                # enhanced_prompt remains as original invocation.prompt
+                # context_package remains None
+
+            # Execute GenericAgent (with enhanced or original prompt)
+            logger.info(
+                "Sending prompt to LLM (invocation_id=%s): %s",
+                invocation.id,
+                enhanced_prompt,
+            )
             response = await self.generic_agent.execute(
-                prompt=invocation.prompt,
+                prompt=enhanced_prompt,
                 invocation_id=exec_invocation_id,
             )
 
+            # Build result with optional context enhancement
+            result_dict = response.model_dump(by_alias=True)
+
+            # Add context metadata only if context processing succeeded
+            if context_package is not None:
+                result_dict.update(
+                    {
+                        "correlation_id": context_package.correlation_id,
+                        "grounding_score": context_package.grounding_score,
+                    }
+                )
+
+                # Add context_enhancement if context was populated
+                if context_package.payload or context_package.citations:
+                    result_dict["context_enhancement"] = {
+                        "turn_id": context_package.id,
+                        "citations": context_package.citations,
+                        "context_applied": True,
+                    }
+
+                logger.info(
+                    "Invocation completed successfully with context enhancement (invocation_id=%s, correlation_id=%s)",
+                    invocation.id,
+                    context_package.correlation_id,
+                )
+            else:
+                # Context enhancement failed, but invocation succeeded
+                logger.info(
+                    "Invocation completed successfully without context enhancement (invocation_id=%s)",
+                    invocation.id,
+                )
+
             # Store result and mark as completed
-            invocation.result = response.model_dump(by_alias=True)
+            invocation.result = result_dict
             invocation.status = InvocationStatus.COMPLETED
             invocation.completed_at = datetime.now(UTC)
             await self.session.commit()
-
-            logger.info(
-                "Invocation completed successfully (invocation_id=%s)",
-                exec_invocation_id,
-            )
 
         except Exception as e:
             logger.exception(
@@ -218,6 +298,26 @@ class InvocationService(BaseService):
                 fresh_invocation.error_message = str(e)
                 fresh_invocation.completed_at = datetime.now(UTC)
                 await self.session.commit()
+
+    def _format_context_for_prompt(self, payload: dict[str, object]) -> str:
+        """Format context payload for LLM consumption.
+
+        Args:
+            payload: Context data from ContextPackage
+
+        Returns:
+            Formatted string ready for prompt enhancement
+
+        """
+        if not payload:
+            return "(no additional context available)"
+
+        sections = []
+        for key, value in payload.items():
+            # Format each key-value pair as a section
+            sections.append(f"## {key}\n{value}")
+
+        return "\n\n".join(sections)
 
     async def get_invocation(self, invocation_id: UUID) -> Invocation | None:
         """Get invocation by ID including result.

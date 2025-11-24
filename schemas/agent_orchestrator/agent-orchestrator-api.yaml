@@ -283,7 +283,7 @@ paths:
                 $ref: '#/components/schemas/Invocation'
               examples:
                 completedGenericAgent:
-                  summary: Completed GenericAgent invocation
+                  summary: Completed GenericAgent invocation with context enhancement
                   value:
                     id: 550e8400-e29b-41d4-a716-446655440000
                     prompt: What deployment tools are available?
@@ -301,9 +301,22 @@ paths:
                       user_context: testing
                     result:
                       type: answer
-                      content: The Nexus system provides several deployment tools...
-                      metadata:
+                      content: Based on the available documentation, the Nexus system
+                        provides several deployment tools including Docker for containerization,
+                        Kubernetes for orchestration, and Terraform for infrastructure
+                        as code...
+                      response_metadata:
                         model: anthropic/claude-3.5-sonnet
+                      correlation_id: workflow-correlation-456
+                      grounding_score: 0.8
+                      context_enhancement:
+                        turn_id: 770e8400-e29b-41d4-a716-446655440003
+                        citations:
+                        - source: deployment-guide.md
+                          relevance: 0.9
+                        - source: tools-inventory.yaml
+                          relevance: 0.7
+                        context_applied: true
                     errorMessage:
                     checkpointData:
                 runningInvocation:
@@ -758,11 +771,80 @@ components:
             type: object
             nullable: true
             title: Result
-            description: Invocation result data (populated on completion)
+            description: |
+              Invocation result data (populated on completion).
+
+              For context-enhanced invocations, includes additional metadata:
+              - correlation_id: ID for distributed tracing and correlation
+              - grounding_score: Relevance score (0.0-1.0) indicating context quality
+              - context_enhancement: Additional context enhancement information including citations
             additionalProperties: true
+            properties:
+              type:
+                type: string
+                description: Type of response (typically "answer")
+                example: answer
+              content:
+                type: string
+                description: Main response content from the AI agent
+                example: The deployment tools available include...
+              response_metadata:
+                type: object
+                description: Metadata from the AI model response
+                additionalProperties: true
+              correlation_id:
+                type: string
+                description: Correlation ID for distributed tracing and debugging
+                  (optional)
+                example: workflow-correlation-123
+              grounding_score:
+                type: number
+                format: float
+                minimum: 0.0
+                maximum: 1.0
+                description: 'Relevance score indicating context quality: 0.0 (no
+                  context) to 1.0 (high-quality context) (optional)'
+                example: 0.85
+              context_enhancement:
+                type: object
+                description: Additional context enhancement information when context
+                  enhancement is applied (optional)
+                properties:
+                  turn_id:
+                    type: string
+                    format: uuid
+                    description: Context package identifier for correlation
+                    example: 660e8400-e29b-41d4-a716-446655440001
+                  citations:
+                    type: array
+                    description: Source citations for context information
+                    items:
+                      type: object
+                      additionalProperties: true
+                    example:
+                    - source: api-docs.md
+                      relevance: 0.9
+                    - source: deployment-guide.yaml
+                      relevance: 0.8
+                  context_applied:
+                    type: boolean
+                    description: Whether context enhancement was successfully applied
+                    example: true
+                additionalProperties: true
             example:
-              workflowId: wf-123
-              status: success
+              type: answer
+              content: The deployment tools available include Docker, Kubernetes,
+                and Terraform...
+              response_metadata:
+                model: anthropic/claude-3.5-sonnet
+              correlation_id: workflow-correlation-123
+              grounding_score: 0.85
+              context_enhancement:
+                turn_id: 660e8400-e29b-41d4-a716-446655440001
+                citations:
+                - source: deployment-tools.md
+                  relevance: 0.9
+                context_applied: true
           errorMessage:
             type: string
             nullable: true

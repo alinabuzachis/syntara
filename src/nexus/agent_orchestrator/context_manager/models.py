@@ -53,3 +53,15 @@ class ContextPackage(SQLModel):
         default_factory=dict,
         description="Additional metadata including timing, token counts, tenant info",
     )
+
+    def __init__(self, **data: Any) -> None:  # noqa: ANN401
+        """Initialize ContextPackage.
+
+        Args:
+            **data: Model field data
+
+        """
+        super().__init__(**data)
+        # Initialize package_metadata if not provided
+        if "package_metadata" not in data or not data["package_metadata"]:
+            self.package_metadata = {}
