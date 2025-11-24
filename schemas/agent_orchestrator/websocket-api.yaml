@@ -1,0 +1,219 @@
+asyncapi: 3.0.0
+info:
+  title: Agent Orchestrator WebSocket API
+  description: WebSocket API specification for LLM response streaming in the Agent
+    Orchestrator
+  version: 1.0.0
+
+servers:
+  development:
+    host: localhost:8000
+    protocol: ws
+    description: Local development server
+
+channels:
+  invocations_streaming:
+    address: /ws/agent_orchestrator/v1/invocations/{invocation_id}
+    description: |
+      WebSocket endpoint for real-time streaming of LLM responses.
+
+      **Streaming Events:**
+      - delta: Individual content delta delivery during LLM response generation
+      - error: Streaming errors or failures
+      - cancelled: Streaming cancelled due to client disconnect
+      - completion: Streaming completed successfully
+
+      **Connection Management:**
+      - Clients receive historical events on connection (last 10 events by default)
+      - Real-time events delivered as they occur
+      - Connection remains open until streaming completes or client disconnects
+
+      **Query Parameters:**
+      - replay_count: Number of historical events to replay (default: 10, max: 1000)
+      - last_event_id: Resume from specific event ID (takes precedence over replay_count)
+
+    messages:
+      streamingConnectionRequest:
+        $ref: '#/components/messages/StreamingConnectionRequest'
+      streamingEvent:
+        $ref: '#/components/messages/StreamingEvent'
+
+components:
+  messages:
+    StreamingConnectionRequest:
+      description: Dummy request message (framework requirement - not actually used)
+      payload:
+        type: object
+        properties:
+          dummy:
+            type: boolean
+            description: Placeholder field
+
+    StreamingEvent:
+      description: Streaming event sent from server to client
+      payload:
+        $ref: '#/components/schemas/StreamingEvent'
+
+  schemas:
+    StreamingEvent:
+      type: object
+      title: Streaming Event
+      description: WebSocket event for LLM response streaming
+      required:
+      - event_type
+      - invocation_id
+      - timestamp
+      - event_id
+      - data
+      properties:
+        event_type:
+          type: string
+          enum: [delta, error, cancelled, completion]
+          title: Event Type
+          description: Type of streaming event
+          example: delta
+        invocation_id:
+          type: string
+          format: uuid
+          title: Invocation ID
+          description: Invocation this event belongs to
+          example: 550e8400-e29b-41d4-a716-446655440000
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+          description: When this event occurred (microsecond precision)
+          example: '2025-11-13T10:30:15.123456Z'
+        data:
+          type: object
+          title: Event Data
+          description: Event-specific data payload
+          additionalProperties: true
+          oneOf:
+          - $ref: '#/components/schemas/DeltaEventData'
+          - $ref: '#/components/schemas/ErrorEventData'
+          - $ref: '#/components/schemas/CancelledEventData'
+          - $ref: '#/components/schemas/CompletionEventData'
+        event_id:
+          type: string
+          title: Event ID
+          description: Valkey stream event ID for resumption and ordering (format
+            {milliseconds}-{sequence})
+          example: 1691431234567-42
+
+    DeltaEventData:
+      type: object
+      title: Delta Event Data
+      description: Data for individual delta streaming events
+      required:
+      - delta
+      properties:
+        delta:
+          type: string
+          title: Delta Content
+          description: The actual delta content
+          example: Hello
+
+    ErrorEventData:
+      type: object
+      title: Error Event Data
+      description: Data for streaming error events following RFC 9457 Problem Details
+        principles
+      required:
+      - type
+      - title
+      - detail
+      properties:
+        type:
+          type: string
+          format: uri
+          title: Error Type URI
+          description: URI reference identifying the problem type
+          example: https://api.nexus.com/errors/llm-error
+        title:
+          type: string
+          title: Error Title
+          description: Short, human-readable summary of the problem
+          example: LLM Service Unavailable
+        detail:
+          type: string
+          title: Error Detail
+          description: Human-readable explanation specific to this occurrence
+          example: 'OpenRouter API returned error: rate limit exceeded. Please try
+            again in a few moments.'
+        code:
+          type: string
+          title: Error Code
+          description: Machine-readable error code for programmatic handling
+          example: RATE_LIMIT_EXCEEDED
+        retryable:
+          type: boolean
+          title: Is Retryable
+          description: Whether this error can be retried by creating a new invocation
+          example: true
+        instance:
+          type: string
+          format: uri
+          title: Error Instance
+          description: Optional URI reference identifying the specific occurrence
+          example: /invocations/550e8400-e29b-41d4-a716-446655440000
+
+    CancelledEventData:
+      type: object
+      title: Cancelled Event Data
+      description: Data for streaming cancellation events
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          enum: [user_cancelled, timeout, server_shutdown, llm_error]
+          title: Cancellation Reason
+          description: Why the streaming was cancelled
+          example: timeout
+
+    CompletionEventData:
+      type: object
+      title: Completion Event Data
+      description: Data for streaming completion events. Empty object - the event_type
+        itself indicates successful completion.
+      properties: {}
+      additionalProperties: false
+
+  parameters:
+    invocation_id_param:
+      name: invocation_id
+      in: path
+      required: true
+      description: UUID of the invocation to stream events for
+      schema:
+        type: string
+        format: uuid
+      example: 550e8400-e29b-41d4-a716-446655440000
+
+    replayCountParam:
+      name: replay_count
+      in: query
+      required: false
+      description: "Number of historical events to replay on connection (default:
+        10, max: 1000). Use 0 for live-only, 'all' for complete history."
+      schema:
+        oneOf:
+        - type: integer
+          minimum: 0
+          maximum: 1000
+          default: 10
+        - type: string
+          enum: [all]
+      example: 10
+
+    lastEventIdParam:
+      name: last_event_id
+      in: query
+      required: false
+      description: Resume from specific event ID (for precise reconnection). Use '0'
+        to start from beginning of stream. Takes precedence over replay_count.
+      schema:
+        type: string
+        description: Valkey stream event ID to resume after
+      example: 1691431234567-42

@@ -1,0 +1,26 @@
+User Story
+As a user, I want LLM responses to stream back progressively so that I can see partial results in real time.
+
+Supporting Documentation
+
+
+Definition of Done
+
+Adapter supports streaming token responses.
+Clients receive incremental updates.
+Works with OpenRouter streaming API.
+Acceptance Criteria
+
+Responses stream token-by-token.
+Connection stable during long outputs.
+Stream terminates cleanly on completion.
+Requirements
+
+Integrate streaming handler with provider API.
+Forward tokens to client via FastAPI generator.
+Handle stream cancellation gracefully.
+End-to-End Test
+
+Invoke long query.
+Observe streamed tokens in real time.
+Verify completion signal received.
