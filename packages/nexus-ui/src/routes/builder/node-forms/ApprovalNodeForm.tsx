@@ -1,93 +1,99 @@
-/* eslint-disable jsx-a11y/label-has-associated-control */
-import { Button } from '@ansible/nexus-ui-framework'
-import { useState } from 'react'
+import { Button, Card, Form, Input, NativeSelect, Textarea, useFormContext } from '@ansible/nexus-ui-framework'
+
+interface ApprovalFormData {
+  name: string
+  approvers: string
+  prompt: string
+  timeout: string
+  onTimeout: string
+}
 
 interface ApprovalNodeFormProps {
-  onSubmit: (data: { name: string; approvers: string; prompt: string; timeout: string; onTimeout: string }) => void
+  onSubmit: (data: ApprovalFormData) => void
   onCancel: () => void
 }
 
-export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
-  const [name, setName] = useState('')
-  const [approvers, setApprovers] = useState('')
-  const [prompt, setPrompt] = useState('')
-  const [timeout, setTimeout] = useState('P1D')
-  const [onTimeout, setOnTimeout] = useState('fail')
+function ApprovalFormFields() {
+  const { register } = useFormContext<ApprovalFormData>()
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="approval-name" className="text-xs font-medium text-gray-300">
+          Activity Name <span className="text-red-500">*</span>
+        </label>
+        <Input
+          {...register('name', { required: true })}
+          id="approval-name"
+          placeholder="Enter activity name"
+          className="text-xs"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="approval-approvers" className="text-xs font-medium text-gray-300">
+          Approvers (comma-separated) <span className="text-red-500">*</span>
+        </label>
+        <Input
+          {...register('approvers', { required: true })}
+          id="approval-approvers"
+          placeholder="user1@example.com, user2@example.com"
+          className="text-xs"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="approval-prompt" className="text-xs font-medium text-gray-300">
+          Approval Prompt <span className="text-red-500">*</span>
+        </label>
+        <Textarea
+          {...register('prompt', { required: true })}
+          id="approval-prompt"
+          placeholder="Please approve this deployment to production"
+          rows={3}
+          className="text-xs"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="approval-timeout" className="text-xs font-medium text-gray-300">
+          Timeout (ISO 8601)
+        </label>
+        <Input {...register('timeout')} id="approval-timeout" placeholder="P1D" className="text-xs" />
+        <p className="text-xs text-gray-400">Examples: PT1H (1 hour), PT30M (30 min), P1D (1 day)</p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="approval-onTimeout" className="text-xs font-medium text-gray-300">
+          On Timeout
+        </label>
+        <NativeSelect {...register('onTimeout')} id="approval-onTimeout">
+          <option value="fail">Fail</option>
+          <option value="approve">Auto-Approve</option>
+          <option value="reject">Auto-Reject</option>
+        </NativeSelect>
+      </div>
+      <Button type="submit" variant="primary" className="w-full justify-center text-xs">
+        Add node
+      </Button>
+    </>
+  )
+}
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    props.onSubmit({ name, approvers, prompt, timeout, onTimeout })
+export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
+  const defaultValues: ApprovalFormData = {
+    name: '',
+    approvers: '',
+    prompt: '',
+    timeout: 'P1D',
+    onTimeout: 'fail',
   }
 
   return (
-    <div className="glass flex flex-col gap-3 rounded-lg border p-4">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">
-            Activity Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-            placeholder="Enter activity name"
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">
-            Approvers (comma-separated) <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={approvers}
-            onChange={(e) => setApprovers(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-            placeholder="user1@example.com, user2@example.com"
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">
-            Approval Prompt <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-            placeholder="Please approve this deployment to production"
-            rows={3}
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Timeout (ISO 8601)</label>
-          <input
-            type="text"
-            value={timeout}
-            onChange={(e) => setTimeout(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-            placeholder="P1D"
-          />
-          <p className="text-xs text-gray-400">Examples: PT1H (1 hour), PT30M (30 min), P1D (1 day)</p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">On Timeout</label>
-          <select
-            value={onTimeout}
-            onChange={(e) => setOnTimeout(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50 [&_option]:bg-gray-800 [&_option]:text-white"
-          >
-            <option value="fail">Fail</option>
-            <option value="approve">Auto-Approve</option>
-            <option value="reject">Auto-Reject</option>
-          </select>
-        </div>
-        <Button type="submit" variant="primary" className="w-full justify-center text-xs">
-          Add node
-        </Button>
-      </form>
-    </div>
+    <Card variant="glass" padding="md" className="flex flex-col gap-3">
+      <Form<ApprovalFormData>
+        id="approval-node-form"
+        defaultValues={defaultValues}
+        onSubmit={props.onSubmit}
+        className="flex flex-col gap-3"
+      >
+        {() => <ApprovalFormFields />}
+      </Form>
+    </Card>
   )
 }

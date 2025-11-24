@@ -1,104 +1,127 @@
-/* eslint-disable jsx-a11y/label-has-associated-control */
-import { Button, Checkbox } from '@ansible/nexus-ui-framework'
-import { useState } from 'react'
+import {
+  Button,
+  Card,
+  Checkbox,
+  Controller,
+  Form,
+  Input,
+  NativeSelect,
+  Textarea,
+  useFormContext,
+} from '@ansible/nexus-ui-framework'
+
+interface AIAgentFormData {
+  name: string
+  agent: string
+  tools: string
+  prompt: string
+  model: string
+  requiresApproval?: boolean
+}
 
 interface AIAgentNodeFormProps {
-  onSubmit: (data: {
-    name: string
-    agent: string
-    tools: string
-    prompt: string
-    model: string
-    requiresApproval?: boolean
-  }) => void
+  onSubmit: (data: AIAgentFormData) => void
   onCancel: () => void
 }
 
-export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
-  const [name, setName] = useState('')
-  const [agent, setAgent] = useState('')
-  const [tools, setTools] = useState('')
-  const [prompt, setPrompt] = useState('')
-  const [model, setModel] = useState('claude-3-sonnet')
-  const [requiresApproval, setRequiresApproval] = useState(false)
+function AIAgentFormFields() {
+  const { register, control } = useFormContext<AIAgentFormData>()
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="agent-name" className="text-xs font-medium text-gray-300">
+          Activity Name <span className="text-red-500">*</span>
+        </label>
+        <Input
+          {...register('name', { required: true })}
+          id="agent-name"
+          placeholder="Enter activity name"
+          className="text-xs"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="agent-agent" className="text-xs font-medium text-gray-300">
+          Agent / MCP Server <span className="text-red-500">*</span>
+        </label>
+        <Input
+          {...register('agent', { required: true })}
+          id="agent-agent"
+          placeholder="mcp://agent-server"
+          className="text-xs"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="agent-tools" className="text-xs font-medium text-gray-300">
+          Tools (comma-separated)
+        </label>
+        <Input {...register('tools')} id="agent-tools" placeholder="tool1, tool2, tool3" className="text-xs" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="agent-model" className="text-xs font-medium text-gray-300">
+          Model
+        </label>
+        <NativeSelect {...register('model')} id="agent-model">
+          <option value="claude-3-opus">Claude 3 Opus</option>
+          <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+          <option value="gpt-4">GPT-4</option>
+          <option value="gpt-4-turbo">GPT-4 Turbo</option>
+          <option value="gemini-pro">Gemini Pro</option>
+        </NativeSelect>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="agent-prompt" className="text-xs font-medium text-gray-300">
+          Prompt
+        </label>
+        <Textarea
+          {...register('prompt')}
+          id="agent-prompt"
+          placeholder="Natural language instructions for the agent..."
+          rows={3}
+          className="text-xs"
+        />
+      </div>
+      <Controller
+        control={control}
+        name="requiresApproval"
+        render={({ field }) => (
+          <Checkbox checked={field.value} onCheckedChange={field.onChange} label="Require approval" />
+        )}
+      />
+      <Button type="submit" variant="primary" className="w-full justify-center text-xs">
+        Add node
+      </Button>
+    </>
+  )
+}
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    props.onSubmit({ name, agent, tools, prompt, model, requiresApproval: requiresApproval || undefined })
+export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
+  const defaultValues: AIAgentFormData = {
+    name: '',
+    agent: '',
+    tools: '',
+    prompt: '',
+    model: 'claude-3-sonnet',
+    requiresApproval: false,
+  }
+
+  const handleSubmit = (data: AIAgentFormData) => {
+    const cleanedData: AIAgentFormData = {
+      ...data,
+      requiresApproval: data.requiresApproval || undefined,
+    }
+    props.onSubmit(cleanedData)
   }
 
   return (
-    <div className="glass flex flex-col gap-3 rounded-lg border p-4">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">
-            Activity Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-            placeholder="Enter activity name"
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">
-            Agent / MCP Server <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={agent}
-            onChange={(e) => setAgent(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-            placeholder="mcp://agent-server"
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Tools (comma-separated)</label>
-          <input
-            type="text"
-            value={tools}
-            onChange={(e) => setTools(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-            placeholder="tool1, tool2, tool3"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Model</label>
-          <select
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50 [&_option]:bg-gray-800 [&_option]:text-white"
-          >
-            <option value="claude-3-opus">Claude 3 Opus</option>
-            <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-            <option value="gpt-4">GPT-4</option>
-            <option value="gpt-4-turbo">GPT-4 Turbo</option>
-            <option value="gemini-pro">Gemini Pro</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Prompt</label>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-            placeholder="Natural language instructions for the agent..."
-            rows={3}
-          />
-        </div>
-        <Checkbox
-          checked={requiresApproval}
-          onCheckedChange={(checked) => setRequiresApproval(!!checked)}
-          label="Require approval"
-        />
-        <Button type="submit" variant="primary" className="w-full justify-center text-xs">
-          Add node
-        </Button>
-      </form>
-    </div>
+    <Card variant="glass" padding="md" className="flex flex-col gap-3">
+      <Form<AIAgentFormData>
+        id="ai-agent-node-form"
+        defaultValues={defaultValues}
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-3"
+      >
+        {() => <AIAgentFormFields />}
+      </Form>
+    </Card>
   )
 }

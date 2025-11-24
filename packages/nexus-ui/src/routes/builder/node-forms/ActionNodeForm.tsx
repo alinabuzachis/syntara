@@ -1,208 +1,254 @@
-/* eslint-disable jsx-a11y/label-has-associated-control */
-import { Button, Card, Input, Textarea, Checkbox } from '@ansible/nexus-ui-framework'
-import { useState } from 'react'
+import {
+  Button,
+  Card,
+  Checkbox,
+  Controller,
+  Form,
+  Input,
+  NativeSelect,
+  Textarea,
+  useFormContext,
+  useWatch,
+} from '@ansible/nexus-ui-framework'
+
+// Type definitions (Priority 2)
+export type ExecutorType = 'script' | 'api'
+export type ScriptLanguage = 'python' | 'bash'
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+
+export interface ActionFormData {
+  name: string
+  executor: ExecutorType
+  language?: ScriptLanguage
+  code?: string
+  method?: HttpMethod
+  url?: string
+  authentication?: string
+  headers?: string
+  body?: string
+  parameters?: string
+  requiresApproval?: boolean
+}
 
 interface ActionNodeFormProps {
-  onSubmit: (data: {
-    name: string
-    executor: string
-    language?: string
-    code?: string
-    method?: string
-    url?: string
-    authentication?: string
-    headers?: string
-    body?: string
-    parameters?: string
-    requiresApproval?: boolean
-  }) => void
+  onSubmit: (data: ActionFormData) => void
   onCancel: () => void
   submitButtonText?: string
-  initialData?: {
-    name?: string
-    executor?: string
-    language?: string
-    code?: string
-    method?: string
-    url?: string
-    authentication?: string
-    headers?: string
-    body?: string
-    parameters?: string
-    requiresApproval?: boolean
-  }
+  initialData?: Partial<ActionFormData>
+}
+
+// Constants (Priority 4)
+const EXECUTOR_OPTIONS: Array<{ label: string; value: ExecutorType }> = [
+  { label: 'Script', value: 'script' },
+  { label: 'API Call', value: 'api' },
+]
+
+const SCRIPT_LANGUAGE_OPTIONS: Array<{ label: string; value: ScriptLanguage }> = [
+  { label: 'Python', value: 'python' },
+  { label: 'Bash', value: 'bash' },
+]
+
+const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
+  { label: 'GET', value: 'GET' },
+  { label: 'POST', value: 'POST' },
+  { label: 'PUT', value: 'PUT' },
+  { label: 'PATCH', value: 'PATCH' },
+  { label: 'DELETE', value: 'DELETE' },
+]
+
+/**
+ * Form fields component that manually registers fields with react-hook-form
+ */
+function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
+  const { register, control } = useFormContext<ActionFormData>()
+  const executor = useWatch({ name: 'executor' })
+
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="action-executor" className="text-xs font-medium text-gray-300">
+          Action Type
+        </label>
+        <NativeSelect {...register('executor')} id="action-executor">
+          {EXECUTOR_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </NativeSelect>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="action-name" className="text-xs font-medium text-gray-300">
+          Name <span className="text-red-500">*</span>
+        </label>
+        <Input
+          {...register('name', { required: true })}
+          id="action-name"
+          placeholder="Enter activity name"
+          className="text-xs"
+        />
+      </div>
+
+      {executor === 'script' && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="action-language" className="text-xs font-medium text-gray-300">
+              Language
+            </label>
+            <NativeSelect {...register('language')} id="action-language">
+              {SCRIPT_LANGUAGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="action-code" className="text-xs font-medium text-gray-300">
+              Code <span className="text-red-500">*</span>
+            </label>
+            <Textarea
+              {...register('code', { required: true })}
+              id="action-code"
+              placeholder="Enter your code..."
+              rows={5}
+              className="text-xs"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="action-parameters" className="text-xs font-medium text-gray-300">
+              Input parameters
+            </label>
+            <Textarea
+              {...register('parameters')}
+              id="action-parameters"
+              placeholder='{"key": "value"}'
+              rows={3}
+              className="text-xs"
+            />
+            <p className="text-xs text-gray-400">Optional: Define inputs for this task</p>
+          </div>
+        </>
+      )}
+
+      {executor === 'api' && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="action-url" className="text-xs font-medium text-gray-300">
+              URL <span className="text-red-500">*</span>
+            </label>
+            <Input
+              {...register('url', { required: true })}
+              id="action-url"
+              type="url"
+              placeholder="https://api.example.com/endpoint"
+              className="text-xs"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="action-method" className="text-xs font-medium text-gray-300">
+              HTTP Method
+            </label>
+            <NativeSelect {...register('method')} id="action-method">
+              {HTTP_METHOD_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="action-authentication" className="text-xs font-medium text-gray-300">
+              Authentication
+            </label>
+            <Input
+              {...register('authentication')}
+              id="action-authentication"
+              placeholder="Bearer token or API key"
+              className="text-xs"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="action-headers" className="text-xs font-medium text-gray-300">
+              Headers
+            </label>
+            <Textarea
+              {...register('headers')}
+              id="action-headers"
+              placeholder='{"Content-Type": "application/json"}'
+              rows={2}
+              className="text-xs"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="action-body" className="text-xs font-medium text-gray-300">
+              Body
+            </label>
+            <Textarea
+              {...register('body')}
+              id="action-body"
+              placeholder='{"key": "value"}'
+              rows={3}
+              className="text-xs"
+            />
+          </div>
+        </>
+      )}
+
+      <Controller
+        control={control}
+        name="requiresApproval"
+        render={({ field }) => (
+          <Checkbox checked={field.value} onCheckedChange={field.onChange} label="Require approval" />
+        )}
+      />
+
+      <Button type="submit" variant="primary" className="w-full justify-center text-xs">
+        {submitButtonText ?? 'Add node'}
+      </Button>
+    </>
+  )
 }
 
 export function ActionNodeForm(props: ActionNodeFormProps) {
-  const [name, setName] = useState(props.initialData?.name ?? '')
-  const [executor, setExecutor] = useState(props.initialData?.executor ?? 'script')
-  const [language, setLanguage] = useState(props.initialData?.language ?? 'python')
-  const [code, setCode] = useState(props.initialData?.code ?? '')
-  const [method, setMethod] = useState(props.initialData?.method ?? 'GET')
-  const [url, setUrl] = useState(props.initialData?.url ?? '')
-  const [authentication, setAuthentication] = useState(props.initialData?.authentication ?? '')
-  const [headers, setHeaders] = useState(props.initialData?.headers ?? '')
-  const [body, setBody] = useState(props.initialData?.body ?? '')
-  const [parameters, setParameters] = useState(props.initialData?.parameters ?? '')
-  const [requiresApproval, setRequiresApproval] = useState(props.initialData?.requiresApproval ?? false)
+  const defaultValues: ActionFormData = {
+    name: '',
+    executor: 'script',
+    language: 'python',
+    method: 'GET',
+    requiresApproval: false,
+    ...props.initialData,
+  }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    props.onSubmit({
-      name,
-      executor,
-      language: executor === 'script' ? language : undefined,
-      code: executor === 'script' ? code : undefined,
-      method: executor === 'api' ? method : undefined,
-      url: executor === 'api' ? url : undefined,
-      authentication: executor === 'api' && authentication ? authentication : undefined,
-      headers: executor === 'api' ? headers : undefined,
-      body: executor === 'api' ? body : undefined,
-      parameters: parameters || undefined,
-      requiresApproval: requiresApproval || undefined,
-    })
+  const handleSubmit = (data: ActionFormData) => {
+    // Clean up data based on executor type
+    const cleanedData: ActionFormData = {
+      name: data.name,
+      executor: data.executor,
+      language: data.executor === 'script' ? data.language : undefined,
+      code: data.executor === 'script' ? data.code : undefined,
+      method: data.executor === 'api' ? data.method : undefined,
+      url: data.executor === 'api' ? data.url : undefined,
+      authentication: data.executor === 'api' && data.authentication ? data.authentication : undefined,
+      headers: data.executor === 'api' ? data.headers : undefined,
+      body: data.executor === 'api' ? data.body : undefined,
+      parameters: data.parameters || undefined,
+      requiresApproval: data.requiresApproval || undefined,
+    }
+    props.onSubmit(cleanedData)
   }
 
   return (
     <Card variant="glass" padding="md" className="flex flex-col gap-3">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Action Type</label>
-          <select
-            value={executor}
-            onChange={(e) => setExecutor(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50 [&_option]:bg-gray-800 [&_option]:text-white"
-          >
-            <option value="script">Script</option>
-            <option value="api">API Call</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">
-            Name <span className="text-red-500">*</span>
-          </label>
-          <Input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="text-xs"
-            placeholder="Enter activity name"
-            required
-          />
-        </div>
-
-        {executor === 'script' && (
-          <>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">Language</label>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50 [&_option]:bg-gray-800 [&_option]:text-white"
-              >
-                <option value="python">Python</option>
-                <option value="bash">Bash</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">
-                Code <span className="text-red-500">*</span>
-              </label>
-              <Textarea
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="text-xs"
-                placeholder="Enter your code..."
-                rows={5}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">Input parameters</label>
-              <Textarea
-                value={parameters}
-                onChange={(e) => setParameters(e.target.value)}
-                className="text-xs"
-                placeholder='{"key": "value"}'
-                rows={3}
-              />
-              <p className="text-xs text-gray-400">Optional: Define inputs for this task</p>
-            </div>
-          </>
-        )}
-
-        {executor === 'api' && (
-          <>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">
-                URL <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="text-xs"
-                placeholder="https://api.example.com/endpoint"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">HTTP Method</label>
-              <select
-                value={method}
-                onChange={(e) => setMethod(e.target.value)}
-                className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50 [&_option]:bg-gray-800 [&_option]:text-white"
-              >
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-                <option value="PUT">PUT</option>
-                <option value="PATCH">PATCH</option>
-                <option value="DELETE">DELETE</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">Authentication</label>
-              <Input
-                type="text"
-                value={authentication}
-                onChange={(e) => setAuthentication(e.target.value)}
-                className="text-xs"
-                placeholder="Bearer token or API key"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">Headers</label>
-              <Textarea
-                value={headers}
-                onChange={(e) => setHeaders(e.target.value)}
-                className="text-xs"
-                placeholder='{"Content-Type": "application/json"}'
-                rows={2}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">Body</label>
-              <Textarea
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                className="text-xs"
-                placeholder='{"key": "value"}'
-                rows={3}
-              />
-            </div>
-          </>
-        )}
-
-        <Checkbox
-          checked={requiresApproval}
-          onCheckedChange={(checked) => setRequiresApproval(!!checked)}
-          label="Require approval"
-        />
-
-        <Button type="submit" variant="primary" className="w-full justify-center text-xs">
-          {props.submitButtonText ?? 'Add node'}
-        </Button>
-      </form>
+      <Form<ActionFormData>
+        id="action-node-form"
+        defaultValues={defaultValues}
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-3"
+      >
+        {() => <ActionFormFields submitButtonText={props.submitButtonText} />}
+      </Form>
     </Card>
   )
 }

@@ -1,91 +1,114 @@
-/* eslint-disable jsx-a11y/label-has-associated-control */
-import { Button, Checkbox } from '@ansible/nexus-ui-framework'
-import { useState } from 'react'
+import { Button, Card, Checkbox, Form, Input, NativeSelect, Textarea } from '@ansible/nexus-ui-framework'
+import { Controller, type UseFormRegister, type Control } from 'react-hook-form'
+
+interface AAPFormData {
+  name: string
+  connectorId: string
+  operation: string
+  parameters: string
+  requiresApproval?: boolean
+}
 
 interface AAPNodeFormProps {
-  onSubmit: (data: {
-    name: string
-    connectorId: string
-    operation: string
-    parameters: string
-    requiresApproval?: boolean
-  }) => void
+  onSubmit: (data: AAPFormData) => void
   onCancel: () => void
 }
 
-export function AAPNodeForm(props: AAPNodeFormProps) {
-  const [name, setName] = useState('')
-  const [connectorId, setConnectorId] = useState('')
-  const [operation, setOperation] = useState('launch_job')
-  const [parameters, setParameters] = useState('')
-  const [requiresApproval, setRequiresApproval] = useState(false)
+function AAPFormFields({
+  register,
+  control,
+}: {
+  register: UseFormRegister<AAPFormData>
+  control: Control<AAPFormData>
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="aap-name" className="text-xs font-medium text-gray-300">
+          Activity Name <span className="text-red-500">*</span>
+        </label>
+        <Input
+          {...register('name', { required: true })}
+          id="aap-name"
+          placeholder="Enter activity name"
+          className="text-xs"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="aap-connectorId" className="text-xs font-medium text-gray-300">
+          Connector ID <span className="text-red-500">*</span>
+        </label>
+        <Input
+          {...register('connectorId', { required: true })}
+          id="aap-connectorId"
+          placeholder="ansible-automation-platform"
+          className="text-xs"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="aap-operation" className="text-xs font-medium text-gray-300">
+          Operation
+        </label>
+        <NativeSelect {...register('operation')} id="aap-operation">
+          <option value="launch_job">Launch Job Template</option>
+          <option value="launch_workflow">Launch Workflow Template</option>
+          <option value="get_job_status">Get Job Status</option>
+          <option value="cancel_job">Cancel Job</option>
+        </NativeSelect>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="aap-parameters" className="text-xs font-medium text-gray-300">
+          Parameters (JSON)
+        </label>
+        <Textarea
+          {...register('parameters')}
+          id="aap-parameters"
+          placeholder='{"job_template_id": "123", "extra_vars": {}}'
+          rows={4}
+          className="font-mono text-xs"
+        />
+      </div>
+      <Controller
+        control={control}
+        name="requiresApproval"
+        render={({ field }) => (
+          <Checkbox checked={field.value} onCheckedChange={field.onChange} label="Require approval" />
+        )}
+      />
+      <Button type="submit" variant="primary" className="w-full justify-center text-xs">
+        Add node
+      </Button>
+    </>
+  )
+}
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    props.onSubmit({ name, connectorId, operation, parameters, requiresApproval: requiresApproval || undefined })
+export function AAPNodeForm(props: AAPNodeFormProps) {
+  const defaultValues: AAPFormData = {
+    name: '',
+    connectorId: '',
+    operation: 'launch_job',
+    parameters: '',
+    requiresApproval: false,
+  }
+
+  const handleSubmit = (data: AAPFormData) => {
+    const cleanedData: AAPFormData = {
+      ...data,
+      requiresApproval: data.requiresApproval || undefined,
+    }
+    props.onSubmit(cleanedData)
   }
 
   return (
-    <div className="glass flex flex-col gap-3 rounded-lg border p-4">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">
-            Activity Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-            placeholder="Enter activity name"
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">
-            Connector ID <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={connectorId}
-            onChange={(e) => setConnectorId(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-            placeholder="ansible-automation-platform"
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Operation</label>
-          <select
-            value={operation}
-            onChange={(e) => setOperation(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50 [&_option]:bg-gray-800 [&_option]:text-white"
-          >
-            <option value="launch_job">Launch Job Template</option>
-            <option value="launch_workflow">Launch Workflow Template</option>
-            <option value="get_job_status">Get Job Status</option>
-            <option value="cancel_job">Cancel Job</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-300">Parameters (JSON)</label>
-          <textarea
-            value={parameters}
-            onChange={(e) => setParameters(e.target.value)}
-            className="rounded-md bg-white/5 px-3 py-1.5 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-            placeholder='{"job_template_id": "123", "extra_vars": {}}'
-            rows={4}
-          />
-        </div>
-        <Checkbox
-          checked={requiresApproval}
-          onCheckedChange={(checked) => setRequiresApproval(!!checked)}
-          label="Require approval"
-        />
-        <Button type="submit" variant="primary" className="w-full justify-center text-xs">
-          Add node
-        </Button>
-      </form>
-    </div>
+    <Card variant="glass" padding="md" className="flex flex-col gap-3">
+      <Form<AAPFormData>
+        id="aap-node-form"
+        defaultValues={defaultValues}
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-3"
+      >
+        {({ register, control }) => <AAPFormFields register={register} control={control} />}
+      </Form>
+    </Card>
   )
 }
