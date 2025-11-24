@@ -272,6 +272,51 @@ install-cursor-commands: ## Sync Claude commands to Cursor format
 	@echo "🔄 Syncing commands from .claude/ to .cursor/..."
 	uv run python tools/install_cursor_commands.py
 
+# Capture positional arguments for init-worktree
+WORKTREE_ARGS := $(filter-out init-worktree,$(MAKECMDGOALS))
+
+.PHONY: init-worktree
+init-worktree: ## Initialize a new git worktree (usage: make init-worktree <branch> [base] [python-version])
+	@# Extract positional arguments
+	@ARGS=($(WORKTREE_ARGS)); \
+	BRANCH_ARG="$${ARGS[0]:-$(BRANCH)}"; \
+	BASE_ARG="$${ARGS[1]:-$(BASE)}"; \
+	PYTHON_ARG="$${ARGS[2]:-$(PYTHON)}"; \
+	\
+	if [ -z "$$BRANCH_ARG" ]; then \
+		echo "❌ Error: Branch name is required"; \
+		echo ""; \
+		echo "Usage:"; \
+		echo "  make init-worktree <branch> [base] [python-version]"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make init-worktree feature-auth"; \
+		echo "  make init-worktree feature-auth develop"; \
+		echo "  make init-worktree feature-auth main python3.12"; \
+		echo ""; \
+		echo "Alternative syntax (still supported):"; \
+		echo "  make init-worktree BRANCH=feature-auth BASE=develop PYTHON=python3.12"; \
+		echo ""; \
+		echo "See docs/development-with-worktrees.md for more information"; \
+		exit 1; \
+	fi; \
+	\
+	BASE_BRANCH="$${BASE_ARG:-main}"; \
+	PYTHON_VER="$${PYTHON_ARG:-python3.13}"; \
+	\
+	echo "🌿 Initializing git worktree..."; \
+	echo "   Branch: $$BRANCH_ARG"; \
+	echo "   Base: $$BASE_BRANCH"; \
+	echo "   Python: $$PYTHON_VER"; \
+	echo ""; \
+	./tools/init-git-worktree.sh "$$BRANCH_ARG" "$$BASE_BRANCH" --python "$$PYTHON_VER"
+
+# Dummy target to handle positional arguments as make targets
+ifneq ($(filter init-worktree,$(MAKECMDGOALS)),)
+$(WORKTREE_ARGS):
+	@:
+endif
+
 
 # Code quality
 # ========================================================

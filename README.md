@@ -398,6 +398,12 @@ curl 'http://localhost:8000/api/v1/invocations?status=completed'
 | `make test-all` | Run all tests |
 | `make lint` | Run linting and type checking |
 | `make format` | Format code |
+| `make init-worktree` | Initialize a new git worktree for parallel development |
+
+### Parallel Development with Worktrees
+
+For parallel development and PR reviews without disrupting your current work, see:
+📖 **[Development with Worktrees Guide](docs/development-with-worktrees.md)**
 
 ### Project Structure
 

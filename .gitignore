@@ -211,5 +211,8 @@ __marimo__/
 .claude/
 CLAUDE.local.md
 
+# Git worktrees
+worktrees/
+
 # Gemini
 .gemini/
