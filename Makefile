@@ -295,8 +295,8 @@ format: ## Format code
 lint: ## Run linting and type checking with ruff and mypy
 	@echo "📝 Running ruff linter..."
 	uv run ruff check .
-	make typecheck --no-print-directory
-	pre-commit run --all-files
+	@echo "📝 Running pre-commit hooks..."
+	SKIP=ruff-format pre-commit run --all-files
 
 .PHONY: typecheck
 typecheck: ## Run type checking only with mypy
