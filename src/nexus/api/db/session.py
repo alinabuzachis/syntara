@@ -16,7 +16,7 @@ DB_PORT = os.getenv("NEXUS_DB_PORT", "5432")
 DB_NAME = os.getenv("NEXUS_DB_NAME", "nexus_api")
 
 # Compose database URL (can be overridden with DATABASE_URL env var)
-DATABASE_URL = os.getenv(
+DATABASE_URL: str = os.getenv(
     "DATABASE_URL",
     f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
 )
