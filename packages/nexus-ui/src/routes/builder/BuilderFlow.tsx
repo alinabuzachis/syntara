@@ -1,14 +1,11 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import Dagre from '@dagrejs/dagre'
 import {
   addEdge,
-  MarkerType,
   ReactFlow,
   useEdgesState,
   useNodesState,
   useReactFlow,
   type Connection,
-  type NodeMouseHandler,
   type OnConnect,
   type OnNodesDelete,
 } from '@xyflow/react'
@@ -21,28 +18,25 @@ import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
 
 import { ButtonEdge } from './edges/ButtonEdge'
 import { DefaultEdge } from './edges/DefaultEdge'
+import { useButtonEdgeMaintenance } from './hooks/useButtonEdgeMaintenance'
+import { useEdgeActiveState } from './hooks/useEdgeActiveState'
+import { useEdgeSynchronization } from './hooks/useEdgeSynchronization'
+import { useNodeUpdates } from './hooks/useNodeUpdates'
+import { usePendingEdgeManagement } from './hooks/usePendingEdgeManagement'
+import { useWorkflowInitialization } from './hooks/useWorkflowInitialization'
 import { PlaceholderNode } from './nodes/PlaceholderNode'
-
-// Type aliases from API contracts
-type Trigger =
-  | WorkflowAPI.components['schemas']['manualTrigger']
-  | WorkflowAPI.components['schemas']['scheduledTrigger']
-  | WorkflowAPI.components['schemas']['eventTrigger']
-
-type Activity = WorkflowAPI.components['schemas']['activity']
-type TaskActivity = Extract<Activity, { type: 'task' }>
-type ConditionActivity = Extract<Activity, { type: 'condition' }>
-type SequenceActivity = Extract<Activity, { type: 'sequence' }>
-type ParallelActivity = Extract<Activity, { type: 'parallel' }>
-type LoopActivity = Extract<Activity, { type: 'loop' }>
-type JoinActivity = Extract<Activity, { type: 'join' }>
-
-const markerEnd = {
-  type: MarkerType.ArrowClosed,
-  width: 12,
-  height: 12,
-  color: '#6b7280',
-}
+import type { BuilderFlowProps, ConnectionState, PendingEdge } from './types'
+import {
+  addActivity,
+  extractTaskActivities,
+  getTriggerLabel,
+  hasLegacyNestedActivities,
+  markerEnd,
+  type Activity,
+  type EdgeType,
+  type TaskActivity,
+  type Trigger,
+} from './utils/workflowToGraph'
 
 // Define node and edge types outside component to prevent React Flow warnings
 const builderNodeTypes = {
@@ -56,31 +50,15 @@ const builderEdgeTypes = {
   buttonEdge: ButtonEdge,
 }
 
-type EdgeType = {
-  id: string
-  type?: string
-  source: string
-  target: string
-  sourceHandle?: string
-  targetHandle?: string
-  selectable?: boolean
-  data?: {
-    onAddNode?: (sourceNodeId: string, targetNodeId: string, edgeId: string) => void
-    onButtonClick?: () => void
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any
-  }
-  markerEnd?: typeof markerEnd
-}
-
+/**
+ * Applies Dagre layout algorithm to position nodes in a hierarchical flow
+ */
 const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { direction: 'TB' | 'LR' }) => {
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}))
   g.setGraph({ rankdir: options.direction, ranksep: 120 })
 
-  // Filter out placeholder nodes, pending target nodes, and button edges for layout calculation
-  const realNodes = nodes.filter(
-    (node) => !node.id.startsWith('placeholder-') && !node.id.startsWith('pending-target-')
-  )
+  // Filter out placeholder nodes and button edges for layout calculation
+  const realNodes = nodes.filter((node) => !node.id.startsWith('placeholder-'))
   const realEdges = edges.filter((edge) => edge.type !== 'buttonEdge' && !edge.id.startsWith('button-'))
 
   realEdges.forEach((edge) => g.setEdge(edge.source, edge.target))
@@ -96,8 +74,8 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
 
   return {
     nodes: nodes.map((node) => {
-      // Only update positions for real nodes (not placeholders or pending targets)
-      if (!node.id.startsWith('placeholder-') && !node.id.startsWith('pending-target-')) {
+      // Only update positions for real nodes
+      if (!node.id.startsWith('placeholder-')) {
         const position = g.node(node.id)
         const x = position.x - (node.measured?.width ?? 0) / 2
         const y = position.y - (node.measured?.height ?? 0) / 2
@@ -107,241 +85,6 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
     }),
     edges: edges.map((edge) => ({ ...edge, markerEnd })),
   }
-}
-
-function getTriggerLabel(trigger: Trigger): string {
-  switch (trigger.type) {
-    case 'manual':
-      return trigger.requiresApproval ? 'Manual (Requires Approval)' : 'Manual'
-    case 'scheduled':
-      if (trigger.schedule.scheduleType === 'cron') {
-        return `Scheduled (Cron: ${trigger.schedule.cron})`
-      } else if (trigger.schedule.scheduleType === 'interval') {
-        return `Scheduled (Interval: ${trigger.schedule.interval})`
-      } else {
-        return 'Scheduled (Continuous)'
-      }
-    case 'event':
-      return `Event (${trigger.event.source}: ${trigger.event.eventType})`
-    default:
-      return 'Unknown Trigger'
-  }
-}
-
-// Helper functions to add activities with proper branching logic
-function addActivity(
-  activity: Activity,
-  nodes: NodeType[],
-  edges: EdgeType[],
-  previousIds: string[],
-  sourceHandle?: string
-): string {
-  switch (activity.type) {
-    case 'task':
-      return addTaskActivity(activity, nodes, edges, previousIds, sourceHandle)
-    case 'condition':
-      return addConditionActivity(activity, nodes, edges, previousIds, sourceHandle)
-    case 'sequence':
-      return addSequenceActivity(activity, nodes, edges, previousIds, sourceHandle)
-    case 'parallel':
-      return addParallelActivity(activity, nodes, edges, previousIds, sourceHandle)
-    case 'loop':
-      return addLoopActivity(activity, nodes, edges, previousIds)
-    case 'join':
-      return addJoinActivity(activity, nodes, edges, previousIds, sourceHandle)
-  }
-}
-
-function addTaskActivity(
-  taskActivity: TaskActivity,
-  nodes: NodeType[],
-  edges: EdgeType[],
-  previousIds: string[],
-  sourceHandle?: string
-) {
-  nodes.push({
-    id: taskActivity.id,
-    type: 'task',
-    position: { x: 0, y: 0 },
-    data: taskActivity,
-  })
-  for (const id of previousIds) {
-    edges.push({
-      id: `${id}-${taskActivity.id}`,
-      type: 'default',
-      source: id,
-      target: taskActivity.id,
-      sourceHandle,
-    })
-  }
-  previousIds.length = 0
-  previousIds.push(taskActivity.id)
-  return taskActivity.id
-}
-
-function addConditionActivity(
-  conditionActivity: ConditionActivity,
-  nodes: NodeType[],
-  edges: EdgeType[],
-  previousIds: string[],
-  sourceHandle?: string
-) {
-  nodes.push({
-    id: conditionActivity.id,
-    type: 'condition',
-    position: { x: 0, y: 0 },
-    data: conditionActivity,
-  })
-  for (const id of previousIds) {
-    edges.push({
-      id: `${id}-${conditionActivity.id}`,
-      type: 'default',
-      source: id,
-      target: conditionActivity.id,
-      sourceHandle,
-    })
-  }
-
-  previousIds = [conditionActivity.id]
-  for (const branch of conditionActivity.then ?? []) {
-    for (const id of previousIds) {
-      edges.push({
-        id: `${id}-${branch.id}-then`,
-        type: 'default',
-        source: id,
-        target: branch.id,
-        sourceHandle: id === conditionActivity.id ? 'then' : 'source',
-      })
-    }
-    addActivity(branch, nodes, edges, previousIds, 'then')
-  }
-
-  previousIds = [conditionActivity.id]
-  for (const branch of conditionActivity.else ?? []) {
-    for (const id of previousIds) {
-      edges.push({
-        id: `${id}-${branch.id}-else`,
-        type: 'default',
-        source: id,
-        target: branch.id,
-        sourceHandle: id === conditionActivity.id ? 'else' : 'source',
-      })
-    }
-    addActivity(branch, nodes, edges, previousIds, 'else')
-  }
-
-  return conditionActivity.id
-}
-
-function addSequenceActivity(
-  sequenceActivity: SequenceActivity,
-  nodes: NodeType[],
-  edges: EdgeType[],
-  previousIds: string[],
-  sourceHandle?: string
-) {
-  let seqPreviousIds = [...previousIds]
-  for (const step of sequenceActivity.steps ?? []) {
-    const added = addActivity(step, nodes, edges, seqPreviousIds, sourceHandle)
-    if (added) {
-      seqPreviousIds = [step.id]
-    }
-  }
-  return sequenceActivity.id
-}
-
-function addParallelActivity(
-  parallelActivity: ParallelActivity,
-  nodes: NodeType[],
-  edges: EdgeType[],
-  previousIds: string[],
-  sourceHandle?: string
-) {
-  const ids: string[] = []
-  for (const branch of parallelActivity.branches ?? []) {
-    ids.push(addActivity(branch, nodes, edges, [...previousIds], sourceHandle))
-  }
-
-  previousIds.length = 0
-  previousIds.push(...ids)
-
-  return parallelActivity.id
-}
-
-function addLoopActivity(loopActivity: LoopActivity, nodes: NodeType[], edges: EdgeType[], previousIds: string[]) {
-  nodes.push({
-    id: loopActivity.id,
-    type: 'loop',
-    position: { x: 0, y: 0 },
-    data: loopActivity,
-  })
-  for (const id of previousIds) {
-    edges.push({
-      id: `${id}-${loopActivity.id}`,
-      type: 'default',
-      source: id,
-      target: loopActivity.id,
-      targetHandle: 'target',
-    })
-  }
-
-  let lastId: string = loopActivity.id
-
-  for (const step of loopActivity.loop.do ?? []) {
-    const id = addActivity(step, nodes, edges, [lastId], 'start')
-    lastId = id
-  }
-
-  edges.push({
-    id: `${lastId}-${loopActivity.id}`,
-    type: 'default',
-    source: lastId,
-    target: loopActivity.id,
-    targetHandle: 'end',
-  })
-
-  previousIds.length = 0
-  previousIds.push(loopActivity.id)
-
-  return loopActivity.id
-}
-
-function addJoinActivity(
-  joinActivity: JoinActivity,
-  nodes: NodeType[],
-  edges: EdgeType[],
-  previousIds: string[],
-  sourceHandle?: string
-) {
-  nodes.push({
-    id: joinActivity.id,
-    type: 'join',
-    position: { x: 0, y: 0 },
-    data: joinActivity,
-  })
-  for (const id of previousIds) {
-    edges.push({
-      id: `${id}-${joinActivity.id}`,
-      type: 'default',
-      source: id,
-      target: joinActivity.id,
-      sourceHandle,
-    })
-  }
-
-  previousIds.length = 0
-  previousIds.push(joinActivity.id)
-
-  return joinActivity.id
-}
-
-interface BuilderFlowProps {
-  triggerLayout?: number
-  panelOpen?: boolean
-  activeEdgeButtonNodeId?: string | null
-  activeEdgeId?: string | null
-  onNodeClick?: NodeMouseHandler<NodeType>
-  onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string) => void
 }
 
 export function BuilderFlow(props: BuilderFlowProps) {
@@ -356,33 +99,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const setStoredEdges = useWorkflowStore((state) => state.setEdges)
   const reactFlowInstance = useReactFlow()
   const { fitView, getViewport, screenToFlowPosition } = reactFlowInstance
-  const [isInitialized, setIsInitialized] = useState(false)
-  const hasRunInitialLayoutRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
-  const skipButtonEdgeMaintenanceRef = useRef(false)
 
   // Track pending edge that was dragged to canvas
-  const [pendingEdge, setPendingEdge] = useState<{
-    sourceNodeId: string
-    x: number
-    y: number
-  } | null>(null)
-
-  // Reset initialization when workflow is replaced via setWorkflow (e.g., after save/redirect)
-  const workflowVersionRef = useRef(workflowVersion)
-  useEffect(() => {
-    if (workflowVersion !== workflowVersionRef.current) {
-      // Use queueMicrotask to avoid calling setState synchronously within the effect
-      queueMicrotask(() => {
-        setIsInitialized(false)
-      })
-      hasRunInitialLayoutRef.current = false
-      newlyAddedNodeIdsRef.current.clear()
-      lastEdgesSignatureRef.current = ''
-      isSyncingRef.current = false
-      workflowVersionRef.current = workflowVersion
-    }
-  }, [workflowVersion])
+  const [pendingEdge, setPendingEdge] = useState<PendingEdge | null>(null)
 
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
     const nodes: NodeType[] = []
@@ -406,49 +126,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
     })
 
     const activities = currentWorkflow?.workflow.activities || []
-
-    // Helper to recursively extract all task activities from nested structures
-    const extractTaskActivities = (activities: Activity[]): TaskActivity[] => {
-      const tasks: TaskActivity[] = []
-      for (const activity of activities) {
-        if (activity.type === 'task') {
-          tasks.push(activity)
-        } else if (activity.type === 'parallel' && activity.branches) {
-          tasks.push(...extractTaskActivities(activity.branches))
-        } else if (activity.type === 'sequence' && activity.steps) {
-          tasks.push(...extractTaskActivities(activity.steps))
-        } else if (activity.type === 'condition') {
-          if (activity.then) tasks.push(...extractTaskActivities(activity.then))
-          if (activity.else) tasks.push(...extractTaskActivities(activity.else))
-        } else if (activity.type === 'loop' && activity.loop.do) {
-          tasks.push(...extractTaskActivities(activity.loop.do))
-        }
-      }
-      return tasks
-    }
-
-    // Check if workflow has any non-parallel nested activity types (condition, sequence, loop)
-    // Parallels created by syncJoinBranches are structural containers, not legacy constructs
-    const hasLegacyNestedActivities = (activities: Activity[]): boolean => {
-      for (const activity of activities) {
-        if (activity.type === 'condition' || activity.type === 'sequence' || activity.type === 'loop') {
-          return true
-        }
-        // Check if parallel was user-created (not auto-generated for joins)
-        if (activity.type === 'parallel' && !activity.id.startsWith('parallel_for_')) {
-          return true
-        }
-        // Recursively check nested structures
-        if (activity.type === 'parallel' && activity.branches) {
-          if (hasLegacyNestedActivities(activity.branches)) return true
-        }
-        if (activity.type === 'sequence' && activity.steps) {
-          if (hasLegacyNestedActivities(activity.steps)) return true
-        }
-      }
-      return false
-    }
-
     const hasStoredEdges = storedEdges.length > 0
     const isLegacyWorkflow = hasLegacyNestedActivities(activities) || (!hasStoredEdges && activities.length > 0)
 
@@ -505,12 +182,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
-  const previousNodeIdsRef = useRef<Set<string>>(new Set())
-  const previousInitialNodesRef = useRef<NodeType[]>(initialNodes)
-  const previousInitialEdgesRef = useRef<EdgeType[]>(initialEdges)
-  const newlyAddedNodeIdsRef = useRef<Set<string>>(new Set())
-  const lastEdgesSignatureRef = useRef<string>('')
-  const isSyncingRef = useRef(false)
 
   const onLayout = useCallback(() => {
     const layouted = getLayoutedElements(nodes, edges, { direction: 'LR' })
@@ -519,14 +190,33 @@ export function BuilderFlow(props: BuilderFlowProps) {
     void fitView({ maxZoom: 1 })
   }, [nodes, edges, setNodes, setEdges, fitView])
 
-  // Store latest onLayout in a ref to avoid it being a dependency
-  const onLayoutRef = useRef(onLayout)
-  useEffect(() => {
-    onLayoutRef.current = onLayout
-  }, [onLayout])
+  // Use custom hook to manage workflow initialization and layout
+  const { isInitialized } = useWorkflowInitialization({
+    nodes,
+    workflowVersion,
+    triggerLayout,
+    onLayout,
+  })
+
+  // Use custom hook to manage node and edge updates
+  const { newlyAddedNodeIdsRef } = useNodeUpdates({
+    initialNodes,
+    initialEdges,
+    isInitialized,
+    setNodes,
+    setEdges,
+  })
+
+  // Use custom hook to synchronize edges with workflow store
+  useEdgeSynchronization({
+    edges,
+    isInitialized,
+    setStoredEdges,
+  })
 
   const onNodesDelete: OnNodesDelete = useCallback(
     (deletedNodes) => {
+      // Update workflow store - remove triggers and activities
       deletedNodes.forEach((node) => {
         if (node.type === 'trigger') {
           // Extract trigger index from node id (format: trigger-0, trigger-1, etc.)
@@ -541,347 +231,23 @@ export function BuilderFlow(props: BuilderFlowProps) {
         }
       })
 
-      // Clean up edges connected to deleted nodes
+      // Clean up deleted nodes and their associated placeholder nodes
       const deletedNodeIds = new Set(deletedNodes.map((n) => n.id))
-
-      // Also clean up button edges from the deleted nodes
-      const buttonEdgeIdsToRemove = Array.from(deletedNodeIds).map((id) => `button-${id}`)
       const placeholderIdsToRemove = deletedNodes.map((n) => `placeholder-${n.id}`)
 
-      // Get current nodes and edges to determine what button edges are needed
-      const currentNodes = reactFlowInstance.getNodes() as NodeType[]
-      const currentEdges = reactFlowInstance.getEdges() as EdgeType[]
-
-      // Filter edges
-      const filteredEdges = currentEdges.filter((edge) => {
-        return (
-          !deletedNodeIds.has(edge.source) &&
-          !deletedNodeIds.has(edge.target) &&
-          !buttonEdgeIdsToRemove.includes(edge.id)
-        )
-      }) as EdgeType[]
-
-      // Check which nodes need button edges (excluding pending edges)
-      const nodesWithOutgoing = new Set<string>()
-      filteredEdges.forEach((edge) => {
-        if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-') && !edge.id.startsWith('pending-')) {
-          nodesWithOutgoing.add(edge.source)
-        }
-      })
-
-      const realNodes = currentNodes.filter(
-        (node: NodeType) =>
-          !node.id.startsWith('placeholder-') && !node.id.startsWith('pending-target-') && !deletedNodeIds.has(node.id)
+      setNodes((currentNodes) =>
+        currentNodes.filter((node) => !deletedNodeIds.has(node.id) && !placeholderIdsToRemove.includes(node.id))
       )
-      const placeholderNodesToAdd: NodeType[] = []
-      const buttonEdgesToAdd: EdgeType[] = []
 
-      realNodes.forEach((node: NodeType) => {
-        const buttonEdgeId = `button-${node.id}`
-        const hasRealOutgoing = nodesWithOutgoing.has(node.id)
-        const hasButtonEdge = filteredEdges.some((e) => e.id === buttonEdgeId)
+      // Clean up edges connected to deleted nodes
+      setEdges((currentEdges) =>
+        currentEdges.filter((edge) => !deletedNodeIds.has(edge.source) && !deletedNodeIds.has(edge.target))
+      )
 
-        if (!hasRealOutgoing && !hasButtonEdge) {
-          const placeholderId = `placeholder-${node.id}`
-
-          // Collect placeholder node to add
-          placeholderNodesToAdd.push({
-            id: placeholderId,
-            type: 'placeholder',
-            position: { x: node.position.x + 200, y: node.position.y },
-            data: {},
-            draggable: false,
-            selectable: false,
-          } as unknown as NodeType)
-
-          // Collect button edge to add
-          buttonEdgesToAdd.push({
-            id: buttonEdgeId,
-            source: node.id,
-            sourceHandle: 'source',
-            target: placeholderId,
-            targetHandle: 'target',
-            type: 'buttonEdge',
-            selectable: false,
-            data: {
-              onButtonClick: () => onAddNodeFromEdge?.(node.id),
-              isActive: activeEdgeButtonNodeId === node.id,
-            },
-          } as unknown as EdgeType)
-        }
-      })
-
-      // Skip button edge maintenance temporarily since we're handling it here
-      if (buttonEdgesToAdd.length > 0) {
-        skipButtonEdgeMaintenanceRef.current = true
-        setTimeout(() => {
-          skipButtonEdgeMaintenanceRef.current = false
-        }, 300)
-      }
-
-      // Clean up placeholder nodes and add new ones
-      setNodes((currentNodes) => {
-        const filtered = currentNodes.filter((node) => !placeholderIdsToRemove.includes(node.id))
-        if (placeholderNodesToAdd.length > 0) {
-          return [...filtered, ...placeholderNodesToAdd]
-        }
-        return filtered
-      })
-
-      // Update edges - remove deleted edges and add button edges
-      setEdges(() => {
-        return buttonEdgesToAdd.length > 0 ? [...filteredEdges, ...buttonEdgesToAdd] : filteredEdges
-      })
+      // Button edges will be automatically recreated by useButtonEdgeMaintenance hook
     },
-    [removeActivity, removeTrigger, setEdges, setNodes, reactFlowInstance, onAddNodeFromEdge, activeEdgeButtonNodeId]
+    [removeActivity, removeTrigger, setEdges, setNodes]
   )
-
-  // Trigger layout after node deletion
-  const prevNodesLengthRef = useRef(nodes.length)
-  useEffect(() => {
-    if (isInitialized && nodes.length < prevNodesLengthRef.current) {
-      // Nodes were deleted, trigger layout
-      const timer = setTimeout(() => {
-        onLayoutRef.current()
-      }, 50)
-      prevNodesLengthRef.current = nodes.length
-      return () => clearTimeout(timer)
-    }
-    prevNodesLengthRef.current = nodes.length
-  }, [nodes.length, isInitialized])
-
-  // Update nodes when workflow changes
-  useEffect(() => {
-    // Skip if button edges are being handled by onNodesDelete
-    if (skipButtonEdgeMaintenanceRef.current) {
-      return
-    }
-
-    // Check if initialNodes/initialEdges actually changed by comparing with previous values
-    // Use efficient comparison for structure, JSON.stringify only for data content
-    const nodesDataChanged =
-      initialNodes.length !== previousInitialNodesRef.current.length ||
-      initialNodes.some((node, i) => {
-        const prevNode = previousInitialNodesRef.current[i]
-        return (
-          node.id !== prevNode?.id ||
-          node.type !== prevNode?.type ||
-          JSON.stringify(node.data) !== JSON.stringify(prevNode?.data)
-        )
-      })
-
-    const edgesDataChanged =
-      initialEdges.length !== previousInitialEdgesRef.current.length ||
-      initialEdges.some((edge, i) => {
-        const prevEdge = previousInitialEdgesRef.current[i]
-        return edge.id !== prevEdge?.id || edge.source !== prevEdge?.source || edge.target !== prevEdge?.target
-      })
-
-    // If nothing changed, skip the entire update
-    if (!nodesDataChanged && !edgesDataChanged && isInitialized) {
-      return
-    }
-
-    const currentNodeIds = new Set(initialNodes.map((n) => n.id))
-    const previousNodeIds = previousNodeIdsRef.current
-
-    // Check if there are new nodes
-    const hasNewNodes = Array.from(currentNodeIds).some((id) => !previousNodeIds.has(id))
-
-    // Check if node data actually changed (not just object references)
-    const hasDeletedNodes = Array.from(previousNodeIds).some((id) => !currentNodeIds.has(id))
-
-    if (hasNewNodes && isInitialized) {
-      // Track which nodes are newly added (need positioning after measurement)
-      const newNodeIds = Array.from(currentNodeIds).filter((id) => !previousNodeIds.has(id))
-      newNodeIds.forEach((id) => newlyAddedNodeIdsRef.current.add(id))
-
-      // Merge new nodes with existing positioned nodes
-      setNodes((prevNodes) => {
-        const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
-
-        const updatedRealNodes = initialNodes.map((newNode) => {
-          const existingNode = prevNodeMap.get(newNode.id)
-          if (existingNode) {
-            // Keep existing position, measured dimensions, and className
-            return {
-              ...newNode,
-              position: existingNode.position,
-              measured: existingNode.measured,
-              className: existingNode.className,
-            }
-          } else {
-            // New node - add it with default position, will be positioned after measurement
-            return newNode
-          }
-        })
-
-        // Preserve placeholder and pending target nodes
-        const placeholderNodes = prevNodes.filter(
-          (node) => node.id.startsWith('placeholder-') || node.id.startsWith('pending-target-')
-        )
-
-        return [...updatedRealNodes, ...placeholderNodes]
-      })
-
-      // Preserve existing real edges (user-created connections)
-      // Only replace button edges, placeholder-related edges, and pending edges
-      setEdges((prevEdges) => {
-        const realEdges = prevEdges.filter(
-          (edge) =>
-            edge.type !== 'buttonEdge' &&
-            !edge.id.startsWith('button-') &&
-            !edge.source.startsWith('placeholder-') &&
-            !edge.target.startsWith('placeholder-') &&
-            !edge.id.startsWith('pending-') &&
-            !edge.target.startsWith('pending-target-')
-        )
-        // Preserve pending edges if they exist
-        const pendingEdges = prevEdges.filter((edge) => edge.id.startsWith('pending-'))
-        // Merge edges and deduplicate by ID
-        const edgeMap = new Map<string, EdgeType>()
-        realEdges.forEach((edge) => edgeMap.set(edge.id, edge))
-        initialEdges.forEach((edge) => edgeMap.set(edge.id, edge)) // initialEdges override if duplicate
-        pendingEdges.forEach((edge) => edgeMap.set(edge.id, edge)) // Re-add pending edges
-        return Array.from(edgeMap.values()).map((edge) => ({ ...edge, markerEnd }))
-      })
-
-      // Update the ref with current node IDs
-      previousNodeIdsRef.current = currentNodeIds
-    } else if (isInitialized && hasDeletedNodes) {
-      // Only handle deletions (new nodes handled above)
-      setNodes((prevNodes) => {
-        const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
-
-        const updatedRealNodes = initialNodes.map((newNode) => {
-          const existingNode = prevNodeMap.get(newNode.id)
-          if (existingNode) {
-            // Keep existing position, measured dimensions, and className
-            return {
-              ...newNode,
-              position: existingNode.position,
-              measured: existingNode.measured,
-              className: existingNode.className,
-            }
-          } else {
-            // This shouldn't happen in this branch, but handle it anyway
-            return newNode
-          }
-        })
-
-        // Preserve placeholder and pending target nodes (will be cleaned up by other effects if needed)
-        const placeholderNodes = prevNodes.filter(
-          (node) => node.id.startsWith('placeholder-') || node.id.startsWith('pending-target-')
-        )
-
-        return [...updatedRealNodes, ...placeholderNodes]
-      })
-
-      // Preserve existing real edges when deleting nodes
-      setEdges((prevEdges) => {
-        const realEdges = prevEdges.filter(
-          (edge) =>
-            edge.type !== 'buttonEdge' &&
-            !edge.id.startsWith('button-') &&
-            !edge.source.startsWith('placeholder-') &&
-            !edge.target.startsWith('placeholder-') &&
-            !edge.id.startsWith('pending-') &&
-            !edge.target.startsWith('pending-target-')
-        )
-        // Preserve pending edges if they exist
-        const pendingEdges = prevEdges.filter((edge) => edge.id.startsWith('pending-'))
-        // Merge edges and deduplicate by ID
-        const edgeMap = new Map<string, EdgeType>()
-        realEdges.forEach((edge) => edgeMap.set(edge.id, edge))
-        initialEdges.forEach((edge) => edgeMap.set(edge.id, edge)) // initialEdges override if duplicate
-        pendingEdges.forEach((edge) => edgeMap.set(edge.id, edge)) // Re-add pending edges
-        return Array.from(edgeMap.values()).map((edge) => ({ ...edge, markerEnd }))
-      })
-      previousNodeIdsRef.current = currentNodeIds
-    } else if (isInitialized && nodesDataChanged) {
-      // Handle data changes to existing nodes (no additions or deletions)
-      setNodes((prevNodes) => {
-        const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
-
-        const updatedRealNodes = initialNodes.map((newNode) => {
-          const existingNode = prevNodeMap.get(newNode.id)
-          if (existingNode) {
-            // Update node data while keeping existing position, measured dimensions, and className
-            return {
-              ...newNode,
-              position: existingNode.position,
-              measured: existingNode.measured,
-              className: existingNode.className,
-            }
-          } else {
-            return newNode
-          }
-        })
-
-        // Preserve placeholder and pending target nodes
-        const placeholderNodes = prevNodes.filter(
-          (node) => node.id.startsWith('placeholder-') || node.id.startsWith('pending-target-')
-        )
-
-        return [...updatedRealNodes, ...placeholderNodes]
-      })
-      if (edgesDataChanged) {
-        // Preserve button edges and pending edges when updating edge data
-        setEdges((prevEdges) => {
-          const buttonEdges = prevEdges.filter((edge) => edge.type === 'buttonEdge' || edge.id.startsWith('button-'))
-          const pendingEdges = prevEdges.filter((edge) => edge.id.startsWith('pending-'))
-          const realEdges = initialEdges.map((edge) => ({ ...edge, markerEnd }))
-
-          // Merge real edges with button edges and pending edges
-          const edgeMap = new Map<string, EdgeType>()
-          realEdges.forEach((edge) => edgeMap.set(edge.id, edge))
-          buttonEdges.forEach((edge) => edgeMap.set(edge.id, edge))
-          pendingEdges.forEach((edge) => edgeMap.set(edge.id, edge))
-
-          return Array.from(edgeMap.values())
-        })
-      }
-    } else if (!isInitialized) {
-      // Initial load - use positions from initialNodes and run layout
-      setNodes(initialNodes)
-      setEdges(initialEdges)
-      previousNodeIdsRef.current = currentNodeIds
-    }
-
-    // Update refs to track current state
-    previousInitialNodesRef.current = initialNodes
-    previousInitialEdgesRef.current = initialEdges
-    // If isInitialized && !hasNewNodes && !hasDeletedNodes, skip update to prevent infinite loop
-  }, [initialNodes, initialEdges, setNodes, setEdges, isInitialized, getViewport])
-
-  // Apply initial layout after nodes are measured
-  useEffect(() => {
-    if (!isInitialized && nodes.length > 0 && nodes.every((node) => node.measured)) {
-      // Schedule state update to avoid cascading renders
-      queueMicrotask(() => {
-        setIsInitialized(true)
-      })
-    }
-  }, [nodes, isInitialized])
-
-  // Run layout once after initialization completes
-  useEffect(() => {
-    if (isInitialized && !hasRunInitialLayoutRef.current) {
-      hasRunInitialLayoutRef.current = true
-      // Use a small delay to ensure nodes are fully rendered before layout
-      const timer = setTimeout(() => {
-        onLayoutRef.current()
-      }, 50)
-      return () => clearTimeout(timer)
-    }
-  }, [isInitialized])
-
-  // Trigger layout when requested from parent
-  useEffect(() => {
-    if (triggerLayout && isInitialized) {
-      onLayoutRef.current()
-    }
-  }, [triggerLayout, isInitialized])
 
   // Position newly added nodes after they've been measured
   useEffect(() => {
@@ -913,6 +279,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         )
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, isInitialized, getViewport, setNodes])
 
   // Adjust viewport when panel opens/closes
@@ -926,79 +293,18 @@ export function BuilderFlow(props: BuilderFlowProps) {
     }
   }, [panelOpen, fitView, isInitialized])
 
-  // Clear pending edge when panel closes or source node is deleted
-  useEffect(() => {
-    if (!panelOpen && pendingEdge) {
-      setPendingEdge(null)
-    }
-    // Clear pending edge if source node no longer exists
-    if (pendingEdge) {
-      const sourceExists = nodes.some((n) => n.id === pendingEdge.sourceNodeId)
-      if (!sourceExists) {
-        setPendingEdge(null)
-      }
-    }
-  }, [panelOpen, pendingEdge, nodes])
-
-  // Save real edges (not button edges) to store whenever they change
-  useEffect(() => {
-    if (!isInitialized) return
-
-    // Prevent re-entrant syncing (when syncJoinBranches modifies workflow → edges recompute → effect runs again)
-    if (isSyncingRef.current) return
-
-    // Filter out button edges and placeholder-related edges
-    const realEdges = edges.filter(
-      (edge) =>
-        edge.type !== 'buttonEdge' &&
-        !edge.id.startsWith('button-') &&
-        !edge.source.startsWith('placeholder-') &&
-        !edge.target.startsWith('placeholder-') &&
-        !edge.id.startsWith('pending-') &&
-        !edge.target.startsWith('pending-target-')
-    )
-
-    // Convert to simplified format for storage
-    const edgeConnections = realEdges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      sourceHandle: edge.sourceHandle,
-      targetHandle: edge.targetHandle,
-    }))
-
-    // Create signature for comparison
-    const currentSignature = JSON.stringify(edgeConnections)
-    const hasEdgesChanged = currentSignature !== lastEdgesSignatureRef.current
-
-    // Only proceed if edges actually changed
-    if (!hasEdgesChanged) return
-
-    // Update ref to current state
-    lastEdgesSignatureRef.current = currentSignature
-
-    // Update store with new edges
-    setStoredEdges(edgeConnections)
-
-    // Set syncing flag to prevent re-entrance
-    isSyncingRef.current = true
-
-    // Sync join activity branches after edges are updated
-    useWorkflowStore.getState().syncJoinBranches()
-    // Reorder activities to match edge topology
-    useWorkflowStore.getState().reorderActivitiesFromEdges()
-
-    // Clear syncing flag after a microtask to allow the workflow update to complete
-    queueMicrotask(() => {
-      isSyncingRef.current = false
-    })
-  }, [edges, isInitialized, setStoredEdges])
+  // Track connection state when dragging from a button edge
+  const connectionStateRef = useRef<ConnectionState>({
+    sourceNodeId: null,
+    successful: false,
+  })
+  const [isConnecting, setIsConnecting] = useState(false)
 
   // Handle manual edge connections (drag from one node to another)
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
       setIsConnecting(false)
-      connectionSuccessfulRef.current = true
+      connectionStateRef.current.successful = true
 
       // Clear pending edge if it exists
       setPendingEdge(null)
@@ -1037,17 +343,12 @@ export function BuilderFlow(props: BuilderFlowProps) {
     [setEdges, setNodes, onAddNodeFromEdge]
   )
 
-  // Track the source node when starting a connection from a button edge
-  const connectionSourceRef = useRef<string | null>(null)
-  const connectionSuccessfulRef = useRef<boolean>(false)
-  const [isConnecting, setIsConnecting] = useState(false)
-
   // Handle connection attempts - detect when dragging to open area
   const onConnectStart = useCallback(
     (_: unknown, params: { nodeId: string | null; handleId: string | null; handleType: string | null }) => {
       if (params.nodeId && params.handleType === 'source') {
-        connectionSourceRef.current = params.nodeId
-        connectionSuccessfulRef.current = false
+        connectionStateRef.current.sourceNodeId = params.nodeId
+        connectionStateRef.current.successful = false
         setIsConnecting(true)
       }
     },
@@ -1059,10 +360,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
       setIsConnecting(false)
 
       // Check if this was a connection attempt that didn't land on a target
-      const sourceNodeId = connectionSourceRef.current
-      const wasSuccessful = connectionSuccessfulRef.current
-      connectionSourceRef.current = null
-      connectionSuccessfulRef.current = false
+      const { sourceNodeId, successful: wasSuccessful } = connectionStateRef.current
+      connectionStateRef.current.sourceNodeId = null
+      connectionStateRef.current.successful = false
 
       if (!sourceNodeId || wasSuccessful) return
 
@@ -1093,294 +393,48 @@ export function BuilderFlow(props: BuilderFlowProps) {
     [onAddNodeFromEdge, screenToFlowPosition]
   )
 
-  // Memoize real node IDs (excluding placeholders and pending targets) to use as stable dependency
-  const realNodeIds = useMemo(() => {
-    return nodes
-      .filter((node) => !node.id.startsWith('placeholder-') && !node.id.startsWith('pending-target-'))
-      .map((node) => node.id)
-      .sort()
-      .join(',')
-  }, [nodes])
+  // Use custom hook to maintain button edges on nodes
+  useButtonEdgeMaintenance({
+    nodes,
+    edges,
+    isInitialized,
+    activeEdgeButtonNodeId,
+    onAddNodeFromEdge,
+    pendingEdge,
+    setNodes,
+    setEdges,
+  })
 
-  // Memoize real edges count to track edge changes for button edge maintenance
-  const realEdgesSignature = useMemo(() => {
-    const realEdges = edges.filter(
-      (edge) => edge.type !== 'buttonEdge' && !edge.id.startsWith('button-') && !edge.id.startsWith('pending-')
-    )
-    return realEdges
-      .map((edge) => `${edge.source}-${edge.target}`)
-      .sort()
-      .join('|')
-  }, [edges])
+  // Use custom hook to manage edge active states
+  useEdgeActiveState({
+    isInitialized,
+    activeEdgeId,
+    activeEdgeButtonNodeId,
+    onAddNodeFromEdge,
+    setEdges,
+  })
 
-  // Add pending edge and its target node when a connection is dragged to canvas
+  // Clear pending edge when panel closes or source node is deleted
   useEffect(() => {
-    if (pendingEdge && isInitialized) {
-      const pendingNodeId = `pending-target-${pendingEdge.sourceNodeId}`
-      const pendingEdgeId = `pending-${pendingEdge.sourceNodeId}`
-
-      // First, clean up ALL existing pending edges and nodes to ensure only one at a time
-      setNodes((currentNodes) => {
-        // Remove all pending-target nodes first
-        const withoutPendingNodes = currentNodes.filter((n) => !n.id.startsWith('pending-target-'))
-
-        // Check if we already have this specific pending node
-        const hasNode = withoutPendingNodes.some((n) => n.id === pendingNodeId)
-        if (!hasNode) {
-          return [
-            ...withoutPendingNodes,
-            {
-              id: pendingNodeId,
-              type: 'placeholder',
-              position: { x: pendingEdge.x - 5, y: pendingEdge.y - 5 }, // Center 10px node on cursor
-              data: {},
-              draggable: false,
-              selectable: false,
-            } as unknown as NodeType,
-          ]
-        }
-        return withoutPendingNodes
-      })
-
-      // Add pending edge with glow effect and remove button edge from source node
-      setEdges((currentEdges) => {
-        // Remove all existing pending edges first to ensure only one at a time
-        const withoutPendingEdges = currentEdges.filter((e) => !e.id.startsWith('pending-'))
-        const buttonEdgeId = `button-${pendingEdge.sourceNodeId}`
-
-        const hasEdge = withoutPendingEdges.some((e) => e.id === pendingEdgeId)
-
-        if (!hasEdge) {
-          // Remove button edge from source node and add pending edge
-          const filteredEdges = withoutPendingEdges.filter((e) => e.id !== buttonEdgeId)
-          return [
-            ...filteredEdges,
-            {
-              id: pendingEdgeId,
-              source: pendingEdge.sourceNodeId,
-              target: pendingNodeId,
-              type: 'default',
-              selectable: false,
-              markerEnd,
-              data: {
-                isPending: true,
-                isActive: true, // Make it glow
-              },
-            } as EdgeType,
-          ]
-        }
-        return withoutPendingEdges
-      })
-
-      // Remove placeholder node for button edge from source node
-      const sourcePlaceholderId = `placeholder-${pendingEdge.sourceNodeId}`
-      setNodes((currentNodes) => currentNodes.filter((n) => n.id !== sourcePlaceholderId))
-    } else if (!pendingEdge) {
-      // Remove pending edge and node when cleared
-      setNodes((currentNodes) => currentNodes.filter((n) => !n.id.startsWith('pending-target-')))
-      setEdges((currentEdges) => currentEdges.filter((e) => !e.id.startsWith('pending-')))
+    if (!panelOpen && pendingEdge) {
+      setPendingEdge(null)
     }
-  }, [pendingEdge, isInitialized, setNodes, setEdges])
-
-  // Ensure all default edges have the onAddNode callback, markerEnd, and isActive state
-  useEffect(() => {
-    setEdges((currentEdges) => {
-      let updated = false
-      const updatedEdges = currentEdges.map((edge) => {
-        if (edge.type === 'default') {
-          const needsData = !edge.data || !edge.data.onAddNode
-          const needsMarker = !edge.markerEnd
-          const needsActiveUpdate = edge.data?.isActive !== (activeEdgeId === edge.id || edge.data?.isPending)
-
-          if (needsData || needsMarker || needsActiveUpdate) {
-            updated = true
-            return {
-              ...edge,
-              markerEnd: edge.markerEnd || markerEnd,
-              data: {
-                ...edge.data,
-                onAddNode: edge.data?.onAddNode || onAddNodeFromEdge,
-                isActive: activeEdgeId === edge.id || edge.data?.isPending,
-              },
-            }
-          }
-        }
-        return edge
-      })
-      return updated ? updatedEdges : currentEdges
-    })
-  }, [setEdges, onAddNodeFromEdge, activeEdgeId])
-
-  // Update button edge active state when activeEdgeButtonNodeId changes
-  useEffect(() => {
-    if (!isInitialized) {
-      return
-    }
-
-    setEdges((currentEdges) =>
-      currentEdges.map((edge) => {
-        if (edge.type === 'buttonEdge' || edge.id.startsWith('button-')) {
-          // Extract the node ID from the button edge ID (format: button-{nodeId})
-          const nodeId = edge.source
-          return {
-            ...edge,
-            data: {
-              ...edge.data,
-              isActive: activeEdgeButtonNodeId === nodeId,
-            },
-          }
-        }
-        return edge
-      })
-    )
-  }, [activeEdgeButtonNodeId, isInitialized, setEdges])
-
-  // Maintain button edges: add to nodes without outgoing edges, remove from nodes with outgoing edges
-  useEffect(() => {
-    if (!isInitialized) {
-      return
-    }
-
-    // Skip if we just handled button edges in delete handler
-    if (skipButtonEdgeMaintenanceRef.current) {
-      return
-    }
-
-    // Use a small delay to ensure nodes are fully loaded and measured
-    const timeoutId = setTimeout(() => {
-      // First get current nodes, then update edges
-      let currentRealNodes: NodeType[] = []
-
-      setNodes((currentNodes) => {
-        currentRealNodes = currentNodes.filter(
-          (node) => !node.id.startsWith('placeholder-') && !node.id.startsWith('pending-target-')
-        )
-        return currentNodes // Return unchanged
-      })
-
-      // Collect placeholder nodes to add
-      const placeholderNodesToAdd: NodeType[] = []
-
-      // Now update edges with knowledge of current nodes
-      setEdges((currentEdges) => {
-        const realNodes = currentRealNodes
-
-        const nodesWithOutgoing = new Set<string>()
-
-        // Find which nodes have real outgoing edges (excluding pending edges)
-        currentEdges.forEach((edge) => {
-          if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-') && !edge.id.startsWith('pending-')) {
-            nodesWithOutgoing.add(edge.source)
-          }
-        })
-
-        const edgesToAdd: EdgeType[] = []
-        const buttonEdgeIds = new Set<string>()
-        const nodeIdsWithButtonEdges = new Set<string>()
-
-        realNodes.forEach((node) => {
-          const buttonEdgeId = `button-${node.id}`
-          const hasRealOutgoing = nodesWithOutgoing.has(node.id)
-          const hasButtonEdge = currentEdges.some((e) => e.id === buttonEdgeId)
-          const hasPendingEdge = pendingEdge?.sourceNodeId === node.id
-
-          // Only add button edge if node has no real outgoing edge and no pending edge
-          if (!hasRealOutgoing && !hasButtonEdge && !hasPendingEdge) {
-            // Node needs a button edge - add it
-            const placeholderId = `placeholder-${node.id}`
-
-            // Collect placeholder node to add later
-            placeholderNodesToAdd.push({
-              id: placeholderId,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              type: 'placeholder' as any, // Custom node type for invisible edge targets
-              position: { x: node.position.x + 200, y: node.position.y },
-              data: {}, // No data needed for placeholder nodes
-              draggable: false,
-              selectable: false,
-            } as NodeType)
-
-            const newEdge = {
-              id: buttonEdgeId,
-              source: node.id,
-              sourceHandle: 'source', // Explicitly specify the source handle
-              target: placeholderId,
-              targetHandle: 'target', // Explicitly specify the target handle
-              type: 'buttonEdge', // Our custom edge with the plus button
-              selectable: false, // Button edges can't be selected
-              data: {
-                onButtonClick: () => onAddNodeFromEdge?.(node.id),
-                isActive: activeEdgeButtonNodeId === node.id,
-              },
-            } as unknown
-            edgesToAdd.push(newEdge as EdgeType)
-          }
-
-          // Only keep button edge if node has no real outgoing edge and no pending edge
-          if (!hasRealOutgoing && !hasPendingEdge) {
-            buttonEdgeIds.add(buttonEdgeId)
-            nodeIdsWithButtonEdges.add(node.id)
-          }
-        })
-
-        // Update node classes to hide source handles for nodes with button edges
-        setNodes((currentNodes) =>
-          currentNodes.map((node) => {
-            if (node.id.startsWith('placeholder-') || node.id.startsWith('pending-target-')) return node
-
-            const shouldHaveButtonEdge = nodeIdsWithButtonEdges.has(node.id)
-            const currentClassName = node.className || ''
-            const hasClass = currentClassName.includes('has-button-edge')
-
-            if (shouldHaveButtonEdge && !hasClass) {
-              return { ...node, className: `${currentClassName} has-button-edge`.trim() }
-            } else if (!shouldHaveButtonEdge && hasClass) {
-              return { ...node, className: currentClassName.replace('has-button-edge', '').trim() }
-            }
-            return node
-          })
-        )
-
-        // Remove button edges from nodes that now have real outgoing edges
-        const filteredEdges = currentEdges.filter((edge) => {
-          if (edge.type === 'buttonEdge' || edge.id.startsWith('button-')) {
-            // Keep button edge only if the node should have one
-            return buttonEdgeIds.has(edge.id)
-          }
-          return true
-        })
-
-        // If we need to add edges, combine them
-        if (edgesToAdd.length > 0) {
-          const newEdges = [...filteredEdges, ...edgesToAdd]
-          return newEdges
-        }
-
-        // If we removed any button edges, return the filtered list
-        if (filteredEdges.length !== currentEdges.length) {
-          return filteredEdges
-        }
-
-        // No changes needed
-        return currentEdges
-      })
-
-      // Add placeholder nodes if any were collected
-      if (placeholderNodesToAdd.length > 0) {
-        setNodes((currentNodes) => {
-          const existingIds = new Set(currentNodes.map((n) => n.id))
-          const nodesToAdd = placeholderNodesToAdd.filter((n) => !existingIds.has(n.id))
-          if (nodesToAdd.length > 0) {
-            return [...currentNodes, ...nodesToAdd]
-          }
-          return currentNodes
-        })
+    // Clear pending edge if source node no longer exists
+    if (pendingEdge) {
+      const sourceExists = nodes.some((n) => n.id === pendingEdge.sourceNodeId)
+      if (!sourceExists) {
+        setPendingEdge(null)
       }
-    }, 50) // Small delay to let React Flow settle
+    }
+  }, [panelOpen, pendingEdge, nodes])
 
-    return () => clearTimeout(timeoutId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [realNodeIds, realEdgesSignature, isInitialized, setEdges, setNodes, nodes, reactFlowInstance, pendingEdge])
+  // Use custom hook to manage pending edge and its placeholder node
+  usePendingEdgeManagement({
+    pendingEdge,
+    isInitialized,
+    setNodes,
+    setEdges,
+  })
 
   return (
     <div ref={containerRef} className="size-full">
@@ -1455,13 +509,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         className="builder-flow"
         colorMode="dark"
         nodes={nodes}
-        edges={
-          isConnecting
-            ? edges.filter(
-                (e) => e.type !== 'buttonEdge' && !e.id.startsWith('button-') && !e.id.startsWith('pending-')
-              )
-            : edges
-        }
+        edges={isConnecting ? edges.filter((e) => e.type !== 'buttonEdge' && !e.id.startsWith('button-')) : edges}
         nodeTypes={builderNodeTypes}
         edgeTypes={builderEdgeTypes}
         onNodesChange={onNodesChange}
