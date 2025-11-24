@@ -378,6 +378,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
       })
       hasRunInitialLayoutRef.current = false
       newlyAddedNodeIdsRef.current.clear()
+      lastEdgesSignatureRef.current = ''
+      isSyncingRef.current = false
       workflowVersionRef.current = workflowVersion
     }
   }, [workflowVersion])
@@ -405,18 +407,50 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     const activities = currentWorkflow?.workflow.activities || []
 
-    // Check if workflow has any nested activity types (condition, sequence, parallel, loop, join)
-    // OR if there are no stored edges in the application state
-    const hasNestedActivities = activities.some(
-      (activity: Activity) =>
-        activity.type === 'condition' ||
-        activity.type === 'sequence' ||
-        activity.type === 'parallel' ||
-        activity.type === 'loop' ||
-        activity.type === 'join'
-    )
+    // Helper to recursively extract all task activities from nested structures
+    const extractTaskActivities = (activities: Activity[]): TaskActivity[] => {
+      const tasks: TaskActivity[] = []
+      for (const activity of activities) {
+        if (activity.type === 'task') {
+          tasks.push(activity)
+        } else if (activity.type === 'parallel' && activity.branches) {
+          tasks.push(...extractTaskActivities(activity.branches))
+        } else if (activity.type === 'sequence' && activity.steps) {
+          tasks.push(...extractTaskActivities(activity.steps))
+        } else if (activity.type === 'condition') {
+          if (activity.then) tasks.push(...extractTaskActivities(activity.then))
+          if (activity.else) tasks.push(...extractTaskActivities(activity.else))
+        } else if (activity.type === 'loop' && activity.loop.do) {
+          tasks.push(...extractTaskActivities(activity.loop.do))
+        }
+      }
+      return tasks
+    }
+
+    // Check if workflow has any non-parallel nested activity types (condition, sequence, loop)
+    // Parallels created by syncJoinBranches are structural containers, not legacy constructs
+    const hasLegacyNestedActivities = (activities: Activity[]): boolean => {
+      for (const activity of activities) {
+        if (activity.type === 'condition' || activity.type === 'sequence' || activity.type === 'loop') {
+          return true
+        }
+        // Check if parallel was user-created (not auto-generated for joins)
+        if (activity.type === 'parallel' && !activity.id.startsWith('parallel_for_')) {
+          return true
+        }
+        // Recursively check nested structures
+        if (activity.type === 'parallel' && activity.branches) {
+          if (hasLegacyNestedActivities(activity.branches)) return true
+        }
+        if (activity.type === 'sequence' && activity.steps) {
+          if (hasLegacyNestedActivities(activity.steps)) return true
+        }
+      }
+      return false
+    }
+
     const hasStoredEdges = storedEdges.length > 0
-    const isLegacyWorkflow = hasNestedActivities || (!hasStoredEdges && activities.length > 0)
+    const isLegacyWorkflow = hasLegacyNestedActivities(activities) || (!hasStoredEdges && activities.length > 0)
 
     // Legacy workflows: generate edges from workflow structure
     // New workflows: flat tasks with edges managed separately in application state
@@ -427,12 +461,24 @@ export function BuilderFlow(props: BuilderFlowProps) {
         addActivity(activity, nodes, edges, previousIds)
       }
     } else {
-      // New behavior: only create task nodes, edges managed separately
+      // New behavior: extract all task nodes recursively, edges managed separately
+      // This ensures task nodes remain stable even when wrapped in auto-generated parallel activities
+      const taskActivities = extractTaskActivities(activities)
+      taskActivities.forEach((activity: TaskActivity) => {
+        nodes.push({
+          id: activity.id,
+          type: 'task',
+          position: { x: 0, y: 0 },
+          data: activity,
+        })
+      })
+
+      // Also create nodes for join activities (they need to be visible on canvas)
       activities.forEach((activity: Activity) => {
-        if (activity.type === 'task') {
+        if (activity.type === 'join') {
           nodes.push({
             id: activity.id,
-            type: 'task',
+            type: 'join',
             position: { x: 0, y: 0 },
             data: activity,
           })
@@ -463,6 +509,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const previousInitialNodesRef = useRef<NodeType[]>(initialNodes)
   const previousInitialEdgesRef = useRef<EdgeType[]>(initialEdges)
   const newlyAddedNodeIdsRef = useRef<Set<string>>(new Set())
+  const lastEdgesSignatureRef = useRef<string>('')
+  const isSyncingRef = useRef(false)
 
   const onLayout = useCallback(() => {
     const layouted = getLayoutedElements(nodes, edges, { direction: 'LR' })
@@ -896,7 +944,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
   useEffect(() => {
     if (!isInitialized) return
 
-    // Filter out button edges, placeholder-related edges, and pending edges
+    // Prevent re-entrant syncing (when syncJoinBranches modifies workflow → edges recompute → effect runs again)
+    if (isSyncingRef.current) return
+
+    // Filter out button edges and placeholder-related edges
     const realEdges = edges.filter(
       (edge) =>
         edge.type !== 'buttonEdge' &&
@@ -916,13 +967,32 @@ export function BuilderFlow(props: BuilderFlowProps) {
       targetHandle: edge.targetHandle,
     }))
 
-    // Only update if changed to avoid infinite loops
-    const currentStored = JSON.stringify(storedEdges)
-    const newStored = JSON.stringify(edgeConnections)
-    if (currentStored !== newStored) {
-      setStoredEdges(edgeConnections)
-    }
-  }, [edges, isInitialized, storedEdges, setStoredEdges])
+    // Create signature for comparison
+    const currentSignature = JSON.stringify(edgeConnections)
+    const hasEdgesChanged = currentSignature !== lastEdgesSignatureRef.current
+
+    // Only proceed if edges actually changed
+    if (!hasEdgesChanged) return
+
+    // Update ref to current state
+    lastEdgesSignatureRef.current = currentSignature
+
+    // Update store with new edges
+    setStoredEdges(edgeConnections)
+
+    // Set syncing flag to prevent re-entrance
+    isSyncingRef.current = true
+
+    // Sync join activity branches after edges are updated
+    useWorkflowStore.getState().syncJoinBranches()
+    // Reorder activities to match edge topology
+    useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+    // Clear syncing flag after a microtask to allow the workflow update to complete
+    queueMicrotask(() => {
+      isSyncingRef.current = false
+    })
+  }, [edges, isInitialized, setStoredEdges])
 
   // Handle manual edge connections (drag from one node to another)
   const onConnect: OnConnect = useCallback(

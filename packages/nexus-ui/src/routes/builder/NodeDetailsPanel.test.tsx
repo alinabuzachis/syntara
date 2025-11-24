@@ -243,9 +243,9 @@ describe('NodeDetailsPanel Component', () => {
     })
   })
 
-  describe('Fallback Rendering', () => {
-    it('renders fallback view for unsupported node types', () => {
-      const unsupportedNode: Node<NodeType['data']> = {
+  describe('Join Node', () => {
+    it('renders join node details panel', () => {
+      const joinNode: Node<NodeType['data']> = {
         id: 'join-1',
         type: 'join',
         position: { x: 0, y: 0 },
@@ -253,15 +253,38 @@ describe('NodeDetailsPanel Component', () => {
           type: 'join',
           id: 'join-1',
           name: 'Test Join',
+          join: {
+            strategy: 'all',
+          },
+        },
+      }
+
+      render(<NodeDetailsPanel node={joinNode} onClose={mockOnClose} />)
+
+      expect(screen.getByRole('heading', { name: 'Test Join' })).toBeInTheDocument()
+      expect(screen.getByTestId('logic-node-form')).toBeInTheDocument()
+    })
+  })
+
+  describe('Fallback Rendering', () => {
+    it('renders fallback view for unsupported node types', () => {
+      const unsupportedNode: Node<NodeType['data']> = {
+        id: 'email-1',
+        type: 'email' as NodeType['data']['type'],
+        position: { x: 0, y: 0 },
+        data: {
+          type: 'email' as NodeType['data']['type'],
+          id: 'email-1',
+          name: 'Test Email',
         },
       }
 
       render(<NodeDetailsPanel node={unsupportedNode} onClose={mockOnClose} />)
 
       expect(screen.getByText('Node Type')).toBeInTheDocument()
-      expect(screen.getByText('join')).toBeInTheDocument()
+      expect(screen.getByText('email')).toBeInTheDocument()
       expect(screen.getByText('Node ID')).toBeInTheDocument()
-      expect(screen.getByText('join-1')).toBeInTheDocument()
+      expect(screen.getByText('email-1')).toBeInTheDocument()
     })
   })
 

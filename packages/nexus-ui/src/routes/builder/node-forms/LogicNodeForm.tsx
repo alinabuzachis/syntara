@@ -11,6 +11,8 @@ interface LogicNodeFormProps {
     items?: string
     count?: number
     maxIterations?: number
+    joinStrategy?: string
+    joinCount?: number
   }) => void
   onCancel: () => void
   submitButtonText?: string
@@ -22,6 +24,8 @@ interface LogicNodeFormProps {
     items?: string
     count?: number
     maxIterations?: number
+    joinStrategy?: string
+    joinCount?: number
   }
 }
 
@@ -33,6 +37,8 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
   const [items, setItems] = useState(props.initialData?.items ?? '')
   const [count, setCount] = useState(props.initialData?.count ?? 10)
   const [maxIterations, setMaxIterations] = useState(props.initialData?.maxIterations ?? 1000)
+  const [joinStrategy, setJoinStrategy] = useState(props.initialData?.joinStrategy ?? 'all')
+  const [joinCount, setJoinCount] = useState(props.initialData?.joinCount ?? 2)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,6 +50,8 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
       items: logicType === 'loop' && loopType === 'forEach' ? items : undefined,
       count: logicType === 'loop' && loopType === 'count' ? count : undefined,
       maxIterations: logicType === 'loop' && loopType === 'while' ? maxIterations : undefined,
+      joinStrategy: logicType === 'converge' ? joinStrategy : undefined,
+      joinCount: logicType === 'converge' && joinStrategy === 'count' ? joinCount : undefined,
     })
   }
 
@@ -72,6 +80,7 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
           >
             <option value="condition">Condition (If/Else)</option>
             <option value="loop">Loop</option>
+            <option value="converge">Converge (Join)</option>
           </select>
         </div>
 
@@ -165,6 +174,47 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
                 />
               </div>
             )}
+          </>
+        )}
+
+        {logicType === 'converge' && (
+          <>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-300">Join Strategy</label>
+              <select
+                value={joinStrategy}
+                onChange={(e) => setJoinStrategy(e.target.value)}
+                className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50 [&_option]:bg-gray-800 [&_option]:text-white"
+              >
+                <option value="all">All - Wait for all branches</option>
+                <option value="any">Any - Wait for first completion</option>
+                <option value="majority">Majority - Wait for &gt;50%</option>
+                <option value="count">Count - Wait for specific number</option>
+              </select>
+            </div>
+
+            {joinStrategy === 'count' && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-300">
+                  Required Branch Count <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={joinCount}
+                  onChange={(e) => setJoinCount(Number(e.target.value))}
+                  className="rounded-md bg-white/5 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
+                  min={1}
+                  required
+                />
+              </div>
+            )}
+
+            <div className="rounded-md bg-blue-500/10 p-3">
+              <p className="text-xs text-blue-300">
+                <strong>Note:</strong> Converge (Join) nodes wait for multiple parallel branches to complete before
+                proceeding. Connect incoming edges from the branches you want to synchronize.
+              </p>
+            </div>
           </>
         )}
 

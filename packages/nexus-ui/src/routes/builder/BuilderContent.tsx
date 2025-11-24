@@ -1,5 +1,6 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Button, ConfirmDialog, Switch, Tooltip, useAlerts } from '@ansible/nexus-ui-framework'
+import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, type Node } from '@xyflow/react'
 import { ClockIcon, FileCode, PlayIcon, PlusIcon, SaveIcon, XIcon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -34,6 +35,7 @@ export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId } = props
   const [, navigate] = useLocation()
   const { showSuccess, showError } = useAlerts()
+  const queryClient = useQueryClient()
   const reactFlowInstance = useReactFlow()
   const { setWorkflow, currentWorkflow, setEdges: setStoredEdges } = useWorkflowStore()
 
@@ -167,6 +169,14 @@ export function BuilderContent(props: BuilderContentProps) {
 
     const onSaveSuccess = (successMessage: string, workflowIdToNavigate?: string) => {
       showSuccess(successMessage, 'Workflow Saved')
+      // Invalidate workflow queries to ensure fresh data on next load
+      // Use predicate to match openapi-react-query's key structure: [method, path, params]
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === 'get' &&
+          typeof query.queryKey[1] === 'string' &&
+          query.queryKey[1].startsWith('/workflows'),
+      })
       if (workflowIdToNavigate) {
         // Navigate to the edit route with the workflow ID
         navigate(`/automation-builder/${workflowIdToNavigate}`)
@@ -214,6 +224,7 @@ export function BuilderContent(props: BuilderContentProps) {
     showSuccess,
     showError,
     navigate,
+    queryClient,
   ])
 
   const handleRunAutomation = useCallback(() => {
@@ -393,6 +404,10 @@ export function BuilderContent(props: BuilderContentProps) {
                   onNodeError={showError}
                   sourceNodeId={sourceNodeId}
                   onConnect={(sourceId, targetId) => {
+                    // Capture state values before they get cleared by panel close
+                    const capturedEdgeIdToReplace = edgeIdToReplace
+                    const capturedTargetNodeId = targetNodeId
+
                     // Wait for target node to be rendered and measured by React Flow
                     // Check every 50ms for up to 2 seconds
                     let attempts = 0
@@ -410,8 +425,8 @@ export function BuilderContent(props: BuilderContentProps) {
                         let filteredEdges = currentEdges.filter((e) => e.id !== `button-${sourceId}`)
 
                         // If we're inserting between two nodes, remove the old edge
-                        if (edgeIdToReplace && targetNodeId) {
-                          filteredEdges = filteredEdges.filter((e) => e.id !== edgeIdToReplace)
+                        if (capturedEdgeIdToReplace && capturedTargetNodeId) {
+                          filteredEdges = filteredEdges.filter((e) => e.id !== capturedEdgeIdToReplace)
 
                           // Add edge from source to new node
                           filteredEdges.push({
@@ -434,9 +449,9 @@ export function BuilderContent(props: BuilderContentProps) {
 
                           // Add edge from new node to original target
                           filteredEdges.push({
-                            id: `${targetId}-${targetNodeId}`,
+                            id: `${targetId}-${capturedTargetNodeId}`,
                             source: targetId,
-                            target: targetNodeId,
+                            target: capturedTargetNodeId,
                             sourceHandle: 'source',
                             targetHandle: 'target',
                             type: 'default',
@@ -452,6 +467,9 @@ export function BuilderContent(props: BuilderContentProps) {
                           })
 
                           reactFlowInstance.setEdges(filteredEdges)
+
+                          // Reorder the new activity to be before the target activity in the workflow
+                          useWorkflowStore.getState().moveActivityBefore(targetId, capturedTargetNodeId)
                         } else {
                           // Normal connection - just add one edge
                           reactFlowInstance.setEdges([

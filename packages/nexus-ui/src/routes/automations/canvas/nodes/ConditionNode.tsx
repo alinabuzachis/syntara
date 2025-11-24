@@ -7,7 +7,6 @@ import { renderCondition, renderOutputs, renderJson } from './common/detailRende
 import { handleStyle } from './common/handleStyle'
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
-import { NodeExpandedContext } from './common/NodeExpandedContext'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
 import { nodeMetadata } from './nodeMetadata'
 
@@ -18,14 +17,12 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
   const Icon = metadata.icon!
   return (
     <NodeComponent className={metadata.className} nodeProps={props}>
-      <NodeExpandedContext.Provider value={null}>
-        <ConditionNodeDetails conditionActivity={props.data} icon={<Icon />}>
-          <NodeHandles>
-            <NodeHandle id="then">then</NodeHandle>
-            {props.data.else && props.data.else.length > 0 && <NodeHandle id="else">else</NodeHandle>}
-          </NodeHandles>
-        </ConditionNodeDetails>
-      </NodeExpandedContext.Provider>
+      <ConditionNodeDetails conditionActivity={props.data} icon={<Icon />}>
+        <NodeHandles>
+          <NodeHandle id="then">then</NodeHandle>
+          {props.data.else && props.data.else.length > 0 && <NodeHandle id="else">else</NodeHandle>}
+        </NodeHandles>
+      </ConditionNodeDetails>
     </NodeComponent>
   )
 }

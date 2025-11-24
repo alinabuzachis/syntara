@@ -2,6 +2,8 @@ import { SelectableCardList, SelectableCardWithForm, SidePanel } from '@ansible/
 import { PlusIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
+import { useWorkflowStore } from '../../stores/useWorkflowStore'
+
 import { NodeRegistry } from './registry/NodeRegistry'
 
 interface AddNodePanelProps {
@@ -14,6 +16,7 @@ interface AddNodePanelProps {
 
 export function AddNodePanel(props: AddNodePanelProps) {
   const [selectedNodeType, setSelectedNodeType] = useState<string | null>(null)
+  const moveActivityAfter = useWorkflowStore((state) => state.moveActivityAfter)
 
   // Get all registered node types
   const nodeTypes = useMemo(() => NodeRegistry.getAll(), [])
@@ -40,9 +43,15 @@ export function AddNodePanel(props: AddNodePanelProps) {
           selectedNode.onSubmit(
             data,
             (newNodeId?: string) => {
-              // Success callback - connect if sourceNodeId exists
-              if (props.sourceNodeId && newNodeId && props.onConnect) {
-                props.onConnect(props.sourceNodeId, newNodeId)
+              // Success callback
+              if (props.sourceNodeId && newNodeId) {
+                // Move the newly added activity to the correct position (after sourceNodeId)
+                moveActivityAfter(newNodeId, props.sourceNodeId)
+
+                // Connect if onConnect callback exists
+                if (props.onConnect) {
+                  props.onConnect(props.sourceNodeId, newNodeId)
+                }
               }
               setSelectedNodeType(null)
               props.onClose()

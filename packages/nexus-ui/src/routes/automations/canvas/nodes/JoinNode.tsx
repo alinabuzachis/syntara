@@ -14,14 +14,23 @@ export type JoinNode = { type: 'join' } & Node<JoinActivity>
 export function JoinNodeComponent(props: NodeProps<JoinNode>) {
   const metadata = nodeMetadata.join
   const Icon = metadata.icon!
+  const strategy = props.data.join?.strategy ?? 'all'
+  const count =
+    props.data.join?.strategy === 'count' && props.data.join && 'count' in props.data.join
+      ? props.data.join.count
+      : undefined
+
   return (
     <NodeComponent className={metadata.className} nodeProps={props}>
-      <StandardNodeHeader icon={<Icon />} title={props.data.name} subtitle={metadata.label} />
-      <NodeBody>
-        <Details>
-          <Detail label="Strategy">{props.data.join.strategy}</Detail>
-        </Details>
-      </NodeBody>
+      <StandardNodeHeader icon={<Icon />} title={props.data.name} subtitle={metadata.label} expandable />
+      <div className="justify-left flex overflow-hidden">
+        <NodeBody>
+          <Details>
+            <Detail label="Strategy">{strategy}</Detail>
+            {count !== undefined && <Detail label="Count">{count}</Detail>}
+          </Details>
+        </NodeBody>
+      </div>
     </NodeComponent>
   )
 }

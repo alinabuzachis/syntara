@@ -6,13 +6,20 @@ import { FileTextIcon } from 'lucide-react'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
-import { ConditionNodeDetails, LoopNodeDetails, TaskNodeDetails, TriggerNodeDetails } from './node-details'
+import {
+  ConditionNodeDetails,
+  JoinNodeDetails,
+  LoopNodeDetails,
+  TaskNodeDetails,
+  TriggerNodeDetails,
+} from './node-details'
 import { NodeRawDataView } from './NodeRawDataView'
 
 // Type aliases
 type TaskActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'task' }
 type ConditionActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'condition' }
 type LoopActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'loop' }
+type JoinActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'join' }
 
 interface NodeDetailsPanelProps {
   node: Node<NodeType['data']>
@@ -68,6 +75,11 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     if (node.type === 'loop') {
       const loopData = node.data as LoopActivity
       return <LoopNodeDetails loopData={loopData} nodeId={node.id} onClose={onClose} />
+    }
+
+    if (node.type === 'join') {
+      const joinData = node.data as JoinActivity
+      return <JoinNodeDetails joinData={joinData} nodeId={node.id} onClose={onClose} />
     }
 
     // Default fallback - show raw data
