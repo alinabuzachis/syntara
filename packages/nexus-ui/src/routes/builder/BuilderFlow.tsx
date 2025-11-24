@@ -77,8 +77,10 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}))
   g.setGraph({ rankdir: options.direction, ranksep: 120 })
 
-  // Filter out placeholder nodes and button edges for layout calculation
-  const realNodes = nodes.filter((node) => !node.id.startsWith('placeholder-'))
+  // Filter out placeholder nodes, pending target nodes, and button edges for layout calculation
+  const realNodes = nodes.filter(
+    (node) => !node.id.startsWith('placeholder-') && !node.id.startsWith('pending-target-')
+  )
   const realEdges = edges.filter((edge) => edge.type !== 'buttonEdge' && !edge.id.startsWith('button-'))
 
   realEdges.forEach((edge) => g.setEdge(edge.source, edge.target))
@@ -94,8 +96,8 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
 
   return {
     nodes: nodes.map((node) => {
-      // Only update positions for real nodes
-      if (!node.id.startsWith('placeholder-')) {
+      // Only update positions for real nodes (not placeholders or pending targets)
+      if (!node.id.startsWith('placeholder-') && !node.id.startsWith('pending-target-')) {
         const position = g.node(node.id)
         const x = position.x - (node.measured?.width ?? 0) / 2
         const y = position.y - (node.measured?.height ?? 0) / 2
@@ -353,11 +355,18 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const storedEdges = useWorkflowStore((state) => state.edges)
   const setStoredEdges = useWorkflowStore((state) => state.setEdges)
   const reactFlowInstance = useReactFlow()
-  const { fitView, getViewport } = reactFlowInstance
+  const { fitView, getViewport, screenToFlowPosition } = reactFlowInstance
   const [isInitialized, setIsInitialized] = useState(false)
   const hasRunInitialLayoutRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const skipButtonEdgeMaintenanceRef = useRef(false)
+
+  // Track pending edge that was dragged to canvas
+  const [pendingEdge, setPendingEdge] = useState<{
+    sourceNodeId: string
+    x: number
+    y: number
+  } | null>(null)
 
   // Reset initialization when workflow is replaced via setWorkflow (e.g., after save/redirect)
   const workflowVersionRef = useRef(workflowVersion)
@@ -504,16 +513,17 @@ export function BuilderFlow(props: BuilderFlowProps) {
         )
       }) as EdgeType[]
 
-      // Check which nodes need button edges
+      // Check which nodes need button edges (excluding pending edges)
       const nodesWithOutgoing = new Set<string>()
       filteredEdges.forEach((edge) => {
-        if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-')) {
+        if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-') && !edge.id.startsWith('pending-')) {
           nodesWithOutgoing.add(edge.source)
         }
       })
 
       const realNodes = currentNodes.filter(
-        (node: NodeType) => !node.id.startsWith('placeholder-') && !deletedNodeIds.has(node.id)
+        (node: NodeType) =>
+          !node.id.startsWith('placeholder-') && !node.id.startsWith('pending-target-') && !deletedNodeIds.has(node.id)
       )
       const placeholderNodesToAdd: NodeType[] = []
       const buttonEdgesToAdd: EdgeType[] = []
@@ -642,32 +652,49 @@ export function BuilderFlow(props: BuilderFlowProps) {
       setNodes((prevNodes) => {
         const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
 
-        return initialNodes.map((newNode) => {
+        const updatedRealNodes = initialNodes.map((newNode) => {
           const existingNode = prevNodeMap.get(newNode.id)
           if (existingNode) {
-            // Keep existing position and measured dimensions
-            return { ...newNode, position: existingNode.position, measured: existingNode.measured }
+            // Keep existing position, measured dimensions, and className
+            return {
+              ...newNode,
+              position: existingNode.position,
+              measured: existingNode.measured,
+              className: existingNode.className,
+            }
           } else {
             // New node - add it with default position, will be positioned after measurement
             return newNode
           }
         })
+
+        // Preserve placeholder and pending target nodes
+        const placeholderNodes = prevNodes.filter(
+          (node) => node.id.startsWith('placeholder-') || node.id.startsWith('pending-target-')
+        )
+
+        return [...updatedRealNodes, ...placeholderNodes]
       })
 
       // Preserve existing real edges (user-created connections)
-      // Only replace button edges and placeholder-related edges
+      // Only replace button edges, placeholder-related edges, and pending edges
       setEdges((prevEdges) => {
         const realEdges = prevEdges.filter(
           (edge) =>
             edge.type !== 'buttonEdge' &&
             !edge.id.startsWith('button-') &&
             !edge.source.startsWith('placeholder-') &&
-            !edge.target.startsWith('placeholder-')
+            !edge.target.startsWith('placeholder-') &&
+            !edge.id.startsWith('pending-') &&
+            !edge.target.startsWith('pending-target-')
         )
+        // Preserve pending edges if they exist
+        const pendingEdges = prevEdges.filter((edge) => edge.id.startsWith('pending-'))
         // Merge edges and deduplicate by ID
         const edgeMap = new Map<string, EdgeType>()
         realEdges.forEach((edge) => edgeMap.set(edge.id, edge))
         initialEdges.forEach((edge) => edgeMap.set(edge.id, edge)) // initialEdges override if duplicate
+        pendingEdges.forEach((edge) => edgeMap.set(edge.id, edge)) // Re-add pending edges
         return Array.from(edgeMap.values()).map((edge) => ({ ...edge, markerEnd }))
       })
 
@@ -678,16 +705,28 @@ export function BuilderFlow(props: BuilderFlowProps) {
       setNodes((prevNodes) => {
         const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
 
-        return initialNodes.map((newNode) => {
+        const updatedRealNodes = initialNodes.map((newNode) => {
           const existingNode = prevNodeMap.get(newNode.id)
           if (existingNode) {
-            // Keep existing position and measured dimensions
-            return { ...newNode, position: existingNode.position, measured: existingNode.measured }
+            // Keep existing position, measured dimensions, and className
+            return {
+              ...newNode,
+              position: existingNode.position,
+              measured: existingNode.measured,
+              className: existingNode.className,
+            }
           } else {
             // This shouldn't happen in this branch, but handle it anyway
             return newNode
           }
         })
+
+        // Preserve placeholder and pending target nodes (will be cleaned up by other effects if needed)
+        const placeholderNodes = prevNodes.filter(
+          (node) => node.id.startsWith('placeholder-') || node.id.startsWith('pending-target-')
+        )
+
+        return [...updatedRealNodes, ...placeholderNodes]
       })
 
       // Preserve existing real edges when deleting nodes
@@ -697,12 +736,17 @@ export function BuilderFlow(props: BuilderFlowProps) {
             edge.type !== 'buttonEdge' &&
             !edge.id.startsWith('button-') &&
             !edge.source.startsWith('placeholder-') &&
-            !edge.target.startsWith('placeholder-')
+            !edge.target.startsWith('placeholder-') &&
+            !edge.id.startsWith('pending-') &&
+            !edge.target.startsWith('pending-target-')
         )
+        // Preserve pending edges if they exist
+        const pendingEdges = prevEdges.filter((edge) => edge.id.startsWith('pending-'))
         // Merge edges and deduplicate by ID
         const edgeMap = new Map<string, EdgeType>()
         realEdges.forEach((edge) => edgeMap.set(edge.id, edge))
         initialEdges.forEach((edge) => edgeMap.set(edge.id, edge)) // initialEdges override if duplicate
+        pendingEdges.forEach((edge) => edgeMap.set(edge.id, edge)) // Re-add pending edges
         return Array.from(edgeMap.values()).map((edge) => ({ ...edge, markerEnd }))
       })
       previousNodeIdsRef.current = currentNodeIds
@@ -711,18 +755,43 @@ export function BuilderFlow(props: BuilderFlowProps) {
       setNodes((prevNodes) => {
         const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
 
-        return initialNodes.map((newNode) => {
+        const updatedRealNodes = initialNodes.map((newNode) => {
           const existingNode = prevNodeMap.get(newNode.id)
           if (existingNode) {
-            // Update node data while keeping existing position and measured dimensions
-            return { ...newNode, position: existingNode.position, measured: existingNode.measured }
+            // Update node data while keeping existing position, measured dimensions, and className
+            return {
+              ...newNode,
+              position: existingNode.position,
+              measured: existingNode.measured,
+              className: existingNode.className,
+            }
           } else {
             return newNode
           }
         })
+
+        // Preserve placeholder and pending target nodes
+        const placeholderNodes = prevNodes.filter(
+          (node) => node.id.startsWith('placeholder-') || node.id.startsWith('pending-target-')
+        )
+
+        return [...updatedRealNodes, ...placeholderNodes]
       })
       if (edgesDataChanged) {
-        setEdges(initialEdges.map((edge) => ({ ...edge, markerEnd })))
+        // Preserve button edges and pending edges when updating edge data
+        setEdges((prevEdges) => {
+          const buttonEdges = prevEdges.filter((edge) => edge.type === 'buttonEdge' || edge.id.startsWith('button-'))
+          const pendingEdges = prevEdges.filter((edge) => edge.id.startsWith('pending-'))
+          const realEdges = initialEdges.map((edge) => ({ ...edge, markerEnd }))
+
+          // Merge real edges with button edges and pending edges
+          const edgeMap = new Map<string, EdgeType>()
+          realEdges.forEach((edge) => edgeMap.set(edge.id, edge))
+          buttonEdges.forEach((edge) => edgeMap.set(edge.id, edge))
+          pendingEdges.forEach((edge) => edgeMap.set(edge.id, edge))
+
+          return Array.from(edgeMap.values())
+        })
       }
     } else if (!isInitialized) {
       // Initial load - use positions from initialNodes and run layout
@@ -809,17 +878,33 @@ export function BuilderFlow(props: BuilderFlowProps) {
     }
   }, [panelOpen, fitView, isInitialized])
 
+  // Clear pending edge when panel closes or source node is deleted
+  useEffect(() => {
+    if (!panelOpen && pendingEdge) {
+      setPendingEdge(null)
+    }
+    // Clear pending edge if source node no longer exists
+    if (pendingEdge) {
+      const sourceExists = nodes.some((n) => n.id === pendingEdge.sourceNodeId)
+      if (!sourceExists) {
+        setPendingEdge(null)
+      }
+    }
+  }, [panelOpen, pendingEdge, nodes])
+
   // Save real edges (not button edges) to store whenever they change
   useEffect(() => {
     if (!isInitialized) return
 
-    // Filter out button edges and placeholder-related edges
+    // Filter out button edges, placeholder-related edges, and pending edges
     const realEdges = edges.filter(
       (edge) =>
         edge.type !== 'buttonEdge' &&
         !edge.id.startsWith('button-') &&
         !edge.source.startsWith('placeholder-') &&
-        !edge.target.startsWith('placeholder-')
+        !edge.target.startsWith('placeholder-') &&
+        !edge.id.startsWith('pending-') &&
+        !edge.target.startsWith('pending-target-')
     )
 
     // Convert to simplified format for storage
@@ -844,6 +929,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
     (connection: Connection) => {
       setIsConnecting(false)
       connectionSuccessfulRef.current = true
+
+      // Clear pending edge if it exists
+      setPendingEdge(null)
+
       const newEdge = {
         ...connection,
         id: `${connection.source}-${connection.target}`,
@@ -912,17 +1001,32 @@ export function BuilderFlow(props: BuilderFlowProps) {
       const isCanvas = target.classList.contains('react-flow__pane')
 
       if (isCanvas) {
+        // Get mouse position in screen space
+        const mouseEvent = event as MouseEvent
+        const clientX = mouseEvent.clientX
+        const clientY = mouseEvent.clientY
+
+        // Convert screen position to flow position using React Flow's helper
+        const flowPosition = screenToFlowPosition({ x: clientX, y: clientY })
+
+        // Create pending edge
+        setPendingEdge({
+          sourceNodeId,
+          x: flowPosition.x,
+          y: flowPosition.y,
+        })
+
         // User dragged to open area, open add node panel
         onAddNodeFromEdge?.(sourceNodeId)
       }
     },
-    [onAddNodeFromEdge]
+    [onAddNodeFromEdge, screenToFlowPosition]
   )
 
-  // Memoize real node IDs (excluding placeholders) to use as stable dependency
+  // Memoize real node IDs (excluding placeholders and pending targets) to use as stable dependency
   const realNodeIds = useMemo(() => {
     return nodes
-      .filter((node) => !node.id.startsWith('placeholder-'))
+      .filter((node) => !node.id.startsWith('placeholder-') && !node.id.startsWith('pending-target-'))
       .map((node) => node.id)
       .sort()
       .join(',')
@@ -930,12 +1034,83 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   // Memoize real edges count to track edge changes for button edge maintenance
   const realEdgesSignature = useMemo(() => {
-    const realEdges = edges.filter((edge) => edge.type !== 'buttonEdge' && !edge.id.startsWith('button-'))
+    const realEdges = edges.filter(
+      (edge) => edge.type !== 'buttonEdge' && !edge.id.startsWith('button-') && !edge.id.startsWith('pending-')
+    )
     return realEdges
       .map((edge) => `${edge.source}-${edge.target}`)
       .sort()
       .join('|')
   }, [edges])
+
+  // Add pending edge and its target node when a connection is dragged to canvas
+  useEffect(() => {
+    if (pendingEdge && isInitialized) {
+      const pendingNodeId = `pending-target-${pendingEdge.sourceNodeId}`
+      const pendingEdgeId = `pending-${pendingEdge.sourceNodeId}`
+
+      // First, clean up ALL existing pending edges and nodes to ensure only one at a time
+      setNodes((currentNodes) => {
+        // Remove all pending-target nodes first
+        const withoutPendingNodes = currentNodes.filter((n) => !n.id.startsWith('pending-target-'))
+
+        // Check if we already have this specific pending node
+        const hasNode = withoutPendingNodes.some((n) => n.id === pendingNodeId)
+        if (!hasNode) {
+          return [
+            ...withoutPendingNodes,
+            {
+              id: pendingNodeId,
+              type: 'placeholder',
+              position: { x: pendingEdge.x - 5, y: pendingEdge.y - 5 }, // Center 10px node on cursor
+              data: {},
+              draggable: false,
+              selectable: false,
+            } as unknown as NodeType,
+          ]
+        }
+        return withoutPendingNodes
+      })
+
+      // Add pending edge with glow effect and remove button edge from source node
+      setEdges((currentEdges) => {
+        // Remove all existing pending edges first to ensure only one at a time
+        const withoutPendingEdges = currentEdges.filter((e) => !e.id.startsWith('pending-'))
+        const buttonEdgeId = `button-${pendingEdge.sourceNodeId}`
+
+        const hasEdge = withoutPendingEdges.some((e) => e.id === pendingEdgeId)
+
+        if (!hasEdge) {
+          // Remove button edge from source node and add pending edge
+          const filteredEdges = withoutPendingEdges.filter((e) => e.id !== buttonEdgeId)
+          return [
+            ...filteredEdges,
+            {
+              id: pendingEdgeId,
+              source: pendingEdge.sourceNodeId,
+              target: pendingNodeId,
+              type: 'default',
+              selectable: false,
+              markerEnd,
+              data: {
+                isPending: true,
+                isActive: true, // Make it glow
+              },
+            } as EdgeType,
+          ]
+        }
+        return withoutPendingEdges
+      })
+
+      // Remove placeholder node for button edge from source node
+      const sourcePlaceholderId = `placeholder-${pendingEdge.sourceNodeId}`
+      setNodes((currentNodes) => currentNodes.filter((n) => n.id !== sourcePlaceholderId))
+    } else if (!pendingEdge) {
+      // Remove pending edge and node when cleared
+      setNodes((currentNodes) => currentNodes.filter((n) => !n.id.startsWith('pending-target-')))
+      setEdges((currentEdges) => currentEdges.filter((e) => !e.id.startsWith('pending-')))
+    }
+  }, [pendingEdge, isInitialized, setNodes, setEdges])
 
   // Ensure all default edges have the onAddNode callback, markerEnd, and isActive state
   useEffect(() => {
@@ -945,7 +1120,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         if (edge.type === 'default') {
           const needsData = !edge.data || !edge.data.onAddNode
           const needsMarker = !edge.markerEnd
-          const needsActiveUpdate = edge.data?.isActive !== (activeEdgeId === edge.id)
+          const needsActiveUpdate = edge.data?.isActive !== (activeEdgeId === edge.id || edge.data?.isPending)
 
           if (needsData || needsMarker || needsActiveUpdate) {
             updated = true
@@ -955,7 +1130,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
               data: {
                 ...edge.data,
                 onAddNode: edge.data?.onAddNode || onAddNodeFromEdge,
-                isActive: activeEdgeId === edge.id,
+                isActive: activeEdgeId === edge.id || edge.data?.isPending,
               },
             }
           }
@@ -1007,7 +1182,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
       let currentRealNodes: NodeType[] = []
 
       setNodes((currentNodes) => {
-        currentRealNodes = currentNodes.filter((node) => !node.id.startsWith('placeholder-'))
+        currentRealNodes = currentNodes.filter(
+          (node) => !node.id.startsWith('placeholder-') && !node.id.startsWith('pending-target-')
+        )
         return currentNodes // Return unchanged
       })
 
@@ -1020,9 +1197,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
         const nodesWithOutgoing = new Set<string>()
 
-        // Find which nodes have real outgoing edges
+        // Find which nodes have real outgoing edges (excluding pending edges)
         currentEdges.forEach((edge) => {
-          if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-')) {
+          if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-') && !edge.id.startsWith('pending-')) {
             nodesWithOutgoing.add(edge.source)
           }
         })
@@ -1035,9 +1212,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
           const buttonEdgeId = `button-${node.id}`
           const hasRealOutgoing = nodesWithOutgoing.has(node.id)
           const hasButtonEdge = currentEdges.some((e) => e.id === buttonEdgeId)
+          const hasPendingEdge = pendingEdge?.sourceNodeId === node.id
 
-          // Only add button edge if node has no real outgoing edge
-          if (!hasRealOutgoing && !hasButtonEdge) {
+          // Only add button edge if node has no real outgoing edge and no pending edge
+          if (!hasRealOutgoing && !hasButtonEdge && !hasPendingEdge) {
             // Node needs a button edge - add it
             const placeholderId = `placeholder-${node.id}`
 
@@ -1068,8 +1246,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
             edgesToAdd.push(newEdge as EdgeType)
           }
 
-          // Only keep button edge if node has no real outgoing edge
-          if (!hasRealOutgoing) {
+          // Only keep button edge if node has no real outgoing edge and no pending edge
+          if (!hasRealOutgoing && !hasPendingEdge) {
             buttonEdgeIds.add(buttonEdgeId)
             nodeIdsWithButtonEdges.add(node.id)
           }
@@ -1078,7 +1256,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         // Update node classes to hide source handles for nodes with button edges
         setNodes((currentNodes) =>
           currentNodes.map((node) => {
-            if (node.id.startsWith('placeholder-')) return node
+            if (node.id.startsWith('placeholder-') || node.id.startsWith('pending-target-')) return node
 
             const shouldHaveButtonEdge = nodeIdsWithButtonEdges.has(node.id)
             const currentClassName = node.className || ''
@@ -1132,7 +1310,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     return () => clearTimeout(timeoutId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [realNodeIds, realEdgesSignature, isInitialized, setEdges, setNodes, nodes, reactFlowInstance])
+  }, [realNodeIds, realEdgesSignature, isInitialized, setEdges, setNodes, nodes, reactFlowInstance, pendingEdge])
 
   return (
     <div ref={containerRef} className="size-full">
@@ -1207,7 +1385,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
         className="builder-flow"
         colorMode="dark"
         nodes={nodes}
-        edges={isConnecting ? edges.filter((e) => e.type !== 'buttonEdge' && !e.id.startsWith('button-')) : edges}
+        edges={
+          isConnecting
+            ? edges.filter(
+                (e) => e.type !== 'buttonEdge' && !e.id.startsWith('button-') && !e.id.startsWith('pending-')
+              )
+            : edges
+        }
         nodeTypes={builderNodeTypes}
         edgeTypes={builderEdgeTypes}
         onNodesChange={onNodesChange}

@@ -6,6 +6,7 @@ interface DefaultEdgeProps extends EdgeProps {
   data?: {
     onAddNode?: (sourceNodeId: string, targetNodeId: string, edgeId: string) => void
     isActive?: boolean
+    isPending?: boolean
   }
 }
 
@@ -126,27 +127,29 @@ export function DefaultEdge(props: DefaultEdgeProps) {
         }}
       />
       {/* Invisible wider path for hover detection - rendered after so it's on top */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke="transparent"
-        strokeWidth={20}
-        onMouseEnter={() => {
-          if (hoverTimeoutRef.current) {
-            clearTimeout(hoverTimeoutRef.current)
-            hoverTimeoutRef.current = null
-          }
-          setIsHovered(true)
-          setIsEdgeHovered(true)
-        }}
-        onMouseLeave={() => {
-          setIsEdgeHovered(false)
-          hoverTimeoutRef.current = setTimeout(() => {
-            setIsHovered(false)
-          }, 200)
-        }}
-        style={{ pointerEvents: 'stroke' }}
-      />
+      {!data?.isPending && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={20}
+          onMouseEnter={() => {
+            if (hoverTimeoutRef.current) {
+              clearTimeout(hoverTimeoutRef.current)
+              hoverTimeoutRef.current = null
+            }
+            setIsHovered(true)
+            setIsEdgeHovered(true)
+          }}
+          onMouseLeave={() => {
+            setIsEdgeHovered(false)
+            hoverTimeoutRef.current = setTimeout(() => {
+              setIsHovered(false)
+            }, 200)
+          }}
+          style={{ pointerEvents: 'stroke' }}
+        />
+      )}
       {label && (
         <EdgeLabelRenderer>
           <div
@@ -162,7 +165,7 @@ export function DefaultEdge(props: DefaultEdgeProps) {
           </div>
         </EdgeLabelRenderer>
       )}
-      {(isHovered || data?.isActive) && (
+      {(isHovered || data?.isActive) && !data?.isPending && (
         <EdgeLabelRenderer>
           <div
             style={{
