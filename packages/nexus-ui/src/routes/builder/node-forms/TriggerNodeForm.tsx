@@ -1,7 +1,6 @@
 import {
   Button,
   Card,
-  Checkbox,
   Controller,
   DateRangeCadencePicker,
   Form,
@@ -12,7 +11,6 @@ import {
 
 export interface TriggerFormData {
   triggerType: string
-  requiresApproval?: boolean
   scheduleType?: string
   interval?: string
 }
@@ -40,16 +38,6 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
           <option value="scheduled">Scheduled</option>
         </NativeSelect>
       </div>
-
-      {triggerType === 'manual' && (
-        <Controller
-          control={control}
-          name="requiresApproval"
-          render={({ field }) => (
-            <Checkbox checked={field.value} onCheckedChange={field.onChange} label="Requires Approval" />
-          )}
-        />
-      )}
 
       {triggerType === 'scheduled' && (
         <>
@@ -85,7 +73,6 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
 export function TriggerNodeForm(props: TriggerNodeFormProps) {
   const defaultValues: TriggerFormData = {
     triggerType: 'manual',
-    requiresApproval: false,
     scheduleType: 'interval',
     interval: '',
     ...props.initialData,
@@ -94,7 +81,6 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
   const handleSubmit = (data: TriggerFormData) => {
     const cleanedData: TriggerFormData = {
       triggerType: data.triggerType,
-      requiresApproval: data.triggerType === 'manual' ? data.requiresApproval : undefined,
       scheduleType: data.triggerType === 'scheduled' ? data.scheduleType : undefined,
       interval: data.triggerType === 'scheduled' && data.scheduleType === 'interval' ? data.interval : undefined,
     }

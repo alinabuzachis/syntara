@@ -44,10 +44,10 @@ describe('TriggerNodeForm Component', () => {
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
       expect(screen.getByLabelText('Trigger Type')).toHaveValue('manual')
-      expect(screen.getByLabelText('Requires Approval')).toBeInTheDocument()
+      expect(screen.queryByLabelText('Requires Approval')).not.toBeInTheDocument()
     })
 
-    it('submits manual trigger without approval', async () => {
+    it('submits manual trigger', async () => {
       const user = userEvent.setup()
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
@@ -55,22 +55,6 @@ describe('TriggerNodeForm Component', () => {
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         triggerType: 'manual',
-        requiresApproval: false,
-        scheduleType: undefined,
-        interval: undefined,
-      })
-    })
-
-    it('submits manual trigger with approval when checked', async () => {
-      const user = userEvent.setup()
-      render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
-
-      await user.click(screen.getByLabelText('Requires Approval'))
-      await user.click(screen.getByRole('button', { name: 'Add node' }))
-
-      expect(mockOnSubmit).toHaveBeenCalledWith({
-        triggerType: 'manual',
-        requiresApproval: true,
         scheduleType: undefined,
         interval: undefined,
       })
@@ -79,13 +63,11 @@ describe('TriggerNodeForm Component', () => {
     it('renders with initial manual trigger data', () => {
       const initialData = {
         triggerType: 'manual',
-        requiresApproval: true,
       }
 
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={initialData} />)
 
       expect(screen.getByLabelText('Trigger Type')).toHaveValue('manual')
-      expect(screen.getByLabelText('Requires Approval')).toBeChecked()
     })
   })
 
@@ -129,7 +111,6 @@ describe('TriggerNodeForm Component', () => {
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         triggerType: 'scheduled',
-        requiresApproval: undefined,
         scheduleType: 'interval',
         interval: 'R/2024-01-01T10:00:00Z/P1D',
       })
@@ -145,7 +126,6 @@ describe('TriggerNodeForm Component', () => {
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         triggerType: 'scheduled',
-        requiresApproval: undefined,
         scheduleType: 'continuous',
         interval: undefined,
       })
@@ -205,7 +185,6 @@ describe('TriggerNodeForm Component', () => {
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         triggerType: 'manual',
-        requiresApproval: false,
         scheduleType: undefined,
         interval: undefined,
       })

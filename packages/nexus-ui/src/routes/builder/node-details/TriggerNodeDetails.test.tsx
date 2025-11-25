@@ -13,9 +13,9 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
     }
     return selector ? selector(store) : store
   }),
-  createManualTrigger: vi.fn((requiresApproval?: boolean) => ({
+  createManualTrigger: vi.fn(() => ({
     type: 'manual',
-    requiresApproval: requiresApproval ?? false,
+    requiresApproval: false,
   })),
   createScheduledTrigger: vi.fn((scheduleType: 'interval' | 'continuous', options?: { interval?: string }) => ({
     type: 'scheduled',
@@ -84,23 +84,6 @@ describe('TriggerNodeDetails Component', () => {
       expect(screen.getByTestId('initial-data')).toHaveTextContent(
         JSON.stringify({
           triggerType: 'manual',
-          requiresApproval: false,
-        })
-      )
-    })
-
-    it('renders TriggerNodeForm with manual trigger requiring approval', () => {
-      const trigger = {
-        type: 'manual' as const,
-        requiresApproval: true,
-      }
-
-      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
-
-      expect(screen.getByTestId('initial-data')).toHaveTextContent(
-        JSON.stringify({
-          triggerType: 'manual',
-          requiresApproval: true,
         })
       )
     })

@@ -25,7 +25,6 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
     if (trigger.type === 'manual') {
       return {
         triggerType: 'manual',
-        requiresApproval: trigger.requiresApproval,
       }
     }
 
@@ -57,7 +56,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
       let updatedTrigger: Trigger
 
       if (data.triggerType === 'manual') {
-        updatedTrigger = createManualTrigger(data.requiresApproval)
+        updatedTrigger = createManualTrigger()
       } else if (data.triggerType === 'scheduled') {
         updatedTrigger = createScheduledTrigger(data.scheduleType as 'interval' | 'continuous', {
           interval: data.interval,

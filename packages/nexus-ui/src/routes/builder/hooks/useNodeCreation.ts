@@ -12,7 +12,6 @@ import {
 export interface TriggerFormData {
   name: string
   triggerType: string
-  requiresApproval?: boolean
   scheduleType?: string
   cron?: string
   timezone?: string
@@ -43,7 +42,7 @@ export function useNodeCreation(onSuccess: () => void) {
       let trigger
 
       if (data.triggerType === 'manual') {
-        trigger = createManualTrigger(data.requiresApproval)
+        trigger = createManualTrigger()
       } else if (data.triggerType === 'scheduled' && data.scheduleType) {
         trigger = createScheduledTrigger(data.scheduleType as 'cron' | 'interval' | 'continuous', {
           cron: data.cron,
