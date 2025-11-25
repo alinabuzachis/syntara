@@ -26,6 +26,7 @@ import { usePendingEdgeManagement } from './hooks/usePendingEdgeManagement'
 import { useWorkflowInitialization } from './hooks/useWorkflowInitialization'
 import { PlaceholderNode } from './nodes/PlaceholderNode'
 import type { BuilderFlowProps, ConnectionState, PendingEdge } from './types'
+import { validateConnection } from './utils/validateConnection'
 import {
   addActivity,
   extractTaskActivities,
@@ -406,7 +407,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     nodes,
     edges,
     isInitialized,
-    activeEdgeButtonNodeId,
+    activeEdgeButtonNodeId: activeEdgeButtonNodeId ?? null,
     onAddNodeFromEdge,
     pendingEdge,
     setNodes,
@@ -416,8 +417,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
   // Use custom hook to manage edge active states
   useEdgeActiveState({
     isInitialized,
-    activeEdgeId,
-    activeEdgeButtonNodeId,
+    activeEdgeId: activeEdgeId ?? null,
+    activeEdgeButtonNodeId: activeEdgeButtonNodeId ?? null,
     onAddNodeFromEdge,
     setEdges,
   })
@@ -443,6 +444,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
     setNodes,
     setEdges,
   })
+
+  const isValidConnection = useCallback(
+    (connection: EdgeType | Connection) => {
+      return validateConnection(connection, nodes, edges)
+    },
+    [nodes, edges]
+  )
 
   return (
     <div ref={containerRef} className="size-full">
@@ -531,17 +539,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         connectionRadius={200}
         connectionLineStyle={{ stroke: '#6b7280', strokeWidth: 2 }}
         defaultEdgeOptions={{ markerEnd }}
-        isValidConnection={(connection) => {
-          // Prevent connecting to placeholder nodes
-          if (connection.target?.startsWith('placeholder-')) {
-            return false
-          }
-          // Prevent self-connections
-          if (connection.source === connection.target) {
-            return false
-          }
-          return true
-        }}
+        isValidConnection={isValidConnection}
         proOptions={{ hideAttribution: true }}
         fitView
         minZoom={0.1}
