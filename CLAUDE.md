@@ -172,13 +172,62 @@ NodeRegistry.getByCategory(cat) // Get nodes by category
 - `useWorkflowStore` manages current workflow state
 - `workflowVersion` counter tracks workflow replacements (increments on setWorkflow)
 - Actions: `addTrigger`, `removeTrigger`, `addActivity`, `removeActivity`, `updateActivity`
+- **Edge Synchronization Actions**: `syncJoinBranches`, `syncConditionBranches`, `reorderActivitiesFromEdges`
 - Located at `packages/nexus-ui/src/stores/useWorkflowStore.ts`
 - Use selective subscriptions to avoid unnecessary re-renders
+
+**Workflow Structure Patterns:**
+
+The builder supports two workflow patterns:
+
+1. **Legacy (Nested) Workflows**: Activities nested within `then`/`else`/`do` arrays
+   - Detected by `hasLegacyNestedActivities()`
+   - Renders by generating edges from workflow structure
+   - Used for imported workflows with nested structures
+
+2. **Modern (Flat) Workflows**: All activities flat during editing, nested only on save
+   - ALL activities remain in flat `activities` array during editing
+   - Edges define ALL flow relationships including condition branches
+   - Join nodes use auto-generated parallel containers (`parallel_for_${joinId}`)
+   - Condition nodes remain flat during editing - nested structures built only during save
+   - Nesting happens in `buildNestedConditionStructure()` before API submission
+
+**Edge Synchronization:**
+
+Critical hook: `useEdgeSynchronization` (`packages/nexus-ui/src/routes/builder/hooks/useEdgeSynchronization.ts`)
+
+- Synchronizes ReactFlow edges with workflow store on every edge change
+- Re-entrance guard prevents infinite loops from workflow → edge updates
+- Calls synchronization pipeline on edge changes:
+  1. `syncJoinBranches()` - Wraps parallel branches in parallel containers
+  2. `reorderActivitiesFromEdges()` - Topologically sorts activities based on edges
+
+**Join Node Pattern:**
+
+- Join nodes reference other activities by ID in `join.branches: string[]`
+- When 2+ activities connect to a join, auto-generates parallel container
+- Parallel container ID: `parallel_for_${joinId}`
+- `syncJoinBranches()` manages parallel creation/cleanup automatically
+- Orphaned activities (edges removed) restored to main activities array
+
+**Condition Node Pattern:**
+
+- Condition nodes use **nested structure** - activities are moved into then/else arrays
+- Condition node structure: `{ type: 'condition', then: Activity[], else: Activity[], condition: string }`
+- Edges with `sourceHandle='true'` connect to true branch starting points
+- Edges with `sourceHandle='false'` connect to false branch starting points
+- `syncConditionBranches()` recursively finds ALL downstream activities for each branch
+- Stops ONLY at join nodes (convergence points) - includes all other node types
+- All node types can be nested: tasks, conditions, loops, etc.
+- Nested condition nodes are fully supported within then/else branches
+- Two handles on node: "True" and "False" for branching connections
+- Example: `Condition1 -> Task1 -> Condition2 -> Task3` means Task1, Condition2, and Task3 all go in the `then` array
 
 **Builder Component Pattern:**
 
 - Separate components for new (`BuilderNew.tsx`) and edit (`BuilderEdit.tsx`) workflows
 - `BuilderContent` component encapsulates all shared UI logic
+- `BuilderFlow.tsx` handles workflow → graph conversion and legacy detection
 - `ReactFlowProvider` wraps the entire builder UI
 - Routes: `/automation-builder/new` (new) and `/automation-builder/:workflowId` (edit)
 

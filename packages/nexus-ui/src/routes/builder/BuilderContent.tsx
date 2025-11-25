@@ -18,6 +18,9 @@ import { AddNodePanel } from './AddNodePanel'
 import { AutomationHistoryCard } from './AutomationHistoryCard'
 import { BuilderFlow } from './BuilderFlow'
 import { NodeDetailsPanel } from './NodeDetailsPanel'
+import { buildNestedConditionStructure } from './utils/buildNestedStructure'
+import { flattenConditionStructure } from './utils/flattenConditionStructure'
+import { generateEdgesFromStructure } from './utils/generateEdgesFromStructure'
 import { WorkflowSidepanel } from './WorkflowSidepanel'
 
 // Type aliases from API contracts
@@ -103,11 +106,60 @@ export function BuilderContent(props: BuilderContentProps) {
       const workflowDef = (workflow as unknown as { version: { workflow_definition: WorkflowDefinition } }).version
         .workflow_definition
 
+      // Generate edges from nested structure BEFORE flattening
+      // This captures the structural relationships as explicit edges
+      const generatedEdges = generateEdgesFromStructure(workflowDef.workflow.activities)
+
+      // Generate trigger edges (triggers connect to first activities)
+      const triggers = workflowDef.triggers || []
+      if (triggers.length > 0 && workflowDef.workflow.activities.length > 0) {
+        const firstActivity = workflowDef.workflow.activities[0]
+
+        triggers.forEach((_, index) => {
+          // If first activity is a parallel_for_* wrapper, connect to its branches
+          if (firstActivity.type === 'parallel' && firstActivity.id.startsWith('parallel_for_')) {
+            const branches = firstActivity.branches || []
+            branches.forEach((branch) => {
+              generatedEdges.push({
+                id: `trigger-${index}-${branch.id}`,
+                source: `trigger-${index}`,
+                target: branch.id,
+                sourceHandle: 'source',
+                targetHandle: 'target',
+              })
+            })
+          } else {
+            // Regular activity - connect directly
+            generatedEdges.push({
+              id: `trigger-${index}-${firstActivity.id}`,
+              source: `trigger-${index}`,
+              target: firstActivity.id,
+              sourceHandle: 'source',
+              targetHandle: 'target',
+            })
+          }
+        })
+      }
+
+      // Flatten any nested condition structures for editing
+      // The flat architecture requires all activities at top level during editing
+      const flattenedActivities = flattenConditionStructure(workflowDef.workflow.activities)
+
+      const flattenedWorkflow: WorkflowDefinition = {
+        ...workflowDef,
+        workflow: {
+          ...workflowDef.workflow,
+          activities: flattenedActivities,
+        },
+      }
+
       queueMicrotask(() => {
-        setWorkflow(workflowDef)
+        setWorkflow(flattenedWorkflow)
         setWorkflowName(workflow.name)
         setWorkflowDescription(workflow.description ?? workflow.name ?? 'New Workflow')
         setIsEnabled(workflow.is_enabled ?? false)
+        // Set the generated edges so they're available for rendering and save
+        setStoredEdges(generatedEdges)
       })
     }
   }, [isNew, workflow, setWorkflow, setStoredEdges])
@@ -146,13 +198,25 @@ export function BuilderContent(props: BuilderContentProps) {
       }
     }
 
-    // Return workflow with updated metadata (already a plain object)
+    // Get edges from store to build nested condition structures
+    const edges = useWorkflowStore.getState().edges
+
+    // Build nested condition structures from flat activities and edges
+    // This converts the flat representation (used during editing) into the nested
+    // structure expected by the API
+    const nestedActivities = buildNestedConditionStructure(currentWorkflow.workflow.activities, edges)
+
+    // Return workflow with updated metadata and nested activities
     return {
       ...currentWorkflow,
       metadata: {
         ...currentWorkflow.metadata,
         name: workflowName,
         description: workflowDescription,
+      },
+      workflow: {
+        ...currentWorkflow.workflow,
+        activities: nestedActivities,
       },
     }
   }, [currentWorkflow, workflowName, workflowDescription])

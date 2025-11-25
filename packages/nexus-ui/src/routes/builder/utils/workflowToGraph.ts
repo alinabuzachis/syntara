@@ -65,14 +65,24 @@ export function extractTaskActivities(activities: Activity[]): TaskActivity[] {
 }
 
 /**
- * Checks if workflow has any non-parallel nested activity types (condition, sequence, loop).
+ * Checks if workflow has any non-parallel nested activity types (sequence, loop).
+ * Condition nodes with empty then/else arrays are flat (edges define flow).
  * Parallels created by syncJoinBranches are structural containers, not legacy constructs.
  * Returns true if the workflow uses legacy nested activity patterns.
  */
-export function hasLegacyNestedActivities(activities: Activity[]): boolean {
+export function hasLegacyNestedActivities(activities: Activity[], hasStoredEdges = false): boolean {
   for (const activity of activities) {
-    if (activity.type === 'condition' || activity.type === 'sequence' || activity.type === 'loop') {
+    if (activity.type === 'sequence' || activity.type === 'loop') {
       return true
+    }
+    // Check if condition has nested activities (legacy format)
+    // In modern workflows, all activities are flat during editing. Nested structures only exist
+    // during save/serialization (buildNestedConditionStructure). So if we see nested conditions
+    // without stored edges, it's a legacy workflow.
+    if (activity.type === 'condition') {
+      const hasNestedActivities =
+        (activity.then && activity.then.length > 0) || (activity.else && activity.else.length > 0)
+      if (hasNestedActivities && !hasStoredEdges) return true
     }
     // Check if parallel was user-created (not auto-generated for joins)
     if (activity.type === 'parallel' && !activity.id.startsWith('parallel_for_')) {
@@ -80,10 +90,10 @@ export function hasLegacyNestedActivities(activities: Activity[]): boolean {
     }
     // Recursively check nested structures
     if (activity.type === 'parallel' && activity.branches) {
-      if (hasLegacyNestedActivities(activity.branches)) return true
+      if (hasLegacyNestedActivities(activity.branches, hasStoredEdges)) return true
     }
     if (activity.type === 'sequence' && activity.steps) {
-      if (hasLegacyNestedActivities(activity.steps)) return true
+      if (hasLegacyNestedActivities(activity.steps, hasStoredEdges)) return true
     }
   }
   return false
@@ -198,28 +208,28 @@ function addConditionActivity(
   for (const branch of conditionActivity.then ?? []) {
     for (const id of previousIds) {
       edges.push({
-        id: `${id}-${branch.id}-then`,
+        id: `${id}-${branch.id}-true`,
         type: 'default',
         source: id,
         target: branch.id,
-        sourceHandle: id === conditionActivity.id ? 'then' : 'source',
+        sourceHandle: id === conditionActivity.id ? 'true' : 'source',
       })
     }
-    addActivity(branch, nodes, edges, previousIds, 'then')
+    addActivity(branch, nodes, edges, previousIds, 'true')
   }
 
   previousIds = [conditionActivity.id]
   for (const branch of conditionActivity.else ?? []) {
     for (const id of previousIds) {
       edges.push({
-        id: `${id}-${branch.id}-else`,
+        id: `${id}-${branch.id}-false`,
         type: 'default',
         source: id,
         target: branch.id,
-        sourceHandle: id === conditionActivity.id ? 'else' : 'source',
+        sourceHandle: id === conditionActivity.id ? 'false' : 'source',
       })
     }
-    addActivity(branch, nodes, edges, previousIds, 'else')
+    addActivity(branch, nodes, edges, previousIds, 'false')
   }
 
   return conditionActivity.id

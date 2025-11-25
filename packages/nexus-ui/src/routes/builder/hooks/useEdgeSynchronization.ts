@@ -26,10 +26,13 @@ interface UseEdgeSynchronizationOptions {
  * The re-entrance guard (isSyncingRef) is critical to prevent this cycle:
  * 1. User deletes node → edges change
  * 2. Effect runs → calls syncJoinBranches()
- * 3. syncJoinBranches() modifies workflow activities
+ * 3. This function modifies workflow activities
  * 4. Workflow change → initialEdges recomputes in useMemo
  * 5. New initialEdges → edges state updates
  * 6. Effect would run again → PREVENTED by guard
+ *
+ * Note: Condition nodes remain flat during editing. Their then/else branches
+ * are built only during save/serialization based on edges with sourceHandle='true'/'false'.
  */
 export function useEdgeSynchronization({ edges, isInitialized, setStoredEdges }: UseEdgeSynchronizationOptions) {
   const lastEdgesSignatureRef = useRef<string>('')

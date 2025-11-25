@@ -127,7 +127,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     const activities = currentWorkflow?.workflow.activities || []
     const hasStoredEdges = storedEdges.length > 0
-    const isLegacyWorkflow = hasLegacyNestedActivities(activities) || (!hasStoredEdges && activities.length > 0)
+    const isLegacyWorkflow =
+      hasLegacyNestedActivities(activities, hasStoredEdges) || (!hasStoredEdges && activities.length > 0)
 
     // Legacy workflows: generate edges from workflow structure
     // New workflows: flat tasks with edges managed separately in application state
@@ -150,12 +151,19 @@ export function BuilderFlow(props: BuilderFlowProps) {
         })
       })
 
-      // Also create nodes for join activities (they need to be visible on canvas)
+      // Also create nodes for join and condition activities (they need to be visible on canvas)
       activities.forEach((activity: Activity) => {
         if (activity.type === 'join') {
           nodes.push({
             id: activity.id,
             type: 'join',
+            position: { x: 0, y: 0 },
+            data: activity,
+          })
+        } else if (activity.type === 'condition') {
+          nodes.push({
+            id: activity.id,
+            type: 'condition',
             position: { x: 0, y: 0 },
             data: activity,
           })

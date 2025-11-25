@@ -1,10 +1,6 @@
 import type React from 'react'
 import { FormProvider, useForm, type DefaultValues, type FieldValues, type UseFormReturn } from 'react-hook-form'
 
-// Re-export these hooks and components so consumers use the same instance
-export { useFormContext, useWatch, Controller } from 'react-hook-form'
-export type { Control, UseFormRegister } from 'react-hook-form'
-
 type FormProps<TFieldValues extends FieldValues = FieldValues> = {
   id: string
   defaultValues?: DefaultValues<TFieldValues>
