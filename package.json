@@ -25,7 +25,8 @@
     "podman:build:nexus-mock-api": "podman build -f packages/nexus-mock-api/Containerfile -t nexus-mock-api:latest -t ghcr.io/syntara-orchestration/syntara-mock-api:latest .",
     "podman:run": "concurrently npm:podman:run:* -c auto",
     "podman:run:nexus-ui": "podman run --rm -p 4000:80 --name nexus-ui ghcr.io/syntara-orchestration/syntara-ui:latest",
-    "podman:run:nexus-mock-api": "podman run --rm -p 3000:3000 --name nexus-mock-api ghcr.io/syntara-orchestration/syntara-mock-api:latest"
+    "podman:run:nexus-mock-api": "podman run --rm -p 3000:3000 --name nexus-mock-api ghcr.io/syntara-orchestration/syntara-mock-api:latest",
+    "prepare": "husky"
   },
   "workspaces": [
     "packages/*"
@@ -37,10 +38,17 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-no-only-tests": "^3.3.0",
+    "husky": "^9.1.7",
     "jsdom": "^27.1.0",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.7.1",
     "vitest": "^4.0.4"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "os": [
     "darwin",
