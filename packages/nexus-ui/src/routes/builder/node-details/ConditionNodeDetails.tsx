@@ -31,6 +31,7 @@ export function ConditionNodeDetails({ conditionData, nodeId, onClose }: Conditi
       }
 
       updateActivity(nodeId, updatedActivity)
+      onClose()
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Failed to update node', 'Update Failed')
     }

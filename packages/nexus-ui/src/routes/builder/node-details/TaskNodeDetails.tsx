@@ -73,6 +73,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
         )
 
         updateActivity(nodeId, updatedActivity)
+        onClose()
       } catch (error) {
         showError(error instanceof Error ? error.message : 'Failed to update node', 'Update Failed')
       }
@@ -146,6 +147,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
       }
 
       updateActivity(nodeId, updatedActivity)
+      onClose()
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Failed to update node', 'Update Failed')
     }

@@ -15,6 +15,12 @@ import {
 } from './node-details'
 import { NodeRawDataView } from './NodeRawDataView'
 
+/**
+ * IMPORTANT: When adding a new node type, ensure the corresponding NodeDetails component
+ * calls onClose() after successfully updating the node. This ensures the side panel
+ * closes automatically after modifications.
+ */
+
 // Type aliases
 type TaskActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'task' }
 type ConditionActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'condition' }

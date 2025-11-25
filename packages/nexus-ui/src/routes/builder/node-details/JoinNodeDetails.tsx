@@ -39,6 +39,7 @@ export function JoinNodeDetails({ joinData, nodeId, onClose }: JoinNodeDetailsPr
       }
 
       updateActivity(nodeId, updatedActivity)
+      onClose()
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Failed to update node', 'Update Failed')
     }
