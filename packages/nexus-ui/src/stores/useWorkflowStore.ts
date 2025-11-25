@@ -954,3 +954,54 @@ export function createJoinActivity(
 
   return joinActivity
 }
+
+export function createConnectorActivity(
+  id: string,
+  name: string,
+  connectorId: string,
+  operation: string,
+  parameters?: string,
+  requiresApproval?: boolean
+): TaskActivity {
+  // Parse parameters if provided
+  let parsedParameters: { [key: string]: unknown } | undefined
+  if (parameters) {
+    try {
+      parsedParameters = JSON.parse(parameters)
+    } catch {
+      // If parameters is not valid JSON, skip it
+    }
+  }
+
+  // TODO: Backend ExecutorType enum is missing 'connector' even though JSON schema includes it
+  // Temporarily using 'agentic' executor with structured prompt until backend is updated
+  // See: src/nexus/workflows/workflow_engine/models/workflow_definition.py ExecutorType enum
+  const connectorPrompt = JSON.stringify({
+    __type: 'connector',
+    connectorId,
+    operation,
+    ...(parsedParameters && { parameters: parsedParameters }),
+  })
+
+  const activity: TaskActivity = {
+    type: 'task',
+    id,
+    name,
+    ...(requiresApproval === true && { requiresApproval: true }),
+    // Add metadata to indicate this is actually an AAP connector node
+    // This allows the UI to render it with the Ansible icon/label
+    metadata: {
+      __executorType: 'aap',
+      __connectorId: connectorId,
+    },
+    task: {
+      executor: 'agentic',
+      config: {
+        agent: '__connector_workaround__', // Required field for agentic executor
+        prompt: connectorPrompt,
+      },
+    },
+  }
+
+  return activity
+}

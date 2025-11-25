@@ -1,7 +1,17 @@
-import { Button, Card, Checkbox, Form, Input, NativeSelect, Textarea } from '@ansible/nexus-ui-framework'
-import { Controller, type UseFormRegister, type Control } from 'react-hook-form'
+import {
+  Button,
+  Card,
+  Checkbox,
+  Controller,
+  Form,
+  Input,
+  NativeSelect,
+  Textarea,
+  useFormContext,
+} from '@ansible/nexus-ui-framework'
+import { useState } from 'react'
 
-interface AAPFormData {
+export interface AAPFormData {
   name: string
   connectorId: string
   operation: string
@@ -12,15 +22,31 @@ interface AAPFormData {
 interface AAPNodeFormProps {
   onSubmit: (data: AAPFormData) => void
   onCancel: () => void
+  initialData?: Partial<AAPFormData>
+  submitButtonText?: string
 }
 
-function AAPFormFields({
-  register,
-  control,
-}: {
-  register: UseFormRegister<AAPFormData>
-  control: Control<AAPFormData>
-}) {
+function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
+  const { register, control } = useFormContext<AAPFormData>()
+  const [jsonError, setJsonError] = useState<string | null>(null)
+
+  // Validate JSON on change
+  const validateJSON = (value: string) => {
+    if (value.trim()) {
+      try {
+        JSON.parse(value)
+        setJsonError(null)
+        return true
+      } catch {
+        setJsonError('Invalid JSON format')
+        return false
+      }
+    } else {
+      setJsonError(null)
+      return true
+    }
+  }
+
   return (
     <>
       <div className="flex flex-col gap-1.5">
@@ -61,22 +87,38 @@ function AAPFormFields({
           Parameters (JSON)
         </label>
         <Textarea
-          {...register('parameters')}
+          {...register('parameters', {
+            validate: validateJSON,
+            onChange: (e) => validateJSON(e.target.value),
+          })}
           id="aap-parameters"
           placeholder='{"job_template_id": "123", "extra_vars": {}}'
           rows={4}
-          className="font-mono text-xs"
+          className={`font-mono text-xs ${jsonError ? 'ring-2 ring-red-500/50' : ''}`}
         />
+        {jsonError && <span className="text-xs text-red-400">{jsonError}</span>}
+        <p className="text-xs text-gray-400">
+          Optional: Provide parameters as a JSON object for the connector operation
+        </p>
       </div>
-      <Controller
-        control={control}
-        name="requiresApproval"
-        render={({ field }) => (
-          <Checkbox checked={field.value} onCheckedChange={field.onChange} label="Require approval" />
-        )}
-      />
-      <Button type="submit" variant="primary" className="w-full justify-center text-xs">
-        Add node
+      <div className="flex flex-col gap-1.5">
+        <Controller
+          control={control}
+          name="requiresApproval"
+          render={({ field }) => (
+            <Checkbox
+              checked={field.value}
+              onCheckedChange={field.onChange}
+              label="Require approval before execution"
+            />
+          )}
+        />
+        <p className="text-xs text-gray-400">
+          When enabled, this activity will pause and wait for human approval before executing
+        </p>
+      </div>
+      <Button type="submit" variant="primary" className="w-full justify-center text-xs" disabled={!!jsonError}>
+        {submitButtonText ?? 'Add node'}
       </Button>
     </>
   )
@@ -89,6 +131,7 @@ export function AAPNodeForm(props: AAPNodeFormProps) {
     operation: 'launch_job',
     parameters: '',
     requiresApproval: false,
+    ...props.initialData,
   }
 
   const handleSubmit = (data: AAPFormData) => {
@@ -107,7 +150,7 @@ export function AAPNodeForm(props: AAPNodeFormProps) {
         onSubmit={handleSubmit}
         className="flex flex-col gap-3"
       >
-        {({ register, control }) => <AAPFormFields register={register} control={control} />}
+        {() => <AAPFormFields submitButtonText={props.submitButtonText} />}
       </Form>
     </Card>
   )

@@ -1,5 +1,17 @@
-import { PlayCircleIcon, SplitIcon, RepeatIcon, MergeIcon, BrainIcon, FileTerminalIcon, GlobeIcon } from 'lucide-react'
+import {
+  PlayCircleIcon,
+  SplitIcon,
+  RepeatIcon,
+  MergeIcon,
+  BrainIcon,
+  FileTerminalIcon,
+  GlobeIcon,
+  PlugIcon,
+} from 'lucide-react'
 import type { ComponentType } from 'react'
+
+// @ts-expect-error - SVG import as React component
+import AnsibleIcon from '../../../../assets/ansible-light.svg?react'
 
 export interface NodeMetadata {
   icon?: ComponentType<{ className?: string }>
@@ -56,4 +68,6 @@ export const executorMetadata: Record<string, { icon: ComponentType<{ className?
   script: { icon: FileTerminalIcon, label: 'Script' },
   agentic: { icon: BrainIcon, label: 'Agentic' },
   api: { icon: GlobeIcon, label: 'API Call' },
+  connector: { icon: PlugIcon, label: 'Connector' },
+  aap: { icon: AnsibleIcon, label: 'AAP Job' }, // Ansible Automation Platform
 }

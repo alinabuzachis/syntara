@@ -2,18 +2,21 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import * as workflowStore from '../../../stores/useWorkflowStore'
+
 import { TaskNodeDetails } from './TaskNodeDetails'
 
-// Mock the workflow store
 const mockUpdateActivity = vi.fn()
-vi.mock('../../../stores/useWorkflowStore', () => ({
-  useWorkflowStore: vi.fn((selector) => {
-    const store = {
-      updateActivity: mockUpdateActivity,
-    }
-    return selector ? selector(store) : store
-  }),
-}))
+const mockCreateConnectorActivity = vi.fn()
+
+vi.spyOn(workflowStore, 'useWorkflowStore').mockImplementation((selector: unknown) => {
+  const store = {
+    updateActivity: mockUpdateActivity,
+  }
+  return selector ? selector(store) : store
+})
+
+vi.spyOn(workflowStore, 'createConnectorActivity').mockImplementation(mockCreateConnectorActivity)
 
 // Mock the alerts hook
 vi.mock('@ansible/nexus-ui-framework', async () => {
@@ -49,11 +52,68 @@ vi.mock('../node-forms/ActionNodeForm', () => ({
   ),
 }))
 
+// Mock AAPNodeForm
+vi.mock('../node-forms/AAPNodeForm', () => ({
+  AAPNodeForm: ({
+    onSubmit,
+    onCancel,
+    submitButtonText,
+  }: {
+    onSubmit: (data: Record<string, unknown>) => void
+    onCancel: () => void
+    submitButtonText?: string
+  }) => (
+    <div data-testid="aap-node-form">
+      <button
+        onClick={() =>
+          onSubmit({
+            name: 'Updated AAP Task',
+            connectorId: 'new-connector',
+            operation: 'new-op',
+            parameters: '{}',
+          })
+        }
+        data-testid="aap-submit-button"
+      >
+        {submitButtonText || 'Add node'}
+      </button>
+      <button onClick={onCancel} data-testid="aap-cancel-button">
+        Cancel
+      </button>
+    </div>
+  ),
+}))
+
 describe('TaskNodeDetails Component', () => {
   const mockOnClose = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // Setup mockCreateConnectorActivity to return proper activity structure
+    mockCreateConnectorActivity.mockImplementation(
+      (id, name, connectorId, operation, parameters, requiresApproval) => ({
+        type: 'task' as const,
+        id,
+        name,
+        ...(requiresApproval === true && { requiresApproval: true }),
+        metadata: {
+          __executorType: 'aap',
+          __connectorId: connectorId,
+        },
+        task: {
+          executor: 'agentic' as const,
+          config: {
+            agent: '__connector_workaround__',
+            prompt: JSON.stringify({
+              __type: 'connector',
+              connectorId,
+              operation,
+              ...(parameters && { parameters: JSON.parse(parameters) }),
+            }),
+          },
+        },
+      })
+    )
   })
 
   it('renders ActionNodeForm for script task', () => {
@@ -94,6 +154,26 @@ describe('TaskNodeDetails Component', () => {
     expect(screen.getByTestId('action-node-form')).toBeInTheDocument()
   })
 
+  it('renders AAPNodeForm for connector task', () => {
+    const taskData = {
+      type: 'task' as const,
+      id: 'task-aap',
+      name: 'AAP Task',
+      task: {
+        executor: 'connector' as const,
+        config: {
+          connectorId: 'ansible-1',
+          operation: 'launch_job',
+          parameters: { foo: 'bar' },
+        },
+      },
+    }
+
+    render(<TaskNodeDetails taskData={taskData} nodeId="task-aap" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('aap-node-form')).toBeInTheDocument()
+  })
+
   it('returns null for unsupported executor type', () => {
     const taskData = {
       type: 'task' as const,
@@ -130,6 +210,44 @@ describe('TaskNodeDetails Component', () => {
     await user.click(screen.getByTestId('submit-button'))
 
     expect(mockUpdateActivity).toHaveBeenCalledWith('task-1', expect.objectContaining({ name: 'Updated Task' }))
+  })
+
+  it('calls updateActivity on successful AAP form submission', async () => {
+    const user = userEvent.setup()
+    const taskData = {
+      type: 'task' as const,
+      id: 'task-aap',
+      name: 'AAP Task',
+      task: {
+        executor: 'connector' as const,
+        config: {
+          connectorId: 'ansible-1',
+          operation: 'launch_job',
+        },
+      },
+    }
+
+    render(<TaskNodeDetails taskData={taskData} nodeId="task-aap" onClose={mockOnClose} />)
+
+    await user.click(screen.getByTestId('aap-submit-button'))
+
+    // AAP nodes are now stored as 'agentic' executor (backend workaround)
+    expect(mockUpdateActivity).toHaveBeenCalledWith(
+      'task-aap',
+      expect.objectContaining({
+        name: 'Updated AAP Task',
+        metadata: expect.objectContaining({
+          __executorType: 'aap',
+        }),
+        task: expect.objectContaining({
+          executor: 'agentic',
+          config: expect.objectContaining({
+            agent: '__connector_workaround__',
+            prompt: expect.stringContaining('new-connector'),
+          }),
+        }),
+      })
+    )
   })
 
   it('displays "Update node" as submit button text', () => {

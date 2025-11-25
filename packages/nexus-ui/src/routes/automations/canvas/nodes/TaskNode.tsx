@@ -28,10 +28,51 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
 }
 
 export function TaskActivityDetails(props: { data: TaskActivity; showJson?: boolean }) {
-  const { icon: Icon, label: taskExecutor } = executorMetadata[props.data.task.executor]
+  // Check if this is an AAP/connector node disguised as agentic (workaround for backend)
+  const overrideExecutorType = props.data.metadata?.__executorType
+
+  // Parse connector data if it's the workaround format (agentic executor with connector data in prompt)
+  let connectorData: { connectorId?: string; operation?: string; parameters?: Record<string, unknown> } | null = null
+  let detectedExecutorType: string | undefined = overrideExecutorType
+
+  // If executor is agentic, check the prompt to detect connector/AAP nodes
+  // This handles both cases: when metadata exists and when it's missing after save/load
+  if (props.data.task.executor === 'agentic') {
+    try {
+      const parsed = JSON.parse(props.data.task.config.prompt || '{}')
+      if (parsed.__type === 'connector') {
+        connectorData = {
+          connectorId: parsed.connectorId,
+          operation: parsed.operation,
+          parameters: parsed.parameters,
+        }
+        // If metadata is missing, detect AAP nodes from connectorId
+        // Check if this is an AAP connector (ansible-automation-platform)
+        if (
+          !detectedExecutorType &&
+          (parsed.connectorId === 'ansible-automation-platform' || parsed.connectorId?.includes('ansible'))
+        ) {
+          detectedExecutorType = 'aap'
+        }
+      }
+    } catch {
+      // Fallthrough
+    }
+  }
+
+  const actualExecutor = detectedExecutorType || props.data.task.executor
+  const executorMeta = executorMetadata[actualExecutor] || executorMetadata[props.data.task.executor]
+  const Icon = executorMeta?.icon
+  const taskExecutor = executorMeta?.label || 'Task'
+
   return (
     <>
-      <StandardNodeHeader icon={<Icon />} title={props.data.name} subtitle={taskExecutor} expandable />
+      <StandardNodeHeader
+        icon={Icon ? <Icon className="size-6" /> : undefined}
+        title={props.data.name}
+        subtitle={taskExecutor}
+        expandable
+      />
       <NodeBody>
         <Details>
           {renderCondition(props.data.condition)}
@@ -48,6 +89,21 @@ export function TaskActivityDetails(props: { data: TaskActivity; showJson?: bool
               {renderText('URL', props.data.task.config.url)}
               {renderObject('Headers', props.data.task.config.headers)}
               {renderObject('Body', props.data.task.config.body)}
+            </>
+          )}
+          {props.data.task.executor === 'connector' && (
+            <>
+              {renderText('Connector', props.data.task.config.connectorId)}
+              {renderText('Operation', props.data.task.config.operation)}
+              {renderObject('Parameters', props.data.task.config.parameters)}
+            </>
+          )}
+          {/* Render connector details for workaround format (agentic executor with connector data) */}
+          {detectedExecutorType && connectorData && (
+            <>
+              {renderText('Connector', connectorData.connectorId)}
+              {renderText('Operation', connectorData.operation)}
+              {renderObject('Parameters', connectorData.parameters)}
             </>
           )}
           {renderJson(props.data, props.showJson)}
