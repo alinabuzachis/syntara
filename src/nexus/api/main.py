@@ -17,9 +17,9 @@ from sqlmodel import text
 
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.api.db import get_db
-from nexus.api.v1 import executions, tool_providers, tools, workflow_versions, workflows
-from nexus.api.v1.invocation import router as invoke_router
 from nexus.api.v1.websocket import build_websocket_router
+from nexus.core.config import get_settings
+from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +55,36 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     # Disable propagation since we have handlers now
     nexus_logger.propagate = False
 
-    # Register WebSocket router after logging is configured
-    # This ensures validation messages use uvicorn's log format
+    # Discover and register all routers automatically
+    # This replaces manual router imports and registration
+    settings = get_settings()
+
+    if settings.router_discovery_enabled:
+        discover_and_register_routers(
+            app=app,
+            prefix=API_V1_PATH_PREFIX,
+            enable_validation=settings.openapi_validation_enabled,
+        )
+    else:
+        logger.warning("Router discovery disabled - no routers will be automatically registered")
+
+    # Register WebSocket router manually (excluded from router discovery)
+    # WebSocket routers use AsyncAPI specification instead of OpenAPI,
+    # so they're excluded from the OpenAPI-based validation system and
+    # registered manually here instead of through router discovery
     ws_router = build_websocket_router()
     app.include_router(ws_router)
 
-    yield
+    try:
+        yield
+    finally:
+        # Clean up lock file created by this server instance
+        lock_file = _get_lock_file_path()
+        try:
+            lock_file.unlink(missing_ok=True)
+            logger.debug("Cleaned up lock file: %s", lock_file)
+        except OSError as e:
+            logger.warning("Failed to clean up lock file %s: %s", lock_file, e)
 
 
 # Create FastAPI application
@@ -83,13 +107,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register API routers
-app.include_router(workflows.router, prefix=API_V1_PATH_PREFIX)
-app.include_router(workflow_versions.router, prefix=API_V1_PATH_PREFIX)
-app.include_router(executions.router, prefix=API_V1_PATH_PREFIX)
-app.include_router(invoke_router, prefix=API_V1_PATH_PREFIX)
-app.include_router(tool_providers.router, prefix=API_V1_PATH_PREFIX)
-app.include_router(tools.router, prefix=API_V1_PATH_PREFIX)
+# Routers are automatically discovered and registered via router_discovery system
+# See lifespan function above for router registration logic
 
 
 @app.get("/health", tags=["Health"])

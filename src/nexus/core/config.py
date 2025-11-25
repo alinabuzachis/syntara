@@ -20,6 +20,10 @@ from functools import lru_cache
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# =============================================================================
+# LLM Provider Configuration
+# =============================================================================
+
 
 class OpenRouterSettings(BaseSettings):
     """OpenRouter LLM configuration settings.
@@ -49,6 +53,11 @@ class OpenRouterSettings(BaseSettings):
         default="https://openrouter.ai/api/v1",
         description="OpenRouter API base URL",
     )
+
+
+# =============================================================================
+# File Upload Configuration
+# =============================================================================
 
 
 class FileUploadSettings(BaseSettings):
@@ -91,7 +100,66 @@ class FileUploadSettings(BaseSettings):
     )
 
 
-class Settings(OpenRouterSettings, FileUploadSettings):
+# =============================================================================
+# API Validation Configuration
+# =============================================================================
+
+
+class OpenAPIValidationSettings(BaseSettings):
+    """OpenAPI schema validation configuration settings.
+
+    This configuration controls the validation of FastAPI routes against
+    OpenAPI schema specifications. This is NOT related to OpenRouter (the LLM service).
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    openapi_validation_enabled: bool = Field(
+        default=True,
+        description="Enable OpenAPI schema validation at startup",
+    )
+
+
+# =============================================================================
+# Router Discovery Configuration
+# =============================================================================
+
+
+class RouterDiscoverySettings(BaseSettings):
+    """Router discovery configuration settings.
+
+    Controls automatic router discovery and registration behavior.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    router_discovery_enabled: bool = Field(
+        default=True,
+        description="Enable automatic router discovery and registration",
+    )
+
+    router_exclude_modules: str = Field(
+        default="",
+        description="Comma-separated list of module names to exclude from discovery (e.g., 'core,utils,websocket')",
+    )
+
+
+# =============================================================================
+# Main Settings
+# =============================================================================
+
+
+class Settings(OpenRouterSettings, FileUploadSettings, OpenAPIValidationSettings, RouterDiscoverySettings):
     """Application-wide settings.
 
     Combines all configuration sections into a single settings object.

@@ -9,6 +9,7 @@ import asyncio
 import gc
 import logging
 import os
+import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from datetime import timedelta
 from pathlib import Path
@@ -20,6 +21,7 @@ import pytest_asyncio
 import sqlalchemy
 from alembic import command
 from alembic.config import Config
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.engine import make_url
@@ -330,12 +332,46 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
         await session.close()
 
 
+@pytest_asyncio.fixture(scope="session")
+async def session_app(worker_id: str) -> AsyncGenerator[FastAPI, None]:
+    """Create a session-scoped app with routers discovered once per worker.
+
+    This fixture performs router discovery once when the worker starts,
+    eliminating the need to run discovery for every test. This prevents
+    file lock contention and significantly improves test performance.
+
+    Args:
+        worker_id: pytest-xdist worker ID
+
+    Yields:
+        FastAPI application with routers registered
+
+    """
+    # Trigger app lifespan startup (which includes router discovery)
+    # This happens once per worker session
+    async with app.router.lifespan_context(app):
+        logger.info("Session app initialized for worker '%s'", worker_id)
+
+        # CRITICAL: Reset nexus logger propagation for caplog in tests
+        # The lifespan sets nexus_logger.propagate = False for production logging,
+        # but tests need propagation enabled for pytest's caplog to capture logs.
+        # This must be done after lifespan startup completes.
+        nexus_logger = logging.getLogger("nexus")
+        nexus_logger.propagate = True
+
+        yield app
+
+
 @pytest_asyncio.fixture
-async def base_client(test_db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
     """Create a base test client with database session override (no authentication).
+
+    Uses the session-scoped app to avoid triggering router discovery on every test.
+    Only the database session is overridden per-test for proper isolation.
 
     Args:
         test_db_session: Test database session
+        session_app: Session-scoped app with routers already registered
 
     Yields:
         AsyncClient for API testing without authentication
@@ -345,15 +381,15 @@ async def base_client(test_db_session: AsyncSession) -> AsyncGenerator[AsyncClie
     async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
         yield test_db_session
 
-    app.dependency_overrides[get_db] = override_get_db
+    session_app.dependency_overrides[get_db] = override_get_db
 
     async with AsyncClient(
-        transport=ASGITransport(app=app),
+        transport=ASGITransport(app=session_app),
         base_url="http://test",
     ) as client:
         yield client
 
-    app.dependency_overrides.clear()
+    session_app.dependency_overrides.clear()
 
 
 @pytest_asyncio.fixture
@@ -1094,3 +1130,31 @@ async def test_tool_provider_service(
 
     """
     return ToolProviderService(test_db_session, test_user, test_provider_factory)
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Clean up lock files after test session completes.
+
+    This hook runs after all tests have finished, cleaning up lock files
+    created by pytest-xdist workers during parallel test execution.
+
+    Only cleans up worker lock files (nexus_router_discovery_gw*.lock),
+    preserving the main lock file for non-parallel test runs.
+
+    Args:
+        session: pytest session object
+        exitstatus: pytest exit status
+
+    """
+    temp_dir = Path(tempfile.gettempdir())
+    lock_pattern = "nexus_router_discovery_gw*.lock"
+
+    for lock_file in temp_dir.glob(lock_pattern):
+        try:
+            lock_file.unlink()
+            logger.debug("Cleaned up test lock file: %s", lock_file)
+        except FileNotFoundError:
+            # File already deleted, ignore
+            pass
+        except OSError as e:
+            logger.warning("Failed to clean up lock file %s: %s", lock_file, e)
