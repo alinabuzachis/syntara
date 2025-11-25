@@ -4,50 +4,42 @@ This document explains how to use the provider factory dependency injection syst
 
 ## Overview
 
-The provider factory is managed as a FastAPI application-scoped resource using `app.state`, eliminating global module state and providing clean lifecycle management.
+The provider factory uses an async generator pattern for dependency injection, providing a pre-configured singleton instance with registered provider types.
 
 ## Core Design
 
-### 1. Application Lifecycle Management
+### 1. Pre-configured Factory
 
-The factory is stored in `app.state` during FastAPI startup:
+The factory is pre-configured as a module-level singleton with registered provider types:
 
 ```python
-# main.py
-from nexus.tool_manager.lib.providers.factory import ProviderFactory
+# In nexus.tool_manager.lib.providers.factory
+_provider_factory: ProviderFactory = ProviderFactory()
+_provider_factory.register_provider_type("mcp", MCPProvider)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: Initialize provider factory in app.state
-    app.state.provider_factory = ProviderFactory()
-
-    # Register all supported provider types
-    app.state.provider_factory.register_provider_type("mcp", MCPProvider)
-    app.state.provider_factory.register_provider_type("openapi", OpenAPIProvider)
-
-    yield
-
-    # Shutdown: Clean up provider factory
-    app.state.provider_factory = None
-
-app = FastAPI(lifespan=lifespan)
+async def get_provider_factory() -> AsyncGenerator[ProviderFactory]:
+    """Create a ProviderFactory for dependency injection."""
+    yield _provider_factory
 ```
 
 ### 2. Dependency Injection
 
-FastAPI endpoints inject the factory instance using a dependency:
+FastAPI endpoints inject the factory using FastAPI's dependency system:
 
 ```python
-from nexus.api.dependencies import ProviderFactoryDep
+from fastapi import Depends
+from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
 
 @router.get("/provider-types")
-async def list_provider_types(factory: ProviderFactoryDep) -> list[str]:
+async def list_provider_types(
+    factory: ProviderFactory = Depends(get_provider_factory)
+) -> list[str]:
     return factory.get_registered_provider_types()
 
 @router.post("/validate-instance")
 async def validate_instance(
     request: ProviderInstanceRequest,
-    factory: ProviderFactoryDep,
+    factory: ProviderFactory = Depends(get_provider_factory),
 ) -> dict[str, Any]:
     instance = factory.create_provider_instance(
         provider_type=request.provider_type,
@@ -68,38 +60,36 @@ The `ProviderFactory` class provides the following methods:
 
 ## Usage Patterns
 
-### Application Startup
+### Pre-configured Factory
 
-Register provider types during application startup in the `lifespan` function:
+Provider types are registered at module initialization:
 
 ```python
-from nexus.tool_manager.lib.providers.factory import ProviderFactory
+# nexus.tool_manager.lib.providers.factory
+from nexus.tool_manager.lib.providers.mcp import MCPProvider
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Initialize factory in app.state
-    app.state.provider_factory = ProviderFactory()
+# Module-level singleton with pre-registered providers
+_provider_factory: ProviderFactory = ProviderFactory()
+_provider_factory.register_provider_type("mcp", MCPProvider)
+# Add more provider types here as needed
 
-    # Register all supported provider types
-    app.state.provider_factory.register_provider_type("mcp", MCPProvider)
-    app.state.provider_factory.register_provider_type("openapi", OpenAPIProvider)
-
-    yield
-
-    app.state.provider_factory = None
+async def get_provider_factory() -> AsyncGenerator[ProviderFactory]:
+    """Dependency injection function for FastAPI."""
+    yield _provider_factory
 ```
 
 ### FastAPI Endpoints
 
-Use dependency injection to access the factory:
+Use FastAPI's standard dependency injection:
 
 ```python
-from nexus.api.dependencies import ProviderFactoryDep
+from fastapi import Depends
+from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
 
 @router.post("/providers")
 async def create_provider(
     request: ProviderCreateRequest,
-    factory: ProviderFactoryDep,
+    factory: ProviderFactory = Depends(get_provider_factory),
 ):
     # Create provider instance based on user configuration
     instance = factory.create_provider_instance(
@@ -146,14 +136,18 @@ You can also override the dependency in FastAPI tests:
 
 ```python
 from fastapi.testclient import TestClient
+from nexus.tool_manager.lib.providers.factory import get_provider_factory
 
-def test_endpoint_with_mock_factory():
+async def test_factory_override():
     # Create test factory
     test_factory = ProviderFactory()
     test_factory.register_provider_type("mock", MockProvider)
 
+    async def override_factory():
+        yield test_factory
+
     # Override dependency
-    app.dependency_overrides[get_provider_factory] = lambda: test_factory
+    app.dependency_overrides[get_provider_factory] = override_factory
 
     client = TestClient(app)
     response = client.get("/provider-types")
@@ -162,19 +156,19 @@ def test_endpoint_with_mock_factory():
 
 ## Benefits
 
-1. **No Global Module State**: Factory is stored in `app.state`, not module globals
-2. **Proper Lifecycle Management**: Factory is initialized/cleaned up with the application
-3. **Dependency Injection**: Clean separation of concerns in FastAPI endpoints
-4. **Testing Isolation**: Each test can have its own factory instance
+1. **Simple Singleton Pattern**: One pre-configured factory instance shared across the application
+2. **Pre-registered Providers**: Provider types are registered at module load time
+3. **Dependency Injection**: Clean integration with FastAPI's dependency system
+4. **Testing Isolation**: Tests can override dependencies for isolation
 5. **Thread Safety**: Factory instances are thread-safe with proper locking
 6. **Type Safety**: Full type annotations with dependency injection
-7. **FastAPI Conventions**: Uses standard `app.state` pattern
+7. **Async Generator Pattern**: Uses FastAPI's standard async dependency pattern
 
 ## Key Design Decisions
 
 ### Provider Type Registration
 
-- **Provider types are registered at application startup**, not dynamically via API
+- **Provider types are registered at module initialization**, not dynamically via API
 - This keeps the set of supported provider types explicit and version-controlled
 - New provider types require code changes, ensuring proper testing and validation
 
@@ -186,37 +180,38 @@ def test_endpoint_with_mock_factory():
 
 ### Lifecycle Management
 
-- Factory is initialized once during application startup
-- Factory instance is stored in `app.state` and shared across all requests
-- Factory is cleaned up during application shutdown
+- Factory is initialized once at module load time
+- Factory instance is shared across all requests via dependency injection
+- Factory persists for the lifetime of the application process
 
 ## Implementation Details
 
 ### Dependency Function
 
-The dependency function is defined in `nexus_api/dependencies.py`:
+The dependency function is defined in `nexus.tool_manager.lib.providers.factory`:
 
 ```python
-from fastapi import Depends, Request
-from nexus.tool_manager.lib.providers.factory import ProviderFactory
+from collections.abc import AsyncGenerator
 
-def get_provider_factory(request: Request) -> ProviderFactory:
-    """Get the provider factory from application state."""
-    if not hasattr(request.app.state, "provider_factory"):
-        msg = "Provider factory not initialized."
-        raise RuntimeError(msg)
-    return request.app.state.provider_factory
+# Module-level singleton
+_provider_factory: ProviderFactory = ProviderFactory()
+_provider_factory.register_provider_type("mcp", MCPProvider)
 
-# Type alias for convenience
-ProviderFactoryDep = Annotated[ProviderFactory, Depends(get_provider_factory)]
+async def get_provider_factory() -> AsyncGenerator[ProviderFactory]:
+    """Create a ProviderFactory for dependency injection.
+
+    Yields:
+        ProviderFactory for dependency injection
+    """
+    yield _provider_factory
 ```
 
 This approach:
 
-- Uses FastAPI's standard `Request` object to access `app.state`
-- Provides clear error messages if factory isn't initialized
-- Follows FastAPI dependency injection patterns
-- No module-level global variables
+- Uses an async generator pattern for FastAPI dependency injection
+- Pre-configures provider types at module initialization
+- Follows FastAPI's async dependency patterns
+- Provides a singleton factory instance
 
 ## Example Usage
 
