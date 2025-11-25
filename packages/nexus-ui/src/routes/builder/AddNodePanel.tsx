@@ -19,7 +19,15 @@ export function AddNodePanel(props: AddNodePanelProps) {
   const moveActivityAfter = useWorkflowStore((state) => state.moveActivityAfter)
 
   // Get all registered node types
-  const nodeTypes = useMemo(() => NodeRegistry.getAll(), [])
+  // Filter out trigger nodes when adding via plus icon (sourceNodeId exists)
+  // because triggers cannot be target nodes
+  const nodeTypes = useMemo(() => {
+    const allNodes = NodeRegistry.getAll()
+    if (props.sourceNodeId) {
+      return allNodes.filter((node) => node.category !== 'trigger')
+    }
+    return allNodes
+  }, [props.sourceNodeId])
 
   const handleNodeClick = (nodeId: string) => {
     setSelectedNodeType(selectedNodeType === nodeId ? null : nodeId)

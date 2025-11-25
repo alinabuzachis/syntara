@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AddNodePanel } from './AddNodePanel'
 import { NodeRegistry } from './registry/NodeRegistry'
@@ -95,6 +95,51 @@ describe('AddNodePanel Component', () => {
 
       expect(screen.getByText('Add Node')).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /action/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Node Filtering', () => {
+    const mockNodes = [
+      {
+        id: 'action',
+        label: 'Action',
+        icon: () => <div>ActionIcon</div>,
+        category: 'action',
+        description: 'Execute scripts or make API calls',
+        keywords: ['script'],
+        order: 30,
+        formComponent: MockFormComponent,
+        onSubmit: vi.fn(),
+      },
+      {
+        id: 'trigger',
+        label: 'Trigger',
+        icon: () => <div>TriggerIcon</div>,
+        category: 'trigger',
+        description: 'Start workflow on an event',
+        keywords: ['event'],
+        order: 10,
+        formComponent: MockFormComponent,
+        onSubmit: vi.fn(),
+      },
+    ]
+
+    it('filters out trigger nodes when sourceNodeId is provided', () => {
+      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodes as never)
+
+      render(<AddNodePanel onClose={mockOnClose} sourceNodeId="node-123" />)
+
+      expect(screen.getByText('Action')).toBeInTheDocument()
+      expect(screen.queryByText('Trigger')).not.toBeInTheDocument()
+    })
+
+    it('includes all node types when sourceNodeId is not provided', () => {
+      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodes as never)
+
+      render(<AddNodePanel onClose={mockOnClose} />)
+
+      expect(screen.getByText('Action')).toBeInTheDocument()
+      expect(screen.getByText('Trigger')).toBeInTheDocument()
     })
   })
 
@@ -203,7 +248,7 @@ describe('AddNodePanel Component', () => {
   describe('Form Submission', () => {
     it('calls onSubmit and deselects node on successful form submission', async () => {
       const user = userEvent.setup()
-      const mockOnSubmit = vi.fn((data, onSuccess) => {
+      const mockOnSubmit = vi.fn((_data, onSuccess) => {
         onSuccess()
       })
 
@@ -240,7 +285,7 @@ describe('AddNodePanel Component', () => {
     it('calls onNodeError callback when submission fails', async () => {
       const user = userEvent.setup()
       const errorMessage = 'Failed to create node'
-      const mockOnSubmit = vi.fn((data, onSuccess, onError) => {
+      const mockOnSubmit = vi.fn((_data, _onSuccess, onError) => {
         onError(errorMessage)
       })
 
@@ -275,7 +320,7 @@ describe('AddNodePanel Component', () => {
 
     it('does not call onNodeError when onNodeError prop is not provided', async () => {
       const user = userEvent.setup()
-      const mockOnSubmit = vi.fn((data, onSuccess, onError) => {
+      const mockOnSubmit = vi.fn((_data, _onSuccess, onError) => {
         onError('Error')
       })
 
