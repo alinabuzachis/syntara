@@ -320,6 +320,8 @@ endif
 
 # Code quality
 # ========================================================
+FORMAT_PATHS := src/ tools/ tests/
+
 .PHONY: check-path-sequence
 check-path-sequence: ## Validate numbering sequence under specs/
 	@echo "🔢 Validating numbered entries in specs/..."
@@ -331,15 +333,15 @@ format: ## Format code
 	uv run pre-commit run trailing-whitespace --all-files
 	uv run pre-commit run end-of-file-fixer --all-files
 	uv run pre-commit run mixed-line-ending --all-files
-	uv run ruff format .
-	uv run ruff check . --fix
+	uv run ruff format $(FORMAT_PATHS)
+	uv run ruff check $(FORMAT_PATHS) --fix
 	@find . -type f \( -name "*.yml" -o -name "*.yaml" \) -print0 | xargs -0 -r uvx yamlfmt -w
 	@echo "✅ Code formatting completed"
 
 .PHONY: lint
 lint: ## Run linting and type checking with ruff and mypy
 	@echo "📝 Running ruff linter..."
-	uv run ruff check .
+	uv run ruff check $(FORMAT_PATHS)
 	@echo "📝 Running pre-commit hooks..."
 	SKIP=ruff-format pre-commit run --all-files
 
