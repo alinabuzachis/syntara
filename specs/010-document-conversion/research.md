@@ -92,7 +92,7 @@ class ConverterRegistry:
 ```python
 try:
     pypandoc.convert_file(input_path, 'md', outputfile=output_path)
-    return ConversionResult(success=True, output_path=output_path)
+    return ConversionResult(success=True, output_filename=output_filename)
 except pypandoc.PandocError as e:
     return ConversionResult(success=False, error_message=str(e))
 ```
@@ -145,7 +145,7 @@ class DocumentConverter(ABC):
     def supported_formats(self) -> List[str]: ...
 
     @abstractmethod
-    def convert_to_markdown(self, input_path: Path, output_path: Path) -> ConversionResult: ...
+    def convert_to_markdown(self, input_path: Path, output_filename: str) -> ConversionResult: ...
 
 class ConverterRegistry:
     def register_converter(self, converter: DocumentConverter): ...

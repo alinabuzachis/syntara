@@ -6,6 +6,8 @@ import pytest
 from httpx import AsyncClient
 from langchain_core.messages import AIMessage
 
+from tests.conftest import wait_for_invocation_execution
+
 
 @pytest.mark.asyncio
 async def test_invoke_returns_202_accepted(auth_client: AsyncClient, test_user) -> None:
@@ -26,7 +28,7 @@ async def test_invoke_returns_202_accepted(auth_client: AsyncClient, test_user) 
 async def test_invoke_response_schema(auth_client: AsyncClient, test_user) -> None:
     """Test that response matches expected schema."""
     # Mock LangChain LLM response
-    with patch("nexus.agent_orchestrator.services.invocation_service.get_openrouter_llm") as mock_get_llm:
+    with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(content="App deployed to production successfully")
         mock_get_llm.return_value = mock_llm
@@ -39,7 +41,14 @@ async def test_invoke_response_schema(auth_client: AsyncClient, test_user) -> No
             },
         )
 
-    data = response.json()
+        assert response.status_code == 202
+        data = response.json()
+        invocation_id = data["id"]
+
+        # Wait for execution to start or complete
+        async with wait_for_invocation_execution(auth_client, invocation_id) as final_data:
+            # Use the final data for assertions
+            data = final_data if final_data else data
 
     # Required fields
     assert "id" in data
@@ -51,7 +60,7 @@ async def test_invoke_response_schema(auth_client: AsyncClient, test_user) -> No
 
     # Field types and values
     assert isinstance(data["id"], str)
-    assert data["status"] in ["running", "completed"]  # Sync execution completes immediately
+    assert data["status"] in ["running", "completed", "failed"]
     assert isinstance(data["created_at"], str)
     assert data["created_by"] == str(test_user.id)
     assert data["prompt"] == "Deploy app to production"
@@ -66,13 +75,13 @@ async def test_invoke_with_context(auth_client: AsyncClient, test_user) -> None:
         json={
             "prompt": "Deploy app",
             "session_id": "session-001",
-            "context_data": {"environment": "production", "region": "us-east-1"},
+            "context_data": {"environment": "production", "file_metadata": [], "region": "us-east-1"},
         },
     )
 
     assert response.status_code == 202
     data = response.json()
-    assert data["context_data"] == {"environment": "production", "region": "us-east-1"}
+    assert data["context_data"] == {"environment": "production", "file_metadata": [], "region": "us-east-1"}
 
 
 @pytest.mark.asyncio
@@ -574,7 +583,7 @@ async def test_list_response_includes_all_fields(auth_client: AsyncClient, test_
 async def test_invoke_null_fields_handling(auth_client: AsyncClient, test_user) -> None:
     """Test that null/optional fields are properly returned as null."""
     # Mock LangChain LLM response
-    with patch("nexus.agent_orchestrator.services.invocation_service.get_openrouter_llm") as mock_get_llm:
+    with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(content="Null field test completed")
         mock_get_llm.return_value = mock_llm
@@ -590,23 +599,34 @@ async def test_invoke_null_fields_handling(auth_client: AsyncClient, test_user) 
 
         assert response.status_code == 202
         data = response.json()
+        invocation_id = data["id"]
 
-        # Optional fields - execution is synchronous so started_at/completed_at are populated
-        assert data["started_at"] is not None  # Synchronous execution starts immediately
-        assert data["completed_at"] is not None  # Synchronous execution completes immediately
+        # Initial state - execution hasn't started yet
+        assert data["status"] == "created"
+        assert data["started_at"] is None
+        assert data["completed_at"] is None
+        assert data["result"] is None
+        assert data["error_message"] is None
 
-        # Result may be None if OpenRouter API key is not configured (in CI)
-        # If configured, result should be present; if not, error_message should explain
-        if data["result"] is None:
-            # No OpenRouter API key - should have error message
-            assert data["error_message"] is not None
-            assert "OPENROUTER_API_KEY" in data["error_message"]
-            assert data["status"] == "failed"
-        else:
-            # OpenRouter configured - should have successful result
+        # Wait for execution to start or complete using the context manager
+        async with wait_for_invocation_execution(auth_client, invocation_id) as final_data:
+            data = final_data if final_data else data
+
+        # Test null/optional field handling based on the actual behavior
+        # In the test environment, background tasks may not execute immediately
+
+        # Execution has started
+        assert data["status"] in ["running", "completed"]
+        assert data["started_at"] is not None
+
+        if data["status"] == "completed":
+            assert data["completed_at"] is not None
+            assert data["result"] is not None
             assert data["error_message"] is None
-            assert data["status"] == "completed"
+        else:  # running
+            assert data["completed_at"] is None  # Not completed yet
 
+        # These fields should always be None for new invocations
         assert data["checkpoint_data"] is None
         assert data["updated_by"] is None
 

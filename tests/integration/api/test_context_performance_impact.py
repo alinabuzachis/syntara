@@ -4,33 +4,26 @@ Tests that context enhancement adds acceptable latency to invocation processing.
 Based on Scenario 5 from quickstart.md.
 """
 
-import asyncio
 import time
 from unittest.mock import patch
 
 import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
+from httpx import AsyncClient
 
 from nexus.agent_orchestrator.context_manager import ContextManagerPlanner
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
-from nexus.agent_orchestrator.models import InvocationStatus
-from nexus.agent_orchestrator.services.invocation_service import InvocationService
 from nexus.core.models import User
+from tests.conftest import wait_for_invocation_execution
 
 
 class TestContextPerformanceImpact:
     """Test suite for performance impact assessment of context enhancement."""
 
-    @pytest_asyncio.fixture
-    async def invocation_service(self, test_db_session: AsyncSession, test_user: User) -> InvocationService:
-        """Create InvocationService instance for testing."""
-        return InvocationService(session=test_db_session, user=test_user)
-
     @pytest.mark.asyncio
     async def test_baseline_vs_context_enhanced_performance(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test performance comparison between baseline and context-enhanced invocations.
 
@@ -44,35 +37,35 @@ class TestContextPerformanceImpact:
         baseline_session = "performance-baseline"
 
         start_time = time.time()
-        baseline_invocation = await invocation_service.create_invocation(
-            prompt=baseline_prompt, session_id=baseline_session
+
+        # Create baseline invocation via API
+        response = await auth_client.post(
+            "/api/v1/invocations",
+            json={
+                "prompt": baseline_prompt,
+                "created_by": str(test_user.id),
+                "session_id": baseline_session,
+            },
         )
 
-        # Wait for completion and measure time
-        max_wait = 30.0
-        wait_interval = 0.1
-        waited = 0.0
+        assert response.status_code == 202
+        baseline_data = response.json()
+        baseline_invocation_id = baseline_data["id"]
 
-        while baseline_invocation.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-            if waited >= max_wait:
-                pytest.fail(f"Baseline invocation timed out after {max_wait}s")
-
-            await asyncio.sleep(wait_interval)
-            waited += wait_interval
-            await invocation_service.session.refresh(baseline_invocation)
+        # Wait for completion using the helper
+        async with wait_for_invocation_execution(auth_client, baseline_invocation_id, max_wait_time=30.0) as final_data:
+            baseline_data = final_data if final_data else baseline_data
 
         baseline_end_time = time.time()
         baseline_duration = baseline_end_time - start_time
 
         # Handle both cases: with and without OpenRouter API key
-        if baseline_invocation.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (
-            baseline_invocation.error_message or ""
-        ):
+        if baseline_data["status"] == "failed" and "OPENROUTER_API_KEY" in (baseline_data.get("error_message", "")):
             # No OpenRouter API key configured (CI environment)
             # Skip context enhancement tests when LLM is not available
             return
 
-        assert baseline_invocation.status == InvocationStatus.COMPLETED
+        assert baseline_data["status"] == "completed"
         assert baseline_duration < 30.0, "Baseline should complete within reasonable time"
 
         # Test 2: Context-enhanced performance (simulated heavy context)
@@ -91,32 +84,37 @@ class TestContextPerformanceImpact:
             context_session = "performance-context"
 
             context_start_time = time.time()
-            context_invocation = await invocation_service.create_invocation(
-                prompt=context_prompt, session_id=context_session
+
+            # Create context invocation via API
+            response = await auth_client.post(
+                "/api/v1/invocations",
+                json={
+                    "prompt": context_prompt,
+                    "created_by": str(test_user.id),
+                    "session_id": context_session,
+                },
             )
 
-            # Wait for completion
-            waited = 0.0
-            while context_invocation.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-                if waited >= max_wait:
-                    pytest.fail(f"Context invocation timed out after {max_wait}s")
+            assert response.status_code == 202
+            context_data = response.json()
+            context_invocation_id = context_data["id"]
 
-                await asyncio.sleep(wait_interval)
-                waited += wait_interval
-                await invocation_service.session.refresh(context_invocation)
+            # Wait for completion using the helper
+            async with wait_for_invocation_execution(
+                auth_client, context_invocation_id, max_wait_time=30.0
+            ) as final_data:
+                context_data = final_data if final_data else context_data
 
             context_end_time = time.time()
             context_duration = context_end_time - context_start_time
 
         # Handle both cases: with and without OpenRouter API key
-        if context_invocation.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (
-            context_invocation.error_message or ""
-        ):
+        if context_data["status"] == "failed" and "OPENROUTER_API_KEY" in (context_data.get("error_message", "")):
             # No OpenRouter API key configured (CI environment)
             # Skip context enhancement tests when LLM is not available
             return
 
-        assert context_invocation.status == InvocationStatus.COMPLETED
+        assert context_data["status"] == "completed"
 
         # Performance analysis
         performance_overhead = context_duration - baseline_duration
@@ -134,7 +132,8 @@ class TestContextPerformanceImpact:
     @pytest.mark.asyncio
     async def test_context_processing_timeout_performance(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test that context processing timeouts don't significantly impact performance.
 
@@ -151,21 +150,24 @@ class TestContextPerformanceImpact:
             session_id = "slow-context-test"
 
             start_time = time.time()
-            invocation = await invocation_service.create_invocation(prompt=prompt, session_id=session_id)
 
-            # Wait for completion
-            max_wait = 15.0  # Reasonable timeout including slow context
-            wait_interval = 0.1
-            waited = 0.0
+            # Create invocation via API
+            response = await auth_client.post(
+                "/api/v1/invocations",
+                json={
+                    "prompt": prompt,
+                    "created_by": str(test_user.id),
+                    "session_id": session_id,
+                },
+            )
 
-            while invocation.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-                if waited >= max_wait:
-                    # If it's still processing, that might be acceptable depending on timeout implementation
-                    break
+            assert response.status_code == 202
+            data = response.json()
+            invocation_id = data["id"]
 
-                await asyncio.sleep(wait_interval)
-                waited += wait_interval
-                await invocation_service.session.refresh(invocation)
+            # Wait for completion with timeout
+            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=15.0) as final_data:
+                data = final_data if final_data else data
 
             end_time = time.time()
             total_duration = end_time - start_time
@@ -176,7 +178,8 @@ class TestContextPerformanceImpact:
     @pytest.mark.asyncio
     async def test_concurrent_context_enhanced_invocations(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test performance under concurrent context-enhanced invocations.
 
@@ -195,49 +198,48 @@ class TestContextPerformanceImpact:
         with patch.object(ContextManagerPlanner, "plan_request", side_effect=context_with_delay):
             # Create multiple concurrent invocations
             num_concurrent = 5
-            invocations = []
+            invocation_ids = []
 
             start_time = time.time()
 
             # Start all invocations concurrently
             for i in range(num_concurrent):
-                invocation = await invocation_service.create_invocation(
-                    prompt=f"Concurrent test prompt {i}", session_id=f"concurrent-session-{i}"
+                response = await auth_client.post(
+                    "/api/v1/invocations",
+                    json={
+                        "prompt": f"Concurrent test prompt {i}",
+                        "created_by": str(test_user.id),
+                        "session_id": f"concurrent-session-{i}",
+                    },
                 )
-                invocations.append(invocation)
+                assert response.status_code == 202
+                data = response.json()
+                invocation_ids.append(data["id"])
 
-            # Wait for all to complete
-            max_wait = 20.0
-            wait_interval = 0.1
-            waited = 0.0
-
-            while waited < max_wait:
-                all_complete = True
-                for inv in invocations:
-                    await invocation_service.session.refresh(inv)
-                    if inv.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-                        all_complete = False
-                        break
-
-                if all_complete:
-                    break
-
-                await asyncio.sleep(wait_interval)
-                waited += wait_interval
+            # Wait for all to complete using wait helpers
+            invocation_results = []
+            for invocation_id in invocation_ids:
+                async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=20.0) as final_data:
+                    invocation_results.append(final_data)
 
             end_time = time.time()
             total_duration = end_time - start_time
 
             # Handle both cases: with and without OpenRouter API key
-            for inv in invocations:
-                if inv.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (inv.error_message or ""):
+            for result in invocation_results:
+                if (
+                    result
+                    and result["status"] == "failed"
+                    and "OPENROUTER_API_KEY" in (result.get("error_message", ""))
+                ):
                     # No OpenRouter API key configured (CI environment)
                     # Skip context enhancement tests when LLM is not available
                     return
 
             # Verify all completed successfully
-            for i, inv in enumerate(invocations):
-                assert inv.status == InvocationStatus.COMPLETED, f"Invocation {i} should complete"
+            for i, result in enumerate(invocation_results):
+                assert result
+                assert result["status"] == "completed", f"Invocation {i} should complete"
 
             # Concurrent processing should not take much longer than sequential
             # With proper async handling, should be closer to single invocation time
@@ -249,7 +251,8 @@ class TestContextPerformanceImpact:
     @pytest.mark.asyncio
     async def test_memory_usage_with_context_enhancement(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test that context enhancement doesn't cause excessive memory usage.
 
@@ -274,39 +277,42 @@ class TestContextPerformanceImpact:
                 session_id = f"memory-test-{context_size}"
 
                 start_time = time.time()
-                invocation = await invocation_service.create_invocation(prompt=prompt, session_id=session_id)
 
-                # Wait for completion
-                max_wait = 15.0
-                wait_interval = 0.1
-                waited = 0.0
+                # Create invocation via API
+                response = await auth_client.post(
+                    "/api/v1/invocations",
+                    json={
+                        "prompt": prompt,
+                        "created_by": str(test_user.id),
+                        "session_id": session_id,
+                    },
+                )
 
-                while invocation.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-                    if waited >= max_wait:
-                        pytest.fail(f"Invocation with {context_size}B context timed out")
+                assert response.status_code == 202
+                data = response.json()
+                invocation_id = data["id"]
 
-                    await asyncio.sleep(wait_interval)
-                    waited += wait_interval
-                    await invocation_service.session.refresh(invocation)
+                # Wait for completion using the helper
+                async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=15.0) as final_data:
+                    data = final_data if final_data else data
 
                 end_time = time.time()
                 duration = end_time - start_time
 
                 # Handle both cases: with and without OpenRouter API key
-                if invocation.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (
-                    invocation.error_message or ""
-                ):
+                if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
                     # No OpenRouter API key configured (CI environment)
                     # Skip context enhancement tests when LLM is not available
                     return
 
-                assert invocation.status == InvocationStatus.COMPLETED
+                assert data["status"] == "completed"
                 assert duration < 15.0, f"Large context ({context_size}B) should not cause excessive delays"
 
     @pytest.mark.asyncio
     async def test_context_caching_performance_benefit(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test potential performance benefits from context caching (future optimization).
 
@@ -328,34 +334,35 @@ class TestContextPerformanceImpact:
         for i, prompt in enumerate(similar_prompts):
             start_time = time.time()
 
-            invocation = await invocation_service.create_invocation(prompt=prompt, session_id=f"caching-test-{i}")
+            # Create invocation via API
+            response = await auth_client.post(
+                "/api/v1/invocations",
+                json={
+                    "prompt": prompt,
+                    "created_by": str(test_user.id),
+                    "session_id": f"caching-test-{i}",
+                },
+            )
 
-            # Wait for completion
-            max_wait = 15.0
-            wait_interval = 0.1
-            waited = 0.0
+            assert response.status_code == 202
+            data = response.json()
+            invocation_id = data["id"]
 
-            while invocation.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-                if waited >= max_wait:
-                    pytest.fail(f"Caching test invocation {i} timed out")
-
-                await asyncio.sleep(wait_interval)
-                waited += wait_interval
-                await invocation_service.session.refresh(invocation)
+            # Wait for completion using the helper
+            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=15.0) as final_data:
+                data = final_data if final_data else data
 
             end_time = time.time()
             duration = end_time - start_time
             durations.append(duration)
 
             # Handle both cases: with and without OpenRouter API key
-            if invocation.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (
-                invocation.error_message or ""
-            ):
+            if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip context enhancement tests when LLM is not available
                 return
 
-            assert invocation.status == InvocationStatus.COMPLETED
+            assert data["status"] == "completed"
 
         # For now, just verify all completed successfully
         # Future implementations might show performance improvement for similar queries

@@ -101,6 +101,43 @@ class FileUploadSettings(BaseSettings):
 
 
 # =============================================================================
+# Document Conversion Configuration
+# =============================================================================
+
+
+class DocumentConversionSettings(BaseSettings):
+    """Document conversion configuration settings.
+
+    Settings specific to document conversion operations.
+    Builds upon FileUploadSettings for consistency.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    document_conversion_timeout_seconds: int = Field(
+        default=30,
+        description="Maximum time allowed for document conversion (NFR-001: under 30 seconds)",
+        ge=1,
+        le=300,  # 5 minute absolute maximum
+    )
+
+    document_conversion_overwrite_existing: bool = Field(
+        default=False,
+        description="Whether to overwrite existing converted files",
+    )
+
+    document_conversion_temp_dir: str = Field(
+        default_factory=tempfile.gettempdir,
+        description="Temporary directory for conversion operations",
+    )
+
+
+# =============================================================================
 # API Validation Configuration
 # =============================================================================
 
@@ -159,7 +196,13 @@ class RouterDiscoverySettings(BaseSettings):
 # =============================================================================
 
 
-class Settings(OpenRouterSettings, FileUploadSettings, OpenAPIValidationSettings, RouterDiscoverySettings):
+class Settings(
+    OpenRouterSettings,
+    FileUploadSettings,
+    DocumentConversionSettings,
+    OpenAPIValidationSettings,
+    RouterDiscoverySettings,
+):
     """Application-wide settings.
 
     Combines all configuration sections into a single settings object.

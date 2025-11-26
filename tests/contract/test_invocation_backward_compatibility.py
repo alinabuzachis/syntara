@@ -9,6 +9,8 @@ These tests validate:
 import pytest
 from httpx import AsyncClient
 
+from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA
+
 
 @pytest.mark.asyncio
 async def ***REMOVED***(auth_client: AsyncClient, test_user) -> None:
@@ -60,8 +62,8 @@ async def test_json_request_context_data_empty_without_files(auth_client: AsyncC
     # Assert
     assert response.status_code == 202
     response_data = response.json()
-    assert "context_data" in response_data
-    assert response_data["context_data"] == {}
+    assert CONTEXT_KEY in response_data
+    assert response_data[CONTEXT_KEY] == {CONTEXT_KEY_FILE_METADATA: []}
 
 
 @pytest.mark.asyncio
@@ -76,7 +78,7 @@ async def test_json_request_with_existing_context_data(auth_client: AsyncClient,
     payload = {
         "prompt": "Test with context",
         "session_id": "backward-compat-003",
-        "context_data": {
+        CONTEXT_KEY: {
             "environment": "production",
             "region": "us-east-1",
         },
@@ -91,12 +93,12 @@ async def test_json_request_with_existing_context_data(auth_client: AsyncClient,
     # Assert
     assert response.status_code == 202
     response_data = response.json()
-    assert response_data["context_data"] == {
+    assert CONTEXT_KEY in response_data
+    assert response_data[CONTEXT_KEY] == {
         "environment": "production",
         "region": "us-east-1",
+        CONTEXT_KEY_FILE_METADATA: [],
     }
-    # Should not have file_metadata field
-    assert "file_metadata" not in response_data["context_data"]
 
 
 @pytest.mark.asyncio
@@ -122,7 +124,7 @@ async def test_multipart_request_without_files_compatible(auth_client: AsyncClie
     # Assert
     assert response.status_code == 202
     response_data = response.json()
-    assert response_data["context_data"] == {}
+    assert response_data[CONTEXT_KEY] == {CONTEXT_KEY_FILE_METADATA: []}
 
 
 @pytest.mark.asyncio
@@ -165,7 +167,7 @@ async def test_all_existing_fields_present_in_response(auth_client: AsyncClient,
     assert "status" in data
     assert "started_at" in data
     assert "completed_at" in data
-    assert "context_data" in data
+    assert CONTEXT_KEY in data
     assert "result" in data
     assert "error_message" in data
     assert "checkpoint_data" in data

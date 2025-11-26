@@ -73,7 +73,8 @@ def wait_for_invocation_completion(invocation_id: str, timeout: int = 60) -> Dic
                 for file_meta in invocation['context_data']['file_metadata']:
                     if file_meta['status'] == 'converted' and 'conversion' in file_meta:
                         conversion = file_meta['conversion']
-                        print(f"📄 Output file: {conversion['output_path']}")
+                        print(f"📄 Output path: {conversion['output_path']}")
+                        print(f"📄 Output file: {conversion['output_filename']}")
                         print(f"⏱️ Conversion time: {conversion['conversion_time_ms']}ms")
 
             return invocation
@@ -137,6 +138,7 @@ def convert_document_safe(file_path: str) -> Dict[str, Any]:
 result = convert_document_safe("my_document.pdf")
 if result["success"]:
     print(f"Success: {result['result']['metadata']['output_path']}")
+    print(f"Success: {result['result']['metadata']['output_filename']}")
 else:
     print(f"Error: {result['error']}")
 ```

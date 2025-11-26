@@ -61,7 +61,7 @@ Agent invocation-based document conversion component that integrates with the ex
 
 **Performance Goals**: Individual file conversion within 30 seconds under normal server load conditions, support files up to configurable limit (currently 10MB)
 
-**Constraints**: Memory-bound processing, configurable file size limit (currently 10MB), third-party library limitations for complex formatting, detailed logging requirements (NFR-004)
+**Constraints**: Memory-bound processing, configurable file size limit (currently 10MB), third-party library limitations for complex formatting, standard logging requirements (NFR-004)
 
 **Scale/Scope**: Individual file processing, extensible for future format support, programmatic usage only, integrates with existing file upload workflow
 
@@ -130,16 +130,14 @@ src/
     │           │   └── local.py             # LocalRetriever with enhanced methods
     │           └── document_conversion/
     │               ├── __init__.py          # Main public interface
-    │               ├── agents/
-    │               │   ├── __init__.py
-    │               │   └── document_converter_agent.py
     │               ├── models/
     │               │   ├── __init__.py
     │               │   ├── conversion_config.py
     │               │   └── conversion_result.py
     │               ├── services/
     │               │   ├── __init__.py
-    │               │   └── document_conversion_service.py
+    │               │   ├── document_conversion_service.py
+    │               │   └── document_conversion_task.py
     │               ├── converters/
     │               │   ├── __init__.py
     │               │   ├── base.py
@@ -265,7 +263,7 @@ flowchart TD
 1. **Extract entities from feature spec** → `data-model.md`:
    - FileMetadata: Reuse from file-manager-upload with extended status values (pending_parse, converting, converted, conversion_failed)
    - ConversionConfig: max_file_size (from system config), overwrite_existing, supported_mime_types
-   - ConversionResult: success, output_path, conversion_time, error_message, conversion_time_ms
+   - ConversionResult: success, output_path, output_filename, conversion_time, error_message, conversion_time_ms
    - ConverterRegistry: mime_type_converters, format_mapping
    - BaseRetriever enhancements: load_file(), file_exists(), get_file_metadata() methods
 

@@ -5,6 +5,7 @@ support for multiple storage backends (local filesystem, cloud storage, etc.).
 """
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class BaseRetriever(ABC):
@@ -50,5 +51,60 @@ class BaseRetriever(ABC):
             Implementations should ensure idempotent behavior where possible.
             If the file already exists at the destination, it should be overwritten
             to maintain consistency in retry scenarios.
+
+        """
+
+    @abstractmethod
+    async def load_file(self, file_path: str) -> bytes:
+        """Load file content from storage location.
+
+        Args:
+            file_path: Storage-specific identifier for the file
+                      (e.g., absolute path for local storage, s3:// URL for S3)
+
+        Returns:
+            Raw file content as bytes
+
+        Raises:
+            FileNotFoundError: If file does not exist at the specified path
+            OSError: If file cannot be read due to I/O errors
+            PermissionError: If insufficient permissions to read the file
+
+        """
+
+    @abstractmethod
+    async def file_exists(self, file_path: str) -> bool:
+        """Check if file exists at storage location.
+
+        Args:
+            file_path: Storage-specific identifier for the file
+
+        Returns:
+            True if file exists, False otherwise
+
+        Note:
+            This method should not raise exceptions for normal "file not found"
+            conditions. Only raise exceptions for actual errors (permission issues,
+            network failures for cloud storage, etc.).
+
+        """
+
+    @abstractmethod
+    async def get_file_metadata(self, file_path: str) -> dict[str, Any]:
+        """Get file metadata from storage.
+
+        Args:
+            file_path: Storage-specific identifier for the file
+
+        Returns:
+            Dictionary containing file metadata with at least:
+            - 'size': File size in bytes
+            - 'modified': Last modified timestamp (ISO 8601 string)
+            - Additional backend-specific metadata may be included
+
+        Raises:
+            FileNotFoundError: If file does not exist at the specified path
+            OSError: If metadata cannot be retrieved due to I/O errors
+            PermissionError: If insufficient permissions to access file metadata
 
         """

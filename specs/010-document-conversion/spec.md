@@ -79,7 +79,7 @@ flowchart TD
 - Q: What should happen when a source file is corrupted or unreadable? → A: Fail the entire operation with error message
 
 ### Session 2025-11-19
-- Q: What level of logging detail should be captured during document conversion operations? → A: Detailed logging - include converter type, file metadata, error details
+- Q: What level of logging detail should be captured during document conversion operations? → A: Standard logging - include success/failure status and error details when failures occur
 
 ### Clarification Impact Analysis
 
@@ -189,7 +189,7 @@ As a user, I need to convert individual documents stored on my local file system
 - **FR-011**: System MUST validate that source files exist and are readable before attempting conversion
 - **FR-012**: System MUST generate output markdown files with the same base filename as the source file but with .md extension using configurable storage location (configurable via system setting override)
 - **FR-013**: System MUST handle all conversion errors gracefully without crashing and provide clear error messages for: (a) unsupported file formats, (b) files exceeding memory processing limits, (c) corrupted or unreadable source files
-- **FR-014**: System MUST integrate document conversion with the existing agent invocation system through the `invoke_agent` endpoint (src/nexus/api/v1/invocation.py:31) by enhancing InvocationService.create_invocation() method to use FileMetadata objects and schedule background conversion tasks
+- **FR-014**: System MUST integrate document conversion with the existing agent invocation system through the `invoke_agent` endpoint by enhancing InvocationService to use FileMetadata objects and schedule background conversion tasks
 - **FR-015**: System MUST use FastAPI Background Tasks to process document conversions asynchronously when triggered through agent invocations by adding BackgroundTasks dependency injection to the invoke_agent endpoint and scheduling conversion tasks via background_tasks.add_task() method
 - **FR-016**: System MUST detect document conversion requests using FileMetadata objects created in the InvocationService.create_invocation() method
 - **FR-017**: System MUST track conversion progress and results through the existing invocation status tracking system
@@ -199,17 +199,17 @@ As a user, I need to convert individual documents stored on my local file system
 
 ### Non-Functional Requirements
 - **NFR-001**: System MUST complete individual file conversion within 30 seconds under normal server load conditions
-- **NFR-002**: System MUST support files up to 10MB in size (configurable limit via system configuration file: nexus.conversion.max_file_size_bytes setting)
+- **NFR-002**: System MUST support files up to configurable size limit (inherits from FileUploadSettings.file_upload_max_size_mb)
 - **NFR-003**: System MUST handle conversion failures gracefully without affecting other operations
-- **NFR-004**: System MUST log detailed conversion operations including converter type used, source file metadata (filename, size, MIME type), conversion duration, success/failure status, and error details when failures occur
+- **NFR-004**: System MUST log conversion operations using standard Python logging including success/failure status and error details when failures occur
 
 ### Key Entities *(include if feature involves data)*
 - **FileMetadata**: Reuses structure from file-manager-upload component with extensions for conversion tracking
   - Base attributes: filename, size_bytes, mime_type, file_path, status
   - Extended status values: "pending_parse", "converting", "converted", "conversion_failed"
-  - Optional conversion metadata: output_path, converted_at, conversion_time_ms, error_message
+  - Optional conversion metadata: output_path, output_filename, converted_at, conversion_time_ms, error_message
 - **ConversionConfig**: Configuration for conversion operations with attributes like max_file_size (inherited from system config), overwrite_existing, supported_mime_types
-- **ConversionResult**: Transient result object for individual conversion operations containing success flag, output_path, conversion_time, and error details
+- **ConversionResult**: Transient result object for individual conversion operations containing success flag, output_path, output_filename, conversion_time, and error details
 
 ---
 
@@ -228,17 +228,17 @@ sequenceDiagram
     participant FileManager as FileManager
     participant DB as Database
 
-    Client->>InvokeAgent: POST /invocations (with FileMetadata)
+    Client->>InvokeAgent: POST /api/v1/invocations (with FileMetadata)
     InvokeAgent->>BackgroundTask: add_task(document_conversion)
     InvokeAgent-->>Client: 202 ACCEPTED (invocation_id)
 
     BackgroundTask->>ConversionSvc: process_conversion(file_metadata_id)
     ConversionSvc->>DB: Update status="converting"
     ConversionSvc->>FileManager: load_file() + convert() + store_file()
-    ConversionSvc->>DB: Update status="converted" with output_path
+    ConversionSvc->>DB: Update status="converted" with output_path and output_filename
 
     Note over Client: Poll invocation status
-    Client->>InvokeAgent: GET /invocations/{id}
+    Client->>InvokeAgent: GET /api/v1/invocations/{id}
     InvokeAgent-->>Client: conversion result
 ```
 
@@ -254,23 +254,13 @@ The conversion component extends the FileMetadata structure with additional fiel
   "file_path": "/tmp/nexus-550e8400-e29b-41d4-a716-446655440000-document.pdf",
   "status": "converted",
   "conversion": {
-    "output_path": "/output/documents/nexus-550e8400-e29b-41d4-a716-446655440000-document.md",
+    "output_path": "/tmp/document.md",
+    "output_filename": "document.md",
     "converted_at": "2025-11-19T10:30:00Z",
     "conversion_time_ms": 1250
   }
 }
 ```
-
-### Integration Requirements
-
-- **IR-001**: Document conversion MUST be triggered through the existing `invoke_agent` endpoint using FastAPI Background Tasks
-- **IR-002**: Conversion requests MUST be identified through FileMetadata objects created in the InvocationService.create_invocation() method  
-- **IR-003**: Conversion processing MUST occur asynchronously in background tasks to maintain API responsiveness
-- **IR-004**: Conversion status and results MUST be tracked through the existing invocation status system
-- **IR-005**: BaseRetriever interface MUST be enhanced to support loading/reading files in addition to existing storing capabilities
-- **IR-006**: FileManager._get_retriever_for_file method (from 008-file-manager-upload) MUST be refactored to become a public method get_retriever_for_file for use by background conversion tasks
-- **IR-007**: FileMetadata objects MUST be used to detect whether document conversion is required in InvocationService.create_invocation()
-- **IR-008**: Background task scheduling MUST occur only when at least one FileMetadata object is detected
 
 ---
 

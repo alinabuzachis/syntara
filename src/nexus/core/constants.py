@@ -55,4 +55,6 @@ class ValidationMessages:
 MIME_TYPE_DETECTION_MIN_BYTES = 512
 
 # Context data keys for invocation context_data JSONB field
+CONTEXT_KEY = "context_data"
 CONTEXT_KEY_FILE_METADATA = "file_metadata"  # Key for file metadata array in invocation context_data
+CONTEXT_KEY_FILE_METADATA_CONVERSION = "conversion"  # Key for file conversion metadata in file_metadata

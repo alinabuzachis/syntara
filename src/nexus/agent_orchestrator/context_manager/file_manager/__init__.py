@@ -5,8 +5,8 @@ including validation, storage, and metadata generation.
 """
 
 import logging
-from pathlib import Path
-from typing import Literal
+from collections.abc import Generator
+from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import UploadFile
@@ -51,9 +51,13 @@ class FileMetadata(BaseModel):
     size_bytes: int = Field(..., description="File size in bytes", gt=0)
     mime_type: str = Field(..., description="Detected MIME type")
     file_path: str = Field(..., description="Internal storage path (not exposed in API)")
-    status: Literal["pending_parse"] = Field(
+    status: Literal["pending_parse", "converting", "converted", "conversion_failed"] = Field(
         default="pending_parse",
-        description="Processing status",
+        description="Processing status1",
+    )
+    conversion: dict[str, Any] | None = Field(
+        default=None,
+        description="Optional conversion metadata when status is 'converted' or 'conversion_failed'",
     )
 
 
@@ -81,9 +85,8 @@ class FileManager:
             # Future: Add S3FileRetriever, GCSFileRetriever, etc.
         }
 
-    def _get_retriever_for_file(
+    def get_retriever_for_file(
         self,
-        _file: UploadFile,
         _file_size_bytes: int,
         _mime_type: str,
     ) -> BaseRetriever:
@@ -97,7 +100,6 @@ class FileManager:
         - Cost optimization rules
 
         Args:
-            _file: The uploaded file (unused for now, always returns local)
             _file_size_bytes: Size of the file in bytes (unused for now)
             _mime_type: Detected MIME type of the file (unused for now)
 
@@ -163,8 +165,7 @@ class FileManager:
                 file_size_bytes = len(file_content)
 
                 # Select appropriate retriever based on file context
-                retriever = self._get_retriever_for_file(
-                    _file=file,
+                retriever = self.get_retriever_for_file(
                     _file_size_bytes=file_size_bytes,
                     _mime_type=mime_type,
                 )
@@ -220,7 +221,38 @@ class FileManager:
         return file_metadata_list
 
 
+# ===================================================
+# Generator for dependency injection
+# ---------------------------------------------------
+_file_manager: FileManager = FileManager()
+
+
+def get_file_manager() -> Generator[FileManager]:
+    """Create a FileManager for dependency injection.
+
+    Yields:
+        FileManager for dependency injection
+
+    Example:
+        from fastapi import Depends
+        from nexus.agent_orchestrator.context_manager.file_manager import (
+            get_file_manager,
+        )
+
+        async def load_document(
+            file_manager: FileManager = Depends(get_file_manager)
+        ):
+            retriever = file_manager.get_retriever_for_file(...)
+
+    """
+    yield _file_manager
+
+
+# ===================================================
+
+
 __all__ = [
     "FileManager",
     "FileMetadata",
+    "get_file_manager",
 ]

@@ -1,25 +1,42 @@
 """Service layer for invocation business logic."""
 
-import hashlib
 import logging
-from collections.abc import Iterable
-from datetime import UTC, datetime
+from collections.abc import AsyncGenerator, Callable, Generator, Iterable
+from typing import Any
 from uuid import UUID, uuid4
 
-from fastapi import UploadFile
+from fastapi import BackgroundTasks, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus.agent_orchestrator.agents import GenericAgent
-from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
-from nexus.agent_orchestrator.context_manager import ContextManagerPlanner
-from nexus.agent_orchestrator.context_manager.file_manager import FileManager
+from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata, get_file_manager
 from nexus.agent_orchestrator.context_manager.file_manager import utils as file_utils
+from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services import (
+    document_conversion_task,
+)
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
-from nexus.core.constants import CONTEXT_KEY_FILE_METADATA
+from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA, CONTEXT_KEY_FILE_METADATA_CONVERSION
 from nexus.core.models import User
 from nexus.core.services import BaseService
+from nexus.core.services.extensions import ConvertResourceMixin
 
 logger = logging.getLogger(__name__)
+
+
+class InvocationServiceConvertResourceMixin(ConvertResourceMixin):
+    """Mixin for cleaning Invocation metadata before returning from API."""
+
+    def convert_resource(self, resource: Invocation) -> Invocation:  # type: ignore[override]
+        """Clean Invocation metadata."""
+        invocation_dict: dict[str, Any] = resource.model_dump()
+        # Exclude file_path and output_path for security - never expose internal filesystem paths in API
+        for fm in invocation_dict[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]:
+            fm.pop("file_path")
+            if CONTEXT_KEY_FILE_METADATA_CONVERSION in fm:
+                conversion = fm[CONTEXT_KEY_FILE_METADATA_CONVERSION]
+                if conversion and "output_path" in conversion:
+                    conversion.pop("output_path")
+
+        return Invocation.model_validate(invocation_dict)
 
 
 class InvocationService(BaseService):
@@ -29,29 +46,63 @@ class InvocationService(BaseService):
     separating it from HTTP/API concerns.
     """
 
-    def __init__(self, session: AsyncSession, user: User) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        user: User,
+        background_tasks: BackgroundTasks | None = None,
+        session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] | None = None,
+        file_manager_factory: Callable[[], Generator[FileManager, None]] = get_file_manager,
+    ) -> None:
         """Initialize service with database session.
 
         Args:
             session: Database session for queries
             user: Current authenticated user
+            background_tasks: Optional FastAPI background tasks for document conversion
+            session_factory: Optional session factory for DocumentConversionTask (defaults to get_db)
+            file_manager_factory: Factory function for creating FileManager
 
         """
-        super().__init__(session, user)
+        super().__init__(session, user, convert_resource_mixin=InvocationServiceConvertResourceMixin())
+        self.file_manager = next(file_manager_factory())
+        self.background_tasks = background_tasks
+        self.session_factory = session_factory
 
-        # Initialize GenericAgent for handling information queries
-        # GenericAgent uses LangChain LLM via OpenRouter
-        try:
-            llm = get_openrouter_llm()
-            self.generic_agent: GenericAgent | None = GenericAgent(llm=llm)
-        except ValueError as e:
-            # If OPENROUTER_API_KEY not set, log warning but continue
-            # This allows tests and development without OpenRouter configured
-            logger.warning(
-                "OpenRouter LLM not configured: %s. GenericAgent will fail at runtime.",
-                e,
-            )
-            self.generic_agent = None
+    async def _handle_file_uploads(self, invocation_id: UUID, files: list[UploadFile]) -> list[FileMetadata]:
+        if not files:
+            return []
+
+        # Validate and save files (may raise ValidationError or OSError)
+        # This happens BEFORE creating the invocation in DB
+        # FileManager handles cleanup if validation/storage fails
+        return await self.file_manager.validate_and_save_files(
+            files=files,
+            invocation_id=str(invocation_id),
+        )
+
+    def _schedule_background_tasks(self, invocation_id: UUID) -> None:
+        # Schedule background task for document conversion if provided
+        if not self.background_tasks:
+            return
+
+        logger.info(
+            "Scheduling document conversion background task (invocation_id=%s)",
+            invocation_id,
+        )
+
+        # Schedule the actual document conversion background task
+        task = (
+            document_conversion_task.DocumentConversionTask(session_factory=self.session_factory)
+            if self.session_factory
+            else document_conversion_task.DocumentConversionTask()
+        )
+        self.background_tasks.add_task(task.convert, invocation_id)
+
+        logger.info(
+            "Document conversion background task scheduled (invocation_id=%s)",
+            invocation_id,
+        )
 
     async def create_invocation(
         self,
@@ -81,30 +132,10 @@ class InvocationService(BaseService):
 
         # Process files if provided - validate BEFORE creating invocation
         final_context_data = context_data or {}
-        saved_file_paths: list[str] = []
+        file_metadata_list: list[FileMetadata] = await self._handle_file_uploads(invocation_id, files or [])
 
-        if files:
-            # Create FileManager
-            # FileManager internally gets settings and selects retriever
-            file_manager = FileManager()
-
-            # Validate and save files (may raise ValidationError or OSError)
-            # This happens BEFORE creating the invocation in DB
-            # FileManager handles cleanup if validation/storage fails
-            file_metadata_list = await file_manager.validate_and_save_files(
-                files=files,
-                invocation_id=str(invocation_id),
-            )
-
-            # Build file_metadata array for context_data
-            # Exclude file_path for security - never expose internal filesystem paths in API
-            # Structure: {"file_metadata": [{"file_id": str, "filename": str, ...}, ...]}
-            final_context_data[CONTEXT_KEY_FILE_METADATA] = [
-                fm.model_dump(exclude={"file_path"}) for fm in file_metadata_list
-            ]
-
-            # Track file paths for cleanup on DB failure
-            saved_file_paths = [fm.file_path for fm in file_metadata_list]
+        # Build file_metadata array for context_data
+        final_context_data[CONTEXT_KEY_FILE_METADATA] = [fm.model_dump() for fm in file_metadata_list]
 
         # Create invocation (single code path for both file and non-file cases)
         try:
@@ -120,204 +151,28 @@ class InvocationService(BaseService):
             await self.session.commit()
             await self.session.refresh(invocation)
 
+            logger.info(
+                "Invocation created successfully (invocation_id=%s)",
+                invocation_id,
+            )
+
         except Exception:
             # Database commit failed - cleanup saved files if any
-            if saved_file_paths:
+            if len(file_metadata_list):
                 logger.warning(
                     "Invocation creation failed, cleaning up %d saved files",
-                    len(saved_file_paths),
+                    len(file_metadata_list),
                 )
+                saved_file_paths = [fm.file_path for fm in file_metadata_list]
                 await file_utils.cleanup_files(saved_file_paths, context="after DB failure")
             raise
 
-        # Execute invocation with routing and agent selection
-        # Background execution - don't await to keep 202 response fast
-        # In production, this would be a background task (Celery, Temporal, etc.)
-        # For now, we'll execute synchronously but could spawn task later
-        # Store ID before execution to avoid accessing detached object on error
-        invocation_id = invocation.id
-        try:
-            await self._execute_invocation(invocation)
-        except Exception:
-            logger.exception(
-                "Error executing invocation (invocation_id=%s)",
-                invocation_id,
-            )
-            # Don't fail the create_invocation - invocation was created successfully
-            # Error will be stored in invocation.error_message
+        finally:
+            # Invocation created successfully
+            # Execution will be handled by InvocationExecutionService via background tasks
+            self._schedule_background_tasks(invocation_id)
 
-        return invocation
-
-    async def _execute_invocation(self, invocation: Invocation) -> None:
-        """Execute invocation by routing to appropriate agent.
-
-        Args:
-            invocation: Invocation to execute
-
-        """
-        # Hash prompt to protect sensitive information in logs
-        prompt_hash = hashlib.sha256(invocation.prompt.encode()).hexdigest()[:16]
-        logger.info(
-            "Executing invocation (invocation_id=%s, prompt_hash=%s)",
-            invocation.id,
-            prompt_hash,
-        )
-
-        # Check if GenericAgent is configured before starting execution
-        if self.generic_agent is None:
-            msg = (
-                "GenericAgent not configured. Set OPENROUTER_API_KEY environment variable. "
-                "Get your API key from https://openrouter.ai/keys"
-            )
-            # Mark invocation as failed
-            invocation.status = InvocationStatus.FAILED
-            invocation.error_message = msg
-            invocation.completed_at = datetime.now(UTC)
-            await self.session.commit()
-            logger.error("Invocation failed (invocation_id=%s): %s", invocation.id, msg)
-            return
-
-        # Store ID for logging in case of session errors
-        exec_invocation_id = invocation.id
-
-        try:
-            # Mark invocation as started
-            invocation.started_at = datetime.now(UTC)
-            invocation.status = InvocationStatus.RUNNING
-            await self.session.commit()
-
-            # Attempt context enhancement with graceful fallback
-            context_package = None
-            enhanced_prompt = invocation.prompt
-
-            try:
-                # Initiate context building through Context Manager
-                # Extract correlation_id from workflow context, fallback to invocation_id
-                correlation_id = str(invocation.context_data.get("correlation_id", invocation.id))
-
-                context_planner = ContextManagerPlanner()
-                context_package = context_planner.plan_request(
-                    correlation_id=correlation_id, session_id=invocation.session_id, query=invocation.prompt
-                )
-
-                logger.info(
-                    "Context package created (invocation_id=%s, correlation_id=%s, grounding_score=%f)",
-                    invocation.id,
-                    correlation_id,
-                    context_package.grounding_score,
-                )
-
-                # Format context for prompt enhancement - always include delimiters for observability
-                context_content = self._format_context_for_prompt(context_package.payload)
-                enhanced_prompt = f"""{invocation.prompt}
-
---- CONTEXT ---
-{context_content}
---- END CONTEXT ---"""
-
-                logger.debug(
-                    "Prompt enhanced with context (invocation_id=%s, original_length=%d, enhanced_length=%d)",
-                    invocation.id,
-                    len(invocation.prompt),
-                    len(enhanced_prompt),
-                )
-
-            except Exception as context_error:  # noqa: BLE001 - Need to catch all exceptions for graceful fallback
-                # Log context error but continue with original prompt (graceful fallback)
-                logger.warning(
-                    "Context Manager failed, proceeding with original prompt (invocation_id=%s): %s",
-                    invocation.id,
-                    str(context_error),
-                    exc_info=context_error,
-                )
-                # enhanced_prompt remains as original invocation.prompt
-                # context_package remains None
-
-            # Execute GenericAgent (with enhanced or original prompt)
-            logger.info(
-                "Sending prompt to LLM (invocation_id=%s): %s",
-                invocation.id,
-                enhanced_prompt,
-            )
-            response = await self.generic_agent.execute(
-                prompt=enhanced_prompt,
-                invocation_id=exec_invocation_id,
-            )
-
-            # Build result with optional context enhancement
-            result_dict = response.model_dump(by_alias=True)
-
-            # Add context metadata only if context processing succeeded
-            if context_package is not None:
-                result_dict.update(
-                    {
-                        "correlation_id": context_package.correlation_id,
-                        "grounding_score": context_package.grounding_score,
-                    }
-                )
-
-                # Add context_enhancement if context was populated
-                if context_package.payload or context_package.citations:
-                    result_dict["context_enhancement"] = {
-                        "turn_id": context_package.id,
-                        "citations": context_package.citations,
-                        "context_applied": True,
-                    }
-
-                logger.info(
-                    "Invocation completed successfully with context enhancement (invocation_id=%s, correlation_id=%s)",
-                    invocation.id,
-                    context_package.correlation_id,
-                )
-            else:
-                # Context enhancement failed, but invocation succeeded
-                logger.info(
-                    "Invocation completed successfully without context enhancement (invocation_id=%s)",
-                    invocation.id,
-                )
-
-            # Store result and mark as completed
-            invocation.result = result_dict
-            invocation.status = InvocationStatus.COMPLETED
-            invocation.completed_at = datetime.now(UTC)
-            await self.session.commit()
-
-        except Exception as e:
-            logger.exception(
-                "Invocation execution failed (invocation_id=%s)",
-                exec_invocation_id,
-            )
-            # Rollback session to clear any pending changes from the error
-            await self.session.rollback()
-
-            # Re-fetch invocation to get fresh instance attached to session
-            fresh_invocation = await self.session.get(Invocation, exec_invocation_id)
-            if fresh_invocation:
-                # Mark invocation as failed
-                fresh_invocation.status = InvocationStatus.FAILED
-                fresh_invocation.error_message = str(e)
-                fresh_invocation.completed_at = datetime.now(UTC)
-                await self.session.commit()
-
-    def _format_context_for_prompt(self, payload: dict[str, object]) -> str:
-        """Format context payload for LLM consumption.
-
-        Args:
-            payload: Context data from ContextPackage
-
-        Returns:
-            Formatted string ready for prompt enhancement
-
-        """
-        if not payload:
-            return "(no additional context available)"
-
-        sections = []
-        for key, value in payload.items():
-            # Format each key-value pair as a section
-            sections.append(f"## {key}\n{value}")
-
-        return "\n\n".join(sections)
+        return InvocationServiceConvertResourceMixin().convert_resource(invocation)
 
     async def get_invocation(self, invocation_id: UUID) -> Invocation | None:
         """Get invocation by ID including result.
@@ -332,7 +187,8 @@ class InvocationService(BaseService):
             Invocation with result data if found, None otherwise
 
         """
-        return await self.session.get(Invocation, invocation_id)
+        invocation: Invocation | None = await self.session.get(Invocation, invocation_id)
+        return InvocationServiceConvertResourceMixin().convert_resource(invocation) if invocation else None
 
     async def list_invocations(
         self,

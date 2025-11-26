@@ -11,6 +11,8 @@ import pytest
 from httpx import AsyncClient
 from langchain_core.messages import AIMessage
 
+from tests.conftest import wait_for_invocation_execution
+
 
 class TestGenericQueryFlow:
     """Test end-to-end information query flow."""
@@ -27,7 +29,7 @@ class TestGenericQueryFlow:
         }
 
         # Mock LangChain LLM response
-        with patch("nexus.agent_orchestrator.services.invocation_service.get_openrouter_llm") as mock_get_llm:
+        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
             mock_llm = AsyncMock()
             mock_llm.ainvoke.return_value = AIMessage(
                 content="Available deployment tools: kubernetes-deployer, docker-builder, terraform-provisioner"
@@ -41,11 +43,16 @@ class TestGenericQueryFlow:
             assert response.status_code == 202
             data = response.json()
             assert "id" in data
-            assert data["status"] in ["running", "completed"]  # Sync execution completes immediately
+            invocation_id = data["id"]
+
+            # Wait for execution to start
+            async with wait_for_invocation_execution(base_client, invocation_id) as final_data:
+                data = final_data if final_data else data
+                assert data["status"] in ["running", "completed"]  # Execution should have started
 
             # Verify invocation ID is valid UUID
-            invocation_id = UUID(data["id"])
-            assert isinstance(invocation_id, UUID)
+            invocation_id_obj = UUID(invocation_id)
+            assert isinstance(invocation_id_obj, UUID)
 
     @pytest.mark.asyncio
     async def test_generic_agent_returns_answer_not_workflow(self, base_client: AsyncClient, test_user) -> None:
@@ -58,7 +65,7 @@ class TestGenericQueryFlow:
         }
 
         # Mock LLM
-        with patch("nexus.agent_orchestrator.services.invocation_service.get_openrouter_llm") as mock_get_llm:
+        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
             mock_llm = AsyncMock()
             mock_llm.ainvoke.return_value = AIMessage(content="Monitoring tools: prometheus, grafana")
             mock_get_llm.return_value = mock_llm
@@ -82,7 +89,7 @@ class TestGenericQueryFlow:
         }
 
         # Mock GenericAgent LLM
-        with patch("nexus.agent_orchestrator.services.invocation_service.get_openrouter_llm") as mock_get_llm:
+        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
             mock_llm = AsyncMock()
             mock_llm.ainvoke.return_value = AIMessage(content="Available agents: agent-1, agent-2")
             mock_get_llm.return_value = mock_llm
@@ -106,7 +113,7 @@ class TestGenericQueryFlow:
         }
 
         # Mock LangChain LLM response
-        with patch("nexus.agent_orchestrator.services.invocation_service.get_openrouter_llm") as mock_get_llm:
+        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
             mock_llm = AsyncMock()
             mock_llm.ainvoke.return_value = AIMessage(
                 content="Supported deployment strategies: blue-green, canary, rolling"
@@ -119,7 +126,12 @@ class TestGenericQueryFlow:
             # Assert
             assert response.status_code == 202
             data = response.json()
-            assert data["status"] in ["running", "completed"]
+            invocation_id = data["id"]
+
+            # Wait for execution to start
+            async with wait_for_invocation_execution(base_client, invocation_id) as final_data:
+                data = final_data if final_data else data
+                assert data["status"] in ["running", "completed"]
             # Invocation accepted successfully - LLM will process in background/sync
 
 
@@ -136,7 +148,7 @@ class TestGenericQueryErrorHandling:
             "session_id": "test-session",
         }
 
-        with patch("nexus.agent_orchestrator.services.invocation_service.get_openrouter_llm") as mock_get_llm:
+        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
             mock_llm = AsyncMock()
             mock_llm.ainvoke.side_effect = Exception("LLM API error")
             mock_get_llm.return_value = mock_llm

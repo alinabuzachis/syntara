@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from nexus.core.constants import CONTEXT_KEY
 from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorError
 from nexus.workflows.workflow_engine import settings
 from nexus.workflows.workflow_engine.activities.agentic_activity import AgenticActivityError, execute_agentic_activity
@@ -34,7 +35,7 @@ def create_mock_client_response(**kwargs: object) -> dict[str, Any]:
         "session_id": "test-session",
         "created_by": "test-user",
         "updated_by": None,
-        "context_data": {},
+        CONTEXT_KEY: {},
         "checkpoint_data": None,
         "labels": {},
     }
@@ -206,7 +207,7 @@ class TestAgenticActivityErrorHandling:
                 "session_id": "test-session",
                 "created_by": "test-user",
                 "updated_by": None,
-                "context_data": {},
+                CONTEXT_KEY: {},
                 "checkpoint_data": None,
                 "labels": {},
             }
@@ -361,7 +362,7 @@ class TestAgenticActivityEdgeCases:
                 "session_id": "test-session",
                 "created_by": "test-user",
                 "updated_by": None,
-                "context_data": {},
+                CONTEXT_KEY: {},
                 "checkpoint_data": None,
                 "labels": {},
             }
@@ -633,7 +634,7 @@ class TestAgenticActivityErrorHandlingAdvanced:
                 "session_id": "test-session",
                 "created_by": "test-user",
                 "updated_by": None,
-                "context_data": {},
+                CONTEXT_KEY: {},
                 "checkpoint_data": None,
                 "labels": {},
             }

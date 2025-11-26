@@ -4,29 +4,21 @@ Tests that invocations automatically include context enhancement with correlatio
 Based on Scenario 1 from quickstart.md.
 """
 
-import asyncio
-
 import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
+from httpx import AsyncClient
 
-from nexus.agent_orchestrator.models import InvocationStatus
-from nexus.agent_orchestrator.services.invocation_service import InvocationService
 from nexus.core.models import User
+from tests.conftest import wait_for_invocation_execution
 
 
 class TestContextEnhancedInvocations:
     """Test suite for basic context enhancement integration."""
 
-    @pytest_asyncio.fixture
-    async def invocation_service(self, test_db_session: AsyncSession, test_user: User) -> InvocationService:
-        """Create InvocationService instance for testing."""
-        return InvocationService(session=test_db_session, user=test_user)
-
     @pytest.mark.asyncio
     async def test_invocation_includes_context_enhancement(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test that invocations automatically include context enhancement.
 
@@ -42,36 +34,37 @@ class TestContextEnhancedInvocations:
         prompt = "What are the best practices for API design in our system?"
         session_id = "test-session-001"
 
-        invocation = await invocation_service.create_invocation(prompt=prompt, session_id=session_id)
+        # Create invocation via API
+        response = await auth_client.post(
+            "/api/v1/invocations",
+            json={
+                "prompt": prompt,
+                "created_by": str(test_user.id),
+                "session_id": session_id,
+            },
+        )
 
-        # Wait for invocation to complete (polling approach for test)
-        max_wait = 10.0  # seconds
-        wait_interval = 0.1
-        waited = 0.0
+        assert response.status_code == 202
+        data = response.json()
+        invocation_id = data["id"]
 
-        while invocation.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-            if waited >= max_wait:
-                pytest.fail(f"Invocation timed out after {max_wait}s")
-
-            await asyncio.sleep(wait_interval)
-            waited += wait_interval
-
-            # Refresh invocation from database
-            await invocation_service.session.refresh(invocation)
+        # Wait for invocation to complete using the helper
+        async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+            data = final_data if final_data else data
 
         # Handle both cases: with and without OpenRouter API key
-        if invocation.status == InvocationStatus.FAILED:
+        if data["status"] == "failed":
             # No OpenRouter API key configured (CI environment)
-            assert invocation.error_message is not None
-            assert "OPENROUTER_API_KEY" in invocation.error_message
+            assert data["error_message"] is not None
+            assert "OPENROUTER_API_KEY" in data["error_message"]
             # Skip context enhancement tests when LLM is not available
             return
 
         # Verify invocation completed successfully (when API key is available)
-        assert invocation.status == InvocationStatus.COMPLETED
-        assert invocation.result is not None
+        assert data["status"] == "completed"
+        assert data["result"] is not None
 
-        result = invocation.result
+        result = data["result"]
 
         # Verify basic response structure (unchanged)
         assert "type" in result
@@ -100,7 +93,8 @@ class TestContextEnhancedInvocations:
     @pytest.mark.asyncio
     async def test_context_enhancement_includes_correlation_info(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test that context enhancement includes proper correlation information.
 
@@ -111,32 +105,35 @@ class TestContextEnhancedInvocations:
         prompt = "Test prompt for correlation"
         session_id = "correlation-test-session"
 
-        invocation = await invocation_service.create_invocation(prompt=prompt, session_id=session_id)
+        # Create invocation via API
+        response = await auth_client.post(
+            "/api/v1/invocations",
+            json={
+                "prompt": prompt,
+                "created_by": str(test_user.id),
+                "session_id": session_id,
+            },
+        )
 
-        # Wait for completion
-        max_wait = 10.0
-        wait_interval = 0.1
-        waited = 0.0
+        assert response.status_code == 202
+        data = response.json()
+        invocation_id = data["id"]
 
-        while invocation.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-            if waited >= max_wait:
-                pytest.fail(f"Invocation timed out after {max_wait}s")
-
-            await asyncio.sleep(wait_interval)
-            waited += wait_interval
-            await invocation_service.session.refresh(invocation)
+        # Wait for completion using the helper
+        async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+            data = final_data if final_data else data
 
         # Handle both cases: with and without OpenRouter API key
-        if invocation.status == InvocationStatus.FAILED:
+        if data["status"] == "failed":
             # No OpenRouter API key configured (CI environment)
-            assert invocation.error_message is not None
-            assert "OPENROUTER_API_KEY" in invocation.error_message
+            assert data["error_message"] is not None
+            assert "OPENROUTER_API_KEY" in data["error_message"]
             # Skip context enhancement tests when LLM is not available
             return
 
-        assert invocation.status == InvocationStatus.COMPLETED
-        assert invocation.result is not None
-        result = invocation.result
+        assert data["status"] == "completed"
+        assert data["result"] is not None
+        result = data["result"]
 
         # Verify correlation fields exist
         assert "correlation_id" in result

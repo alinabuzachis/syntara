@@ -13,6 +13,8 @@ Contract matches schemas/agent_orchestrator/agent-orchestrator-api.yaml
 import pytest
 from httpx import AsyncClient
 
+from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA
+
 
 @pytest.mark.asyncio
 async def test_files_parameter_is_optional(auth_client: AsyncClient) -> None:
@@ -37,7 +39,7 @@ async def test_files_parameter_is_optional(auth_client: AsyncClient) -> None:
     # Assert
     assert response.status_code == 202
     response_data = response.json()
-    assert response_data.get("context_data", {}) == {}
+    assert response_data.get(CONTEXT_KEY, {}) == {CONTEXT_KEY_FILE_METADATA: []}
 
 
 @pytest.mark.asyncio
@@ -110,10 +112,10 @@ async def test_response_schema_file_metadata(auth_client: AsyncClient) -> None:
     # Assert - Response structure
     assert response.status_code == 202
     response_data = response.json()
-    assert "context_data" in response_data
-    assert "file_metadata" in response_data["context_data"]
+    assert CONTEXT_KEY in response_data
+    assert CONTEXT_KEY_FILE_METADATA in response_data[CONTEXT_KEY]
 
-    file_metadata = response_data["context_data"]["file_metadata"]
+    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
     assert isinstance(file_metadata, list)
     assert len(file_metadata) == 2
 

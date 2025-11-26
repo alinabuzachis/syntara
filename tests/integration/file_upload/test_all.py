@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 from httpx import AsyncClient
 
+from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA
 from tests.fixtures import generate_large_file
 
 
@@ -50,10 +51,10 @@ async def test_upload_pdf_file(auth_client: AsyncClient, test_user, sample_pdf_p
     assert response.status_code == 202
 
     response_data = response.json()
-    assert "context_data" in response_data
-    assert "file_metadata" in response_data["context_data"]
+    assert CONTEXT_KEY in response_data
+    assert CONTEXT_KEY_FILE_METADATA in response_data[CONTEXT_KEY]
 
-    file_metadata = response_data["context_data"]["file_metadata"]
+    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
     assert isinstance(file_metadata, list)
     assert len(file_metadata) == 1
 
@@ -95,7 +96,7 @@ async def test_upload_docx_file(auth_client: AsyncClient, test_user, sample_docx
     assert response.status_code == 202
 
     response_data = response.json()
-    file_metadata = response_data["context_data"]["file_metadata"]
+    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
     assert len(file_metadata) == 1
 
     metadata = file_metadata[0]
@@ -134,7 +135,7 @@ async def test_upload_text_and_markdown(
     # This test will fail until implementation is done
     assert response.status_code == 202
     response_data = response.json()
-    file_metadata = response_data["context_data"]["file_metadata"]
+    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
     assert file_metadata[0]["mime_type"] in ["text/plain", "text/markdown"]
 
     # Test MD file
@@ -154,7 +155,7 @@ async def test_upload_text_and_markdown(
     # Assert MD
     assert response.status_code == 202
     response_data = response.json()
-    file_metadata = response_data["context_data"]["file_metadata"]
+    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
     # Markdown may be detected as text/plain or text/markdown
     assert file_metadata[0]["mime_type"] in ["text/plain", "text/markdown"]
 
@@ -185,9 +186,9 @@ async def test_invocation_without_files(auth_client: AsyncClient, test_user) -> 
     assert response.status_code == 202
 
     response_data = response.json()
-    assert "context_data" in response_data
-    assert response_data["context_data"] == {}
-    assert "file_metadata" not in response_data["context_data"]
+    assert CONTEXT_KEY in response_data
+    assert response_data[CONTEXT_KEY] == {"file_metadata": []}
+    assert response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA] == []
 
 
 @pytest.mark.asyncio
@@ -357,7 +358,7 @@ async def test_multiple_files_upload(
     assert response.status_code == 202
 
     response_data = response.json()
-    file_metadata = response_data["context_data"]["file_metadata"]
+    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
 
     # Verify 3 elements
     assert len(file_metadata) == 3
@@ -416,16 +417,18 @@ async def test_context_metadata(auth_client: AsyncClient, test_user, sample_pdf_
     assert invocation_response.status_code == 200
 
     invocation_data = invocation_response.json()
-    context_data = invocation_data["context_data"]
+    context_data = invocation_data[CONTEXT_KEY]
 
     # Verify context structure
-    assert "file_metadata" in context_data
-    assert isinstance(context_data["file_metadata"], list)
-    assert len(context_data["file_metadata"]) == 1
-    assert context_data["file_metadata"][0]["status"] == "pending_parse"
+    assert CONTEXT_KEY_FILE_METADATA in context_data
+    assert isinstance(context_data[CONTEXT_KEY_FILE_METADATA], list)
+    assert len(context_data[CONTEXT_KEY_FILE_METADATA]) == 1
+    # Status can be any valid state since background task might complete quickly
+    valid_statuses = ["pending_parse", "converting", "converted", "conversion_failed"]
+    assert context_data[CONTEXT_KEY_FILE_METADATA][0]["status"] in valid_statuses
 
     # Verify file metadata structure
-    metadata = context_data["file_metadata"][0]
+    metadata = context_data[CONTEXT_KEY_FILE_METADATA][0]
     assert "file_id" in metadata  # Public identifier
     assert "filename" in metadata
     assert "size_bytes" in metadata

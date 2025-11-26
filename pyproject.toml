@@ -43,6 +43,10 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "beartype>=0.22.5",
     "alembic-postgresql-enum>=1.8.0",
+    # Remove binary package from the default installation.
+    # Binary package must be installed only for development profiles.
+    "pypandoc-binary>=1.16.2",
+    "pymupdf>=1.26.6",
 ]
 
 [project.optional-dependencies]
@@ -65,6 +69,7 @@ dev = [
     "types-PyYAML>=6.0.0",  # for mypy type stubs
     "types-jsonschema>=4.0.0",  # for mypy type stubs
     "types-requests>=2.31.0",  # type stubs for requests library
+    "psutil>=5.9.0",  # for memory monitoring in performance tests
     # MCP testing infrastructure
     "fastmcp>=2.13.0",  # for MCP test server creation
 ]

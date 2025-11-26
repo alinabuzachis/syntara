@@ -4,32 +4,25 @@ Tests that context enhancement provides meaningful quality improvements and metr
 Based on Scenario 4 from quickstart.md.
 """
 
-import asyncio
 from unittest.mock import patch
 
 import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
+from httpx import AsyncClient
 
 from nexus.agent_orchestrator.context_manager import ContextManagerPlanner
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
-from nexus.agent_orchestrator.models import InvocationStatus
-from nexus.agent_orchestrator.services.invocation_service import InvocationService
 from nexus.core.models import User
+from tests.conftest import wait_for_invocation_execution
 
 
 class TestContextQualityMetrics:
     """Test suite for context quality validation and grounding score accuracy."""
 
-    @pytest_asyncio.fixture
-    async def invocation_service(self, test_db_session: AsyncSession, test_user: User) -> InvocationService:
-        """Create InvocationService instance for testing."""
-        return InvocationService(session=test_db_session, user=test_user)
-
     @pytest.mark.asyncio
     async def test_grounding_score_reflects_context_quality(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test that grounding scores accurately reflect context quality.
 
@@ -44,30 +37,33 @@ class TestContextQualityMetrics:
         prompt_empty_context = "Simple greeting that needs no context"
         session_id = "empty-context-test"
 
-        invocation = await invocation_service.create_invocation(prompt=prompt_empty_context, session_id=session_id)
+        # Create invocation via API
+        response = await auth_client.post(
+            "/api/v1/invocations",
+            json={
+                "prompt": prompt_empty_context,
+                "created_by": str(test_user.id),
+                "session_id": session_id,
+            },
+        )
 
-        # Wait for completion
-        max_wait = 10.0
-        wait_interval = 0.1
-        waited = 0.0
+        assert response.status_code == 202
+        data = response.json()
+        invocation_id = data["id"]
 
-        while invocation.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-            if waited >= max_wait:
-                pytest.fail(f"Invocation timed out after {max_wait}s")
-
-            await asyncio.sleep(wait_interval)
-            waited += wait_interval
-            await invocation_service.session.refresh(invocation)
+        # Wait for completion using the helper
+        async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+            data = final_data if final_data else data
 
         # Handle both cases: with and without OpenRouter API key
-        if invocation.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (invocation.error_message or ""):
+        if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
             # No OpenRouter API key configured (CI environment)
             # Skip context enhancement tests when LLM is not available
             return
 
-        assert invocation.status == InvocationStatus.COMPLETED
-        assert invocation.result is not None
-        result = invocation.result
+        assert data["status"] == "completed"
+        assert data["result"] is not None
+        result = data["result"]
 
         # Empty context should have grounding score 0.0
         assert "grounding_score" in result, "Response must include grounding_score"
@@ -91,31 +87,35 @@ class TestContextQualityMetrics:
             prompt_with_context = "Complex technical question requiring context"
             session_id_context = "high-context-test"
 
-            invocation_context = await invocation_service.create_invocation(
-                prompt=prompt_with_context, session_id=session_id_context
+            # Create context invocation via API
+            response = await auth_client.post(
+                "/api/v1/invocations",
+                json={
+                    "prompt": prompt_with_context,
+                    "created_by": str(test_user.id),
+                    "session_id": session_id_context,
+                },
             )
 
-            # Wait for completion
-            waited = 0.0
-            while invocation_context.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-                if waited >= max_wait:
-                    pytest.fail(f"Invocation with context timed out after {max_wait}s")
+            assert response.status_code == 202
+            context_data = response.json()
+            context_invocation_id = context_data["id"]
 
-                await asyncio.sleep(wait_interval)
-                waited += wait_interval
-                await invocation_service.session.refresh(invocation_context)
+            # Wait for completion using the helper
+            async with wait_for_invocation_execution(
+                auth_client, context_invocation_id, max_wait_time=10.0
+            ) as final_data:
+                context_data = final_data if final_data else context_data
 
             # Handle both cases: with and without OpenRouter API key
-            if invocation_context.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (
-                invocation_context.error_message or ""
-            ):
+            if context_data["status"] == "failed" and "OPENROUTER_API_KEY" in (context_data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip context enhancement tests when LLM is not available
                 return
 
-            assert invocation_context.status == InvocationStatus.COMPLETED
-            assert invocation_context.result is not None
-            result_context = invocation_context.result
+            assert context_data["status"] == "completed"
+            assert context_data["result"] is not None
+            result_context = context_data["result"]
 
             # High-quality context should have higher grounding score
             assert "grounding_score" in result_context
@@ -126,7 +126,8 @@ class TestContextQualityMetrics:
     @pytest.mark.asyncio
     async def test_grounding_score_range_validation(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test that grounding scores are always in valid range (0.0-1.0).
 
@@ -147,32 +148,33 @@ class TestContextQualityMetrics:
                 prompt = f"Test prompt for score {score}"
                 session_id = f"score-test-{score}"
 
-                invocation = await invocation_service.create_invocation(prompt=prompt, session_id=session_id)
+                # Create invocation via API
+                response = await auth_client.post(
+                    "/api/v1/invocations",
+                    json={
+                        "prompt": prompt,
+                        "created_by": str(test_user.id),
+                        "session_id": session_id,
+                    },
+                )
 
-                # Wait for completion
-                max_wait = 10.0
-                wait_interval = 0.1
-                waited = 0.0
+                assert response.status_code == 202
+                data = response.json()
+                invocation_id = data["id"]
 
-                while invocation.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-                    if waited >= max_wait:
-                        pytest.fail(f"Invocation timed out after {max_wait}s for score {score}")
-
-                    await asyncio.sleep(wait_interval)
-                    waited += wait_interval
-                    await invocation_service.session.refresh(invocation)
+                # Wait for completion using the helper
+                async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+                    data = final_data if final_data else data
 
                 # Handle both cases: with and without OpenRouter API key
-                if invocation.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (
-                    invocation.error_message or ""
-                ):
+                if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
                     # No OpenRouter API key configured (CI environment)
                     # Skip context enhancement tests when LLM is not available
                     return
 
-                assert invocation.status == InvocationStatus.COMPLETED
-                assert invocation.result is not None
-                result = invocation.result
+                assert data["status"] == "completed"
+                assert data["result"] is not None
+                result = data["result"]
 
                 assert "grounding_score" in result
                 returned_score = result["grounding_score"]
@@ -183,7 +185,8 @@ class TestContextQualityMetrics:
     @pytest.mark.asyncio
     async def test_context_enhancement_completeness(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test that context enhancement provides complete information for quality assessment.
 
@@ -207,32 +210,33 @@ class TestContextQualityMetrics:
             prompt = "Test metadata completeness"
             session_id = "metadata-completeness-test"
 
-            invocation = await invocation_service.create_invocation(prompt=prompt, session_id=session_id)
+            # Create invocation via API
+            response = await auth_client.post(
+                "/api/v1/invocations",
+                json={
+                    "prompt": prompt,
+                    "created_by": str(test_user.id),
+                    "session_id": session_id,
+                },
+            )
 
-            # Wait for completion
-            max_wait = 10.0
-            wait_interval = 0.1
-            waited = 0.0
+            assert response.status_code == 202
+            data = response.json()
+            invocation_id = data["id"]
 
-            while invocation.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-                if waited >= max_wait:
-                    pytest.fail(f"Invocation timed out after {max_wait}s")
-
-                await asyncio.sleep(wait_interval)
-                waited += wait_interval
-                await invocation_service.session.refresh(invocation)
+            # Wait for completion using the helper
+            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+                data = final_data if final_data else data
 
             # Handle both cases: with and without OpenRouter API key
-            if invocation.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (
-                invocation.error_message or ""
-            ):
+            if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip context enhancement tests when LLM is not available
                 return
 
-            assert invocation.status == InvocationStatus.COMPLETED
-            assert invocation.result is not None
-            result = invocation.result
+            assert data["status"] == "completed"
+            assert data["result"] is not None
+            result = data["result"]
 
             # Verify core quality metrics
             assert "correlation_id" in result
@@ -256,7 +260,8 @@ class TestContextQualityMetrics:
     @pytest.mark.asyncio
     async def test_empty_vs_populated_context_distinction(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test that system can distinguish between empty and populated context scenarios.
 
@@ -274,32 +279,34 @@ class TestContextQualityMetrics:
         )
 
         with patch.object(ContextManagerPlanner, "plan_request", return_value=mock_empty_context):
-            invocation_empty = await invocation_service.create_invocation(
-                prompt="Test empty context", session_id="empty-context-distinction"
+            # Create empty context invocation via API
+            response = await auth_client.post(
+                "/api/v1/invocations",
+                json={
+                    "prompt": "Test empty context",
+                    "created_by": str(test_user.id),
+                    "session_id": "empty-context-distinction",
+                },
             )
 
-            # Wait and verify
-            max_wait = 10.0
-            wait_interval = 0.1
-            waited = 0.0
+            assert response.status_code == 202
+            empty_data = response.json()
+            empty_invocation_id = empty_data["id"]
 
-            while invocation_empty.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-                if waited >= max_wait:
-                    pytest.fail("Empty context invocation timed out")
-                await asyncio.sleep(wait_interval)
-                waited += wait_interval
-                await invocation_service.session.refresh(invocation_empty)
+            # Wait for completion using the helper
+            async with wait_for_invocation_execution(
+                auth_client, empty_invocation_id, max_wait_time=10.0
+            ) as final_data:
+                empty_data = final_data if final_data else empty_data
 
             # Handle both cases: with and without OpenRouter API key
-            if invocation_empty.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (
-                invocation_empty.error_message or ""
-            ):
+            if empty_data["status"] == "failed" and "OPENROUTER_API_KEY" in (empty_data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip context enhancement tests when LLM is not available
                 return
 
-            assert invocation_empty.result is not None
-            result_empty = invocation_empty.result
+            assert empty_data["result"] is not None
+            result_empty = empty_data["result"]
             assert result_empty["grounding_score"] == 0.0
 
         # Test 2: Populated context
@@ -312,29 +319,36 @@ class TestContextQualityMetrics:
         )
 
         with patch.object(ContextManagerPlanner, "plan_request", return_value=mock_populated_context):
-            invocation_populated = await invocation_service.create_invocation(
-                prompt="Test populated context", session_id="populated-context-distinction"
+            # Create populated context invocation via API
+            response = await auth_client.post(
+                "/api/v1/invocations",
+                json={
+                    "prompt": "Test populated context",
+                    "created_by": str(test_user.id),
+                    "session_id": "populated-context-distinction",
+                },
             )
 
-            # Wait and verify
-            waited = 0.0
-            while invocation_populated.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-                if waited >= max_wait:
-                    pytest.fail("Populated context invocation timed out")
-                await asyncio.sleep(wait_interval)
-                waited += wait_interval
-                await invocation_service.session.refresh(invocation_populated)
+            assert response.status_code == 202
+            populated_data = response.json()
+            populated_invocation_id = populated_data["id"]
+
+            # Wait for completion using the helper
+            async with wait_for_invocation_execution(
+                auth_client, populated_invocation_id, max_wait_time=10.0
+            ) as final_data:
+                populated_data = final_data if final_data else populated_data
 
             # Handle both cases: with and without OpenRouter API key
-            if invocation_populated.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (
-                invocation_populated.error_message or ""
+            if populated_data["status"] == "failed" and "OPENROUTER_API_KEY" in (
+                populated_data.get("error_message", "")
             ):
                 # No OpenRouter API key configured (CI environment)
                 # Skip context enhancement tests when LLM is not available
                 return
 
-            assert invocation_populated.result is not None
-            result_populated = invocation_populated.result
+            assert populated_data["result"] is not None
+            result_populated = populated_data["result"]
             assert result_populated["grounding_score"] == 0.6
 
         # Verify distinction is clear
@@ -347,7 +361,8 @@ class TestContextQualityMetrics:
     @pytest.mark.asyncio
     async def test_context_correlation_via_correlation_id(
         self,
-        invocation_service: InvocationService,
+        auth_client: AsyncClient,
+        test_user: User,
     ) -> None:
         """Test that correlation_id enables proper correlation between invocation and context.
 
@@ -368,31 +383,33 @@ class TestContextQualityMetrics:
             prompt = "Test trace ID correlation"
             session_id = "correlation-test"
 
-            invocation = await invocation_service.create_invocation(prompt=prompt, session_id=session_id)
+            # Create invocation via API
+            response = await auth_client.post(
+                "/api/v1/invocations",
+                json={
+                    "prompt": prompt,
+                    "created_by": str(test_user.id),
+                    "session_id": session_id,
+                },
+            )
 
-            # Wait for completion
-            max_wait = 10.0
-            wait_interval = 0.1
-            waited = 0.0
+            assert response.status_code == 202
+            data = response.json()
+            invocation_id = data["id"]
 
-            while invocation.status not in [InvocationStatus.COMPLETED, InvocationStatus.FAILED]:
-                if waited >= max_wait:
-                    pytest.fail("Correlation test invocation timed out")
-                await asyncio.sleep(wait_interval)
-                waited += wait_interval
-                await invocation_service.session.refresh(invocation)
+            # Wait for completion using the helper
+            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+                data = final_data if final_data else data
 
             # Handle both cases: with and without OpenRouter API key
-            if invocation.status == InvocationStatus.FAILED and "OPENROUTER_API_KEY" in (
-                invocation.error_message or ""
-            ):
+            if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip context enhancement tests when LLM is not available
                 return
 
-            assert invocation.status == InvocationStatus.COMPLETED
-            assert invocation.result is not None
-            result = invocation.result
+            assert data["status"] == "completed"
+            assert data["result"] is not None
+            result = data["result"]
 
             # Verify correlation_id correlation
             assert "correlation_id" in result

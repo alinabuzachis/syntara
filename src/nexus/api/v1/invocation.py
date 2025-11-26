@@ -5,7 +5,20 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Path, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -58,6 +71,7 @@ def _validate_multipart_required_fields(prompt: str | None, session_id: str | No
 )
 async def invoke_agent(
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     request_body: Annotated[InvocationCreateRequest | None, Body()] = None,
@@ -74,6 +88,7 @@ async def invoke_agent(
 
     Args:
         request: FastAPI request object (for determining content type)
+        background_tasks: FastAPI background tasks for document conversion
         db: Database session (dependency injected)
         current_user: Current authenticated user
         request_body: JSON request body (for application/json)
@@ -133,7 +148,14 @@ async def invoke_agent(
                 detail="Request must be either application/json or multipart/form-data",
             )
 
-        service = InvocationService(db, current_user)
+        # Check if we're in test mode and have a test session factory
+        # Background DocumentConversionTask processes need to use the same database session
+        # as the main test to prevent them from connecting to the production database.
+        # In tests, conftest.py sets app.state.test_session_factory to the test DB session factory.
+        # This ensures background tasks and API calls use the same isolated test database.
+        test_session_factory = getattr(request.app.state, "test_session_factory", None)
+        # If test_session_factory is None (production), DocumentConversionTask uses default get_db dependency injection
+        service = InvocationService(db, current_user, background_tasks, session_factory=test_session_factory)
         return await service.create_invocation(
             prompt=final_prompt,
             session_id=final_session_id,
@@ -275,9 +297,9 @@ async def get_invocation(
         HTTPException: 404 if invocation not found, 500 for other errors
 
     Example:
-        >>> # After creating an invocation, retrieve its result:
-        >>> response = await client.get("/api/v1/invocations/{id}")
-        >>> print(response.json()["result"])  # See the actual LLM response
+        # After creating an invocation, retrieve its result:
+        # response = await client.get("/api/v1/invocations/{id}")
+        # print(response.json()["result"])  # See the actual LLM response
 
     """
     # Parse UUID

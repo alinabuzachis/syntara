@@ -11,6 +11,7 @@ import logging
 import os
 import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
+from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -63,23 +64,52 @@ TEST_DB_PORT = os.getenv("NEXUS_DB_PORT", "5432")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
-def get_test_database_url(worker_id: str = "master") -> str:
-    """Get test database URL, with per-worker database for parallel execution.
+# ============================================================================
+# Test Utilities
+# ============================================================================
+
+
+@asynccontextmanager
+async def wait_for_invocation_execution(
+    client: AsyncClient, invocation_id: str, max_wait_time: float = 5.0, wait_interval: float = 0.1
+) -> AsyncGenerator[dict[str, Any] | None, None]:
+    """Context manager that waits for an invocation to start execution.
+
+    This ensures that tests can treat invocation creation as if it were synchronous,
+    even though execution happens in background tasks.
 
     Args:
-        worker_id: pytest-xdist worker ID (e.g., 'gw0', 'gw1', or 'master' for non-parallel)
+        client: The HTTP client to use for polling
+        invocation_id: The ID of the invocation to monitor
+        max_wait_time: Maximum time to wait in seconds (default: 5.0)
+        wait_interval: How often to check in seconds (default: 0.1)
 
-    Returns:
-        Database URL string
+    Yields:
+        The final invocation data after execution has started or timeout
 
     """
-    # Use worker-specific database for parallel execution
-    db_name = f"nexus_test_{worker_id}" if worker_id != "master" else "nexus_test"
+    elapsed_time = 0.0
+    final_data: dict[str, Any] | None = None
 
-    return os.getenv(
-        "TEST_DATABASE_URL",
-        f"postgresql+asyncpg://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/{db_name}",
-    )
+    while elapsed_time < max_wait_time:
+        # Check the current status of the invocation
+        status_response = await client.get(f"/api/v1/invocations/{invocation_id}")
+        if status_response.status_code == 200:
+            status_data = status_response.json()
+            if status_data["status"] in ["completed", "failed"]:
+                final_data = status_data
+                break
+
+        await asyncio.sleep(wait_interval)
+        elapsed_time += wait_interval
+
+    # If we didn't get execution state, get the current state for testing
+    if final_data is None:
+        status_response = await client.get(f"/api/v1/invocations/{invocation_id}")
+        if status_response.status_code == 200:
+            final_data = status_response.json()
+
+    yield final_data
 
 
 @pytest.fixture(scope="session")
@@ -160,6 +190,25 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 # ============================================================================
 # Database Fixtures
 # ============================================================================
+
+
+def get_test_database_url(worker_id: str = "master") -> str:
+    """Get test database URL, with per-worker database for parallel execution.
+
+    Args:
+        worker_id: pytest-xdist worker ID (e.g., 'gw0', 'gw1', or 'master' for non-parallel)
+
+    Returns:
+        Database URL string
+
+    """
+    # Use worker-specific database for parallel execution
+    db_name = f"nexus_test_{worker_id}" if worker_id != "master" else "nexus_test"
+
+    return os.getenv(
+        "TEST_DATABASE_URL",
+        f"postgresql+asyncpg://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/{db_name}",
+    )
 
 
 def _get_alembic_config(db_url: str) -> Config:
@@ -382,6 +431,8 @@ async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> As
         yield test_db_session
 
     session_app.dependency_overrides[get_db] = override_get_db
+    # Store test session factory for background tasks
+    session_app.state.test_session_factory = override_get_db
 
     async with AsyncClient(
         transport=ASGITransport(app=session_app),
@@ -390,6 +441,9 @@ async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> As
         yield client
 
     session_app.dependency_overrides.clear()
+    # Clean up test session factory
+    if hasattr(session_app.state, "test_session_factory"):
+        delattr(session_app.state, "test_session_factory")
 
 
 @pytest_asyncio.fixture

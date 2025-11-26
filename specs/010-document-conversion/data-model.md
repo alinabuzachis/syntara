@@ -41,7 +41,8 @@ class FileMetadata:
 
 # Example conversion metadata structure:
 conversion_metadata_example = {
-    "output_path": "/output/documents/nexus-123-document.md",
+    "output_filename": "document.md",
+    "output_path": "/output/documents/document.md",
     "converted_at": "2025-11-19T10:30:00Z",
     "conversion_time_ms": 1250,
     "error_message": None  # Only present if status="conversion_failed"
@@ -85,24 +86,15 @@ class Invocation:
     #     "type": "document_conversion",
     #     "content": "Document converted successfully to: /path/output.md",
     #     "metadata": {
-    #         "output_path": "/path/output.md",
+    #         "output_filename": "document.md",
+    #         "output_path": "/path/document.md",
     #         "conversion_time_ms": 1250,
     #         "original_filename": "document.pdf",
-    #         "output_filename": "document.md",
     #         "file_metadata_id": "550e8400-e29b-41d4-a716-446655440000"
     #     }
     # }
-
-# Agent Response Format
-@dataclass
-class AgentResponse:
-    """Response format for DocumentConverterAgent per agent system patterns."""
-    type: str  # "document_conversion" or "error"
-    content: str  # Human-readable result description
-    metadata: Dict[str, Any]  # Structured conversion metadata
 ```
-
-## Agent Invocation Integration Workflow
+## Document Conversion Integration Workflow
 
 Following the architectural decision (ADR 2025-11-19), document conversion integrates with the agent invocation system instead of polling-based processing:
 
@@ -179,9 +171,6 @@ class ConversionResult:
 
     conversion_time: datetime
     """Timestamp when conversion was completed."""
-
-    output_path: Optional[Path] = None
-    """Path to converted markdown file if successful."""
 
     error_message: Optional[str] = None
     """Human-readable error message if conversion failed."""
@@ -418,6 +407,7 @@ class DocumentConversionService:
 
             # Update status to converted with metadata
             conversion_metadata = {
+                "output_filename": output_filename,
                 "output_path": output_path,
                 "converted_at": datetime.now().isoformat(),
                 "conversion_time_ms": conversion_result.conversion_time_ms
@@ -474,7 +464,7 @@ class DocumentConversionService:
    - DocumentConverter.convert(content, file_metadata, config) → ConversionResult
    - If successful:
      * BaseRetriever.store_file() → save converted markdown
-     * Update status to "converted" with output_path metadata
+     * Update status to "converted" with output_path and output_filename metadata
    - If failed:
      * Update status to "conversion_failed" with error_message
 4. Return updated FileMetadata objects
