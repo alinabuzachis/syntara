@@ -43,6 +43,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "beartype>=0.22.5",
     "alembic-postgresql-enum>=1.8.0",
+    "filelock>=3.20.0",
     # Remove binary package from the default installation.
     # Binary package must be installed only for development profiles.
     "pypandoc-binary>=1.16.2",
