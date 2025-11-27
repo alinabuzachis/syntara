@@ -36,17 +36,6 @@ Example:
 
 """
 
-# Core service
-# Converter registry and base classes
-from .converters.document_converter import DocumentConverter
-from .converters.markdown_converter import MarkdownConverter
-
-# Specific converter implementations
-from .converters.ms_word_converter import MSWordConverter
-from .converters.text_converter import TextConverter
-
-# Standard logging is used throughout the module
-# Custom exceptions
 from .exceptions import (
     ConversionFailureError,
     DocumentConversionError,
@@ -55,23 +44,11 @@ from .exceptions import (
     UnsupportedFormatError,
 )
 
-# Configuration and result models
-from .models.conversion_config import ConversionConfig
-from .models.conversion_result import ConversionResult
-from .services.document_conversion_service import DocumentConversionService
-
 # Public API
 __all__ = [
-    "ConversionConfig",
     "ConversionFailureError",
-    "ConversionResult",
     "DocumentConversionError",
-    "DocumentConversionService",
-    "DocumentConverter",
     "FileNotReadableError",
     "FileSizeExceededError",
-    "MSWordConverter",
-    "MarkdownConverter",
-    "TextConverter",
     "UnsupportedFormatError",
 ]

@@ -5,7 +5,6 @@ including validation, storage, and metadata generation.
 """
 
 import logging
-from collections.abc import Generator
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -222,30 +221,23 @@ class FileManager:
 
 
 # ===================================================
-# Generator for dependency injection
+# Factory function for dependency injection
 # ---------------------------------------------------
-_file_manager: FileManager = FileManager()
 
 
-def get_file_manager() -> Generator[FileManager]:
-    """Create a FileManager for dependency injection.
+def create_file_manager() -> FileManager:
+    """Create a FileManager instance with fresh dependencies.
 
-    Yields:
-        FileManager for dependency injection
+    Returns:
+        FileManager: Fresh FileManager instance
 
     Example:
-        from fastapi import Depends
-        from nexus.agent_orchestrator.context_manager.file_manager import (
-            get_file_manager,
-        )
-
-        async def load_document(
-            file_manager: FileManager = Depends(get_file_manager)
-        ):
-            retriever = file_manager.get_retriever_for_file(...)
+        # For background tasks and non-FastAPI contexts
+        file_manager = create_file_manager()
+        retriever = file_manager.get_retriever_for_file(...)
 
     """
-    yield _file_manager
+    return FileManager()
 
 
 # ===================================================
@@ -254,5 +246,5 @@ def get_file_manager() -> Generator[FileManager]:
 __all__ = [
     "FileManager",
     "FileMetadata",
-    "get_file_manager",
+    "create_file_manager",
 ]

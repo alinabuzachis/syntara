@@ -5,24 +5,21 @@ operations with file manager integration and status management.
 """
 
 import logging
-from collections.abc import Awaitable, Callable, Generator
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata, get_file_manager
+from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.registry import (
+    ConverterRegistry,
     get_converter_registry,
 )
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services.types import ConversionState
 
 if TYPE_CHECKING:
-    from nexus.agent_orchestrator.context_manager.file_manager.document_conversion import ConversionResult
-    from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.registry import (
-        ConverterRegistry,
-    )
-
+    from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.models import ConversionResult
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +34,14 @@ class DocumentConversionService:
     - Storing converted content back via retrievers
     """
 
-    def __init__(self, file_manager_factory: Callable[[], Generator[FileManager, None]] = get_file_manager) -> None:
+    def __init__(self, file_manager: FileManager) -> None:
         """Initialize the document conversion service.
 
         Args:
-            file_manager_factory: Factory function for creating FileManager
+            file_manager: FileManager instance for handling file operations
 
         """
-        self.file_manager = next(file_manager_factory())
+        self.file_manager = file_manager
 
     @staticmethod
     def _generate_output_filename(original_filename: str) -> str:
@@ -295,33 +292,3 @@ class DocumentConversionService:
             await DocumentConversionService._fail_conversion_exception(file_metadata, status_updater, operation_id, e)
 
         return ConversionState.FAILED
-
-
-# ===================================================
-# Generator for dependency injection
-# ---------------------------------------------------
-_conversion_service: DocumentConversionService = DocumentConversionService()
-
-
-def get_conversion_service() -> Generator[DocumentConversionService]:
-    """Create a DocumentConversionService for dependency injection.
-
-    Yields:
-        DocumentConversionService for dependency injection
-
-    Example:
-        from fastapi import Depends
-        from nexus.agent_orchestrator.context_manager.file_manager....document_conversion_service import (
-            get_conversion_service,
-        )
-
-        async def convert_document(
-            service: DocumentConversionService = Depends(get_conversion_service)
-        ):
-            conversion_result = service.convert_file(...)
-
-    """
-    yield _conversion_service
-
-
-# ===================================================

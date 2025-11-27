@@ -260,7 +260,7 @@ class TestContextErrorHandling:
         This test MUST FAIL until T008 (error handling implementation) is implemented.
         """
         with (
-            patch("nexus.agent_orchestrator.services.invocation_execution_service.logger") as mock_logger,
+            patch("nexus.agent_orchestrator.executor.invocation_executor.logger") as mock_logger,
             patch.object(ContextManagerPlanner, "plan_request") as mock_plan,
         ):
             mock_plan.side_effect = ConnectionError("Database unavailable")

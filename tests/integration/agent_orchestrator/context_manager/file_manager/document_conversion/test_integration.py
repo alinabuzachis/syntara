@@ -24,7 +24,7 @@ async def test_invoke_agent_with_pdf_document_conversion(auth_client: AsyncClien
 
     """
     # Mock LangChain LLM response for after document conversion
-    with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
+    with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm") as mock_get_llm:
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(
             content="Document successfully processed: Sample PDF content has been converted to markdown."
@@ -121,7 +121,7 @@ async def test_invoke_agent_with_text_document_conversion(auth_client: AsyncClie
     Tests text-to-markdown conversion workflow.
     """
     # Mock LangChain LLM response
-    with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
+    with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm") as mock_get_llm:
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(
             content="Document successfully processed: Sample text content has been converted to markdown."

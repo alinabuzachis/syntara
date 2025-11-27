@@ -1,18 +1,16 @@
 """Service layer for invocation business logic."""
 
 import logging
-from collections.abc import AsyncGenerator, Callable, Generator, Iterable
+from collections.abc import AsyncGenerator, Callable, Iterable
 from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import BackgroundTasks, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata, get_file_manager
+from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata, create_file_manager
 from nexus.agent_orchestrator.context_manager.file_manager import utils as file_utils
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services import (
-    document_conversion_task,
-)
+from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services import create_conversion_task
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
 from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA, CONTEXT_KEY_FILE_METADATA_CONVERSION
 from nexus.core.models import User
@@ -52,7 +50,7 @@ class InvocationService(BaseService):
         user: User,
         background_tasks: BackgroundTasks | None = None,
         session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] | None = None,
-        file_manager_factory: Callable[[], Generator[FileManager, None]] = get_file_manager,
+        file_manager_factory: Callable[[], FileManager] = create_file_manager,
     ) -> None:
         """Initialize service with database session.
 
@@ -65,7 +63,7 @@ class InvocationService(BaseService):
 
         """
         super().__init__(session, user, convert_resource_mixin=InvocationServiceConvertResourceMixin())
-        self.file_manager = next(file_manager_factory())
+        self.file_manager = file_manager_factory()
         self.background_tasks = background_tasks
         self.session_factory = session_factory
 
@@ -92,11 +90,7 @@ class InvocationService(BaseService):
         )
 
         # Schedule the actual document conversion background task
-        task = (
-            document_conversion_task.DocumentConversionTask(session_factory=self.session_factory)
-            if self.session_factory
-            else document_conversion_task.DocumentConversionTask()
-        )
+        task = create_conversion_task(session_factory=self.session_factory)
         self.background_tasks.add_task(task.convert, invocation_id)
 
         logger.info(

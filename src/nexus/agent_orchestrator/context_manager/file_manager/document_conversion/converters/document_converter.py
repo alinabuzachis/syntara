@@ -9,15 +9,15 @@ import time
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
-
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.models.conversion_config import (
     ConversionConfig,
 )
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.models.conversion_result import (
     ConversionResult,
 )
+
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 
 
 class DocumentConverter(ABC):

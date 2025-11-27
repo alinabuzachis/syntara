@@ -22,7 +22,7 @@ from nexus.core.constants import CONTEXT_KEY_FILE_METADATA
 logger = logging.getLogger(__name__)
 
 
-class InvocationExecutionService:
+class InvocationExecutor:
     """Service for executing invocations independently of creation.
 
     This service is designed to be called by background tasks after

@@ -6,9 +6,9 @@ operations with file manager integration and status management.
 
 import contextlib
 import logging
-from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import UTC, datetime
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
 from pydantic import ValidationError
@@ -16,13 +16,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion import DocumentConversionService
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services import get_conversion_service
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services.types import ConversionState
+from nexus.agent_orchestrator.executor import InvocationExecutor
 from nexus.agent_orchestrator.models.invocation import Invocation
-from nexus.agent_orchestrator.services.invocation_execution_service import InvocationExecutionService
 from nexus.api.db.session import get_db
 from nexus.core.constants import CONTEXT_KEY_FILE_METADATA
+
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services.document_conversion_service import (  # noqa: E501
+        DocumentConversionService,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -36,18 +39,18 @@ class DocumentConversionTask:
 
     def __init__(
         self,
+        service: "DocumentConversionService",
         session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] = get_db,
-        service_factory: Callable[[], Generator[DocumentConversionService, None]] = get_conversion_service,
     ) -> None:
         """Initialize the document conversion task.
 
         Args:
+            service: DocumentConversionService instance for handling conversions
             session_factory: Factory function for creating database sessions
-            service_factory: Factory function for creating DocumentConversionService
 
         """
+        self.service = service
         self.session_factory = session_factory
-        self.service = next(service_factory())
         # Create async context managers from factories
         self.get_async_session_context = contextlib.asynccontextmanager(session_factory)
 
@@ -228,7 +231,7 @@ class DocumentConversionTask:
 
         """
         try:
-            execution_service = InvocationExecutionService(session_factory=self.session_factory)
+            execution_service = InvocationExecutor(session_factory=self.session_factory)
             await execution_service.execute_invocation(invocation_id)
         except Exception:
             logger.exception(

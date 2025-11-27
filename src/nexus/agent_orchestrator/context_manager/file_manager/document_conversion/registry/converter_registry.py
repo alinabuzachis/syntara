@@ -7,18 +7,12 @@ between MIME types and their corresponding document converters.
 import threading
 from collections.abc import AsyncGenerator
 
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion import (
-    MarkdownConverter,
-    TextConverter,
-)
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.converters.document_converter import (
+from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.converters import (
     DocumentConverter,
-)
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.converters.ms_word_converter import (
+    MarkdownConverter,
     MSWordConverter,
-)
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.converters.pdf_converter import (
     PDFConverter,
+    TextConverter,
 )
 
 

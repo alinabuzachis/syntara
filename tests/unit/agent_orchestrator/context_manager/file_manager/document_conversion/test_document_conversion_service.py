@@ -16,7 +16,10 @@ from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.models.conversion_result import (
     ConversionResult,
 )
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services import ConversionState
+from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services import (
+    ConversionState,
+    create_conversion_service,
+)
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services.document_conversion_service import (  # noqa: E501
     DocumentConversionService,
 )
@@ -67,7 +70,7 @@ class TestDocumentConversionServiceInitialization:
 
     def test_initialization_creates_file_manager(self) -> None:
         """Test that DocumentConversionService initializes with FileManager."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         # Access private member for testing purposes
         assert service.file_manager is not None
 
@@ -102,7 +105,7 @@ class TestDocumentConversionServiceFileMetadataValidation:
     @pytest.mark.asyncio
     async def test_convert_file_validates_pending_parse_status(self) -> None:
         """Test that convert_file validates FileMetadata status is pending_parse."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="test.pdf",
@@ -119,7 +122,7 @@ class TestDocumentConversionServiceFileMetadataValidation:
     @pytest.mark.asyncio
     async def test_convert_file_accepts_pending_parse_status(self, mock_converter_registry) -> None:
         """Test that convert_file accepts FileMetadata with pending_parse status."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="test.txt",
@@ -161,7 +164,7 @@ class TestDocumentConversionServiceConverterIntegration:
     @pytest.mark.asyncio
     async def test_convert_file_uses_file_manager_get_retriever(self, mock_converter_registry) -> None:
         """Test that convert_file uses FileManager.get_retriever_for_file."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="test.pdf",
@@ -190,7 +193,7 @@ class TestDocumentConversionServiceConverterIntegration:
     @pytest.mark.asyncio
     async def test_convert_file_loads_file_content_via_retriever(self, mock_converter_registry) -> None:
         """Test that convert_file loads file content using BaseRetriever.load_file."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="test.docx",
@@ -219,7 +222,7 @@ class TestDocumentConversionServiceConverterIntegration:
     @pytest.mark.asyncio
     async def test_convert_file_gets_converter_by_mime_type(self, mock_converter_registry) -> None:
         """Test that convert_file retrieves converter using MIME type."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="test.txt",
@@ -252,7 +255,7 @@ class TestDocumentConversionServiceStatusUpdates:
     @pytest.mark.asyncio
     async def test_convert_file_updates_status_to_converting(self, mock_converter_registry) -> None:
         """Test that convert_file updates status to 'converting' before processing."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="test.md",
@@ -292,7 +295,7 @@ class TestDocumentConversionServiceStatusUpdates:
     @pytest.mark.asyncio
     async def test_convert_file_updates_status_to_converted_on_success(self, mock_converter_registry) -> None:
         """Test that convert_file updates status to 'converted' on successful conversion."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="success.txt",
@@ -335,7 +338,7 @@ class TestDocumentConversionServiceStatusUpdates:
     @pytest.mark.asyncio
     async def test_convert_file_updates_status_to_conversion_failed_on_failure(self, mock_converter_registry) -> None:
         """Test that convert_file updates status to 'conversion_failed' on conversion failure."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="fail.pdf",
@@ -377,7 +380,7 @@ class TestDocumentConversionServiceStatusUpdates:
     @pytest.mark.asyncio
     async def test_convert_file_handles_missing_converter(self, mock_converter_registry) -> None:
         """Test that convert_file handles missing converter gracefully."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="unsupported.zip",
@@ -416,7 +419,7 @@ class TestDocumentConversionServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_convert_file_handles_file_load_exception(self) -> None:
         """Test that convert_file handles file loading exceptions."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="missing.txt",
@@ -448,7 +451,7 @@ class TestDocumentConversionServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_convert_file_handles_store_file_exception(self, mock_converter_registry) -> None:
         """Test that convert_file handles file storage exceptions."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="storage_fail.txt",
@@ -492,7 +495,7 @@ class TestDocumentConversionServiceStorageIntegration:
     @pytest.mark.asyncio
     async def test_store_converted_file_uses_correct_retriever(self) -> None:
         """Test that _store_converted_file uses FileManager.get_retriever_for_file."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="store_test.pdf",
@@ -529,7 +532,7 @@ class TestDocumentConversionServiceStorageIntegration:
     @pytest.mark.asyncio
     async def test_store_converted_file_handles_no_content_error(self) -> None:
         """Test that _store_converted_file raises error when conversion has no content."""
-        service = DocumentConversionService()
+        service = create_conversion_service()
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
             filename="no_content.txt",

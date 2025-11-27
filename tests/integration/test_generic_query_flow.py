@@ -29,7 +29,7 @@ class TestGenericQueryFlow:
         }
 
         # Mock LangChain LLM response
-        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
+        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm") as mock_get_llm:
             mock_llm = AsyncMock()
             mock_llm.ainvoke.return_value = AIMessage(
                 content="Available deployment tools: kubernetes-deployer, docker-builder, terraform-provisioner"
@@ -65,7 +65,7 @@ class TestGenericQueryFlow:
         }
 
         # Mock LLM
-        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
+        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm") as mock_get_llm:
             mock_llm = AsyncMock()
             mock_llm.ainvoke.return_value = AIMessage(content="Monitoring tools: prometheus, grafana")
             mock_get_llm.return_value = mock_llm
@@ -89,7 +89,7 @@ class TestGenericQueryFlow:
         }
 
         # Mock GenericAgent LLM
-        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
+        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm") as mock_get_llm:
             mock_llm = AsyncMock()
             mock_llm.ainvoke.return_value = AIMessage(content="Available agents: agent-1, agent-2")
             mock_get_llm.return_value = mock_llm
@@ -113,7 +113,7 @@ class TestGenericQueryFlow:
         }
 
         # Mock LangChain LLM response
-        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
+        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm") as mock_get_llm:
             mock_llm = AsyncMock()
             mock_llm.ainvoke.return_value = AIMessage(
                 content="Supported deployment strategies: blue-green, canary, rolling"
@@ -148,7 +148,7 @@ class TestGenericQueryErrorHandling:
             "session_id": "test-session",
         }
 
-        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
+        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm") as mock_get_llm:
             mock_llm = AsyncMock()
             mock_llm.ainvoke.side_effect = Exception("LLM API error")
             mock_get_llm.return_value = mock_llm

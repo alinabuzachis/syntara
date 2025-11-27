@@ -11,15 +11,15 @@ from typing import TYPE_CHECKING, Any
 
 import pymupdf  # type: ignore[import-untyped]
 
-if TYPE_CHECKING:
-    from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
-
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.converters.document_converter import (
     DocumentConverter,
 )
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.models.conversion_result import (
     ConversionResult,
 )
+
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 
 
 class PDFConverter(DocumentConverter):

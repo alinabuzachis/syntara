@@ -28,7 +28,7 @@ async def test_invoke_returns_202_accepted(auth_client: AsyncClient, test_user) 
 async def test_invoke_response_schema(auth_client: AsyncClient, test_user) -> None:
     """Test that response matches expected schema."""
     # Mock LangChain LLM response
-    with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
+    with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm") as mock_get_llm:
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(content="App deployed to production successfully")
         mock_get_llm.return_value = mock_llm
@@ -583,7 +583,7 @@ async def test_list_response_includes_all_fields(auth_client: AsyncClient, test_
 async def test_invoke_null_fields_handling(auth_client: AsyncClient, test_user) -> None:
     """Test that null/optional fields are properly returned as null."""
     # Mock LangChain LLM response
-    with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm") as mock_get_llm:
+    with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm") as mock_get_llm:
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(content="Null field test completed")
         mock_get_llm.return_value = mock_llm

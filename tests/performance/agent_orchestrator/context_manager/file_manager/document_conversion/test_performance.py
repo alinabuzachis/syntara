@@ -138,7 +138,7 @@ class TestConversionTimePerformance:
 
         start_time = time.time()
 
-        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm"):
+        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"):
             # Create multipart form data with document upload
             files = {"files": ("performance_test.pdf", io.BytesIO(pdf_content), "application/pdf")}
             data = {
@@ -172,7 +172,7 @@ class TestConversionTimePerformance:
 
         start_time = time.time()
 
-        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm"):
+        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"):
             # Create multipart form data with document upload
             files = {"files": ("performance_test.txt", io.BytesIO(text_content), "text/plain")}
             data = {
@@ -244,7 +244,7 @@ class TestFileSizeLimitPerformance:
         # Create a file that exceeds 10MB
         oversized_content = create_large_text_content(11.0)  # 11MB file
 
-        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm"):
+        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"):
             # Try to upload oversized file
             files = {"files": ("oversized.txt", io.BytesIO(oversized_content), "text/plain")}
             data = {
@@ -495,7 +495,7 @@ class TestPerformanceBenchmarks:
 
         benchmark_results = {}
 
-        with patch("nexus.agent_orchestrator.services.invocation_execution_service.get_openrouter_llm"):
+        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"):
             for filename, content, mime_type in test_files:
                 start_time = time.time()
 

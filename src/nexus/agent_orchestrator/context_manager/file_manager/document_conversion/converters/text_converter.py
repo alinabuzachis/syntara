@@ -6,15 +6,15 @@ with basic formatting improvements.
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
-
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.converters.document_converter import (
     DocumentConverter,
 )
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.models.conversion_result import (
     ConversionResult,
 )
+
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 
 
 class TextConverter(DocumentConverter):
