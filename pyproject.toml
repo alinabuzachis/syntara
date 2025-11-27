@@ -48,6 +48,7 @@ dependencies = [
     # Binary package must be installed only for development profiles.
     "pypandoc-binary>=1.16.2",
     "pymupdf>=1.26.6",
+    "tiktoken>=0.5.0",
 ]
 
 [project.optional-dependencies]

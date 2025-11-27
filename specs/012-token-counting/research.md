@@ -118,17 +118,10 @@ async def validate_and_record_usage(
     # Calculate tokens from text
     token_count = count_tokens(text)
 
-    async with session.begin():
-        # Lock config row for duration of transaction
-        result = await session.execute(
-            select(UserTokenConfig)
-            .where(UserTokenConfig.user_id == user_id)
-            .with_for_update()  # Row-level lock prevents races
-        )
-        config = result.scalar_one_or_none()
-
-        if not config:
-            raise UserTokenConfigNotFoundError(f"No config for user {user_id}")
+    async with session.begin_nested():
+        # Get config with row-level lock via repository method
+        # This uses SELECT FOR UPDATE to prevent races
+        config = await repository.get_user_config_with_lock(user_id, session)
 
         # Calculate current usage within rolling window
         current_usage = await _calculate_current_usage(

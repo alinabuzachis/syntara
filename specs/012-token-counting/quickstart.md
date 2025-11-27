@@ -33,9 +33,9 @@ podman-compose up -d postgres
 
 ```python
 from uuid import UUID, uuid4
-from nexus.token_manager.services import TokenValidationService
-from nexus.token_manager.models import UserTokenConfig
-from nexus.token_manager.repository import TokenUsageRepository
+from nexus.agent_orchestrator.token_manager.services import TokenValidationService
+from nexus.agent_orchestrator.token_manager.models import UserTokenConfig
+from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
 from sqlmodel import Session, create_engine
 
 # Setup
@@ -44,12 +44,13 @@ session = Session(engine)
 repository = TokenUsageRepository(engine)
 service = TokenValidationService(repository)
 
-# Create user with 10,000 token limit, 24-hour window
+# Create user with 10,000 token limit, 24-hour window, gpt-4 model (default)
 user_id = uuid4()
 config = UserTokenConfig(
     user_id=user_id,
     token_limit=10000,
-    window_duration_seconds=86400  # 24 hours
+    window_duration_seconds=86400,  # 24 hours
+    model_name="gpt-4"  # Optional: defaults to "gpt-4" if not specified
 )
 session.add(config)
 session.commit()
@@ -87,7 +88,7 @@ except Exception as e:
 > Then the system should block the request and return a structured error response
 
 ```python
-from nexus.token_manager.exceptions import TokenLimitExceededError
+from nexus.agent_orchestrator.token_manager.exceptions import TokenLimitExceededError
 
 # Setup (continuing from previous scenario)
 # User already has 9,500 tokens used
@@ -350,6 +351,87 @@ pytest tests/integration/test_token_*.py -v
 pytest tests/ --cov=src/nexus/token_manager --cov-report=html
 ```
 
+---
+
+## Scenario 6: Using Different Tiktoken Models
+
+**Test**: Configure different tiktoken models for different users
+
+```python
+from uuid import uuid4
+from nexus.agent_orchestrator.token_manager.services import TokenValidationService
+from nexus.agent_orchestrator.token_manager.models import UserTokenConfig
+from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
+from sqlmodel import Session, create_engine
+
+# Setup
+engine = create_engine("postgresql://...")
+session = Session(engine)
+repository = TokenUsageRepository(engine)
+service = TokenValidationService(repository)
+
+# User A with gpt-4 model (default)
+user_a_id = uuid4()
+config_a = UserTokenConfig(
+    user_id=user_a_id,
+    token_limit=10000,
+    window_duration_seconds=3600,
+    model_name="gpt-4"  # Explicit gpt-4
+)
+session.add(config_a)
+
+# User B with gpt-3.5-turbo model
+user_b_id = uuid4()
+config_b = UserTokenConfig(
+    user_id=user_b_id,
+    token_limit=8000,
+    window_duration_seconds=3600,
+    model_name="gpt-3.5-turbo"  # Different model
+)
+session.add(config_b)
+
+# User C with default (no model_name specified)
+user_c_id = uuid4()
+config_c = UserTokenConfig(
+    user_id=user_c_id,
+    token_limit=5000,
+    window_duration_seconds=3600
+    # model_name defaults to "gpt-4"
+)
+session.add(config_c)
+
+session.commit()
+
+# Test: Token counts may differ based on model
+test_text = "This is a test request to demonstrate model-specific token counting"
+
+try:
+    # User A uses gpt-4 encoding
+    tokens_a = await service.validate_and_record(user_a_id, test_text, session)
+    print(f"User A (gpt-4): {tokens_a} tokens")
+
+    # User B uses gpt-3.5-turbo encoding (may count differently)
+    tokens_b = await service.validate_and_record(user_b_id, test_text, session)
+    print(f"User B (gpt-3.5-turbo): {tokens_b} tokens")
+
+    # User C uses default gpt-4 encoding
+    tokens_c = await service.validate_and_record(user_c_id, test_text, session)
+    print(f"User C (default gpt-4): {tokens_c} tokens")
+
+    print("✅ All users successfully validated with their configured models")
+
+except Exception as e:
+    print(f"❌ Validation failed: {e}")
+```
+
+**Expected Behavior**:
+- Each user's tokens are counted using their configured tiktoken model
+- Different models may produce different token counts for the same text
+- Users without explicit model_name use "gpt-4" as default
+- Unknown model names fallback to tiktoken's default encoding
+
+---
+
 ## Troubleshooting
 
 **Issue**: Tests fail with "User not found"
@@ -360,6 +442,9 @@ pytest tests/ --cov=src/nexus/token_manager --cov-report=html
 
 **Issue**: Concurrent tests have race conditions
 - **Solution**: Ensure proper transaction isolation in tests
+
+**Issue**: Token counts differ unexpectedly
+- **Solution**: Check that users have correct model_name configured
 
 ## Next Steps
 

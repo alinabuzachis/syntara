@@ -1,6 +1,6 @@
 # Implementation Plan: Token Count Validation and Tracking
 
-**Branch**: `011-token-counting` | **Date**: 2025-11-21 | **Spec**: [spec.md](./spec.md)
+**Branch**: `implement_token_counting` | **Date**: 2025-11-26 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/012-token-counting/spec.md`
 
 ## Execution Flow (/plan command scope)
@@ -110,7 +110,14 @@ graph TB
 **Language/Version**: Python 3.12
 **Primary Dependencies**: FastAPI, SQLModel (for unified data models), tiktoken, PostgreSQL, httpx (for testing)
 **Storage**: PostgreSQL with SQLModel ORM for token usage history and user configuration
-**Testing**: pytest with pytest-asyncio for async testing
+**Testing**: pytest with pytest-asyncio for async testing; **all tests (unit and integration) use PostgreSQL** via test_db_session fixture (no SQLite) to ensure compatibility with BaseResource JSONB fields and timezone-aware timestamps
+
+**CRITICAL**: SQLite MUST NOT be used for testing. BaseResource uses PostgreSQL-specific features:
+- JSONB fields for labels (not supported in SQLite)
+- TIMESTAMP WITH TIME ZONE for timezone-aware datetimes (SQLite has limited timezone support)
+- Advanced indexing on composite columns (user_id + request_timestamp)
+All test fixtures MUST use the `test_db_session` fixture which connects to a test PostgreSQL database.
+
 **Target Platform**: Linux server (containerized with podman-compose)
 **Project Type**: single (API backend component)
 **Performance Goals**: <50ms token calculation overhead, <100ms database query time for usage lookup (combined budget: <200ms p95 total validation including calculation + DB + overhead)
@@ -122,6 +129,7 @@ graph TB
 
 ### Technology Standards Compliance
 - [x] **SQLModel for Data Models**: All data models MUST use SQLModel (not separate Pydantic + SQLAlchemy) per decision-records.md (10/15/2025) - UserTokenConfig and TokenUsageRecord will use SQLModel with `table=True`, no separate Pydantic schemas
+- [x] **BaseResource Inheritance**: All database models MUST inherit from `nexus.core.models.base.base_resource.BaseResource` to ensure consistent system-managed metadata (id, created_at, updated_at, labels) across all API resources
 
 ### Code Architecture Compliance
 - [x] **DRY Principle**: Design avoids code duplication through proper abstraction - single token validation service, reusable middleware
@@ -174,18 +182,27 @@ src/nexus/
         └── user.py           # Existing User model (referenced by token config)
 
 tests/
-├── integration/
-│   ├── test_token_validation_flow.py  # End-to-end user scenarios
-│   ├── test_rolling_window.py         # Rolling window behavior tests
-│   └── test_concurrent_requests.py    # Concurrent request safety tests
-└── unit/
-    ├── test_token_calculator.py       # tiktoken calculation tests
-    ├── test_token_validation_service.py
-    ├── test_token_usage_repository.py
-    └── test_token_models.py           # SQLModel validation tests
+├── unit/
+│   └── agent_orchestrator/
+│       └── token_manager/
+│           ├── __init__.py
+│           ├── test_token_models.py           # SQLModel validation tests
+│           ├── test_token_calculator.py       # tiktoken calculation tests
+│           ├── test_token_usage_repository.py # Repository unit tests
+│           └── test_token_validation_service.py # Service unit tests
+└── integration/
+    └── agent_orchestrator/
+        └── token_manager/
+            ├── __init__.py
+            ├── test_token_validation_flow.py  # End-to-end user scenarios
+            ├── test_concurrent_requests.py    # Concurrent request safety tests
+            ├── test_rolling_window.py         # Rolling window behavior tests
+            └── test_generic_query_flow.py     # Generic query patterns
 ```
 
 **Structure Decision**: Option 1 (Single project) - New token_manager component under src/nexus/agent_orchestrator/ following existing structure. The token manager is part of the agent orchestration layer as it tracks LLM token usage for agents, similar to the existing llm_tracking component within agent_orchestrator.
+
+**Test Organization**: All token manager tests follow the agent_orchestrator directory structure pattern, with unit tests under `tests/unit/agent_orchestrator/token_manager/` and integration tests under `tests/integration/agent_orchestrator/token_manager/`. This matches the organization used by other agent_orchestrator components like context_manager.
 
 ## Phase 0: Outline & Research
 
@@ -230,16 +247,21 @@ tests/
 ### Data Model (`data-model.md`)
 
 **Entities to Extract from Spec**:
-1. **UserTokenConfig**
-   - Fields: user_id (FK to User), token_limit (int), window_duration_seconds (int), created_at, updated_at
+1. **UserTokenConfig** (inherits from BaseResource)
+   - Inherited fields: id (UUID), created_at, updated_at, labels (dict[str, str])
+   - Domain fields: user_id (FK to User), token_limit (int), window_duration_seconds (int), model_name (str, default="gpt-4")
    - Relationships: belongs to User
-   - Validation: token_limit > 0, window_duration_seconds > 0
+   - Validation: token_limit > 0, window_duration_seconds > 0, model_name not null/empty
+   - Note: Inherits from `nexus.core.models.base.base_resource.BaseResource` for consistent metadata
+   - Note: model_name allows per-user configuration of tiktoken encoding model (FR-014, FR-015)
 
-2. **TokenUsageRecord**
-   - Fields: id (UUID), user_id (FK to User), request_timestamp (datetime), token_count (int), request_text_hash (optional), created_at
+2. **TokenUsageRecord** (inherits from BaseResource)
+   - Inherited fields: id (UUID), created_at, updated_at, labels (dict[str, str])
+   - Domain fields: user_id (FK to User), request_timestamp (datetime), token_count (int), request_text_hash (optional)
    - Relationships: belongs to User
    - Indexes: user_id + request_timestamp for rolling window queries
    - State: immutable once created
+   - Note: Inherits from `nexus.core.models.base.base_resource.BaseResource` for consistent metadata
 
 3. **TokenValidationResult** (Pydantic model, not persisted)
    - Fields: allowed (bool), current_usage (int), token_limit (int), request_tokens (int), reason (str | None)
@@ -258,17 +280,19 @@ tests/
 - Create/update UserTokenConfig via standard SQLModel operations
 - Query usage history via TokenUsageRecord
 
-### Integration Tests from User Stories (`tests/integration/`)
+### Integration Tests from User Stories (`tests/integration/agent_orchestrator/token_manager/`)
 
 **From Acceptance Scenarios**:
-1. `test_request_within_limit_accepted()` - Scenario 1
-2. `test_request_exceeding_limit_blocked()` - Scenario 2
-3. `test_single_large_request_blocked()` - Scenario 3
-4. `test_concurrent_requests_accurate_counting()` - Scenario 4
-5. `test_multiple_users_independent_tracking()` - Scenario 5
-6. `test_rolling_window_excludes_old_requests()` - Scenario 6
-7. `test_rolling_window_includes_recent_requests()` - Scenario 7
-8. `test_per_user_window_configuration()` - Scenario 8
+1. `test_request_within_limit_accepted()` - Scenario 1 (test_token_validation_flow.py)
+2. `test_request_exceeding_limit_blocked()` - Scenario 2 (test_token_validation_flow.py)
+3. `test_single_large_request_blocked()` - Scenario 3 (test_token_validation_flow.py)
+4. `test_concurrent_requests_accurate_counting()` - Scenario 4 (test_concurrent_requests.py)
+5. `test_multiple_users_independent_tracking()` - Scenario 5 (test_token_validation_flow.py)
+6. `test_rolling_window_excludes_old_requests()` - Scenario 6 (test_rolling_window.py)
+7. `test_rolling_window_includes_recent_requests()` - Scenario 7 (test_rolling_window.py)
+8. `test_per_user_window_configuration()` - Scenario 8 (test_rolling_window.py)
+9. `test_tests_located_in_correct_directory()` - Scenario 9 (test organization verification)
+10. `test_tests_discoverable_by_make_test_all()` - Scenario 10 (test discovery verification)
 
 ### Agent File Update
 - Run: `.specify/scripts/bash/update-agent-context.sh claude`
@@ -293,17 +317,25 @@ tests/
    - Implementation tasks to make tests pass
 
 **Task Ordering**:
-1. **Setup Tasks** (dependencies)
+1. **Test Reorganization Tasks** (priority - align with spec requirements)
+   - Create test directory structure: tests/unit/agent_orchestrator/token_manager/ [P]
+   - Create test directory structure: tests/integration/agent_orchestrator/token_manager/ [P]
+   - Move existing unit tests to new location [P]
+   - Move existing integration tests to new location [P]
+   - Update test imports after reorganization [depends on move tasks]
+   - Verify tests pass after reorganization [depends on import updates]
+
+2. **Setup Tasks** (dependencies)
    - Add tiktoken to pyproject.toml [P]
    - Create database migration for new tables [P]
    - Create component structure [P]
 
-2. **Model Layer** (TDD: tests first)
+3. **Model Layer** (TDD: tests first)
    - Write unit tests for SQLModel validation [P]
    - Create UserTokenConfig model [depends on tests]
    - Create TokenUsageRecord model [depends on tests]
 
-3. **Service Layer** (TDD)
+4. **Service Layer** (TDD)
    - Write TokenCalculator unit tests [P]
    - Implement TokenCalculator with tiktoken [depends on tests]
    - Write TokenUsageRepository unit tests [P]
@@ -311,7 +343,7 @@ tests/
    - Write TokenValidationService unit tests [P]
    - Implement TokenValidationService [depends on tests, calculator, repository]
 
-4. **Integration & Polish**
+5. **Integration & Polish**
    - Run all integration tests (should pass after implementation)
    - Performance validation tests (latency targets)
    - Cleanup job implementation
@@ -319,9 +351,9 @@ tests/
 
 **Parallelization Markers**:
 - [P] = Can run in parallel (independent files/components)
-- Sequential: Models → Repository → Service → Integration
+- Sequential: Test reorganization → Models → Repository → Service → Integration
 
-**Estimated Output**: 30 numbered, dependency-ordered tasks in tasks.md
+**Estimated Output**: 35-40 numbered, dependency-ordered tasks in tasks.md (including test reorganization tasks)
 
 **IMPORTANT**: This phase is executed by the /tasks command, NOT by /plan
 

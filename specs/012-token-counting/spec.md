@@ -112,6 +112,8 @@ When creating this spec from a user prompt:
 ### Primary User Story
 As a system administrator managing LLM API costs, I need to monitor and control token usage across requests to prevent unexpected overages. When a request would exceed our configured token budget, the system should raise an exception to prevent the request from being processed.
 
+As a developer working on the Nexus project, I need all token manager tests to be organized in a consistent directory structure that matches other agent_orchestrator module tests, so that tests are easy to find and the codebase follows a uniform organizational pattern.
+
 ### Acceptance Scenarios
 1. **Given** a user's cumulative token count is at 8,000 and their configured limit is 10,000, **When** that user submits a new request with 1,500 tokens, **Then** the system should accept the request and update the user's cumulative count to 9,500
 2. **Given** a user's cumulative token count is at 9,500 and their configured limit is 10,000, **When** that user submits a request with 1,000 tokens, **Then** the system should raise TokenLimitExceededError with details showing current usage (9,500), limit (10,000), and request tokens (1,000)
@@ -121,6 +123,8 @@ As a system administrator managing LLM API costs, I need to monitor and control 
 6. **Given** a user made a request 90,000 seconds ago and their rolling window is configured as 86,400 seconds (24 hours), **When** a new request arrives, **Then** the system should calculate cumulative usage excluding the 90,000-second-old request (automatically aged out of the window)
 7. **Given** a user's requests are all within their configured rolling window, **When** calculating cumulative usage, **Then** all requests within the window should be counted toward their limit
 8. **Given** different users have different rolling window configurations (e.g., User A: 3600 seconds, User B: 86400 seconds), **When** calculating token usage, **Then** each user's cumulative count should be calculated using their own window duration
+9. **Given** token manager tests exist in the codebase, **When** developers look for token manager unit tests, **Then** they should find them under `tests/unit/agent_orchestrator/token_manager/` following the same pattern as other agent_orchestrator components
+10. **Given** token manager tests have been reorganized, **When** the test suite is executed via `make test-all`, **Then** all token manager tests should be discovered and pass without import errors
 
 ### Edge Cases
 
@@ -150,19 +154,28 @@ As a system administrator managing LLM API costs, I need to monitor and control 
 - **FR-007**: System MUST support configuration of the token limit value per user
 - **FR-008**: System MUST track cumulative token counts separately for each user
 - **FR-009**: TokenLimitExceededError MUST contain user_id, current_usage, token_limit, request_tokens, and a descriptive message explaining why the limit was exceeded
-- **FR-010**: System MUST calculate cumulative token counts using a rolling time window, only counting tokens from requests within the configured window period
-- **FR-010a**: System MUST automatically exclude tokens from requests that fall outside the rolling window when calculating current usage
-- **FR-010b**: System MUST support configuration of the rolling window duration specified in seconds (e.g., 3600 for 1 hour, 86400 for 24 hours)
-- **FR-010c**: System MUST allow different rolling window durations to be configured per user
+- **FR-010**: System MUST calculate cumulative token counts using a rolling time window with the following behaviors:
+  - **FR-010a**: Only count tokens from requests within the configured window period
+  - **FR-010b**: Automatically exclude tokens from requests that fall outside the rolling window when calculating current usage
+  - **FR-010c**: Support per-user configuration of window duration in seconds (e.g., 3600 for 1 hour, 86400 for 24 hours)
 - **FR-011**: System MUST handle concurrent requests without race conditions in token counting
-- **FR-012**: System MUST validate that the token_count field in TokenUsageRecord is non-negative (≥ 0). Note: token_limit validation is covered separately by FR-013.
+- **FR-012**: System MUST validate that token usage records have non-negative token counts (the token_count field in TokenUsageRecord model must be ≥ 0, enforced via model validation). Note: This validates individual request token counts; overall token_limit validation is covered separately by FR-013.
 - **FR-013**: System MUST reject configuration attempts where token_limit ≤ 0 (limits must be positive integers representing a valid budget)
+- **FR-014**: System MUST allow configuration of the tokenization model name used for token counting (e.g., "gpt-4", "gpt-3.5-turbo") on a per-user basis
+- **FR-015**: System MUST default to "gpt-4" model when no custom model configuration is provided (backward compatibility)
+- **FR-016**: System MUST use tiktoken's default fallback encoding behavior when an unknown model name is configured (tiktoken automatically falls back to cl100k_base encoding for unknown models)
+
+### Test Organization Requirements
+- **FR-TEST-001**: All unit tests for the token manager MUST be located under `tests/unit/agent_orchestrator/token_manager/` directory
+- **FR-TEST-002**: All integration tests for the token manager MUST be located under `tests/integration/agent_orchestrator/token_manager/` directory
+- **FR-TEST-003**: Test organization MUST follow the same directory structure pattern used by other agent_orchestrator components (e.g., context_manager)
+- **FR-TEST-004**: Test suite MUST remain fully executable after reorganization with no import errors or path issues
+- **FR-TEST-005**: Test coverage MUST be preserved after test file reorganization
 
 ### Non-Functional Requirements
 - **NFR-001**: Token calculation MUST complete within 50ms (p95) to avoid impacting request latency
 - **NFR-002**: Token count storage MUST use PostgreSQL with ACID guarantees, survive application process restarts without data loss, and maintain data integrity through database-level durability (fsync enabled, write-ahead logging)
-- **NFR-003**: System MUST accurately count tokens using the OpenAI tiktoken library
-- **NFR-003a**: Token counting MUST be compatible with GPT model tokenization standards
+- **NFR-003**: System MUST accurately count tokens using the OpenAI tiktoken library and be compatible with GPT model tokenization standards
 - **NFR-004**: Total token validation check MUST complete within 200ms (p95) including database query and token calculation
 
 ### Key Entities *(include if feature involves data)*
@@ -174,6 +187,14 @@ As a system administrator managing LLM API costs, I need to monitor and control 
 - **CumulativeCount**: The sum of tokens from all requests by a user that fall within the rolling time window
 - **TokenLimit**: The preconfigured maximum number of tokens allowed per user within the rolling window before raising an error
 - **RollingWindow**: The time period (duration in seconds) over which token usage is tracked for each user; configurable per user
+
+### Test Organization Entities
+- **Unit Test Files**: Test files validating individual components in isolation
+  - Currently at: `tests/unit/test_token_validation_service.py`, `tests/unit/test_token_usage_repository.py`, `tests/unit/test_token_models.py`
+  - Target location: `tests/unit/agent_orchestrator/token_manager/`
+- **Integration Test Files**: Test files validating end-to-end workflows and component interactions
+  - Currently at: `tests/integration/test_token_validation_flow.py`, `tests/integration/test_concurrent_requests.py`, `tests/integration/test_rolling_window.py`, `tests/integration/test_generic_query_flow.py`
+  - Target location: `tests/integration/agent_orchestrator/token_manager/`
 
 ---
 

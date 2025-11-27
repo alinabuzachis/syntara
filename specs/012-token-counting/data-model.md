@@ -7,6 +7,24 @@
 
 This document defines the data models for the token counting and validation system. All models use SQLModel for unified database and API representation, following the Nexus constitution.
 
+## BaseResource Inheritance
+
+All database models in the token counting system inherit from `BaseResource` (defined in `src/nexus/core/models/base/base_resource.py`), which provides standard system-managed metadata fields:
+
+- **id**: UUID primary key (auto-generated)
+- **created_at**: Timestamp when resource was created (UTC, timezone-aware, auto-managed)
+- **updated_at**: Timestamp when resource was last updated (UTC, timezone-aware, auto-managed)
+- **labels**: Optional key-value metadata (dict[str, str], stored as JSONB)
+
+By inheriting from BaseResource, our models:
+1. **Maintain consistency** with other Nexus resources
+2. **Gain automatic labeling** support for flexible metadata and filtering
+3. **Use proper timezone handling** (UTC, timezone-aware datetimes)
+4. **Follow validation standards** (labels must be string key-value pairs, extra fields forbidden)
+5. **Benefit from future BaseResource enhancements** automatically
+
+The models below only define domain-specific fields; all BaseResource fields are inherited automatically.
+
 ## Entities
 
 ### 1. UserTokenConfig
@@ -16,21 +34,27 @@ This document defines the data models for the token counting and validation syst
 **SQLModel Definition**:
 ```python
 # File: src/nexus/agent_orchestrator/token_manager/models.py
-from sqlmodel import Field, SQLModel, Relationship
-from uuid import UUID, uuid4
-from datetime import datetime
+from sqlmodel import Field, Relationship
+from uuid import UUID
 from typing import Optional
 
-class UserTokenConfig(SQLModel, table=True):
+from nexus.core.models.base.base_resource import BaseResource
+
+class UserTokenConfig(BaseResource, table=True):
     """Per-user token limit configuration.
 
     Each user has their own token limit and rolling window duration.
     The rolling window determines the time period over which token
     usage is tracked.
+
+    Inherits from BaseResource:
+    - id: UUID (primary key)
+    - created_at: datetime (UTC, auto-managed)
+    - updated_at: datetime (UTC, auto-managed)
+    - labels: dict[str, str] (JSONB, for metadata)
     """
     __tablename__ = "user_token_configs"
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="users.id", unique=True, index=True)
 
     # Token limit within the rolling window
@@ -42,21 +66,29 @@ class UserTokenConfig(SQLModel, table=True):
         description="Rolling window duration in seconds (e.g., 3600 for 1 hour, 86400 for 24 hours)"
     )
 
-    # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    # Tiktoken model name for token encoding
+    model_name: str = Field(
+        default="gpt-4",
+        description="Tiktoken model name for token counting (e.g., 'gpt-4', 'gpt-3.5-turbo')"
+    )
 
     # Relationship to usage records
     usage_records: list["TokenUsageRecord"] = Relationship(back_populates="user_config")
 ```
 
 **Fields**:
-- `id`: Primary key (UUID)
+
+*Inherited from BaseResource:*
+- `id`: Primary key (UUID, auto-generated)
+- `created_at`: When the configuration was created (UTC, auto-managed)
+- `updated_at`: When the configuration was last modified (UTC, auto-managed)
+- `labels`: Optional key-value metadata (dict[str, str], JSONB storage)
+
+*Domain-specific fields:*
 - `user_id`: Foreign key to User table, unique (one config per user)
 - `token_limit`: Maximum tokens allowed within the rolling window (must be > 0)
 - `window_duration_seconds`: Rolling window size in seconds (must be > 0)
-- `created_at`: When the configuration was created
-- `updated_at`: When the configuration was last modified
+- `model_name`: Tiktoken model name for token encoding (defaults to "gpt-4")
 
 **Indexes**:
 - Primary key on `id`
@@ -71,6 +103,8 @@ class UserTokenConfig(SQLModel, table=True):
 - Cannot set negative or zero limits
 - Cannot set negative or zero window duration
 - User must exist before creating config
+- model_name cannot be null or empty (defaults to "gpt-4")
+- tiktoken will use fallback encoding if model_name is unknown
 
 **State Transitions**:
 - Created → Active (on insert)
@@ -84,15 +118,26 @@ class UserTokenConfig(SQLModel, table=True):
 **SQLModel Definition**:
 ```python
 # File: src/nexus/agent_orchestrator/token_manager/models.py
-class TokenUsageRecord(SQLModel, table=True):
+from datetime import datetime
+
+class TokenUsageRecord(BaseResource, table=True):
     """Immutable record of token usage for a user's request.
 
     These records are used to calculate cumulative usage within
     the rolling time window. Records are append-only (never updated).
+
+    Inherits from BaseResource:
+    - id: UUID (primary key)
+    - created_at: datetime (when record was inserted into DB, UTC, auto-managed)
+    - updated_at: datetime (UTC, auto-managed, same as created_at for immutable records)
+    - labels: dict[str, str] (JSONB, for metadata)
+
+    Note: request_timestamp is separate from created_at. It represents when the
+    actual request was made, while created_at represents when the record was
+    persisted to the database.
     """
     __tablename__ = "token_usage_records"
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="users.id", index=True)
 
     # Token count for this specific request
@@ -100,9 +145,6 @@ class TokenUsageRecord(SQLModel, table=True):
 
     # When the request was made (used for rolling window calculation)
     request_timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
-
-    # Audit timestamp (when record was created in DB)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Optional: hash of request text for deduplication/debugging
     request_text_hash: Optional[str] = Field(default=None, max_length=64)
@@ -112,11 +154,17 @@ class TokenUsageRecord(SQLModel, table=True):
 ```
 
 **Fields**:
-- `id`: Primary key (UUID)
+
+*Inherited from BaseResource:*
+- `id`: Primary key (UUID, auto-generated)
+- `created_at`: When this record was inserted into the database (UTC, auto-managed)
+- `updated_at`: Same as created_at for immutable records (UTC, auto-managed)
+- `labels`: Optional key-value metadata (dict[str, str], JSONB storage)
+
+*Domain-specific fields:*
 - `user_id`: Foreign key to User table
 - `token_count`: Number of tokens calculated for the request (>= 0)
 - `request_timestamp`: When the request was made (used for rolling window filtering)
-- `created_at`: When this record was inserted into the database
 - `request_text_hash`: Optional SHA-256 hash of request text (for debugging/deduplication)
 
 **Indexes**:
@@ -184,9 +232,18 @@ class TokenValidationResult(BaseModel):
 
 ```mermaid
 erDiagram
+    BaseResource ||--|| UserTokenConfig : "inherits"
+    BaseResource ||--|| TokenUsageRecord : "inherits"
     User ||--o| UserTokenConfig : "has one"
     User ||--o{ TokenUsageRecord : "has many"
     UserTokenConfig ||--o{ TokenUsageRecord : "tracks"
+
+    BaseResource {
+        UUID id PK "auto-generated"
+        datetime created_at "UTC, indexed"
+        datetime updated_at "UTC, indexed"
+        jsonb labels "dict of str-str"
+    }
 
     User {
         UUID id PK
@@ -195,20 +252,15 @@ erDiagram
     }
 
     UserTokenConfig {
-        UUID id PK
-        UUID user_id FK "unique"
+        UUID user_id FK "unique, indexed"
         int token_limit "gt 0"
         int window_duration_seconds "gt 0"
-        datetime created_at
-        datetime updated_at
     }
 
     TokenUsageRecord {
-        UUID id PK
         UUID user_id FK "indexed"
         int token_count "ge 0"
-        datetime request_timestamp "indexed"
-        datetime created_at
+        datetime request_timestamp "indexed, for rolling window"
         string request_text_hash "optional"
     }
 ```
@@ -231,29 +283,41 @@ import uuid
 
 def upgrade() -> None:
     # Create user_token_configs table
+    # Note: Inherits BaseResource fields (id, created_at, updated_at, labels)
     op.create_table(
         'user_token_configs',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
         sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('token_limit', sa.Integer(), nullable=False),
         sa.Column('window_duration_seconds', sa.Integer(), nullable=False),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        # BaseResource timestamp fields (timezone-aware)
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+        # BaseResource labels field (JSONB)
+        sa.Column('labels', postgresql.JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.UniqueConstraint('user_id'),
         sa.CheckConstraint('token_limit > 0', name='check_token_limit_positive'),
         sa.CheckConstraint('window_duration_seconds > 0', name='check_window_duration_positive')
     )
     op.create_index('ix_user_token_configs_user_id', 'user_token_configs', ['user_id'])
+    op.create_index('ix_user_token_configs_id', 'user_token_configs', ['id'])
+    op.create_index('ix_user_token_configs_created_at', 'user_token_configs', ['created_at'])
+    op.create_index('ix_user_token_configs_updated_at', 'user_token_configs', ['updated_at'])
 
     # Create token_usage_records table
+    # Note: Inherits BaseResource fields (id, created_at, updated_at, labels)
     op.create_table(
         'token_usage_records',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
         sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('token_count', sa.Integer(), nullable=False),
-        sa.Column('request_timestamp', sa.DateTime(), nullable=False),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('request_timestamp', sa.DateTime(timezone=True), nullable=False),
+        # BaseResource timestamp fields (timezone-aware)
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+        # BaseResource labels field (JSONB)
+        sa.Column('labels', postgresql.JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.Column('request_text_hash', sa.String(64), nullable=True),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.CheckConstraint('token_count >= 0', name='check_token_count_non_negative')
@@ -269,11 +333,24 @@ def upgrade() -> None:
     # Create individual index for cleanup operations
     op.create_index('ix_token_usage_timestamp', 'token_usage_records', ['request_timestamp'])
 
+    # BaseResource indexes
+    op.create_index('ix_token_usage_records_id', 'token_usage_records', ['id'])
+    op.create_index('ix_token_usage_records_created_at', 'token_usage_records', ['created_at'])
+    op.create_index('ix_token_usage_records_updated_at', 'token_usage_records', ['updated_at'])
+
 def downgrade() -> None:
+    # Drop token_usage_records indexes
+    op.drop_index('ix_token_usage_records_updated_at', table_name='token_usage_records')
+    op.drop_index('ix_token_usage_records_created_at', table_name='token_usage_records')
+    op.drop_index('ix_token_usage_records_id', table_name='token_usage_records')
     op.drop_index('ix_token_usage_timestamp', table_name='token_usage_records')
     op.drop_index('ix_token_usage_user_time', table_name='token_usage_records')
     op.drop_table('token_usage_records')
 
+    # Drop user_token_configs indexes
+    op.drop_index('ix_user_token_configs_updated_at', table_name='user_token_configs')
+    op.drop_index('ix_user_token_configs_created_at', table_name='user_token_configs')
+    op.drop_index('ix_user_token_configs_id', table_name='user_token_configs')
     op.drop_index('ix_user_token_configs_user_id', table_name='user_token_configs')
     op.drop_table('user_token_configs')
 ```
@@ -286,6 +363,15 @@ def downgrade() -> None:
 async def get_user_config(user_id: UUID, session: AsyncSession) -> UserTokenConfig:
     result = await session.execute(
         select(UserTokenConfig).where(UserTokenConfig.user_id == user_id)
+    )
+    return result.scalar_one()
+
+async def get_user_config_with_lock(user_id: UUID, session: AsyncSession) -> UserTokenConfig:
+    """Get config with row-level lock for concurrent request safety."""
+    result = await session.execute(
+        select(UserTokenConfig)
+        .where(UserTokenConfig.user_id == user_id)
+        .with_for_update()  # Row-level lock prevents race conditions
     )
     return result.scalar_one()
 ```
