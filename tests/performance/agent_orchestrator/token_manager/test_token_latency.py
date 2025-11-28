@@ -4,6 +4,7 @@ Tests that token calculation meets performance targets:
 - p95 latency < 50ms per calculation
 """
 
+import gc
 import logging
 import statistics
 import sys
@@ -84,6 +85,10 @@ class TestTokenCalculationLatency:
         calculator = TokenCalculator()
         text = "Test text for encoder caching validation " * 10
 
+        # Ensure consistent GC state before measurement to avoid
+        # non-deterministic timing from GC running mid-measurement
+        gc.collect()
+
         # First call (may include encoder initialization)
         latencies_first: list[float] = []
         for _ in range(100):
@@ -91,6 +96,9 @@ class TestTokenCalculationLatency:
             calculator.count_tokens(text)
             end_time = time.perf_counter()
             latencies_first.append((end_time - start_time) * 1000)
+
+        # GC before second measurement phase for fair comparison
+        gc.collect()
 
         # Subsequent calls (should use cached encoder)
         latencies_cached: list[float] = []

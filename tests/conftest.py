@@ -128,28 +128,6 @@ def worker_id(request: pytest.FixtureRequest) -> str:
     return "master"
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def cleanup_subprocesses() -> AsyncGenerator[None, None]:
-    """Ensure subprocess cleanup after each async test.
-
-    This fixture runs after every async test to give subprocess transports
-    a chance to cleanup before the event loop closes, preventing
-    "Event loop is closed" warnings.
-
-    Note: Only applies to async tests. Sync tests don't need this cleanup.
-    """
-    yield
-
-    # Force garbage collection multiple times to ensure subprocess cleanup
-    for _ in range(3):
-        gc.collect()
-        await asyncio.sleep(0.01)
-
-    # One final collection and delay
-    gc.collect()
-    await asyncio.sleep(0.05)
-
-
 @pytest.fixture(scope="session")
 def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create an event loop for the test session.
