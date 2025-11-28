@@ -63,16 +63,10 @@ async def workflows_dataset(test_db_session: AsyncSession, test_user: User) -> l
 
         workflows.append(workflow)
 
-    # Flush to database but don't commit (let test framework handle commits)
-    await test_db_session.flush()
-
     # Now update created_at timestamps for all workflows
     for i, workflow in enumerate(workflows):
         workflow.created_at = base_time + timedelta(hours=i)
         test_db_session.add(workflow)
-
-    # Flush the timestamp updates
-    await test_db_session.flush()
 
     # Refresh all workflows to ensure they're up to date
     for workflow in workflows:

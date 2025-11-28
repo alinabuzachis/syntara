@@ -113,7 +113,6 @@ class DocumentConversionTask:
 
                 session.add(invocation)
                 await session.commit()
-                await session.flush()
 
         return update_metadata
 

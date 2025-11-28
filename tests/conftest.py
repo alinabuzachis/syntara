@@ -511,7 +511,6 @@ async def test_workflow(test_db_session: AsyncSession, test_user: "User") -> "Wo
         current_version=1,
     )
     test_db_session.add(workflow)
-    await test_db_session.flush()
 
     version = WorkflowVersion(
         workflow_id=workflow.id,
@@ -1056,9 +1055,6 @@ class ToolFactory:
             )
             tools.append(tool)
             self.session.add(tool)
-
-        # Flush to get tool IDs
-        await self.session.flush()
 
         # Create parameters for each tool
         for tool, tool_config in zip(tools, tool_configs, strict=True):

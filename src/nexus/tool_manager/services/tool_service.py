@@ -157,9 +157,6 @@ class ToolService(BaseService):
         tool.updated_by = self.user.id
         tool.updated_at = datetime.now(UTC)
 
-        await self.session.flush()
-        await self.session.refresh(tool)
-
         return await self.get_tool_detail(tool.id)
 
     async def bulk_update_tools(self, tool_ids: list[UUID], *, enabled: bool) -> dict[str, Any]:
