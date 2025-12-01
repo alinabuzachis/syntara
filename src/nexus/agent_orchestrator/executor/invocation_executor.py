@@ -45,7 +45,7 @@ class InvocationExecutor:
             llm = get_openrouter_llm()
             self.generic_agent: GenericAgent | None = GenericAgent(llm=llm)
         except ValueError as e:
-            # If OPENROUTER_API_KEY not set, log warning but continue
+            # If NEXUS_OPENROUTER_API_KEY not set, log warning but continue
             logger.warning(
                 "OpenRouter LLM not configured: %s. GenericAgent will fail at runtime.",
                 e,
@@ -141,7 +141,7 @@ class InvocationExecutor:
         if self.generic_agent is not None:
             return False
         msg = (
-            "GenericAgent not configured. Set OPENROUTER_API_KEY environment variable. "
+            "GenericAgent not configured. Set NEXUS_OPENROUTER_API_KEY environment variable. "
             "Get your API key from https://openrouter.ai/keys"
         )
         # Mark invocation as failed

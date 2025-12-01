@@ -60,7 +60,9 @@ class TestContextPerformanceImpact:
         baseline_duration = baseline_end_time - start_time
 
         # Handle both cases: with and without OpenRouter API key
-        if baseline_data["status"] == "failed" and "OPENROUTER_API_KEY" in (baseline_data.get("error_message", "")):
+        if baseline_data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (
+            baseline_data.get("error_message", "")
+        ):
             # No OpenRouter API key configured (CI environment)
             # Skip context enhancement tests when LLM is not available
             return
@@ -109,7 +111,7 @@ class TestContextPerformanceImpact:
             context_duration = context_end_time - context_start_time
 
         # Handle both cases: with and without OpenRouter API key
-        if context_data["status"] == "failed" and "OPENROUTER_API_KEY" in (context_data.get("error_message", "")):
+        if context_data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (context_data.get("error_message", "")):
             # No OpenRouter API key configured (CI environment)
             # Skip context enhancement tests when LLM is not available
             return
@@ -230,7 +232,7 @@ class TestContextPerformanceImpact:
                 if (
                     result
                     and result["status"] == "failed"
-                    and "OPENROUTER_API_KEY" in (result.get("error_message", ""))
+                    and "NEXUS_OPENROUTER_API_KEY" in (result.get("error_message", ""))
                 ):
                     # No OpenRouter API key configured (CI environment)
                     # Skip context enhancement tests when LLM is not available
@@ -300,7 +302,7 @@ class TestContextPerformanceImpact:
                 duration = end_time - start_time
 
                 # Handle both cases: with and without OpenRouter API key
-                if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
+                if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
                     # No OpenRouter API key configured (CI environment)
                     # Skip context enhancement tests when LLM is not available
                     return
@@ -357,7 +359,7 @@ class TestContextPerformanceImpact:
             durations.append(duration)
 
             # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
+            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip context enhancement tests when LLM is not available
                 return

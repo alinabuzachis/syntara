@@ -56,7 +56,7 @@ class TestContextEnhancedInvocations:
         if data["status"] == "failed":
             # No OpenRouter API key configured (CI environment)
             assert data["error_message"] is not None
-            assert "OPENROUTER_API_KEY" in data["error_message"]
+            assert "NEXUS_OPENROUTER_API_KEY" in data["error_message"]
             # Skip context enhancement tests when LLM is not available
             return
 
@@ -127,7 +127,7 @@ class TestContextEnhancedInvocations:
         if data["status"] == "failed":
             # No OpenRouter API key configured (CI environment)
             assert data["error_message"] is not None
-            assert "OPENROUTER_API_KEY" in data["error_message"]
+            assert "NEXUS_OPENROUTER_API_KEY" in data["error_message"]
             # Skip context enhancement tests when LLM is not available
             return
 

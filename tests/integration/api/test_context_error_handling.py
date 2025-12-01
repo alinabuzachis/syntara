@@ -61,7 +61,7 @@ class TestContextErrorHandling:
                 data = final_data if final_data else data
 
             # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
+            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip test since we can't test context failure without working LLM
                 return
@@ -179,7 +179,7 @@ class TestContextErrorHandling:
                 data = final_data if final_data else data
 
             # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
+            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip test since we can't test partial context failure without working LLM
                 return
@@ -237,7 +237,7 @@ class TestContextErrorHandling:
                     data = final_data if final_data else data
 
                 # Handle both cases: with and without OpenRouter API key
-                if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
+                if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
                     # No OpenRouter API key configured (CI environment)
                     # Skip test since we can't test context failure handling without working LLM
                     continue
@@ -287,7 +287,7 @@ class TestContextErrorHandling:
                 data = final_data if final_data else data
 
             # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
+            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip test since we can't test context failure logging without working LLM
                 return

@@ -43,9 +43,9 @@
   - Verify dependencies don't conflict with existing versions
 
 - [x] **T003** [P] Configure LangChain to use OpenRouter as LLM provider
-  - Create `.env.example` with `OPENROUTER_API_KEY=your_key_here`
-  - Create `.env.example` with `OPENROUTER_MODEL=anthropic/claude-3.5-sonnet`
-  - Create `.env.example` with `OPENROUTER_BASE_URL=https://openrouter.ai/api/v1`
+  - Create `.env.example` with `NEXUS_OPENROUTER_API_KEY=your_key_here`
+  - Create `.env.example` with `NEXUS_OPENROUTER_MODEL=anthropic/claude-3.5-sonnet`
+  - Create `.env.example` with `NEXUS_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1`
   - Document LangChain OpenRouter configuration in `src/nexus/api/config.py` or similar
   - Add validation for required environment variables
   - Document that OpenRouter uses OpenAI-compatible API format

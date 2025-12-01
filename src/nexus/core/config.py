@@ -30,14 +30,9 @@ class OpenRouterSettings(BaseSettings):
 
     OpenRouter provides API gateway to multiple LLMs (Claude, GPT-4, Gemini, etc.).
     Get your API key from: https://openrouter.ai/keys
-    """
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
 
     openrouter_api_key: SecretStr | None = Field(
         default=None,
@@ -64,14 +59,9 @@ class FileUploadSettings(BaseSettings):
     """File upload configuration settings.
 
     Settings for file attachment support in invocations.
-    """
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
 
     file_upload_max_size_mb: int = Field(
         default=10,
@@ -110,14 +100,9 @@ class DocumentConversionSettings(BaseSettings):
 
     Settings specific to document conversion operations.
     Builds upon FileUploadSettings for consistency.
-    """
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
 
     document_conversion_timeout_seconds: int = Field(
         default=30,
@@ -147,14 +132,9 @@ class OpenAPIValidationSettings(BaseSettings):
 
     This configuration controls the validation of FastAPI routes against
     OpenAPI schema specifications. This is NOT related to OpenRouter (the LLM service).
-    """
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
 
     openapi_validation_enabled: bool = Field(
         default=True,
@@ -171,14 +151,9 @@ class RouterDiscoverySettings(BaseSettings):
     """Router discovery configuration settings.
 
     Controls automatic router discovery and registration behavior.
-    """
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
 
     router_discovery_enabled: bool = Field(
         default=True,
@@ -214,6 +189,7 @@ class Settings(
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        env_prefix="NEXUS_",
     )
 
 

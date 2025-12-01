@@ -300,9 +300,9 @@ Nexus uses LangChain with OpenRouter for intelligent agent responses. The Generi
    cp .env.example .env
 
    # Edit .env and add your OpenRouter API key
-   OPENROUTER_API_KEY=your_openrouter_api_key_here
-   OPENROUTER_MODEL=anthropic/claude-3.5-sonnet  # or openai/gpt-4, google/gemini-pro
-   OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+   NEXUS_OPENROUTER_API_KEY=your_openrouter_api_key_here
+   NEXUS_OPENROUTER_MODEL=anthropic/claude-3.5-sonnet  # or openai/gpt-4, google/gemini-pro
+   NEXUS_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
    ```
 
 3. **Available models** (see [https://openrouter.ai/models](https://openrouter.ai/models)):
@@ -329,15 +329,15 @@ Nexus automatically routes requests to the appropriate agent:
 
 For development and testing without configuring OpenRouter:
 ```bash
-# The system works without OPENROUTER_API_KEY set
+# The system works without NEXUS_OPENROUTER_API_KEY set
 # GenericAgent will be disabled but other features work normally
 make test-all
 ```
 
 **Environment Variables**:
-- `OPENROUTER_API_KEY` (required for GenericAgent, get from https://openrouter.ai/keys)
-- `OPENROUTER_MODEL` (default: `anthropic/claude-3.5-sonnet`)
-- `OPENROUTER_BASE_URL` (default: `https://openrouter.ai/api/v1`)
+- `NEXUS_OPENROUTER_API_KEY` (required for GenericAgent, get from https://openrouter.ai/keys)
+- `NEXUS_OPENROUTER_MODEL` (default: `anthropic/claude-3.5-sonnet`)
+- `NEXUS_OPENROUTER_BASE_URL` (default: `https://openrouter.ai/api/v1`)
 
 **Example API Usage**:
 

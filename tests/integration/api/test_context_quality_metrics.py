@@ -56,7 +56,7 @@ class TestContextQualityMetrics:
             data = final_data if final_data else data
 
         # Handle both cases: with and without OpenRouter API key
-        if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
+        if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
             # No OpenRouter API key configured (CI environment)
             # Skip context enhancement tests when LLM is not available
             return
@@ -108,7 +108,9 @@ class TestContextQualityMetrics:
                 context_data = final_data if final_data else context_data
 
             # Handle both cases: with and without OpenRouter API key
-            if context_data["status"] == "failed" and "OPENROUTER_API_KEY" in (context_data.get("error_message", "")):
+            if context_data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (
+                context_data.get("error_message", "")
+            ):
                 # No OpenRouter API key configured (CI environment)
                 # Skip context enhancement tests when LLM is not available
                 return
@@ -167,7 +169,7 @@ class TestContextQualityMetrics:
                     data = final_data if final_data else data
 
                 # Handle both cases: with and without OpenRouter API key
-                if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
+                if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
                     # No OpenRouter API key configured (CI environment)
                     # Skip context enhancement tests when LLM is not available
                     return
@@ -229,7 +231,7 @@ class TestContextQualityMetrics:
                 data = final_data if final_data else data
 
             # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
+            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip context enhancement tests when LLM is not available
                 return
@@ -300,7 +302,7 @@ class TestContextQualityMetrics:
                 empty_data = final_data if final_data else empty_data
 
             # Handle both cases: with and without OpenRouter API key
-            if empty_data["status"] == "failed" and "OPENROUTER_API_KEY" in (empty_data.get("error_message", "")):
+            if empty_data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (empty_data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip context enhancement tests when LLM is not available
                 return
@@ -340,7 +342,7 @@ class TestContextQualityMetrics:
                 populated_data = final_data if final_data else populated_data
 
             # Handle both cases: with and without OpenRouter API key
-            if populated_data["status"] == "failed" and "OPENROUTER_API_KEY" in (
+            if populated_data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (
                 populated_data.get("error_message", "")
             ):
                 # No OpenRouter API key configured (CI environment)
@@ -402,7 +404,7 @@ class TestContextQualityMetrics:
                 data = final_data if final_data else data
 
             # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "OPENROUTER_API_KEY" in (data.get("error_message", "")):
+            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
                 # No OpenRouter API key configured (CI environment)
                 # Skip context enhancement tests when LLM is not available
                 return

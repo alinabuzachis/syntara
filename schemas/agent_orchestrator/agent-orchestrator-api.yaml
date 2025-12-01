@@ -353,7 +353,7 @@ paths:
                     labels: {}
                     contextData: {}
                     result:
-                    errorMessage: GenericAgent not configured. Set OPENROUTER_API_KEY
+                    errorMessage: GenericAgent not configured. Set NEXUS_OPENROUTER_API_KEY
                       environment variable.
                     checkpointData:
         '400':
