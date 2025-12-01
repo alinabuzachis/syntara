@@ -131,8 +131,7 @@ class TestConverterRegistryDependencyInjection:
     @pytest.mark.asyncio
     async def test_get_converter_registry_yields_registry_instance(self) -> None:
         """Test that get_converter_registry yields a ConverterRegistry instance."""
-        async_gen = get_converter_registry()
-        registry = await async_gen.__anext__()
+        registry = get_converter_registry()
 
         assert isinstance(registry, ConverterRegistry)
 
@@ -144,11 +143,9 @@ class TestConverterRegistryDependencyInjection:
     @pytest.mark.asyncio
     async def test_get_converter_registry_returns_same_instance(self) -> None:
         """Test that get_converter_registry returns the same singleton instance."""
-        async_gen1 = get_converter_registry()
-        registry1 = await async_gen1.__anext__()
+        registry1 = get_converter_registry()
 
-        async_gen2 = get_converter_registry()
-        registry2 = await async_gen2.__anext__()
+        registry2 = get_converter_registry()
 
         # Should be the same instance
         assert registry1 is registry2

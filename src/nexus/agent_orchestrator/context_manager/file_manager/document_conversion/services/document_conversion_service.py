@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata
+from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata, get_file_manager
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.registry import (
     ConverterRegistry,
     get_converter_registry,
@@ -34,14 +34,20 @@ class DocumentConversionService:
     - Storing converted content back via retrievers
     """
 
-    def __init__(self, file_manager: FileManager) -> None:
+    def __init__(
+        self,
+        file_manager_factory: Callable[[], FileManager] = get_file_manager,
+        converter_registry_factory: Callable[[], ConverterRegistry] = get_converter_registry,
+    ) -> None:
         """Initialize the document conversion service.
 
         Args:
-            file_manager: FileManager instance for handling file operations
+            file_manager_factory: Factory function for creating FileManager
+            converter_registry_factory: Factory function for creating ConverterRegistry
 
         """
-        self.file_manager = file_manager
+        self.file_manager = file_manager_factory()
+        self.converter_registry = converter_registry_factory()
 
     @staticmethod
     def _generate_output_filename(original_filename: str) -> str:
@@ -246,10 +252,9 @@ class DocumentConversionService:
         try:
             # Load file content via retriever
             file_content = await retriever.load_file(file_metadata.file_path)
-            registry: ConverterRegistry = await anext(get_converter_registry())
 
             # Get converter for MIME type
-            converter = registry.get_converter(file_metadata.mime_type)
+            converter = self.converter_registry.get_converter(file_metadata.mime_type)
             if converter is None:
                 await DocumentConversionService._fail_conversion_missing_converter(
                     file_metadata, operation_id, status_updater
@@ -292,3 +297,25 @@ class DocumentConversionService:
             await DocumentConversionService._fail_conversion_exception(file_metadata, status_updater, operation_id, e)
 
         return ConversionState.FAILED
+
+
+# ===================================================
+# Generator for dependency injection
+# ---------------------------------------------------
+
+
+def get_document_conversion_service() -> DocumentConversionService:
+    """Create a DocumentConversionService instance with fresh dependencies.
+
+    Returns:
+        DocumentConversionService: Fresh service instance
+
+    Example:
+        service = get_document_conversion_service()
+        conversion_state = await service.convert_file(file_metadata, status_updater)
+
+    """
+    return DocumentConversionService()
+
+
+# ===================================================

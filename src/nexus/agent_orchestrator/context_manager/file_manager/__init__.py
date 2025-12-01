@@ -223,21 +223,21 @@ class FileManager:
 # ===================================================
 # Factory function for dependency injection
 # ---------------------------------------------------
+_file_manager: FileManager = FileManager()
 
 
-def create_file_manager() -> FileManager:
+def get_file_manager() -> FileManager:
     """Create a FileManager instance with fresh dependencies.
 
     Returns:
         FileManager: Fresh FileManager instance
 
     Example:
-        # For background tasks and non-FastAPI contexts
-        file_manager = create_file_manager()
+        file_manager = get_file_manager()
         retriever = file_manager.get_retriever_for_file(...)
 
     """
-    return FileManager()
+    return _file_manager
 
 
 # ===================================================
@@ -246,5 +246,5 @@ def create_file_manager() -> FileManager:
 __all__ = [
     "FileManager",
     "FileMetadata",
-    "create_file_manager",
+    "get_file_manager",
 ]

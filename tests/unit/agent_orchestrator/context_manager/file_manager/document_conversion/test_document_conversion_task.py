@@ -4,6 +4,7 @@ This module tests the background task execution for document conversion
 with invocation integration and FileMetadata status management.
 """
 
+from collections.abc import AsyncGenerator
 from typing import Any, cast
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import UUID, uuid4
@@ -11,13 +12,45 @@ from uuid import UUID, uuid4
 import pytest
 
 from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services import create_conversion_task
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services.document_conversion_task import (  # noqa: E501
-    DocumentConversionTask,
-)
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services.types import ConversionState
+from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.tasks import (
+    DocumentConversionTask,
+    get_document_conversion_task,
+)
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.core.constants import CONTEXT_KEY_FILE_METADATA
+
+
+class DocumentConversionTaskTestHelper:
+    """Helper class to set up clean mocks for DocumentConversionTask tests."""
+
+    def __init__(self) -> None:
+        """Initialize the test helper with fresh mocks."""
+        self.mock_service = AsyncMock()
+        self.mock_invocation_executor = AsyncMock()
+        self.mock_session = AsyncMock()
+
+        # Create task with mock factories
+        self.task = DocumentConversionTask(
+            service_factory=lambda: self.mock_service,
+            invocation_executor_factory=lambda _: self.mock_invocation_executor,
+            session_factory=self.mock_session_generator,
+        )
+
+    async def mock_session_generator(self) -> AsyncGenerator[AsyncMock, None]:
+        """Mock session generator for database operations."""
+        yield self.mock_session
+
+    def setup_invocation_loading(self, invocation: Invocation | None) -> None:
+        """Configure mock to return specific invocation when loaded."""
+        # Mock the session.get to return the invocation
+        self.mock_session.get.return_value = invocation
+
+
+@pytest.fixture
+def task_helper() -> DocumentConversionTaskTestHelper:
+    """Fixture providing a clean test helper for DocumentConversionTask tests."""
+    return DocumentConversionTaskTestHelper()
 
 
 @pytest.fixture
@@ -54,7 +87,7 @@ class TestDocumentConversionTaskInit:
 
     def test_init_with_default_session_factory(self) -> None:
         """Test initialization with default session factory."""
-        task = create_conversion_task()
+        task = get_document_conversion_task()
         assert task.service is not None
         assert task.session_factory is not None
         assert task.get_async_session_context is not None
@@ -72,7 +105,7 @@ class TestDocumentConversionTaskUpdateMetadata:
     ) -> None:
         """Test metadata updater successfully updates file metadata."""
         # Create a task and mock its _load_invocation method to avoid session complexity
-        task = create_conversion_task()
+        task = get_document_conversion_task()
 
         with (
             patch.object(task, "_load_invocation", new_callable=AsyncMock) as mock_load_invocation,
@@ -136,7 +169,7 @@ class TestDocumentConversionTaskUpdateMetadata:
         )
 
         # Create a task and mock its _load_invocation method
-        task = create_conversion_task()
+        task = get_document_conversion_task()
 
         with (
             patch.object(task, "_load_invocation", new_callable=AsyncMock) as mock_load_invocation,
@@ -177,7 +210,7 @@ class TestDocumentConversionTaskUpdateMetadata:
     ) -> None:
         """Test metadata updater when invocation is not found."""
         # Create a task and mock its _load_invocation method
-        task = create_conversion_task()
+        task = get_document_conversion_task()
 
         with (
             patch.object(task, "_load_invocation", new_callable=AsyncMock) as mock_load_invocation,
@@ -214,7 +247,7 @@ class TestDocumentConversionTaskUpdateMetadata:
     ) -> None:
         """Test that metadata updater preserves all other fields when updating status."""
         # Create a task and mock its _load_invocation method
-        task = create_conversion_task()
+        task = get_document_conversion_task()
 
         with (
             patch.object(task, "_load_invocation", new_callable=AsyncMock) as mock_load_invocation,
@@ -310,32 +343,32 @@ class TestDocumentConversionTaskSingleDocumentConversion:
         self,
         sample_invocation_id: UUID,
         sample_file_metadata: FileMetadata,
+        task_helper: DocumentConversionTaskTestHelper,
     ) -> None:
         """Test successful single document conversion."""
-        task = create_conversion_task()
-        with patch.object(
-            task.service, "convert_file", new_callable=AsyncMock, return_value=ConversionState.SUCCESS
-        ) as mock_convert:
-            file_metadata_dict = sample_file_metadata.model_dump()
+        # Configure mock service to return success
+        task_helper.mock_service.convert_file.return_value = ConversionState.SUCCESS
 
-            result = await task._convert_single_document(sample_invocation_id, file_metadata_dict)  # noqa: SLF001
+        file_metadata_dict = sample_file_metadata.model_dump()
 
-            assert result == ConversionState.SUCCESS
-            mock_convert.assert_called_once()
+        result = await task_helper.task._convert_single_document(sample_invocation_id, file_metadata_dict)  # noqa: SLF001
+
+        assert result == ConversionState.SUCCESS
+        task_helper.mock_service.convert_file.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_convert_single_document_skip_non_pending(
         self,
         sample_invocation_id: UUID,
         sample_file_metadata: FileMetadata,
+        task_helper: DocumentConversionTaskTestHelper,
     ) -> None:
         """Test single document conversion skips non-pending files."""
-        task = create_conversion_task()
         # Set status to something other than pending_parse
         file_metadata = sample_file_metadata.model_copy(update={"status": "converted"})
         file_metadata_dict = file_metadata.model_dump()
 
-        result = await task._convert_single_document(sample_invocation_id, file_metadata_dict)  # noqa: SLF001
+        result = await task_helper.task._convert_single_document(sample_invocation_id, file_metadata_dict)  # noqa: SLF001
 
         assert result == ConversionState.SKIPPED
 
@@ -346,7 +379,7 @@ class TestDocumentConversionTaskSingleDocumentConversion:
         sample_file_metadata: FileMetadata,
     ) -> None:
         """Test single document conversion failure handling."""
-        task = create_conversion_task()
+        task = get_document_conversion_task()
         with (
             patch.object(
                 task.service, "convert_file", new_callable=AsyncMock, side_effect=Exception("Conversion error")
@@ -369,7 +402,7 @@ class TestDocumentConversionTaskSingleDocumentConversion:
         sample_invocation_id: UUID,
     ) -> None:
         """Test single document conversion with invalid metadata."""
-        task = create_conversion_task()
+        task = get_document_conversion_task()
         # Invalid file metadata dict
         invalid_metadata: dict[str, object] = {"invalid": "data"}
 
@@ -389,7 +422,7 @@ class TestDocumentConversionTaskProcessConversions:
         sample_file_metadata: FileMetadata,
     ) -> None:
         """Test processing multiple conversions with all successes."""
-        task = create_conversion_task()
+        task = get_document_conversion_task()
         with patch.object(
             task, "_convert_single_document", new_callable=AsyncMock, return_value=ConversionState.SUCCESS
         ):
@@ -408,7 +441,7 @@ class TestDocumentConversionTaskProcessConversions:
         sample_file_metadata: FileMetadata,
     ) -> None:
         """Test processing multiple conversions with mixed results."""
-        task = create_conversion_task()
+        task = get_document_conversion_task()
         # Create multiple file metadata objects with different statuses
         files_to_convert = [
             sample_file_metadata.model_dump(),
@@ -433,7 +466,7 @@ class TestDocumentConversionTaskProcessConversions:
         sample_file_metadata: FileMetadata,
     ) -> None:
         """Test processing conversions with exception handling."""
-        task = create_conversion_task()
+        task = get_document_conversion_task()
         files_to_convert = [sample_file_metadata.model_dump()]
 
         with patch.object(
@@ -453,34 +486,24 @@ class TestDocumentConversionTaskExecuteInvocation:
     async def test_execute_invocation_after_conversion_success(
         self,
         sample_invocation_id: UUID,
+        task_helper: DocumentConversionTaskTestHelper,
     ) -> None:
         """Test successful invocation execution after conversion."""
-        task = create_conversion_task()
-        with patch(
-            "nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services.document_conversion_task.InvocationExecutor"
-        ) as mock_execution_service_class:
-            mock_execution_service = AsyncMock()
-            mock_execution_service_class.return_value = mock_execution_service
+        await task_helper.task._execute_invocation_after_conversion(sample_invocation_id)  # noqa: SLF001
 
-            await task._execute_invocation_after_conversion(sample_invocation_id)  # noqa: SLF001
-
-            mock_execution_service.execute_invocation.assert_called_once_with(sample_invocation_id)
+        task_helper.mock_invocation_executor.execute_invocation.assert_called_once_with(sample_invocation_id)
 
     @pytest.mark.asyncio
     async def test_execute_invocation_after_conversion_failure(
         self,
         sample_invocation_id: UUID,
+        task_helper: DocumentConversionTaskTestHelper,
     ) -> None:
         """Test invocation execution failure after conversion."""
-        task = create_conversion_task()
-        with patch(
-            "nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services.document_conversion_task.InvocationExecutor"
-        ) as mock_execution_service_class:
-            mock_execution_service = AsyncMock()
-            mock_execution_service.execute_invocation.side_effect = Exception("Execution error")
-            mock_execution_service_class.return_value = mock_execution_service
+        # Configure mock to raise an exception
+        task_helper.mock_invocation_executor.execute_invocation.side_effect = Exception("Execution error")
 
-            # Should not raise exception, just log it
-            await task._execute_invocation_after_conversion(sample_invocation_id)  # noqa: SLF001
+        # Should not raise exception, just log it
+        await task_helper.task._execute_invocation_after_conversion(sample_invocation_id)  # noqa: SLF001
 
-            mock_execution_service.execute_invocation.assert_called_once_with(sample_invocation_id)
+        task_helper.mock_invocation_executor.execute_invocation.assert_called_once_with(sample_invocation_id)

@@ -8,9 +8,12 @@ from uuid import UUID, uuid4
 from fastapi import BackgroundTasks, UploadFile
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata, create_file_manager
+from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata, get_file_manager
 from nexus.agent_orchestrator.context_manager.file_manager import utils as file_utils
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services import create_conversion_task
+from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.tasks import (
+    DocumentConversionTask,
+    get_document_conversion_task,
+)
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
 from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA, CONTEXT_KEY_FILE_METADATA_CONVERSION
 from nexus.core.models import User
@@ -50,7 +53,10 @@ class InvocationService(BaseService):
         user: User,
         background_tasks: BackgroundTasks | None = None,
         session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] | None = None,
-        file_manager_factory: Callable[[], FileManager] = create_file_manager,
+        document_conversion_task_factory: Callable[
+            [Callable[[], AsyncGenerator[AsyncSession, None]] | None], DocumentConversionTask
+        ] = get_document_conversion_task,
+        file_manager_factory: Callable[[], FileManager] = get_file_manager,
     ) -> None:
         """Initialize service with database session.
 
@@ -59,6 +65,7 @@ class InvocationService(BaseService):
             user: Current authenticated user
             background_tasks: Optional FastAPI background tasks for document conversion
             session_factory: Optional session factory for DocumentConversionTask (defaults to get_db)
+            document_conversion_task_factory: Factory function for creating a DocumentConversionTask
             file_manager_factory: Factory function for creating FileManager
 
         """
@@ -66,6 +73,7 @@ class InvocationService(BaseService):
         self.file_manager = file_manager_factory()
         self.background_tasks = background_tasks
         self.session_factory = session_factory
+        self.document_conversion_task = document_conversion_task_factory(session_factory)
 
     async def _handle_file_uploads(self, invocation_id: UUID, files: list[UploadFile]) -> list[FileMetadata]:
         if not files:
@@ -90,8 +98,7 @@ class InvocationService(BaseService):
         )
 
         # Schedule the actual document conversion background task
-        task = create_conversion_task(session_factory=self.session_factory)
-        self.background_tasks.add_task(task.convert, invocation_id)
+        self.background_tasks.add_task(self.document_conversion_task.convert, invocation_id)
 
         logger.info(
             "Document conversion background task scheduled (invocation_id=%s)",

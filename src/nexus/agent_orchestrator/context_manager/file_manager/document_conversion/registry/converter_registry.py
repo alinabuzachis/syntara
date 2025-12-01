@@ -5,7 +5,6 @@ between MIME types and their corresponding document converters.
 """
 
 import threading
-from collections.abc import AsyncGenerator
 
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.converters import (
     DocumentConverter,
@@ -119,27 +118,24 @@ class ConverterRegistry:
 _converter_registry: ConverterRegistry = ConverterRegistry()
 
 
-async def get_converter_registry() -> AsyncGenerator[ConverterRegistry]:
+def get_converter_registry() -> ConverterRegistry:
     """Create a ConverterRegistry for dependency injection.
 
-    Yields:
+    Returns:
         ConverterRegistry for dependency injection
 
     Example:
-        from fastapi import Depends
         from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.registry import (
             get_converter_registry,
         )
 
-        async def convert_document(
-            registry: ConverterRegistry = Depends(get_converter_registry)
-        ):
-            converter = registry.get_converter("application/pdf")
-            if converter:
-                result = await converter.convert(input_path, output_path)
+        registry: ConverterRegistry = get_converter_registry()
+        converter = registry.get_converter("application/pdf")
+        if converter:
+            result = await converter.convert(input_path, output_path)
 
     """
-    yield _converter_registry
+    return _converter_registry
 
 
 # ===================================================

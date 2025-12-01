@@ -16,8 +16,11 @@ from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
+from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services import (
+    get_document_conversion_service,
+)
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services.types import ConversionState
-from nexus.agent_orchestrator.executor import InvocationExecutor
+from nexus.agent_orchestrator.executor import InvocationExecutor, get_invocation_executor
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.api.db.session import get_db
 from nexus.core.constants import CONTEXT_KEY_FILE_METADATA
@@ -39,17 +42,22 @@ class DocumentConversionTask:
 
     def __init__(
         self,
-        service: "DocumentConversionService",
+        service_factory: Callable[[], "DocumentConversionService"] = get_document_conversion_service,
+        invocation_executor_factory: Callable[
+            [Callable[[], AsyncGenerator[AsyncSession, None]]], InvocationExecutor
+        ] = get_invocation_executor,
         session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] = get_db,
     ) -> None:
         """Initialize the document conversion task.
 
         Args:
-            service: DocumentConversionService instance for handling conversions
+            service_factory: Factory function for DocumentConversionService
+            invocation_executor_factory: Factory function for InvocationExecutor
             session_factory: Factory function for creating database sessions
 
         """
-        self.service = service
+        self.service = service_factory()
+        self.invocation_executor = invocation_executor_factory(session_factory)
         self.session_factory = session_factory
         # Create async context managers from factories
         self.get_async_session_context = contextlib.asynccontextmanager(session_factory)
@@ -230,8 +238,7 @@ class DocumentConversionTask:
 
         """
         try:
-            execution_service = InvocationExecutor(session_factory=self.session_factory)
-            await execution_service.execute_invocation(invocation_id)
+            await self.invocation_executor.execute_invocation(invocation_id)
         except Exception:
             logger.exception(
                 "Failed to execute invocation after conversion (invocation_id=%s)",
@@ -304,3 +311,38 @@ class DocumentConversionTask:
         finally:
             # All conversions are complete, now execute the invocation
             await self._execute_invocation_after_conversion(invocation_id)
+
+
+# ===================================================
+# Generator for dependency injection
+# ---------------------------------------------------
+
+
+def get_document_conversion_task(
+    session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] | None = None,
+) -> DocumentConversionTask:
+    """Create a DocumentConversionTask instance with fresh dependencies.
+
+    Args:
+        session_factory: Optional session factory for database operations.
+                        If None, uses default get_db factory.
+
+    Returns:
+        DocumentConversionTask: Fresh task instance
+
+    Example:
+        # Default usage
+        task = create_conversion_task()
+        await task.convert(invocation_id)
+
+        # With custom session factory (e.g., for testing)
+        task = get_document_conversion_task(session_factory=test_db_factory)
+        await task.convert(invocation_id)
+
+    """
+    if session_factory:
+        return DocumentConversionTask(session_factory=session_factory)
+    return DocumentConversionTask()
+
+
+# ===================================================

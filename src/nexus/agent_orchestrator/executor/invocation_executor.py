@@ -323,3 +323,27 @@ class InvocationExecutor:
             sections.append(f"## {key}\n{value}")
 
         return "\n\n".join(sections)
+
+
+# ===================================================
+# Factory function for dependency injection
+# ---------------------------------------------------
+
+
+def get_invocation_executor(
+    session_factory: Callable[[], AsyncGenerator[AsyncSession, None]],
+) -> InvocationExecutor:
+    """Create a InvocationExecutor instance with fresh dependencies.
+
+    Returns:
+        InvocationExecutor: Fresh InvocationExecutor instance
+
+    Example:
+        invocation_executor = get_invocation_executor()
+        await invocation_executor.execute_invocation(invocation_id)
+
+    """
+    return InvocationExecutor(session_factory)
+
+
+# ===================================================
