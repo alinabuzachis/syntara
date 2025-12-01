@@ -98,13 +98,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configure CORS middleware
+# Configure CORS middleware using centralized settings
+_cors_settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_cors_settings.cors_allow_origins,
+    allow_credentials=_cors_settings.cors_allow_credentials,
+    allow_methods=_cors_settings.cors_allow_methods,
+    allow_headers=_cors_settings.cors_allow_headers,
 )
 
 # Routers are automatically discovered and registered via router_discovery system
@@ -212,12 +213,13 @@ def main() -> None:
     For development, you can also use:
         uvicorn nexus.api.main:app --reload
     """
+    settings = get_settings()
     uvicorn.run(
         "nexus.api.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info",
+        host=settings.server_host,
+        port=settings.server_port,
+        reload=settings.server_reload,
+        log_level=settings.log_level.lower(),
     )
 
 

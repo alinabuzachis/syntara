@@ -101,9 +101,9 @@ The application uses these environment variables (with defaults):
 - `NEXUS_DB_PORT` (default: `5432`)
 - `NEXUS_DB_NAME` (default: `nexus_api`)
 
-You can override individual variables or set `DATABASE_URL` directly:
+You can override individual variables or set `NEXUS_DATABASE_URL` directly:
 ```bash
-export DATABASE_URL="postgresql+asyncpg://user:pass@host:port/dbname"
+export NEXUS_DATABASE_URL="postgresql+asyncpg://user:pass@host:port/dbname?sslmode=require"
 ```
 
 **Troubleshooting**:
@@ -283,7 +283,7 @@ NEXUS_TEMPORAL_NAMESPACE=default
 NEXUS_TASK_QUEUE=nexus-workflow-queue
 
 # Logging
-LOG_LEVEL=INFO
+NEXUS_LOG_LEVEL=INFO
 ```
 
 ### LLM and Agent Configuration

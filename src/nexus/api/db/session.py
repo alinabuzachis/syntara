@@ -1,6 +1,5 @@
 """Database session management with async support and soft delete filtering."""
 
-import os
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -9,22 +8,11 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-# Database configuration from environment variables
-DB_USER = os.getenv("NEXUS_DB_USER", "admin")
-DB_PASSWORD = os.getenv("NEXUS_DB_PASSWORD", "admin")
-DB_HOST = os.getenv("NEXUS_DB_HOST", "localhost")
-DB_PORT = os.getenv("NEXUS_DB_PORT", "5432")
-DB_NAME = os.getenv("NEXUS_DB_NAME", "nexus_api")
-
-# Compose database URL (can be overridden with DATABASE_URL env var)
-DATABASE_URL: str = os.getenv(
-    "DATABASE_URL",
-    f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
-)
+from nexus.core.config import get_settings
 
 # Create async engine with connection pooling
 engine = create_async_engine(
-    DATABASE_URL,
+    get_settings().database_url,
     echo=False,  # Set to True for SQL query logging in development
     pool_size=10,  # Maximum number of connections in the pool
     max_overflow=20,  # Maximum overflow connections

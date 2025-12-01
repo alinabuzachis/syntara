@@ -14,10 +14,11 @@ Usage:
     llm = get_openrouter_llm(api_key=settings.openrouter_api_key)
 """
 
+import os
 import tempfile
 from functools import lru_cache
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # =============================================================================
@@ -167,6 +168,135 @@ class RouterDiscoverySettings(BaseSettings):
 
 
 # =============================================================================
+# Database Configuration
+# =============================================================================
+
+
+class DatabaseSettings(BaseSettings):
+    """Database connection configuration settings.
+
+    Configures PostgreSQL connection parameters. You can either:
+    1. Set individual NEXUS_DB_* variables (user, password, host, port, name)
+    2. Set NEXUS_DATABASE_URL to override with a full connection string
+
+    The full URL option supports URL-encoded passwords, alternate drivers,
+    and extra query params (e.g., sslmode=require).
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    db_user: str = Field(
+        default="admin",
+        description="Database username",
+    )
+
+    db_password: SecretStr = Field(
+        default=SecretStr("admin"),
+        description="Database password",
+    )
+
+    db_host: str = Field(
+        default="localhost",
+        description="Database host",
+    )
+
+    db_port: int = Field(
+        default=5432,
+        description="Database port",
+        ge=1,
+        le=65535,
+    )
+
+    db_name: str = Field(
+        default="nexus_api",
+        description="Database name",
+    )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def database_url(self) -> str:
+        """Get the database URL.
+
+        If NEXUS_DATABASE_URL env var is set, use it directly.
+        Otherwise, compute from individual NEXUS_DB_* components.
+        """
+        override = os.environ.get("NEXUS_DATABASE_URL")
+        if override:
+            return override
+        password = self.db_password.get_secret_value()
+        return f"postgresql+asyncpg://{self.db_user}:{password}@{self.db_host}:{self.db_port}/{self.db_name}"
+
+
+# =============================================================================
+# Server Configuration
+# =============================================================================
+
+
+class ServerSettings(BaseSettings):
+    """Server and CORS configuration settings.
+
+    Configures uvicorn server parameters and CORS middleware.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    server_host: str = Field(
+        default="0.0.0.0",  # noqa: S104
+        description="Server bind host",
+    )
+
+    server_port: int = Field(
+        default=8000,
+        description="Server bind port",
+        ge=1,
+        le=65535,
+    )
+
+    server_reload: bool = Field(
+        default=False,
+        description="Enable hot reload (development only)",
+    )
+
+    # CORS configuration
+    cors_allow_origins: list[str] = Field(
+        default=["*"],
+        description="Allowed origins for CORS",
+    )
+
+    cors_allow_credentials: bool = Field(
+        default=True,
+        description="Allow credentials in CORS requests",
+    )
+
+    cors_allow_methods: list[str] = Field(
+        default=["*"],
+        description="Allowed HTTP methods for CORS",
+    )
+
+    cors_allow_headers: list[str] = Field(
+        default=["*"],
+        description="Allowed headers for CORS",
+    )
+
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+
+
+class LoggingSettings(BaseSettings):
+    """Logging configuration settings.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    log_level: str = Field(
+        default="INFO",
+        description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    )
+
+
+# =============================================================================
 # Main Settings
 # =============================================================================
 
@@ -177,6 +307,9 @@ class Settings(
     DocumentConversionSettings,
     OpenAPIValidationSettings,
     RouterDiscoverySettings,
+    DatabaseSettings,
+    ServerSettings,
+    LoggingSettings,
 ):
     """Application-wide settings.
 

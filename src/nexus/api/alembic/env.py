@@ -11,7 +11,7 @@ from sqlmodel import SQLModel
 
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
-from nexus.api.db.session import DATABASE_URL
+from nexus.core.config import get_settings
 from nexus.core.models import User
 from nexus.tool_manager.models.rate_limit_config import RateLimit
 from nexus.tool_manager.models.tool import Tool, ToolParameter
@@ -53,8 +53,8 @@ if config.config_file_name is not None:
 # Set target metadata from models
 target_metadata = SQLModel.metadata
 
-# Use the same DATABASE_URL from the application's session module unless overridden.
-config.set_main_option("sqlalchemy.url", config.get_main_option("sqlalchemy.url") or DATABASE_URL)
+# Use the same database URL from centralized settings unless overridden.
+config.set_main_option("sqlalchemy.url", config.get_main_option("sqlalchemy.url") or get_settings().database_url)
 
 
 def run_migrations_offline() -> None:

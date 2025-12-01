@@ -94,7 +94,7 @@ services:
       - NEXUS_DB_NAME=${NEXUS_DB_NAME:-nexus_api}
       - NEXUS_TEMPORAL_ADDRESS=temporal:7233
       - NEXUS_TEMPORAL_NAMESPACE=default
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
     volumes:
       - ./src:/opt/app-root/src/src:z
     depends_on:
@@ -118,7 +118,7 @@ services:
       - NEXUS_TEMPORAL_ADDRESS=temporal:7233
       - NEXUS_TEMPORAL_NAMESPACE=default
       - NEXUS_TASK_QUEUE=nexus-workflow-queue
-      - LOG_LEVEL=INFO
+      - NEXUS_LOG_LEVEL=INFO
     volumes:
       - ./src:/opt/app-root/src/src:z
     depends_on:
@@ -141,7 +141,7 @@ services:
     ports:
       - ${MCP_PORT:-8765}:8765
     environment:
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
       - MCP_HOST=0.0.0.0
       - MCP_PORT=8765
     healthcheck:

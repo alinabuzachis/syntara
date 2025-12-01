@@ -8,25 +8,25 @@ Usage:
     python -m nexus.workflows.worker
 
 Environment Variables:
-    TEMPORAL_ADDRESS: Temporal server address (default: localhost:7233)
-    TEMPORAL_NAMESPACE: Temporal namespace (default: default)
-    TEMPORAL_TASK_QUEUE: Task queue name (default: nexus-workflows)
-    LOG_LEVEL: Logging level (default: INFO)
+    NEXUS_TEMPORAL_ADDRESS: Temporal server address (default: localhost:7233)
+    NEXUS_TEMPORAL_NAMESPACE: Temporal namespace (default: default)
+    NEXUS_TASK_QUEUE: Task queue name (default: nexus-workflow-queue)
+    NEXUS_LOG_LEVEL: Logging level (default: INFO)
 
 """
 
 import asyncio
 import logging
-import os
 import signal
 import sys
 
+from nexus.core.config import get_settings
 from nexus.workflows.workflow_engine.services.temporal_worker import start_worker, stop_worker
 
-# Configure logging
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+# Configure logging using centralized settings
+_settings = get_settings()
 logging.basicConfig(
-    level=LOG_LEVEL,
+    level=_settings.log_level.upper(),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     stream=sys.stdout,
 )
