@@ -5,7 +5,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.auth import get_current_user
 from nexus.api.db import get_db
@@ -71,7 +71,7 @@ async def list_tools(
             include_total=params.include_total,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e)) from e
     except Exception as e:
         logger.exception("Unexpected error listing tools", exc_info=e)
         raise HTTPException(

@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
@@ -175,8 +175,8 @@ class TestFetchActivityDefinitionsMap:
         workflow_version.workflow_definition = workflow_def
 
         mock_result = Mock()
-        mock_result.scalar_one_or_none = Mock(return_value=workflow_version)
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_result.one_or_none = Mock(return_value=workflow_version)
+        mock_session.exec = AsyncMock(return_value=mock_result)
 
         # Execute
         result = await service.fetch_activity_definitions_map(version_id)
@@ -198,8 +198,8 @@ class TestFetchActivityDefinitionsMap:
 
         # Mock workflow version not found
         mock_result = Mock()
-        mock_result.scalar_one_or_none = Mock(return_value=None)
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_result.one_or_none = Mock(return_value=None)
+        mock_session.exec = AsyncMock(return_value=mock_result)
 
         # Execute
         result = await service.fetch_activity_definitions_map(version_id)
@@ -223,8 +223,8 @@ class TestFetchActivityDefinitionsMap:
         workflow_version.workflow_definition = workflow_def
 
         mock_result = Mock()
-        mock_result.scalar_one_or_none = Mock(return_value=workflow_version)
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_result.one_or_none = Mock(return_value=workflow_version)
+        mock_session.exec = AsyncMock(return_value=mock_result)
 
         # Execute
         result = await service.fetch_activity_definitions_map(version_id)
@@ -248,11 +248,11 @@ class TestGetExecutionActivities:
         execution = Mock(spec=Execution)
         execution.id = execution_id
 
-        # Mock get_execution
+        # Mock get_execution (first exec call)
         mock_exec_result = Mock()
-        mock_exec_result.scalar_one = Mock(return_value=execution)
+        mock_exec_result.one_or_none = Mock(return_value=execution)
 
-        # Mock existing activities query
+        # Mock existing activities query (second exec call)
         existing_activities = [
             ActivityExecution(
                 id=uuid4(),
@@ -271,10 +271,10 @@ class TestGetExecutionActivities:
         ]
 
         mock_activities_result = Mock()
-        mock_activities_result.scalars = Mock(return_value=Mock(all=Mock(return_value=existing_activities)))
+        mock_activities_result.all = Mock(return_value=existing_activities)
 
-        # Setup execute to return different results based on call order
-        mock_session.execute = AsyncMock(side_effect=[mock_exec_result, mock_activities_result])
+        # Setup exec to return different results based on call order
+        mock_session.exec = AsyncMock(side_effect=[mock_exec_result, mock_activities_result])
 
         # Execute
         result = await service.get_execution_activities(execution_id)
@@ -296,15 +296,15 @@ class TestGetExecutionActivities:
         execution = Mock(spec=Execution)
         execution.id = execution_id
 
-        # Mock get_execution
+        # Mock get_execution (first exec call)
         mock_exec_result = Mock()
-        mock_exec_result.scalar_one = Mock(return_value=execution)
+        mock_exec_result.one_or_none = Mock(return_value=execution)
 
-        # Mock empty activities query
+        # Mock empty activities query (second exec call)
         mock_activities_result = Mock()
-        mock_activities_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[])))
+        mock_activities_result.all = Mock(return_value=[])
 
-        mock_session.execute = AsyncMock(side_effect=[mock_exec_result, mock_activities_result])
+        mock_session.exec = AsyncMock(side_effect=[mock_exec_result, mock_activities_result])
 
         # Execute
         result = await service.get_execution_activities(execution_id)

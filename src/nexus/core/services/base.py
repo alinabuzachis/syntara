@@ -10,8 +10,9 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import TypeAdapter, ValidationError
-from sqlalchemy import Select, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import Select, func
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.core.models import User
@@ -428,8 +429,8 @@ class BaseService:
                 | ((model.created_at == first_item.created_at) & (model.id < first_item.id))
             )
 
-        check_result = await self.session.execute(check_query.limit(1))
-        return check_result.scalar_one_or_none() is not None
+        check_result = await self.session.exec(check_query.limit(1))  # type: ignore[arg-type]
+        return check_result.one_or_none() is not None
 
     async def _get_total_count(
         self,
@@ -482,8 +483,8 @@ class BaseService:
                 for key in existence_filters:
                     count_query = count_query.filter(model.labels.has_key(key))  # type: ignore[attr-defined]
 
-        total_result = await self.session.execute(count_query)
-        return total_result.scalar() or 0
+        total_result = await self.session.exec(count_query)
+        return total_result.one() or 0
 
     def _validate_query_params(
         self,
@@ -647,8 +648,8 @@ class BaseService:
         query = self.enrich_query_mixin.enrich(query)
 
         # Execute query
-        result = await self.session.execute(query)
-        resources_list = list(result.scalars().all())
+        result = await self.session.exec(query)  # type: ignore[arg-type]
+        resources_list = list(result.all())
 
         # Reverse results if backward pagination requires it
         if needs_reverse:
@@ -667,7 +668,7 @@ class BaseService:
         is_first_page = False
         if is_backward_pagination and len(resources) > 0:
             # Check if any items exist before the first item in our results
-            has_items_before = await self._check_has_items_before(
+            has_items_before = await self._check_has_items_before(  # type: ignore[type-var]
                 first_item=resources[0],
                 query_params=query_params,
                 filters=filters,
@@ -680,7 +681,7 @@ class BaseService:
         # Generate pagination response using N+1 pattern
         # The generate_response function will trim items and detect edges
         pagination_metadata = generate_response(
-            items=resources,
+            items=resources,  # type: ignore[arg-type]
             limit=limit,
             cursor=cursor,
             include_total=include_total,

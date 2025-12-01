@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import BackgroundTasks, UploadFile
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata, create_file_manager
 from nexus.agent_orchestrator.context_manager.file_manager import utils as file_utils

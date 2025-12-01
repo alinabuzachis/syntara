@@ -10,9 +10,10 @@ from datetime import UTC, datetime
 from typing import Any, NoReturn
 from uuid import UUID
 
-from sqlalchemy import Select, select, text
+from sqlalchemy import Select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.core.models import User
@@ -174,8 +175,8 @@ class ToolProviderService(BaseService):
         """
         # Clear existing parameters for this tool
         existing_params_query = select(ToolParameter).filter(ToolParameter.tool_id == tool.id)  # type: ignore[arg-type]
-        existing_params_result = await self.session.execute(existing_params_query)
-        existing_params = existing_params_result.scalars().all()
+        existing_params_result = await self.session.exec(existing_params_query)
+        existing_params = existing_params_result.all()
 
         for param in existing_params:
             await self.session.delete(param)
@@ -359,8 +360,8 @@ class ToolProviderService(BaseService):
         """
         query = select(ToolProvider).filter(ToolProvider.id == provider_id, ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
 
-        result = await self.session.execute(query)
-        provider = result.scalar_one_or_none()
+        result = await self.session.exec(query)
+        provider = result.one_or_none()
 
         if not provider:
             msg = f"Provider {provider_id} not found"
@@ -388,8 +389,8 @@ class ToolProviderService(BaseService):
         """
         query = select(ToolProvider).filter(ToolProvider.id == provider_id, ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
 
-        result = await self.session.execute(query)
-        provider = result.scalar_one_or_none()
+        result = await self.session.exec(query)
+        provider = result.one_or_none()
 
         if not provider:
             msg = f"Provider {provider_id} not found"
@@ -430,8 +431,8 @@ class ToolProviderService(BaseService):
         """
         query = select(ToolProvider).filter(ToolProvider.id == provider_id, ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
 
-        result = await self.session.execute(query)
-        provider = result.scalar_one_or_none()
+        result = await self.session.exec(query)
+        provider = result.one_or_none()
 
         if not provider:
             msg = f"Provider {provider_id} not found"
@@ -477,8 +478,8 @@ class ToolProviderService(BaseService):
         """
         query = select(ToolProvider).filter(ToolProvider.id == provider_id, ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
 
-        result = await self.session.execute(query)
-        provider = result.scalar_one_or_none()
+        result = await self.session.exec(query)
+        provider = result.one_or_none()
 
         if not provider:
             msg = f"Provider {provider_id} not found"
@@ -490,8 +491,8 @@ class ToolProviderService(BaseService):
 
         # Soft delete associated tools
         tools_query = select(Tool).filter(Tool.provider_id == provider_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
-        tools_result = await self.session.execute(tools_query)
-        tools = tools_result.scalars().all()
+        tools_result = await self.session.exec(tools_query)
+        tools = tools_result.all()
 
         for tool in tools:
             tool.deleted_at = datetime.now(UTC)
@@ -512,8 +513,8 @@ class ToolProviderService(BaseService):
         """
         query = select(ToolProvider).filter(ToolProvider.id == provider_id, ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
 
-        result = await self.session.execute(query)
-        provider = result.scalar_one_or_none()
+        result = await self.session.exec(query)
+        provider = result.one_or_none()
 
         if not provider:
             msg = f"Provider {provider_id} not found"
@@ -632,8 +633,8 @@ class ToolProviderService(BaseService):
 
             # Get existing tools for this provider
             existing_tools_query = select(Tool).filter(Tool.provider_id == provider_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
-            existing_tools_result = await self.session.execute(existing_tools_query)
-            existing_tools = {tool.name: tool for tool in existing_tools_result.scalars().all()}
+            existing_tools_result = await self.session.exec(existing_tools_query)
+            existing_tools = {tool.name: tool for tool in existing_tools_result.all()}
 
             # Track which tools were found during refresh
             found_tool_names = set()

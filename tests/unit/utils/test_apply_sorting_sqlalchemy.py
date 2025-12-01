@@ -9,6 +9,7 @@ Alembic migrations with DateTime(timezone=True) to create TIMESTAMPTZ columns an
 stores timezone-aware UTC datetimes. See BaseResource in core/models/base.py.
 """
 # ruff: noqa: DTZ001
+# mypy: disable-error-code="arg-type,attr-defined"
 
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -17,8 +18,9 @@ from unittest.mock import Mock
 import pytest
 import pytest_asyncio
 import sqlalchemy
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import Field, SQLModel, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.utils.cursor import SortDirection
 from nexus.core.utils.sorting import apply_sorting
@@ -63,7 +65,7 @@ class TestApplySortingSQLAlchemy:
             await conn.run_sync(SQLModel.metadata.create_all)
 
         # Clear existing data from this test's tables
-        await test_db_session.execute(sqlalchemy.delete(UserModel))
+        await test_db_session.exec(sqlalchemy.delete(UserModel))
         await test_db_session.commit()
 
         # Add test data with various field values for sorting
@@ -135,7 +137,7 @@ class TestApplySortingSQLAlchemy:
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
 
         # Should be able to execute without changes
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
         assert len(result) == 5
 
     async def test_apply_sorting_single_field_ascending(self, session: AsyncSession) -> None:
@@ -144,7 +146,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [("username", SortDirection.ASC)]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should be sorted by username ascending: alice, bob, charlie, diana, eve
         assert len(result) == 5
@@ -157,7 +159,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [("age", SortDirection.DESC)]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should be sorted by age descending: 35, 30, 28, 25, 22
         assert len(result) == 5
@@ -173,7 +175,7 @@ class TestApplySortingSQLAlchemy:
         ]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should be sorted by is_active DESC, then age ASC
         # Active users (True): alice(25), diana(28), bob(30)
@@ -189,7 +191,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [("created_at", SortDirection.DESC)]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should be sorted by created_at descending (newest first)
         assert len(result) == 5
@@ -202,7 +204,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [("priority", SortDirection.ASC)]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should be sorted by priority ascending: 1, 2, 3, 4, 5
         assert len(result) == 5
@@ -217,7 +219,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [("age", SortDirection.DESC)]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should filter active users and sort by age descending
         assert len(result) == 3
@@ -230,7 +232,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [("username", SortDirection.DESC)]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should be limited to 3 results, sorted by username descending
         assert len(result) == 3
@@ -247,7 +249,7 @@ class TestApplySortingSQLAlchemy:
         ]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should be sorted by: is_active ASC, priority DESC, username ASC
         # Inactive users (False): eve(priority=2), charlie(priority=1)
@@ -283,28 +285,28 @@ class TestApplySortingSQLAlchemy:
         # Test ASC + ASC
         sort_tuples = [("priority", SortDirection.ASC), ("username", SortDirection.ASC)]
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
         assert usernames == ["charlie", "eve", "bob", "diana", "alice"]
 
         # Test DESC + ASC
         sort_tuples = [("priority", SortDirection.DESC), ("username", SortDirection.ASC)]
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
         assert usernames == ["alice", "diana", "bob", "eve", "charlie"]
 
         # Test ASC + DESC
         sort_tuples = [("priority", SortDirection.ASC), ("username", SortDirection.DESC)]
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
         assert usernames == ["charlie", "eve", "bob", "diana", "alice"]
 
         # Test DESC + DESC
         sort_tuples = [("priority", SortDirection.DESC), ("username", SortDirection.DESC)]
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
         assert usernames == ["alice", "diana", "bob", "eve", "charlie"]
 
@@ -344,7 +346,7 @@ class TestApplySortingSQLAlchemy:
         ]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should execute successfully with multiple sorts
         assert len(result) == 5
@@ -358,7 +360,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [("full_name", SortDirection.ASC)]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should be sorted by full_name ascending
         assert len(result) == 5
@@ -371,7 +373,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [("is_active", SortDirection.ASC)]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should be sorted by is_active ascending (False < True)
         assert len(result) == 5
@@ -386,7 +388,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [("id", SortDirection.DESC)]
 
         sorted_query = apply_sorting(query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should be sorted by id descending
         assert len(result) == 5
@@ -400,7 +402,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [("created_at", SortDirection.DESC)]
 
         sorted_query = apply_sorting(base_query, sort_tuples, UserModel)
-        result = (await session.execute(sorted_query)).scalars().all()
+        result = (await session.exec(sorted_query)).all()
 
         # Should filter users >= 25 years and sort by created_at DESC
         assert len(result) == 4  # alice(25), bob(30), diana(28), eve(35)

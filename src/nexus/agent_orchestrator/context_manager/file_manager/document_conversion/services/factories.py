@@ -6,7 +6,7 @@ services with proper dependency injection.
 
 from collections.abc import AsyncGenerator, Callable
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.context_manager.file_manager import create_file_manager
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services.document_conversion_service import (  # noqa: E501

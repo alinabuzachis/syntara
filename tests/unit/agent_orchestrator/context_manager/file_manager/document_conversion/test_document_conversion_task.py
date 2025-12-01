@@ -5,7 +5,7 @@ with invocation integration and FileMetadata status management.
 """
 
 from typing import Any, cast
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -80,6 +80,7 @@ class TestDocumentConversionTaskUpdateMetadata:
         ):
             # Mock session context manager
             mock_session = AsyncMock()
+            mock_session.add = Mock()  # session.add() is synchronous
             mock_session_context.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_context.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -143,6 +144,7 @@ class TestDocumentConversionTaskUpdateMetadata:
         ):
             # Mock session context manager
             mock_session = AsyncMock()
+            mock_session.add = Mock()  # session.add() is synchronous
             mock_session_context.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_context.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -183,6 +185,7 @@ class TestDocumentConversionTaskUpdateMetadata:
         ):
             # Mock session context manager
             mock_session = AsyncMock()
+            mock_session.add = Mock()  # session.add() is synchronous
             mock_session_context.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_context.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -219,6 +222,7 @@ class TestDocumentConversionTaskUpdateMetadata:
         ):
             # Mock session context manager
             mock_session = AsyncMock()
+            mock_session.add = Mock()  # session.add() is synchronous
             mock_session_context.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_context.return_value.__aexit__ = AsyncMock(return_value=None)
 

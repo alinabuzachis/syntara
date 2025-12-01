@@ -248,7 +248,7 @@ async def test_tool_parameter_relationship(
     await test_db_session.refresh(tool)
 
     # sqlalchemy supports lazy-load by default
-    result = await test_db_session.scalars(
+    result = await test_db_session.exec(
         select(Tool)
         .options(selectinload(Tool.parameters))  # type: ignore[arg-type]
         .where(Tool.id == tool.id)
@@ -297,7 +297,7 @@ async def test_tool_cascade_delete_parameters(test_db_session: AsyncSession, tes
     await test_db_session.commit()
 
     # Verify parameters exist
-    params_result = await test_db_session.scalars(select(ToolParameter).where(ToolParameter.tool_id == test_tool.id))
+    params_result = await test_db_session.exec(select(ToolParameter).where(ToolParameter.tool_id == test_tool.id))
     params = params_result.all()
     assert len(params) == 2
 
@@ -306,9 +306,7 @@ async def test_tool_cascade_delete_parameters(test_db_session: AsyncSession, tes
     await test_db_session.commit()
 
     # Verify parameters are cascade deleted
-    params_after_delete = await test_db_session.scalars(
-        select(ToolParameter).where(ToolParameter.tool_id == test_tool.id)
-    )
+    params_after_delete = await test_db_session.exec(select(ToolParameter).where(ToolParameter.tool_id == test_tool.id))
     assert len(params_after_delete.all()) == 0
 
 

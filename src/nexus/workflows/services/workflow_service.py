@@ -10,8 +10,8 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.validators import WorkflowDefinitionValidator
 from nexus.core.models import User
@@ -187,13 +187,13 @@ class WorkflowService(BaseService):
             WorkflowNotFoundError: If workflow not found or deleted
 
         """
-        result = await self.session.execute(
+        result = await self.session.exec(
             select(Workflow).filter(
                 Workflow.id == workflow_id,  # type: ignore[arg-type]
                 Workflow.deleted_at.is_(None),  # type: ignore[union-attr]
             )
         )
-        workflow = result.scalar_one_or_none()
+        workflow = result.one_or_none()
 
         if not workflow:
             raise WorkflowNotFoundError(workflow_id)
@@ -218,14 +218,14 @@ class WorkflowService(BaseService):
         workflow = await self.get_workflow_by_id(workflow_id)
 
         # Get current version
-        version_result = await self.session.execute(
+        version_result = await self.session.exec(
             select(WorkflowVersion).filter(
                 WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
                 WorkflowVersion.version == workflow.current_version,  # type: ignore[arg-type]
                 WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
             )
         )
-        current_version = version_result.scalar_one_or_none()
+        current_version = version_result.one_or_none()
 
         if not current_version:
             raise WorkflowVersionNotFoundError(workflow_id, workflow.current_version)
@@ -304,14 +304,14 @@ class WorkflowService(BaseService):
         _, schema_version, workflow_dict = WorkflowDefinitionValidator.validate(workflow_definition)
 
         # Fetch current version to compare definitions
-        current_version_result = await self.session.execute(
+        current_version_result = await self.session.exec(
             select(WorkflowVersion).filter(
                 WorkflowVersion.workflow_id == workflow.id,  # type: ignore[arg-type]
                 WorkflowVersion.version == workflow.current_version,  # type: ignore[arg-type]
                 WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
             )
         )
-        current_version = current_version_result.scalar_one_or_none()
+        current_version = current_version_result.one_or_none()
 
         # Compare workflow definitions (change detection - dict comparison)
         if current_version and current_version.workflow_definition == workflow_dict:
@@ -319,12 +319,12 @@ class WorkflowService(BaseService):
             return None
 
         # Get next version number
-        count_result = await self.session.execute(
+        count_result = await self.session.exec(
             select(func.max(WorkflowVersion.version)).filter(
                 WorkflowVersion.workflow_id == workflow.id  # type: ignore[arg-type]
             )
         )
-        max_version = count_result.scalar()
+        max_version = count_result.one()
         next_version = (max_version or 0) + 1
 
         # Create new version

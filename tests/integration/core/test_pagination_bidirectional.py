@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.core.utils.cursor import decode_cursor

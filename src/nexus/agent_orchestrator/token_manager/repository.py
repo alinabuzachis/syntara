@@ -9,7 +9,8 @@ This module provides TokenUsageRepository for database operations:
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.token_manager.exceptions import UserTokenConfigNotFoundError
@@ -41,14 +42,14 @@ class TokenUsageRepository:
             UserTokenConfigNotFoundError: If no configuration exists for the user
 
         """
-        statement = select(UserTokenConfig).where(UserTokenConfig.user_id == user_id)  # type: ignore[arg-type]
-        result = await session.execute(statement)
-        config = result.scalar_one_or_none()
+        statement = select(UserTokenConfig).where(UserTokenConfig.user_id == user_id)
+        result = await session.exec(statement)
+        config = result.one_or_none()
 
         if config is None:
             raise UserTokenConfigNotFoundError(user_id)
 
-        return config  # type: ignore[no-any-return]
+        return config
 
     async def get_user_config_with_lock(self, user_id: UUID, session: AsyncSession) -> UserTokenConfig:
         """Get token configuration for a user with row-level lock.
@@ -69,14 +70,14 @@ class TokenUsageRepository:
             UserTokenConfigNotFoundError: If no configuration exists for the user
 
         """
-        statement = select(UserTokenConfig).where(UserTokenConfig.user_id == user_id).with_for_update()  # type: ignore[arg-type]
-        result = await session.execute(statement)
-        config = result.scalar_one_or_none()
+        statement = select(UserTokenConfig).where(UserTokenConfig.user_id == user_id).with_for_update()
+        result = await session.exec(statement)
+        config = result.one_or_none()
 
         if config is None:
             raise UserTokenConfigNotFoundError(user_id)
 
-        return config  # type: ignore[no-any-return]
+        return config
 
     async def calculate_current_usage(
         self,
@@ -104,12 +105,12 @@ class TokenUsageRepository:
         # Query for sum of token_count within the window
         statement = (
             select(func.coalesce(func.sum(TokenUsageRecord.token_count), 0))
-            .where(TokenUsageRecord.user_id == user_id)  # type: ignore[arg-type]
-            .where(TokenUsageRecord.request_timestamp >= cutoff_time)  # type: ignore[arg-type]
+            .where(TokenUsageRecord.user_id == user_id)
+            .where(TokenUsageRecord.request_timestamp >= cutoff_time)
         )
 
-        result = await session.execute(statement)
-        total = result.scalar_one()
+        result = await session.exec(statement)
+        total = result.one()
 
         return int(total)
 
@@ -166,9 +167,9 @@ class TokenUsageRepository:
 
         """
         # Try to get existing config
-        statement = select(UserTokenConfig).where(UserTokenConfig.user_id == user_id)  # type: ignore[arg-type]
-        result = await session.execute(statement)
-        config = result.scalar_one_or_none()
+        statement = select(UserTokenConfig).where(UserTokenConfig.user_id == user_id)
+        result = await session.exec(statement)
+        config = result.one_or_none()
 
         if config is None:
             # Create new config

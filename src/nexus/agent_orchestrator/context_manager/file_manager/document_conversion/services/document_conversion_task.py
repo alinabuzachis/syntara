@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.services.types import ConversionState

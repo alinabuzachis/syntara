@@ -49,8 +49,8 @@ async def cleanup_old_usage_records(
     # Delete records older than cutoff
     stmt = delete(TokenUsageRecord).where(TokenUsageRecord.request_timestamp < cutoff_timestamp)  # type: ignore[arg-type]
 
-    result = await session.execute(stmt)
-    deleted_count = result.rowcount or 0  # type: ignore[attr-defined]
+    result = await session.exec(stmt)
+    deleted_count = result.rowcount or 0
 
     logger.info(
         "Token usage cleanup completed",

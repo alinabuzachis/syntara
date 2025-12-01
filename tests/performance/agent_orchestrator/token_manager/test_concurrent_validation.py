@@ -167,8 +167,8 @@ class TestConcurrentRequestPerformance:
 
             # Verify data consistency (no race conditions)
             stmt = select(TokenUsageRecord).where(TokenUsageRecord.user_id == user.id)
-            db_result = await test_db_session.execute(stmt)
-            usage_records = db_result.scalars().all()
+            db_result = await test_db_session.exec(stmt)
+            usage_records = db_result.all()
             total_tokens = sum(record.token_count for record in usage_records)
             logger.info("  Total tokens recorded: %d (from %d records)", total_tokens, len(usage_records))
 
@@ -402,8 +402,8 @@ class TestConcurrentRequestPerformance:
 
         # Get final usage
         stmt = select(TokenUsageRecord).where(TokenUsageRecord.user_id == user.id)
-        result = await test_db_session.execute(stmt)
-        usage_records = result.scalars().all()
+        result = await test_db_session.exec(stmt)
+        usage_records = result.all()
         final_usage = sum(record.token_count for record in usage_records)
 
         logger.info("  Final usage: %d tokens (limit: 5000)", final_usage)

@@ -4,8 +4,8 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.workflows.models import Execution, Workflow, WorkflowVersion
@@ -39,13 +39,13 @@ async def create_executions(
 
     """
     # Get the workflow version ID by querying WorkflowVersion
-    result = await session.execute(
+    result = await session.exec(
         select(WorkflowVersion.id).where(
             WorkflowVersion.workflow_id == workflow.id,
             WorkflowVersion.version == workflow.current_version,
         )
     )
-    version_id = result.scalar_one()
+    version_id = result.one()
 
     executions = [
         Execution(

@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.api.enums.v1 import EventType
 
 from nexus.core.models import User
@@ -171,7 +171,7 @@ class TestCreateExecution:
         # Mock database query
         mock_result = Mock()
         mock_result.first = Mock(return_value=(workflow, workflow_version))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.exec = AsyncMock(return_value=mock_result)
         mock_session.add = Mock()
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
@@ -238,7 +238,7 @@ class TestCreateExecution:
         # Mock database query
         mock_result = Mock()
         mock_result.first = Mock(return_value=(workflow, workflow_version))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.exec = AsyncMock(return_value=mock_result)
         mock_session.add = Mock()
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
@@ -265,7 +265,7 @@ class TestCreateExecution:
         # Mock empty result
         mock_result = Mock()
         mock_result.first = Mock(return_value=None)
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.exec = AsyncMock(return_value=mock_result)
 
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user)
@@ -297,7 +297,7 @@ class TestCreateExecution:
 
         mock_result = Mock()
         mock_result.first = Mock(return_value=(workflow, workflow_version))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.exec = AsyncMock(return_value=mock_result)
 
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user)
@@ -324,8 +324,8 @@ class TestGetExecution:
         execution.id = execution_id
 
         mock_result = Mock()
-        mock_result.scalar_one_or_none = Mock(return_value=execution)
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_result.one_or_none = Mock(return_value=execution)
+        mock_session.exec = AsyncMock(return_value=mock_result)
 
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
@@ -333,7 +333,7 @@ class TestGetExecution:
         result = await service.get_execution(execution_id)
 
         assert result is execution
-        mock_session.execute.assert_awaited_once()
+        mock_session.exec.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_get_execution_success_with_temporal_sync(self) -> None:
@@ -349,8 +349,8 @@ class TestGetExecution:
         execution.temporal_workflow_id = "exec-123"
 
         mock_result = Mock()
-        mock_result.scalar_one_or_none = Mock(return_value=execution)
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_result.one_or_none = Mock(return_value=execution)
+        mock_session.exec = AsyncMock(return_value=mock_result)
 
         # Mock Temporal service
         mock_temporal = Mock()
@@ -375,8 +375,8 @@ class TestGetExecution:
         mock_session = Mock(spec=AsyncSession)
 
         mock_result = Mock()
-        mock_result.scalar_one_or_none = Mock(return_value=None)
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_result.one_or_none = Mock(return_value=None)
+        mock_session.exec = AsyncMock(return_value=mock_result)
 
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user)
@@ -413,23 +413,15 @@ class TestListExecutions(TestExecutionServiceBase):
             created_at=datetime(2025, 1, 1, 11, 0, 0, tzinfo=UTC),
         )
 
-        # Mock database result for main query
+        # Mock database result for main query (exec)
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = [exec1, exec2]
+        mock_main_result.all.return_value = [exec1, exec2]
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
 
-        # Mock database result for count query (if needed)
+        # Mock database result for count query (execute)
         mock_count_result = Mock()
         mock_count_result.scalar.return_value = None
-
-        # Set up session.execute to return different results based on query
-        def mock_execute(query: object) -> Mock:
-            # Check if it's a count query or main query based on the query structure
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         service = ExecutionService(session=mock_session, user=mock_user)
         result = await service.list_executions(limit=10)
@@ -456,21 +448,15 @@ class TestListExecutions(TestExecutionServiceBase):
         exec1_id = uuid4()
         exec1 = self._create_test_execution(execution_id=exec1_id, workflow_id=workflow_id)
 
-        # Mock database result for main query
+        # Mock database result for main query (exec)
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = [exec1]
+        mock_main_result.all.return_value = [exec1]
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
 
-        # Mock database result for count query (if needed)
+        # Mock database result for count query (execute)
         mock_count_result = Mock()
         mock_count_result.scalar.return_value = None
-
-        def mock_execute(query: object) -> Mock:
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         service = ExecutionService(session=mock_session, user=mock_user)
         result = await service.list_executions(query_params_items=[("workflow_id", str(workflow_id))], limit=10)
@@ -489,21 +475,15 @@ class TestListExecutions(TestExecutionServiceBase):
         exec1_id = uuid4()
         exec1 = self._create_test_execution(execution_id=exec1_id, status=ExecutionStatus.RUNNING)
 
-        # Mock database result for main query
+        # Mock database result for main query (exec)
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = [exec1]
+        mock_main_result.all.return_value = [exec1]
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
 
-        # Mock database result for count query (if needed)
+        # Mock database result for count query (execute)
         mock_count_result = Mock()
         mock_count_result.scalar.return_value = None
-
-        def mock_execute(query: object) -> Mock:
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         service = ExecutionService(session=mock_session, user=mock_user)
         result = await service.list_executions(query_params_items=[("status", ExecutionStatus.RUNNING.value)], limit=10)
@@ -523,21 +503,15 @@ class TestListExecutions(TestExecutionServiceBase):
         exec1_id = uuid4()
         exec1 = self._create_test_execution(execution_id=exec1_id, created_by=user_id)
 
-        # Mock database result for main query
+        # Mock database result for main query (exec)
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = [exec1]
+        mock_main_result.all.return_value = [exec1]
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
 
-        # Mock database result for count query (if needed)
+        # Mock database result for count query (execute)
         mock_count_result = Mock()
         mock_count_result.scalar.return_value = None
-
-        def mock_execute(query: object) -> Mock:
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         service = ExecutionService(session=mock_session, user=mock_user)
         result = await service.list_executions(query_params_items=[("created_by", str(user_id))], limit=10)
@@ -556,21 +530,15 @@ class TestListExecutions(TestExecutionServiceBase):
         exec1_id = uuid4()
         exec1 = self._create_test_execution(execution_id=exec1_id, labels={"env": "prod"})
 
-        # Mock database result for main query
+        # Mock database result for main query (exec)
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = [exec1]
+        mock_main_result.all.return_value = [exec1]
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
 
-        # Mock database result for count query (if needed)
+        # Mock database result for count query (execute)
         mock_count_result = Mock()
         mock_count_result.scalar.return_value = None
-
-        def mock_execute(query: object) -> Mock:
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         service = ExecutionService(session=mock_session, user=mock_user)
         # Using cast to avoid mypy issues with dynamic keyword arguments
@@ -591,21 +559,15 @@ class TestListExecutions(TestExecutionServiceBase):
         exec1_id = uuid4()
         exec1 = self._create_test_execution(execution_id=exec1_id, workflow_id=workflow_id, created_by=user_id)
 
-        # Mock database result for main query
+        # Mock database result for main query (exec)
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = [exec1]
+        mock_main_result.all.return_value = [exec1]
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
 
-        # Mock database result for count query (if needed)
+        # Mock database result for count query (execute)
         mock_count_result = Mock()
         mock_count_result.scalar.return_value = None
-
-        def mock_execute(query: object) -> Mock:
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         service = ExecutionService(session=mock_session, user=mock_user)
         result = await service.list_executions(
@@ -630,21 +592,15 @@ class TestListExecutions(TestExecutionServiceBase):
             execution_id=exec_id, created_at=datetime.fromisoformat("2025-01-01T10:00:00+00:00").replace(tzinfo=UTC)
         )
 
-        # Mock database result for main query
+        # Mock database result for main query (exec)
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = [exec1]
+        mock_main_result.all.return_value = [exec1]
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
 
-        # Mock database result for count query (if needed)
+        # Mock database result for count query (execute)
         mock_count_result = Mock()
         mock_count_result.scalar.return_value = None
-
-        def mock_execute(query: object) -> Mock:
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         service = ExecutionService(session=mock_session, user=mock_user)
         result = await service.list_executions(limit=5, sort="-created_at")
@@ -663,21 +619,16 @@ class TestListExecutions(TestExecutionServiceBase):
         exec1_id = uuid4()
         exec1 = self._create_test_execution(execution_id=exec1_id)
 
-        # Mock database result for main query
+        # Mock database result for main query (exec)
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = [exec1]
+        mock_main_result.all.return_value = [exec1]
 
-        # Mock database result for count query
+        # Mock database result for count query (exec)
         mock_count_result = Mock()
-        mock_count_result.scalar.return_value = 42
+        mock_count_result.one.return_value = 42
 
-        def mock_execute(query: object) -> Mock:
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        # Setup exec to return different results based on call order
+        mock_session.exec = AsyncMock(side_effect=[mock_main_result, mock_count_result])
 
         service = ExecutionService(session=mock_session, user=mock_user)
         result = await service.list_executions(include_total=True)
@@ -696,21 +647,15 @@ class TestListExecutions(TestExecutionServiceBase):
         exec1_id = uuid4()
         exec1 = self._create_test_execution(execution_id=exec1_id, labels={"env": "prod"})
 
-        # Mock database result for main query
+        # Mock database result for main query (exec)
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = [exec1]
+        mock_main_result.all.return_value = [exec1]
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
 
-        # Mock database result for count query (if needed)
+        # Mock database result for count query (execute)
         mock_count_result = Mock()
         mock_count_result.scalar.return_value = None
-
-        def mock_execute(query: object) -> Mock:
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         service = ExecutionService(session=mock_session, user=mock_user)
         # Test with bracket notation label filter
@@ -726,21 +671,15 @@ class TestListExecutions(TestExecutionServiceBase):
         mock_session = Mock(spec=AsyncSession)
         mock_user = Mock(spec=User)
 
-        # Mock database result for main query (empty)
+        # Mock database result for main query (exec) - empty
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = []
+        mock_main_result.all.return_value = []
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
 
-        # Mock database result for count query (if needed)
+        # Mock database result for count query (execute)
         mock_count_result = Mock()
         mock_count_result.scalar.return_value = None
-
-        def mock_execute(query: object) -> Mock:
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         service = ExecutionService(session=mock_session, user=mock_user)
         result = await service.list_executions(limit=10)
@@ -758,21 +697,15 @@ class TestListExecutions(TestExecutionServiceBase):
         exec1_id = uuid4()
         exec1 = self._create_test_execution(execution_id=exec1_id)
 
-        # Mock database result for main query
+        # Mock database result for main query (exec)
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = [exec1]
+        mock_main_result.all.return_value = [exec1]
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
 
-        # Mock database result for count query (if needed)
+        # Mock database result for count query (execute)
         mock_count_result = Mock()
         mock_count_result.scalar.return_value = None
-
-        def mock_execute(query: object) -> Mock:
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         service = ExecutionService(session=mock_session, user=mock_user)
 
@@ -791,21 +724,15 @@ class TestListExecutions(TestExecutionServiceBase):
         exec1_id = uuid4()
         exec1 = self._create_test_execution(execution_id=exec1_id)
 
-        # Mock database result for main query
+        # Mock database result for main query (exec)
         mock_main_result = Mock()
-        mock_main_result.scalars.return_value.all.return_value = [exec1]
+        mock_main_result.all.return_value = [exec1]
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
 
-        # Mock database result for count query (if needed)
+        # Mock database result for count query (execute)
         mock_count_result = Mock()
         mock_count_result.scalar.return_value = None
-
-        def mock_execute(query: object) -> Mock:
-            query_str = str(query)
-            if "count(" in query_str.lower():
-                return mock_count_result
-            return mock_main_result
-
-        mock_session.execute = AsyncMock(side_effect=mock_execute)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         service = ExecutionService(session=mock_session, user=mock_user)
 
@@ -837,9 +764,15 @@ class TestListExecutionsWithTemporalSync(TestExecutionServiceBase):
             execution_id=exec2_id, status=ExecutionStatus.PENDING, temporal_workflow_id="exec-2"
         )
 
-        mock_result = Mock()
-        mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[exec1, exec2])))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        # Mock database result for main query (exec)
+        mock_main_result = Mock()
+        mock_main_result.all = Mock(return_value=[exec1, exec2])
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
+
+        # Mock database result for count query (execute)
+        mock_count_result = Mock()
+        mock_count_result.scalar = Mock(return_value=None)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         # Mock Temporal service
         mock_temporal = Mock()
@@ -876,9 +809,15 @@ class TestListExecutionsWithTemporalSync(TestExecutionServiceBase):
             execution_id=exec1_id, status=ExecutionStatus.COMPLETED, temporal_workflow_id="exec-1"
         )
 
-        mock_result = Mock()
-        mock_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[exec1])))
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        # Mock database result for main query (exec)
+        mock_main_result = Mock()
+        mock_main_result.all = Mock(return_value=[exec1])
+        mock_session.exec = AsyncMock(return_value=mock_main_result)
+
+        # Mock database result for count query (execute)
+        mock_count_result = Mock()
+        mock_count_result.scalar = Mock(return_value=None)
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
         mock_temporal = Mock()
         mock_temporal.get_workflow_status = AsyncMock()
@@ -908,16 +847,16 @@ class TestGetExecutionActivities:
         execution = Mock(spec=Execution)
         execution.id = execution_id
 
-        # Mock get_execution query
+        # Mock get_execution query (first exec call)
         mock_execution_result = Mock()
-        mock_execution_result.scalar_one_or_none = Mock(return_value=execution)
+        mock_execution_result.one_or_none = Mock(return_value=execution)
 
-        # Mock activities query
+        # Mock activities query (second exec call)
         mock_activities_result = Mock()
-        mock_activities_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[])))
+        mock_activities_result.all = Mock(return_value=[])
 
-        # Set up execute to return different results for each query
-        mock_session.execute = AsyncMock(side_effect=[mock_execution_result, mock_activities_result])
+        # Set up exec to return different results for each query
+        mock_session.exec = AsyncMock(side_effect=[mock_execution_result, mock_activities_result])
 
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
@@ -935,8 +874,8 @@ class TestGetExecutionActivities:
 
         # Mock execution not found
         mock_result = Mock()
-        mock_result.scalar_one_or_none = Mock(return_value=None)
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_result.one_or_none = Mock(return_value=None)
+        mock_session.exec = AsyncMock(return_value=mock_result)
 
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
@@ -967,18 +906,16 @@ class TestGetExecutionActivities:
             last_processed_event_id=0,  # For incremental sync
         )
 
-        # Mock database queries
+        # Mock database queries (all use exec)
         mock_execution_result = Mock()
-        mock_execution_result.scalar_one_or_none = Mock(return_value=execution)
+        mock_execution_result.one_or_none = Mock(return_value=execution)
         mock_activities_result = Mock()
-        mock_activities_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[])))
+        mock_activities_result.all = Mock(return_value=[])
         mock_version = Mock(spec=WorkflowVersion)
         mock_version.workflow_definition = {"workflow": {"activities": [{"id": "activity-1"}]}}
         mock_version_result = Mock()
-        mock_version_result.scalar_one_or_none = Mock(return_value=mock_version)
-        mock_session.execute = AsyncMock(
-            side_effect=[mock_execution_result, mock_activities_result, mock_version_result]
-        )
+        mock_version_result.one_or_none = Mock(return_value=mock_version)
+        mock_session.exec = AsyncMock(side_effect=[mock_execution_result, mock_activities_result, mock_version_result])
 
         # Mock Temporal
         mock_temporal = Mock()
@@ -1045,18 +982,16 @@ class TestGetExecutionActivities:
             last_processed_event_id=6,  # Incremental sync checkpoint
         )
 
-        # Mock database queries
+        # Mock database queries (all use exec)
         mock_execution_result = Mock()
-        mock_execution_result.scalar_one_or_none = Mock(return_value=execution)
+        mock_execution_result.one_or_none = Mock(return_value=execution)
         mock_activities_result = Mock()
-        mock_activities_result.scalars = Mock(return_value=Mock(all=Mock(return_value=[])))
+        mock_activities_result.all = Mock(return_value=[])
         mock_version = Mock(spec=WorkflowVersion)
         mock_version.workflow_definition = {"workflow": {"activities": [{"id": "activity-1"}, {"id": "activity-2"}]}}
         mock_version_result = Mock()
-        mock_version_result.scalar_one_or_none = Mock(return_value=mock_version)
-        mock_session.execute = AsyncMock(
-            side_effect=[mock_execution_result, mock_activities_result, mock_version_result]
-        )
+        mock_version_result.one_or_none = Mock(return_value=mock_version)
+        mock_session.exec = AsyncMock(side_effect=[mock_execution_result, mock_activities_result, mock_version_result])
 
         # Mock Temporal
         mock_temporal = Mock()

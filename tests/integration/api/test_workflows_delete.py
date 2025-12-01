@@ -6,8 +6,8 @@ Tests MUST FAIL before implementation (TDD approach).
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.workflows.models import Workflow
 from tests.helpers import create_minimal_workflow_definition
@@ -182,11 +182,11 @@ async def test_delete_workflow_is_soft_delete_not_hard(
     assert get_response.status_code == 404
 
     # Verify in database: Record still exists with deleted_at set
-    result = await test_db_session.execute(
+    result = await test_db_session.exec(
         select(Workflow).filter(Workflow.id == workflow_id)
         # NOTE: No deleted_at filter - we want to see the record even if soft-deleted
     )
-    db_workflow = result.scalar_one_or_none()
+    db_workflow = result.one_or_none()
 
     # Assert record exists (not hard-deleted)
     assert db_workflow is not None, "Workflow was hard-deleted instead of soft-deleted"

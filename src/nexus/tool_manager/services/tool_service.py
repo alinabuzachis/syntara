@@ -10,9 +10,10 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Select, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import Select
 from sqlalchemy.orm import selectinload
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.core.models import User
@@ -118,8 +119,8 @@ class ToolService(BaseService):
             select(Tool).options(selectinload(Tool.parameters)).filter(Tool.id == tool_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
         )
 
-        result = await self.session.execute(query)
-        tool = result.scalar_one_or_none()
+        result = await self.session.exec(query)
+        tool = result.one_or_none()
 
         if not tool:
             msg = f"Tool {tool_id} not found"
@@ -146,8 +147,8 @@ class ToolService(BaseService):
             select(Tool).options(selectinload(Tool.parameters)).filter(Tool.id == tool_id, Tool.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
         )
 
-        result = await self.session.execute(query)
-        tool = result.scalar_one_or_none()
+        result = await self.session.exec(query)
+        tool = result.one_or_none()
 
         if not tool:
             msg = f"Tool {tool_id} not found"
@@ -194,14 +195,14 @@ class ToolService(BaseService):
 
         # Query active/enabled tools
         active_query = select(Tool).filter(Tool.id.in_(unique_tool_ids), Tool.deleted_at.is_(None))  # type: ignore[union-attr,attr-defined]
-        active_result = await self.session.execute(active_query)
-        active_tools = active_result.scalars().all()
+        active_result = await self.session.exec(active_query)
+        active_tools = active_result.all()
         active_tool_ids = {tool.id for tool in active_tools}
 
         # Query soft-deleted tools
         deleted_query = select(Tool).filter(Tool.id.in_(unique_tool_ids), Tool.deleted_at.is_not(None))  # type: ignore[union-attr,attr-defined]
-        deleted_result = await self.session.execute(deleted_query)
-        deleted_tools = deleted_result.scalars().all()
+        deleted_result = await self.session.exec(deleted_query)
+        deleted_tools = deleted_result.all()
         deleted_tool_ids = {tool.id for tool in deleted_tools}
 
         # Identify tool_ids that don't exist at all

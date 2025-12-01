@@ -13,9 +13,9 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.workflows.models import Workflow, WorkflowVersion
@@ -166,13 +166,13 @@ async def test_workflow_version_multiple_versions_same_workflow(
     await test_db_session.commit()
 
     # Query all versions
-    result = await test_db_session.execute(
+    result = await test_db_session.exec(
         select(WorkflowVersion).filter(
             WorkflowVersion.workflow_id == test_workflow.id,  # type: ignore[arg-type]
             WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
         )
     )
-    versions = list(result.scalars().all())
+    versions = list(result.all())
 
     assert len(versions) == 4  # 1 from fixture + 3 created here
     assert {v.version for v in versions} == {1, 2, 3, 4}

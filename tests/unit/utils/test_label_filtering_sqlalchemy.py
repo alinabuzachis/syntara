@@ -9,6 +9,7 @@ Alembic migrations with DateTime(timezone=True) to create TIMESTAMPTZ columns an
 stores timezone-aware UTC datetimes. See BaseResource in core/models/base.py.
 """
 # ruff: noqa: DTZ001
+# mypy: disable-error-code="arg-type,attr-defined"
 
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -18,8 +19,9 @@ import pytest
 import pytest_asyncio
 import sqlalchemy
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import Field, SQLModel, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.utils.labels import apply_label_filters, parse_label_filter
 from tests.unit.utils.test_filter_parser_sqlalchemy import UserModel
@@ -62,7 +64,7 @@ class TestLabelFilteringSQLAlchemy:
             await conn.run_sync(SQLModel.metadata.create_all)
 
         # Clear existing data from this test's tables
-        await test_db_session.execute(sqlalchemy.delete(ResourceModel))
+        await test_db_session.exec(sqlalchemy.delete(ResourceModel))
         await test_db_session.commit()
 
         # Add test data with various label combinations
@@ -148,7 +150,7 @@ class TestLabelFilteringSQLAlchemy:
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
 
         # Should be able to execute without changes
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
         assert len(result) == 5
 
     async def test_apply_label_filters_single_label_match(self, session) -> None:
@@ -157,7 +159,7 @@ class TestLabelFilteringSQLAlchemy:
         label_filters = {"environment": "production"}
 
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match resources 1, 2, and 4 (production environment)
         assert len(result) == 3
@@ -170,7 +172,7 @@ class TestLabelFilteringSQLAlchemy:
         label_filters = {"environment": "production", "region": "us-east-1"}
 
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match resources 1 and 4 (production AND us-east-1)
         assert len(result) == 2
@@ -183,7 +185,7 @@ class TestLabelFilteringSQLAlchemy:
         label_filters = {"team": "platform", "service": "api"}
 
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match resources 1 and 3 (platform team AND api service)
         assert len(result) == 2
@@ -196,7 +198,7 @@ class TestLabelFilteringSQLAlchemy:
         label_filters = {"environment": "production", "team": "nonexistent"}
 
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match no resources
         assert len(result) == 0
@@ -207,7 +209,7 @@ class TestLabelFilteringSQLAlchemy:
         label_filters = {"experimental": "true"}
 
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match only the dev-sandbox resource
         assert len(result) == 1
@@ -219,7 +221,7 @@ class TestLabelFilteringSQLAlchemy:
         label_filters = {"version": "v1.2.0"}
 
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match only api-service with v1.2.0
         assert len(result) == 1
@@ -231,7 +233,7 @@ class TestLabelFilteringSQLAlchemy:
         label_filters = {"environment": "production"}
 
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should be ordered by name: api-service, data-processor, web-service
         assert len(result) == 3
@@ -244,7 +246,7 @@ class TestLabelFilteringSQLAlchemy:
         label_filters = {"environment": "production"}
 
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should be limited to 2 results
         assert len(result) == 2
@@ -266,7 +268,7 @@ class TestLabelFilteringSQLAlchemy:
         label_filters = {"environment": "Production"}  # Wrong case
 
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match no resources due to case sensitivity
         assert len(result) == 0
@@ -280,7 +282,7 @@ class TestLabelFilteringSQLAlchemy:
         # Apply to query
         query = select(ResourceModel)
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match api-service (production + platform team)
         assert len(result) == 1
@@ -294,7 +296,7 @@ class TestLabelFilteringSQLAlchemy:
         label_filters = {"environment": "production", "region": "us-east-1"}
 
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match api-service and data-processor (both active, production, us-east-1)
         assert len(result) == 2
@@ -343,7 +345,7 @@ class TestLabelFilteringSQLAlchemy:
         label_filters = {"label_0": "value_0", "label_10": "value_10"}
 
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match the complex-service
         assert len(result) == 1
@@ -356,7 +358,7 @@ class TestLabelFilteringSQLAlchemy:
 
         # Apply label filters using PostgreSQL JSONB operators
         filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Verify results are correct
         assert len(result) == 3

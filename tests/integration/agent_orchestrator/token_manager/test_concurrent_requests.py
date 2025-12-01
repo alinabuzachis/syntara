@@ -111,8 +111,8 @@ async def test_concurrent_requests_accurate_counting(
 
     # Verify all successful requests were recorded
     async with async_session_factory() as session:
-        result = await session.execute(select(TokenUsageRecord).where(TokenUsageRecord.user_id == user_config.user_id))
-        records = result.scalars().all()
+        result = await session.exec(select(TokenUsageRecord).where(TokenUsageRecord.user_id == user_config.user_id))
+        records = result.all()
 
     assert len(records) == len(successful_requests), "All successful requests must be recorded"
 

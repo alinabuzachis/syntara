@@ -901,8 +901,8 @@ async def test_full_provider_workflow_success(
         Tool.provider_id == provider.id,  # type: ignore[arg-type]
         Tool.deleted_at.is_(None),  # type: ignore[union-attr]
     )
-    tools_result = await test_db_session.execute(tools_query)
-    tools = tools_result.scalars().all()
+    tools_result = await test_db_session.exec(tools_query)
+    tools = tools_result.all()
     assert len(tools) == refresh_result.refreshed_count
 
 
@@ -1007,8 +1007,8 @@ async def test_create_provider_does_not_create_tools(
 
     # Verify no tools were created during provider creation
     tools_query = select(Tool).filter(Tool.provider_id == provider.id, Tool.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
-    tools_result = await test_db_session.execute(tools_query)
-    tools = tools_result.scalars().all()
+    tools_result = await test_db_session.exec(tools_query)
+    tools = tools_result.all()
     assert len(tools) == 0
 
     # Even after validation, tools should still not exist until refresh_tools is called
@@ -1017,8 +1017,8 @@ async def test_create_provider_does_not_create_tools(
     assert provider.status.value == ProviderStatus.AVAILABLE.value
 
     # Still no tools
-    tools_result = await test_db_session.execute(tools_query)
-    tools = tools_result.scalars().all()
+    tools_result = await test_db_session.exec(tools_query)
+    tools = tools_result.all()
     assert len(tools) == 0
 
     # Only after refresh_tools should tools be created
@@ -1026,8 +1026,8 @@ async def test_create_provider_does_not_create_tools(
     assert refresh_result.refreshed_count > 0
 
     # Now tools should exist
-    tools_result = await test_db_session.execute(tools_query)
-    tools = tools_result.scalars().all()
+    tools_result = await test_db_session.exec(tools_query)
+    tools = tools_result.all()
     assert len(tools) == refresh_result.refreshed_count
 
 
@@ -1052,16 +1052,16 @@ async def test_workflow_with_tool_parameters(
     # Verify tools and their parameters were created
 
     tools_query = select(Tool).filter(Tool.provider_id == provider.id, Tool.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
-    tools_result = await test_db_session.execute(tools_query)
-    tools = tools_result.scalars().all()
+    tools_result = await test_db_session.exec(tools_query)
+    tools = tools_result.all()
     assert len(tools) > 0
 
     # Check that at least some tools have parameters
     total_parameters = 0
     for tool in tools:
-        params_query = select(ToolParameter).filter(ToolParameter.tool_id == tool.id)
-        params_result = await test_db_session.execute(params_query)
-        parameters = params_result.scalars().all()
+        params_query = select(ToolParameter).filter(ToolParameter.tool_id == tool.id)  # type: ignore[arg-type]
+        params_result = await test_db_session.exec(params_query)
+        parameters = params_result.all()
         total_parameters += len(parameters)
 
     # The mock provider should create some tools with parameters
@@ -1090,17 +1090,17 @@ async def test_refresh_tools_multiple_times_works_correctly(
 
     # Verify tools were created
     tools_query = select(Tool).filter(Tool.provider_id == provider.id, Tool.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
-    tools_result = await test_db_session.execute(tools_query)
-    first_tools = tools_result.scalars().all()
+    tools_result = await test_db_session.exec(tools_query)
+    first_tools = tools_result.all()
     first_tool_count = len(first_tools)
     assert first_tool_count > 0
 
     # Verify tool parameters were created
     total_first_parameters = 0
     for tool in first_tools:
-        params_query = select(ToolParameter).filter(ToolParameter.tool_id == tool.id)
-        params_result = await test_db_session.execute(params_query)
-        parameters = params_result.scalars().all()
+        params_query = select(ToolParameter).filter(ToolParameter.tool_id == tool.id)  # type: ignore[arg-type]
+        params_result = await test_db_session.exec(params_query)
+        parameters = params_result.all()
         total_first_parameters += len(parameters)
 
     # Second refresh - should update existing tools, not create new ones
@@ -1110,16 +1110,16 @@ async def test_refresh_tools_multiple_times_works_correctly(
     assert second_refresh_result.disabled_count == 0  # No tools disabled
 
     # Verify same number of tools still exist
-    tools_result = await test_db_session.execute(tools_query)
-    second_tools = tools_result.scalars().all()
+    tools_result = await test_db_session.exec(tools_query)
+    second_tools = tools_result.all()
     assert len(second_tools) == first_tool_count
 
     # Verify tool parameters still exist and are the same count
     total_second_parameters = 0
     for tool in second_tools:
-        params_query = select(ToolParameter).filter(ToolParameter.tool_id == tool.id)
-        params_result = await test_db_session.execute(params_query)
-        parameters = params_result.scalars().all()
+        params_query = select(ToolParameter).filter(ToolParameter.tool_id == tool.id)  # type: ignore[arg-type]
+        params_result = await test_db_session.exec(params_query)
+        parameters = params_result.all()
         total_second_parameters += len(parameters)
 
     assert total_second_parameters == total_first_parameters

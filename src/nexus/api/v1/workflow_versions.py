@@ -4,8 +4,8 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.db import get_db
 from nexus.api.v1.utils import deserialize_workflow_version
@@ -43,10 +43,10 @@ async def list_workflow_versions(
 
     """
     # Verify workflow exists
-    workflow_result = await db.execute(
+    workflow_result = await db.exec(
         select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
     )
-    workflow = workflow_result.scalar_one_or_none()
+    workflow = workflow_result.one_or_none()
 
     if not workflow:
         raise HTTPException(
@@ -55,7 +55,7 @@ async def list_workflow_versions(
         )
 
     # Get versions
-    result = await db.execute(
+    result = await db.exec(
         select(WorkflowVersion)
         .filter(
             WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
@@ -63,7 +63,7 @@ async def list_workflow_versions(
         )
         .order_by(WorkflowVersion.version.desc())  # type: ignore[attr-defined]
     )
-    versions = list(result.scalars().all())
+    versions = list(result.all())
 
     # Deserialize workflow_definition from JSON strings to dicts
     version_dicts = [deserialize_workflow_version(v) for v in versions]
@@ -93,10 +93,10 @@ async def get_workflow_version(
 
     """
     # Verify workflow exists
-    workflow_result = await db.execute(
+    workflow_result = await db.exec(
         select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
     )
-    workflow = workflow_result.scalar_one_or_none()
+    workflow = workflow_result.one_or_none()
 
     if not workflow:
         raise HTTPException(
@@ -105,14 +105,14 @@ async def get_workflow_version(
         )
 
     # Get version
-    result = await db.execute(
+    result = await db.exec(
         select(WorkflowVersion).filter(
             WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
             WorkflowVersion.version == version,  # type: ignore[arg-type]
             WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
         )
     )
-    workflow_version = result.scalar_one_or_none()
+    workflow_version = result.one_or_none()
 
     if not workflow_version:
         raise HTTPException(

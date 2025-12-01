@@ -19,7 +19,7 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.workflows.models import Execution, ExecutionStatus, Workflow, WorkflowVersion

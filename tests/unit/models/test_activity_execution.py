@@ -14,9 +14,9 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.workflows.models import Workflow, WorkflowVersion
@@ -137,10 +137,10 @@ async def test_activity_status_enum_values(
     await test_db_session.commit()
 
     # Verify all statuses were saved correctly
-    result = await test_db_session.execute(
-        select(ActivityExecution).where(ActivityExecution.execution_id == execution.id)  # type: ignore[arg-type]
+    activities_result = await test_db_session.exec(
+        select(ActivityExecution).where(ActivityExecution.execution_id == execution.id)
     )
-    activities = list(result.scalars().all())
+    activities = list(activities_result.all())
     assert len(activities) == len(statuses)
     assert {a.status for a in activities} == set(statuses)
 
@@ -221,10 +221,10 @@ async def test_activity_allows_same_temporal_id_different_executions(
     await test_db_session.commit()  # Should succeed
 
     # Verify both were created
-    result = await test_db_session.execute(
-        select(ActivityExecution).where(ActivityExecution.temporal_activity_id == "activity-shared")  # type: ignore[arg-type]
+    activities_result = await test_db_session.exec(
+        select(ActivityExecution).where(ActivityExecution.temporal_activity_id == "activity-shared")
     )
-    activities = list(result.scalars().all())
+    activities = list(activities_result.all())
     assert len(activities) == 2
 
 
@@ -312,17 +312,17 @@ async def test_activity_relationship_with_execution(
 
     # Reload execution with activities relationship
     await test_db_session.refresh(execution)
-    result = await test_db_session.execute(select(Execution).where(Execution.id == execution.id))  # type: ignore[arg-type]
-    loaded_execution = result.scalar_one()
+    exec_result = await test_db_session.exec(select(Execution).where(Execution.id == execution.id))
+    loaded_execution = exec_result.one()
 
     # Access activities through relationship (will trigger lazy load)
-    result = await test_db_session.execute(
-        select(ActivityExecution).where(ActivityExecution.execution_id == loaded_execution.id)  # type: ignore[arg-type]
+    activities_result = await test_db_session.exec(
+        select(ActivityExecution).where(ActivityExecution.execution_id == loaded_execution.id)
     )
-    loaded_activities = list(result.scalars().all())
+    loaded_activities = list(activities_result.all())
 
     assert len(loaded_activities) == 3
-    assert all(a.execution_id == execution.id for a in loaded_activities)  # type: ignore[attr-defined]
+    assert all(a.execution_id == execution.id for a in loaded_activities)
 
 
 @pytest.mark.asyncio

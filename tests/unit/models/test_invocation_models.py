@@ -18,8 +18,9 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import inspect, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import inspect
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
 from nexus.core.models import User, UserRole
@@ -208,8 +209,8 @@ async def test_query_invocations_by_status(test_db_session: AsyncSession, test_u
     await test_db_session.commit()
 
     # Query for running invocations
-    result = await test_db_session.execute(select(Invocation).where(Invocation.status == "running"))  # type: ignore[arg-type]
-    running_invocations = result.scalars().all()
+    result = await test_db_session.exec(select(Invocation).where(Invocation.status == "running"))
+    running_invocations = result.all()
 
     assert len(running_invocations) == 2
     assert all(inv.status == "running" for inv in running_invocations)
@@ -247,8 +248,8 @@ async def test_query_invocations_by_user(test_db_session: AsyncSession, test_use
     await test_db_session.commit()
 
     # Query for user1's invocations
-    result = await test_db_session.execute(select(Invocation).where(Invocation.created_by == test_user.id))  # type: ignore[arg-type]
-    user_invocations = result.scalars().all()
+    result = await test_db_session.exec(select(Invocation).where(Invocation.created_by == test_user.id))
+    user_invocations = result.all()
 
     assert len(user_invocations) == 1
     assert user_invocations[0].created_by == test_user.id
@@ -511,8 +512,8 @@ async def test_query_invocations_by_session_id(test_db_session: AsyncSession, te
     await test_db_session.commit()
 
     # Query for session-alpha invocations
-    result = await test_db_session.execute(select(Invocation).where(Invocation.session_id == "session-alpha"))  # type: ignore[arg-type]
-    session_invocations = result.scalars().all()
+    result = await test_db_session.exec(select(Invocation).where(Invocation.session_id == "session-alpha"))
+    session_invocations = result.all()
 
     assert len(session_invocations) == 2
     assert all(inv.session_id == "session-alpha" for inv in session_invocations)

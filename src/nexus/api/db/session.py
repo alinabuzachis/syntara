@@ -5,8 +5,9 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from sqlalchemy import inspect
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Query
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 # Database configuration from environment variables
 DB_USER = os.getenv("NEXUS_DB_USER", "admin")
@@ -50,8 +51,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         ```python
         @app.get("/workflows")
         async def list_workflows(db: AsyncSession = Depends(get_db)):
-            result = await db.execute(select(Workflow))
-            workflows = result.scalars().all()
+            result = await db.exec(select(Workflow))
+            workflows = result.all()
             return workflows
         ```
 

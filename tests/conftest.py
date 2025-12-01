@@ -26,9 +26,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
@@ -541,13 +542,13 @@ async def test_execution(test_db_session: AsyncSession, test_user: "User", test_
 
     """
     # Get the workflow version ID
-    result = await test_db_session.execute(
+    result = await test_db_session.exec(
         select(WorkflowVersion.id).where(
             WorkflowVersion.workflow_id == test_workflow.id,
             WorkflowVersion.version == test_workflow.current_version,
         )
     )
-    version_id = result.scalar_one()
+    version_id = result.one()
 
     execution = Execution(
         workflow_id=test_workflow.id,

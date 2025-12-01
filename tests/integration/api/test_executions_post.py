@@ -5,8 +5,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.service import RPCError, RPCStatusCode
 
 from nexus.core.models import User
@@ -202,10 +203,8 @@ async def test_create_execution_temporal_connection_failure_graceful_degradation
     assert data["temporal_workflow_id"].startswith("exec-")
 
     # Verify execution was persisted to database with stub workflow ID
-    result = await test_db_session.execute(
-        select(Execution).where(Execution.id == uuid.UUID(data["id"]))  # type: ignore[arg-type]
-    )
-    execution = result.scalar_one()
+    result = await test_db_session.exec(select(Execution).where(Execution.id == uuid.UUID(data["id"])))
+    execution = result.one()
     assert execution.temporal_workflow_id == data["temporal_workflow_id"]
     assert execution.temporal_workflow_id.startswith("exec-")
     assert execution.status.value == "pending"
@@ -233,8 +232,8 @@ async def test_create_execution_temporal_workflow_start_failure(
     2. Create database record ONLY if Temporal succeeds
     """
     # Count executions before the request
-    result = await test_db_session.execute(select(func.count()).select_from(Execution))
-    executions_before = result.scalar_one()
+    result = await test_db_session.exec(select(func.count()).select_from(Execution))
+    executions_before = result.one()
 
     # Mock create_temporal_execution_service to return a service
     mock_temporal_service = AsyncMock()
@@ -267,6 +266,6 @@ async def test_create_execution_temporal_workflow_start_failure(
     assert "Failed to create execution" in response.json()["detail"]
 
     # Verify no execution was created in the database (two-phase invariant)
-    result = await test_db_session.execute(select(func.count()).select_from(Execution))
-    executions_after = result.scalar_one()
+    result = await test_db_session.exec(select(func.count()).select_from(Execution))
+    executions_after = result.one()
     assert executions_after == executions_before, "No orphaned execution should be created on Temporal failure"

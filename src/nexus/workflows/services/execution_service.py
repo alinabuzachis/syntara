@@ -11,8 +11,8 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import yaml
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import and_, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.api.enums.v1 import EventType
 from temporalio.api.history.v1 import HistoryEvent
 from temporalio.exceptions import TemporalError
@@ -133,7 +133,7 @@ class ExecutionService(BaseService):
         logger.info("Creating execution for workflow %s by user %s", workflow_id, self.user.id)
 
         # Step 1: Validate workflow exists and is enabled
-        result = await self.session.execute(
+        result = await self.session.exec(
             select(Workflow, WorkflowVersion)
             .join(
                 WorkflowVersion,
@@ -223,10 +223,10 @@ class ExecutionService(BaseService):
             ExecutionNotFoundError: If execution not found
 
         """
-        result = await self.session.execute(
+        result = await self.session.exec(
             select(Execution).where(Execution.id == execution_id).where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
         )
-        execution = result.scalar_one_or_none()
+        execution = result.one_or_none()
 
         if execution is None:
             raise ExecutionNotFoundError(execution_id)
@@ -285,8 +285,8 @@ class ExecutionService(BaseService):
             Dictionary mapping activity ID to activity definition
 
         """
-        result = await self.session.execute(select(WorkflowVersion).where(WorkflowVersion.id == workflow_version_id))
-        workflow_version = result.scalar_one_or_none()
+        result = await self.session.exec(select(WorkflowVersion).where(WorkflowVersion.id == workflow_version_id))
+        workflow_version = result.one_or_none()
 
         activity_definitions_map: dict[str, dict[str, Any]] = {}
         if workflow_version and workflow_version.workflow_definition:
@@ -515,12 +515,12 @@ class ExecutionService(BaseService):
         execution = await self.get_execution(execution_id)
 
         # Load all existing activities from DB (single query), ordered by created_at
-        result = await self.session.execute(
+        result = await self.session.exec(
             select(ActivityExecution)
             .where(ActivityExecution.execution_id == execution_id)
             .order_by(ActivityExecution.created_at)  # type: ignore[arg-type]
         )
-        existing_activities = list(result.scalars().all())
+        existing_activities = list(result.all())
 
         # If no Temporal service, return existing DB data
         if self.temporal_service is None:

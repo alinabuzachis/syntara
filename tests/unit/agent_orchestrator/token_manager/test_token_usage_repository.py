@@ -193,8 +193,8 @@ async def test_record_usage(
     assert record.request_timestamp is not None
 
     # Verify it's in the database
-    result = await test_db_session.execute(select(TokenUsageRecord).where(TokenUsageRecord.id == record.id))
-    saved_record = result.scalar_one()
+    result = await test_db_session.exec(select(TokenUsageRecord).where(TokenUsageRecord.id == record.id))
+    saved_record = result.one()
     assert saved_record.token_count == 2500
 
 
@@ -220,10 +220,8 @@ async def test_update_user_config_existing(
     assert updated_config.window_duration_seconds == 7200
 
     # Verify in database
-    result = await test_db_session.execute(
-        select(UserTokenConfig).where(UserTokenConfig.user_id == user_config.user_id)
-    )
-    saved_config = result.scalar_one()
+    result = await test_db_session.exec(select(UserTokenConfig).where(UserTokenConfig.user_id == user_config.user_id))
+    saved_config = result.one()
     assert saved_config.token_limit == 20000
 
 
@@ -253,6 +251,6 @@ async def test_update_user_config_create_new(
     assert config.window_duration_seconds == 86400
 
     # Verify in database
-    result = await test_db_session.execute(select(UserTokenConfig).where(UserTokenConfig.user_id == test_user.id))
-    saved_config = result.scalar_one()
+    result = await test_db_session.exec(select(UserTokenConfig).where(UserTokenConfig.user_id == test_user.id))
+    saved_config = result.one()
     assert saved_config.token_limit == 15000

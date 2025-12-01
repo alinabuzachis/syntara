@@ -20,7 +20,7 @@ from fastapi import (
     status,
 )
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.context_manager.file_manager.validators import (
     ValidationError as FileValidationError,
@@ -180,7 +180,7 @@ async def invoke_agent(
     except ValidationError as e:
         logger.warning("Pydantic validation error in invocation request", exc_info=e)
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid request data",
         ) from e
     except Exception as e:
@@ -238,7 +238,7 @@ async def list_invocations(
 
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(e),
         ) from e
     except HTTPException:

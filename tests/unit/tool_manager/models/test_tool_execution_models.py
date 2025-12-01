@@ -230,7 +230,7 @@ async def test_tool_execution_foreign_key_constraints(
     await test_db_session.commit()
 
     # Verify both executions were created with correct foreign keys
-    executions_result = await test_db_session.scalars(
+    executions_result = await test_db_session.exec(
         select(ToolExecution).where(
             ToolExecution.tool_id == test_tool.id,
             ToolExecution.provider_id == test_tool_provider.id,

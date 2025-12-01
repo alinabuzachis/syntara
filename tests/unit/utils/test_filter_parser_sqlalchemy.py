@@ -9,6 +9,7 @@ Alembic migrations with DateTime(timezone=True) to create TIMESTAMPTZ columns an
 stores timezone-aware UTC datetimes. See BaseResource in core/models/base.py.
 """
 # ruff: noqa: DTZ001
+# mypy: disable-error-code="arg-type,attr-defined"
 
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -17,8 +18,9 @@ from unittest.mock import Mock
 import pytest
 import pytest_asyncio
 import sqlalchemy
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import Field, SQLModel, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.utils.filters import Filter, FilterOperator, apply_filters, parse_filters
 
@@ -61,7 +63,7 @@ class TestFilterParserSQLAlchemy:
             await conn.run_sync(SQLModel.metadata.create_all)
 
         # Clear existing data from this test's tables
-        await test_db_session.execute(sqlalchemy.delete(UserModel))
+        await test_db_session.exec(sqlalchemy.delete(UserModel))
         await test_db_session.commit()
 
         # Add test data
@@ -119,7 +121,7 @@ class TestFilterParserSQLAlchemy:
         filtered_query = apply_filters(query, filters, UserModel)
 
         # Should be able to execute without changes
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
         assert len(result) == 4
 
     async def test_apply_filters_equality_operator(self, session: AsyncSession) -> None:
@@ -128,7 +130,7 @@ class TestFilterParserSQLAlchemy:
         filters = [Filter(field="username", operator=FilterOperator.EQ, value="alice")]
 
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         assert len(result) == 1
         assert result[0].username == "alice"
@@ -140,7 +142,7 @@ class TestFilterParserSQLAlchemy:
         filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value="o")]
 
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match "Bob Johnson" and "Charlie Brown"
         assert len(result) == 2
@@ -153,7 +155,7 @@ class TestFilterParserSQLAlchemy:
         filters = [Filter(field="username", operator=FilterOperator.STARTS_WITH, value="b")]
 
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match "bob"
         assert len(result) == 1
@@ -166,14 +168,14 @@ class TestFilterParserSQLAlchemy:
         # Test greater than
         filters = [Filter(field="age", operator=FilterOperator.GT, value=30)]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
         assert len(result) == 1
         assert result[0].username == "charlie"
 
         # Test greater than or equal
         filters = [Filter(field="age", operator=FilterOperator.GTE, value=30)]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
         assert len(result) == 2
         usernames = {user.username for user in result}
         assert usernames == {"bob", "charlie"}
@@ -181,7 +183,7 @@ class TestFilterParserSQLAlchemy:
         # Test less than
         filters = [Filter(field="age", operator=FilterOperator.LT, value=30)]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
         assert len(result) == 2
         usernames = {user.username for user in result}
         assert usernames == {"alice", "diana"}
@@ -189,7 +191,7 @@ class TestFilterParserSQLAlchemy:
         # Test less than or equal
         filters = [Filter(field="age", operator=FilterOperator.LTE, value=30)]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
         assert len(result) == 3
         usernames = {user.username for user in result}
         assert usernames == {"alice", "bob", "diana"}
@@ -200,7 +202,7 @@ class TestFilterParserSQLAlchemy:
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=True)]
 
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match active users (alice, bob, diana)
         assert len(result) == 3
@@ -216,7 +218,7 @@ class TestFilterParserSQLAlchemy:
         ]
 
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match active users with age >= 28 (bob, diana)
         assert len(result) == 2
@@ -249,7 +251,7 @@ class TestFilterParserSQLAlchemy:
         # Apply to query
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match alice (starts with 'a' and is active)
         assert len(result) == 1
@@ -262,7 +264,7 @@ class TestFilterParserSQLAlchemy:
         # Test contains with different case
         filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value="ALICE")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         assert len(result) == 1
         assert result[0].username == "alice"
@@ -270,7 +272,7 @@ class TestFilterParserSQLAlchemy:
         # Test starts_with with different case
         filters = [Filter(field="username", operator=FilterOperator.STARTS_WITH, value="BOB")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         assert len(result) == 1
         assert result[0].username == "bob"
@@ -303,7 +305,7 @@ class TestFilterParserSQLAlchemy:
         # Test filtering by date (as string, would be converted by your app)
         filters = [Filter(field="created_at", operator=FilterOperator.GTE, value=datetime(2025, 1, 3, 0, 0, 0))]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match charlie and diana (created on/after Jan 3)
         assert len(result) == 2
@@ -317,7 +319,7 @@ class TestFilterParserSQLAlchemy:
         # Test "true" string converts to True boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="true")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match active users (alice, bob, diana)
         assert len(result) == 3
@@ -327,7 +329,7 @@ class TestFilterParserSQLAlchemy:
         # Test "false" string converts to False boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="false")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match inactive users (charlie)
         assert len(result) == 1
@@ -340,7 +342,7 @@ class TestFilterParserSQLAlchemy:
         # Test "1" string converts to True boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="1")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match active users (alice, bob, diana)
         assert len(result) == 3
@@ -350,7 +352,7 @@ class TestFilterParserSQLAlchemy:
         # Test "0" string converts to False boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="0")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match inactive users (charlie)
         assert len(result) == 1
@@ -363,7 +365,7 @@ class TestFilterParserSQLAlchemy:
         # Test "yes" string converts to True boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="yes")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match active users (alice, bob, diana)
         assert len(result) == 3
@@ -373,7 +375,7 @@ class TestFilterParserSQLAlchemy:
         # Test "no" string converts to False boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="no")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match inactive users (charlie)
         assert len(result) == 1
@@ -382,7 +384,7 @@ class TestFilterParserSQLAlchemy:
         # Test "on" string converts to True boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="on")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match active users (alice, bob, diana)
         assert len(result) == 3
@@ -392,7 +394,7 @@ class TestFilterParserSQLAlchemy:
         # Test "off" string converts to False boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="off")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match inactive users (charlie)
         assert len(result) == 1
@@ -407,7 +409,7 @@ class TestFilterParserSQLAlchemy:
         for true_value in true_variations:
             filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=true_value)]
             filtered_query = apply_filters(query, filters, UserModel)
-            result = (await session.execute(filtered_query)).scalars().all()
+            result = (await session.exec(filtered_query)).all()
 
             # Should match active users (alice, bob, diana)
             assert len(result) == 3, f"Failed for case variation: {true_value}"
@@ -419,7 +421,7 @@ class TestFilterParserSQLAlchemy:
         for false_value in false_variations:
             filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=false_value)]
             filtered_query = apply_filters(query, filters, UserModel)
-            result = (await session.execute(filtered_query)).scalars().all()
+            result = (await session.exec(filtered_query)).all()
 
             # Should match inactive users (charlie)
             assert len(result) == 1, f"Failed for case variation: {false_value}"
@@ -450,7 +452,7 @@ class TestFilterParserSQLAlchemy:
         # Apply to query - this should automatically convert "false" to False
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match inactive users (charlie)
         assert len(result) == 1
@@ -463,7 +465,7 @@ class TestFilterParserSQLAlchemy:
 
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match active users (alice, bob, diana)
         assert len(result) == 3
@@ -481,7 +483,7 @@ class TestFilterParserSQLAlchemy:
 
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match active users with age >= 30 (bob)
         assert len(result) == 1
@@ -496,7 +498,7 @@ class TestFilterParserSQLAlchemy:
 
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match inactive users whose username starts with 'c' (charlie)
         assert len(result) == 1
@@ -527,7 +529,7 @@ class TestSQLInjectionProtection:
             await conn.run_sync(SQLModel.metadata.create_all)
 
         # Clear existing data from this test's tables
-        await test_db_session.execute(sqlalchemy.delete(UserModel))
+        await test_db_session.exec(sqlalchemy.delete(UserModel))
         await test_db_session.commit()
 
         # Add test data
@@ -575,7 +577,7 @@ class TestSQLInjectionProtection:
             filtered_query = apply_filters(query, filters, UserModel)
 
             # Should execute safely without SQL injection
-            result = (await session.execute(filtered_query)).scalars().all()
+            result = (await session.exec(filtered_query)).all()
 
             # Should return empty result since no user has these exact escaped values
             assert len(result) == 0
@@ -596,7 +598,7 @@ class TestSQLInjectionProtection:
             filtered_query = apply_filters(query, filters, UserModel)
 
             # Should execute safely without SQL injection
-            result = (await session.execute(filtered_query)).scalars().all()
+            result = (await session.exec(filtered_query)).all()
 
             # Should return empty result since wildcards are escaped
             assert len(result) == 0
@@ -608,7 +610,7 @@ class TestSQLInjectionProtection:
         # Test that % wildcard is escaped in contains
         filters = [Filter(field="username", operator=FilterOperator.CONTAINS, value="ali%ce")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should not match "alice" because % is escaped to literal %
         assert len(result) == 0
@@ -616,7 +618,7 @@ class TestSQLInjectionProtection:
         # Test that _ wildcard is escaped in contains
         filters = [Filter(field="username", operator=FilterOperator.CONTAINS, value="alic_")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should not match "alice" because _ is escaped to literal _
         assert len(result) == 0
@@ -624,7 +626,7 @@ class TestSQLInjectionProtection:
         # Test normal contains still works
         filters = [Filter(field="username", operator=FilterOperator.CONTAINS, value="lic")]
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match "alice" because no wildcards to escape
         assert len(result) == 1
@@ -647,7 +649,7 @@ class TestSQLInjectionProtection:
             filtered_query = apply_filters(query, filters, UserModel)
 
             # Should execute safely without error
-            result = (await session.execute(filtered_query)).scalars().all()
+            result = (await session.exec(filtered_query)).all()
             # Should return empty since no users have these patterns in username
             assert len(result) == 0
 
@@ -671,7 +673,7 @@ class TestSQLInjectionProtection:
                 filtered_query = apply_filters(query, filters, UserModel)
 
                 # Should execute safely without SQL injection
-                result = (await session.execute(filtered_query)).scalars().all()
+                result = (await session.exec(filtered_query)).all()
 
                 # Should not find any matches for these injection strings
                 assert len(result) == 0
@@ -697,7 +699,7 @@ class TestSQLInjectionProtection:
         assert ":username_1" in query_str or "%(username_1)s" in query_str or "?" in query_str
 
         # Execute safely
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
         assert len(result) == 0
 
     async def test_multiple_injection_attempts_combined(self, session: AsyncSession) -> None:
@@ -714,7 +716,7 @@ class TestSQLInjectionProtection:
         filtered_query = apply_filters(query, filters, UserModel)
 
         # Should execute safely without any SQL injection
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should return empty result since no user matches these injection strings
         assert len(result) == 0
@@ -735,7 +737,7 @@ class TestSQLInjectionProtection:
             filtered_query = apply_filters(query, filters, UserModel)
 
             # Should execute safely
-            result = (await session.execute(filtered_query)).scalars().all()
+            result = (await session.exec(filtered_query)).all()
 
             # Should not match legitimate users due to escaped wildcards
             assert len(result) == 0
@@ -769,7 +771,7 @@ class TestLogicalORFiltering:
             await conn.run_sync(SQLModel.metadata.create_all)
 
         # Clear existing data from this test's tables
-        await test_db_session.execute(sqlalchemy.delete(UserModel))
+        await test_db_session.exec(sqlalchemy.delete(UserModel))
         await test_db_session.commit()
 
         # Add test data with varied statuses and names for OR testing
@@ -842,7 +844,7 @@ class TestLogicalORFiltering:
         # Apply to query - should match users with username = 'alice' OR 'charlie' OR 'eve'
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match alice, charlie, and eve
         assert len(result) == 3
@@ -864,7 +866,7 @@ class TestLogicalORFiltering:
         # Apply to query - should match users whose full_name contains 'Smith' OR 'Johnson' OR 'Prince'
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match Alice Smith, Bob Johnson, and Diana Prince
         assert len(result) == 3
@@ -886,7 +888,7 @@ class TestLogicalORFiltering:
         # Apply to query
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Since it's OR logic with >=, anyone with age >= 25 will match (which is everyone)
         # This demonstrates that OR with overlapping conditions can be broader than expected
@@ -902,7 +904,7 @@ class TestLogicalORFiltering:
         # Apply to query
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match alice (25), eve (32), and charlie (35)
         assert len(result) == 3
@@ -919,7 +921,7 @@ class TestLogicalORFiltering:
         # Apply to query
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match all users since everyone is either active or inactive
         assert len(result) == 5
@@ -940,7 +942,7 @@ class TestLogicalORFiltering:
         # Apply to query
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match only alice and bob (charlie is not active)
         assert len(result) == 2
@@ -957,7 +959,7 @@ class TestLogicalORFiltering:
         # Apply to query
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match Alice Smith, Bob Johnson, and Eve Wilson
         assert len(result) == 3
@@ -979,7 +981,7 @@ class TestLogicalORFiltering:
         # Apply to query
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match all four users
         assert len(result) == 4
@@ -996,7 +998,7 @@ class TestLogicalORFiltering:
         # Apply to query
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match bob, charlie, diana, and eve (created on/after Jan 2)
         assert len(result) == 4
@@ -1020,7 +1022,7 @@ class TestLogicalORFiltering:
         # Apply to query
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match only alice (username='alice' AND age>=25 AND is_active=true)
         # eve is excluded because is_active=false
@@ -1037,7 +1039,7 @@ class TestLogicalORFiltering:
         # Apply to query
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match Alice Smith, Bob Johnson, and Charlie Brown (case-insensitive)
         assert len(result) == 3
@@ -1061,7 +1063,7 @@ class TestLogicalORFiltering:
         # Apply filters
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should find no matches because no user satisfies both conditions:
         # - alice/diana usernames don't have full names starting with Bob/Charlie
@@ -1077,7 +1079,7 @@ class TestLogicalORFiltering:
 
         query = select(UserModel)
         filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.execute(filtered_query)).scalars().all()
+        result = (await session.exec(filtered_query)).all()
 
         # Should match both alice and bob (both active)
         assert len(result) == 2

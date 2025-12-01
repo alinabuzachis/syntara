@@ -247,7 +247,7 @@ async def test_tool_provider_tools_relationship(
     await test_db_session.refresh(test_tool_provider)
 
     # Load provider with tools relationship using selectinload
-    result = await test_db_session.scalars(
+    result = await test_db_session.exec(
         select(ToolProvider)
         .options(selectinload(ToolProvider.tools))  # type: ignore[arg-type]
         .where(ToolProvider.id == test_tool_provider.id)
@@ -296,7 +296,7 @@ async def test_tool_provider_cascade_delete_tools(
     await test_db_session.commit()
 
     # Verify tools exist
-    tools_result = await test_db_session.scalars(select(Tool).where(Tool.provider_id == test_tool_provider.id))
+    tools_result = await test_db_session.exec(select(Tool).where(Tool.provider_id == test_tool_provider.id))
     tools = tools_result.all()
     assert len(tools) == 2
 
@@ -305,7 +305,7 @@ async def test_tool_provider_cascade_delete_tools(
     await test_db_session.commit()
 
     # Verify tools are cascade deleted
-    tools_after_delete = await test_db_session.scalars(select(Tool).where(Tool.provider_id == test_tool_provider.id))
+    tools_after_delete = await test_db_session.exec(select(Tool).where(Tool.provider_id == test_tool_provider.id))
     assert len(tools_after_delete.all()) == 0
 
 
