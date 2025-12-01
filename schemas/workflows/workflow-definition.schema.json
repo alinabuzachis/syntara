@@ -614,7 +614,7 @@
           "properties": {
             "language": {
               "type": "string",
-              "enum": ["python", "javascript", "bash", "powershell"],
+              "enum": ["python", "bash"],
               "description": "Script language"
             },
             "code": {

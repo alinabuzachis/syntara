@@ -78,14 +78,14 @@ curl -X GET http://localhost:8000/api/v1/activity-types \
     {
       "type": "script",
       "name": "Script Execution",
-      "description": "Execute custom scripts in Python, JavaScript, or other languages",
+      "description": "Execute custom scripts in Python or Bash",
       "config_schema": {
         "type": "object",
         "required": ["language", "code"],
         "properties": {
           "language": {
             "type": "string",
-            "enum": ["python", "javascript", "bash"]
+            "enum": ["python", "bash"]
           },
           "code": {
             "type": "string",

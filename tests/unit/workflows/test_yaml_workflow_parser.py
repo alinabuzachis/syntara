@@ -742,3 +742,49 @@ workflow:
         assert script_config.environment["DB_PORT"] == "5432"
         assert script_config.language.value == "python"
         assert "os.getenv" in script_config.code
+
+    def test_parse_script_with_javascript_language_rejected(self) -> None:
+        """Test that JavaScript language is rejected with clear error message."""
+        yaml_str = """
+schemaVersion: "1.0.0"
+version: 1
+metadata:
+  name: test-workflow
+  description: Test
+triggers:
+- type: manual
+workflow:
+  activities:
+  - id: js_task
+    type: task
+    task:
+      executor: script
+      config:
+        language: javascript
+        code: console.log("Hello");
+"""
+        with pytest.raises(WorkflowParseError) as exc_info:
+            parse_workflow_yaml(yaml_str)
+
+    def test_parse_script_with_powershell_language_rejected(self) -> None:
+        """Test that PowerShell language is rejected with clear error message."""
+        yaml_str = """
+schemaVersion: "1.0.0"
+version: 1
+metadata:
+  name: test-workflow
+  description: Test
+triggers:
+- type: manual
+workflow:
+  activities:
+  - id: ps_task
+    type: task
+    task:
+      executor: script
+      config:
+        language: powershell
+        code: Write-Host "Hello"
+"""
+        with pytest.raises(WorkflowParseError) as exc_info:
+            parse_workflow_yaml(yaml_str)

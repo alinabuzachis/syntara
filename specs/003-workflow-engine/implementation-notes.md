@@ -562,11 +562,11 @@ await db.execute(
 2. **Workflow Variables**: Not fully implemented in expression resolution
 3. **Conditional Execution**: Condition evaluation logic is basic
 4. **Join Activities**: Not yet implemented
-5. **API/Connector Executors**: Only bash script executor implemented
+5. **API/Connector Executors**: Only Python and Bash script executors implemented
 
 ## Future Enhancements
 
-1. **Additional Executors**: Python, JavaScript, API calls, connectors
+1. **Additional Executors**: API calls, connectors
 2. **Advanced Conditionals**: Complex boolean expressions
 3. **Workflow Versioning**: Schema version handling
 4. **Workflow Templates**: Reusable workflow components
