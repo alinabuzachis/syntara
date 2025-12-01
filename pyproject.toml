@@ -163,6 +163,7 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "mcp: marks tests that require MCP server infrastructure (deselect with '-m \"not mcp\"')",
+    "performance: marks tests as performance tests (excluded by default, run with '--run-performance')",
 ]
 
 # Coverage configuration

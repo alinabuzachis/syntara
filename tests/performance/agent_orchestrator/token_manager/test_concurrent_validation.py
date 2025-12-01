@@ -14,9 +14,6 @@ import time
 from typing import TYPE_CHECKING, Any
 
 import pytest
-
-if TYPE_CHECKING:
-    from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -32,6 +29,9 @@ from nexus.agent_orchestrator.token_manager.services import (
     TokenValidationService,
 )
 from nexus.core.models.user import User, UserRole
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 # Configure logger to output to stdout
 logger = logging.getLogger(__name__)

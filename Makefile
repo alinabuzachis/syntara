@@ -75,6 +75,11 @@ test-mcp: check-deps ## Run MCP tests only
 	@echo "🧪 Running MCP tests..."
 	uv run pytest tests/ -v -m "mcp"
 
+.PHONY: test-performance
+test-performance: check-deps ## Run performance tests only (excluded from default test runs)
+	@echo "🧪 Running performance tests..."
+	uv run pytest tests/performance/ -v --run-performance
+
 .PHONY: test-coverage
 test-coverage: check-deps ## Run tests with coverage report
 	@echo "🧪 Running tests with coverage..."

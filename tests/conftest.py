@@ -57,6 +57,34 @@ _ = (Invocation, User, Workflow, WorkflowVersion, Execution)
 
 logger = logging.getLogger(__name__)
 
+
+# ============================================================================
+# Pytest Configuration Hooks
+# ============================================================================
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Add custom command-line options for pytest."""
+    parser.addoption(
+        "--run-performance",
+        action="store_true",
+        default=False,
+        help="Run performance tests (excluded by default)",
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Skip performance tests unless --run-performance is provided."""
+    if config.getoption("--run-performance"):
+        # --run-performance given: do not skip performance tests
+        return
+
+    skip_performance = pytest.mark.skip(reason="need --run-performance option to run")
+    for item in items:
+        if "performance" in item.keywords:
+            item.add_marker(skip_performance)
+
+
 # Test database configuration
 TEST_DB_USER = os.getenv("NEXUS_DB_USER", "admin")
 TEST_DB_PASSWORD = os.getenv("NEXUS_DB_PASSWORD", "admin")
