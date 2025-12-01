@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -16,21 +17,21 @@ inputs:
     default: api-key-123
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: headers_test
-    type: task
-    task:
-      executor: api
-      config:
-        method: GET
-        url: http://test-api.example.com/api/data
-        headers:
-          X-Custom-Header: ${input.customHeader}
-          X-API-Key: ${input.apiKey}
-          X-Static-Header: static-value
-      inputs:
-        customHeader: ${inputs.customHeader}
-        apiKey: ${inputs.apiKey}
+    - id: headers_test
+      type: task
+      task:
+        executor: api
+        config:
+          method: GET
+          url: http://test-api.example.com/api/data
+          headers:
+            X-Custom-Header: ${input.customHeader}
+            X-API-Key: ${input.apiKey}
+            X-Static-Header: static-value
+        inputs:
+          customHeader: ${inputs.customHeader}
+          apiKey: ${inputs.apiKey}

@@ -1,3 +1,4 @@
+---
 openapi: 3.0.3
 info:
   title: Workflow Engine API
@@ -32,8 +33,8 @@ info:
     name: Automation Nexus Team
 
 servers:
-- url: /api/v1
-  description: API server (relative path)
+  - url: /api/v1
+    description: API server (relative path)
 
 paths:
   /activity-types:
@@ -61,29 +62,27 @@ paths:
       description: |
         Retrieve a list of workflows with filtering, sorting, and cursor-based pagination.
       parameters:
-      - name: created_by
-        in: query
-        required: false
-        schema:
-          type: string
-          format: uuid
-        description: Filter by creator user ID
-      - name: is_enabled
-        in: query
-        required: false
-        schema:
-          type: boolean
-        description: Filter by enabled status
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
-      - $ref: 
-          ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-      - $ref: 
-          ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+        - name: created_by
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by creator user ID
+        - name: is_enabled
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by enabled status
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
       responses:
         '200':
           description: List of workflows
@@ -91,20 +90,19 @@ paths:
             application/json:
               schema:
                 allOf:
-                - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                - type: object
-                  properties:
-                    resources:
-                      type: array
-                      items:
-                        $ref: '#/components/schemas/Workflow'
-                      maxItems: 100
-                  required:
-                  - resources
+                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Workflow'
+                        maxItems: 100
+                    required:
+                      - resources
     post:
       summary: Create workflow
-      description: Create a new workflow entity with its initial version. The workflow
-        definition is validated and stored as version 1.
+      description: Create a new workflow entity with its initial version. The workflow definition is validated and stored as version 1.
       requestBody:
         required: true
         content:
@@ -128,16 +126,14 @@ paths:
   /workflows/{workflowId}:
     get:
       summary: Get workflow
-      description: Retrieve a specific workflow by ID including its current active
-        version. Returns workflow metadata along with the version specified by current_version
-        field.
+      description: Retrieve a specific workflow by ID including its current active version. Returns workflow metadata along with the version specified by current_version field.
       parameters:
-      - name: workflowId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Workflow details including current version information
@@ -158,12 +154,12 @@ paths:
         - Metadata only (name, description, is_enabled, labels): Updates without creating new version
         - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
       parameters:
-      - name: workflowId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -172,8 +168,7 @@ paths:
               $ref: '#/components/schemas/PatchWorkflowRequest'
       responses:
         '200':
-          description: Workflow updated successfully (may include new version if workflow_definition
-            changed)
+          description: Workflow updated successfully (may include new version if workflow_definition changed)
           content:
             application/json:
               schema:
@@ -192,16 +187,14 @@ paths:
                 $ref: '#/components/schemas/Error'
     delete:
       summary: Delete workflow (soft delete)
-      description: Soft delete a workflow by setting deleted_at and deleted_by fields.
-        The workflow remains in the database for audit purposes but is excluded from
-        normal queries.
+      description: Soft delete a workflow by setting deleted_at and deleted_by fields. The workflow remains in the database for audit purposes but is excluded from normal queries.
       parameters:
-      - name: workflowId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '204':
           description: Workflow soft deleted successfully
@@ -226,18 +219,17 @@ paths:
         WorkflowVersion entities are read-only and managed automatically by the system.
         Versions are ordered by version number descending (newest first) by default.
       parameters:
-      - name: workflowId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-      - $ref: 
-          ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
       responses:
         '200':
           description: List of workflow versions
@@ -245,16 +237,16 @@ paths:
             application/json:
               schema:
                 allOf:
-                - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                - type: object
-                  properties:
-                    resources:
-                      type: array
-                      items:
-                        $ref: '#/components/schemas/WorkflowVersionResponse'
-                      maxItems: 100
-                  required:
-                  - resources
+                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkflowVersionResponse'
+                        maxItems: 100
+                    required:
+                      - resources
         '404':
           description: Workflow not found
           content:
@@ -265,22 +257,21 @@ paths:
   /workflows/{workflowId}/versions/{version}:
     get:
       summary: Get workflow version
-      description: Retrieve a specific version of a workflow by version number. Returns
-        the complete workflow definition for that version.
+      description: Retrieve a specific version of a workflow by version number. Returns the complete workflow definition for that version.
       parameters:
-      - name: workflowId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - name: version
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-        description: Version number to retrieve
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Version number to retrieve
       responses:
         '200':
           description: Workflow version details
@@ -301,47 +292,45 @@ paths:
       description: |
         Retrieve executions with filtering, sorting, and cursor-based pagination.
       parameters:
-      - name: workflow_id
-        in: query
-        required: false
-        schema:
-          type: string
-          format: uuid
-        description: Filter by workflow ID
-      - name: created_by
-        in: query
-        required: false
-        schema:
-          type: string
-          format: uuid
-        description: Filter by user who created the execution
-      - name: status
-        in: query
-        required: false
-        style: deepObject
-        explode: true
-        schema:
-          allOf:
-          - $ref: '#/components/schemas/ExecutionStatus'
-            description: Exact match of status. ?status=<status>
-          - type: object
-            properties:
-              in:
-                type: string
-                description: Match any of the comma-separated values. ?status[in]=<val1,val2>
-        description: |
-          Filter executions by status.
-          - Exact match: `status=running`
-          - Multiple values: `status[in]=running,pending`
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-      - $ref: 
-          ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-      - $ref: 
-          ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+        - name: workflow_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by workflow ID
+        - name: created_by
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by user who created the execution
+        - name: status
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ExecutionStatus'
+                description: Exact match of status. ?status=<status>
+              - type: object
+                properties:
+                  in:
+                    type: string
+                    description: Match any of the comma-separated values. ?status[in]=<val1,val2>
+          description: |
+            Filter executions by status.
+            - Exact match: `status=running`
+            - Multiple values: `status[in]=running,pending`
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
       responses:
         '200':
           description: List of executions
@@ -349,16 +338,16 @@ paths:
             application/json:
               schema:
                 allOf:
-                - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                - type: object
-                  properties:
-                    resources:
-                      type: array
-                      items:
-                        $ref: '#/components/schemas/Execution'
-                      maxItems: 100
-                  required:
-                  - resources
+                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Execution'
+                        maxItems: 100
+                    required:
+                      - resources
     post:
       summary: Create execution
       description: Start a new workflow execution
@@ -387,12 +376,12 @@ paths:
       summary: Get execution
       description: Retrieve details of a specific execution.
       parameters:
-      - name: executionId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Execution details
@@ -410,12 +399,12 @@ paths:
       summary: Control execution
       description: Pause, resume, or cancel a workflow execution
       parameters:
-      - name: executionId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -442,18 +431,17 @@ paths:
       description: |
         Retrieve activity executions for a workflow execution with cursor-based pagination.
       parameters:
-      - name: executionId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-      - $ref: 
-          ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
       responses:
         '200':
           description: List of activity executions
@@ -461,16 +449,16 @@ paths:
             application/json:
               schema:
                 allOf:
-                - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                - type: object
-                  properties:
-                    resources:
-                      type: array
-                      items:
-                        $ref: '#/components/schemas/ActivityExecution'
-                      maxItems: 100
-                  required:
-                  - resources
+                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ActivityExecution'
+                        maxItems: 100
+                    required:
+                      - resources
         '404':
           description: Execution not found
           content:
@@ -484,37 +472,36 @@ paths:
       description: |
         Retrieve approvals for the current user with filtering, sorting, and cursor-based pagination.
       parameters:
-      - name: status
-        in: query
-        required: false
-        style: deepObject
-        explode: true
-        schema:
-          allOf:
-          - $ref: '#/components/schemas/ApprovalStatus'
-            description: Exact match of status. ?status=<status>
-          - type: object
-            properties:
-              in:
-                type: string
-                description: Match any of the comma-separated values. ?status[in]=<val1,val2>
-        description: |
-          Filter approvals by status.
-          - Exact match: `status=pending`
-          - Multiple values: `status[in]=pending,approved`
-      - name: activity_execution_id
-        in: query
-        required: false
-        schema:
-          type: string
-          format: uuid
-        description: Filter by activity execution ID
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-      - $ref: 
-          ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+        - name: status
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ApprovalStatus'
+                description: Exact match of status. ?status=<status>
+              - type: object
+                properties:
+                  in:
+                    type: string
+                    description: Match any of the comma-separated values. ?status[in]=<val1,val2>
+          description: |
+            Filter approvals by status.
+            - Exact match: `status=pending`
+            - Multiple values: `status[in]=pending,approved`
+        - name: activity_execution_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by activity execution ID
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
       responses:
         '200':
           description: List of approvals
@@ -522,28 +509,28 @@ paths:
             application/json:
               schema:
                 allOf:
-                - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                - type: object
-                  properties:
-                    resources:
-                      type: array
-                      items:
-                        $ref: '#/components/schemas/Approval'
-                      maxItems: 100
-                  required:
-                  - resources
+                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Approval'
+                        maxItems: 100
+                    required:
+                      - resources
 
   /approvals/{approvalId}:
     get:
       summary: Get approval
       description: Retrieve details of a specific approval request.
       parameters:
-      - name: approvalId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Approval details
@@ -561,12 +548,12 @@ paths:
       summary: Respond to approval
       description: Approve or reject an approval request
       parameters:
-      - name: approvalId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -612,18 +599,16 @@ components:
     WorkflowVersionResponse:
       type: object
       title: Workflow Version Response
-      description: Complete details of a specific workflow version including workflow
-        definition. Note that deleted_at and deleted_by are always null since soft-deleted
-        versions are excluded from queries.
+      description: Complete details of a specific workflow version including workflow definition. Note that deleted_at and deleted_by are always null since soft-deleted versions are excluded from queries.
       required:
-      - id
-      - workflow_id
-      - version
-      - schema_version
-      - workflow_definition
-      - created_by
-      - created_at
-      - updated_at
+        - id
+        - workflow_id
+        - version
+        - schema_version
+        - workflow_definition
+        - created_by
+        - created_at
+        - updated_at
       properties:
         id:
           type: string
@@ -674,7 +659,7 @@ components:
       title: Workflow Version List Response
       description: List of workflow versions ordered by version number descending
       required:
-      - versions
+        - versions
       properties:
         versions:
           type: array
@@ -728,4 +713,4 @@ components:
       bearerFormat: JWT
 
 security:
-- bearerAuth: []
+  - bearerAuth: []

@@ -1,3 +1,4 @@
+---
 openapi: 3.0.3
 info:
   title: Agent Orchestrator API
@@ -23,12 +24,12 @@ info:
     email: support@syntara-orchestration.example.com
 
 servers:
-- url: https://api.syntara-orchestration.example.com/api/v1
-  description: Production
-- url: https://staging-api.syntara-orchestration.example.com/api/v1
-  description: Staging
-- url: http://localhost:8000/api/v1
-  description: Local development
+  - url: https://api.syntara-orchestration.example.com/api/v1
+    description: Production
+  - url: https://staging-api.syntara-orchestration.example.com/api/v1
+    description: Staging
+  - url: http://localhost:8000/api/v1
+    description: Local development
 
 paths:
   /invocations:
@@ -44,7 +45,7 @@ paths:
 
       operationId: createInvocation
       tags:
-      - Invocation
+        - Invocation
       requestBody:
         required: true
         content:
@@ -55,8 +56,7 @@ paths:
               workflowGeneration:
                 summary: Workflow generation request
                 value:
-                  prompt: Create a workflow to deploy customer service app to production
-                    with health checks
+                  prompt: Create a workflow to deploy customer service app to production with health checks
                   createdBy: 550e8400-e29b-41d4-a716-446655440000
                   sessionId: session-001
                   contextData:
@@ -73,8 +73,7 @@ paths:
               $ref: '#/components/schemas/InvocationRequestWithFile'
             encoding:
               files:
-                contentType: application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document,
-                  text/plain, text/markdown
+                contentType: application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, text/markdown
       responses:
         '202':
           description: Invocation accepted
@@ -121,20 +120,17 @@ paths:
                   summary: File exceeds size limit
                   value:
                     error: File Too Large
-                    detail: Uploaded file size (15728640 bytes) exceeds maximum allowed
-                      size (10485760 bytes / 10 MB)
+                    detail: Uploaded file size (15728640 bytes) exceeds maximum allowed size (10485760 bytes / 10 MB)
                 unsupportedFormat:
                   summary: File format not supported
                   value:
                     error: Unsupported File Format
-                    detail: File type 'image/png' is not supported. Supported formats
-                      - PDF, DOC, DOCX, TXT, MD
+                    detail: File type 'image/png' is not supported. Supported formats - PDF, DOC, DOCX, TXT, MD
                 tooManyFiles:
                   summary: Too many files uploaded
                   value:
                     error: Too Many Files
-                    detail: Uploaded 15 files, but maximum allowed is 10 files per
-                      invocation (configurable via file_upload_max_files)
+                    detail: Uploaded 15 files, but maximum allowed is 10 files per invocation (configurable via file_upload_max_files)
         '401':
           description: Unauthorized
           content:
@@ -169,21 +165,19 @@ paths:
 
       operationId: listInvocations
       tags:
-      - Invocation
+        - Invocation
       parameters:
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-      - $ref: '#/components/parameters/statusFilterParam'
-      - $ref: '#/components/parameters/promptFilterParam'
-      - $ref: '#/components/parameters/createdByFilterParam'
-      - $ref: '#/components/parameters/sessionIdFilterParam'
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
-      - $ref: 
-          ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-      - $ref: 
-          ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: '#/components/parameters/statusFilterParam'
+        - $ref: '#/components/parameters/promptFilterParam'
+        - $ref: '#/components/parameters/createdByFilterParam'
+        - $ref: '#/components/parameters/sessionIdFilterParam'
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
       responses:
         '200':
           description: Successful response with paginated invocations
@@ -196,43 +190,43 @@ paths:
                   summary: Paginated invocation list
                   value:
                     resources:
-                    - id: 550e8400-e29b-41d4-a716-446655440000
-                      prompt: Deploy app to production
-                      createdBy: 770e8400-e29b-41d4-a716-446655440000
-                      updatedBy:
-                      sessionId: session-001
-                      status: running
-                      createdAt: '2025-10-21T10:30:00Z'
-                      updatedAt: '2025-10-21T10:30:00Z'
-                      startedAt: '2025-10-21T10:30:01Z'
-                      completedAt:
-                      labels:
-                        environment: production
-                        team: platform
-                      contextData:
-                        environment: production
-                        app_id: customer-svc
-                      result:
-                      errorMessage:
-                      checkpointData:
-                    - id: 660e8400-e29b-41d4-a716-446655440001
-                      prompt: Analyze metrics
-                      createdBy: 770e8400-e29b-41d4-a716-446655440000
-                      updatedBy:
-                      sessionId: session-002
-                      status: completed
-                      createdAt: '2025-10-21T09:00:00Z'
-                      updatedAt: '2025-10-21T09:05:00Z'
-                      startedAt: '2025-10-21T09:00:01Z'
-                      completedAt: '2025-10-21T09:05:00Z'
-                      labels:
-                        environment: staging
-                      contextData: {}
-                      result:
-                        workflowId: wf-123
-                        status: success
-                      errorMessage:
-                      checkpointData:
+                      - id: 550e8400-e29b-41d4-a716-446655440000
+                        prompt: Deploy app to production
+                        createdBy: 770e8400-e29b-41d4-a716-446655440000
+                        updatedBy:
+                        sessionId: session-001
+                        status: running
+                        createdAt: '2025-10-21T10:30:00Z'
+                        updatedAt: '2025-10-21T10:30:00Z'
+                        startedAt: '2025-10-21T10:30:01Z'
+                        completedAt:
+                        labels:
+                          environment: production
+                          team: platform
+                        contextData:
+                          environment: production
+                          app_id: customer-svc
+                        result:
+                        errorMessage:
+                        checkpointData:
+                      - id: 660e8400-e29b-41d4-a716-446655440001
+                        prompt: Analyze metrics
+                        createdBy: 770e8400-e29b-41d4-a716-446655440000
+                        updatedBy:
+                        sessionId: session-002
+                        status: completed
+                        createdAt: '2025-10-21T09:00:00Z'
+                        updatedAt: '2025-10-21T09:05:00Z'
+                        startedAt: '2025-10-21T09:00:01Z'
+                        completedAt: '2025-10-21T09:05:00Z'
+                        labels:
+                          environment: staging
+                        contextData: {}
+                        result:
+                          workflowId: wf-123
+                          status: success
+                        errorMessage:
+                        checkpointData:
                     next: eyJpZCI6IjY2MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMSJ9
                     prev:
                     total: 42
@@ -264,16 +258,16 @@ paths:
 
       operationId: getInvocation
       tags:
-      - Invocation
+        - Invocation
       parameters:
-      - name: invocationId
-        in: path
-        required: true
-        description: UUID of the invocation to retrieve
-        schema:
-          type: string
-          format: uuid
-        example: 550e8400-e29b-41d4-a716-446655440000
+        - name: invocationId
+          in: path
+          required: true
+          description: UUID of the invocation to retrieve
+          schema:
+            type: string
+            format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
       responses:
         '200':
           description: Successful response with full invocation details
@@ -301,10 +295,7 @@ paths:
                       user_context: testing
                     result:
                       type: answer
-                      content: Based on the available documentation, the Nexus system
-                        provides several deployment tools including Docker for containerization,
-                        Kubernetes for orchestration, and Terraform for infrastructure
-                        as code...
+                      content: Based on the available documentation, the Nexus system provides several deployment tools including Docker for containerization, Kubernetes for orchestration, and Terraform for infrastructure as code...
                       response_metadata:
                         model: anthropic/claude-3.5-sonnet
                       correlation_id: workflow-correlation-456
@@ -312,10 +303,10 @@ paths:
                       context_enhancement:
                         turn_id: 770e8400-e29b-41d4-a716-446655440003
                         citations:
-                        - source: deployment-guide.md
-                          relevance: 0.9
-                        - source: tools-inventory.yaml
-                          relevance: 0.7
+                          - source: deployment-guide.md
+                            relevance: 0.9
+                          - source: tools-inventory.yaml
+                            relevance: 0.7
                         context_applied: true
                     errorMessage:
                     checkpointData:
@@ -353,8 +344,7 @@ paths:
                     labels: {}
                     contextData: {}
                     result:
-                    errorMessage: GenericAgent not configured. Set NEXUS_OPENROUTER_API_KEY
-                      environment variable.
+                    errorMessage: GenericAgent not configured. Set NEXUS_OPENROUTER_API_KEY environment variable.
                     checkpointData:
         '400':
           description: Invalid UUID format
@@ -404,15 +394,15 @@ paths:
 
       operationId: streamProgressWebSocket
       tags:
-      - Invocation
+        - Invocation
       parameters:
-      - name: invocationId
-        in: path
-        required: true
-        description: Invocation ID from POST /invocations response
-        schema:
-          type: string
-          format: uuid
+        - name: invocationId
+          in: path
+          required: true
+          description: Invocation ID from POST /invocations response
+          schema:
+            type: string
+            format: uuid
       responses:
         '101':
           description: Switching Protocols - WebSocket connection established
@@ -461,15 +451,15 @@ paths:
 
       operationId: sendMessage
       tags:
-      - Interaction
+        - Interaction
       parameters:
-      - name: invocationId
-        in: path
-        required: true
-        description: Invocation ID of running agent
-        schema:
-          type: string
-          format: uuid
+        - name: invocationId
+          in: path
+          required: true
+          description: Invocation ID of running agent
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -506,15 +496,15 @@ paths:
 
       operationId: pauseAgent
       tags:
-      - Control
+        - Control
       parameters:
-      - name: invocationId
-        in: path
-        required: true
-        description: Invocation ID of running agent
-        schema:
-          type: string
-          format: uuid
+        - name: invocationId
+          in: path
+          required: true
+          description: Invocation ID of running agent
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Pause signal acknowledged
@@ -542,15 +532,15 @@ paths:
 
       operationId: cancelAgent
       tags:
-      - Control
+        - Control
       parameters:
-      - name: invocationId
-        in: path
-        required: true
-        description: Invocation ID of agent to cancel
-        schema:
-          type: string
-          format: uuid
+        - name: invocationId
+          in: path
+          required: true
+          description: Invocation ID of agent to cancel
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Cancel signal acknowledged
@@ -591,16 +581,16 @@ components:
       explode: true
       schema:
         allOf:
-        - type: string
-          format: uuid
-          description: Exact match of creator UUID. ?created_by=<uuid>
-        - type: object
-          properties:
-            eq:
-              title: Equals
-              description: Exact match of creator UUID. ?created_by[eq]=<uuid>
-              type: string
-              format: uuid
+          - type: string
+            format: uuid
+            description: Exact match of creator UUID. ?created_by=<uuid>
+          - type: object
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of creator UUID. ?created_by[eq]=<uuid>
+                type: string
+                format: uuid
       description: |
         Filter invocations by creator UUID.
         - Exact match: `created_by=550e8400-e29b-41d4-a716-446655440000`
@@ -615,22 +605,22 @@ components:
       explode: true
       schema:
         allOf:
-        - type: string
-          description: Exact match of session ID (case-sensitive). ?session_id=<session_id>
-        - type: object
-          properties:
-            eq:
-              title: Equals
-              description: Exact match of session ID (case-sensitive). ?session_id[eq]=<session_id>
-              type: string
-            contains:
-              title: Contains
-              description: Substring match within session ID. ?session_id[contains]=<substring>
-              type: string
-            starts_with:
-              title: Starts With
-              description: Prefix match at start of session ID. ?session_id[starts_with]=<prefix>
-              type: string
+          - type: string
+            description: Exact match of session ID (case-sensitive). ?session_id=<session_id>
+          - type: object
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of session ID (case-sensitive). ?session_id[eq]=<session_id>
+                type: string
+              contains:
+                title: Contains
+                description: Substring match within session ID. ?session_id[contains]=<substring>
+                type: string
+              starts_with:
+                title: Starts With
+                description: Prefix match at start of session ID. ?session_id[starts_with]=<prefix>
+                type: string
       description: |
         Filter invocations by session ID.
         - Exact match: `session_id=session-001`
@@ -646,19 +636,18 @@ components:
       explode: true
       schema:
         allOf:
-        - type: string
-          description: Substring match within prompt text. ?prompt=<text>
-        - type: object
-          properties:
-            contains:
-              title: Contains
-              description: Substring match within prompt text (case-insensitive).
-                ?prompt[contains]=<text>
-              type: string
-            starts_with:
-              title: Starts With
-              description: Prefix match at start of prompt. ?prompt[starts_with]=<prefix>
-              type: string
+          - type: string
+            description: Substring match within prompt text. ?prompt=<text>
+          - type: object
+            properties:
+              contains:
+                title: Contains
+                description: Substring match within prompt text (case-insensitive). ?prompt[contains]=<text>
+                type: string
+              starts_with:
+                title: Starts With
+                description: Prefix match at start of prompt. ?prompt[starts_with]=<prefix>
+                type: string
       description: |
         Filter invocations by prompt text.
         - Contains (default): `prompt=deploy`
@@ -675,201 +664,196 @@ components:
 
     Invocation:
       allOf:
-      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
-      - type: object
-        title: Invocation
-        description: |
-          Agent invocation resource representing an async agent execution.
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
+        - type: object
+          title: Invocation
+          description: |
+            Agent invocation resource representing an async agent execution.
 
-          Invocations track the execution state, results, and metadata for agent requests.
+            Invocations track the execution state, results, and metadata for agent requests.
 
-          Extends UserOwnedResource to inherit: id, createdAt, updatedAt, createdBy, updatedBy, labels.
-        required:
-        - prompt
-        - sessionId
-        - status
-        properties:
-          prompt:
-            type: string
-            minLength: 1
-            maxLength: 10000
-            title: Prompt
-            description: Natural language request describing desired automation task
-            example: Deploy customer service app to production
-          sessionId:
-            type: string
-            maxLength: 255
-            title: Session ID
-            description: Session identifier for grouping related invocations
-            example: session-001
-          status:
-            $ref: '#/components/schemas/InvocationStatus'
-          startedAt:
-            type: string
-            format: date-time
-            nullable: true
-            readOnly: true
-            title: Started At
-            description: When agent started processing
-            example: '2025-10-21T10:30:01Z'
-          completedAt:
-            type: string
-            format: date-time
-            nullable: true
-            readOnly: true
-            title: Completed At
-            description: When agent completed or failed
-            example: '2025-10-21T10:35:00Z'
-          contextData:
-            type: object
-            default: {}
-            title: Context Data
-            description: |
-              Additional context for the invocation.
-              When files are uploaded, includes file_metadata array.
-            properties:
-              file_metadata:
-                type: array
-                description: Metadata for uploaded files (populated when files are
-                  attached)
-                items:
+            Extends UserOwnedResource to inherit: id, createdAt, updatedAt, createdBy, updatedBy, labels.
+          required:
+            - prompt
+            - sessionId
+            - status
+          properties:
+            prompt:
+              type: string
+              minLength: 1
+              maxLength: 10000
+              title: Prompt
+              description: Natural language request describing desired automation task
+              example: Deploy customer service app to production
+            sessionId:
+              type: string
+              maxLength: 255
+              title: Session ID
+              description: Session identifier for grouping related invocations
+              example: session-001
+            status:
+              $ref: '#/components/schemas/InvocationStatus'
+            startedAt:
+              type: string
+              format: date-time
+              nullable: true
+              readOnly: true
+              title: Started At
+              description: When agent started processing
+              example: '2025-10-21T10:30:01Z'
+            completedAt:
+              type: string
+              format: date-time
+              nullable: true
+              readOnly: true
+              title: Completed At
+              description: When agent completed or failed
+              example: '2025-10-21T10:35:00Z'
+            contextData:
+              type: object
+              default: {}
+              title: Context Data
+              description: |
+                Additional context for the invocation.
+                When files are uploaded, includes file_metadata array.
+              properties:
+                file_metadata:
+                  type: array
+                  description: Metadata for uploaded files (populated when files are attached)
+                  items:
+                    type: object
+                    required:
+                      - filename
+                      - size_bytes
+                      - mime_type
+                      - file_path
+                      - status
+                    properties:
+                      filename:
+                        type: string
+                        description: Original filename
+                      size_bytes:
+                        type: integer
+                        description: File size in bytes
+                      mime_type:
+                        type: string
+                        description: MIME type (e.g., application/pdf)
+                      file_path:
+                        type: string
+                        description: Path to file in storage directory
+                      status:
+                        type: string
+                        enum: [pending_parse]
+                        description: File processing status
+              additionalProperties: true
+              example:
+                environment: production
+                app_id: customer-svc
+                file_metadata:
+                  - file_id: 550e8400-e29b-41d4-a716-446655440000
+                    filename: document.pdf
+                    size_bytes: 524288
+                    mime_type: application/pdf
+                    status: pending_parse
+            result:
+              type: object
+              nullable: true
+              title: Result
+              description: |
+                Invocation result data (populated on completion).
+
+                For context-enhanced invocations, includes additional metadata:
+                - correlation_id: ID for distributed tracing and correlation
+                - grounding_score: Relevance score (0.0-1.0) indicating context quality
+                - context_enhancement: Additional context enhancement information including citations
+              additionalProperties: true
+              properties:
+                type:
+                  type: string
+                  description: Type of response (typically "answer")
+                  example: answer
+                content:
+                  type: string
+                  description: Main response content from the AI agent
+                  example: The deployment tools available include...
+                response_metadata:
                   type: object
-                  required:
-                  - filename
-                  - size_bytes
-                  - mime_type
-                  - file_path
-                  - status
+                  description: Metadata from the AI model response
+                  additionalProperties: true
+                correlation_id:
+                  type: string
+                  description: Correlation ID for distributed tracing and debugging (optional)
+                  example: workflow-correlation-123
+                grounding_score:
+                  type: number
+                  format: float
+                  minimum: 0.0
+                  maximum: 1.0
+                  description: 'Relevance score indicating context quality: 0.0 (no context) to 1.0 (high-quality context) (optional)'
+                  example: 0.85
+                context_enhancement:
+                  type: object
+                  description: Additional context enhancement information when context enhancement is applied (optional)
                   properties:
-                    filename:
+                    turn_id:
                       type: string
-                      description: Original filename
-                    size_bytes:
-                      type: integer
-                      description: File size in bytes
-                    mime_type:
-                      type: string
-                      description: MIME type (e.g., application/pdf)
-                    file_path:
-                      type: string
-                      description: Path to file in storage directory
-                    status:
-                      type: string
-                      enum: [pending_parse]
-                      description: File processing status
-            additionalProperties: true
-            example:
-              environment: production
-              app_id: customer-svc
-              file_metadata:
-              - file_id: 550e8400-e29b-41d4-a716-446655440000
-                filename: document.pdf
-                size_bytes: 524288
-                mime_type: application/pdf
-                status: pending_parse
-          result:
-            type: object
-            nullable: true
-            title: Result
-            description: |
-              Invocation result data (populated on completion).
-
-              For context-enhanced invocations, includes additional metadata:
-              - correlation_id: ID for distributed tracing and correlation
-              - grounding_score: Relevance score (0.0-1.0) indicating context quality
-              - context_enhancement: Additional context enhancement information including citations
-            additionalProperties: true
-            properties:
-              type:
-                type: string
-                description: Type of response (typically "answer")
-                example: answer
-              content:
-                type: string
-                description: Main response content from the AI agent
-                example: The deployment tools available include...
-              response_metadata:
-                type: object
-                description: Metadata from the AI model response
-                additionalProperties: true
-              correlation_id:
-                type: string
-                description: Correlation ID for distributed tracing and debugging
-                  (optional)
-                example: workflow-correlation-123
-              grounding_score:
-                type: number
-                format: float
-                minimum: 0.0
-                maximum: 1.0
-                description: 'Relevance score indicating context quality: 0.0 (no
-                  context) to 1.0 (high-quality context) (optional)'
-                example: 0.85
-              context_enhancement:
-                type: object
-                description: Additional context enhancement information when context
-                  enhancement is applied (optional)
-                properties:
-                  turn_id:
-                    type: string
-                    format: uuid
-                    description: Context package identifier for correlation
-                    example: 660e8400-e29b-41d4-a716-446655440001
+                      format: uuid
+                      description: Context package identifier for correlation
+                      example: 660e8400-e29b-41d4-a716-446655440001
+                    citations:
+                      type: array
+                      description: Source citations for context information
+                      items:
+                        type: object
+                        additionalProperties: true
+                      example:
+                        - source: api-docs.md
+                          relevance: 0.9
+                        - source: deployment-guide.yaml
+                          relevance: 0.8
+                    context_applied:
+                      type: boolean
+                      description: Whether context enhancement was successfully applied
+                      example: true
+                  additionalProperties: true
+              example:
+                type: answer
+                content: The deployment tools available include Docker, Kubernetes, and Terraform...
+                response_metadata:
+                  model: anthropic/claude-3.5-sonnet
+                correlation_id: workflow-correlation-123
+                grounding_score: 0.85
+                context_enhancement:
+                  turn_id: 660e8400-e29b-41d4-a716-446655440001
                   citations:
-                    type: array
-                    description: Source citations for context information
-                    items:
-                      type: object
-                      additionalProperties: true
-                    example:
-                    - source: api-docs.md
+                    - source: deployment-tools.md
                       relevance: 0.9
-                    - source: deployment-guide.yaml
-                      relevance: 0.8
-                  context_applied:
-                    type: boolean
-                    description: Whether context enhancement was successfully applied
-                    example: true
-                additionalProperties: true
-            example:
-              type: answer
-              content: The deployment tools available include Docker, Kubernetes,
-                and Terraform...
-              response_metadata:
-                model: anthropic/claude-3.5-sonnet
-              correlation_id: workflow-correlation-123
-              grounding_score: 0.85
-              context_enhancement:
-                turn_id: 660e8400-e29b-41d4-a716-446655440001
-                citations:
-                - source: deployment-tools.md
-                  relevance: 0.9
-                context_applied: true
-          errorMessage:
-            type: string
-            nullable: true
-            maxLength: 2000
-            title: Error Message
-            description: Error message if invocation failed
-            example: Tool execution timeout
-          checkpointData:
-            type: object
-            nullable: true
-            title: Checkpoint Data
-            description: Checkpoint state for paused invocations
-            additionalProperties: true
-            example:
-              phase: complete
-              step: 5
+                  context_applied: true
+            errorMessage:
+              type: string
+              nullable: true
+              maxLength: 2000
+              title: Error Message
+              description: Error message if invocation failed
+              example: Tool execution timeout
+            checkpointData:
+              type: object
+              nullable: true
+              title: Checkpoint Data
+              description: Checkpoint state for paused invocations
+              additionalProperties: true
+              example:
+                phase: complete
+                step: 5
 
     InvocationRequest:
       type: object
       title: Invocation Request
       description: Request body for creating a new invocation
       required:
-      - prompt
-      - createdBy
-      - sessionId
+        - prompt
+        - createdBy
+        - sessionId
       properties:
         prompt:
           type: string
@@ -901,44 +885,42 @@ components:
 
     InvocationRequestWithFile:
       allOf:
-      - $ref: '#/components/schemas/InvocationRequest'
-      - type: object
-        title: Invocation Request with Files
-        description: Request body for creating invocation with optional file attachments
-        properties:
-          files:
-            type: array
-            items:
-              type: string
-              format: binary
-            description: Optional file attachments (PDF, DOC, DOCX, TXT, MD). Max
-              10MB per file by default (configurable via file_upload_max_size_mb).
-              Max 10 files per invocation by default (configurable via file_upload_max_files).
-            maxItems: 10
+        - $ref: '#/components/schemas/InvocationRequest'
+        - type: object
+          title: Invocation Request with Files
+          description: Request body for creating invocation with optional file attachments
+          properties:
+            files:
+              type: array
+              items:
+                type: string
+                format: binary
+              description: Optional file attachments (PDF, DOC, DOCX, TXT, MD). Max 10MB per file by default (configurable via file_upload_max_size_mb). Max 10 files per invocation by default (configurable via file_upload_max_files).
+              maxItems: 10
 
     InvocationListResponse:
       allOf:
-      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-      - type: object
-        title: Invocation List Response
-        description: Paginated response containing invocations
-        required:
-        - resources
-        properties:
-          resources:
-            type: array
-            title: Invocations
-            description: Array of invocations in current page
-            items:
-              $ref: '#/components/schemas/Invocation'
-            maxItems: 100
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+        - type: object
+          title: Invocation List Response
+          description: Paginated response containing invocations
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              title: Invocations
+              description: Array of invocations in current page
+              items:
+                $ref: '#/components/schemas/Invocation'
+              maxItems: 100
 
     MessageRequest:
       type: object
       title: Message Request
       description: Request to send message to running agent
       required:
-      - message
+        - message
       properties:
         message:
           type: string
@@ -960,10 +942,10 @@ components:
       title: Message Response
       description: Response after sending message to agent
       required:
-      - invocationId
-      - messageId
-      - status
-      - acknowledgedAt
+        - invocationId
+        - messageId
+        - status
+        - acknowledgedAt
       properties:
         invocationId:
           type: string
@@ -1001,10 +983,10 @@ components:
       title: Progress Event
       description: WebSocket progress event from agent
       required:
-      - eventType
-      - invocationId
-      - timestamp
-      - data
+        - eventType
+        - invocationId
+        - timestamp
+        - data
       properties:
         eventType:
           type: string
@@ -1044,11 +1026,11 @@ components:
       title: Control Response
       description: Response after sending control signal to agent
       required:
-      - invocationId
-      - action
-      - status
-      - currentState
-      - acknowledgedAt
+        - invocationId
+        - action
+        - status
+        - currentState
+        - acknowledgedAt
       properties:
         invocationId:
           type: string
@@ -1104,13 +1086,13 @@ components:
       name: X-API-Key
 
 security:
-- BearerAuth: []
-- ApiKeyAuth: []
+  - BearerAuth: []
+  - ApiKeyAuth: []
 
 tags:
-- name: Invocation
-  description: Agent invocation operations
-- name: Interaction
-  description: Interactive messaging with running agents
-- name: Control
-  description: Process control (pause/cancel)
+  - name: Invocation
+    description: Agent invocation operations
+  - name: Interaction
+    description: Interactive messaging with running agents
+  - name: Control
+    description: Process control (pause/cancel)

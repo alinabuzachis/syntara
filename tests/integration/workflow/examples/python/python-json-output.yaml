@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,29 +7,29 @@ metadata:
   description: Python script that outputs structured JSON data
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: json_producer
-    type: task
-    task:
-      executor: script
-      config:
-        language: python
-        code: |
-          import json
+    - id: json_producer
+      type: task
+      task:
+        executor: script
+        config:
+          language: python
+          code: |
+            import json
 
-          data = {
-              "data": {
-                  "items": [1, 2, 3],
-                  "count": 3,
-                  "message": "JSON output from Python"
-              },
-              "result": "success"
-          }
+            data = {
+                "data": {
+                    "items": [1, 2, 3],
+                    "count": 3,
+                    "message": "JSON output from Python"
+                },
+                "result": "success"
+            }
 
-          print(json.dumps(data))
-      outputs:
-        data: $.output.data
-        result: $.output.result
+            print(json.dumps(data))
+        outputs:
+          data: $.output.data
+          result: $.output.result

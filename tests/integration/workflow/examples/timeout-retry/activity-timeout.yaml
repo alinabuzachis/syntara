@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,18 +7,18 @@ metadata:
   description: Test activity timeout
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: slow_task
-    name: Slow Task
-    type: task
-    timeout: PT2S
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          sleep 10
-          echo "This should not complete"
+    - id: slow_task
+      name: Slow Task
+      type: task
+      timeout: PT2S
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            sleep 10
+            echo "This should not complete"

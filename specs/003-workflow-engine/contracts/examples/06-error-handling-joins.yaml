@@ -1,3 +1,4 @@
+---
 # Example 6: Error Handling and Join Patterns
 # Demonstrates: Error handling via conditions, join patterns, variables, secrets
 
@@ -8,15 +9,15 @@ metadata:
   name: data-sync-with-error-handling
   description: Multi-source data sync with error handling and join patterns
   tags:
-  - error-handling
-  - join-pattern
-  - data-sync
-  - example
+    - error-handling
+    - join-pattern
+    - data-sync
+    - example
   owner: data-team
   timeout: PT2H
 
 triggers:
-- type: manual
+  - type: manual
 
 inputs:
   syncDate:
@@ -28,388 +29,386 @@ inputs:
 workflow:
   activities:
     # Parallel data fetching from multiple sources
-  - id: fetch_all_sources
-    name: Fetch Data from All Sources
-    type: parallel
-    branches:
-    - id: fetch_database
-      name: Fetch from Database
+    - id: fetch_all_sources
+      name: Fetch Data from All Sources
+      type: parallel
+      branches:
+        - id: fetch_database
+          name: Fetch from Database
+          type: task
+          task:
+            executor: connector
+            config:
+              connectorId: postgres-db
+              operation: query
+              parameters:
+                query: SELECT * FROM records WHERE date = $1
+                params:
+                  - ${input.syncDate}
+                credentials: ${secrets.dbCredentials.secretId}
+            outputs:
+              records: $.rows
+              status: $.status
+              error: $.error
+              errorType: $.error_type
+          timeout: PT5M
+          retryPolicy:
+            maxAttempts: 3
+            backoff: exponential
+            initialInterval: PT2S
+            retryableErrors:
+              - NETWORK_ERROR
+              - TIMEOUT
+
+        - id: fetch_api
+          name: Fetch from External API
+          type: task
+          task:
+            executor: api
+            config:
+              method: GET
+              url: https://api.example.com/data
+              headers:
+                Accept: application/json
+                Authorization: Bearer ${secrets.apiToken.secretId}
+              queryParams:
+                date: ${input.syncDate}
+            outputs:
+              records: $.data
+              status: $.status
+              error: $.error
+              errorType: $.error_type
+          timeout: PT5M
+          retryPolicy:
+            maxAttempts: 3
+            backoff: exponential
+            initialInterval: PT2S
+
+        - id: fetch_s3
+          name: Fetch from S3
+          type: task
+          task:
+            executor: connector
+            config:
+              connectorId: aws-s3
+              operation: getObject
+              parameters:
+                bucket: data-exports
+                key: records/${input.syncDate}.json
+                credentials: ${secrets.s3Credentials.secretId}
+            outputs:
+              records: $.content
+              status: $.status
+              error: $.error
+              errorType: $.error_type
+          timeout: PT10M
+          retryPolicy:
+            maxAttempts: 2
+            backoff: linear
+            initialInterval: PT5S
+
+      # Join pattern: Wait for all parallel branches
+    - id: wait_for_sources
+      name: Wait for All Source Fetches
+      type: join
+      join:
+        branches:
+          - fetch_database
+          - fetch_api
+          - fetch_s3
+        strategy: all
+        timeout: PT15M
+        onTimeout: continue
+        aggregateOutputs: true
+
+      # Error handling: Check which sources succeeded/failed
+    - id: check_database_result
+      name: Check Database Fetch Result
+      type: condition
+      condition: ${fetch_database.output.status == 'error'}
+      then:
+        # Database fetch failed - determine if retryable
+        - id: handle_db_error
+          name: Handle Database Error
+          type: condition
+          condition: ${fetch_database.output.errorType == 'TIMEOUT' || fetch_database.output.errorType == 'NETWORK_ERROR'}
+          then:
+            # Retryable error - log and continue with partial data
+            - id: log_db_retry_exhausted
+              name: Log Database Retry Exhausted
+              type: task
+              task:
+                executor: script
+                config:
+                  language: python
+                  code: |
+                    import json
+                    print(json.dumps({
+                      "source": "database",
+                      "status": "retry_exhausted",
+                      "error": error_msg
+                    }))
+                  environment:
+                    error_msg: ${fetch_database.output.error}
+              timeout: PT30S
+
+          else:
+            # Non-retryable error - fail the workflow
+            - id: fail_workflow_db
+              name: Fail Workflow - Critical Database Error
+              type: task
+              task:
+                executor: script
+                config:
+                  language: python
+                  code: |
+                    raise Exception(f"Critical database error: {error_msg}")
+                  environment:
+                    error_msg: ${fetch_database.output.error}
+              timeout: PT30S
+
+      else:
+        # Database fetch succeeded
+        - id: log_db_success
+          name: Log Database Success
+          type: task
+          task:
+            executor: script
+            config:
+              language: python
+              code: |
+                import json
+                print(json.dumps({
+                  "source": "database",
+                  "status": "success",
+                  "record_count": len(records)
+                }))
+              environment:
+                records: ${fetch_database.output.records}
+          timeout: PT30S
+
+      # Check API result
+    - id: check_api_result
+      name: Check API Fetch Result
+      type: condition
+      condition: ${fetch_api.output.status == 'error'}
+      then:
+        # API failed - use fallback source
+        - id: fetch_fallback_api
+          name: Fetch from Fallback API
+          type: task
+          task:
+            executor: api
+            config:
+              method: GET
+              url: https://fallback-api.example.com/data
+              headers:
+                Accept: application/json
+                Authorization: Bearer ${secrets.apiToken.secretId}
+            outputs:
+              records: $.data
+              status: $.status
+          timeout: PT5M
+          retryPolicy:
+            maxAttempts: 2
+            backoff: fixed
+            initialInterval: PT5S
+
+      else:
+        # API succeeded
+        - id: validate_api_data
+          name: Validate API Data Quality
+          type: task
+          task:
+            executor: script
+            config:
+              language: python
+              code: |
+                import json
+                records = json.loads(api_records)
+                valid = all('id' in r and 'value' in r for r in records)
+                print(json.dumps({"valid": valid, "count": len(records)}))
+              environment:
+                api_records: ${fetch_api.output.records}
+            outputs:
+              valid: $.valid
+              count: $.count
+          timeout: PT2M
+
+      # Check S3 result
+    - id: check_s3_result
+      name: Check S3 Fetch Result
+      type: condition
+      condition: ${fetch_s3.output.status == 'error'}
+      then:
+        # S3 failed - check if file exists
+        - id: check_s3_error_type
+          name: Check S3 Error Type
+          type: condition
+          condition: ${fetch_s3.output.errorType == 'FILE_NOT_FOUND'}
+          then:
+            # File doesn't exist - that's OK, continue without S3 data
+            - id: log_s3_skip
+              name: Log S3 Data Not Available
+              type: task
+              task:
+                executor: script
+                config:
+                  language: python
+                  code: |
+                    import json
+                    print(json.dumps({"source": "s3", "status": "skipped", "reason": "file_not_found"}))
+              timeout: PT30S
+
+          else:
+            # Other S3 error - log and continue
+            - id: log_s3_error
+              name: Log S3 Error
+              type: task
+              task:
+                executor: script
+                config:
+                  language: python
+                  code: |
+                    import json
+                    print(json.dumps({"source": "s3", "status": "error", "error": error_msg}))
+                  environment:
+                    error_msg: ${fetch_s3.output.error}
+              timeout: PT30S
+
+      else:
+        # S3 succeeded
+        - id: log_s3_success
+          name: Log S3 Success
+          type: task
+          task:
+            executor: script
+            config:
+              language: python
+              code: |
+                import json
+                print(json.dumps({"source": "s3", "status": "success"}))
+          timeout: PT30S
+
+      # Merge successful data
+    - id: merge_data
+      name: Merge Data from Successful Sources
+      type: task
+      task:
+        executor: script
+        config:
+          language: python
+          code: |
+            import json
+
+            all_records = []
+            failed_sources = []
+
+            # Database
+            if db_status != 'error':
+                db_data = json.loads(db_records) if db_records else []
+                all_records.extend(db_data)
+            else:
+                failed_sources.append('database')
+
+            # API
+            if api_status != 'error':
+                api_data = json.loads(api_records) if api_records else []
+                all_records.extend(api_data)
+            else:
+                failed_sources.append('api')
+
+            # S3
+            if s3_status != 'error':
+                s3_data = json.loads(s3_records) if s3_records else []
+                all_records.extend(s3_data)
+            else:
+                failed_sources.append('s3')
+
+            # Deduplicate
+            unique_records = {r['id']: r for r in all_records if 'id' in r}.values()
+
+            output = {
+                "total_records": len(unique_records),
+                "failed_sources": failed_sources,
+                "merged_data": list(unique_records)
+            }
+            print(json.dumps(output))
+          environment:
+            db_records: ${fetch_database.output.records}
+            db_status: ${fetch_database.output.status}
+            api_records: ${fetch_api.output.records}
+            api_status: ${fetch_api.output.status}
+            s3_records: ${fetch_s3.output.records}
+            s3_status: ${fetch_s3.output.status}
+        outputs:
+          totalRecords: $.total_records
+          failedSources: $.failed_sources
+          mergedData: $.merged_data
+      timeout: PT10M
+
+      # Store merged data
+    - id: store_merged_data
+      name: Store Merged Data
       type: task
       task:
         executor: connector
         config:
           connectorId: postgres-db
-          operation: query
+          operation: bulkInsert
           parameters:
-            query: SELECT * FROM records WHERE date = $1
-            params:
-            - ${input.syncDate}
-            credentials: ${secrets.dbCredentials.secretId}
+            table: synced_records
+            data: ${merge_data.output.mergedData}
+            onConflict: update
         outputs:
-          records: $.rows
-          status: $.status
-          error: $.error
-          errorType: $.error_type
-      timeout: PT5M
-      retryPolicy:
-        maxAttempts: 3
-        backoff: exponential
-        initialInterval: PT2S
-        retryableErrors:
-        - NETWORK_ERROR
-        - TIMEOUT
-
-    - id: fetch_api
-      name: Fetch from External API
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: https://api.example.com/data
-          headers:
-            Accept: application/json
-            Authorization: Bearer ${secrets.apiToken.secretId}
-          queryParams:
-            date: ${input.syncDate}
-        outputs:
-          records: $.data
-          status: $.status
-          error: $.error
-          errorType: $.error_type
-      timeout: PT5M
-      retryPolicy:
-        maxAttempts: 3
-        backoff: exponential
-        initialInterval: PT2S
-
-    - id: fetch_s3
-      name: Fetch from S3
-      type: task
-      task:
-        executor: connector
-        config:
-          connectorId: aws-s3
-          operation: getObject
-          parameters:
-            bucket: data-exports
-            key: records/${input.syncDate}.json
-            credentials: ${secrets.s3Credentials.secretId}
-        outputs:
-          records: $.content
-          status: $.status
-          error: $.error
-          errorType: $.error_type
-      timeout: PT10M
-      retryPolicy:
-        maxAttempts: 2
-        backoff: linear
-        initialInterval: PT5S
-
-    # Join pattern: Wait for all parallel branches
-  - id: wait_for_sources
-    name: Wait for All Source Fetches
-    type: join
-    join:
-      branches:
-      - fetch_database
-      - fetch_api
-      - fetch_s3
-      strategy: all
+          insertedCount: $.rows_affected
       timeout: PT15M
-      onTimeout: continue
-      aggregateOutputs: true
-
-    # Error handling: Check which sources succeeded/failed
-  - id: check_database_result
-    name: Check Database Fetch Result
-    type: condition
-    condition: ${fetch_database.output.status == 'error'}
-    then:
-        # Database fetch failed - determine if retryable
-    - id: handle_db_error
-      name: Handle Database Error
-      type: condition
-      condition: ${fetch_database.output.errorType == 'TIMEOUT' || fetch_database.output.errorType
-        == 'NETWORK_ERROR'}
-      then:
-            # Retryable error - log and continue with partial data
-      - id: log_db_retry_exhausted
-        name: Log Database Retry Exhausted
-        type: task
-        task:
-          executor: script
-          config:
-            language: python
-            code: |
-              import json
-              print(json.dumps({
-                "source": "database",
-                "status": "retry_exhausted",
-                "error": error_msg
-              }))
-            environment:
-              error_msg: ${fetch_database.output.error}
-        timeout: PT30S
-
-      else:
-            # Non-retryable error - fail the workflow
-      - id: fail_workflow_db
-        name: Fail Workflow - Critical Database Error
-        type: task
-        task:
-          executor: script
-          config:
-            language: python
-            code: |
-              raise Exception(f"Critical database error: {error_msg}")
-            environment:
-              error_msg: ${fetch_database.output.error}
-        timeout: PT30S
-
-    else:
-        # Database fetch succeeded
-    - id: log_db_success
-      name: Log Database Success
-      type: task
-      task:
-        executor: script
-        config:
-          language: python
-          code: |
-            import json
-            print(json.dumps({
-              "source": "database",
-              "status": "success",
-              "record_count": len(records)
-            }))
-          environment:
-            records: ${fetch_database.output.records}
-      timeout: PT30S
-
-    # Check API result
-  - id: check_api_result
-    name: Check API Fetch Result
-    type: condition
-    condition: ${fetch_api.output.status == 'error'}
-    then:
-        # API failed - use fallback source
-    - id: fetch_fallback_api
-      name: Fetch from Fallback API
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: https://fallback-api.example.com/data
-          headers:
-            Accept: application/json
-            Authorization: Bearer ${secrets.apiToken.secretId}
-        outputs:
-          records: $.data
-          status: $.status
-      timeout: PT5M
       retryPolicy:
-        maxAttempts: 2
-        backoff: fixed
-        initialInterval: PT5S
+        maxAttempts: 3
+        backoff: exponential
+        initialInterval: PT10S
 
-    else:
-        # API succeeded
-    - id: validate_api_data
-      name: Validate API Data Quality
-      type: task
-      task:
-        executor: script
-        config:
-          language: python
-          code: |
-            import json
-            records = json.loads(api_records)
-            valid = all('id' in r and 'value' in r for r in records)
-            print(json.dumps({"valid": valid, "count": len(records)}))
-          environment:
-            api_records: ${fetch_api.output.records}
-        outputs:
-          valid: $.valid
-          count: $.count
-      timeout: PT2M
-
-    # Check S3 result
-  - id: check_s3_result
-    name: Check S3 Fetch Result
-    type: condition
-    condition: ${fetch_s3.output.status == 'error'}
-    then:
-        # S3 failed - check if file exists
-    - id: check_s3_error_type
-      name: Check S3 Error Type
+      # Final status check
+    - id: check_sync_success
+      name: Check Sync Success Threshold
       type: condition
-      condition: ${fetch_s3.output.errorType == 'FILE_NOT_FOUND'}
+      condition: ${merge_data.output.totalRecords >= 100 && merge_data.output.failedSources.length <= 1}
       then:
-            # File doesn't exist - that's OK, continue without S3 data
-      - id: log_s3_skip
-        name: Log S3 Data Not Available
-        type: task
-        task:
-          executor: script
-          config:
-            language: python
-            code: |
-              import json
-              print(json.dumps({"source": "s3", "status": "skipped", "reason": "file_not_found"}))
-        timeout: PT30S
+        # Successful sync
+        - id: send_success_notification
+          name: Send Success Notification
+          type: task
+          task:
+            executor: connector
+            config:
+              connectorId: email-service
+              operation: sendEmail
+              parameters:
+                to: data-team@example.com
+                subject: Data Sync Completed Successfully
+                template: sync-success
+                data:
+                  syncDate: ${input.syncDate}
+                  totalRecords: ${merge_data.output.totalRecords}
+                  failedSources: ${merge_data.output.failedSources}
+          timeout: PT2M
 
       else:
-            # Other S3 error - log and continue
-      - id: log_s3_error
-        name: Log S3 Error
-        type: task
-        task:
-          executor: script
-          config:
-            language: python
-            code: |
-              import json
-              print(json.dumps({"source": "s3", "status": "error", "error": error_msg}))
-            environment:
-              error_msg: ${fetch_s3.output.error}
-        timeout: PT30S
-
-    else:
-        # S3 succeeded
-    - id: log_s3_success
-      name: Log S3 Success
-      type: task
-      task:
-        executor: script
-        config:
-          language: python
-          code: |
-            import json
-            print(json.dumps({"source": "s3", "status": "success"}))
-      timeout: PT30S
-
-    # Merge successful data
-  - id: merge_data
-    name: Merge Data from Successful Sources
-    type: task
-    task:
-      executor: script
-      config:
-        language: python
-        code: |
-          import json
-
-          all_records = []
-          failed_sources = []
-
-          # Database
-          if db_status != 'error':
-              db_data = json.loads(db_records) if db_records else []
-              all_records.extend(db_data)
-          else:
-              failed_sources.append('database')
-
-          # API
-          if api_status != 'error':
-              api_data = json.loads(api_records) if api_records else []
-              all_records.extend(api_data)
-          else:
-              failed_sources.append('api')
-
-          # S3
-          if s3_status != 'error':
-              s3_data = json.loads(s3_records) if s3_records else []
-              all_records.extend(s3_data)
-          else:
-              failed_sources.append('s3')
-
-          # Deduplicate
-          unique_records = {r['id']: r for r in all_records if 'id' in r}.values()
-
-          output = {
-              "total_records": len(unique_records),
-              "failed_sources": failed_sources,
-              "merged_data": list(unique_records)
-          }
-          print(json.dumps(output))
-        environment:
-          db_records: ${fetch_database.output.records}
-          db_status: ${fetch_database.output.status}
-          api_records: ${fetch_api.output.records}
-          api_status: ${fetch_api.output.status}
-          s3_records: ${fetch_s3.output.records}
-          s3_status: ${fetch_s3.output.status}
-      outputs:
-        totalRecords: $.total_records
-        failedSources: $.failed_sources
-        mergedData: $.merged_data
-    timeout: PT10M
-
-    # Store merged data
-  - id: store_merged_data
-    name: Store Merged Data
-    type: task
-    task:
-      executor: connector
-      config:
-        connectorId: postgres-db
-        operation: bulkInsert
-        parameters:
-          table: synced_records
-          data: ${merge_data.output.mergedData}
-          onConflict: update
-      outputs:
-        insertedCount: $.rows_affected
-    timeout: PT15M
-    retryPolicy:
-      maxAttempts: 3
-      backoff: exponential
-      initialInterval: PT10S
-
-    # Final status check
-  - id: check_sync_success
-    name: Check Sync Success Threshold
-    type: condition
-    condition: ${merge_data.output.totalRecords >= 100 && merge_data.output.failedSources.length
-      <= 1}
-    then:
-        # Successful sync
-    - id: send_success_notification
-      name: Send Success Notification
-      type: task
-      task:
-        executor: connector
-        config:
-          connectorId: email-service
-          operation: sendEmail
-          parameters:
-            to: data-team@example.com
-            subject: Data Sync Completed Successfully
-            template: sync-success
-            data:
-              syncDate: ${input.syncDate}
-              totalRecords: ${merge_data.output.totalRecords}
-              failedSources: ${merge_data.output.failedSources}
-      timeout: PT2M
-
-    else:
         # Sync failed or partial
-    - id: send_failure_notification
-      name: Send Failure Notification
-      type: task
-      task:
-        executor: connector
-        config:
-          connectorId: email-service
-          operation: sendEmail
-          parameters:
-            to: data-team@example.com
-            subject: Data Sync Failed or Incomplete
-            template: sync-failure
-            data:
-              syncDate: ${input.syncDate}
-              totalRecords: ${merge_data.output.totalRecords}
-              failedSources: ${merge_data.output.failedSources}
-      timeout: PT2M
+        - id: send_failure_notification
+          name: Send Failure Notification
+          type: task
+          task:
+            executor: connector
+            config:
+              connectorId: email-service
+              operation: sendEmail
+              parameters:
+                to: data-team@example.com
+                subject: Data Sync Failed or Incomplete
+                template: sync-failure
+                data:
+                  syncDate: ${input.syncDate}
+                  totalRecords: ${merge_data.output.totalRecords}
+                  failedSources: ${merge_data.output.failedSources}
+          timeout: PT2M

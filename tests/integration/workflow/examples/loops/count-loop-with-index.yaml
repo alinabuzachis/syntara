@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,27 +7,27 @@ metadata:
   description: Test count loop with custom indexVariable
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: count_with_index
-    name: Count Loop with Index Variable
-    type: loop
-    loop:
-      type: count
-      count: 3
-      indexVariable: iteration_num
-      do:
-      - id: indexed_task
-        type: task
-        task:
-          executor: script
-          config:
-            language: bash
-            code: |
-              echo "Iteration number: ${INPUT_ITERATION_NUM}"
-          inputs:
-            iteration_num: ${iteration_num}
-          outputs:
-            result: $.stdout
+    - id: count_with_index
+      name: Count Loop with Index Variable
+      type: loop
+      loop:
+        type: count
+        count: 3
+        indexVariable: iteration_num
+        do:
+          - id: indexed_task
+            type: task
+            task:
+              executor: script
+              config:
+                language: bash
+                code: |
+                  echo "Iteration number: ${INPUT_ITERATION_NUM}"
+              inputs:
+                iteration_num: ${iteration_num}
+              outputs:
+                result: $.stdout

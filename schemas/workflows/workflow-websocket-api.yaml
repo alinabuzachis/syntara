@@ -1,3 +1,4 @@
+---
 asyncapi: 3.0.0
 info:
   title: Workflow Engine WebSocket API
@@ -91,7 +92,7 @@ servers:
     description: Development WebSocket server (API v1)
     pathname: /api/v1/ws
     security:
-    - bearerAuth: []
+      - bearerAuth: []
     variables:
       version:
         enum: [v1]
@@ -103,7 +104,7 @@ servers:
     description: Production WebSocket server (API v1)
     pathname: /api/v1/ws
     security:
-    - bearerAuth: []
+      - bearerAuth: []
     variables:
       version:
         enum: [v1]
@@ -242,10 +243,10 @@ operations:
       $ref: '#/channels/executionUpdates'
     summary: Receive real-time updates for a specific execution
     messages:
-    - $ref: '#/channels/executionUpdates/messages/connectionAck'
-    - $ref: '#/channels/executionUpdates/messages/executionUpdate'
-    - $ref: '#/channels/executionUpdates/messages/activityUpdate'
-    - $ref: '#/channels/executionUpdates/messages/errorNotification'
+      - $ref: '#/channels/executionUpdates/messages/connectionAck'
+      - $ref: '#/channels/executionUpdates/messages/executionUpdate'
+      - $ref: '#/channels/executionUpdates/messages/activityUpdate'
+      - $ref: '#/channels/executionUpdates/messages/errorNotification'
 
   sendExecutionCommands:
     action: send
@@ -253,9 +254,9 @@ operations:
       $ref: '#/channels/executionUpdates'
     summary: Send control commands for execution management
     messages:
-    - $ref: '#/channels/executionUpdates/messages/pauseCommand'
-    - $ref: '#/channels/executionUpdates/messages/resumeCommand'
-    - $ref: '#/channels/executionUpdates/messages/cancelCommand'
+      - $ref: '#/channels/executionUpdates/messages/pauseCommand'
+      - $ref: '#/channels/executionUpdates/messages/resumeCommand'
+      - $ref: '#/channels/executionUpdates/messages/cancelCommand'
 
   # All Executions Channel Operations
   receiveAllExecutionUpdates:
@@ -264,10 +265,10 @@ operations:
       $ref: '#/channels/allExecutions'
     summary: Receive filtered updates for all executions
     messages:
-    - $ref: '#/channels/allExecutions/messages/connectionAck'
-    - $ref: '#/channels/allExecutions/messages/subscriptionConfirmation'
-    - $ref: '#/channels/allExecutions/messages/executionUpdate'
-    - $ref: '#/channels/allExecutions/messages/activityUpdate'
+      - $ref: '#/channels/allExecutions/messages/connectionAck'
+      - $ref: '#/channels/allExecutions/messages/subscriptionConfirmation'
+      - $ref: '#/channels/allExecutions/messages/executionUpdate'
+      - $ref: '#/channels/allExecutions/messages/activityUpdate'
 
   sendSubscriptionCommands:
     action: send
@@ -275,8 +276,8 @@ operations:
       $ref: '#/channels/allExecutions'
     summary: Manage subscriptions to execution events
     messages:
-    - $ref: '#/channels/allExecutions/messages/subscribeCommand'
-    - $ref: '#/channels/allExecutions/messages/unsubscribeCommand'
+      - $ref: '#/channels/allExecutions/messages/subscribeCommand'
+      - $ref: '#/channels/allExecutions/messages/unsubscribeCommand'
 
   # Approval Notifications Channel Operations
   receiveApprovalNotifications:
@@ -285,8 +286,8 @@ operations:
       $ref: '#/channels/approvalNotifications'
     summary: Receive approval requests and status updates
     messages:
-    - $ref: '#/channels/approvalNotifications/messages/connectionAck'
-    - $ref: '#/channels/approvalNotifications/messages/approvalNotification'
+      - $ref: '#/channels/approvalNotifications/messages/connectionAck'
+      - $ref: '#/channels/approvalNotifications/messages/approvalNotification'
 
 components:
   # Import shared schemas via external reference
@@ -318,9 +319,9 @@ components:
       type: object
       description: Initial connection acknowledgment payload with version information
       required:
-      - session_id
-      - api_version
-      - protocol_version
+        - session_id
+        - api_version
+        - protocol_version
       properties:
         session_id:
           type: string
@@ -365,8 +366,8 @@ components:
       type: object
       description: Execution status update payload
       required:
-      - execution_id
-      - status
+        - execution_id
+        - status
       properties:
         execution_id:
           type: string
@@ -395,20 +396,20 @@ components:
                 nullable: true
                 example: 1
           example:
-          - activity_name: fetch_data
-            temporal_activity_id: temp-act-001
-            iteration: 1
-          - activity_name: process_data
-            temporal_activity_id: temp-act-002
-            iteration:
+            - activity_name: fetch_data
+              temporal_activity_id: temp-act-001
+              iteration: 1
+            - activity_name: process_data
+              temporal_activity_id: temp-act-002
+              iteration:
 
     ActivityUpdatePayload:
       type: object
       description: Activity execution update payload
       required:
-      - execution_id
-      - activity_id
-      - status
+        - execution_id
+        - activity_id
+        - status
       properties:
         execution_id:
           type: string
@@ -425,12 +426,12 @@ components:
           nullable: true
           example:
             customers:
-            - id: 1
-              name: John Doe
-              email: john@example.com
-            - id: 2
-              name: Jane Smith
-              email: jane@example.com
+              - id: 1
+                name: John Doe
+                email: john@example.com
+              - id: 2
+                name: Jane Smith
+                email: jane@example.com
             total_count: 2
         error_details:
           type: string
@@ -444,9 +445,9 @@ components:
       type: object
       description: Approval request or status update payload
       required:
-      - approval_id
-      - execution_id
-      - status
+        - approval_id
+        - execution_id
+        - status
       properties:
         approval_id:
           type: string
@@ -502,7 +503,7 @@ components:
       type: object
       description: Subscription confirmation payload
       required:
-      - subscription_id
+        - subscription_id
       properties:
         subscription_id:
           type: string
@@ -536,7 +537,7 @@ components:
       type: object
       description: Execution control command payload
       required:
-      - execution_id
+        - execution_id
       properties:
         execution_id:
           type: string
@@ -577,18 +578,18 @@ components:
       type: object
       description: Error notification payload
       required:
-      - code
-      - message
+        - code
+        - message
       properties:
         code:
           type: string
           enum:
-          - AUTHENTICATION_FAILED
-          - EXECUTION_NOT_FOUND
-          - INVALID_COMMAND
-          - ACTIVITY_FAILED
-          - APPROVAL_EXPIRED
-          - SUBSCRIPTION_FAILED
+            - AUTHENTICATION_FAILED
+            - EXECUTION_NOT_FOUND
+            - INVALID_COMMAND
+            - ACTIVITY_FAILED
+            - APPROVAL_EXPIRED
+            - SUBSCRIPTION_FAILED
           example: ACTIVITY_FAILED
         message:
           type: string
@@ -616,27 +617,27 @@ components:
       contentType: application/json
       payload:
         allOf:
-        - $ref: '#/components/schemas/WebSocketMessage'
-        - type: object
-          properties:
-            message_type:
-              type: string
-              const: connection_ack
-        - $ref: '#/components/schemas/ConnectionAckPayload'
+          - $ref: '#/components/schemas/WebSocketMessage'
+          - type: object
+            properties:
+              message_type:
+                type: string
+                const: connection_ack
+          - $ref: '#/components/schemas/ConnectionAckPayload'
       examples:
-      - name: Successful Connection
-        summary: Successful WebSocket connection acknowledgment
-        payload:
-          message_type: connection_ack
-          api_version: v1
-          protocol_version: 1.0.0
-          session_id: sess_abc123
-          supported_versions: [v1]
-          timestamp: '2025-10-10T10:00:00Z'
-          server_info:
-            server_id: workflow-engine-01
-            region: us-east-1
-            capabilities: [streaming, replay, subscriptions]
+        - name: Successful Connection
+          summary: Successful WebSocket connection acknowledgment
+          payload:
+            message_type: connection_ack
+            api_version: v1
+            protocol_version: 1.0.0
+            session_id: sess_abc123
+            supported_versions: [v1]
+            timestamp: '2025-10-10T10:00:00Z'
+            server_info:
+              server_id: workflow-engine-01
+              region: us-east-1
+              capabilities: [streaming, replay, subscriptions]
 
     executionUpdate:
       name: executionUpdate
@@ -645,41 +646,41 @@ components:
       contentType: application/json
       payload:
         allOf:
-        - $ref: '#/components/schemas/WebSocketMessage'
-        - type: object
-          properties:
-            message_type:
-              type: string
-              const: execution_update
-        - $ref: '#/components/schemas/ExecutionUpdatePayload'
+          - $ref: '#/components/schemas/WebSocketMessage'
+          - type: object
+            properties:
+              message_type:
+                type: string
+                const: execution_update
+          - $ref: '#/components/schemas/ExecutionUpdatePayload'
       examples:
-      - name: Execution Running
-        summary: Workflow execution started and is running
-        payload:
-          message_type: execution_update
-          api_version: v1
-          event_id: evt_001
-          session_id: sess_abc123
-          execution_id: exec-uuid-123
-          status: running
-          workflow_id: workflow-uuid-456
-          current_activities:
-          - activity_name: fetch_data
-            temporal_activity_id: temp-act-001
-            iteration: 1
-          timestamp: '2025-10-10T10:00:01Z'
-      - name: Execution Completed
-        summary: Workflow execution completed successfully
-        payload:
-          message_type: execution_update
-          api_version: v1
-          event_id: evt_005
-          session_id: sess_abc123
-          execution_id: exec-uuid-123
-          status: completed
-          workflow_id: workflow-uuid-456
-          current_activities: []
-          timestamp: '2025-10-10T10:05:30Z'
+        - name: Execution Running
+          summary: Workflow execution started and is running
+          payload:
+            message_type: execution_update
+            api_version: v1
+            event_id: evt_001
+            session_id: sess_abc123
+            execution_id: exec-uuid-123
+            status: running
+            workflow_id: workflow-uuid-456
+            current_activities:
+              - activity_name: fetch_data
+                temporal_activity_id: temp-act-001
+                iteration: 1
+            timestamp: '2025-10-10T10:00:01Z'
+        - name: Execution Completed
+          summary: Workflow execution completed successfully
+          payload:
+            message_type: execution_update
+            api_version: v1
+            event_id: evt_005
+            session_id: sess_abc123
+            execution_id: exec-uuid-123
+            status: completed
+            workflow_id: workflow-uuid-456
+            current_activities: []
+            timestamp: '2025-10-10T10:05:30Z'
 
     activityUpdate:
       name: activityUpdate
@@ -688,50 +689,50 @@ components:
       contentType: application/json
       payload:
         allOf:
-        - $ref: '#/components/schemas/WebSocketMessage'
-        - type: object
-          properties:
-            message_type:
-              type: string
-              const: activity_update
-        - $ref: '#/components/schemas/ActivityUpdatePayload'
+          - $ref: '#/components/schemas/WebSocketMessage'
+          - type: object
+            properties:
+              message_type:
+                type: string
+                const: activity_update
+          - $ref: '#/components/schemas/ActivityUpdatePayload'
       examples:
-      - name: Activity Completed Successfully
-        summary: Data fetch activity completed with results
-        payload:
-          message_type: activity_update
-          api_version: v1
-          event_id: evt_002
-          session_id: sess_abc123
-          execution_id: exec-uuid-123
-          activity_id: fetch_data
-          status: completed
-          output_data:
-            customers:
-            - id: 1
-              name: John Doe
-              email: john@example.com
-            - id: 2
-              name: Jane Smith
-              email: jane@example.com
-            total_count: 2
-          error_details:
-          retry_count: 0
-          timestamp: '2025-10-10T10:00:30Z'
-      - name: Activity Failed with Retry
-        summary: Activity failed but will be retried
-        payload:
-          message_type: activity_update
-          api_version: v1
-          event_id: evt_003
-          session_id: sess_abc123
-          execution_id: exec-uuid-123
-          activity_id: process_data
-          status: retrying
-          output_data:
-          error_details: Connection timeout to external service
-          retry_count: 2
-          timestamp: '2025-10-10T10:01:15Z'
+        - name: Activity Completed Successfully
+          summary: Data fetch activity completed with results
+          payload:
+            message_type: activity_update
+            api_version: v1
+            event_id: evt_002
+            session_id: sess_abc123
+            execution_id: exec-uuid-123
+            activity_id: fetch_data
+            status: completed
+            output_data:
+              customers:
+                - id: 1
+                  name: John Doe
+                  email: john@example.com
+                - id: 2
+                  name: Jane Smith
+                  email: jane@example.com
+              total_count: 2
+            error_details:
+            retry_count: 0
+            timestamp: '2025-10-10T10:00:30Z'
+        - name: Activity Failed with Retry
+          summary: Activity failed but will be retried
+          payload:
+            message_type: activity_update
+            api_version: v1
+            event_id: evt_003
+            session_id: sess_abc123
+            execution_id: exec-uuid-123
+            activity_id: process_data
+            status: retrying
+            output_data:
+            error_details: Connection timeout to external service
+            retry_count: 2
+            timestamp: '2025-10-10T10:01:15Z'
 
     approvalNotification:
       name: approvalNotification
@@ -740,64 +741,64 @@ components:
       contentType: application/json
       payload:
         allOf:
-        - $ref: '#/components/schemas/WebSocketMessage'
-        - type: object
-          properties:
-            message_type:
-              type: string
-              const: approval_notification
-        - $ref: '#/components/schemas/ApprovalNotificationPayload'
+          - $ref: '#/components/schemas/WebSocketMessage'
+          - type: object
+            properties:
+              message_type:
+                type: string
+                const: approval_notification
+          - $ref: '#/components/schemas/ApprovalNotificationPayload'
       examples:
-      - name: New Approval Request
-        summary: New expense approval request for employee
-        payload:
-          message_type: approval_notification
-          api_version: v1
-          event_id: evt_appr_001
-          session_id: sess_abc123
-          approval_id: appr-uuid-789
-          execution_id: exec-uuid-123
-          activity_id: manager_approval
-          status: pending
-          request_data:
-            expense_amount: 500.00
-            category: travel
-            employee_id: emp-123
-            description: Flight tickets for client meeting
-            receipt_url: https://receipts.example.com/r123.pdf
-          response_data:
-          approver_id: user-uuid-456
-          requested_at: '2025-10-10T09:55:00Z'
-          responded_at:
-          expires_at: '2025-10-11T09:55:00Z'
-          timestamp: '2025-10-10T09:55:00Z'
-      - name: Approval Approved
-        summary: Expense approval has been approved
-        payload:
-          message_type: approval_notification
-          api_version: v1
-          event_id: evt_appr_002
-          session_id: sess_abc123
-          approval_id: appr-uuid-789
-          execution_id: exec-uuid-123
-          activity_id: manager_approval
-          status: approved
-          request_data:
-            expense_amount: 500.00
-            category: travel
-            employee_id: emp-123
-            description: Flight tickets for client meeting
-            receipt_url: https://receipts.example.com/r123.pdf
-          response_data:
-            reason: Expense is within policy limits and properly documented
-            reviewed_by: manager
-            review_date: '2025-10-02'
-            additional_notes: Approved for business travel
-          approver_id: user-uuid-456
-          requested_at: '2025-10-10T09:55:00Z'
-          responded_at: '2025-10-10T10:15:00Z'
-          expires_at: '2025-10-11T09:55:00Z'
-          timestamp: '2025-10-10T10:15:00Z'
+        - name: New Approval Request
+          summary: New expense approval request for employee
+          payload:
+            message_type: approval_notification
+            api_version: v1
+            event_id: evt_appr_001
+            session_id: sess_abc123
+            approval_id: appr-uuid-789
+            execution_id: exec-uuid-123
+            activity_id: manager_approval
+            status: pending
+            request_data:
+              expense_amount: 500.00
+              category: travel
+              employee_id: emp-123
+              description: Flight tickets for client meeting
+              receipt_url: https://receipts.example.com/r123.pdf
+            response_data:
+            approver_id: user-uuid-456
+            requested_at: '2025-10-10T09:55:00Z'
+            responded_at:
+            expires_at: '2025-10-11T09:55:00Z'
+            timestamp: '2025-10-10T09:55:00Z'
+        - name: Approval Approved
+          summary: Expense approval has been approved
+          payload:
+            message_type: approval_notification
+            api_version: v1
+            event_id: evt_appr_002
+            session_id: sess_abc123
+            approval_id: appr-uuid-789
+            execution_id: exec-uuid-123
+            activity_id: manager_approval
+            status: approved
+            request_data:
+              expense_amount: 500.00
+              category: travel
+              employee_id: emp-123
+              description: Flight tickets for client meeting
+              receipt_url: https://receipts.example.com/r123.pdf
+            response_data:
+              reason: Expense is within policy limits and properly documented
+              reviewed_by: manager
+              review_date: '2025-10-02'
+              additional_notes: Approved for business travel
+            approver_id: user-uuid-456
+            requested_at: '2025-10-10T09:55:00Z'
+            responded_at: '2025-10-10T10:15:00Z'
+            expires_at: '2025-10-11T09:55:00Z'
+            timestamp: '2025-10-10T10:15:00Z'
 
     subscriptionConfirmation:
       name: subscriptionConfirmation
@@ -806,43 +807,43 @@ components:
       contentType: application/json
       payload:
         allOf:
-        - $ref: '#/components/schemas/WebSocketMessage'
-        - type: object
-          properties:
-            message_type:
-              type: string
-              const: subscription
-        - $ref: '#/components/schemas/SubscriptionConfirmationPayload'
+          - $ref: '#/components/schemas/WebSocketMessage'
+          - type: object
+            properties:
+              message_type:
+                type: string
+                const: subscription
+          - $ref: '#/components/schemas/SubscriptionConfirmationPayload'
       examples:
-      - name: Workflow-specific Subscription
-        summary: Confirmation for subscribing to specific workflow events
-        payload:
-          message_type: subscription
-          api_version: v1
-          event_id: evt_sub_001
-          session_id: sess_abc123
-          subscription_id: sub_001
-          filter:
-            workflow_id: workflow-uuid-456
-            status: running
-            labels:
-              environment: production
-              priority: high
-              team: data-platform
-          timestamp: '2025-10-10T10:00:05Z'
-      - name: Status-based Subscription
-        summary: Confirmation for subscribing to failed executions only
-        payload:
-          message_type: subscription
-          api_version: v1
-          event_id: evt_sub_002
-          session_id: sess_def456
-          subscription_id: sub_002
-          filter:
-            status: failed
-            labels:
-              environment: production
-          timestamp: '2025-10-10T10:01:00Z'
+        - name: Workflow-specific Subscription
+          summary: Confirmation for subscribing to specific workflow events
+          payload:
+            message_type: subscription
+            api_version: v1
+            event_id: evt_sub_001
+            session_id: sess_abc123
+            subscription_id: sub_001
+            filter:
+              workflow_id: workflow-uuid-456
+              status: running
+              labels:
+                environment: production
+                priority: high
+                team: data-platform
+            timestamp: '2025-10-10T10:00:05Z'
+        - name: Status-based Subscription
+          summary: Confirmation for subscribing to failed executions only
+          payload:
+            message_type: subscription
+            api_version: v1
+            event_id: evt_sub_002
+            session_id: sess_def456
+            subscription_id: sub_002
+            filter:
+              status: failed
+              labels:
+                environment: production
+            timestamp: '2025-10-10T10:01:00Z'
 
     errorNotification:
       name: errorNotification
@@ -851,56 +852,56 @@ components:
       contentType: application/json
       payload:
         allOf:
-        - $ref: '#/components/schemas/WebSocketMessage'
-        - type: object
-          properties:
-            message_type:
-              type: string
-              const: error
-        - $ref: '#/components/schemas/ErrorPayload'
+          - $ref: '#/components/schemas/WebSocketMessage'
+          - type: object
+            properties:
+              message_type:
+                type: string
+                const: error
+          - $ref: '#/components/schemas/ErrorPayload'
       examples:
-      - name: Activity Failed Error
-        summary: Error notification when an activity fails after retries
-        payload:
-          message_type: error
-          api_version: v1
-          event_id: evt_err_001
-          session_id: sess_abc123
-          code: ACTIVITY_FAILED
-          message: Activity execution failed after max retries
-          details:
-            activity_name: process_data
-            retry_count: 3
-            last_error: Connection timeout to external service
-            error_timestamp: '2025-10-10T10:01:30Z'
-          timestamp: '2025-10-10T10:01:30Z'
-      - name: Authentication Failed Error
-        summary: Error when client authentication fails
-        payload:
-          message_type: error
-          api_version: v1
-          event_id: evt_err_002
-          session_id: sess_invalid
-          code: AUTHENTICATION_FAILED
-          message: JWT token validation failed
-          details:
-            error_type: invalid_token
-            token_expiry: '2025-10-10T09:30:00Z'
-            current_time: '2025-10-10T10:00:00Z'
-          timestamp: '2025-10-10T10:00:00Z'
-      - name: Execution Not Found Error
-        summary: Error when trying to access non-existent execution
-        payload:
-          message_type: error
-          api_version: v1
-          event_id: evt_err_003
-          session_id: sess_abc123
-          code: EXECUTION_NOT_FOUND
-          message: Execution with specified ID does not exist
-          details:
-            execution_id: exec-nonexistent-123
-            user_id: user-uuid-456
-          timestamp: '2025-10-10T10:02:00Z'
+        - name: Activity Failed Error
+          summary: Error notification when an activity fails after retries
+          payload:
+            message_type: error
+            api_version: v1
+            event_id: evt_err_001
+            session_id: sess_abc123
+            code: ACTIVITY_FAILED
+            message: Activity execution failed after max retries
+            details:
+              activity_name: process_data
+              retry_count: 3
+              last_error: Connection timeout to external service
+              error_timestamp: '2025-10-10T10:01:30Z'
+            timestamp: '2025-10-10T10:01:30Z'
+        - name: Authentication Failed Error
+          summary: Error when client authentication fails
+          payload:
+            message_type: error
+            api_version: v1
+            event_id: evt_err_002
+            session_id: sess_invalid
+            code: AUTHENTICATION_FAILED
+            message: JWT token validation failed
+            details:
+              error_type: invalid_token
+              token_expiry: '2025-10-10T09:30:00Z'
+              current_time: '2025-10-10T10:00:00Z'
+            timestamp: '2025-10-10T10:00:00Z'
+        - name: Execution Not Found Error
+          summary: Error when trying to access non-existent execution
+          payload:
+            message_type: error
+            api_version: v1
+            event_id: evt_err_003
+            session_id: sess_abc123
+            code: EXECUTION_NOT_FOUND
+            message: Execution with specified ID does not exist
+            details:
+              execution_id: exec-nonexistent-123
+              user_id: user-uuid-456
+            timestamp: '2025-10-10T10:02:00Z'
 
     # Client-to-Server Commands
     pauseCommand:
@@ -910,27 +911,27 @@ components:
       contentType: application/json
       payload:
         allOf:
-        - $ref: '#/components/schemas/WebSocketCommand'
-        - type: object
-          properties:
-            command:
-              type: string
-              const: pause
-        - $ref: '#/components/schemas/ExecutionCommandPayload'
+          - $ref: '#/components/schemas/WebSocketCommand'
+          - type: object
+            properties:
+              command:
+                type: string
+                const: pause
+          - $ref: '#/components/schemas/ExecutionCommandPayload'
       examples:
-      - name: Pause with Reason
-        summary: Pause execution with manual intervention reason
-        payload:
-          command: pause
-          api_version: v1
-          execution_id: exec-uuid-123
-          reason: Manual intervention required for data validation
-      - name: Emergency Pause
-        summary: Emergency pause without detailed reason
-        payload:
-          command: pause
-          execution_id: exec-uuid-456
-          reason: Emergency stop requested by operations team
+        - name: Pause with Reason
+          summary: Pause execution with manual intervention reason
+          payload:
+            command: pause
+            api_version: v1
+            execution_id: exec-uuid-123
+            reason: Manual intervention required for data validation
+        - name: Emergency Pause
+          summary: Emergency pause without detailed reason
+          payload:
+            command: pause
+            execution_id: exec-uuid-456
+            reason: Emergency stop requested by operations team
 
     resumeCommand:
       name: resumeCommand
@@ -939,26 +940,26 @@ components:
       contentType: application/json
       payload:
         allOf:
-        - $ref: '#/components/schemas/WebSocketCommand'
-        - type: object
-          properties:
-            command:
-              type: string
-              const: resume
-        - $ref: '#/components/schemas/ExecutionCommandPayload'
+          - $ref: '#/components/schemas/WebSocketCommand'
+          - type: object
+            properties:
+              command:
+                type: string
+                const: resume
+          - $ref: '#/components/schemas/ExecutionCommandPayload'
       examples:
-      - name: Resume After Validation
-        summary: Resume execution after manual validation completed
-        payload:
-          command: resume
-          api_version: v1
-          execution_id: exec-uuid-123
-          reason: Data validation completed, resuming normal execution
-      - name: Simple Resume
-        summary: Resume execution without specific reason
-        payload:
-          command: resume
-          execution_id: exec-uuid-456
+        - name: Resume After Validation
+          summary: Resume execution after manual validation completed
+          payload:
+            command: resume
+            api_version: v1
+            execution_id: exec-uuid-123
+            reason: Data validation completed, resuming normal execution
+        - name: Simple Resume
+          summary: Resume execution without specific reason
+          payload:
+            command: resume
+            execution_id: exec-uuid-456
 
     cancelCommand:
       name: cancelCommand
@@ -967,28 +968,27 @@ components:
       contentType: application/json
       payload:
         allOf:
-        - $ref: '#/components/schemas/WebSocketCommand'
-        - type: object
-          properties:
-            command:
-              type: string
-              const: cancel
-        - $ref: '#/components/schemas/ExecutionCommandPayload'
+          - $ref: '#/components/schemas/WebSocketCommand'
+          - type: object
+            properties:
+              command:
+                type: string
+                const: cancel
+          - $ref: '#/components/schemas/ExecutionCommandPayload'
       examples:
-      - name: Cancel with Business Reason
-        summary: Cancel execution due to business requirements change
-        payload:
-          command: cancel
-          api_version: v1
-          execution_id: exec-uuid-123
-          reason: Business requirements have changed, cancelling current workflow
-      - name: Error-based Cancellation
-        summary: Cancel execution due to unrecoverable error condition
-        payload:
-          command: cancel
-          execution_id: exec-uuid-789
-          reason: Unrecoverable error in external dependency, manual cancellation
-            required
+        - name: Cancel with Business Reason
+          summary: Cancel execution due to business requirements change
+          payload:
+            command: cancel
+            api_version: v1
+            execution_id: exec-uuid-123
+            reason: Business requirements have changed, cancelling current workflow
+        - name: Error-based Cancellation
+          summary: Cancel execution due to unrecoverable error condition
+          payload:
+            command: cancel
+            execution_id: exec-uuid-789
+            reason: Unrecoverable error in external dependency, manual cancellation required
 
     subscribeCommand:
       name: subscribeCommand
@@ -997,40 +997,40 @@ components:
       contentType: application/json
       payload:
         allOf:
-        - $ref: '#/components/schemas/WebSocketCommand'
-        - type: object
-          properties:
-            command:
-              type: string
-              const: subscribe
-            subscription_filter:
-              $ref: '#/components/schemas/SubscriptionFilterPayload'
+          - $ref: '#/components/schemas/WebSocketCommand'
+          - type: object
+            properties:
+              command:
+                type: string
+                const: subscribe
+              subscription_filter:
+                $ref: '#/components/schemas/SubscriptionFilterPayload'
       examples:
-      - name: Subscribe to Production Workflows
-        summary: Subscribe to all production workflow executions
-        payload:
-          command: subscribe
-          api_version: v1
-          subscription_filter:
-            labels:
-              environment: production
-              team: data-platform
-      - name: Subscribe to Specific Workflow
-        summary: Subscribe to updates for a specific workflow only
-        payload:
-          command: subscribe
-          subscription_filter:
-            workflow_id: workflow-uuid-456
-            status: running
-      - name: Subscribe to Failed Executions
-        summary: Subscribe to all failed execution notifications
-        payload:
-          command: subscribe
-          api_version: v1
-          subscription_filter:
-            status: failed
-            labels:
-              priority: high
+        - name: Subscribe to Production Workflows
+          summary: Subscribe to all production workflow executions
+          payload:
+            command: subscribe
+            api_version: v1
+            subscription_filter:
+              labels:
+                environment: production
+                team: data-platform
+        - name: Subscribe to Specific Workflow
+          summary: Subscribe to updates for a specific workflow only
+          payload:
+            command: subscribe
+            subscription_filter:
+              workflow_id: workflow-uuid-456
+              status: running
+        - name: Subscribe to Failed Executions
+          summary: Subscribe to all failed execution notifications
+          payload:
+            command: subscribe
+            api_version: v1
+            subscription_filter:
+              status: failed
+              labels:
+                priority: high
 
     unsubscribeCommand:
       name: unsubscribeCommand
@@ -1039,36 +1039,36 @@ components:
       contentType: application/json
       payload:
         allOf:
-        - $ref: '#/components/schemas/WebSocketCommand'
-        - type: object
-          properties:
-            command:
-              type: string
-              const: unsubscribe
-            subscription_filter:
-              $ref: '#/components/schemas/SubscriptionFilterPayload'
+          - $ref: '#/components/schemas/WebSocketCommand'
+          - type: object
+            properties:
+              command:
+                type: string
+                const: unsubscribe
+              subscription_filter:
+                $ref: '#/components/schemas/SubscriptionFilterPayload'
       examples:
-      - name: Unsubscribe from Production
-        summary: Stop receiving production workflow updates
-        payload:
-          command: unsubscribe
-          api_version: v1
-          subscription_filter:
-            labels:
-              environment: production
-      - name: Unsubscribe from Specific Workflow
-        summary: Stop receiving updates for specific workflow
-        payload:
-          command: unsubscribe
-          subscription_filter:
-            workflow_id: workflow-uuid-456
-      - name: Unsubscribe from All Failed
-        summary: Stop receiving notifications for failed executions
-        payload:
-          command: unsubscribe
-          api_version: v1
-          subscription_filter:
-            status: failed
+        - name: Unsubscribe from Production
+          summary: Stop receiving production workflow updates
+          payload:
+            command: unsubscribe
+            api_version: v1
+            subscription_filter:
+              labels:
+                environment: production
+        - name: Unsubscribe from Specific Workflow
+          summary: Stop receiving updates for specific workflow
+          payload:
+            command: unsubscribe
+            subscription_filter:
+              workflow_id: workflow-uuid-456
+        - name: Unsubscribe from All Failed
+          summary: Stop receiving notifications for failed executions
+          payload:
+            command: unsubscribe
+            api_version: v1
+            subscription_filter:
+              status: failed
 
   parameters:
     executionId:

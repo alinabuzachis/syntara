@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,18 +7,18 @@ metadata:
   description: Python script that sleeps to test timeout handling
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: slow_script
-    type: task
-    timeout: PT1S
-    task:
-      executor: script
-      config:
-        language: python
-        code: |
-          import time
-          time.sleep(10)  # Sleep longer than timeout
-          print("This should not print")
+    - id: slow_script
+      type: task
+      timeout: PT1S
+      task:
+        executor: script
+        config:
+          language: python
+          code: |
+            import time
+            time.sleep(10)  # Sleep longer than timeout
+            print("This should not print")

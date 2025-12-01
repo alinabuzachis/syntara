@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,63 +7,63 @@ metadata:
   description: Data transformation pipeline with mixed executors
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: fetch_data
-    type: task
-    task:
-      executor: api
-      config:
-        method: GET
-        url: http://test-api.example.com/api/data
-      outputs:
-        fetched_data: $.body
+    - id: fetch_data
+      type: task
+      task:
+        executor: api
+        config:
+          method: GET
+          url: http://test-api.example.com/api/data
+        outputs:
+          fetched_data: $.body
 
-  - id: process_data
-    type: task
-    task:
-      executor: script
-      config:
-        language: python
-        code: |
-          import json
-          import os
+    - id: process_data
+      type: task
+      task:
+        executor: script
+        config:
+          language: python
+          code: |
+            import json
+            import os
 
-          raw_data = os.getenv('INPUT_RAW_DATA', '{}')
-          processed = {"processed": True, "original": raw_data}
-          print(json.dumps(processed))
-      inputs:
-        raw_data: ${fetch_data.output.fetched_data}
-      outputs:
-        processed_data: $.processed
+            raw_data = os.getenv('INPUT_RAW_DATA', '{}')
+            processed = {"processed": True, "original": raw_data}
+            print(json.dumps(processed))
+        inputs:
+          raw_data: ${fetch_data.output.fetched_data}
+        outputs:
+          processed_data: $.processed
 
-  - id: validate_data
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          # Validation check
-          if [ "${INPUT_VALIDATED}" = "true" ]; then
-            echo "Validation passed"
-            exit 0
-          else
-            echo "Validation passed anyway"
-            exit 0
-          fi
-      inputs:
-        validated: ${process_data.output.processed_data}
+    - id: validate_data
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            # Validation check
+            if [ "${INPUT_VALIDATED}" = "true" ]; then
+              echo "Validation passed"
+              exit 0
+            else
+              echo "Validation passed anyway"
+              exit 0
+            fi
+        inputs:
+          validated: ${process_data.output.processed_data}
 
-  - id: send_results
-    type: task
-    task:
-      executor: api
-      config:
-        method: POST
-        url: http://test-api.example.com/api/create
-        body:
-          validated: true
-          data: ${process_data.output.processed_data}
+    - id: send_results
+      type: task
+      task:
+        executor: api
+        config:
+          method: POST
+          url: http://test-api.example.com/api/create
+          body:
+            validated: true
+            data: ${process_data.output.processed_data}

@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,46 +7,46 @@ metadata:
   description: Test parameter mapping between activities
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: fetch_data
-    name: Fetch Data
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo '{"user_id": "123", "name": "John Doe", "age": 30}'
-      outputs:
-        user_data: $.stdout
+    - id: fetch_data
+      name: Fetch Data
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo '{"user_id": "123", "name": "John Doe", "age": 30}'
+        outputs:
+          user_data: $.stdout
 
-  - id: process_data
-    name: Process Data
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "Processing user: $INPUT_NAME (ID: $INPUT_USER_ID)"
-          echo '{"processed": true, "user_id": "'"$INPUT_USER_ID"'"}'
-      inputs:
-        user_id: ${fetch_data.output.user_data.user_id}
-        name: ${fetch_data.output.user_data.name}
-      outputs:
-        result: $.stdout
+    - id: process_data
+      name: Process Data
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Processing user: $INPUT_NAME (ID: $INPUT_USER_ID)"
+            echo '{"processed": true, "user_id": "'"$INPUT_USER_ID"'"}'
+        inputs:
+          user_id: ${fetch_data.output.user_data.user_id}
+          name: ${fetch_data.output.user_data.name}
+        outputs:
+          result: $.stdout
 
-  - id: finalize
-    name: Finalize
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "Finalization complete for processed=$INPUT_PROCESSED"
-      inputs:
-        processed: ${process_data.output.result.processed}
+    - id: finalize
+      name: Finalize
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Finalization complete for processed=$INPUT_PROCESSED"
+        inputs:
+          processed: ${process_data.output.result.processed}

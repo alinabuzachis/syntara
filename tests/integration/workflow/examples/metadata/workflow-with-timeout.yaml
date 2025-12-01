@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -8,34 +9,34 @@ metadata:
   owner: platform-team
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: quick_task
-    name: Quick Task
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "Starting quick task"
-          sleep 1
-          echo "Quick task completed"
-      outputs:
-        result: $.stdout
+    - id: quick_task
+      name: Quick Task
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Starting quick task"
+            sleep 1
+            echo "Quick task completed"
+        outputs:
+          result: $.stdout
 
-  - id: slow_task
-    name: Slow Task
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "Starting slow task"
-          sleep 10
-          echo "This should not complete due to workflow timeout"
-      outputs:
-        result: $.stdout
+    - id: slow_task
+      name: Slow Task
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Starting slow task"
+            sleep 10
+            echo "This should not complete due to workflow timeout"
+        outputs:
+          result: $.stdout

@@ -1,42 +1,43 @@
+---
 schemaVersion: 1.0.0
 version: 1
 metadata:
   name: join-count-test
   description: Test join with count strategy - wait for specific number of branches
 triggers:
-- type: manual
+  - type: manual
 workflow:
   activities:
-  - id: parallel_count
-    type: parallel
-    branches:
-    - id: count_task1
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: echo "Count task 1"
-    - id: count_task2
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: echo "Count task 2"
-    - id: count_task3
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: echo "Count task 3"
-  - id: join_count
-    type: join
-    join:
+    - id: parallel_count
+      type: parallel
       branches:
-      - count_task1
-      - count_task2
-      - count_task3
-      strategy: count
-      count: 2
+        - id: count_task1
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Count task 1"
+        - id: count_task2
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Count task 2"
+        - id: count_task3
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Count task 3"
+    - id: join_count
+      type: join
+      join:
+        branches:
+          - count_task1
+          - count_task2
+          - count_task3
+        strategy: count
+        count: 2

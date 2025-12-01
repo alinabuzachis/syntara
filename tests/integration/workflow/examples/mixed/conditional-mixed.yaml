@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -12,34 +13,34 @@ inputs:
     default: true
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: check_condition
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo '{"condition_checked": true}'
+    - id: check_condition
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo '{"condition_checked": true}'
 
-  - id: python_branch
-    type: task
-    condition: ${input.use_python} == true
-    task:
-      executor: script
-      config:
-        language: python
-        code: |
-          print("Python branch executed")
+    - id: python_branch
+      type: task
+      condition: ${input.use_python} == true
+      task:
+        executor: script
+        config:
+          language: python
+          code: |
+            print("Python branch executed")
 
-  - id: api_branch
-    type: task
-    condition: ${input.use_python} == false
-    task:
-      executor: api
-      config:
-        method: GET
-        url: http://test-api.example.com/api/data
+    - id: api_branch
+      type: task
+      condition: ${input.use_python} == false
+      task:
+        executor: api
+        config:
+          method: GET
+          url: http://test-api.example.com/api/data

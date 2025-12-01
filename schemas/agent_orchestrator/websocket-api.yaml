@@ -1,8 +1,8 @@
+---
 asyncapi: 3.0.0
 info:
   title: Agent Orchestrator WebSocket API
-  description: WebSocket API specification for LLM response streaming in the Agent
-    Orchestrator
+  description: WebSocket API specification for LLM response streaming in the Agent Orchestrator
   version: 1.0.0
 
 servers:
@@ -60,11 +60,11 @@ components:
       title: Streaming Event
       description: WebSocket event for LLM response streaming
       required:
-      - event_type
-      - invocation_id
-      - timestamp
-      - event_id
-      - data
+        - event_type
+        - invocation_id
+        - timestamp
+        - event_id
+        - data
       properties:
         event_type:
           type: string
@@ -90,15 +90,14 @@ components:
           description: Event-specific data payload
           additionalProperties: true
           oneOf:
-          - $ref: '#/components/schemas/DeltaEventData'
-          - $ref: '#/components/schemas/ErrorEventData'
-          - $ref: '#/components/schemas/CancelledEventData'
-          - $ref: '#/components/schemas/CompletionEventData'
+            - $ref: '#/components/schemas/DeltaEventData'
+            - $ref: '#/components/schemas/ErrorEventData'
+            - $ref: '#/components/schemas/CancelledEventData'
+            - $ref: '#/components/schemas/CompletionEventData'
         event_id:
           type: string
           title: Event ID
-          description: Valkey stream event ID for resumption and ordering (format
-            {milliseconds}-{sequence})
+          description: Valkey stream event ID for resumption and ordering (format {milliseconds}-{sequence})
           example: 1691431234567-42
 
     DeltaEventData:
@@ -106,7 +105,7 @@ components:
       title: Delta Event Data
       description: Data for individual delta streaming events
       required:
-      - delta
+        - delta
       properties:
         delta:
           type: string
@@ -117,12 +116,11 @@ components:
     ErrorEventData:
       type: object
       title: Error Event Data
-      description: Data for streaming error events following RFC 9457 Problem Details
-        principles
+      description: Data for streaming error events following RFC 9457 Problem Details principles
       required:
-      - type
-      - title
-      - detail
+        - type
+        - title
+        - detail
       properties:
         type:
           type: string
@@ -139,8 +137,7 @@ components:
           type: string
           title: Error Detail
           description: Human-readable explanation specific to this occurrence
-          example: 'OpenRouter API returned error: rate limit exceeded. Please try
-            again in a few moments.'
+          example: 'OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.'
         code:
           type: string
           title: Error Code
@@ -163,7 +160,7 @@ components:
       title: Cancelled Event Data
       description: Data for streaming cancellation events
       required:
-      - reason
+        - reason
       properties:
         reason:
           type: string
@@ -175,8 +172,7 @@ components:
     CompletionEventData:
       type: object
       title: Completion Event Data
-      description: Data for streaming completion events. Empty object - the event_type
-        itself indicates successful completion.
+      description: Data for streaming completion events. Empty object - the event_type itself indicates successful completion.
       properties: {}
       additionalProperties: false
 
@@ -195,24 +191,22 @@ components:
       name: replay_count
       in: query
       required: false
-      description: "Number of historical events to replay on connection (default:
-        10, max: 1000). Use 0 for live-only, 'all' for complete history."
+      description: "Number of historical events to replay on connection (default: 10, max: 1000). Use 0 for live-only, 'all' for complete history."
       schema:
         oneOf:
-        - type: integer
-          minimum: 0
-          maximum: 1000
-          default: 10
-        - type: string
-          enum: [all]
+          - type: integer
+            minimum: 0
+            maximum: 1000
+            default: 10
+          - type: string
+            enum: [all]
       example: 10
 
     lastEventIdParam:
       name: last_event_id
       in: query
       required: false
-      description: Resume from specific event ID (for precise reconnection). Use '0'
-        to start from beginning of stream. Takes precedence over replay_count.
+      description: Resume from specific event ID (for precise reconnection). Use '0' to start from beginning of stream. Takes precedence over replay_count.
       schema:
         type: string
         description: Valkey stream event ID to resume after

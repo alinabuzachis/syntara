@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -11,17 +12,17 @@ secrets:
     type: bearer_token
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: fetch_protected_data
-    type: task
-    task:
-      executor: api
-      config:
-        method: GET
-        url: http://test-api.example.com/api/protected
-        authentication:
-          type: bearer
-          credentials: ${secrets.api_token}
+    - id: fetch_protected_data
+      type: task
+      task:
+        executor: api
+        config:
+          method: GET
+          url: http://test-api.example.com/api/protected
+          authentication:
+            type: bearer
+            credentials: ${secrets.api_token}

@@ -1,15 +1,16 @@
+---
 services:
   database:
     image: public.ecr.aws/docker/library/postgres:17
     restart: unless-stopped
     ports:
-    - ${NEXUS_DB_PORT:-5432}:5432
+      - ${NEXUS_DB_PORT:-5432}:5432
     environment:
       POSTGRES_USER: ${NEXUS_DB_USER:-admin}
       POSTGRES_PASSWORD: ${NEXUS_DB_PASSWORD:-admin}
       POSTGRES_DB: ${NEXUS_DB_NAME:-nexus_api}
     volumes:
-    - nexus_postgres_data:/var/lib/postgresql/data
+      - nexus_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: [CMD-SHELL, 'pg_isready -U $${POSTGRES_USER:-admin} -d $${POSTGRES_DB:-nexus_api}']
       interval: 5s
@@ -20,12 +21,11 @@ services:
     image: quay.io/sclorg/valkey-8-c10s:latest
     restart: unless-stopped
     ports:
-    - ${VALKEY_PORT:-6379}:6379
+      - ${VALKEY_PORT:-6379}:6379
     environment:
-    - VALKEY_PASSWORD=valkey
+      - VALKEY_PASSWORD=valkey
     healthcheck:
-      test: [CMD-SHELL, 'valkey-cli -h 127.0.0.1 -p 6379 -a $${VALKEY_PASSWORD:-valkey}
-          PING']
+      test: [CMD-SHELL, 'valkey-cli -h 127.0.0.1 -p 6379 -a $${VALKEY_PASSWORD:-valkey} PING']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -34,9 +34,9 @@ services:
     image: ${NEXUS_UI_IMAGE:-ghcr.io/syntara-orchestration/syntara-ui}:${NEXUS_UI_VERSION:-latest}
     restart: unless-stopped
     ports:
-    - ${NEXUS_UI_PORT:-8080}:80
+      - ${NEXUS_UI_PORT:-8080}:80
     environment:
-    - NEXUS_API_URL=${NEXUS_API_URL:-http://nexus:8000}
+      - NEXUS_API_URL=${NEXUS_API_URL:-http://nexus:8000}
     depends_on:
       nexus:
         condition: service_healthy
@@ -45,21 +45,21 @@ services:
     image: mirror.gcr.io/temporalio/auto-setup:1.25.1
     restart: unless-stopped
     ports:
-    - ${NEXUS_TEMPORAL_PORT:-7233}:7233
+      - ${NEXUS_TEMPORAL_PORT:-7233}:7233
     environment:
-    - DB=postgres12
-    - DB_PORT=5432
-    - POSTGRES_USER=${NEXUS_DB_USER:-admin}
-    - POSTGRES_PWD=${NEXUS_DB_PASSWORD:-admin}
-    - POSTGRES_SEEDS=database
-    - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=${NEXUS_DB_USER:-admin}
+      - POSTGRES_PWD=${NEXUS_DB_PASSWORD:-admin}
+      - POSTGRES_SEEDS=database
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
     volumes:
-    - ./containers/temporal-server/temporal-config:/etc/temporal/config/dynamicconfig:z
+      - ./containers/temporal-server/temporal-config:/etc/temporal/config/dynamicconfig:z
     depends_on:
       database:
         condition: service_healthy
     healthcheck:
-      test: [CMD, tctl, --address, temporal:7233, cluster, health]
+      test: [CMD, tctl, --address, 'temporal:7233', cluster, health]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -69,10 +69,10 @@ services:
     image: mirror.gcr.io/temporalio/ui:2.31.2
     restart: unless-stopped
     ports:
-    - ${NEXUS_TEMPORAL_UI_PORT:-8081}:8080
+      - ${NEXUS_TEMPORAL_UI_PORT:-8081}:8080
     environment:
-    - TEMPORAL_ADDRESS=temporal:7233
-    - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
     depends_on:
       temporal:
         condition: service_healthy
@@ -83,28 +83,27 @@ services:
       dockerfile: containers/nexus/Containerfile
     image: ${NEXUS_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, uv run alembic upgrade head && uv run tools/load_sample_workflows.py
-        samples && uv run uvicorn nexus.api.main:app --host 0.0.0.0 --port 8000]
+    command: [sh, -c, 'uv run alembic upgrade head && uv run tools/load_sample_workflows.py samples && uv run uvicorn nexus.api.main:app --host 0.0.0.0 --port 8000']
     ports:
-    - ${NEXUS_API_PORT:-8000}:8000
+      - ${NEXUS_API_PORT:-8000}:8000
     environment:
-    - NEXUS_DB_HOST=database
-    - NEXUS_DB_PORT=5432
-    - NEXUS_DB_USER=${NEXUS_DB_USER:-admin}
-    - NEXUS_DB_PASSWORD=${NEXUS_DB_PASSWORD:-admin}
-    - NEXUS_DB_NAME=${NEXUS_DB_NAME:-nexus_api}
-    - NEXUS_TEMPORAL_ADDRESS=temporal:7233
-    - NEXUS_TEMPORAL_NAMESPACE=default
-    - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - NEXUS_DB_HOST=database
+      - NEXUS_DB_PORT=5432
+      - NEXUS_DB_USER=${NEXUS_DB_USER:-admin}
+      - NEXUS_DB_PASSWORD=${NEXUS_DB_PASSWORD:-admin}
+      - NEXUS_DB_NAME=${NEXUS_DB_NAME:-nexus_api}
+      - NEXUS_TEMPORAL_ADDRESS=temporal:7233
+      - NEXUS_TEMPORAL_NAMESPACE=default
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
-    - ./src:/opt/app-root/src/src:z
+      - ./src:/opt/app-root/src/src:z
     depends_on:
       database:
         condition: service_healthy
       temporal:
         condition: service_healthy
     healthcheck:
-      test: [CMD, curl, -f, http://localhost:8000/health]
+      test: [CMD, curl, -f, 'http://localhost:8000/health']
       interval: 10s
       timeout: 10s
       retries: 3
@@ -116,12 +115,12 @@ services:
     restart: unless-stopped
     command: [sh, -c, uv run python -m nexus.workflows.worker]
     environment:
-    - NEXUS_TEMPORAL_ADDRESS=temporal:7233
-    - NEXUS_TEMPORAL_NAMESPACE=default
-    - NEXUS_TASK_QUEUE=nexus-workflow-queue
-    - LOG_LEVEL=INFO
+      - NEXUS_TEMPORAL_ADDRESS=temporal:7233
+      - NEXUS_TEMPORAL_NAMESPACE=default
+      - NEXUS_TASK_QUEUE=nexus-workflow-queue
+      - LOG_LEVEL=INFO
     volumes:
-    - ./src:/opt/app-root/src/src:z
+      - ./src:/opt/app-root/src/src:z
     depends_on:
       temporal:
         condition: service_healthy
@@ -140,13 +139,13 @@ services:
     image: ${MCP_IMAGE:-localhost/nexus-mcp:latest}
     restart: unless-stopped
     ports:
-    - ${MCP_PORT:-8765}:8765
+      - ${MCP_PORT:-8765}:8765
     environment:
-    - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    - MCP_HOST=0.0.0.0
-    - MCP_PORT=8765
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8765
     healthcheck:
-      test: [CMD, curl, -f, http://localhost:8765/health]
+      test: [CMD, curl, -f, 'http://localhost:8765/health']
       interval: 10s
       timeout: 5s
       retries: 3

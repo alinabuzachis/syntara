@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,25 +7,25 @@ metadata:
   description: Test while loop stops at maxIterations
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: while_with_max
-    name: While Loop with Max Iterations
-    type: loop
-    loop:
-      type: while
-      condition: 'true'
-      maxIterations: 3
-      do:
-      - id: iteration_task
-        type: task
-        task:
-          executor: script
-          config:
-            language: bash
-            code: |
-              echo "Iteration executed"
-          outputs:
-            result: $.stdout
+    - id: while_with_max
+      name: While Loop with Max Iterations
+      type: loop
+      loop:
+        type: while
+        condition: 'true'
+        maxIterations: 3
+        do:
+          - id: iteration_task
+            type: task
+            task:
+              executor: script
+              config:
+                language: bash
+                code: |
+                  echo "Iteration executed"
+              outputs:
+                result: $.stdout

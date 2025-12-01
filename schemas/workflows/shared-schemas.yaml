@@ -1,3 +1,4 @@
+---
 # Shared Schemas for Workflow Engine API
 # This file contains workflow-specific schema definitions used by both REST API (OpenAPI) and WebSocket API (AsyncAPI)
 # Base resource schemas (BaseResource, NamedResource, etc.) are in ../base/shared-resources.openapi.yaml
@@ -6,197 +7,187 @@ components:
   schemas:
     Workflow:
       allOf:
-      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
-      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/SoftDeletableResource
-      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
-      - type: object
-        title: Workflow
-        description: A complete automation process with versioned definitions, combining
-          named resource, soft delete, and user ownership capabilities
-        properties:
-          current_version:
-            type: integer
-            description: Current active version number
-          is_enabled:
-            type: boolean
-            description: Whether workflow is enabled and available for execution
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/SoftDeletableResource
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
+        - type: object
+          title: Workflow
+          description: A complete automation process with versioned definitions, combining named resource, soft delete, and user ownership capabilities
+          properties:
+            current_version:
+              type: integer
+              description: Current active version number
+            is_enabled:
+              type: boolean
+              description: Whether workflow is enabled and available for execution
 
     WorkflowWithVersion:
       allOf:
-      - $ref: '#/components/schemas/Workflow'
-      - type: object
-        title: Workflow With Version
-        description: Workflow combined with a specific version's details including
-          workflow definition (stored as JSON), schema version, and change history
-        properties:
-          version:
-            type: object
-            description: Specific version details
-            properties:
-              version:
-                type: integer
-              schema_version:
-                type: string
-              workflow_definition:
-                $ref: ./workflow-definition.schema.json
-              created_by:
-                type: string
-                format: uuid
-              created_at:
-                type: string
-                format: date-time
-              change_description:
-                type: string
-                nullable: true
+        - $ref: '#/components/schemas/Workflow'
+        - type: object
+          title: Workflow With Version
+          description: Workflow combined with a specific version's details including workflow definition (stored as JSON), schema version, and change history
+          properties:
+            version:
+              type: object
+              description: Specific version details
+              properties:
+                version:
+                  type: integer
+                schema_version:
+                  type: string
+                workflow_definition:
+                  $ref: ./workflow-definition.schema.json
+                created_by:
+                  type: string
+                  format: uuid
+                created_at:
+                  type: string
+                  format: date-time
+                change_description:
+                  type: string
+                  nullable: true
 
     Execution:
       allOf:
-      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
-      - type: object
-        title: Execution
-        description: Runtime instance of a workflow execution with current state,
-          activity tracking, and execution history
-        properties:
-          workflow_id:
-            type: string
-            format: uuid
-            description: ID of the workflow being executed
-          temporal_workflow_id:
-            type: string
-            description: Temporal workflow execution ID
-          status:
-            $ref: '#/components/schemas/ExecutionStatus'
-          started_by:
-            type: string
-            format: uuid
-            description: User who started the execution
-          started_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: When execution transitioned from pending to running status
-              (null if still pending)
-          completed_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: When execution reached terminal state (completed, failed,
-              or cancelled)
-          input_data:
-            type: object
-            description: Input parameters for the execution
-          error_details:
-            type: string
-            nullable: true
-            description: Error information if execution failed
-          current_activities:
-            type: array
-            description: Currently executing activities
-            items:
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
+        - type: object
+          title: Execution
+          description: Runtime instance of a workflow execution with current state, activity tracking, and execution history
+          properties:
+            workflow_id:
+              type: string
+              format: uuid
+              description: ID of the workflow being executed
+            temporal_workflow_id:
+              type: string
+              description: Temporal workflow execution ID
+            status:
+              $ref: '#/components/schemas/ExecutionStatus'
+            started_by:
+              type: string
+              format: uuid
+              description: User who started the execution
+            started_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When execution transitioned from pending to running status (null if still pending)
+            completed_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When execution reached terminal state (completed, failed, or cancelled)
+            input_data:
               type: object
-              properties:
-                activity_name:
-                  type: string
-                temporal_activity_id:
-                  type: string
-                iteration:
-                  type: integer
-                  nullable: true
+              description: Input parameters for the execution
+            error_details:
+              type: string
+              nullable: true
+              description: Error information if execution failed
+            current_activities:
+              type: array
+              description: Currently executing activities
+              items:
+                type: object
+                properties:
+                  activity_name:
+                    type: string
+                  temporal_activity_id:
+                    type: string
+                  iteration:
+                    type: integer
+                    nullable: true
 
     ActivityExecution:
       allOf:
-      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
-      - type: object
-        title: Activity Execution
-        description: Individual activity execution within a workflow with runtime
-          state, retry tracking, and activity definition snapshot
-        properties:
-          execution_id:
-            type: string
-            format: uuid
-            description: Parent execution ID
-          activity_name:
-            type: string
-            description: Activity ID from workflow definition
-          activity_definition:
-            type: object
-            description: Snapshot of the activity configuration from workflow definition
-              at execution time, including executor, config, retry policy, timeout,
-              approval settings
-          temporal_activity_id:
-            type: string
-            description: Temporal activity execution ID
-          status:
-            $ref: '#/components/schemas/ActivityStatus'
-          started_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: When activity transitioned from pending to running status
-              (null if still pending)
-          completed_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: When activity reached terminal state (completed, failed)
-          input_data:
-            type: object
-            description: Runtime input parameters
-          output_data:
-            type: object
-            nullable: true
-            description: Activity results
-          error_details:
-            type: string
-            nullable: true
-            description: Error information if failed
-          retry_count:
-            type: integer
-            description: Number of retry attempts
-          iteration:
-            type: integer
-            nullable: true
-            description: Iteration number if activity is within a loop (0-indexed)
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
+        - type: object
+          title: Activity Execution
+          description: Individual activity execution within a workflow with runtime state, retry tracking, and activity definition snapshot
+          properties:
+            execution_id:
+              type: string
+              format: uuid
+              description: Parent execution ID
+            activity_name:
+              type: string
+              description: Activity ID from workflow definition
+            activity_definition:
+              type: object
+              description: Snapshot of the activity configuration from workflow definition at execution time, including executor, config, retry policy, timeout, approval settings
+            temporal_activity_id:
+              type: string
+              description: Temporal activity execution ID
+            status:
+              $ref: '#/components/schemas/ActivityStatus'
+            started_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When activity transitioned from pending to running status (null if still pending)
+            completed_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When activity reached terminal state (completed, failed)
+            input_data:
+              type: object
+              description: Runtime input parameters
+            output_data:
+              type: object
+              nullable: true
+              description: Activity results
+            error_details:
+              type: string
+              nullable: true
+              description: Error information if failed
+            retry_count:
+              type: integer
+              description: Number of retry attempts
+            iteration:
+              type: integer
+              nullable: true
+              description: Iteration number if activity is within a loop (0-indexed)
 
     Approval:
       allOf:
-      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
-      - type: object
-        title: Approval
-        description: Human-in-the-loop decision point that pauses workflow execution
-          pending approver response
-        properties:
-          activity_execution_id:
-            type: string
-            format: uuid
-            description: Activity requiring approval
-          approver_id:
-            type: string
-            format: uuid
-            description: User assigned to review this approval
-          status:
-            $ref: '#/components/schemas/ApprovalStatus'
-          request_data:
-            type: object
-            description: Data presented for approval
-          response_data:
-            type: object
-            nullable: true
-            description: Approver's response including reason and comments
-          requested_at:
-            type: string
-            format: date-time
-            description: When approval was requested
-          responded_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: When approver responded
-          expires_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: Approval timeout deadline
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
+        - type: object
+          title: Approval
+          description: Human-in-the-loop decision point that pauses workflow execution pending approver response
+          properties:
+            activity_execution_id:
+              type: string
+              format: uuid
+              description: Activity requiring approval
+            approver_id:
+              type: string
+              format: uuid
+              description: User assigned to review this approval
+            status:
+              $ref: '#/components/schemas/ApprovalStatus'
+            request_data:
+              type: object
+              description: Data presented for approval
+            response_data:
+              type: object
+              nullable: true
+              description: Approver's response including reason and comments
+            requested_at:
+              type: string
+              format: date-time
+              description: When approval was requested
+            responded_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When approver responded
+            expires_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: Approval timeout deadline
 
     ExecutionStatus:
       type: string
@@ -219,13 +210,12 @@ components:
     ActivityType:
       type: object
       title: Activity Type
-      description: Definition of an available activity executor type with its configuration
-        schema
+      description: Definition of an available activity executor type with its configuration schema
       required:
-      - type
-      - name
-      - description
-      - config_schema
+        - type
+        - name
+        - description
+        - config_schema
       properties:
         type:
           type: string
@@ -239,12 +229,10 @@ components:
         description:
           type: string
           description: Detailed description of what this executor type does
-          example: Execute tasks using external agentic tool servers (MCP) with AI
-            model integration
+          example: Execute tasks using external agentic tool servers (MCP) with AI model integration
         config_schema:
           type: object
-          description: JSON Schema defining the valid configuration structure for
-            this executor type
+          description: JSON Schema defining the valid configuration structure for this executor type
           example:
             type: object
             required: [agent, tools, model]
@@ -278,13 +266,13 @@ components:
                 type: object
                 description: Example configuration object
           example:
-          - name: Sentiment Analysis
-            description: Analyze text sentiment using MCP tool
-            config:
-              agent: mcp://sentiment-server
-              tools: [analyze_sentiment]
-              model: claude-3-opus
-              prompt: Analyze the sentiment of the following text
+            - name: Sentiment Analysis
+              description: Analyze text sentiment using MCP tool
+              config:
+                agent: mcp://sentiment-server
+                tools: [analyze_sentiment]
+                model: claude-3-opus
+                prompt: Analyze the sentiment of the following text
 
     # Request/Response schemas
     CreateWorkflowRequest:
@@ -292,8 +280,8 @@ components:
       title: Create Workflow Request
       description: Request payload for creating a new workflow from workflow definition
       required:
-      - name
-      - workflow_definition
+        - name
+        - workflow_definition
       properties:
         name:
           type: string
@@ -311,7 +299,7 @@ components:
       title: Update Workflow Request
       description: Request payload for full workflow replacement creating a new version
       required:
-      - workflow_definition
+        - workflow_definition
       properties:
         name:
           type: string
@@ -340,8 +328,7 @@ components:
           description: Update workflow description (metadata only, no version created)
         is_enabled:
           type: boolean
-          description: Enable or disable workflow for execution (metadata only, no
-            version created)
+          description: Enable or disable workflow for execution (metadata only, no version created)
         labels:
           type: object
           additionalProperties:
@@ -349,20 +336,17 @@ components:
           description: Update workflow labels (metadata only, no version created)
         workflow_definition:
           $ref: ./workflow-definition.schema.json
-          description: New workflow definition - creates new version only if definition
-            differs from current version (change detection)
+          description: New workflow definition - creates new version only if definition differs from current version (change detection)
         change_description:
           type: string
-          description: Description of changes (used when creating new version via
-            workflow_definition)
+          description: Description of changes (used when creating new version via workflow_definition)
 
     CreateExecutionRequest:
       type: object
       title: Create Execution Request
-      description: Request payload for starting a new workflow execution with optional
-        input parameters
+      description: Request payload for starting a new workflow execution with optional input parameters
       required:
-      - workflow_id
+        - workflow_id
       properties:
         workflow_id:
           type: string
@@ -375,10 +359,9 @@ components:
     ExecutionControlRequest:
       type: object
       title: Execution Control Request
-      description: Request payload for controlling workflow execution state (pause,
-        resume, cancel)
+      description: Request payload for controlling workflow execution state (pause, resume, cancel)
       required:
-      - action
+        - action
       properties:
         action:
           type: string
@@ -387,19 +370,17 @@ components:
     ApprovalResponseRequest:
       type: object
       title: Approval Response Request
-      description: Request payload for approver to approve or reject an approval request
-        with reason
+      description: Request payload for approver to approve or reject an approval request with reason
       required:
-      - status
-      - response_data
+        - status
+        - response_data
       properties:
         status:
           type: string
           enum: [approved, rejected]
         response_data:
           type: object
-          description: Approver's response including reason, comments, and any additional
-            structured data
+          description: Approver's response including reason, comments, and any additional structured data
 
     # WebSocket-specific schemas
     WebSocketMessage:
@@ -409,23 +390,22 @@ components:
         Message format for bidirectional WebSocket communication.
         Server sends execution updates, clients send commands and subscriptions.
       required:
-      - message_type
-      - timestamp
+        - message_type
+        - timestamp
       properties:
         message_type:
           type: string
           description: Type of message
           enum:
-          - execution_update
-          - activity_update
-          - approval_notification
-          - subscription
-          - error
-          - connection_ack
+            - execution_update
+            - activity_update
+            - approval_notification
+            - subscription
+            - error
+            - connection_ack
         api_version:
           type: string
-          description: API version for this message (optional, defaults to connection
-            version)
+          description: API version for this message (optional, defaults to connection version)
           example: v1
         protocol_version:
           type: string
@@ -471,16 +451,16 @@ components:
       title: WebSocket Command
       description: Client-to-server command message
       required:
-      - command
+        - command
       properties:
         command:
           type: string
           enum:
-          - pause
-          - resume
-          - cancel
-          - subscribe
-          - unsubscribe
+            - pause
+            - resume
+            - cancel
+            - subscribe
+            - unsubscribe
           description: Command to execute
         api_version:
           type: string

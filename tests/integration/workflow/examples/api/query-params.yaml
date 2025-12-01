@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -16,21 +17,21 @@ inputs:
     default: 10
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: query_test
-    type: task
-    task:
-      executor: api
-      config:
-        method: GET
-        url: http://test-api.example.com/api/data
-        queryParams:
-          filter: ${input.filter}
-          limit: ${input.limit}
-          sort: name
-      inputs:
-        filter: ${inputs.filter}
-        limit: ${inputs.limit}
+    - id: query_test
+      type: task
+      task:
+        executor: api
+        config:
+          method: GET
+          url: http://test-api.example.com/api/data
+          queryParams:
+            filter: ${input.filter}
+            limit: ${input.limit}
+            sort: name
+        inputs:
+          filter: ${inputs.filter}
+          limit: ${inputs.limit}

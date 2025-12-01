@@ -328,22 +328,25 @@ check-path-sequence: ## Validate numbering sequence under specs/
 	uv run python tools/ci/check_path_sequence.py specs/ --strict
 
 .PHONY: format
-format: ## Format code
+format: ## Format code with ruff and pre-commit formatters
 	@echo "🎨 Formatting code..."
+	make ruff
 	uv run pre-commit run trailing-whitespace --all-files
 	uv run pre-commit run end-of-file-fixer --all-files
 	uv run pre-commit run mixed-line-ending --all-files
-	uv run ruff format $(FORMAT_PATHS)
-	uv run ruff check $(FORMAT_PATHS) --fix
-	@find . -type f \( -name "*.yml" -o -name "*.yaml" \) -print0 | xargs -0 -r uvx yamlfmt -w
+	uv run pre-commit run yamlfmt --all-files
 	@echo "✅ Code formatting completed"
 
+.PHONY: ruff ## Format code with ruff
+	uv run ruff format $(FORMAT_PATHS)
+	uv run ruff check $(FORMAT_PATHS) --fix
+
 .PHONY: lint
-lint: ## Run linting and type checking with ruff and mypy
+lint: ## Run linters and type checking (no file modifications)
 	@echo "📝 Running ruff linter..."
 	uv run ruff check $(FORMAT_PATHS)
-	@echo "📝 Running pre-commit hooks..."
-	SKIP=ruff-format pre-commit run --all-files
+	@echo "📝 Running pre-commit checks..."
+	SKIP=ruff-format,yamlfmt,trailing-whitespace,end-of-file-fixer,mixed-line-ending pre-commit run --all-files
 
 .PHONY: typecheck
 typecheck: ## Run type checking only with mypy

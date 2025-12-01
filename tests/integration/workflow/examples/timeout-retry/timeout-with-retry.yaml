@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,23 +7,23 @@ metadata:
   description: Test timeout and retry combination
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: task_with_both
-    name: Task With Timeout and Retry
-    type: task
-    timeout: PT5S
-    retryPolicy:
-      maxAttempts: 2
-      backoff: fixed
-      initialInterval: PT1S
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "Executing task"
-          sleep 1
-          echo "Complete"
+    - id: task_with_both
+      name: Task With Timeout and Retry
+      type: task
+      timeout: PT5S
+      retryPolicy:
+        maxAttempts: 2
+        backoff: fixed
+        initialInterval: PT1S
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Executing task"
+            sleep 1
+            echo "Complete"

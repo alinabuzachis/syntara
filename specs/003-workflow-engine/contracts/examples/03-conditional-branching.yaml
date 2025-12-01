@@ -1,3 +1,4 @@
+---
 # Example 3: Conditional Branching Workflow
 # Demonstrates: Conditional logic, decision making, event-driven trigger
 
@@ -8,20 +9,20 @@ metadata:
   name: order-processing-with-approval
   description: Process orders with conditional approval based on amount
   tags:
-  - order-processing
-  - conditional
-  - approval
-  - example
+    - order-processing
+    - conditional
+    - approval
+    - example
   owner: finance-team
   timeout: P1D
 
 triggers:
-- type: event
-  event:
-    source: webhook
-    eventType: order.created
-    filter:
-      status: pending
+  - type: event
+    event:
+      source: webhook
+      eventType: order.created
+      filter:
+        status: pending
 
 inputs:
   orderId:
@@ -40,185 +41,184 @@ inputs:
 
 workflow:
   activities:
-  - id: fetch_order_details
-    name: Fetch Order Details
-    type: task
-    task:
-      executor: api
-      config:
-        method: GET
-        url: https://orders.example.com/api/orders/${input.orderId}
-        headers:
-          Accept: application/json
-        authentication:
-          type: bearer
-          credentials: ${secrets.order_api_token}
-      outputs:
-        orderData: $.order
-        riskScore: $.order.risk_score
-    timeout: PT2M
-    retryPolicy:
-      maxAttempts: 3
-      backoff: exponential
-      initialInterval: PT1S
-
-  - id: check_approval_threshold
-    name: Determine if Approval Required
-    type: condition
-    condition: ${input.orderAmount > 10000 || fetch_order_details.output.riskScore
-      > 0.7}
-    then:
-        # High-value or high-risk order - requires approval
-    - id: request_approval
-      name: Request Manager Approval
+    - id: fetch_order_details
+      name: Fetch Order Details
       type: task
-      requiresApproval: true
-      approval:
-        approvers:
-        - finance-manager
-        - senior-analyst
-        prompt: |
-          Order #${input.orderId} requires approval.
-          Amount: $${input.orderAmount}
-          Risk Score: ${fetch_order_details.output.riskScore}
-
-          Please review and approve or reject this order.
-        timeout: PT4H
-        onTimeout: reject
-        metadata:
-          orderId: ${input.orderId}
-          orderAmount: ${input.orderAmount}
-          riskScore: ${fetch_order_details.output.riskScore}
       task:
         executor: api
         config:
-          method: POST
-          url: https://orders.example.com/api/orders/${input.orderId}/process
+          method: GET
+          url: https://orders.example.com/api/orders/${input.orderId}
           headers:
-            Content-Type: application/json
-          body:
-            status: approved
-            approved_by: ${request_approval.approval.approver}
-            approved_at: ${request_approval.approval.timestamp}
+            Accept: application/json
+          authentication:
+            type: bearer
+            credentials: ${secrets.order_api_token}
         outputs:
-          status: $.status
-          confirmationNumber: $.confirmation_number
-      timeout: PT5M
+          orderData: $.order
+          riskScore: $.order.risk_score
+      timeout: PT2M
       retryPolicy:
         maxAttempts: 3
         backoff: exponential
-        initialInterval: PT2S
+        initialInterval: PT1S
 
-    - id: handle_approval_result
-      name: Handle Approval Result
+    - id: check_approval_threshold
+      name: Determine if Approval Required
       type: condition
-      condition: ${request_approval.approval.approved == true}
+      condition: ${input.orderAmount > 10000 || fetch_order_details.output.riskScore > 0.7}
       then:
-      - id: send_approval_notification
-        name: Send Approval Notification
-        type: task
-        task:
-          executor: connector
-          config:
-            connectorId: email-service
-            operation: sendEmail
-            parameters:
-              to: ${fetch_order_details.output.orderData.customer_email}
-              subject: Order       #${input.orderId} Approved
-              template: order-approved
-              data:
-                orderId: ${input.orderId}
-                confirmationNumber: ${request_approval.output.confirmationNumber}
-        timeout: PT2M
+        # High-value or high-risk order - requires approval
+        - id: request_approval
+          name: Request Manager Approval
+          type: task
+          requiresApproval: true
+          approval:
+            approvers:
+              - finance-manager
+              - senior-analyst
+            prompt: |
+              Order #${input.orderId} requires approval.
+              Amount: $${input.orderAmount}
+              Risk Score: ${fetch_order_details.output.riskScore}
+
+              Please review and approve or reject this order.
+            timeout: PT4H
+            onTimeout: reject
+            metadata:
+              orderId: ${input.orderId}
+              orderAmount: ${input.orderAmount}
+              riskScore: ${fetch_order_details.output.riskScore}
+          task:
+            executor: api
+            config:
+              method: POST
+              url: https://orders.example.com/api/orders/${input.orderId}/process
+              headers:
+                Content-Type: application/json
+              body:
+                status: approved
+                approved_by: ${request_approval.approval.approver}
+                approved_at: ${request_approval.approval.timestamp}
+            outputs:
+              status: $.status
+              confirmationNumber: $.confirmation_number
+          timeout: PT5M
+          retryPolicy:
+            maxAttempts: 3
+            backoff: exponential
+            initialInterval: PT2S
+
+        - id: handle_approval_result
+          name: Handle Approval Result
+          type: condition
+          condition: ${request_approval.approval.approved == true}
+          then:
+            - id: send_approval_notification
+              name: Send Approval Notification
+              type: task
+              task:
+                executor: connector
+                config:
+                  connectorId: email-service
+                  operation: sendEmail
+                  parameters:
+                    to: ${fetch_order_details.output.orderData.customer_email}
+                    subject: Order #${input.orderId} Approved
+                    template: order-approved
+                    data:
+                      orderId: ${input.orderId}
+                      confirmationNumber: ${request_approval.output.confirmationNumber}
+              timeout: PT2M
+
+          else:
+            - id: reject_order
+              name: Reject Order
+              type: task
+              task:
+                executor: api
+                config:
+                  method: POST
+                  url: https://orders.example.com/api/orders/${input.orderId}/reject
+                  headers:
+                    Content-Type: application/json
+                  body:
+                    status: rejected
+                    rejected_by: ${request_approval.approval.approver}
+                    rejected_at: ${request_approval.approval.timestamp}
+                    reason: ${request_approval.approval.comments}
+                outputs:
+                  status: $.status
+              timeout: PT5M
+
+            - id: send_rejection_notification
+              name: Send Rejection Notification
+              type: task
+              task:
+                executor: connector
+                config:
+                  connectorId: email-service
+                  operation: sendEmail
+                  parameters:
+                    to: ${fetch_order_details.output.orderData.customer_email}
+                    subject: Order #${input.orderId} Rejected
+                    template: order-rejected
+                    data:
+                      orderId: ${input.orderId}
+                      reason: ${request_approval.approval.comments}
+              timeout: PT2M
 
       else:
-      - id: reject_order
-        name: Reject Order
-        type: task
-        task:
-          executor: api
-          config:
-            method: POST
-            url: https://orders.example.com/api/orders/${input.orderId}/reject
-            headers:
-              Content-Type: application/json
-            body:
-              status: rejected
-              rejected_by: ${request_approval.approval.approver}
-              rejected_at: ${request_approval.approval.timestamp}
-              reason: ${request_approval.approval.comments}
-          outputs:
-            status: $.status
-        timeout: PT5M
-
-      - id: send_rejection_notification
-        name: Send Rejection Notification
-        type: task
-        task:
-          executor: connector
-          config:
-            connectorId: email-service
-            operation: sendEmail
-            parameters:
-              to: ${fetch_order_details.output.orderData.customer_email}
-              subject: Order       #${input.orderId} Rejected
-              template: order-rejected
-              data:
-                orderId: ${input.orderId}
-                reason: ${request_approval.approval.comments}
-        timeout: PT2M
-
-    else:
         # Standard order - auto-approve
-    - id: auto_process_order
-      name: Auto-Process Standard Order
-      type: task
-      task:
-        executor: api
-        config:
-          method: POST
-          url: https://orders.example.com/api/orders/${input.orderId}/process
-          headers:
-            Content-Type: application/json
-          body:
-            status: auto-approved
-            processed_at: ${workflow.currentTime}
-        outputs:
-          status: $.status
-          confirmationNumber: $.confirmation_number
-      timeout: PT5M
-      retryPolicy:
-        maxAttempts: 3
-        backoff: exponential
-        initialInterval: PT2S
+        - id: auto_process_order
+          name: Auto-Process Standard Order
+          type: task
+          task:
+            executor: api
+            config:
+              method: POST
+              url: https://orders.example.com/api/orders/${input.orderId}/process
+              headers:
+                Content-Type: application/json
+              body:
+                status: auto-approved
+                processed_at: ${workflow.currentTime}
+            outputs:
+              status: $.status
+              confirmationNumber: $.confirmation_number
+          timeout: PT5M
+          retryPolicy:
+            maxAttempts: 3
+            backoff: exponential
+            initialInterval: PT2S
 
-    - id: send_confirmation
-      name: Send Order Confirmation
+        - id: send_confirmation
+          name: Send Order Confirmation
+          type: task
+          task:
+            executor: connector
+            config:
+              connectorId: email-service
+              operation: sendEmail
+              parameters:
+                to: ${fetch_order_details.output.orderData.customer_email}
+                subject: Order #${input.orderId} Confirmed
+                template: order-confirmed
+                data:
+                  orderId: ${input.orderId}
+                  confirmationNumber: ${auto_process_order.output.confirmationNumber}
+          timeout: PT2M
+
+    - id: log_completion
+      name: Log Order Processing Completion
       type: task
       task:
         executor: connector
         config:
-          connectorId: email-service
-          operation: sendEmail
+          connectorId: audit-log
+          operation: logEvent
           parameters:
-            to: ${fetch_order_details.output.orderData.customer_email}
-            subject: Order     #${input.orderId} Confirmed
-            template: order-confirmed
-            data:
-              orderId: ${input.orderId}
-              confirmationNumber: ${auto_process_order.output.confirmationNumber}
-      timeout: PT2M
-
-  - id: log_completion
-    name: Log Order Processing Completion
-    type: task
-    task:
-      executor: connector
-      config:
-        connectorId: audit-log
-        operation: logEvent
-        parameters:
-          eventType: order.processed
-          orderId: ${input.orderId}
-          timestamp: ${workflow.currentTime}
-    timeout: PT1M
+            eventType: order.processed
+            orderId: ${input.orderId}
+            timestamp: ${workflow.currentTime}
+      timeout: PT1M

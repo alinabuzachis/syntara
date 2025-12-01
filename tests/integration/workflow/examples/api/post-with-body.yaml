@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -14,20 +15,20 @@ inputs:
       value: 123
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: create_resource
-    type: task
-    task:
-      executor: api
-      config:
-        method: POST
-        url: http://test-api.example.com/api/create
-        headers:
-          Content-Type: application/json
-          X-Custom-Header: test-value
-        body: ${input.data}
-      inputs:
-        data: ${inputs.data}
+    - id: create_resource
+      type: task
+      task:
+        executor: api
+        config:
+          method: POST
+          url: http://test-api.example.com/api/create
+          headers:
+            Content-Type: application/json
+            X-Custom-Header: test-value
+          body: ${input.data}
+        inputs:
+          data: ${inputs.data}

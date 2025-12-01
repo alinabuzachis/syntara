@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,11 +7,11 @@ metadata:
   description: Test error when loop activity has no loop definition
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: invalid_loop
-    name: Loop Without Definition
-    type: loop
+    - id: invalid_loop
+      name: Loop Without Definition
+      type: loop
       # Missing 'loop' field - should raise ValueError

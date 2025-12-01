@@ -1,3 +1,4 @@
+---
 openapi: 3.0.3
 info:
   title: Nexus Shared API Resources
@@ -31,9 +32,9 @@ components:
       title: Base Resource
       description: Foundational schema for all API resources with system-managed metadata
       required:
-      - id
-      - createdAt
-      - updatedAt
+        - id
+        - createdAt
+        - updatedAt
       properties:
         id:
           type: string
@@ -70,82 +71,82 @@ components:
 
     NamedResource:
       allOf:
-      - $ref: '#/components/schemas/BaseResource'
-      - type: object
-        title: Named Resource
-        description: Extension of BaseResource adding user-provided identification
-        required:
-        - name
-        properties:
-          name:
-            type: string
-            minLength: 1
-            maxLength: 255
-            title: Name
-            description: Human-readable name for the resource
-            example: Authentication Service
-          description:
-            type: string
-            nullable: true
-            maxLength: 2000
-            title: Description
-            description: Detailed description of the resource
-            example: Handles user authentication and authorization workflows
+        - $ref: '#/components/schemas/BaseResource'
+        - type: object
+          title: Named Resource
+          description: Extension of BaseResource adding user-provided identification
+          required:
+            - name
+          properties:
+            name:
+              type: string
+              minLength: 1
+              maxLength: 255
+              title: Name
+              description: Human-readable name for the resource
+              example: Authentication Service
+            description:
+              type: string
+              nullable: true
+              maxLength: 2000
+              title: Description
+              description: Detailed description of the resource
+              example: Handles user authentication and authorization workflows
 
     SoftDeletableResource:
       allOf:
-      - $ref: '#/components/schemas/BaseResource'
-      - type: object
-        title: Soft Deletable Resource
-        description: Extension of BaseResource supporting soft deletion tracking
-        properties:
-          deletedAt:
-            type: string
-            format: date-time
-            nullable: true
-            readOnly: true
-            title: Deleted At
-            description: Timestamp when resource was soft deleted
-            example: '2025-10-09T14:00:00Z'
-          deletedBy:
-            type: string
-            format: uuid
-            nullable: true
-            readOnly: true
-            title: Deleted By
-            description: User who performed the soft delete
-            example: 660e8400-e29b-41d4-a716-446655440000
+        - $ref: '#/components/schemas/BaseResource'
+        - type: object
+          title: Soft Deletable Resource
+          description: Extension of BaseResource supporting soft deletion tracking
+          properties:
+            deletedAt:
+              type: string
+              format: date-time
+              nullable: true
+              readOnly: true
+              title: Deleted At
+              description: Timestamp when resource was soft deleted
+              example: '2025-10-09T14:00:00Z'
+            deletedBy:
+              type: string
+              format: uuid
+              nullable: true
+              readOnly: true
+              title: Deleted By
+              description: User who performed the soft delete
+              example: 660e8400-e29b-41d4-a716-446655440000
 
     UserOwnedResource:
       allOf:
-      - $ref: '#/components/schemas/BaseResource'
-      - type: object
-        title: User Owned Resource
-        description: Extension of BaseResource tracking resource ownership and modifications
-        required:
-        - createdBy
-        properties:
-          createdBy:
-            type: string
-            format: uuid
-            readOnly: true
-            title: Created By
-            description: User who created the resource
-            example: 770e8400-e29b-41d4-a716-446655440000
-          updatedBy:
-            type: string
-            format: uuid
-            nullable: true
-            readOnly: true
-            title: Updated By
-            description: User who last updated the resource
-            example: 880e8400-e29b-41d4-a716-446655440000
+        - $ref: '#/components/schemas/BaseResource'
+        - type: object
+          title: User Owned Resource
+          description: Extension of BaseResource tracking resource ownership and modifications
+          required:
+            - createdBy
+          properties:
+            createdBy:
+              type: string
+              format: uuid
+              readOnly: true
+              title: Created By
+              description: User who created the resource
+              example: 770e8400-e29b-41d4-a716-446655440000
+            updatedBy:
+              type: string
+              format: uuid
+              nullable: true
+              readOnly: true
+              title: Updated By
+              description: User who last updated the resource
+              example: 880e8400-e29b-41d4-a716-446655440000
 
     Resource:
       allOf:
-      - $ref: '#/components/schemas/NamedResource'
-      - $ref: '#/components/schemas/SoftDeletableResource'
-      - $ref: '#/components/schemas/UserOwnedResource'
+        - $ref: '#/components/schemas/NamedResource'
+        - $ref: '#/components/schemas/SoftDeletableResource'
+        - $ref: '#/components/schemas/UserOwnedResource'
       title: Resource
       description: |
         Composite entity combining all base resource capabilities:
@@ -174,8 +175,8 @@ components:
       title: Error Response
       description: Standardized error response structure
       required:
-      - error
-      - message
+        - error
+        - message
       properties:
         error:
           type: string
@@ -223,20 +224,20 @@ components:
 
     ResourcesResponse:
       allOf:
-      - $ref: '#/components/schemas/ResourcesResponseBase'
-      - type: object
-        title: Resources Response
-        description: Complete paginated response with resource array
-        required:
-        - resources
-        properties:
-          resources:
-            type: array
-            title: Resources
-            description: Array of resources in current page
-            items:
-              $ref: '#/components/schemas/Resource'
-            maxItems: 100
+        - $ref: '#/components/schemas/ResourcesResponseBase'
+        - type: object
+          title: Resources Response
+          description: Complete paginated response with resource array
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              title: Resources
+              description: Array of resources in current page
+              items:
+                $ref: '#/components/schemas/Resource'
+              maxItems: 100
 
   parameters:
     limitParam:
@@ -271,40 +272,38 @@ components:
       explode: true
       schema:
         allOf:
-        - type: string
-          description: Exact match of the name (case-insensitive). ?name=<name>
-        - type: object
-          properties:
-            contains:
-              title: Contains
-              description: Substring to match within the name (case-insensitive).
-                ?name[contains]=<substring>
-              type: string
-            starts_with:
-              title: Starts With
-              description: Prefix to match at the start of the name (case-insensitive).
-                ?name[starts_with]=<prefix>
-              type: string
-            eq:
-              title: Equals
-              description: Exact match of the name (case-insensitive). ?name[eq]=<name>
-              type: string
-            gt:
-              title: Greater Than
-              description: Greater than comparison (lexicographical). ?name[gt]=<name>
-              type: string
-            gte:
-              title: Greater Than Or Equal
-              description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
-              type: string
-            lt:
-              title: Less Than
-              description: Less than comparison (lexicographical). ?name[lt]=<name>
-              type: string
-            lte:
-              title: Less Than Or Equal
-              description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
-              type: string
+          - type: string
+            description: Exact match of the name (case-insensitive). ?name=<name>
+          - type: object
+            properties:
+              contains:
+                title: Contains
+                description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
+                type: string
+              starts_with:
+                title: Starts With
+                description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
+                type: string
+              eq:
+                title: Equals
+                description: Exact match of the name (case-insensitive). ?name[eq]=<name>
+                type: string
+              gt:
+                title: Greater Than
+                description: Greater than comparison (lexicographical). ?name[gt]=<name>
+                type: string
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
+                type: string
+              lt:
+                title: Less Than
+                description: Less than comparison (lexicographical). ?name[lt]=<name>
+                type: string
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
+                type: string
       description: |
         Filter resources by name.
         - Exact match: `name=value`
@@ -319,36 +318,36 @@ components:
       explode: true
       schema:
         allOf:
-        - type: string
-          format: date-time
-          description: Exact match of creation timestamp. ?created_at=<timestamp>
-        - type: object
-          properties:
-            eq:
-              title: Equals
-              description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-              type: string
-              format: date-time
-            gt:
-              title: Greater Than
-              description: Greater than comparison. ?created_at[gt]=<timestamp>
-              type: string
-              format: date-time
-            gte:
-              title: Greater Than Or Equal
-              description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
-              type: string
-              format: date-time
-            lt:
-              title: Less Than
-              description: Less than comparison. ?created_at[lt]=<timestamp>
-              type: string
-              format: date-time
-            lte:
-              title: Less Than Or Equal
-              description: Less than or equal comparison. ?created_at[lte]=<timestamp>
-              type: string
-              format: date-time
+          - type: string
+            format: date-time
+            description: Exact match of creation timestamp. ?created_at=<timestamp>
+          - type: object
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+                type: string
+                format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?created_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?created_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?created_at[lte]=<timestamp>
+                type: string
+                format: date-time
 
     updatedAtFilterParam:
       name: updated_at
@@ -358,36 +357,36 @@ components:
       explode: true
       schema:
         allOf:
-        - type: string
-          format: date-time
-          description: Exact match of last update timestamp. ?updated_at=<timestamp>
-        - type: object
-          properties:
-            eq:
-              title: Equals
-              description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-              type: string
-              format: date-time
-            gt:
-              title: Greater Than
-              description: Greater than comparison. ?updated_at[gt]=<timestamp>
-              type: string
-              format: date-time
-            gte:
-              title: Greater Than Or Equal
-              description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-              type: string
-              format: date-time
-            lt:
-              title: Less Than
-              description: Less than comparison. ?updated_at[lt]=<timestamp>
-              type: string
-              format: date-time
-            lte:
-              title: Less Than Or Equal
-              description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
-              type: string
-              format: date-time
+          - type: string
+            format: date-time
+            description: Exact match of last update timestamp. ?updated_at=<timestamp>
+          - type: object
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
+                type: string
+                format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?updated_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?updated_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
+                type: string
+                format: date-time
 
     cursorParam:
       name: cursor

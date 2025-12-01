@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,7 +7,7 @@ metadata:
   description: Test retry on transient errors
 
 triggers:
-- type: manual
+  - type: manual
 
 inputs:
   seed:
@@ -21,35 +22,35 @@ inputs:
 
 workflow:
   activities:
-  - id: transient_task
-    name: Transient Task
-    type: task
-    retryPolicy:
-      maxAttempts: 5
-      backoff: exponential
-      multiplier: 2
-      initialInterval: PT1S
-      maxInterval: PT10S
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          # Simulate transient failure (e.g., network timeout)
-          # Seed RANDOM for deterministic testing if seed provided
-          # Advance seed by attempt number to get different values on each retry
-          if [ -n "$INPUT_SEED" ]; then
-            ATTEMPT=${INPUT_TEMPORAL_ATTEMPT:-1}
-            RANDOM=$(( INPUT_SEED + ATTEMPT - 1 ))
-          fi
+    - id: transient_task
+      name: Transient Task
+      type: task
+      retryPolicy:
+        maxAttempts: 5
+        backoff: exponential
+        multiplier: 2
+        initialInterval: PT1S
+        maxInterval: PT10S
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            # Simulate transient failure (e.g., network timeout)
+            # Seed RANDOM for deterministic testing if seed provided
+            # Advance seed by attempt number to get different values on each retry
+            if [ -n "$INPUT_SEED" ]; then
+              ATTEMPT=${INPUT_TEMPORAL_ATTEMPT:-1}
+              RANDOM=$(( INPUT_SEED + ATTEMPT - 1 ))
+            fi
 
-          RANDOM_VAL=$((RANDOM % 10))
-          if [ $RANDOM_VAL -lt 7 ]; then
-            echo "Transient failure occurred"
-            exit 1
-          else
-            echo "Success after retries"
-            exit 0
-          fi
-      inputs:
-        seed: ${input.seed}
+            RANDOM_VAL=$((RANDOM % 10))
+            if [ $RANDOM_VAL -lt 7 ]; then
+              echo "Transient failure occurred"
+              exit 1
+            else
+              echo "Success after retries"
+              exit 0
+            fi
+        inputs:
+          seed: ${input.seed}

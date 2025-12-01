@@ -1,14 +1,15 @@
+---
 schemaVersion: 1.0.0
 version: 1
 metadata:
   name: parallel-research
   description: Parallel agentic tasks for comprehensive research
   tags:
-  - agentic
-  - parallel
-  - research
+    - agentic
+    - parallel
+    - research
 triggers:
-- type: manual
+  - type: manual
 
 inputs:
   topic:
@@ -18,89 +19,89 @@ inputs:
 
 workflow:
   activities:
-  - id: parallel_research
-    type: parallel
-    branches:
-    - id: technical_research
+    - id: parallel_research
+      type: parallel
+      branches:
+        - id: technical_research
+          type: task
+          task:
+            executor: agentic
+            config:
+              agent: production://technical-agent
+              model: claude-3-5-sonnet-20241022
+              prompt: |
+                Research the technical aspects of: ${input.topic}
+
+                Focus on:
+                - Technical architecture and implementation
+                - Performance characteristics
+                - Technical challenges and solutions
+            inputs:
+              topic: ${inputs.topic}
+            outputs:
+              technical_findings: $.result.content
+
+        - id: market_research
+          type: task
+          task:
+            executor: agentic
+            config:
+              agent: production://market-agent
+              model: claude-3-5-sonnet-20241022
+              prompt: |
+                Research the market aspects of: ${input.topic}
+
+                Focus on:
+                - Market size and growth
+                - Key competitors and market share
+                - Market trends and opportunities
+            inputs:
+              topic: ${inputs.topic}
+            outputs:
+              market_findings: $.result.content
+
+        - id: regulatory_research
+          type: task
+          task:
+            executor: agentic
+            config:
+              agent: production://compliance-agent
+              model: claude-3-5-sonnet-20241022
+              prompt: |
+                Research the regulatory and compliance aspects of: ${input.topic}
+
+                Focus on:
+                - Relevant regulations and standards
+                - Compliance requirements
+                - Legal considerations
+            inputs:
+              topic: ${inputs.topic}
+            outputs:
+              regulatory_findings: $.result.content
+
+    - id: synthesize_findings
       type: task
       task:
         executor: agentic
         config:
-          agent: production://technical-agent
+          agent: production://synthesis-agent
           model: claude-3-5-sonnet-20241022
           prompt: |
-            Research the technical aspects of: ${input.topic}
+            Synthesize the following research findings into a comprehensive report:
 
-            Focus on:
-            - Technical architecture and implementation
-            - Performance characteristics
-            - Technical challenges and solutions
+            Technical: ${technical_research.output.technical_findings}
+            Market: ${market_research.output.market_findings}
+            Regulatory: ${regulatory_research.output.regulatory_findings}
+
+            Provide:
+            - Executive summary
+            - Key takeaways from each domain
+            - Cross-domain insights
+            - Overall recommendations
         inputs:
-          topic: ${inputs.topic}
+          technical: ${technical_research.output.technical_findings}
+          market: ${market_research.output.market_findings}
+          regulatory: ${regulatory_research.output.regulatory_findings}
         outputs:
-          technical_findings: $.result.content
-
-    - id: market_research
-      type: task
-      task:
-        executor: agentic
-        config:
-          agent: production://market-agent
-          model: claude-3-5-sonnet-20241022
-          prompt: |
-            Research the market aspects of: ${input.topic}
-
-            Focus on:
-            - Market size and growth
-            - Key competitors and market share
-            - Market trends and opportunities
-        inputs:
-          topic: ${inputs.topic}
-        outputs:
-          market_findings: $.result.content
-
-    - id: regulatory_research
-      type: task
-      task:
-        executor: agentic
-        config:
-          agent: production://compliance-agent
-          model: claude-3-5-sonnet-20241022
-          prompt: |
-            Research the regulatory and compliance aspects of: ${input.topic}
-
-            Focus on:
-            - Relevant regulations and standards
-            - Compliance requirements
-            - Legal considerations
-        inputs:
-          topic: ${inputs.topic}
-        outputs:
-          regulatory_findings: $.result.content
-
-  - id: synthesize_findings
-    type: task
-    task:
-      executor: agentic
-      config:
-        agent: production://synthesis-agent
-        model: claude-3-5-sonnet-20241022
-        prompt: |
-          Synthesize the following research findings into a comprehensive report:
-
-          Technical: ${technical_research.output.technical_findings}
-          Market: ${market_research.output.market_findings}
-          Regulatory: ${regulatory_research.output.regulatory_findings}
-
-          Provide:
-          - Executive summary
-          - Key takeaways from each domain
-          - Cross-domain insights
-          - Overall recommendations
-      inputs:
-        technical: ${technical_research.output.technical_findings}
-        market: ${market_research.output.market_findings}
-        regulatory: ${regulatory_research.output.regulatory_findings}
-      outputs:
-        final_report: $.result.report
-        executive_summary: $.result.executive_summary
+          final_report: $.result.report
+          executive_summary: $.result.executive_summary

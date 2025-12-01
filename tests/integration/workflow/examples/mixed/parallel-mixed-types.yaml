@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,35 +7,35 @@ metadata:
   description: Parallel execution with bash, python, and api activities
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: parallel_mixed
-    type: parallel
-    branches:
-    - id: bash_branch
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Bash branch executed"
+    - id: parallel_mixed
+      type: parallel
+      branches:
+        - id: bash_branch
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "Bash branch executed"
 
-    - id: python_branch
-      type: task
-      task:
-        executor: script
-        config:
-          language: python
-          code: |
-            print("Python branch executed")
+        - id: python_branch
+          type: task
+          task:
+            executor: script
+            config:
+              language: python
+              code: |
+                print("Python branch executed")
 
-    - id: api_branch
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: http://test-api.example.com/api/data
+        - id: api_branch
+          type: task
+          task:
+            executor: api
+            config:
+              method: GET
+              url: http://test-api.example.com/api/data

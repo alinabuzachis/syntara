@@ -1,10 +1,11 @@
+---
 schemaVersion: 1.0.0
 version: 1
 metadata:
   name: loop-demo
   description: Demonstrates forEach loop
 triggers:
-- type: manual
+  - type: manual
 inputs:
   items:
     type: array
@@ -12,31 +13,31 @@ inputs:
     default: [apple, banana, cherry]
 workflow:
   activities:
-  - id: process_items
-    type: loop
-    loop:
-      type: forEach
-      items: ${input.items}
-      itemVariable: item
-      indexVariable: idx
-      do:
-      - id: process_item
-        type: task
-        task:
-          executor: script
-          config:
-            language: bash
-            code: |
-              echo "Processing item #$INPUT_INDEX: $INPUT_ITEM"
-          inputs:
-            item: ${item}
-            index: ${idx}
+    - id: process_items
+      type: loop
+      loop:
+        type: forEach
+        items: ${input.items}
+        itemVariable: item
+        indexVariable: idx
+        do:
+          - id: process_item
+            type: task
+            task:
+              executor: script
+              config:
+                language: bash
+                code: |
+                  echo "Processing item #$INPUT_INDEX: $INPUT_ITEM"
+              inputs:
+                item: ${item}
+                index: ${idx}
 
-  - id: summary
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "All items processed!"
+    - id: summary
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "All items processed!"

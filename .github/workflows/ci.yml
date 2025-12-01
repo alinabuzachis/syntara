@@ -1,3 +1,4 @@
+---
 name: CI
 
 on:
@@ -10,29 +11,28 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
-    - name: Install dependencies
-      run: make install
+      - name: Install dependencies
+        run: make install
 
-    - name: Cache pre-commit
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pre-commit
-        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml')
-          }}
+      - name: Cache pre-commit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
-    - name: Run pre-commit
-      run: uv run pre-commit run --all-files
+      - name: Run pre-commit
+        run: uv run pre-commit run --all-files
 
   test:
     runs-on: ubuntu-latest
@@ -49,7 +49,7 @@ jobs:
           POSTGRES_PASSWORD: admin
           POSTGRES_DB: nexus_api
         ports:
-        - 5432:5432
+          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U admin"
           --health-interval 5s
@@ -57,84 +57,84 @@ jobs:
           --health-retries 5
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
-    - name: Install dependencies
-      run: make install
+      - name: Install dependencies
+        run: make install
 
-    - name: Check migrations
-      run: make check-migrations
+      - name: Check migrations
+        run: make check-migrations
 
-    - name: Run tests (excluding MCP) with coverage
-      run: make test-coverage
+      - name: Run tests (excluding MCP) with coverage
+        run: make test-coverage
 
-    - name: Run MCP tests
-      run: make test-mcp
+      - name: Run MCP tests
+        run: make test-mcp
 
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-results-python-${{ matrix.python-version }}
-        path: pytest-results.xml
-        retention-days: 30
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-python-${{ matrix.python-version }}
+          path: pytest-results.xml
+          retention-days: 30
 
-    - name: Upload coverage artifacts
-      if: matrix.python-version == '3.12'
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report
-        path: |
-          coverage.xml
-          htmlcov/
-        retention-days: 30
+      - name: Upload coverage artifacts
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            htmlcov/
+          retention-days: 30
 
   test-compose:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
-    - name: Start services with podman-compose
-      run: |
-        # Start core services (exclude nexus-ui which is private)
-        uvx podman-compose -p nexus-ci up --build -d database temporal nexus temporal-worker mcp-server
+      - name: Start services with podman-compose
+        run: |
+          # Start core services (exclude nexus-ui which is private)
+          uvx podman-compose -p nexus-ci up --build -d database temporal nexus temporal-worker mcp-server
 
-    - name: Verify services are healthy
-      timeout-minutes: 5
-      run: |
-        echo "Waiting for services to become healthy..."
-        podman wait --condition=healthy \
-          $(podman ps -qf "name=nexus-ci_database") \
-          $(podman ps -qf "name=nexus-ci_temporal") \
-          $(podman ps -qf "name=nexus-ci_nexus") \
-          $(podman ps -qf "name=nexus-ci_mcp-server")
-        echo "✅ All services are healthy"
+      - name: Verify services are healthy
+        timeout-minutes: 5
+        run: |
+          echo "Waiting for services to become healthy..."
+          podman wait --condition=healthy \
+            $(podman ps -qf "name=nexus-ci_database") \
+            $(podman ps -qf "name=nexus-ci_temporal") \
+            $(podman ps -qf "name=nexus-ci_nexus") \
+            $(podman ps -qf "name=nexus-ci_mcp-server")
+          echo "✅ All services are healthy"
 
-    - name: Show service logs on failure
-      if: failure()
-      run: |
-        echo "=== Compose logs ==="
-        uvx podman-compose -p nexus-ci logs database temporal nexus temporal-worker mcp-server
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          echo "=== Compose logs ==="
+          uvx podman-compose -p nexus-ci logs database temporal nexus temporal-worker mcp-server
 
-    - name: Cleanup
-      if: always()
-      run: |
-        uvx podman-compose -p nexus-ci down -v || true
+      - name: Cleanup
+        if: always()
+        run: |
+          uvx podman-compose -p nexus-ci down -v || true

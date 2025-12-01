@@ -1,3 +1,4 @@
+---
 openapi: 3.0.3
 info:
   title: Tool Management API
@@ -5,13 +6,13 @@ info:
   version: 1.0.0
 
 servers:
-- url: /api/v1
-  description: API server (relative path)
+  - url: /api/v1
+    description: API server (relative path)
 
 # Reference shared resource schemas
 x-shared-contracts:
-- path: ../base/shared-resources.openapi.yaml
-  namespace: shared
+  - path: ../base/shared-resources.openapi.yaml
+    namespace: shared
 
 paths:
   /tools:
@@ -19,60 +20,58 @@ paths:
       summary: List all tools
       description: Retrieve list of tools from all Tool Providers with filtering
       parameters:
-      - name: status
-        in: query
-        required: false
-        style: deepObject
-        explode: true
-        schema:
-          allOf:
-          - type: string
-            description: Exact match of the status. ?status=<status>
-          - type: object
-            properties:
-              eq:
-                type: string
-                description: Exact match of the status. ?status[eq]=<status>
-        description: |
-          Filter tools by status.
-          - Exact match: `status=available`
-      - name: enabled
-        in: query
-        required: false
-        schema:
-          type: boolean
-        description: Filter tools by enabled status
-      - name: provider_id
-        in: query
-        required: false
-        schema:
-          type: string
-          format: uuid
-        description: Filter tools by provider ID
-      - name: sort
-        in: query
-        required: false
-        schema:
-          type: string
-        description: Sort field and direction (e.g., 'name', '-created_at')
-      - name: namespaced_name
-        in: query
-        required: false
-        style: deepObject
-        explode: true
-        schema:
-          type: string
-          description: Filter by namespaced name (namespaced_name[contains]=text)
-        description: Filter tools by namespaced name with text matching
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
-      - $ref: 
-          ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-      - $ref: 
-          ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-      - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+        - name: status
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            allOf:
+              - type: string
+                description: Exact match of the status. ?status=<status>
+              - type: object
+                properties:
+                  eq:
+                    type: string
+                    description: Exact match of the status. ?status[eq]=<status>
+          description: |
+            Filter tools by status.
+            - Exact match: `status=available`
+        - name: enabled
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter tools by enabled status
+        - name: provider_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter tools by provider ID
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Sort field and direction (e.g., 'name', '-created_at')
+        - name: namespaced_name
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            type: string
+            description: Filter by namespaced name (namespaced_name[contains]=text)
+          description: Filter tools by namespaced name with text matching
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
       responses:
         '200':
           description: List of tools
@@ -80,16 +79,16 @@ paths:
             application/json:
               schema:
                 allOf:
-                - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                - type: object
-                  properties:
-                    resources:
-                      type: array
-                      items:
-                        $ref: '#/components/schemas/ToolWithParameters'
-                      maxItems: 100
-                  required:
-                  - resources
+                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ToolWithParameters'
+                        maxItems: 100
+                    required:
+                      - resources
         '403':
           description: Admin access required
           content:
@@ -102,12 +101,12 @@ paths:
       summary: Get tool details
       description: Retrieve detailed information about specific tool
       parameters:
-      - name: tool_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: tool_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Tool details
@@ -132,12 +131,12 @@ paths:
       summary: Update tool configuration
       description: Update tool enablement status and configuration
       parameters:
-      - name: tool_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+        - name: tool_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -204,51 +203,51 @@ components:
   schemas:
     ToolWithParameters:
       allOf:
-      - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Resource
-      - type: object
-        properties:
-          provider_id:
-            type: string
-            format: uuid
-            description: UUID of the associated tool provider
-          namespaced_name:
-            type: string
-            maxLength: 200
-            description: Unique namespaced name for the tool
-          enabled:
-            type: boolean
-            default: true
-            description: Whether the tool is enabled
-          status:
-            type: string
-            enum: [available, missing, error]
-            default: available
-            description: Current status of the tool
-          last_executed_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: Timestamp of last execution
-          last_refreshed_at:
-            type: string
-            format: date-time
-            nullable: true
-            description: Timestamp of last refresh from provider
-          refresh_error:
-            type: string
-            nullable: true
-            description: Error message from last refresh attempt
-          parameters:
-            type: array
-            items:
-              $ref: '#/components/schemas/ToolParameter'
-            description: Tool parameters
-        required:
-        - provider_id
-        - namespaced_name
-        - enabled
-        - status
-        - parameters
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Resource
+        - type: object
+          properties:
+            provider_id:
+              type: string
+              format: uuid
+              description: UUID of the associated tool provider
+            namespaced_name:
+              type: string
+              maxLength: 200
+              description: Unique namespaced name for the tool
+            enabled:
+              type: boolean
+              default: true
+              description: Whether the tool is enabled
+            status:
+              type: string
+              enum: [available, missing, error]
+              default: available
+              description: Current status of the tool
+            last_executed_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: Timestamp of last execution
+            last_refreshed_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: Timestamp of last refresh from provider
+            refresh_error:
+              type: string
+              nullable: true
+              description: Error message from last refresh attempt
+            parameters:
+              type: array
+              items:
+                $ref: '#/components/schemas/ToolParameter'
+              description: Tool parameters
+          required:
+            - provider_id
+            - namespaced_name
+            - enabled
+            - status
+            - parameters
 
     ToolParameter:
       type: object
@@ -271,11 +270,11 @@ components:
         example_value:
           type: object
       required:
-      - id
-      - name
-      - type
-      - description
-      - required
+        - id
+        - name
+        - type
+        - description
+        - required
 
     ToolUpdate:
       type: object
@@ -283,7 +282,7 @@ components:
         enabled:
           type: boolean
       required:
-      - enabled
+        - enabled
 
     ToolBulkUpdate:
       type: object
@@ -300,8 +299,8 @@ components:
           type: boolean
           description: Enable/disable the tools
       required:
-      - tool_ids
-      - enabled
+        - tool_ids
+        - enabled
 
     ToolBulkUpdateResponse:
       type: object
@@ -317,6 +316,6 @@ components:
           format: date-time
           description: Timestamp when bulk update completed
       required:
-      - updated_count
-      - skipped_count
-      - updated_at
+        - updated_count
+        - skipped_count
+        - updated_at

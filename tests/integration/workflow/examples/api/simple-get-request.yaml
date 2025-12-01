@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,14 +7,14 @@ metadata:
   description: Execute a simple HTTP GET request
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: fetch_data
-    type: task
-    task:
-      executor: api
-      config:
-        method: GET
-        url: http://test-api.example.com/api/data
+    - id: fetch_data
+      type: task
+      task:
+        executor: api
+        config:
+          method: GET
+          url: http://test-api.example.com/api/data

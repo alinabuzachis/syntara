@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,45 +7,45 @@ metadata:
   description: Sequential workflow with bash to python to api activities
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: bash_step
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo '{"data": "from bash"}'
-      outputs:
-        data: $.data
+    - id: bash_step
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo '{"data": "from bash"}'
+        outputs:
+          data: $.data
 
-  - id: python_step
-    type: task
-    task:
-      executor: script
-      config:
-        language: python
-        code: |
-          import json
-          import os
+    - id: python_step
+      type: task
+      task:
+        executor: script
+        config:
+          language: python
+          code: |
+            import json
+            import os
 
-          bash_data = os.getenv('INPUT_BASH_DATA', 'none')
-          result = {"processed": bash_data, "by": "python"}
-          print(json.dumps(result))
-      inputs:
-        bash_data: ${bash_step.output.data}
-      outputs:
-        processed: $.processed
+            bash_data = os.getenv('INPUT_BASH_DATA', 'none')
+            result = {"processed": bash_data, "by": "python"}
+            print(json.dumps(result))
+        inputs:
+          bash_data: ${bash_step.output.data}
+        outputs:
+          processed: $.processed
 
-  - id: api_step
-    type: task
-    task:
-      executor: api
-      config:
-        method: POST
-        url: http://test-api.example.com/api/create
-        body:
-          data: ${python_step.output.processed}
+    - id: api_step
+      type: task
+      task:
+        executor: api
+        config:
+          method: POST
+          url: http://test-api.example.com/api/create
+          body:
+            data: ${python_step.output.processed}
