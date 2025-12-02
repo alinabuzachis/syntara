@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 
 interface DefaultEdgeProps extends EdgeProps {
   data?: {
-    onAddNode?: (sourceNodeId: string, targetNodeId: string, edgeId: string) => void
+    onAddNode?: (sourceNodeId: string, targetNodeId: string, edgeId: string, sourceHandle?: string) => void
     isActive?: boolean
     isPending?: boolean
   }
@@ -27,6 +27,7 @@ export function DefaultEdge(props: DefaultEdgeProps) {
     id,
     source,
     target,
+    sourceHandle,
     data,
     markerEnd,
     selected,
@@ -69,7 +70,7 @@ export function DefaultEdge(props: DefaultEdgeProps) {
 
   const handleAddNode = (event: React.MouseEvent) => {
     event.stopPropagation()
-    data?.onAddNode?.(source, target, id)
+    data?.onAddNode?.(source, target, id, sourceHandle ?? undefined)
   }
 
   return (

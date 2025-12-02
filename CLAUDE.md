@@ -14,6 +14,7 @@ npm run start:nexus-mock-api # Start mock API only
 npm test                   # Run all tests
 npm run test:nexus-ui      # Run UI package tests
 npm run test:coverage      # Run tests with coverage report
+npm run test:ui            # Interactive test UI (Vitest UI)
 
 # Run a specific test
 cd packages/nexus-ui
@@ -27,6 +28,21 @@ npm run gen                # Regenerate API contracts
 # Code Quality
 npm run format             # Format code
 npm run format:check       # Check formatting
+cd packages/nexus-ui && npm run eslint  # Run ESLint
+cd packages/nexus-ui && npm run tsc     # Type check only
+```
+
+## Connecting to Real Backend
+
+To use the real Nexus backend instead of the mock API:
+
+1. Clone and setup the backend: `git clone https://github.com/syntara-orchestration/syntara.git`
+2. Follow the backend README to start the API server
+3. Export the backend URL and start the UI:
+
+```bash
+export VITE_API_URL=http://localhost:8000
+npm start
 ```
 
 ## Architectural Context
@@ -172,25 +188,41 @@ NodeRegistry.getByCategory(cat) // Get nodes by category
 - `useWorkflowStore` manages current workflow state
 - `workflowVersion` counter tracks workflow replacements (increments on setWorkflow)
 - Actions: `addTrigger`, `removeTrigger`, `addActivity`, `removeActivity`, `updateActivity`
-- **Edge Synchronization Actions**: `syncJoinBranches`, `syncConditionBranches`, `reorderActivitiesFromEdges`
+- **Edge Synchronization Actions**: `syncJoinBranches`, `reorderActivitiesFromEdges`
+- **Atomic Batch Operations**: `batchRemoveNodesAndEdges` for removing multiple nodes/edges atomically
 - Located at `packages/nexus-ui/src/stores/useWorkflowStore.ts`
 - Use selective subscriptions to avoid unnecessary re-renders
 
-**Workflow Structure Patterns:**
+**Workflow Structure - Unified Approach:**
 
-The builder supports two workflow patterns:
+ALL workflows use a consistent flatten-on-load, nest-on-save pattern:
 
-1. **Legacy (Nested) Workflows**: Activities nested within `then`/`else`/`do` arrays
-   - Detected by `hasLegacyNestedActivities()`
-   - Renders by generating edges from workflow structure
-   - Used for imported workflows with nested structures
+**API Format (Nested):**
 
-2. **Modern (Flat) Workflows**: All activities flat during editing, nested only on save
-   - ALL activities remain in flat `activities` array during editing
-   - Edges define ALL flow relationships including condition branches
-   - Join nodes use auto-generated parallel containers (`parallel_for_${joinId}`)
-   - Condition nodes remain flat during editing - nested structures built only during save
-   - Nesting happens in `buildNestedConditionStructure()` before API submission
+- Activities can be nested within `sequence`, `loop`, `parallel`, or `condition` containers
+- Workflow structure defines execution flow via nesting
+
+**Builder Format (Flat):**
+
+- ALL activities stored in flat `activities` array during editing
+- Edges define ALL flow relationships (stored separately)
+- Join nodes use auto-generated `parallel_for_${joinId}` containers
+- Condition nodes have empty `then`/`else` arrays - edges encode branches
+
+**Load Path (API → Builder):**
+
+1. `loadWorkflow()` flattens ALL workflows via `WorkflowTransform.flatten()`
+2. Extracts edges from nested structures (condition branches, sequence chains, etc.)
+3. Stores flat activities + edges in workflow store
+
+**Save Path (Builder → API):**
+
+1. `buildNestedConditionStructure()` nests condition nodes only
+2. Finds edges from condition's true/false handles
+3. Recursively collects downstream activities into `then`/`else` arrays
+4. Other structures (sequence/loop/parallel) saved as flat with edges
+
+**Note:** sequence/loop/parallel containers are lossy - after flatten→nest, they become flat tasks with edges. This is acceptable as the semantic meaning (execution order) is preserved.
 
 **Edge Synchronization:**
 
@@ -202,6 +234,14 @@ Critical hook: `useEdgeSynchronization` (`packages/nexus-ui/src/routes/builder/h
   1. `syncJoinBranches()` - Wraps parallel branches in parallel containers
   2. `reorderActivitiesFromEdges()` - Topologically sorts activities based on edges
 
+**ButtonEdge Component:**
+
+- Custom edge type for interactive workflow edges with add-node buttons
+- Maintenance hook: `useButtonEdgeMaintenance` (`packages/nexus-ui/src/routes/builder/hooks/useButtonEdgeMaintenance.ts`)
+- Automatically maintains button edges when nodes/edges change
+- Creates button edges for all valid connection points in the workflow
+- Works in coordination with edge synchronization system
+
 **Join Node Pattern:**
 
 - Join nodes reference other activities by ID in `join.branches: string[]`
@@ -212,16 +252,38 @@ Critical hook: `useEdgeSynchronization` (`packages/nexus-ui/src/routes/builder/h
 
 **Condition Node Pattern:**
 
-- Condition nodes use **nested structure** - activities are moved into then/else arrays
-- Condition node structure: `{ type: 'condition', then: Activity[], else: Activity[], condition: string }`
-- Edges with `sourceHandle='true'` connect to true branch starting points
-- Edges with `sourceHandle='false'` connect to false branch starting points
-- `syncConditionBranches()` recursively finds ALL downstream activities for each branch
-- Stops ONLY at join nodes (convergence points) - includes all other node types
-- All node types can be nested: tasks, conditions, loops, etc.
-- Nested condition nodes are fully supported within then/else branches
+- Condition nodes remain **flat during editing**, nested only on save
+- During editing: All activities in flat array, edges encode branch relationships
+- Edges with `sourceHandle='true'` connect to true branch, `sourceHandle='false'` to false branch
 - Two handles on node: "True" and "False" for branching connections
-- Example: `Condition1 -> Task1 -> Condition2 -> Task3` means Task1, Condition2, and Task3 all go in the `then` array
+- Condition node structure: `{ type: 'condition', then: Activity[], else: Activity[], condition: string }`
+
+**Serialization workflow (Save → API):**
+
+1. `buildNestedConditionStructure(activities, edges)` - Converts flat to nested
+2. Finds edges from condition's true/false handles
+3. Recursively collects all downstream activities for each branch
+4. Moves them into then/else arrays
+5. Handles parallel*for*\* wrappers (includes wrapper, not individual branches)
+6. Located in `packages/nexus-ui/src/routes/builder/utils/buildNestedStructure.ts`
+
+**Deserialization workflow (API → Edit):**
+
+1. `generateEdgesFromStructure(activities)` - Extracts edges from nested structure
+2. Creates edges from condition nodes to then/else activities
+3. Handles parallel*for*\* wrappers (creates edges to branches, not wrapper)
+4. `flattenConditionStructure(activities)` - Flattens nested structure
+5. Recursively extracts nested activities to top level
+6. Leaves condition nodes with empty then/else arrays
+7. Located in `packages/nexus-ui/src/routes/builder/utils/flattenConditionStructure.ts` and `generateEdgesFromStructure.ts`
+
+**Key implementation details:**
+
+- Don't follow sequential edges from activities inside parallel wrappers (prevents including join nodes in branches)
+- When activity is inside parallel*for*\* wrapper, include wrapper in then/else arrays
+- Example flow: `Condition1 -> Task1 -> Condition2 -> Task3`
+  - During edit: All four nodes in flat activities array, edges define relationships
+  - On save: Task1, Condition2, and Task3 moved into Condition1's then array
 
 **Builder Component Pattern:**
 
@@ -324,6 +386,24 @@ Result: No new code needed, use import from 'nexus-ui-framework'
 - **Authentication**: Basic (demo/coffee)
 - **Separate containers**: UI and Mock API
 - **Build script**: `./build-multiarch.sh` for multi-arch Podman builds
+
+### Container Commands
+
+```bash
+# Build containers
+npm run podman:build                    # Build all containers
+npm run podman:build:nexus-ui           # Build UI container only
+npm run podman:build:nexus-mock-api     # Build mock API container only
+
+# Run containers
+npm run podman:run                      # Run all containers
+npm run podman:run:nexus-ui             # Run UI on port 4000
+npm run podman:run:nexus-mock-api       # Run API on port 3000
+
+# Multi-arch builds
+./build-multiarch.sh                    # Build for AMD64 + ARM64
+./build-multiarch.sh push               # Build and push to registry
+```
 
 ## Performance Notes
 

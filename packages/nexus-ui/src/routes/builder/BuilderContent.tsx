@@ -1,9 +1,9 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Button, ConfirmDialog, Switch, Tooltip, useAlerts } from '@ansible/nexus-ui-framework'
 import { useQueryClient } from '@tanstack/react-query'
-import { useReactFlow, type Node } from '@xyflow/react'
+import { addEdge, useReactFlow, type Node } from '@xyflow/react'
 import { ClockIcon, FileCode, PlayIcon, PlusIcon, SaveIcon, XIcon } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
@@ -19,8 +19,9 @@ import { AutomationHistoryCard } from './AutomationHistoryCard'
 import { BuilderFlow } from './BuilderFlow'
 import { NodeDetailsPanel } from './NodeDetailsPanel'
 import { buildNestedConditionStructure } from './utils/buildNestedStructure'
-import { flattenConditionStructure } from './utils/flattenConditionStructure'
-import { generateEdgesFromStructure } from './utils/generateEdgesFromStructure'
+import { loadWorkflow } from './utils/loadWorkflow'
+import { validateRoundTrip, validateSavePath } from './utils/validateRoundTrip'
+import { markerEnd, type EdgeType } from './utils/workflowToGraph'
 import { WorkflowSidepanel } from './WorkflowSidepanel'
 
 // Type aliases from API contracts
@@ -50,6 +51,7 @@ export function BuilderContent(props: BuilderContentProps) {
   const [sourceNodeId, setSourceNodeId] = useState<string | null>(null)
   const [targetNodeId, setTargetNodeId] = useState<string | null>(null)
   const [edgeIdToReplace, setEdgeIdToReplace] = useState<string | null>(null)
+  const [sourceHandle, setSourceHandle] = useState<string | undefined>(undefined)
   const [workflowName, setWorkflowName] = useState('New Workflow')
   const [workflowDescription, setWorkflowDescription] = useState('New Workflow')
   const [isEnabled, setIsEnabled] = useState(false)
@@ -71,15 +73,20 @@ export function BuilderContent(props: BuilderContentProps) {
     }
   )
 
-  // Clear workflow store on mount to ensure fresh state
+  // Track if we've loaded the workflow for the first time
+  const hasLoadedRef = useRef(false)
+
+  // Clear workflow store when workflowId changes to ensure fresh state
+  // CRITICAL: workflowId is in dependency array to clear store when switching between workflows
+  // CRITICAL: Clear synchronously to ensure BuilderFlow's useMemo sees empty edges immediately
   useEffect(() => {
     setWorkflow(null)
     setStoredEdges([])
-  }, [setWorkflow, setStoredEdges])
+    hasLoadedRef.current = false
+  }, [workflowId, setWorkflow, setStoredEdges])
 
   useEffect(() => {
     if (isNew) {
-      // Initialize new workflow
       const newWorkflow: WorkflowDefinition = {
         schemaVersion: '1.0.0',
         version: 1,
@@ -100,15 +107,20 @@ export function BuilderContent(props: BuilderContentProps) {
       })
     } else if (
       workflow &&
-      (workflow as unknown as { version?: { workflow_definition?: WorkflowDefinition } }).version?.workflow_definition
+      (workflow as unknown as { version?: { workflow_definition?: WorkflowDefinition } }).version
+        ?.workflow_definition &&
+      !hasLoadedRef.current &&
+      workflow.id === workflowId
     ) {
-      // Load existing workflow - always reload when workflow data is available
+      // Load existing workflow - ONLY on first load, not during refetch after save
+      // This prevents overwriting user-created edges (including ButtonEdges) with saved edges
+      // CRITICAL: Only load if workflow.id matches workflowId (prevents loading stale cached workflow)
       const workflowDef = (workflow as unknown as { version: { workflow_definition: WorkflowDefinition } }).version
         .workflow_definition
 
-      // Generate edges from nested structure BEFORE flattening
-      // This captures the structural relationships as explicit edges
-      const generatedEdges = generateEdgesFromStructure(workflowDef.workflow.activities)
+      // Use combined load function - performs edge generation AND flattening in single pass
+      // This is more efficient than calling generateEdgesFromStructure + flattenConditionStructure separately
+      const { activities: flattenedActivities, edges: generatedEdges } = loadWorkflow(workflowDef.workflow.activities)
 
       // Generate trigger edges (triggers connect to first activities)
       const triggers = workflowDef.triggers || []
@@ -116,8 +128,8 @@ export function BuilderContent(props: BuilderContentProps) {
         const firstActivity = workflowDef.workflow.activities[0]
 
         triggers.forEach((_, index) => {
-          // If first activity is a parallel_for_* wrapper, connect to its branches
-          if (firstActivity.type === 'parallel' && firstActivity.id.startsWith('parallel_for_')) {
+          // If first activity is a parallel (either auto-generated wrapper OR user-created), connect to its branches
+          if (firstActivity.type === 'parallel') {
             const branches = firstActivity.branches || []
             branches.forEach((branch) => {
               generatedEdges.push({
@@ -128,6 +140,19 @@ export function BuilderContent(props: BuilderContentProps) {
                 targetHandle: 'target',
               })
             })
+          } else if (firstActivity.type === 'sequence') {
+            // Sequence will be flattened, so connect to first step
+            const steps = firstActivity.steps || []
+            if (steps.length > 0) {
+              const firstStep = steps[0]
+              generatedEdges.push({
+                id: `trigger-${index}-${firstStep.id}`,
+                source: `trigger-${index}`,
+                target: firstStep.id,
+                sourceHandle: 'source',
+                targetHandle: 'target',
+              })
+            }
           } else {
             // Regular activity - connect directly
             generatedEdges.push({
@@ -141,9 +166,9 @@ export function BuilderContent(props: BuilderContentProps) {
         })
       }
 
-      // Flatten any nested condition structures for editing
-      // The flat architecture requires all activities at top level during editing
-      const flattenedActivities = flattenConditionStructure(workflowDef.workflow.activities)
+      // Validate round-trip conversion (development only)
+      // This ensures the workflow structure is preserved during load → edit → save
+      validateRoundTrip(workflowDef.workflow.activities, generatedEdges)
 
       const flattenedWorkflow: WorkflowDefinition = {
         ...workflowDef,
@@ -160,9 +185,10 @@ export function BuilderContent(props: BuilderContentProps) {
         setIsEnabled(workflow.is_enabled ?? false)
         // Set the generated edges so they're available for rendering and save
         setStoredEdges(generatedEdges)
+        hasLoadedRef.current = true
       })
     }
-  }, [isNew, workflow, setWorkflow, setStoredEdges])
+  }, [isNew, workflow, workflowId, setWorkflow, setStoredEdges])
 
   // Sync state when workflow data changes (e.g., after refetch)
   useEffect(() => {
@@ -200,6 +226,10 @@ export function BuilderContent(props: BuilderContentProps) {
 
     // Get edges from store to build nested condition structures
     const edges = useWorkflowStore.getState().edges
+
+    // Validate save path before building (development only)
+    // This ensures flat activities + edges can be successfully converted to nested structure
+    validateSavePath(currentWorkflow.workflow.activities, edges)
 
     // Build nested condition structures from flat activities and edges
     // This converts the flat representation (used during editing) into the nested
@@ -347,6 +377,20 @@ export function BuilderContent(props: BuilderContentProps) {
     setHistoryCardOpen(false)
   }, [])
 
+  // Memoized callback for adding nodes from edges
+  const handleAddNodeFromEdge = useCallback((sourceId: string, targetId?: string, edgeId?: string, handle?: string) => {
+    // Close other panels when opening add node panel
+    setSelectedNode(null)
+    setDetailsOpen(false)
+    setHistoryCardOpen(false)
+    // Set up add node panel state
+    setSourceNodeId(sourceId)
+    setTargetNodeId(targetId || null)
+    setEdgeIdToReplace(edgeId || null)
+    setSourceHandle(handle || undefined)
+    setAddNodePanelOpen(true)
+  }, [])
+
   return (
     <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
       <AppPage>
@@ -374,6 +418,7 @@ export function BuilderContent(props: BuilderContentProps) {
                   setSourceNodeId(null) // No source node when adding from header
                   setTargetNodeId(null)
                   setEdgeIdToReplace(null)
+                  setSourceHandle(undefined)
                   setAddNodePanelOpen(true)
                 }}
                 className="text-sm whitespace-nowrap"
@@ -438,21 +483,12 @@ export function BuilderContent(props: BuilderContentProps) {
               <div className="relative isolate flex min-w-0 grow gap-2 overflow-hidden">
                 <div className="glass absolute inset-0 rounded-4xl border-2"></div>
                 <BuilderFlow
+                  workflowId={workflowId}
                   panelOpen={addNodePanelOpen || !!selectedNode}
                   activeEdgeButtonNodeId={addNodePanelOpen ? sourceNodeId : null}
                   activeEdgeId={addNodePanelOpen ? edgeIdToReplace : null}
                   onNodeClick={handleNodeClick}
-                  onAddNodeFromEdge={(sourceId, targetId, edgeId) => {
-                    // Close other panels when opening add node panel
-                    setSelectedNode(null)
-                    setDetailsOpen(false)
-                    setHistoryCardOpen(false)
-                    // Set up add node panel state
-                    setSourceNodeId(sourceId)
-                    setTargetNodeId(targetId || null)
-                    setEdgeIdToReplace(edgeId || null)
-                    setAddNodePanelOpen(true)
-                  }}
+                  onAddNodeFromEdge={handleAddNodeFromEdge}
                 />
               </div>
 
@@ -463,6 +499,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     setSourceNodeId(null)
                     setTargetNodeId(null)
                     setEdgeIdToReplace(null)
+                    setSourceHandle(undefined)
                   }}
                   onNodeSelect={showSuccess}
                   onNodeError={showError}
@@ -471,9 +508,9 @@ export function BuilderContent(props: BuilderContentProps) {
                     // Capture state values before they get cleared by panel close
                     const capturedEdgeIdToReplace = edgeIdToReplace
                     const capturedTargetNodeId = targetNodeId
+                    const capturedSourceHandle = sourceHandle
 
                     // Wait for target node to be rendered and measured by React Flow
-                    // Check every 50ms for up to 2 seconds
                     let attempts = 0
                     const maxAttempts = 40
 
@@ -482,81 +519,71 @@ export function BuilderContent(props: BuilderContentProps) {
                       const targetNode = nodes.find((n) => n.id === targetId)
 
                       if (targetNode?.measured) {
-                        // Get current edges
-                        const currentEdges = reactFlowInstance.getEdges()
+                        // Create edge ID that includes sourceHandle for conditional nodes
+                        const edgeId =
+                          capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
+                            ? `${sourceId}-${capturedSourceHandle}-${targetId}`
+                            : `${sourceId}-${targetId}`
 
-                        // Remove button edge from source node
-                        let filteredEdges = currentEdges.filter((e) => e.id !== `button-${sourceId}`)
+                        // Create the new edge object (matching BuilderFlow.tsx onConnect format)
+                        const newEdge = {
+                          id: edgeId,
+                          source: sourceId,
+                          target: targetId,
+                          ...(capturedSourceHandle ? { sourceHandle: capturedSourceHandle } : {}),
+                          targetHandle: 'target',
+                          type: 'default',
+                          markerEnd,
+                          data: {
+                            onAddNode: handleAddNodeFromEdge,
+                          },
+                        }
 
-                        // If we're inserting between two nodes, remove the old edge
+                        // Use React Flow's addEdge helper (same as manual connection)
+                        reactFlowInstance.setEdges((eds) => {
+                          // Remove button edge from source node
+                          const filtered = eds.filter((e) => e.id !== `button-${sourceId}`)
+                          // If inserting between nodes, remove old edge
+                          const withoutOldEdge = capturedEdgeIdToReplace
+                            ? filtered.filter((e) => e.id !== capturedEdgeIdToReplace)
+                            : filtered
+                          // Use React Flow's addEdge helper for consistency (cast to match BuilderFlow pattern)
+                          return addEdge(newEdge, withoutOldEdge as never) as EdgeType[]
+                        })
+
+                        // If inserting between two nodes, create second edge and reorder
                         if (capturedEdgeIdToReplace && capturedTargetNodeId) {
-                          filteredEdges = filteredEdges.filter((e) => e.id !== capturedEdgeIdToReplace)
-
-                          // Add edge from source to new node
-                          filteredEdges.push({
-                            id: `${sourceId}-${targetId}`,
-                            source: sourceId,
-                            target: targetId,
-                            sourceHandle: 'source',
-                            targetHandle: 'target',
-                            type: 'default',
-                            markerEnd: { type: 'arrowclosed', width: 12, height: 12, color: '#6b7280' },
-                            data: {
-                              onAddNode: (srcId: string, tgtId: string, edId: string) => {
-                                setSourceNodeId(srcId)
-                                setTargetNodeId(tgtId)
-                                setEdgeIdToReplace(edId)
-                                setAddNodePanelOpen(true)
-                              },
-                            },
-                          })
-
-                          // Add edge from new node to original target
-                          filteredEdges.push({
+                          const secondEdge = {
                             id: `${targetId}-${capturedTargetNodeId}`,
                             source: targetId,
                             target: capturedTargetNodeId,
-                            sourceHandle: 'source',
                             targetHandle: 'target',
                             type: 'default',
-                            markerEnd: { type: 'arrowclosed', width: 12, height: 12, color: '#6b7280' },
+                            markerEnd,
                             data: {
-                              onAddNode: (srcId: string, tgtId: string, edId: string) => {
-                                setSourceNodeId(srcId)
-                                setTargetNodeId(tgtId)
-                                setEdgeIdToReplace(edId)
-                                setAddNodePanelOpen(true)
-                              },
+                              onAddNode: handleAddNodeFromEdge,
                             },
-                          })
+                          }
 
-                          reactFlowInstance.setEdges(filteredEdges)
+                          reactFlowInstance.setEdges((eds) => addEdge(secondEdge, eds as never) as EdgeType[])
 
-                          // Reorder the new activity to be before the target activity in the workflow
+                          // Reorder the new activity to be before the target activity
                           useWorkflowStore.getState().moveActivityBefore(targetId, capturedTargetNodeId)
-                        } else {
-                          // Normal connection - just add one edge
-                          reactFlowInstance.setEdges([
-                            ...filteredEdges,
-                            {
-                              id: `${sourceId}-${targetId}`,
-                              source: sourceId,
-                              target: targetId,
-                              sourceHandle: 'source',
-                              targetHandle: 'target',
-                              type: 'default',
-                              markerEnd: { type: 'arrowclosed', width: 12, height: 12, color: '#6b7280' },
-                              data: {
-                                onAddNode: (srcId: string, tgtId: string, edId: string) => {
-                                  setSourceNodeId(srcId)
-                                  setTargetNodeId(tgtId)
-                                  setEdgeIdToReplace(edId)
-                                  setAddNodePanelOpen(true)
-                                },
-                              },
-                            },
-                          ])
                         }
+
+                        // Remove placeholder node and update source node class
+                        const sourcePlaceholderId = `placeholder-${sourceId}`
+                        reactFlowInstance.setNodes((nds) =>
+                          nds
+                            .filter((n) => n.id !== sourcePlaceholderId)
+                            .map((n) => {
+                              if (n.id === sourceId) {
+                                const className = (n.className || '').replace('has-button-edge', '').trim()
+                                return { ...n, className }
+                              }
+                              return n
+                            })
+                        )
                       } else if (attempts < maxAttempts) {
                         attempts++
                         setTimeout(checkAndConnect, 50)

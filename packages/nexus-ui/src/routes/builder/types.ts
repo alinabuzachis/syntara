@@ -6,6 +6,8 @@ import type { NodeType } from '../automations/canvas/nodes/NodeType'
  * Props for the BuilderFlow component
  */
 export interface BuilderFlowProps {
+  /** Workflow ID from route params (null for new workflows) */
+  workflowId?: string | null
   /** Counter to trigger layout re-calculation */
   triggerLayout?: number
   /** Whether the side panel is open */
@@ -17,7 +19,7 @@ export interface BuilderFlowProps {
   /** Handler for node click events */
   onNodeClick?: NodeMouseHandler<NodeType>
   /** Handler for adding a node from an edge */
-  onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string) => void
+  onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string, sourceHandle?: string) => void
 }
 
 /**
@@ -25,6 +27,7 @@ export interface BuilderFlowProps {
  */
 export interface ConnectionState {
   sourceNodeId: string | null
+  sourceHandleId: string | null
   successful: boolean
 }
 

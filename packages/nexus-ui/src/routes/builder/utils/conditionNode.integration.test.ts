@@ -2,8 +2,7 @@ import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
 import { buildNestedConditionStructure } from './buildNestedStructure'
-import { flattenConditionStructure } from './flattenConditionStructure'
-import { generateEdgesFromStructure } from './generateEdgesFromStructure'
+import { loadWorkflow } from './loadWorkflow'
 
 /**
  * Integration tests for the full condition node workflow:
@@ -34,9 +33,8 @@ describe('Condition Node Integration', () => {
         },
       ]
 
-      // Step 1: Load from API - generate edges and flatten
-      const edges = generateEdgesFromStructure(nestedWorkflow)
-      const flatActivities = flattenConditionStructure(nestedWorkflow)
+      // Step 1: Load from API - use combined load function (generates edges AND flattens)
+      const { activities: flatActivities, edges } = loadWorkflow(nestedWorkflow)
 
       // Verify flat structure
       expect(flatActivities).toHaveLength(2)
@@ -90,8 +88,7 @@ describe('Condition Node Integration', () => {
         },
       ]
 
-      const edges = generateEdgesFromStructure(nestedWorkflow)
-      const flatActivities = flattenConditionStructure(nestedWorkflow)
+      const { activities: flatActivities, edges } = loadWorkflow(nestedWorkflow)
 
       // Verify edges for both branches
       expect(edges).toHaveLength(2)
@@ -139,8 +136,7 @@ describe('Condition Node Integration', () => {
         },
       ]
 
-      const edges = generateEdgesFromStructure(nestedWorkflow)
-      const flatActivities = flattenConditionStructure(nestedWorkflow)
+      const { activities: flatActivities, edges } = loadWorkflow(nestedWorkflow)
 
       // Verify all activities are flat
       expect(flatActivities).toHaveLength(3)
@@ -190,8 +186,7 @@ describe('Condition Node Integration', () => {
         },
       ]
 
-      const edges = generateEdgesFromStructure(nestedWorkflow)
-      const flatActivities = flattenConditionStructure(nestedWorkflow)
+      const { activities: flatActivities, edges } = loadWorkflow(nestedWorkflow)
 
       // Verify edges include condition edge and sequential edges
       // Note: generateEdgesFromStructure may create edges at multiple levels due to recursion
@@ -248,8 +243,7 @@ describe('Condition Node Integration', () => {
         },
       ]
 
-      const edges = generateEdgesFromStructure(nestedWorkflow)
-      const flatActivities = flattenConditionStructure(nestedWorkflow)
+      const { activities: flatActivities, edges } = loadWorkflow(nestedWorkflow)
 
       // Verify edges connect condition to branches (not wrapper)
       expect(edges.some((e) => e.source === 'A' && e.target === 'B' && e.sourceHandle === 'true')).toBe(true)
@@ -318,8 +312,7 @@ describe('Condition Node Integration', () => {
         },
       ]
 
-      const edges = generateEdgesFromStructure(nestedWorkflow)
-      const flatActivities = flattenConditionStructure(nestedWorkflow)
+      const { activities: flatActivities, edges } = loadWorkflow(nestedWorkflow)
 
       // Verify all nodes are properly represented
       expect(flatActivities.some((a) => a.id === 'A')).toBe(true)
@@ -374,8 +367,7 @@ describe('Condition Node Integration', () => {
         },
       ]
 
-      const edges = generateEdgesFromStructure(nestedWorkflow)
-      const flatActivities = flattenConditionStructure(nestedWorkflow)
+      const { activities: flatActivities, edges } = loadWorkflow(nestedWorkflow)
 
       // Should have sequential edge from T1 to A, and condition edge from A to B
       expect(edges).toHaveLength(2)
@@ -424,8 +416,7 @@ describe('Condition Node Integration', () => {
         },
       ]
 
-      const edges = generateEdgesFromStructure(nestedWorkflow)
-      const flatActivities = flattenConditionStructure(nestedWorkflow)
+      const { activities: flatActivities, edges } = loadWorkflow(nestedWorkflow)
 
       expect(flatActivities).toHaveLength(4)
 
@@ -459,8 +450,7 @@ describe('Condition Node Integration', () => {
         },
       ]
 
-      const edges = generateEdgesFromStructure(nestedWorkflow)
-      const flatActivities = flattenConditionStructure(nestedWorkflow)
+      const { activities: flatActivities, edges } = loadWorkflow(nestedWorkflow)
 
       expect(flatActivities).toHaveLength(1)
       expect(edges).toHaveLength(0)
@@ -495,8 +485,7 @@ describe('Condition Node Integration', () => {
         },
       ]
 
-      const edges = generateEdgesFromStructure(nestedWorkflow)
-      const flatActivities = flattenConditionStructure(nestedWorkflow)
+      const { activities: flatActivities, edges } = loadWorkflow(nestedWorkflow)
 
       // Round-trip
       const rebuiltNested = buildNestedConditionStructure(flatActivities, edges)

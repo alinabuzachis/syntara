@@ -3,7 +3,8 @@ import '@xyflow/react/dist/style.css'
 import { useParams } from 'wouter'
 
 import { workflowClient } from '../../client'
-import { useQueryState } from '../../components/states/useQueryState'
+import { ErrorState } from '../../components/states/ErrorState'
+import { LoadingState } from '../../components/states/LoadingState'
 
 import { BuilderContent } from './BuilderContent'
 
@@ -24,8 +25,19 @@ export default function BuilderEdit() {
     }
   )
 
-  const queryState = useQueryState(workflowQuery, 'Error loading workflow')
-  if (queryState) return queryState
+  // Show loading/error states only on initial load, not during refetch
+  // This prevents unmounting the component (and losing ButtonEdges) when refetching after save
+  const { error, isLoading } = workflowQuery
+
+  if (error) {
+    return <ErrorState title="Error loading workflow" message={error} />
+  }
+
+  // Use isLoading instead of isPending to distinguish initial load from refetch
+  // isLoading = true only on first fetch, isPending = true on both initial and refetch
+  if (isLoading) {
+    return <LoadingState />
+  }
 
   return (
     <ReactFlowProvider key={workflowId}>

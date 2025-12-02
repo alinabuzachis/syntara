@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
-import { markerEnd, type EdgeType } from '../utils/workflowToGraph'
+import type { EdgeType } from '../utils/workflowToGraph'
 
 interface UseNodeUpdatesOptions {
   initialNodes: NodeType[]
@@ -81,8 +81,10 @@ export function useNodeUpdates({
       // Merge new nodes with existing positioned nodes
       setNodes((prevNodes) => {
         const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
+        const initialNodeIds = new Set(initialNodes.map((n) => n.id))
 
-        return initialNodes.map((newNode) => {
+        // Map over initialNodes to update their data while preserving positions
+        const updatedNodes = initialNodes.map((newNode) => {
           const existingNode = prevNodeMap.get(newNode.id)
           if (existingNode) {
             // Keep existing position and measured dimensions
@@ -92,24 +94,17 @@ export function useNodeUpdates({
             return newNode
           }
         })
+
+        // CRITICAL: Preserve nodes that aren't in initialNodes (like placeholder nodes for ButtonEdges)
+        const preservedNodes = prevNodes.filter((node) => !initialNodeIds.has(node.id))
+
+        return [...updatedNodes, ...preservedNodes]
       })
 
-      // Preserve existing real edges (user-created connections)
-      // Only replace button edges and placeholder-related edges
-      setEdges((prevEdges) => {
-        const realEdges = prevEdges.filter(
-          (edge) =>
-            edge.type !== 'buttonEdge' &&
-            !edge.id.startsWith('button-') &&
-            !edge.source.startsWith('placeholder-') &&
-            !edge.target.startsWith('placeholder-')
-        )
-        // Merge edges and deduplicate by ID
-        const edgeMap = new Map<string, EdgeType>()
-        realEdges.forEach((edge) => edgeMap.set(edge.id, edge))
-        initialEdges.forEach((edge) => edgeMap.set(edge.id, edge)) // initialEdges override if duplicate
-        return Array.from(edgeMap.values()).map((edge) => ({ ...edge, markerEnd }))
-      })
+      // DO NOT merge initialEdges after initialization
+      // This prevents ghost edges from being restored when storedEdges changes
+      // After initialization, React Flow edges are the source of truth, and useEdgeSynchronization
+      // handles syncing them to Zustand. Merging initialEdges here causes race conditions.
 
       // Update the ref with current node IDs
       previousNodeIdsRef.current = currentNodeIds
@@ -130,28 +125,18 @@ export function useNodeUpdates({
         })
       })
 
-      // Preserve existing real edges when deleting nodes
-      setEdges((prevEdges) => {
-        const realEdges = prevEdges.filter(
-          (edge) =>
-            edge.type !== 'buttonEdge' &&
-            !edge.id.startsWith('button-') &&
-            !edge.source.startsWith('placeholder-') &&
-            !edge.target.startsWith('placeholder-')
-        )
-        // Merge edges and deduplicate by ID
-        const edgeMap = new Map<string, EdgeType>()
-        realEdges.forEach((edge) => edgeMap.set(edge.id, edge))
-        initialEdges.forEach((edge) => edgeMap.set(edge.id, edge)) // initialEdges override if duplicate
-        return Array.from(edgeMap.values()).map((edge) => ({ ...edge, markerEnd }))
-      })
+      // DO NOT merge initialEdges after initialization
+      // Edge deletions are handled by onNodesDelete in BuilderFlow
+      // Merging initialEdges here causes race conditions and ghost edges
       previousNodeIdsRef.current = currentNodeIds
     } else if (isInitialized && nodesDataChanged) {
       // Handle data changes to existing nodes (no additions or deletions)
       setNodes((prevNodes) => {
         const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
+        const initialNodeIds = new Set(initialNodes.map((n) => n.id))
 
-        return initialNodes.map((newNode) => {
+        // Map over initialNodes to update their data while preserving positions
+        const updatedNodes = initialNodes.map((newNode) => {
           const existingNode = prevNodeMap.get(newNode.id)
           if (existingNode) {
             // Update node data while keeping existing position and measured dimensions
@@ -160,14 +145,21 @@ export function useNodeUpdates({
             return newNode
           }
         })
+
+        // CRITICAL: Preserve nodes that aren't in initialNodes (like placeholder nodes for ButtonEdges)
+        const preservedNodes = prevNodes.filter((node) => !initialNodeIds.has(node.id))
+
+        return [...updatedNodes, ...preservedNodes]
       })
-      if (edgesDataChanged) {
-        setEdges(initialEdges.map((edge) => ({ ...edge, markerEnd })))
-      }
+      // DO NOT reset edges when data changes
+      // After initialization, React Flow edges are managed by user interactions (onConnect, onEdgesChange)
+      // and synced to Zustand by useEdgeSynchronization
+      // Resetting from initialEdges causes race conditions
     } else if (!isInitialized) {
       // Initial load - use positions from initialNodes and run layout
       setNodes(initialNodes)
-      setEdges(initialEdges)
+      // DO NOT setEdges here - initialization is handled by BuilderFlow's controlled state
+      // Setting edges here conflicts with the controlled state initialization and causes race conditions
       previousNodeIdsRef.current = currentNodeIds
     }
 

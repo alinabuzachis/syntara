@@ -40,7 +40,6 @@ export default function registerLogicNode() {
       },
       (data, onSuccess, onError) => {
         try {
-          // Generate a unique ID for the activity (no hyphens - schema requires ^[a-zA-Z_][a-zA-Z0-9_]*$)
           const activityId = `logic_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
           let activity
@@ -87,10 +86,7 @@ export default function registerLogicNode() {
             return
           }
 
-          // Add the activity to the workflow store
           useWorkflowStore.getState().addActivity(activity)
-
-          // Success - pass the activity ID so it can be connected
           onSuccess(activityId)
         } catch (error) {
           onError(error instanceof Error ? error.message : 'Failed to add logic node')

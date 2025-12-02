@@ -2,6 +2,7 @@ import type { Connection } from '@xyflow/react'
 
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 
+import { isButtonEdge } from './filterHelpers'
 import type { EdgeType } from './workflowToGraph'
 
 /**
@@ -25,9 +26,7 @@ export function validateConnection(connection: EdgeType | Connection, nodes: Nod
 
   // For other nodes, check if they already have an incoming edge
   // We ignore button edges and internal system edges
-  const hasExistingIncomingEdge = edges.some(
-    (edge) => edge.target === connection.target && edge.type !== 'buttonEdge' && !edge.id.startsWith('button-')
-  )
+  const hasExistingIncomingEdge = edges.some((edge) => edge.target === connection.target && !isButtonEdge(edge))
 
   // Block connection if an incoming edge already exists
   return !hasExistingIncomingEdge

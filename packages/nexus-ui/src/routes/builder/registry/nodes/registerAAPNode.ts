@@ -20,7 +20,6 @@ export default function registerAAPNode() {
     formComponent: AAPNodeForm,
     onSubmit: (data, onSuccess, onError) => {
       try {
-        // Generate unique activity ID
         const activityId = `activity_${crypto.randomUUID().replace(/-/g, '_')}`
 
         const activity = createConnectorActivity(

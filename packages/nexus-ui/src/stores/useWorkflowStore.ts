@@ -1,6 +1,8 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { create } from 'zustand'
 
+import type { EdgeConnection } from '../routes/builder/types/edge'
+
 // Type aliases from API contracts
 type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
 type Trigger =
@@ -9,14 +11,6 @@ type Trigger =
   | WorkflowAPI.components['schemas']['eventTrigger']
 type Activity = WorkflowAPI.components['schemas']['activity']
 type TaskActivity = Extract<Activity, { type: 'task' }>
-
-interface EdgeConnection {
-  id: string
-  source: string
-  target: string
-  sourceHandle?: string
-  targetHandle?: string
-}
 
 interface WorkflowStore {
   currentWorkflow: WorkflowDefinition | null
@@ -34,6 +28,8 @@ interface WorkflowStore {
   moveActivityBefore: (activityId: string, beforeActivityId: string) => void
   moveActivityAfter: (activityId: string, afterActivityId: string) => void
   reorderActivitiesFromEdges: () => void
+  // Atomic batch update to prevent race conditions
+  batchRemoveNodesAndEdges: (params: { nodeIds: string[]; edges: EdgeConnection[]; triggerIndices?: number[] }) => void
 }
 
 // ============================================================================
@@ -708,6 +704,74 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
             activities: reorderedActivities,
           },
         },
+      }
+    })
+  },
+
+  /**
+   * Atomic batch operation to remove nodes and update edges simultaneously.
+   * This prevents race conditions by updating all related state in a single transaction.
+   *
+   * Use this instead of calling removeActivity() and setEdges() separately to avoid:
+   * - Ghost edges from initialEdges recomputation
+   * - Race conditions between multiple async updates
+   * - Synchronization issues
+   */
+  batchRemoveNodesAndEdges: ({ nodeIds, edges, triggerIndices = [] }) => {
+    set((state) => {
+      if (!state.currentWorkflow) return state
+
+      let activities = [...state.currentWorkflow.workflow.activities]
+
+      // Remove triggers immutably
+      const triggerIndicesToRemove = new Set(triggerIndices)
+      const triggers = state.currentWorkflow.triggers
+        ? state.currentWorkflow.triggers.filter((_, index) => !triggerIndicesToRemove.has(index))
+        : []
+
+      // Remove each activity
+      nodeIds.forEach((nodeId) => {
+        // Check if we're removing a join activity
+        const activityToRemove = findActivityById(activities, nodeId)
+        if (activityToRemove?.type === 'join') {
+          // Find and cleanup the associated parallel container
+          const parallelId = `parallel_for_${nodeId}`
+          const parallelIndex = activities.findIndex((a) => a.id === parallelId)
+
+          if (parallelIndex !== -1) {
+            const parallelActivity = activities[parallelIndex] as Extract<Activity, { type: 'parallel' }>
+            const branchActivities = parallelActivity.branches || []
+
+            // Remove the parallel activity
+            activities = activities.filter((a) => a.id !== parallelId)
+
+            // Add the branch activities back to main activities array
+            if (branchActivities.length > 0) {
+              const joinIndex = activities.findIndex((a) => a.id === nodeId)
+              if (joinIndex !== -1) {
+                activities.splice(joinIndex, 0, ...branchActivities)
+              } else {
+                activities.push(...branchActivities)
+              }
+            }
+          }
+        }
+
+        // Remove the activity itself
+        activities = removeActivityFromList(activities, nodeId)
+      })
+
+      // Update state atomically - all changes in one transaction
+      return {
+        currentWorkflow: {
+          ...state.currentWorkflow,
+          triggers: triggers.length > 0 ? triggers : undefined,
+          workflow: {
+            ...state.currentWorkflow.workflow,
+            activities,
+          },
+        },
+        edges,
       }
     })
   },

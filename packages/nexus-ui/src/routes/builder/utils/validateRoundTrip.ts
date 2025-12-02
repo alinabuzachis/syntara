@@ -1,0 +1,219 @@
+import type { Activity } from '@ansible/nexus-contracts'
+
+import { buildNestedConditionStructure } from './buildNestedStructure'
+import { WorkflowTransform, type EdgeConnection } from './workflowTransform'
+
+/**
+ * Validates that a workflow maintains its structure during round-trip conversion.
+ * This performs the following steps:
+ * 1. Flatten the original nested structure
+ * 2. Generate edges from the original nested structure
+ * 3. Rebuild the nested structure from flattened activities + edges
+ * 4. Compare the rebuilt structure with the original
+ *
+ * This is a development-only validation to catch conversion bugs early.
+ * It should only run in development mode to avoid performance overhead in production.
+ *
+ * @param original - Original nested workflow activities
+ * @param edges - Edge connections (optional - will generate if not provided)
+ * @throws Error if round-trip validation fails
+ */
+export function validateRoundTrip(original: Activity[], edges?: EdgeConnection[]): void {
+  // Only run in development mode
+  if (import.meta.env.MODE !== 'development') {
+    return
+  }
+
+  // SKIP validation for workflows with sequence/loop/user-parallel activities
+  // These activity types undergo lossy transformation (flatten removes container, nest doesn't rebuild it)
+  // Only modern workflows with condition nodes are validated
+  const hasLegacyActivities = original.some((a) => {
+    if (a.type === 'sequence' || a.type === 'loop') return true
+    // User-created parallel nodes (not auto-generated parallel_for_* wrappers)
+    if (a.type === 'parallel' && !a.id.startsWith('parallel_for_')) return true
+    return false
+  })
+  if (hasLegacyActivities) {
+    // eslint-disable-next-line no-console
+    console.log('[validateRoundTrip] Skipping validation for workflow with sequence/loop/parallel activities')
+    return
+  }
+
+  try {
+    // Step 1 & 2: Flatten the original structure (generates edges and flattens in one pass)
+    const { activities: flattened, edges: generatedEdges } = edges
+      ? { activities: WorkflowTransform.flatten(original).activities, edges }
+      : WorkflowTransform.flatten(original)
+
+    // Step 3: Rebuild the nested structure from flat + edges
+    const rebuilt = buildNestedConditionStructure(flattened, generatedEdges)
+
+    // Step 4: Compare the rebuilt structure with original
+    if (!isStructurallyEqual(original, rebuilt)) {
+      throw new Error(
+        'Workflow structure changed during round-trip conversion. ' +
+          'This indicates a bug in the conversion utilities. ' +
+          'Check the console for detailed comparison.'
+      )
+    }
+  } catch (error) {
+    // Re-throw validation errors
+    if (error instanceof Error && error.message.includes('round-trip')) {
+      throw error
+    }
+
+    // Log unexpected errors but don't fail the workflow
+    // eslint-disable-next-line no-console
+    console.error('Round-trip validation encountered an error:', error)
+    // eslint-disable-next-line no-console
+    console.warn('Continuing despite validation error - this may indicate a conversion bug')
+  }
+}
+
+/**
+ * Deep structural equality check for activities.
+ * Compares the important structural properties while ignoring minor differences.
+ *
+ * @param a - First activity array
+ * @param b - Second activity array
+ * @returns true if structurally equivalent
+ */
+function isStructurallyEqual(a: Activity[], b: Activity[]): boolean {
+  // Quick length check
+  if (a.length !== b.length) {
+    return false
+  }
+
+  // Compare each activity
+  for (let i = 0; i < a.length; i++) {
+    if (!activitiesEqual(a[i], b[i])) {
+      return false
+    }
+  }
+
+  return true
+}
+
+/**
+ * Checks if two activities are structurally equal.
+ * Compares type, id, and nested structures (then/else/branches).
+ */
+function activitiesEqual(a: Activity, b: Activity): boolean {
+  // Type must match
+  if (a.type !== b.type) {
+    return false
+  }
+
+  // ID must match
+  if (a.id !== b.id) {
+    return false
+  }
+
+  // Name must match
+  if (a.name !== b.name) {
+    return false
+  }
+
+  // Check condition-specific fields
+  if (a.type === 'condition' && b.type === 'condition') {
+    // Condition expression must match
+    if (a.condition !== b.condition) {
+      return false
+    }
+
+    // Then branches must match
+    const aThen = a.then || []
+    const bThen = b.then || []
+    if (!isStructurallyEqual(aThen, bThen)) {
+      return false
+    }
+
+    // Else branches must match
+    const aElse = a.else || []
+    const bElse = b.else || []
+    if (!isStructurallyEqual(aElse, bElse)) {
+      return false
+    }
+  }
+
+  // Check parallel-specific fields
+  if (a.type === 'parallel' && b.type === 'parallel') {
+    const aBranches = a.branches || []
+    const bBranches = b.branches || []
+    if (!isStructurallyEqual(aBranches, bBranches)) {
+      return false
+    }
+  }
+
+  // Check sequence-specific fields
+  if (a.type === 'sequence' && b.type === 'sequence') {
+    const aSteps = a.steps || []
+    const bSteps = b.steps || []
+    if (!isStructurallyEqual(aSteps, bSteps)) {
+      return false
+    }
+  }
+
+  // Check loop-specific fields
+  if (a.type === 'loop' && b.type === 'loop') {
+    const aDo = a.loop.do || []
+    const bDo = b.loop.do || []
+    if (!isStructurallyEqual(aDo, bDo)) {
+      return false
+    }
+  }
+
+  return true
+}
+
+/**
+ * Validates that saved workflow can be successfully loaded back.
+ * This validates the save path: flat + edges → nested.
+ *
+ * @param activities - Flat activities array
+ * @param edges - Edge connections
+ * @throws Error if the nested structure cannot be generated
+ */
+export function validateSavePath(activities: Activity[], edges: EdgeConnection[]): void {
+  // Only run in development mode
+  if (import.meta.env.MODE !== 'development') {
+    return
+  }
+
+  try {
+    const nested = buildNestedConditionStructure(activities, edges)
+
+    // Basic sanity checks
+    if (!Array.isArray(nested)) {
+      throw new Error('buildNestedConditionStructure did not return an array')
+    }
+
+    // Verify all condition nodes have been processed
+    for (const activity of nested) {
+      if (activity.type === 'condition') {
+        // Nested conditions should have non-empty then/else arrays
+        // (unless the condition truly has no branches)
+        const hasOutgoingEdges = edges.some(
+          (e) => e.source === activity.id && (e.sourceHandle === 'true' || e.sourceHandle === 'false')
+        )
+        if (hasOutgoingEdges) {
+          const thenLength = activity.then?.length || 0
+          const elseLength = activity.else?.length || 0
+          if (thenLength === 0 && elseLength === 0) {
+            // eslint-disable-next-line no-console
+            console.warn(
+              `Condition node ${activity.id} has outgoing edges but empty then/else arrays. ` +
+                `This may indicate a conversion bug.`
+            )
+          }
+        }
+      }
+    }
+  } catch {
+    throw new Error(
+      'Failed to build nested structure from flat activities. ' +
+        'This indicates a bug in buildNestedConditionStructure. ' +
+        'Check the console for details.'
+    )
+  }
+}

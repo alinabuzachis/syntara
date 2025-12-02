@@ -27,12 +27,9 @@ export function usePendingEdgeManagement({
       const pendingNodeId = `pending-target-${pendingEdge.sourceNodeId}`
       const pendingEdgeId = `pending-${pendingEdge.sourceNodeId}`
 
-      // First, clean up ALL existing pending edges and nodes to ensure only one at a time
       setNodes((currentNodes) => {
-        // Remove all pending-target nodes first
         const withoutPendingNodes = currentNodes.filter((n) => !n.id.startsWith('pending-target-'))
 
-        // Check if we already have this specific pending node
         const hasNode = withoutPendingNodes.some((n) => n.id === pendingNodeId)
         if (!hasNode) {
           return [
@@ -40,7 +37,7 @@ export function usePendingEdgeManagement({
             {
               id: pendingNodeId,
               type: 'placeholder',
-              position: { x: pendingEdge.x - 5, y: pendingEdge.y - 5 }, // Center 10px node on cursor
+              position: { x: pendingEdge.x - 5, y: pendingEdge.y - 5 },
               data: {},
               draggable: false,
               selectable: false,
@@ -50,16 +47,13 @@ export function usePendingEdgeManagement({
         return withoutPendingNodes
       })
 
-      // Add pending edge with glow effect and remove button edge from source node
       setEdges((currentEdges) => {
-        // Remove all existing pending edges first to ensure only one at a time
         const withoutPendingEdges = currentEdges.filter((e) => !e.id.startsWith('pending-'))
         const buttonEdgeId = `button-${pendingEdge.sourceNodeId}`
 
         const hasEdge = withoutPendingEdges.some((e) => e.id === pendingEdgeId)
 
         if (!hasEdge) {
-          // Remove button edge from source node and add pending edge
           const filteredEdges = withoutPendingEdges.filter((e) => e.id !== buttonEdgeId)
           return [
             ...filteredEdges,
@@ -72,7 +66,7 @@ export function usePendingEdgeManagement({
               markerEnd,
               data: {
                 isPending: true,
-                isActive: true, // Make it glow
+                isActive: true,
               },
             } as EdgeType,
           ]
@@ -80,11 +74,9 @@ export function usePendingEdgeManagement({
         return withoutPendingEdges
       })
 
-      // Remove placeholder node for button edge from source node
       const sourcePlaceholderId = `placeholder-${pendingEdge.sourceNodeId}`
       setNodes((currentNodes) => currentNodes.filter((n) => n.id !== sourcePlaceholderId))
     } else if (!pendingEdge) {
-      // Remove pending edge and node when cleared
       setNodes((currentNodes) => currentNodes.filter((n) => !n.id.startsWith('pending-target-')))
       setEdges((currentEdges) => currentEdges.filter((e) => !e.id.startsWith('pending-')))
     }

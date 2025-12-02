@@ -6,7 +6,7 @@ interface UseEdgeActiveStateOptions {
   isInitialized: boolean
   activeEdgeId: string | null
   activeEdgeButtonNodeId: string | null
-  onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string) => void
+  onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string, sourceHandle?: string) => void
   setEdges: React.Dispatch<React.SetStateAction<EdgeType[]>>
 }
 

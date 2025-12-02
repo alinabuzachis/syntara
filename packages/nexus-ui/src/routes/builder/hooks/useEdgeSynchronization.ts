@@ -1,15 +1,9 @@
 import { useEffect, useRef } from 'react'
 
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+import type { EdgeConnection } from '../types/edge'
+import { isButtonEdge } from '../utils/filterHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
-
-interface EdgeConnection {
-  id: string
-  source: string
-  target: string
-  sourceHandle?: string
-  targetHandle?: string
-}
 
 interface UseEdgeSynchronizationOptions {
   edges: EdgeType[]
@@ -47,10 +41,7 @@ export function useEdgeSynchronization({ edges, isInitialized, setStoredEdges }:
     // Filter out button edges and placeholder-related edges
     const realEdges = edges.filter(
       (edge) =>
-        edge.type !== 'buttonEdge' &&
-        !edge.id.startsWith('button-') &&
-        !edge.source.startsWith('placeholder-') &&
-        !edge.target.startsWith('placeholder-')
+        !isButtonEdge(edge) && !edge.source.startsWith('placeholder-') && !edge.target.startsWith('placeholder-')
     )
 
     // Convert to simplified format for storage
