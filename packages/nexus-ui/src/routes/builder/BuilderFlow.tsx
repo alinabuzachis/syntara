@@ -30,6 +30,7 @@ import { PlaceholderNode } from './nodes/PlaceholderNode'
 import type { BuilderFlowProps, ConnectionState, PendingEdge } from './types'
 import { EdgeFactory } from './utils/EdgeFactory'
 import { filterRealEdges, filterRealNodes } from './utils/filterHelpers'
+import { consumePendingDragHandle } from './utils/pendingDragHandle'
 import { validateConnection } from './utils/validateConnection'
 import {
   extractTaskActivities,
@@ -89,8 +90,16 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
 
 export function BuilderFlow(props: BuilderFlowProps) {
   // Destructure props to use in callbacks
-  const { workflowId, triggerLayout, panelOpen, activeEdgeButtonNodeId, activeEdgeId, onNodeClick, onAddNodeFromEdge } =
-    props
+  const {
+    workflowId,
+    triggerLayout,
+    panelOpen,
+    activeEdgeButtonNodeId,
+    activeEdgeButtonHandle,
+    activeEdgeId,
+    onNodeClick,
+    onAddNodeFromEdge,
+  } = props
 
   const workflowVersion = useWorkflowStore((state) => state.workflowVersion)
   const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow)
@@ -442,11 +451,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
     sourceHandleId: null,
     successful: false,
   })
-  const [isConnecting, setIsConnecting] = useState(false)
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
-      setIsConnecting(false)
       connectionStateRef.current.successful = true
 
       setPendingEdge(null)
@@ -460,22 +467,52 @@ export function BuilderFlow(props: BuilderFlowProps) {
       })
 
       setEdges((eds) => {
-        const updatedEdges = EdgeFactory.removeButtonEdge(connection.source!, eds as EdgeType[])
+        // Pass sourceHandle to remove the correct button edge (important for condition nodes)
+        const updatedEdges = EdgeFactory.removeButtonEdge(
+          connection.source!,
+          eds as EdgeType[],
+          connection.sourceHandle ?? undefined
+        )
         return EdgeFactory.addEdge(newEdge, updatedEdges)
       })
 
-      const sourcePlaceholderId = `placeholder-${connection.source}`
-      setNodes((nds) =>
-        nds
-          .filter((n) => n.id !== sourcePlaceholderId)
-          .map((n) => {
-            if (n.id === connection.source) {
-              const className = (n.className || '').replace('has-button-edge', '').trim()
-              return { ...n, className }
-            }
-            return n
-          })
-      )
+      // Determine the placeholder ID based on whether this is a condition node handle
+      const sourceHandle = connection.sourceHandle
+      const isConditionHandle = sourceHandle && ['true', 'false'].includes(sourceHandle)
+      const sourcePlaceholderId = isConditionHandle
+        ? `placeholder-${connection.source}-${sourceHandle}`
+        : `placeholder-${connection.source}`
+
+      setNodes((nds) => {
+        // Filter out the specific placeholder
+        const filtered = nds.filter((n) => n.id !== sourcePlaceholderId)
+
+        // Check if the source node still has any button edges (for condition nodes with multiple handles)
+        const sourceNode = filtered.find((n) => n.id === connection.source)
+        if (!sourceNode) return filtered
+
+        // For condition nodes, only remove the class if both handles are connected
+        const isConditionNode = sourceNode.type === 'condition'
+        if (isConditionNode) {
+          // Check if there are any remaining condition handle placeholders for this node
+          const hasRemainingPlaceholders = filtered.some(
+            (n) => n.id === `placeholder-${connection.source}-true` || n.id === `placeholder-${connection.source}-false`
+          )
+          if (hasRemainingPlaceholders) {
+            // Keep the class since there are still button edges
+            return filtered
+          }
+        }
+
+        // Remove the has-button-edge class if no more button edges
+        return filtered.map((n) => {
+          if (n.id === connection.source) {
+            const className = (n.className || '').replace('has-button-edge', '').trim()
+            return { ...n, className }
+          }
+          return n
+        })
+      })
     },
     [setEdges, setNodes, onAddNodeFromEdge]
   )
@@ -483,10 +520,16 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const onConnectStart = useCallback(
     (_: unknown, params: { nodeId: string | null; handleId: string | null; handleType: string | null }) => {
       if (params.nodeId && params.handleType === 'source') {
+        // Check if ButtonEdge set an intended handle ID (for condition node handles).
+        // React Flow's handle detection can pick the wrong handle when handles overlap,
+        // so we use the explicitly set handle ID if available.
+        const pendingHandle = consumePendingDragHandle()
+        const handleId =
+          pendingHandle && pendingHandle.nodeId === params.nodeId ? pendingHandle.handleId : params.handleId
+
         connectionStateRef.current.sourceNodeId = params.nodeId
-        connectionStateRef.current.sourceHandleId = params.handleId
+        connectionStateRef.current.sourceHandleId = handleId
         connectionStateRef.current.successful = false
-        setIsConnecting(true)
       }
     },
     []
@@ -494,8 +537,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent) => {
-      setIsConnecting(false)
-
       const { sourceNodeId, sourceHandleId, successful: wasSuccessful } = connectionStateRef.current
       connectionStateRef.current.sourceNodeId = null
       connectionStateRef.current.sourceHandleId = null
@@ -515,6 +556,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
         setPendingEdge({
           sourceNodeId,
+          sourceHandle: sourceHandleId ?? undefined,
           x: flowPosition.x,
           y: flowPosition.y,
         })
@@ -531,6 +573,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     edges,
     isInitialized,
     activeEdgeButtonNodeId: activeEdgeButtonNodeId ?? null,
+    activeEdgeButtonHandle: activeEdgeButtonHandle ?? null,
     onAddNodeFromEdge,
     pendingEdge,
     setNodes,
@@ -542,6 +585,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     isInitialized,
     activeEdgeId: activeEdgeId ?? null,
     activeEdgeButtonNodeId: activeEdgeButtonNodeId ?? null,
+    activeEdgeButtonHandle: activeEdgeButtonHandle ?? null,
     onAddNodeFromEdge,
     setEdges,
   })
@@ -572,7 +616,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
     [nodes, edges]
   )
 
-  const edgesToRender = isConnecting ? filterRealEdges(edges) : edges
+  // Keep all edges visible during connection (including all button edges)
+  const edgesToRender = useMemo(() => {
+    return edges
+  }, [edges])
 
   return (
     <div ref={containerRef} className="size-full">
@@ -630,17 +677,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
         }
         .builder-flow .react-flow__edge[data-id*="button-"] * {
           pointer-events: auto;
-        }
-        /* Hide all button edges when any connection is being made */
-        .react-flow.connecting .react-flow__edge path[id*="button-"] {
-          opacity: 0 !important;
-        }
-        .react-flow.connecting g[transform] path[id*="button-"] {
-          opacity: 0 !important;
-        }
-        .react-flow.connecting g[transform] rect,
-        .react-flow.connecting g[transform] line {
-          opacity: 0 !important;
         }
       `}</style>
       <ReactFlow<NodeType, EdgeType>

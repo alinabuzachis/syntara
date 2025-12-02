@@ -1,10 +1,13 @@
 import { BaseEdge, type EdgeProps, Position, useReactFlow } from '@xyflow/react'
 import { useState } from 'react'
 
+import { setPendingDragHandle } from '../utils/pendingDragHandle'
+
 interface ButtonEdgeProps extends EdgeProps {
   data?: {
     onButtonClick?: () => void
     isActive?: boolean
+    sourceHandle?: string
   }
 }
 
@@ -17,6 +20,9 @@ export function ButtonEdge(props: ButtonEdgeProps) {
   const { sourceX, sourceY, sourcePosition, style, data, id, source } = props
   const [isDragging, setIsDragging] = useState(false)
   const reactFlowInstance = useReactFlow()
+
+  // Get the full edge to access the sourceHandle (could be "source", "true", or "false" for condition nodes)
+  const fullEdge = reactFlowInstance.getEdge(id)
 
   // Create a short stub edge extending from the source node
   const stubLength = 50
@@ -61,17 +67,29 @@ export function ButtonEdge(props: ButtonEdgeProps) {
     const sourceNode = reactFlowInstance.getNode(source)
     if (!sourceNode) return
 
+    // Use the actual handle ID from the edge (could be "source", "true", or "false")
+    const handleId = fullEdge?.sourceHandle || 'source'
+
     // Find the source handle element on the source node
-    const handleElement = document.querySelector(`[data-nodeid="${source}"][data-handleid="source"]`)
+    const handleElement = document.querySelector(`[data-nodeid="${source}"][data-handleid="${handleId}"]`)
     if (!handleElement) return
 
+    // Set the intended handle ID BEFORE dispatching the event.
+    // This allows BuilderFlow's onConnectStart to override React Flow's detection
+    // which can pick the wrong handle when condition node handles have overlapping areas.
+    setPendingDragHandle(source, handleId)
+
+    // Convert the flow coordinates (sourceX, sourceY) to screen coordinates
+    // This gives us the exact position of this specific handle, avoiding issues with
+    // overlapping handle hit areas on condition nodes
+    const screenPosition = reactFlowInstance.flowToScreenPosition({ x: sourceX, y: sourceY })
+
     // Create a synthetic mouse event on the handle to trigger connection
-    const handleRect = handleElement.getBoundingClientRect()
     const syntheticEvent = new MouseEvent('mousedown', {
       bubbles: true,
       cancelable: true,
-      clientX: handleRect.left + handleRect.width / 2,
-      clientY: handleRect.top + handleRect.height / 2,
+      clientX: screenPosition.x,
+      clientY: screenPosition.y,
       button: 0,
     })
 
@@ -89,6 +107,9 @@ export function ButtonEdge(props: ButtonEdgeProps) {
     event.stopPropagation()
   }
 
+  // When dragging, use inline styles to override CSS that hides button edges during connection
+  const draggingStyle = isDragging ? { opacity: 1 } : undefined
+
   return (
     <>
       {/* Main edge - wide for easy hit detection */}
@@ -102,13 +123,14 @@ export function ButtonEdge(props: ButtonEdgeProps) {
           opacity: 0.01,
         }}
       />
-      {/* Visible thin stroke */}
-      <path d={edgePath} fill="none" stroke="#6b7280" strokeWidth={2} pointerEvents="none" />
+      {/* Visible thin stroke - override CSS opacity when dragging */}
+      <path d={edgePath} fill="none" stroke="#6b7280" strokeWidth={2} pointerEvents="none" style={draggingStyle} />
       {/* Plus icon - visual elements (non-interactive) */}
       <g
         transform={`translate(${buttonX}, ${buttonY})`}
         pointerEvents="none"
         style={{
+          ...draggingStyle,
           filter: data?.isActive
             ? 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.6))'
             : 'none',
@@ -123,11 +145,28 @@ export function ButtonEdge(props: ButtonEdgeProps) {
           stroke={data?.isActive ? '#ffffff' : '#9ca3af'}
           strokeWidth={1.5}
           rx={2}
+          style={draggingStyle}
         />
-        <line x1={-4} y1={0} x2={4} y2={0} stroke={data?.isActive ? '#ffffff' : '#9ca3af'} strokeWidth={1.5} />
-        <line x1={0} y1={-4} x2={0} y2={4} stroke={data?.isActive ? '#ffffff' : '#9ca3af'} strokeWidth={1.5} />
+        <line
+          x1={-4}
+          y1={0}
+          x2={4}
+          y2={0}
+          stroke={data?.isActive ? '#ffffff' : '#9ca3af'}
+          strokeWidth={1.5}
+          style={draggingStyle}
+        />
+        <line
+          x1={0}
+          y1={-4}
+          x2={0}
+          y2={4}
+          stroke={data?.isActive ? '#ffffff' : '#9ca3af'}
+          strokeWidth={1.5}
+          style={draggingStyle}
+        />
       </g>
-      {/* Large clickable and draggable button area */}
+      {/* Large clickable area (draggable for all node types) */}
       <rect
         x={buttonX - 15}
         y={buttonY - 15}

@@ -131,19 +131,33 @@ export class EdgeFactory {
   /**
    * Removes button edges for a specific node.
    *
-   * Button edges have IDs in the format: `button-${nodeId}`
+   * Button edges have IDs in the format:
+   * - Regular nodes: `button-${nodeId}`
+   * - Condition nodes: `button-${nodeId}-true` or `button-${nodeId}-false`
    *
    * @param nodeId - Node ID to remove button edges for
    * @param edges - Existing edges array
+   * @param sourceHandle - Optional specific handle to remove (for condition nodes)
    * @returns Filtered edges array
    *
    * @example
    * ```typescript
+   * // Remove all button edges for a node
    * setEdges((eds) => EdgeFactory.removeButtonEdge('task-1', eds))
+   *
+   * // Remove button edge for specific handle (condition node)
+   * setEdges((eds) => EdgeFactory.removeButtonEdge('condition-1', eds, 'true'))
    * ```
    */
-  static removeButtonEdge(nodeId: string, edges: EdgeType[]): EdgeType[] {
-    return edges.filter((e) => e.id !== `button-${nodeId}`)
+  static removeButtonEdge(nodeId: string, edges: EdgeType[], sourceHandle?: string): EdgeType[] {
+    if (sourceHandle && ['true', 'false'].includes(sourceHandle)) {
+      // Remove specific handle button edge for condition nodes
+      return edges.filter((e) => e.id !== `button-${nodeId}-${sourceHandle}`)
+    }
+    // Remove regular button edge and any condition handle button edges
+    return edges.filter(
+      (e) => e.id !== `button-${nodeId}` && e.id !== `button-${nodeId}-true` && e.id !== `button-${nodeId}-false`
+    )
   }
 
   /**

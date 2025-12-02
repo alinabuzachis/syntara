@@ -6,6 +6,7 @@ interface UseEdgeActiveStateOptions {
   isInitialized: boolean
   activeEdgeId: string | null
   activeEdgeButtonNodeId: string | null
+  activeEdgeButtonHandle: string | null
   onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string, sourceHandle?: string) => void
   setEdges: React.Dispatch<React.SetStateAction<EdgeType[]>>
 }
@@ -13,12 +14,13 @@ interface UseEdgeActiveStateOptions {
 /**
  * Custom hook that manages active state for edges.
  * - Updates default edges with onAddNode callback, markerEnd, and isActive state
- * - Updates button edges with isActive state based on activeEdgeButtonNodeId
+ * - Updates button edges with isActive state based on activeEdgeButtonNodeId and activeEdgeButtonHandle
  */
 export function useEdgeActiveState({
   isInitialized,
   activeEdgeId,
   activeEdgeButtonNodeId,
+  activeEdgeButtonHandle,
   onAddNodeFromEdge,
   setEdges,
 }: UseEdgeActiveStateOptions) {
@@ -51,7 +53,7 @@ export function useEdgeActiveState({
     })
   }, [setEdges, onAddNodeFromEdge, activeEdgeId])
 
-  // Update button edge active state when activeEdgeButtonNodeId changes
+  // Update button edge active state when activeEdgeButtonNodeId or activeEdgeButtonHandle changes
   useEffect(() => {
     if (!isInitialized) {
       return
@@ -60,18 +62,28 @@ export function useEdgeActiveState({
     setEdges((currentEdges) =>
       currentEdges.map((edge) => {
         if (edge.type === 'buttonEdge' || edge.id.startsWith('button-')) {
-          // Extract the node ID from the button edge ID (format: button-{nodeId})
           const nodeId = edge.source
+          // Get the handle from the edge data or extract from edge ID
+          const edgeHandle = edge.data?.sourceHandle || edge.sourceHandle || 'source'
+
+          // Determine if this button edge should be active
+          // For condition nodes (true/false handles), both nodeId AND handle must match
+          // For regular nodes (source handle), nodeId must match and handle should be 'source' or not specified
+          const isConditionHandle = edgeHandle === 'true' || edgeHandle === 'false'
+          const isActive = isConditionHandle
+            ? activeEdgeButtonNodeId === nodeId && activeEdgeButtonHandle === edgeHandle
+            : activeEdgeButtonNodeId === nodeId && (activeEdgeButtonHandle === 'source' || !activeEdgeButtonHandle)
+
           return {
             ...edge,
             data: {
               ...edge.data,
-              isActive: activeEdgeButtonNodeId === nodeId,
+              isActive,
             },
           }
         }
         return edge
       })
     )
-  }, [activeEdgeButtonNodeId, isInitialized, setEdges])
+  }, [activeEdgeButtonNodeId, activeEdgeButtonHandle, isInitialized, setEdges])
 }

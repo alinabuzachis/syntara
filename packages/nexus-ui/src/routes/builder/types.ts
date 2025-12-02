@@ -14,6 +14,8 @@ export interface BuilderFlowProps {
   panelOpen?: boolean
   /** ID of the node whose button edge is currently active */
   activeEdgeButtonNodeId?: string | null
+  /** Handle ID of the active button edge (for condition nodes: 'true' or 'false') */
+  activeEdgeButtonHandle?: string | null
   /** ID of the currently active edge */
   activeEdgeId?: string | null
   /** Handler for node click events */
@@ -36,6 +38,7 @@ export interface ConnectionState {
  */
 export interface PendingEdge {
   sourceNodeId: string
+  sourceHandle?: string
   x: number
   y: number
 }

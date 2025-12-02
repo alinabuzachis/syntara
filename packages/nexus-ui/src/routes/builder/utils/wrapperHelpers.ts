@@ -60,13 +60,21 @@ export function createEdgesToWrapperBranches(
   sourceHandle: string = 'source'
 ): EdgeConnection[] {
   const branches = wrapper.branches || []
-  return branches.map((branch) => ({
-    id: `${sourceId}-${branch.id}`,
-    source: sourceId,
-    target: branch.id,
-    sourceHandle,
-    targetHandle: 'target',
-  }))
+  return branches.map((branch) => {
+    // Include sourceHandle in ID for condition nodes (true/false handles)
+    const edgeId =
+      sourceHandle === 'true' || sourceHandle === 'false'
+        ? `${sourceId}-${sourceHandle}-${branch.id}`
+        : `${sourceId}-${branch.id}`
+
+    return {
+      id: edgeId,
+      source: sourceId,
+      target: branch.id,
+      sourceHandle,
+      targetHandle: 'target',
+    }
+  })
 }
 
 /**

@@ -4,7 +4,7 @@ import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import { markerEnd, type EdgeType } from '../utils/workflowToGraph'
 
 interface UsePendingEdgeManagementOptions {
-  pendingEdge: { sourceNodeId: string; x: number; y: number } | null
+  pendingEdge: { sourceNodeId: string; sourceHandle?: string; x: number; y: number } | null
   isInitialized: boolean
   setNodes: React.Dispatch<React.SetStateAction<NodeType[]>>
   setEdges: React.Dispatch<React.SetStateAction<EdgeType[]>>
@@ -49,7 +49,13 @@ export function usePendingEdgeManagement({
 
       setEdges((currentEdges) => {
         const withoutPendingEdges = currentEdges.filter((e) => !e.id.startsWith('pending-'))
-        const buttonEdgeId = `button-${pendingEdge.sourceNodeId}`
+
+        // Determine the button edge ID based on whether this is a condition handle
+        const sourceHandle = pendingEdge.sourceHandle
+        const isConditionHandle = sourceHandle && ['true', 'false'].includes(sourceHandle)
+        const buttonEdgeId = isConditionHandle
+          ? `button-${pendingEdge.sourceNodeId}-${sourceHandle}`
+          : `button-${pendingEdge.sourceNodeId}`
 
         const hasEdge = withoutPendingEdges.some((e) => e.id === pendingEdgeId)
 
@@ -60,7 +66,9 @@ export function usePendingEdgeManagement({
             {
               id: pendingEdgeId,
               source: pendingEdge.sourceNodeId,
+              sourceHandle: pendingEdge.sourceHandle || 'source',
               target: pendingNodeId,
+              targetHandle: 'target',
               type: 'default',
               selectable: false,
               markerEnd,
@@ -74,10 +82,19 @@ export function usePendingEdgeManagement({
         return withoutPendingEdges
       })
 
-      const sourcePlaceholderId = `placeholder-${pendingEdge.sourceNodeId}`
+      // Determine the placeholder ID based on whether this is a condition handle
+      const sourceHandle = pendingEdge.sourceHandle
+      const isConditionHandle = sourceHandle && ['true', 'false'].includes(sourceHandle)
+      const sourcePlaceholderId = isConditionHandle
+        ? `placeholder-${pendingEdge.sourceNodeId}-${sourceHandle}`
+        : `placeholder-${pendingEdge.sourceNodeId}`
+
       setNodes((currentNodes) => currentNodes.filter((n) => n.id !== sourcePlaceholderId))
     } else if (!pendingEdge) {
+      // Clear pending nodes and edges - button edge will be recreated by useButtonEdgeMaintenance
+      // First remove pending target nodes
       setNodes((currentNodes) => currentNodes.filter((n) => !n.id.startsWith('pending-target-')))
+      // Then remove pending edges - this will trigger useButtonEdgeMaintenance to recreate button edges
       setEdges((currentEdges) => currentEdges.filter((e) => !e.id.startsWith('pending-')))
     }
   }, [pendingEdge, isInitialized, setNodes, setEdges])

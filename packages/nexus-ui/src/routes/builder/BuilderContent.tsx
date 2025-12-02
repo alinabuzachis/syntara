@@ -1,7 +1,7 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Button, ConfirmDialog, Switch, Tooltip, useAlerts } from '@ansible/nexus-ui-framework'
 import { useQueryClient } from '@tanstack/react-query'
-import { addEdge, useReactFlow, type Node } from '@xyflow/react'
+import { useReactFlow, type Node } from '@xyflow/react'
 import { ClockIcon, FileCode, PlayIcon, PlusIcon, SaveIcon, XIcon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'wouter'
@@ -486,6 +486,7 @@ export function BuilderContent(props: BuilderContentProps) {
                   workflowId={workflowId}
                   panelOpen={addNodePanelOpen || !!selectedNode}
                   activeEdgeButtonNodeId={addNodePanelOpen ? sourceNodeId : null}
+                  activeEdgeButtonHandle={addNodePanelOpen ? sourceHandle : null}
                   activeEdgeId={addNodePanelOpen ? edgeIdToReplace : null}
                   onNodeClick={handleNodeClick}
                   onAddNodeFromEdge={handleAddNodeFromEdge}
@@ -530,7 +531,7 @@ export function BuilderContent(props: BuilderContentProps) {
                           id: edgeId,
                           source: sourceId,
                           target: targetId,
-                          ...(capturedSourceHandle ? { sourceHandle: capturedSourceHandle } : {}),
+                          sourceHandle: capturedSourceHandle || 'source', // Always set sourceHandle
                           targetHandle: 'target',
                           type: 'default',
                           markerEnd,
@@ -541,14 +542,19 @@ export function BuilderContent(props: BuilderContentProps) {
 
                         // Use React Flow's addEdge helper (same as manual connection)
                         reactFlowInstance.setEdges((eds) => {
-                          // Remove button edge from source node
-                          const filtered = eds.filter((e) => e.id !== `button-${sourceId}`)
+                          // Remove button edge from source node (handle condition nodes with handles)
+                          const isConditionHandle =
+                            capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
+                          const buttonEdgeId = isConditionHandle
+                            ? `button-${sourceId}-${capturedSourceHandle}`
+                            : `button-${sourceId}`
+                          const filtered = eds.filter((e) => e.id !== buttonEdgeId)
                           // If inserting between nodes, remove old edge
                           const withoutOldEdge = capturedEdgeIdToReplace
                             ? filtered.filter((e) => e.id !== capturedEdgeIdToReplace)
                             : filtered
-                          // Use React Flow's addEdge helper for consistency (cast to match BuilderFlow pattern)
-                          return addEdge(newEdge, withoutOldEdge as never) as EdgeType[]
+                          // Directly add edge to array to ensure sourceHandle is preserved
+                          return [...withoutOldEdge, newEdge as EdgeType]
                         })
 
                         // If inserting between two nodes, create second edge and reorder
@@ -557,6 +563,7 @@ export function BuilderContent(props: BuilderContentProps) {
                             id: `${targetId}-${capturedTargetNodeId}`,
                             source: targetId,
                             target: capturedTargetNodeId,
+                            sourceHandle: 'source',
                             targetHandle: 'target',
                             type: 'default',
                             markerEnd,
@@ -565,25 +572,47 @@ export function BuilderContent(props: BuilderContentProps) {
                             },
                           }
 
-                          reactFlowInstance.setEdges((eds) => addEdge(secondEdge, eds as never) as EdgeType[])
+                          reactFlowInstance.setEdges((eds) => [...eds, secondEdge as EdgeType])
 
                           // Reorder the new activity to be before the target activity
                           useWorkflowStore.getState().moveActivityBefore(targetId, capturedTargetNodeId)
                         }
 
                         // Remove placeholder node and update source node class
-                        const sourcePlaceholderId = `placeholder-${sourceId}`
-                        reactFlowInstance.setNodes((nds) =>
-                          nds
-                            .filter((n) => n.id !== sourcePlaceholderId)
-                            .map((n) => {
-                              if (n.id === sourceId) {
-                                const className = (n.className || '').replace('has-button-edge', '').trim()
-                                return { ...n, className }
-                              }
-                              return n
-                            })
-                        )
+                        const isConditionHandle =
+                          capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
+                        const sourcePlaceholderId = isConditionHandle
+                          ? `placeholder-${sourceId}-${capturedSourceHandle}`
+                          : `placeholder-${sourceId}`
+
+                        reactFlowInstance.setNodes((nds) => {
+                          const filtered = nds.filter((n) => n.id !== sourcePlaceholderId)
+
+                          // For condition nodes, only remove the class if both handles are now connected
+                          const sourceNode = filtered.find((n) => n.id === sourceId)
+                          if (!sourceNode) return filtered
+
+                          const isConditionNode = sourceNode.type === 'condition'
+                          if (isConditionNode) {
+                            // Check if there are any remaining condition handle placeholders for this node
+                            const hasRemainingPlaceholders = filtered.some(
+                              (n) => n.id === `placeholder-${sourceId}-true` || n.id === `placeholder-${sourceId}-false`
+                            )
+                            if (hasRemainingPlaceholders) {
+                              // Keep the class since there are still button edges
+                              return filtered
+                            }
+                          }
+
+                          // Remove the has-button-edge class if no more button edges
+                          return filtered.map((n) => {
+                            if (n.id === sourceId) {
+                              const className = (n.className || '').replace('has-button-edge', '').trim()
+                              return { ...n, className }
+                            }
+                            return n
+                          })
+                        })
                       } else if (attempts < maxAttempts) {
                         attempts++
                         setTimeout(checkAndConnect, 50)

@@ -10,8 +10,9 @@ interface UseButtonEdgeMaintenanceOptions {
   edges: EdgeType[]
   isInitialized: boolean
   activeEdgeButtonNodeId: string | null
+  activeEdgeButtonHandle: string | null
   onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string, sourceHandle?: string) => void
-  pendingEdge: { sourceNodeId: string; x: number; y: number } | null
+  pendingEdge: { sourceNodeId: string; sourceHandle?: string; x: number; y: number } | null
   setNodes: React.Dispatch<React.SetStateAction<NodeType[]>>
   setEdges: React.Dispatch<React.SetStateAction<EdgeType[]>>
 }
@@ -28,6 +29,7 @@ export function useButtonEdgeMaintenance({
   edges,
   isInitialized,
   activeEdgeButtonNodeId,
+  activeEdgeButtonHandle,
   onAddNodeFromEdge,
   pendingEdge,
   setNodes,
@@ -80,8 +82,10 @@ export function useButtonEdgeMaintenance({
 
     // Create a signature for this effect run to detect duplicates in Strict Mode
     // CRITICAL: Include buttonEdgesSignature to allow effect to run again when ButtonEdges are added one-at-a-time
+    // CRITICAL: Include pendingEdge to allow effect to run when pending edge is cleared (panel closed)
     // CRITICAL: Use '::' as separator instead of '|' because signature values contain '|' characters
-    const currentSignature = `${realNodeIds}::${realEdgesSignature}::${buttonEdgesSignature}::${isInitialized}`
+    const pendingEdgeSignature = pendingEdge ? `pending:${pendingEdge.sourceNodeId}` : 'no-pending'
+    const currentSignature = `${realNodeIds}::${realEdgesSignature}::${buttonEdgesSignature}::${pendingEdgeSignature}::${isInitialized}`
 
     // CRITICAL: Check signature BEFORE starting timeout to prevent race conditions in Strict Mode
     // In Strict Mode, effects run twice rapidly - both would start timeouts before either updates the ref
@@ -91,7 +95,7 @@ export function useButtonEdgeMaintenance({
     }
     lastProcessedSignatureRef.current = currentSignature
 
-    // Use a small delay to ensure nodes are fully loaded and measured
+    // Use a delay to ensure nodes are fully loaded and measured, and edges are synchronized
     const timeoutId = setTimeout(() => {
       // CRITICAL FIX: Capture real nodes from current nodes state
       // Filter out placeholders and pending targets
@@ -117,9 +121,10 @@ export function useButtonEdgeMaintenance({
       // Step 1: Analyze edges to determine which nodes need ButtonEdges
       // IMPORTANT: Only track OUTGOING edges (edge.source), NOT incoming edges (edge.target)
       // A node should keep its ButtonEdge even if it receives incoming connections
+      // IMPORTANT: Exclude button edges AND pending edges (which are temporary)
       const connectedHandles = new Map<string, Set<string>>()
       edges.forEach((edge) => {
-        if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-')) {
+        if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-') && !edge.id.startsWith('pending-')) {
           const handle = edge.sourceHandle || 'source'
           if (!connectedHandles.has(edge.source)) {
             connectedHandles.set(edge.source, new Set())
@@ -128,10 +133,43 @@ export function useButtonEdgeMaintenance({
         }
       })
 
+      // Track condition node handles that need button edges (nodeId-handleId format)
+      const conditionHandlesNeedingButtonEdgesRef = { current: [] as { nodeId: string; handleId: string }[] }
+
       // Step 2: Determine which nodes need ButtonEdges and which placeholders to add
       realNodes.forEach((node) => {
-        const isConditionNode = node.type === 'condition' || node.type === 'logic'
+        const isConditionNode = node.type === 'condition'
+
         if (isConditionNode) {
+          // Handle condition nodes specially - they have 'true' and 'false' handles
+          const handles = ['true', 'false']
+          handles.forEach((handleId) => {
+            const handleConnected = connectedHandles.get(node.id)?.has(handleId) || false
+            // For condition nodes, only consider this handle as having a pending edge if both nodeId AND handleId match
+            const hasPendingEdge = pendingEdge?.sourceNodeId === node.id && pendingEdge?.sourceHandle === handleId
+
+            if (!handleConnected && !hasPendingEdge) {
+              conditionHandlesNeedingButtonEdgesRef.current.push({ nodeId: node.id, handleId })
+
+              // Create placeholder for this handle
+              const placeholderId = `placeholder-${node.id}-${handleId}`
+              const placeholderExists = nodes.some((n) => n.id === placeholderId)
+
+              if (!placeholderExists) {
+                // Position true handle placeholder above, false handle placeholder below
+                const yOffset = handleId === 'true' ? -30 : 30
+                placeholderNodesToAddRef.current.push({
+                  id: placeholderId,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  type: 'placeholder' as any,
+                  position: { x: node.position.x + 200, y: node.position.y + yOffset },
+                  data: {},
+                  draggable: false,
+                  selectable: false,
+                } as NodeType)
+              }
+            }
+          })
           return
         }
 
@@ -187,8 +225,18 @@ export function useButtonEdgeMaintenance({
           return edge.type === 'buttonEdge' || edge.id.startsWith('button-')
         })
 
-        // Track which nodes already have ButtonEdges
+        // Track which nodes already have ButtonEdges (for regular nodes)
         const nodesWithButtonEdges = new Set(existingButtonEdges.map((edge) => edge.source))
+
+        // Track which condition handles already have ButtonEdges (nodeId-handleId format)
+        const conditionHandlesWithButtonEdges = new Set(
+          existingButtonEdges
+            .filter((edge) => edge.id.includes('-true') || edge.id.includes('-false'))
+            .map((edge) => {
+              const handleId = edge.id.endsWith('-true') ? 'true' : 'false'
+              return `${edge.source}-${handleId}`
+            })
+        )
 
         // Determine which ButtonEdges to keep, remove, and add
         const buttonEdgesToKeep: EdgeType[] = []
@@ -196,12 +244,21 @@ export function useButtonEdgeMaintenance({
 
         // Keep ButtonEdges that are still needed
         existingButtonEdges.forEach((edge) => {
-          if (nodesNeedingButtonEdgesRef.current.includes(edge.source)) {
+          // Check if it's a condition handle button edge
+          if (edge.id.includes('-true') || edge.id.includes('-false')) {
+            const handleId = edge.id.endsWith('-true') ? 'true' : 'false'
+            const isNeeded = conditionHandlesNeedingButtonEdgesRef.current.some(
+              (h) => h.nodeId === edge.source && h.handleId === handleId
+            )
+            if (isNeeded) {
+              buttonEdgesToKeep.push(edge)
+            }
+          } else if (nodesNeedingButtonEdgesRef.current.includes(edge.source)) {
             buttonEdgesToKeep.push(edge)
           }
         })
 
-        // Add missing ButtonEdges
+        // Add missing ButtonEdges for regular nodes
         nodesNeedingButtonEdgesRef.current.forEach((nodeId) => {
           if (!nodesWithButtonEdges.has(nodeId)) {
             const buttonEdgeId = `button-${nodeId}`
@@ -217,8 +274,38 @@ export function useButtonEdgeMaintenance({
               selectable: false,
               data: {
                 sourceNodeId: nodeId,
-                onButtonClick: () => onAddNodeFromEdge?.(nodeId),
-                isActive: activeEdgeButtonNodeId === nodeId,
+                sourceHandle: 'source',
+                onButtonClick: () => onAddNodeFromEdge?.(nodeId, undefined, undefined, 'source'),
+                // For regular nodes, active when nodeId matches and handle is 'source' or not specified
+                isActive:
+                  activeEdgeButtonNodeId === nodeId && (activeEdgeButtonHandle === 'source' || !activeEdgeButtonHandle),
+              },
+            } as unknown
+            buttonEdgesToAdd.push(newEdge as EdgeType)
+          }
+        })
+
+        // Add missing ButtonEdges for condition node handles
+        conditionHandlesNeedingButtonEdgesRef.current.forEach(({ nodeId, handleId }) => {
+          const key = `${nodeId}-${handleId}`
+          if (!conditionHandlesWithButtonEdges.has(key)) {
+            const buttonEdgeId = `button-${nodeId}-${handleId}`
+            const placeholderId = `placeholder-${nodeId}-${handleId}`
+
+            const newEdge = {
+              id: buttonEdgeId,
+              source: nodeId,
+              sourceHandle: handleId,
+              target: placeholderId,
+              targetHandle: 'target',
+              type: 'buttonEdge',
+              selectable: false,
+              data: {
+                sourceNodeId: nodeId,
+                sourceHandle: handleId,
+                onButtonClick: () => onAddNodeFromEdge?.(nodeId, undefined, undefined, handleId),
+                // For condition nodes, active only when both nodeId AND handleId match
+                isActive: activeEdgeButtonNodeId === nodeId && activeEdgeButtonHandle === handleId,
               },
             } as unknown
             buttonEdgesToAdd.push(newEdge as EdgeType)
@@ -238,12 +325,18 @@ export function useButtonEdgeMaintenance({
         return currentEdges
       })
 
-      // Step 5: Update node classes for nodes with ButtonEdges (AFTER setEdges to avoid nested state updates)
+      // Step 5: Update node classes and placeholder positions (AFTER setEdges to avoid nested state updates)
       setNodes((currentNodes) =>
         currentNodes.map((node) => {
-          if (node.id.startsWith('placeholder-') || node.id.startsWith('pending-target-')) return node
+          if (node.id.startsWith('pending-target-')) return node
 
-          const shouldHaveButtonEdge = nodesNeedingButtonEdgesRef.current.includes(node.id)
+          // Check if this is a condition node with any button edges
+          const isConditionNode = node.type === 'condition'
+          const conditionHasButtonEdge = isConditionNode
+            ? conditionHandlesNeedingButtonEdgesRef.current.some((h) => h.nodeId === node.id)
+            : false
+
+          const shouldHaveButtonEdge = nodesNeedingButtonEdgesRef.current.includes(node.id) || conditionHasButtonEdge
           const currentClassName = node.className || ''
           const hasClass = currentClassName.includes('has-button-edge')
 
@@ -255,7 +348,7 @@ export function useButtonEdgeMaintenance({
           return node
         })
       )
-    }, 50) // Small delay to let React Flow settle
+    }, 50) // Small delay to let React Flow settle and edges sync from reactFlowInstance
 
     return () => clearTimeout(timeoutId)
     // Note: We depend on signatures (realNodeIds, realEdgesSignature, buttonEdgesSignature)
@@ -272,6 +365,7 @@ export function useButtonEdgeMaintenance({
     setNodes,
     onAddNodeFromEdge,
     activeEdgeButtonNodeId,
+    activeEdgeButtonHandle,
   ])
 
   // Return memoized values that might be useful

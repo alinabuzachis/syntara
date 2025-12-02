@@ -322,7 +322,7 @@ export class WorkflowTransform {
         edges.push(...createEdgesToWrapperBranches(activity.id, firstThen, 'true'))
       } else {
         edges.push({
-          id: `${activity.id}-${firstThen.id}`,
+          id: `${activity.id}-true-${firstThen.id}`,
           source: activity.id,
           target: firstThen.id,
           sourceHandle: 'true',
@@ -338,7 +338,7 @@ export class WorkflowTransform {
         edges.push(...createEdgesToWrapperBranches(activity.id, firstElse, 'false'))
       } else {
         edges.push({
-          id: `${activity.id}-${firstElse.id}`,
+          id: `${activity.id}-false-${firstElse.id}`,
           source: activity.id,
           target: firstElse.id,
           sourceHandle: 'false',
