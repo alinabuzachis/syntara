@@ -96,7 +96,7 @@ test-fast: check-deps ## Run tests with fail-fast and short traceback
 .PHONY: test-all
 test-all: check-deps ## Run all tests
 	@echo "🧪 Running all tests..."
-	uv run pytest tests/ -v -n auto -m "not mcp"
+	uv run pytest tests/ -v -n auto -m "not mcp" --cov=src --cov-config=pyproject.toml
 
 # Development workflow
 # ========================================================
