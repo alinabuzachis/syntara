@@ -1,4 +1,7 @@
 # Nexus Development Makefile
+# Local makefile (optional).
+-include Makefile.local
+
 
 .PHONY: help
 help: ## Show this help message

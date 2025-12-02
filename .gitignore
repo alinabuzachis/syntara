@@ -192,6 +192,9 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# Local Makefile
+Makefile.local
+
 # PyPI configuration file
 .pypirc
 
