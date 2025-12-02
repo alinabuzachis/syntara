@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Claude Agent Instructions
+
+Claude, you have access to the following skills. Use them when appropriate:
+
+- See `.claude/skills/pr_review.md` for PR review steps
+
 ## Essential Commands
 
 ```bash
