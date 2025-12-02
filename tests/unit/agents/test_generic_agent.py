@@ -1,9 +1,9 @@
-"""Unit tests for GenericAgent with LangChain LLM.
+"""Unit tests for GenericAgent with LangGraph integration.
 
-Tests the GenericAgent implementation using LangChain with mocked OpenRouter.
-These tests MUST FAIL initially (TDD requirement).
+Tests the GenericAgent implementation using LangGraph node execution.
 """
 
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -11,7 +11,15 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from nexus.agent_orchestrator.agents import GenericAgent
-from nexus.agent_orchestrator.models import GenericAgentResponse
+from nexus.agent_orchestrator.exceptions import (
+    AgentConfigurationError,
+    AgentError,
+    AgentRateLimitError,
+    AgentTimeoutError,
+)
+
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.models.agent_state import AgentState
 
 
 class TestGenericAgentLLMIntegration:
@@ -19,111 +27,136 @@ class TestGenericAgentLLMIntegration:
 
     @pytest.mark.asyncio
     async def test_generic_agent_queries_llm_and_returns_answer(self) -> None:
-        """Test GenericAgent queries LangChain LLM and returns answer response."""
-        # Arrange
+        """Test GenericAgent queries LangChain LLM via LangGraph node execution."""
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(
             content="Available tools include deployment-agent, monitoring-agent, and testing-agent."
         )
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm)
-        prompt = "What tools are available for deployment?"
         invocation_id = uuid4()
+        state: AgentState = {
+            "prompt": "What tools are available for deployment?",
+            "original_prompt": "What tools are available for deployment?",
+            "session_id": "test-session",
+            "correlation_id": str(invocation_id),
+            "invocation_id": str(invocation_id),
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "result": None,
+        }
 
-        # Act
-        response = await agent.execute(prompt, invocation_id)
+        response = await agent.execute_as_node(state)
 
-        # Assert
-        assert isinstance(response, GenericAgentResponse)
-        assert response.type == "answer"
-        assert "deployment-agent" in response.content
-        assert "monitoring-agent" in response.content
+        assert isinstance(response, dict)
+        assert response["type"] == "answer"
+        assert "deployment-agent" in response["content"]
+        assert "monitoring-agent" in response["content"]
         mock_llm.ainvoke.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generic_agent_result_type_is_answer_not_workflow(self) -> None:
         """Test GenericAgent returns type='answer' (not 'workflow')."""
-        # Arrange
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(content="Test answer")
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm)
         invocation_id = uuid4()
+        state: AgentState = {
+            "prompt": "test query",
+            "original_prompt": "test query",
+            "session_id": "test-session",
+            "correlation_id": str(invocation_id),
+            "invocation_id": str(invocation_id),
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "result": None,
+        }
 
-        # Act
-        response = await agent.execute("test query", invocation_id)
+        response = await agent.execute_as_node(state)
 
-        # Assert
-        assert response.type == "answer"
-        # Verify it's not workflow type (redundant but explicit test requirement)
-        assert response.type == "answer"
+        assert response["type"] == "answer"
 
     @pytest.mark.asyncio
-    async def test_generic_agent_handles_llm_api_errors_gracefully(self) -> None:
-        """Test GenericAgent handles LLM API errors (invalid key, rate limit, timeout)."""
-        # Arrange - API key error
+    async def test_generic_agent_raises_configuration_error_for_invalid_api_key(
+        self,
+    ) -> None:
+        """Test GenericAgent raises AgentConfigurationError for invalid API key."""
         mock_llm = AsyncMock()
-        mock_llm.ainvoke.side_effect = Exception("Invalid API key")
+        mock_llm.ainvoke.side_effect = RuntimeError("Invalid API key")
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm)
-        invocation_id = uuid4()
+        invocation_id = str(uuid4())
+        state: AgentState = {
+            "prompt": "test query",
+            "original_prompt": "test query",
+            "session_id": "test-session",
+            "correlation_id": invocation_id,
+            "invocation_id": invocation_id,
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "result": None,
+        }
 
-        # Act
-        response = await agent.execute("test query", invocation_id)
+        with pytest.raises(AgentConfigurationError) as exc_info:
+            await agent.execute_as_node(state)
 
-        # Assert
-        assert isinstance(response, GenericAgentResponse)
-        assert response.type == "answer"
-        # Verify user-friendly error message for configuration issues
-        assert "apologize" in response.content.lower()
-        assert "configuration" in response.content.lower()
-        # Verify error metadata is populated
-        assert "error" in response.response_metadata
-        assert response.response_metadata["error"] == "Invalid API key"
+        assert exc_info.value.invocation_id == invocation_id
+        assert "Invalid API key" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_generic_agent_handles_rate_limit_errors(self) -> None:
-        """Test GenericAgent handles rate limit errors from OpenRouter."""
-        # Arrange
+    async def test_generic_agent_raises_rate_limit_error(self) -> None:
+        """Test GenericAgent raises AgentRateLimitError for rate limit errors."""
         mock_llm = AsyncMock()
-        mock_llm.ainvoke.side_effect = Exception("Rate limit exceeded")
+        mock_llm.ainvoke.side_effect = RuntimeError("Rate limit exceeded")
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm)
-        invocation_id = uuid4()
+        invocation_id = str(uuid4())
+        state: AgentState = {
+            "prompt": "test query",
+            "original_prompt": "test query",
+            "session_id": "test-session",
+            "correlation_id": invocation_id,
+            "invocation_id": invocation_id,
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "result": None,
+        }
 
-        # Act
-        response = await agent.execute("test query", invocation_id)
+        with pytest.raises(AgentRateLimitError) as exc_info:
+            await agent.execute_as_node(state)
 
-        # Assert
-        assert isinstance(response, GenericAgentResponse)
-        # Verify user-friendly error message for rate limiting
-        assert "apologize" in response.content.lower()
-        assert "high demand" in response.content.lower()
-        # Verify error metadata is populated
-        assert "error" in response.response_metadata
-        assert response.response_metadata["error"] == "Rate limit exceeded"
+        assert exc_info.value.invocation_id == invocation_id
+        assert "Rate limit exceeded" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_generic_agent_handles_timeout_errors(self) -> None:
-        """Test GenericAgent handles timeout scenarios."""
-        # Arrange
+    async def test_generic_agent_raises_timeout_error(self) -> None:
+        """Test GenericAgent raises AgentTimeoutError for timeout scenarios."""
         mock_llm = AsyncMock()
         mock_llm.ainvoke.side_effect = TimeoutError("Request timed out")
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm)
-        invocation_id = uuid4()
+        invocation_id = str(uuid4())
+        state: AgentState = {
+            "prompt": "test query",
+            "original_prompt": "test query",
+            "session_id": "test-session",
+            "correlation_id": invocation_id,
+            "invocation_id": invocation_id,
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "result": None,
+        }
 
-        # Act
-        response = await agent.execute("test query", invocation_id)
+        with pytest.raises(AgentTimeoutError) as exc_info:
+            await agent.execute_as_node(state)
 
-        # Assert
-        assert isinstance(response, GenericAgentResponse)
-        # Verify user-friendly error message for timeout
-        assert "apologize" in response.content.lower()
-        assert "timed out" in response.content.lower()
-        # Verify error metadata is populated
-        assert "error" in response.response_metadata
-        assert response.response_metadata["error"] == "timeout"
+        assert exc_info.value.invocation_id == invocation_id
 
 
 class TestGenericAgentPromptEngineering:
@@ -132,76 +165,108 @@ class TestGenericAgentPromptEngineering:
     @pytest.mark.asyncio
     async def test_generic_agent_uses_information_assistant_prompt(self) -> None:
         """Test GenericAgent uses appropriate prompt template for information queries."""
-        # Arrange
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(content="Test response")
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm)
         user_prompt = "What deployment tools exist?"
         invocation_id = uuid4()
+        state: AgentState = {
+            "prompt": user_prompt,
+            "original_prompt": user_prompt,
+            "session_id": "test-session",
+            "correlation_id": str(invocation_id),
+            "invocation_id": str(invocation_id),
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "result": None,
+        }
 
-        # Act
-        await agent.execute(user_prompt, invocation_id)
+        await agent.execute_as_node(state)
 
-        # Assert
         mock_llm.ainvoke.assert_called_once()
-        # Check that the prompt was formatted (contains user's question)
         call_args = mock_llm.ainvoke.call_args
         assert call_args is not None
 
     @pytest.mark.asyncio
     async def test_generic_agent_handles_empty_llm_response(self) -> None:
         """Test GenericAgent handles empty LLM responses."""
-        # Arrange
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(content="")
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm)
         invocation_id = uuid4()
+        state: AgentState = {
+            "prompt": "test query",
+            "original_prompt": "test query",
+            "session_id": "test-session",
+            "correlation_id": str(invocation_id),
+            "invocation_id": str(invocation_id),
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "result": None,
+        }
 
-        # Act
-        response = await agent.execute("test query", invocation_id)
+        response = await agent.execute_as_node(state)
 
-        # Assert
-        assert isinstance(response, GenericAgentResponse)
-        # Should handle empty response gracefully
-        assert response.content is not None
+        assert isinstance(response, dict)
+        assert response["content"] is not None
+        assert "couldn't generate an answer" in response["content"]
 
     @pytest.mark.asyncio
-    async def test_generic_agent_handles_malformed_llm_response(self) -> None:
-        """Test GenericAgent handles malformed LLM responses."""
-        # Arrange
+    async def test_generic_agent_raises_error_for_malformed_llm_response(self) -> None:
+        """Test GenericAgent raises AgentError for malformed LLM responses."""
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = None  # Malformed response
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm)
-        invocation_id = uuid4()
+        invocation_id = str(uuid4())
+        state: AgentState = {
+            "prompt": "test query",
+            "original_prompt": "test query",
+            "session_id": "test-session",
+            "correlation_id": invocation_id,
+            "invocation_id": invocation_id,
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "result": None,
+        }
 
-        # Act
-        response = await agent.execute("test query", invocation_id)
+        with pytest.raises(AgentError) as exc_info:
+            await agent.execute_as_node(state)
 
-        # Assert
-        assert isinstance(response, GenericAgentResponse)
-        assert response.type == "answer"
+        assert exc_info.value.invocation_id == invocation_id
 
 
 class TestGenericAgentLogging:
     """Test GenericAgent logging and correlation IDs."""
 
     @pytest.mark.asyncio
-    async def test_generic_agent_logs_llm_interactions_with_correlation_id(self) -> None:
+    async def test_generic_agent_logs_llm_interactions_with_correlation_id(
+        self,
+    ) -> None:
         """Test GenericAgent logs all LLM interactions with correlation IDs."""
-        # Arrange
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(content="Test response")
+        mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
         agent = GenericAgent(llm=mock_llm)
         invocation_id = uuid4()
+        state: AgentState = {
+            "prompt": "test query",
+            "original_prompt": "test query",
+            "session_id": "test-session",
+            "correlation_id": str(invocation_id),
+            "invocation_id": str(invocation_id),
+            "context_package": None,
+            "current_agent": "generic_agent",
+            "result": None,
+        }
 
-        # Act
-        with patch("nexus.agent_orchestrator.agents.generic_agent.logger") as mock_logger:
-            await agent.execute("test query", invocation_id)
+        with patch.object(agent, "logger") as mock_logger:
+            await agent.execute_as_node(state)
 
-            # Assert
-            # Verify logging was called (implementation detail)
-            assert mock_logger.info.called or mock_logger.debug.called
+            assert mock_logger.info.called

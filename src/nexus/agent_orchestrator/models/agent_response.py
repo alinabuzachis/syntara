@@ -8,7 +8,25 @@ from typing import Any, Literal
 from sqlmodel import Field, SQLModel
 
 
-class GenericAgentResponse(SQLModel):
+class BaseAgentResponse(SQLModel):
+    """Base response model for all agents.
+
+    Provides common fields that all agent responses must include.
+    Concrete agent response types should inherit from this class.
+    """
+
+    content: str = Field(
+        ...,
+        description="The main content of the agent's response",
+    )
+    response_metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata about the response",
+        alias="metadata",
+    )
+
+
+class GenericAgentResponse(BaseAgentResponse):
     """Response model for GenericAgent.
 
     Used when GenericAgent answers an information query directly
@@ -19,18 +37,9 @@ class GenericAgentResponse(SQLModel):
         default="answer",
         description="Response type (always 'answer' for GenericAgent)",
     )
-    content: str = Field(
-        ...,
-        description="LLM-generated answer to the user's query",
-    )
-    response_metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional metadata about the response",
-        alias="metadata",
-    )
 
 
-class WorkflowResponse(SQLModel):
+class WorkflowResponse(BaseAgentResponse):
     """Response model for WorkflowGeneratorAgent.
 
     Used when WorkflowGeneratorAgent creates a workflow.
@@ -43,13 +52,4 @@ class WorkflowResponse(SQLModel):
     workflow_id: str = Field(
         ...,
         description="Unique identifier for the generated workflow",
-    )
-    content: str = Field(
-        ...,
-        description="Workflow definition or description",
-    )
-    response_metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional metadata about the workflow",
-        alias="metadata",
     )
