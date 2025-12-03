@@ -197,7 +197,11 @@ NodeRegistry.getByCategory(cat) // Get nodes by category
 - **Edge Synchronization Actions**: `syncJoinBranches`, `reorderActivitiesFromEdges`
 - **Atomic Batch Operations**: `batchRemoveNodesAndEdges` for removing multiple nodes/edges atomically
 - Located at `packages/nexus-ui/src/stores/useWorkflowStore.ts`
-- Use selective subscriptions to avoid unnecessary re-renders
+- **CRITICAL**: Use selective subscriptions to avoid unnecessary re-renders
+- **CRITICAL**: `BuilderFlow` must subscribe to BOTH `activitiesCount` AND `triggersCount` to detect node additions
+  - `activitiesCount` triggers memo recomputation when activities are added/removed
+  - `triggersCount` triggers memo recomputation when triggers are added/removed
+  - Without both subscriptions, newly added nodes won't appear on canvas
 
 **Workflow Structure - Unified Approach:**
 
