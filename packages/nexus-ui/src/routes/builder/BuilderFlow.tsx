@@ -189,14 +189,19 @@ export function BuilderFlow(props: BuilderFlowProps) {
     // BuilderContent generates these via loadWorkflow() which flattens and extracts edges
     storedEdges.forEach(
       (edge: { id: string; source: string; target: string; sourceHandle?: string; targetHandle?: string }) => {
-        edges.push({
-          ...edge,
+        const restoredEdge: EdgeType = {
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
           type: 'default',
           markerEnd,
           data: {
             onAddNode: onAddNodeFromEdge,
           },
-        })
+        }
+        edges.push(restoredEdge)
       }
     )
 

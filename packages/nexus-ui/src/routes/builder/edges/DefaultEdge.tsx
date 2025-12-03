@@ -27,12 +27,17 @@ export function DefaultEdge(props: DefaultEdgeProps) {
     id,
     source,
     target,
-    sourceHandle,
     data,
     markerEnd,
     selected,
   } = props
-  const { setEdges } = useReactFlow()
+  const reactFlowInstance = useReactFlow()
+  const { setEdges } = reactFlowInstance
+
+  // CRITICAL FIX: React Flow doesn't always pass sourceHandle as a prop to edge components
+  // Instead, we need to get it from the edge object itself
+  const fullEdge = reactFlowInstance.getEdge(id)
+  const actualSourceHandle = fullEdge?.sourceHandle
   const [isHovered, setIsHovered] = useState(false)
   const [isEdgeHovered, setIsEdgeHovered] = useState(false)
   const [isAddButtonHovered, setIsAddButtonHovered] = useState(false)
@@ -70,7 +75,7 @@ export function DefaultEdge(props: DefaultEdgeProps) {
 
   const handleAddNode = (event: React.MouseEvent) => {
     event.stopPropagation()
-    data?.onAddNode?.(source, target, id, sourceHandle ?? undefined)
+    data?.onAddNode?.(source, target, id, actualSourceHandle ?? undefined)
   }
 
   return (

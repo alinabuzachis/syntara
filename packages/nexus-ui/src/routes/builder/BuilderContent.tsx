@@ -19,9 +19,10 @@ import { AutomationHistoryCard } from './AutomationHistoryCard'
 import { BuilderFlow } from './BuilderFlow'
 import { NodeDetailsPanel } from './NodeDetailsPanel'
 import { buildNestedConditionStructure } from './utils/buildNestedStructure'
+import { EdgeFactory } from './utils/EdgeFactory'
 import { loadWorkflow } from './utils/loadWorkflow'
 import { validateRoundTrip, validateSavePath } from './utils/validateRoundTrip'
-import { markerEnd, type EdgeType } from './utils/workflowToGraph'
+import type { EdgeType } from './utils/workflowToGraph'
 import { WorkflowSidepanel } from './WorkflowSidepanel'
 
 // Type aliases from API contracts
@@ -520,59 +521,42 @@ export function BuilderContent(props: BuilderContentProps) {
                       const targetNode = nodes.find((n) => n.id === targetId)
 
                       if (targetNode?.measured) {
-                        // Create edge ID that includes sourceHandle for conditional nodes
-                        const edgeId =
-                          capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
-                            ? `${sourceId}-${capturedSourceHandle}-${targetId}`
-                            : `${sourceId}-${targetId}`
-
-                        // Create the new edge object (matching BuilderFlow.tsx onConnect format)
-                        const newEdge = {
-                          id: edgeId,
+                        // Create the new edge using EdgeFactory for consistency
+                        const newEdge = EdgeFactory.createEdge({
                           source: sourceId,
                           target: targetId,
-                          sourceHandle: capturedSourceHandle || 'source', // Always set sourceHandle
+                          sourceHandle: capturedSourceHandle,
                           targetHandle: 'target',
-                          type: 'default',
-                          markerEnd,
-                          data: {
-                            onAddNode: handleAddNodeFromEdge,
-                          },
-                        }
+                          onAddNode: handleAddNodeFromEdge,
+                        })
 
                         // Use React Flow's addEdge helper (same as manual connection)
                         reactFlowInstance.setEdges((eds) => {
                           // Remove button edge from source node (handle condition nodes with handles)
-                          const isConditionHandle =
-                            capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
-                          const buttonEdgeId = isConditionHandle
-                            ? `button-${sourceId}-${capturedSourceHandle}`
-                            : `button-${sourceId}`
-                          const filtered = eds.filter((e) => e.id !== buttonEdgeId)
+                          const filtered = EdgeFactory.removeButtonEdge(
+                            sourceId,
+                            eds as EdgeType[],
+                            capturedSourceHandle
+                          )
                           // If inserting between nodes, remove old edge
                           const withoutOldEdge = capturedEdgeIdToReplace
                             ? filtered.filter((e) => e.id !== capturedEdgeIdToReplace)
                             : filtered
-                          // Directly add edge to array to ensure sourceHandle is preserved
-                          return [...withoutOldEdge, newEdge as EdgeType]
+                          // Add the new edge
+                          return EdgeFactory.addEdge(newEdge, withoutOldEdge)
                         })
 
                         // If inserting between two nodes, create second edge and reorder
                         if (capturedEdgeIdToReplace && capturedTargetNodeId) {
-                          const secondEdge = {
-                            id: `${targetId}-${capturedTargetNodeId}`,
+                          const secondEdge = EdgeFactory.createEdge({
                             source: targetId,
                             target: capturedTargetNodeId,
                             sourceHandle: 'source',
                             targetHandle: 'target',
-                            type: 'default',
-                            markerEnd,
-                            data: {
-                              onAddNode: handleAddNodeFromEdge,
-                            },
-                          }
+                            onAddNode: handleAddNodeFromEdge,
+                          })
 
-                          reactFlowInstance.setEdges((eds) => [...eds, secondEdge as EdgeType])
+                          reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(secondEdge, eds as EdgeType[]))
 
                           // Reorder the new activity to be before the target activity
                           useWorkflowStore.getState().moveActivityBefore(targetId, capturedTargetNodeId)
