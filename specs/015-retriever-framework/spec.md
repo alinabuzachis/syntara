@@ -23,14 +23,14 @@ When an AI agent processes an invocation, the system needs to retrieve relevant 
 ### Acceptance Scenarios
 1. **Given** an invocation and a user prompt, **When** the agent requests document retrieval, **Then** the RetrieverService returns ranked relevant documents from all available sources
 2. **Given** multiple types of storage backends are configured, **When** retrieving documents, **Then** the service uses ALL registered retrievers to collate documents from every available source
-3. **Given** a user prompt about specific content, **When** relevancy checking is performed, **Then** the LLM-based checker accurately identifies which documents are relevant to the query
+3. **Given** a user prompt about specific content, **When** relevancy checking is performed, **Then** the LLM-based checker identifies which documents meet the configured relevancy threshold for the query
 4. **Given** a new storage backend is added to the system, **When** files are stored using that backend, **Then** the RetrieverService can retrieve documents from the new backend without code changes
 
 ### Edge Cases
 - What happens when no documents are available from any registered retriever?
 - How does the system handle when the LLM relevancy checker is unavailable or returns errors? (Resolved: Fallback to keyword-based relevancy checking)
-- What occurs when a storage backend becomes temporarily unavailable?
-- How does the system behave when document content cannot be loaded from storage?
+- What occurs when a storage backend becomes unavailable (network timeout, service down, authentication failure)?
+- How does the system behave when document content cannot be loaded from storage due to permission or corruption issues?
 
 ## Requirements
 
@@ -41,7 +41,7 @@ When an AI agent processes an invocation, the system needs to retrieve relevant 
 - **FR-004**: System MUST implement an LLM-based relevancy checker using OpenRouter configuration
 - **FR-005**: Service MUST accept an invocation_id and user prompt as input to load context dynamically for document retrieval
 - **FR-006**: System MUST return ranked relevant documents based on relevancy scoring with complete document content
-- **FR-007**: Service MUST handle cases where no files are available or relevancy checking fails gracefully
+- **FR-007**: Service MUST handle cases where no files are available or relevancy checking fails by returning appropriate error responses and triggering fallback mechanisms
 - **FR-008**: System MUST allow future addition of new retriever types without modifying existing code
 - **FR-009**: System MUST allow future addition of new relevancy checker algorithms without breaking changes
 - **FR-010**: System MUST implement keyword-based fallback relevancy checker for LLM failures
@@ -104,9 +104,9 @@ graph TB
 
 ### Key Entities
 - **RetrieverService**: Central orchestrator that coordinates document retrieval using registered retrievers and relevancy checkers
-- **DocumentRetriever**: Abstract interface for retrieving documents from different storage backends (local files, cloud storage, databases)
-- **RelevancyChecker**: Interface for algorithms that determine document relevance to a given prompt
-- **RelevantDocument**: Representation of retrieved document content with relevancy score and metadata
+- **DocumentRetriever**: Abstract interface for retrieving documents from different storage backends, returns RelevantDocument objects with full metadata context
+- **RelevancyChecker**: Interface for algorithms that determine document relevance using full document context (content + metadata)
+- **RelevantDocument**: Representation of retrieved document content with relevancy score, file metadata, source type, and retrieval context
 - **RelevancyConfiguration**: Configuration container holding tuning parameters for relevancy checker types, including similarity thresholds (TBD), result limits (TBD), ranking weights (TBD), and algorithm-specific settings (Top-k, Top-p, grounding, recency weighting, MMR - values TBD)
 
 ### Architecture Overview

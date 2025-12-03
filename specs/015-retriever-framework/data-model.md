@@ -52,7 +52,12 @@
 **Purpose**: Interface for retrieving documents from different storage backends
 
 **Required Methods**:
-- `async retrieve_documents(invocation_context: dict) -> List[str]`
+- `async retrieve_documents(invocation_context: dict) -> List[RelevantDocument]`
+
+**Implementation Notes**:
+- Returns RelevantDocument objects with content, metadata, and source type
+- Initial relevancy_score should be set to 1.0 (neutral score before relevancy checking)
+- Must populate file_metadata, source_type, and retrieval_metadata fields
 
 **Implementation Types**:
 - `UploadedFileRetriever` - Retrieves from uploaded files via FileManager
@@ -63,12 +68,18 @@
 **Purpose**: Interface for algorithms that determine document relevance
 
 **Required Methods**:
-- `async check_relevancy(document: str, query: str, config: RelevancyConfiguration) -> List[float]`
+- `async check_relevancy(document: RelevantDocument, query: str, config: RelevancyConfiguration) -> float`
+
+**Implementation Notes**:
+- Receives RelevantDocument with full context (content, metadata, source info)
+- Can leverage file_metadata (size, type, creation date) for enhanced relevancy scoring
+- Returns single relevancy score (0.0 to 1.0) that updates document.relevancy_score
+- Should consider source_type and retrieval_metadata in scoring algorithms
 
 **Implementation Types**:
-- `LLMRelevancyChecker` - Uses LangChain + OpenRouter for LLM-based checking
-- `KeywordRelevancyChecker` - Fallback keyword-based relevancy
-- `SemanticRelevancyChecker` - Future: semantic embedding-based checking
+- `LLMRelevancyChecker` - Uses LangChain + OpenRouter for LLM-based checking with metadata context
+- `KeywordRelevancyChecker` - Keyword-based relevancy with file name and path consideration  
+- `SemanticRelevancyChecker` - Future: semantic embedding-based checking with metadata weighting
 
 ### 5. RetrieverRegistry
 **Purpose**: Registry for managing document retriever implementations
@@ -107,10 +118,10 @@
 
 **Business Logic**:
 1. Load invocation context and extract available data (including `file_metadata` for uploaded files)
-2. Use ALL registered `DocumentRetriever`'s to collate documents from all available sources
-3. Retrieve documents from all storage backends (uploaded files, database, cloud storage, etc.)
-4. Apply relevancy checking with fallback logic to all retrieved documents
-5. Rank and filter results based on configuration
+2. Use ALL registered `DocumentRetriever`'s to collate RelevantDocument objects from all available sources
+3. Apply relevancy checking with fallback logic to update relevancy scores
+4. Rank documents by updated relevancy scores
+5. Apply filters based on configuration (thresholds, max_results)
 6. Return ranked relevant documents from all sources
 
 ## Data Flow
@@ -127,12 +138,12 @@ graph TB
 
     subgraph "Document Retrieval"
         D[Use ALL Registered Retrievers] --> E[Retrieve from All Sources]
-        E --> F[Collated Document Content List]
+        E --> F[RelevantDocument Objects with Metadata]
     end
 
     subgraph "Relevancy Processing"
         G[Primary Relevancy Check] --> H{Success?}
-        H -->|Yes| I[Score Documents]
+        H -->|Yes| I[Update Relevancy Scores]
         H -->|No| J[Fallback Keyword Check]
         J --> I
     end
@@ -140,7 +151,7 @@ graph TB
     subgraph "Result Processing"
         I --> K[Rank by Score]
         K --> L[Apply Filters]
-        L --> M[Create RelevantDocument Objects]
+        L --> M[Return Ranked RelevantDocuments]
     end
 
     A --> B
@@ -151,6 +162,7 @@ graph TB
     style A fill:#e1f5fe
     style N fill:#e8f5e8
     style H fill:#fff3cd
+    style F fill:#e8f5e8
 ```
 
 ## Validation Rules

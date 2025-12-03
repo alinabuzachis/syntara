@@ -231,7 +231,7 @@ class UploadedFileRetriever(DocumentRetriever):
     def __init__(self, file_manager: FileManager):
         self.file_manager = file_manager
 
-    async def retrieve_documents(self, invocation_context: dict) -> List[str]:
+    async def retrieve_documents(self, invocation_context: dict) -> List[RelevantDocument]:
         # Get file_metadata from invocation context
         file_metadata_list = invocation_context.get("file_metadata", [])
 
@@ -256,7 +256,20 @@ class UploadedFileRetriever(DocumentRetriever):
 
             # Load converted document content
             content = await retriever.load_file(converted_file_path)
-            documents.append(content.decode('utf-8'))  # Convert bytes to string
+            content_str = content.decode('utf-8')  # Convert bytes to string
+
+            # Create RelevantDocument with metadata
+            relevant_doc = RelevantDocument(
+                content=content_str,
+                relevancy_score=1.0,  # Neutral score before relevancy checking
+                file_metadata=file_metadata,
+                source_type="uploaded_file",
+                retrieval_metadata={
+                    "file_path": converted_file_path,
+                    "retrieved_at": datetime.utcnow().isoformat()
+                }
+            )
+            documents.append(relevant_doc)
 
         return documents
 ```

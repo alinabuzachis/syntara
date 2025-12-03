@@ -1,8 +1,8 @@
 
-# Implementation Plan: [FEATURE]
+# Implementation Plan: RetrieverService Framework
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Branch**: `015-retriever-framework` | **Date**: 2025-11-27 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/home/manstis/workspaces/github/manstis/forks/nexus/specs/015-retriever-framework/spec.md`
 
 ## Execution Flow (/plan command scope)
 ```
@@ -31,18 +31,18 @@
 - Phase 3-4: Implementation execution (manual or via tools)
 
 ## Summary
-[Extract from feature spec: primary requirement + technical approach from research]
+Implement `RetrieverService` framework with registry-based architecture to coordinate document retrieval from multiple storage backends (starting with uploaded files) using configurable relevancy checkers (LLM-based with keyword fallback). Service accepts `invocation_id` and user prompt to dynamically load context and return ranked relevant documents with full content.
 
 ## Technical Context
-**Language/Version**: [e.g., Python 3.12, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
-**Primary Dependencies**: [e.g., FastAPI, SQLModel (for unified data models), httpx or NEEDS CLARIFICATION]
-**Storage**: [if applicable, e.g., PostgreSQL with SQLModel ORM, CoreData, files or N/A]
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Python 3.12 \
+**Primary Dependencies**: FastAPI, SQLModel (unified data models), LangChain (LLM integration), AsyncPG (PostgreSQL), python-magic (MIME detection), aiofiles (async file I/O) \
+**Storage**: PostgreSQL with SQLModel ORM, JSONB for context metadata, pluggable file storage backends (local filesystem, future S3/GCS) \
+**Testing**: pytest with async support, pytest-cov (80% minimum coverage), respx for HTTP mocking \
+**Target Platform**: Linux server with async/await pattern throughout \
+**Project Type**: single - backend service component (no frontend/mobile) \
+**Performance Goals**: Handle uploaded file retrieval with response time targets (TBD) for relevancy checking, support multiple concurrent retrieval operations \
+**Constraints**: 10MB file size limit, full document content returned (no chunking at service level), graceful LLM fallback to keyword-based relevancy \
+**Scale/Scope**: Multi-user system with per-invocation document retrieval, extensible registry pattern for future storage backends and relevancy algorithms
 
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
@@ -50,27 +50,27 @@
 [Gates determined based on constitution file]
 
 ### Technology Standards Compliance
-- [ ] **SQLModel for Data Models**: All data models use SQLModel (not separate Pydantic + SQLAlchemy)
+- [x] **SQLModel for Data Models**: All data models use SQLModel (not separate Pydantic + SQLAlchemy) - Using existing SQLModel patterns for `RelevantDocument` and configuration models
 
 ### Code Architecture Compliance
-- [ ] **DRY Principle**: Design avoids code duplication through proper abstraction
-- [ ] **SOLID Principles**: Design follows Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, and Dependency Inversion
-- [ ] **Separation of Concerns**: Clear boundaries between layers (presentation, business logic, data access)
-- [ ] **Dependency Injection**: Dependencies are explicitly injected via constructors
-- [ ] **Composition vs Inheritance**: Design uses composition over inheritance unless clear "is-a" relationship exists
+- [x] **DRY Principle**: Design avoids code duplication through proper abstraction - Registry pattern prevents duplication for retriever/checker implementations
+- [x] **SOLID Principles**: Design follows Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, and Dependency Inversion - Service follows existing patterns with clear interfaces
+- [x] **Separation of Concerns**: Clear boundaries between layers (presentation, business logic, data access) - RetrieverService is business logic layer, separated from storage (FileManager) and presentation concerns
+- [x] **Dependency Injection**: Dependencies are explicitly injected via constructors - Service uses focused dependencies: session for database access, registries for retrieval logic
+- [x] **Composition vs Inheritance**: Design uses composition over inheritance unless clear "is-a" relationship exists - Registry composition pattern for retrievers/checkers vs inheritance
 
 ### API Specification Standards Compliance
-- [ ] **OpenAPI/AsyncAPI Compliance**: REST APIs use latest OpenAPI spec; WebSocket/async APIs use AsyncAPI v3.0.0+
-- [ ] **Naming Convention**: API specs follow snake_case pattern for all names
-- [ ] **Documentation Completeness**: All endpoints/operations fully documented with descriptions, parameters, examples
-- [ ] **RFC 9457 Error Format**: Error responses follow Problem Details standard with type, title, status, detail, instance
-- [ ] **Error Message Safety**: Error messages are actionable and don't expose internal implementation details
-- [ ] **API Versioning**: APIs implement semantic versioning with clear version communication (URL path or header)
-- [ ] **API Path Structure**: All endpoints follow pattern /api/v1/[component]/[resource]
-- [ ] **Pagination Support**: All collection endpoints support pagination with limit and cursor parameters
-- [ ] **Filtering/Sorting Consistency**: Filtering and sorting parameters follow consistent patterns across endpoints
-- [ ] **Security Documentation**: Authenticated endpoints document security schemes, authentication requirements, and scopes
-- [ ] **Schema Compatibility**: Schema changes validated for backward compatibility; breaking changes require major version bump
+- [x] **OpenAPI/AsyncAPI Compliance**: N/A - Internal service component, no direct API endpoints
+- [x] **Naming Convention**: N/A - Internal service, following Python snake_case conventions
+- [x] **Documentation Completeness**: N/A - Internal service component
+- [x] **RFC 9457 Error Format**: N/A - Internal service uses exceptions, not HTTP responses
+- [x] **Error Message Safety**: Will use domain exceptions without exposing implementation details
+- [x] **API Versioning**: N/A - Internal service component
+- [x] **API Path Structure**: N/A - Internal service component
+- [x] **Pagination Support**: N/A - Internal service returns ranked document lists
+- [x] **Filtering/Sorting Consistency**: N/A - Internal service component
+- [x] **Security Documentation**: N/A - Internal service, security handled at API layer
+- [x] **Schema Compatibility**: Will follow backward compatibility for data models used
 
 ## Project Structure
 
@@ -86,42 +86,43 @@ specs/[###-feature]/
 
 ### Source Code (repository root)
 ```
-# Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+# RetrieverService Framework Structure
+src/nexus/agent_orchestrator/context_manager/
+├── retriever_service/              # New RetrieverService framework
+│   ├── models/                     # SQLModel data models
+│   ├── interfaces/                 # Abstract base classes
+│   ├── registries/                 # Registry pattern implementations
+│   ├── retrievers/                 # Concrete retriever implementations
+│   ├── checkers/                   # Concrete checker implementations
+│   ├── services/                   # Main service layer
+│   └── utils/                      # Utility modules
 
-tests/
-├── contract/
-├── integration/
-└── unit/
+tests/unit/agent_orchestrator/context_manager/
+├── retriever_service/              # Unit tests for RetrieverService
 
-# Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure]
+tests/integration/agent_orchestrator/context_manager/
+├── retriever_service/              # Integration tests for RetrieverService
 ```
 
-**Structure Decision**: [DEFAULT to Option 1 unless Technical Context indicates web/mobile app]
+**Structure Decision**: Option 1 (Single project) - Backend service component with no frontend/mobile requirements
+
+**Migration from Existing Stub**: The current implementation includes a stub `RetrieverService` class in `src/nexus/agent_orchestrator/context_manager/retriever.py` that needs to be replaced:
+
+- **Current Interface**: `retrieve(query: str, correlation_id: str) -> None`
+- **New Interface**: `retrieve_relevant_documents(invocation_id: UUID, prompt: str) -> List[RelevantDocument]`
+
+**Files Requiring Updates**:
+- Remove: `src/nexus/agent_orchestrator/context_manager/retriever.py`
+- Update imports in: `planner.py`, `__init__.py`
+- Update tests: `test_planner.py`, `test_services.py`
+- Replace stub with full implementation in new location
+
+**Interface Changes Required**:
+- **ContextManagerPlanner.plan_request()**: Add `invocation_id` parameter
+  - Current: `plan_request(correlation_id: str, session_id: str, query: str)`
+  - New: `plan_request(invocation_id: str, correlation_id: str, session_id: str, query: str)`
+- **InvocationExecutionService**: Pass `invocation.id` to ContextManagerPlanner
+- **Call flow**: `InvocationExecutionService` → `ContextManagerPlanner` → `RetrieverService`
 
 ## Phase 0: Outline & Research
 1. **Extract unknowns from Technical Context** above:
@@ -198,6 +199,66 @@ ios/ or android/
 
 **IMPORTANT**: This phase is executed by the /tasks command, NOT by /plan
 
+## Implementation Plan Architecture
+
+```mermaid
+graph TB
+    subgraph "Phase 0: Research"
+        A[research.md]
+    end
+
+    subgraph "Phase 1: Design & Contracts"
+        B[data-model.md]
+        C[quickstart.md]
+        D[CLAUDE.md]
+        E[Internal Service Models]
+    end
+
+    subgraph "Phase 2: Tasks (Future)"
+        F[tasks.md]
+    end
+
+    subgraph "Generated Artifacts Relationships"
+        G[Core Entities] --> H[Test Scenarios]
+        I[Registry Pattern] --> J[Service Architecture]
+        K[FileManager Integration] --> L[Storage Backends]
+        M[LLM Integration] --> N[Relevancy Checkers]
+    end
+
+    subgraph "System Integration Points"
+        O[Existing FileManager] --> P[UploadedFileRetriever]
+        Q[OpenRouter Config] --> R[LLMRelevancyChecker]
+        S[SQLModel Patterns] --> T[Data Models]
+        U[BaseService Pattern] --> V[RetrieverService]
+    end
+
+    A --> B
+    A --> C
+    B --> F
+    C --> F
+    D --> F
+
+    B --> G
+    B --> I
+    C --> H
+    C --> J
+
+    G --> S
+    I --> U
+    K --> O
+    M --> Q
+
+    style A fill:#e1f5fe
+    style B fill:#e8f5e8
+    style C fill:#e8f5e8
+    style D fill:#e8f5e8
+    style F fill:#fff3cd
+    style O fill:#f3e5f5
+    style Q fill:#f3e5f5
+    style S fill:#f3e5f5
+    style U fill:#f3e5f5
+```
+
 ## Phase 3+: Future Implementation
 *These phases are beyond the scope of the /plan command*
 
@@ -218,18 +279,18 @@ ios/ or android/
 *This checklist is updated during execution flow*
 
 **Phase Status**:
-- [ ] Phase 0: Research complete (/plan command)
-- [ ] Phase 1: Design complete (/plan command)
-- [ ] Phase 2: Task planning complete (/plan command - describe approach only)
+- [x] Phase 0: Research complete (/plan command)
+- [x] Phase 1: Design complete (/plan command)
+- [x] Phase 2: Task planning complete (/plan command - describe approach only)
 - [ ] Phase 3: Tasks generated (/tasks command)
 - [ ] Phase 4: Implementation complete
 - [ ] Phase 5: Validation passed
 
 **Gate Status**:
-- [ ] Initial Constitution Check: PASS
-- [ ] Post-Design Constitution Check: PASS
-- [ ] All NEEDS CLARIFICATION resolved
-- [ ] Complexity deviations documented
+- [x] Initial Constitution Check: PASS
+- [x] Post-Design Constitution Check: PASS
+- [x] All NEEDS CLARIFICATION resolved
+- [x] Complexity deviations documented (none required)
 
 ---
 *Based on Constitution v1.2.0 - See `.specify/memory/constitution.md`*
