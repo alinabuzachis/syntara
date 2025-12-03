@@ -17,6 +17,8 @@
   "dependencies": {
     "@ansible/nexus-ui-framework": "file:../nexus-ui-framework",
     "@dagrejs/dagre": "^1.1.5",
+    "@patternfly/react-core": "^6.5.0-prerelease.12",
+    "@patternfly/react-table": "^6.5.0-prerelease.12",
     "@tailwindcss/vite": "^4.1.16",
     "@tanstack/react-query": "^5.90.5",
     "@xyflow/react": "^12.9.0",

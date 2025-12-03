@@ -83,3 +83,12 @@ dd {
   @apply text-white not-last:mb-6;
   font-size: small;
 }
+
+/* Add spacing to Compass layout */
+.pf-v6-c-compass__header {
+  padding: 2rem 2rem 2rem;
+}
+
+.pf-v6-c-compass__content {
+  padding-top: var(--pf-t--global--spacer--md, 1rem);
+}
