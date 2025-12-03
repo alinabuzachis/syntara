@@ -45,7 +45,7 @@ When an AI agent processes an invocation, the system needs to retrieve relevant 
 - **FR-008**: System MUST allow future addition of new retriever types without modifying existing code
 - **FR-009**: System MUST allow future addition of new relevancy checker algorithms without breaking changes
 - **FR-010**: System MUST implement keyword-based fallback relevancy checker for LLM failures
-- **FR-011**: System MUST support global configuration of comprehensive tuning parameters per relevancy checker type including similarity thresholds, maximum result count, ranking weights, algorithm-specific parameters (Top-k, Top-p for matching), grounding parameters for reference relevance, recency weighting, and maximal marginal relevance settings
+- **FR-011**: System MUST support global configuration of comprehensive tuning parameters per relevancy checker type including similarity thresholds (TBD), maximum result count (TBD), ranking weights (TBD), algorithm-specific parameters (Top-k, Top-p for matching - values TBD), grounding parameters for reference relevance (TBD), recency weighting (TBD), and maximal marginal relevance settings (TBD)
 - **FR-012**: Service MUST use ALL registered DocumentRetrievers to collate documents from all available sources, not select retrievers based on FileMetadata or other contextual information
 
 ## Clarifications
@@ -59,6 +59,9 @@ When an AI agent processes an invocation, the system needs to retrieve relevant 
 - Q: Should the RetrieverService support configurable tuning profiles for different retrieval scenarios? → A: Yes, but only global configuration per relevancy checker type
 - Q: Which retrieval performance parameters should have configurable thresholds? → A: All of the above + algorithm-specific parameters (Top-k, Top-p, recency weights)
 - Q: How does RetrieverService select which DocumentRetrievers to use? → A: Uses ALL registered retrievers to collate documents from all sources
+
+### Session 2025-12-03
+- Q: How should performance requirements be expressed in the specification? → A: Keep general performance categories but mark specific thresholds as "TBD"
 
 ### Clarification Process Impact
 
@@ -104,7 +107,7 @@ graph TB
 - **DocumentRetriever**: Abstract interface for retrieving documents from different storage backends (local files, cloud storage, databases)
 - **RelevancyChecker**: Interface for algorithms that determine document relevance to a given prompt
 - **RelevantDocument**: Representation of retrieved document content with relevancy score and metadata
-- **RelevancyConfiguration**: Configuration container holding tuning parameters for relevancy checker types, including similarity thresholds, result limits, ranking weights, and algorithm-specific settings (Top-k, Top-p, grounding, recency weighting, MMR)
+- **RelevancyConfiguration**: Configuration container holding tuning parameters for relevancy checker types, including similarity thresholds (TBD), result limits (TBD), ranking weights (TBD), and algorithm-specific settings (Top-k, Top-p, grounding, recency weighting, MMR - values TBD)
 
 ### Architecture Overview
 
@@ -139,7 +142,7 @@ graph TB
     end
 
     subgraph "Configuration"
-        RCF --> |similarity thresholds, Top-k/p, MMR| PARAMS[Tuning Parameters]
+        RCF --> |similarity thresholds TBD, Top-k/p TBD, MMR TBD| PARAMS[Tuning Parameters]
     end
 
     subgraph "Data Sources"
