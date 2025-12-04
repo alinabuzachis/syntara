@@ -31,7 +31,15 @@ FILES_TO_COPY=(
     ".claude"
     ".gemini"
     ".cursor"
+    "Makefile.local"
 )
+
+if [ "${WORKTREE_HELPER_FILES_TO_COPY+x}" ]; then
+    FILES_TO_COPY=()
+    for item in ${WORKTREE_HELPER_FILES_TO_COPY[@]}; do
+        FILES_TO_COPY+=("$item")
+    done
+fi
 
 # Helper functions
 info() {
@@ -53,6 +61,29 @@ error() {
 die() {
     error "$1"
     exit 1
+}
+
+# Copy optional files and directories from the main repository into the worktree
+copy_optional_items() {
+    local source_root="$1"
+    local dest_root="$2"
+    shift 2
+    local items=("$@")
+
+    info "Copying optional files and directories from main repository..."
+    for item in "${items[@]}"; do
+        local source_path="$source_root/$item"
+
+        if [ -f "$source_path" ]; then
+            cp "$source_path" "$dest_root/$item"
+            success "Copied file: $item"
+        elif [ -d "$source_path" ]; then
+            cp -r "$source_path" "$dest_root/"
+            success "Copied directory: $item"
+        else
+            info "Skipped (not found): $item"
+        fi
+    done
 }
 
 # Parse arguments
@@ -137,32 +168,7 @@ else
 fi
 success "Git worktree created at: $WORKTREE_PATH"
 
-# Copy optional files and directories from main repository
-info "Copying optional files and directories from main repository..."
-COPIED_COUNT=0
-for item in "${FILES_TO_COPY[@]}"; do
-    SOURCE_PATH="$REPO_ROOT/$item"
-
-    if [ -f "$SOURCE_PATH" ]; then
-        # Copy file
-        DEST_PATH="$WORKTREE_PATH/$item"
-        cp "$SOURCE_PATH" "$DEST_PATH"
-        success "Copied file: $item"
-        COPIED_COUNT=$((COPIED_COUNT + 1))
-    elif [ -d "$SOURCE_PATH" ]; then
-        # Copy directory recursively
-        DEST_PATH="$WORKTREE_PATH/"
-        cp -r "$SOURCE_PATH" "$DEST_PATH"
-        success "Copied directory: $item"
-        COPIED_COUNT=$((COPIED_COUNT + 1))
-    else
-        info "Skipped (not found): $item"
-    fi
-done
-
-if [ $COPIED_COUNT -eq 0 ]; then
-    info "No optional files or directories found to copy"
-fi
+copy_optional_items "$REPO_ROOT" "$WORKTREE_PATH" "${FILES_TO_COPY[@]}"
 
 # Create Python virtual environment
 info "Creating Python virtual environment with $PYTHON_VERSION..."
