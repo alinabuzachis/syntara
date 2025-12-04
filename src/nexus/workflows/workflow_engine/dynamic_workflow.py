@@ -12,6 +12,17 @@ from typing import Any, cast
 
 from temporalio import workflow
 
+# Import constants module and HTTP-using activities with unsafe passthrough
+# - constants: Loads settings which triggers tempfile.gettempdir()
+# - agentic_activity: Has its own unsafe block for AgentOrchestratorClient
+# - api_activity: Uses httpx which triggers urllib warnings in sandbox
+# Must import constants first so when models imports constants, it uses the cached module
+# See: https://github.com/temporalio/sdk-python#avoiding-the-sandbox
+with workflow.unsafe.imports_passed_through():
+    from . import constants  # noqa: F401 - Ensures constants load outside sandbox
+    from .activities.agentic_activity import execute_agentic_activity
+    from .activities.api_activity import execute_api_request
+
 from .activities.common import build_retry_policy, parse_timeout
 
 # Import script activities (use asyncio.subprocess, no sandbox issues)
@@ -31,13 +42,6 @@ from .models import (
     WhileLoopDefinition,
     WorkflowDefinition,
 )
-
-# Import API and agentic activities with unsafe passthrough to avoid sandbox restrictions
-# The httpx library and agent client trigger warnings in Temporal's sandbox
-# See: https://github.com/temporalio/sdk-python#avoiding-the-sandbox
-with workflow.unsafe.imports_passed_through():
-    from .activities.agentic_activity import execute_agentic_activity
-    from .activities.api_activity import execute_api_request
 
 
 @workflow.defn

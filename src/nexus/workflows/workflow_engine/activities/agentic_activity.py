@@ -13,8 +13,7 @@ from uuid import uuid4
 from pydantic import ValidationError
 from temporalio import activity, workflow
 
-from nexus.api.constants import SYSTEM_USER_ID
-from nexus.workflows.workflow_engine import settings
+from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.expression_resolver import ExpressionResolver
 from nexus.workflows.workflow_engine.models import AgenticExecutorConfig
 
@@ -70,10 +69,10 @@ def _validate_input_data(input_data: dict[str, Any]) -> None:
 
         # Check individual value length
         value_length = len(str_value)
-        if value_length > settings.MAX_INPUT_VALUE_LENGTH:
+        if value_length > constants.MAX_INPUT_VALUE_LENGTH:
             msg = (
                 f"Input value '{key}' exceeds maximum length "
-                f"({value_length} > {settings.MAX_INPUT_VALUE_LENGTH} characters)"
+                f"({value_length} > {constants.MAX_INPUT_VALUE_LENGTH} characters)"
             )
             raise AgenticActivityError(msg)
 
@@ -86,8 +85,8 @@ def _validate_input_data(input_data: dict[str, Any]) -> None:
         total_size += value_length
 
     # Check total input size
-    if total_size > settings.MAX_TOTAL_INPUT_SIZE:
-        msg = f"Total input size exceeds maximum ({total_size} > {settings.MAX_TOTAL_INPUT_SIZE} characters)"
+    if total_size > constants.MAX_TOTAL_INPUT_SIZE:
+        msg = f"Total input size exceeds maximum ({total_size} > {constants.MAX_TOTAL_INPUT_SIZE} characters)"
         raise AgenticActivityError(msg)
 
 
@@ -107,8 +106,8 @@ def _validate_resolved_prompt(prompt: str) -> None:
     """
     prompt_length = len(prompt)
 
-    if prompt_length > settings.MAX_PROMPT_LENGTH:
-        msg = f"Resolved prompt exceeds maximum length ({prompt_length} > {settings.MAX_PROMPT_LENGTH} characters)"
+    if prompt_length > constants.MAX_PROMPT_LENGTH:
+        msg = f"Resolved prompt exceeds maximum length ({prompt_length} > {constants.MAX_PROMPT_LENGTH} characters)"
         raise AgenticActivityError(msg)
 
     if "\0" in prompt:
@@ -208,7 +207,7 @@ async def execute_agentic_activity(
         workflow_id = "direct-invocation"
 
     # Use system user ID for workflow-initiated invocations, until users have been added/integrated
-    user_id = str(SYSTEM_USER_ID)
+    user_id = str(constants.SYSTEM_USER_ID)
 
     logger.info(
         "Invoking Agent Orchestrator (correlation_id=%s, user_id=%s, agent=%s, model=%s)",
@@ -219,7 +218,7 @@ async def execute_agentic_activity(
     )
 
     # Use context manager for automatic resource cleanup
-    async with AgentOrchestratorClient(base_url=settings.AGENT_ORCHESTRATOR_BASE_URL) as agent_client:
+    async with AgentOrchestratorClient(base_url=constants.AGENT_ORCHESTRATOR_BASE_URL) as agent_client:
         try:
             # Invoke agent and get completed result
             result = await agent_client.invoke_agent(

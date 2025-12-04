@@ -14,9 +14,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from nexus.core.config import get_settings
 from nexus.core.constants import CONTEXT_KEY
 from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorError
-from nexus.workflows.workflow_engine import settings
 from nexus.workflows.workflow_engine.activities.agentic_activity import AgenticActivityError, execute_agentic_activity
 
 
@@ -396,8 +396,8 @@ class TestAgenticActivitySecurity:
             },
         }
 
-        # Create input with value exceeding MAX_INPUT_VALUE_LENGTH
-        huge_value = "x" * (settings.MAX_INPUT_VALUE_LENGTH + 1)
+        # Create input with value exceeding max_input_value_length
+        huge_value = "x" * (get_settings().max_input_value_length + 1)
         input_data = {"huge_field": huge_value}
 
         with pytest.raises(AgenticActivityError) as exc_info:
@@ -419,9 +419,10 @@ class TestAgenticActivitySecurity:
             },
         }
 
-        # Create many inputs that individually pass but collectively exceed MAX_TOTAL_INPUT_SIZE
-        individual_size = settings.MAX_INPUT_VALUE_LENGTH // 10
-        num_inputs = (settings.MAX_TOTAL_INPUT_SIZE // individual_size) + 2
+        # Create many inputs that individually pass but collectively exceed max_total_input_size
+        settings = get_settings()
+        individual_size = settings.max_input_value_length // 10
+        num_inputs = (settings.max_total_input_size // individual_size) + 2
 
         input_data = {f"field_{i}": "x" * individual_size for i in range(num_inputs)}
 
@@ -457,8 +458,8 @@ class TestAgenticActivitySecurity:
     @pytest.mark.asyncio
     async def test_rejects_oversized_resolved_prompt(self) -> None:
         """Test that oversized resolved prompts are rejected."""
-        # Create a prompt template that will exceed MAX_PROMPT_LENGTH when resolved
-        huge_prompt = "x" * (settings.MAX_PROMPT_LENGTH + 1)
+        # Create a prompt template that will exceed max_prompt_length when resolved
+        huge_prompt = "x" * (get_settings().max_prompt_length + 1)
 
         activity_config = {
             "executor": "agentic",

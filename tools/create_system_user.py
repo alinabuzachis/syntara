@@ -24,7 +24,6 @@ Environment Variables:
 
 import asyncio
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -34,7 +33,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from nexus.api.constants import SYSTEM_USER_ID
+from nexus.core.config import get_settings
 from nexus.core.models.user import User, UserRole
 
 # Configure logging
@@ -52,33 +51,24 @@ async def create_system_user() -> None:
         RuntimeError: If database connection fails or user creation fails
 
     """
-    # Build database URL from environment variables
-    db_user = os.getenv("NEXUS_DB_USER", "admin")
-    db_password = os.getenv("NEXUS_DB_PASSWORD", "admin")
-    db_host = os.getenv("NEXUS_DB_HOST", "localhost")
-    db_port = os.getenv("NEXUS_DB_PORT", "5432")
-    db_name = os.getenv("NEXUS_DB_NAME", "nexus_api")
+    settings = get_settings()
+    system_user_id = settings.system_user_id
 
-    database_url = os.getenv(
-        "DATABASE_URL",
-        f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}",
-    )
-
-    logger.info("Connecting to database: %s:%s/%s", db_host, db_port, db_name)
+    logger.info("Connecting to database: %s:%s/%s", settings.db_host, settings.db_port, settings.db_name)
 
     # Create async engine
     engine = create_async_engine(
-        database_url,
+        settings.database_url,
         echo=False,
     )
 
     try:
         async with AsyncSession(engine) as session:
             # Check if system user already exists
-            existing_user = await session.get(User, SYSTEM_USER_ID)
+            existing_user = await session.get(User, system_user_id)
 
             if existing_user:
-                logger.info("✅ System user already exists: %s", SYSTEM_USER_ID)
+                logger.info("✅ System user already exists: %s", system_user_id)
                 logger.info("   Username: %s", existing_user.username)
                 logger.info("   Email: %s", existing_user.email)
                 logger.info("   Role: %s", existing_user.role.value)
@@ -86,7 +76,7 @@ async def create_system_user() -> None:
 
             # Create system user
             system_user = User(
-                id=SYSTEM_USER_ID,
+                id=system_user_id,
                 username="system",
                 email="system@nexus.internal",
                 full_name="System User",
@@ -99,7 +89,7 @@ async def create_system_user() -> None:
             await session.commit()
 
             logger.info("✅ System user created successfully!")
-            logger.info("   ID: %s", SYSTEM_USER_ID)
+            logger.info("   ID: %s", system_user_id)
             logger.info("   Username: system")
             logger.info("   Email: system@nexus.internal")
             logger.info("   Role: %s", UserRole.ADMINISTRATOR.value)

@@ -16,16 +16,16 @@ logger = logging.getLogger(__name__)
 def get_openrouter_llm(
     *,
     model: str | None = None,
-    temperature: float = 0.7,
-    max_tokens: int = 1000,
+    temperature: float | None = None,
+    max_tokens: int | None = None,
 ) -> ChatOpenAI:
     """Get LangChain ChatOpenAI configured for OpenRouter.
 
     Args:
         model: OpenRouter model name (e.g., 'anthropic/claude-3.5-sonnet').
                If None, uses settings default.
-        temperature: LLM temperature (0.0-1.0). Default: 0.7
-        max_tokens: Maximum tokens in response. Default: 1000
+        temperature: LLM temperature (0.0-1.0). If None, uses settings default.
+        max_tokens: Maximum tokens in response. If None, uses settings default.
 
     Returns:
         Configured ChatOpenAI instance
@@ -42,14 +42,16 @@ def get_openrouter_llm(
         error_msg = "NEXUS_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
         raise ValueError(error_msg)
 
-    # Use provided model or default from settings
+    # Use provided values or defaults from settings
     selected_model = model or settings.openrouter_model
+    selected_temperature = temperature if temperature is not None else settings.openrouter_temperature
+    selected_max_tokens = max_tokens if max_tokens is not None else settings.openrouter_max_tokens
 
     logger.info(
         "Initializing OpenRouter LLM: model=%s, temperature=%s, max_tokens=%s",
         selected_model,
-        temperature,
-        max_tokens,
+        selected_temperature,
+        selected_max_tokens,
     )
 
     # Configure ChatOpenAI with OpenRouter
@@ -57,9 +59,9 @@ def get_openrouter_llm(
     return ChatOpenAI(
         model=selected_model,
         api_key=settings.openrouter_api_key,
-        base_url=settings.openrouter_base_url,
-        temperature=temperature,
-        max_completion_tokens=max_tokens,
+        base_url=str(settings.openrouter_base_url),
+        temperature=selected_temperature,
+        max_completion_tokens=selected_max_tokens,
         # OpenRouter-specific headers (optional but recommended)
         default_headers={
             "HTTP-Referer": "https://github.com/syntara-orchestration/syntara",

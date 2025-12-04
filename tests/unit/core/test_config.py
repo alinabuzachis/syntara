@@ -194,3 +194,175 @@ class TestLoggingSettings:
             assert settings.log_level == "warning"
         finally:
             os.environ.pop("NEXUS_LOG_LEVEL", None)
+
+
+# =============================================================================
+# TemporalSettings Tests
+# =============================================================================
+
+
+class TestTemporalSettings:
+    """Tests for TemporalSettings configuration."""
+
+    def test_temporal_defaults(self) -> None:
+        """Test default Temporal configuration values."""
+        settings = Settings()
+        assert settings.temporal_address == "localhost:7233"
+        assert settings.temporal_namespace == "default"
+        assert settings.task_queue == "nexus-workflow-queue"
+        assert str(settings.system_user_id) == "00000000-0000-0000-0000-000000000001"
+        assert settings.max_loop_iterations == 10000
+
+    def test_temporal_settings_from_env(self) -> None:
+        """Test Temporal settings can be configured via environment."""
+        os.environ["NEXUS_TEMPORAL_ADDRESS"] = "temporal.example.com:7233"
+        os.environ["NEXUS_TEMPORAL_NAMESPACE"] = "production"
+        os.environ["NEXUS_TASK_QUEUE"] = "prod-queue"
+        os.environ["NEXUS_SYSTEM_USER_ID"] = "12345678-1234-1234-1234-123456789012"
+        os.environ["NEXUS_MAX_LOOP_ITERATIONS"] = "5000"
+
+        try:
+            settings = Settings()
+            assert settings.temporal_address == "temporal.example.com:7233"
+            assert settings.temporal_namespace == "production"
+            assert settings.task_queue == "prod-queue"
+            assert str(settings.system_user_id) == "12345678-1234-1234-1234-123456789012"
+            assert settings.max_loop_iterations == 5000
+        finally:
+            os.environ.pop("NEXUS_TEMPORAL_ADDRESS", None)
+            os.environ.pop("NEXUS_TEMPORAL_NAMESPACE", None)
+            os.environ.pop("NEXUS_TASK_QUEUE", None)
+            os.environ.pop("NEXUS_SYSTEM_USER_ID", None)
+            os.environ.pop("NEXUS_MAX_LOOP_ITERATIONS", None)
+
+    def test_max_loop_iterations_validation(self) -> None:
+        """Test that max_loop_iterations must be at least 1."""
+        os.environ["NEXUS_MAX_LOOP_ITERATIONS"] = "0"
+        try:
+            with pytest.raises(ValueError, match="greater than or equal to 1"):
+                Settings()
+        finally:
+            os.environ.pop("NEXUS_MAX_LOOP_ITERATIONS", None)
+
+
+# =============================================================================
+# WorkflowEngineSettings Tests
+# =============================================================================
+
+
+class TestWorkflowEngineSettings:
+    """Tests for WorkflowEngineSettings configuration."""
+
+    def test_workflow_engine_defaults(self) -> None:
+        """Test default workflow engine configuration values."""
+        settings = Settings()
+        assert settings.api_timeout_seconds == 30
+        assert settings.script_timeout_seconds == 300
+        assert settings.agentic_timeout_seconds == 300
+        assert settings.max_duration_hours == 8760
+        assert settings.max_duration_minutes == 525600
+        assert settings.max_duration_seconds == 31536000
+        assert settings.script_cleanup_terminate_timeout == 1.0
+        assert settings.script_cleanup_kill_timeout == 0.5
+        assert settings.max_env_var_length == 32768
+        assert settings.max_prompt_length == 100000
+        assert settings.max_input_value_length == 10000
+        assert settings.max_total_input_size == 50000
+        assert str(settings.agent_orchestrator_base_url) == "http://localhost:8000/api/v1"
+
+    def test_workflow_engine_settings_from_env(self) -> None:
+        """Test workflow engine settings can be configured via environment."""
+        os.environ["NEXUS_API_TIMEOUT_SECONDS"] = "60"
+        os.environ["NEXUS_SCRIPT_TIMEOUT_SECONDS"] = "600"
+        os.environ["NEXUS_AGENTIC_TIMEOUT_SECONDS"] = "600"
+        os.environ["NEXUS_AGENT_ORCHESTRATOR_BASE_URL"] = "http://agent.example.com/api/v1"
+
+        try:
+            settings = Settings()
+            assert settings.api_timeout_seconds == 60
+            assert settings.script_timeout_seconds == 600
+            assert settings.agentic_timeout_seconds == 600
+            assert str(settings.agent_orchestrator_base_url) == "http://agent.example.com/api/v1"
+        finally:
+            os.environ.pop("NEXUS_API_TIMEOUT_SECONDS", None)
+            os.environ.pop("NEXUS_SCRIPT_TIMEOUT_SECONDS", None)
+            os.environ.pop("NEXUS_AGENTIC_TIMEOUT_SECONDS", None)
+            os.environ.pop("NEXUS_AGENT_ORCHESTRATOR_BASE_URL", None)
+
+    def test_duration_limits_allow_zero_for_unlimited(self) -> None:
+        """Test that duration limits can be set to 0 (unlimited)."""
+        os.environ["NEXUS_MAX_DURATION_HOURS"] = "0"
+        os.environ["NEXUS_MAX_DURATION_MINUTES"] = "0"
+        os.environ["NEXUS_MAX_DURATION_SECONDS"] = "0"
+
+        try:
+            settings = Settings()
+            assert settings.max_duration_hours == 0
+            assert settings.max_duration_minutes == 0
+            assert settings.max_duration_seconds == 0
+        finally:
+            os.environ.pop("NEXUS_MAX_DURATION_HOURS", None)
+            os.environ.pop("NEXUS_MAX_DURATION_MINUTES", None)
+            os.environ.pop("NEXUS_MAX_DURATION_SECONDS", None)
+
+    def test_timeout_validation(self) -> None:
+        """Test that timeout settings enforce minimum values."""
+        os.environ["NEXUS_API_TIMEOUT_SECONDS"] = "0"
+        try:
+            with pytest.raises(ValueError, match="greater than or equal to 1"):
+                Settings()
+        finally:
+            os.environ.pop("NEXUS_API_TIMEOUT_SECONDS", None)
+
+
+# =============================================================================
+# OpenRouterSettings Extended Tests
+# =============================================================================
+
+
+class TestOpenRouterSettingsExtended:
+    """Tests for OpenRouterSettings temperature and max_tokens."""
+
+    def test_openrouter_extended_defaults(self) -> None:
+        """Test default OpenRouter temperature and max_tokens values."""
+        settings = Settings()
+        assert settings.openrouter_temperature == 0.7
+        assert settings.openrouter_max_tokens == 1000
+
+    def test_openrouter_extended_settings_from_env(self) -> None:
+        """Test OpenRouter extended settings can be configured via environment."""
+        os.environ["NEXUS_OPENROUTER_TEMPERATURE"] = "0.5"
+        os.environ["NEXUS_OPENROUTER_MAX_TOKENS"] = "2000"
+
+        try:
+            settings = Settings()
+            assert settings.openrouter_temperature == 0.5
+            assert settings.openrouter_max_tokens == 2000
+        finally:
+            os.environ.pop("NEXUS_OPENROUTER_TEMPERATURE", None)
+            os.environ.pop("NEXUS_OPENROUTER_MAX_TOKENS", None)
+
+    def test_openrouter_temperature_validation(self) -> None:
+        """Test that OpenRouter temperature is validated between 0.0 and 1.0."""
+        os.environ["NEXUS_OPENROUTER_TEMPERATURE"] = "-0.1"
+        try:
+            with pytest.raises(ValueError, match="greater than or equal to 0"):
+                Settings()
+        finally:
+            os.environ.pop("NEXUS_OPENROUTER_TEMPERATURE", None)
+
+        os.environ["NEXUS_OPENROUTER_TEMPERATURE"] = "1.5"
+        try:
+            with pytest.raises(ValueError, match="less than or equal to 1"):
+                Settings()
+        finally:
+            os.environ.pop("NEXUS_OPENROUTER_TEMPERATURE", None)
+
+    def test_openrouter_max_tokens_validation(self) -> None:
+        """Test that OpenRouter max_tokens must be at least 1."""
+        os.environ["NEXUS_OPENROUTER_MAX_TOKENS"] = "0"
+        try:
+            with pytest.raises(ValueError, match="greater than or equal to 1"):
+                Settings()
+        finally:
+            os.environ.pop("NEXUS_OPENROUTER_MAX_TOKENS", None)

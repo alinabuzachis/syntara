@@ -13,11 +13,7 @@ from temporalio.api.enums.v1 import EventType
 from temporalio.client import Client, WorkflowHandle, WorkflowHistoryEventFilterType
 from temporalio.exceptions import TemporalError
 
-from nexus.api.constants import (
-    DEFAULT_TASK_QUEUE,
-    DEFAULT_TEMPORAL_ADDRESS,
-    DEFAULT_TEMPORAL_NAMESPACE,
-)
+from nexus.core.config import get_settings
 from nexus.workflows.utils.datetime import ensure_timezone_aware
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models.responses import (
@@ -335,16 +331,16 @@ class TemporalExecutionService:
 
 
 async def create_temporal_execution_service(
-    temporal_address: str = DEFAULT_TEMPORAL_ADDRESS,
-    namespace: str = DEFAULT_TEMPORAL_NAMESPACE,
-    task_queue: str = DEFAULT_TASK_QUEUE,
+    temporal_address: str | None = None,
+    namespace: str | None = None,
+    task_queue: str | None = None,
 ) -> TemporalExecutionService:
     """Create a temporal execution service with a new Temporal client.
 
     Args:
-        temporal_address: Temporal server address
-        namespace: Temporal namespace
-        task_queue: Task queue name
+        temporal_address: Temporal server address (default from settings)
+        namespace: Temporal namespace (default from settings)
+        task_queue: Task queue name (default from settings)
 
     Returns:
         TemporalExecutionService instance
@@ -354,6 +350,11 @@ async def create_temporal_execution_service(
         >>> result = await service.start_yaml_workflow(...)
 
     """
+    settings = get_settings()
+    temporal_address = temporal_address or settings.temporal_address
+    namespace = namespace or settings.temporal_namespace
+    task_queue = task_queue or settings.task_queue
+
     client = await Client.connect(
         temporal_address,
         namespace=namespace,

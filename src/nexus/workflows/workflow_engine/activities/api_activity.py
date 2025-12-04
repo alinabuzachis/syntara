@@ -12,7 +12,7 @@ from typing import Any, cast
 import httpx
 from temporalio import activity
 
-from nexus.workflows.workflow_engine import settings
+from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.expression_resolver import ExpressionResolver
 from nexus.workflows.workflow_engine.models import APIExecutorConfig, Authentication, AuthenticationType
 
@@ -98,7 +98,7 @@ async def execute_api_request(config: dict[str, Any], inputs: dict[str, Any]) ->
     url = api_config.url
     headers = dict(api_config.headers)  # Create mutable copy
     query_params = api_config.query_params
-    timeout = api_config.timeout if api_config.timeout is not None else settings.API_TIMEOUT_SECONDS
+    timeout = api_config.timeout if api_config.timeout is not None else constants.API_TIMEOUT_SECONDS
     body = api_config.body
     authentication = api_config.authentication
 

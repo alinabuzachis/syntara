@@ -10,9 +10,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
-from nexus.api.constants import MAX_LOOP_ITERATIONS
 from nexus.workflows.utils.activity_traversal import traverse_activities
-from nexus.workflows.workflow_engine import settings
+from nexus.workflows.workflow_engine import constants
 
 
 # Enums for type-safe string constants
@@ -107,7 +106,7 @@ class WhileLoopDefinition(BaseModel):
     max_iterations: int = Field(
         default=1000,
         ge=1,
-        le=MAX_LOOP_ITERATIONS,
+        le=constants.MAX_LOOP_ITERATIONS,
         description="Maximum number of iterations to prevent infinite loops",
         alias="maxIterations",
     )
@@ -120,7 +119,7 @@ class CountLoopDefinition(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     type: Literal[LoopType.COUNT] = Field(description="Loop type")
-    count: int = Field(ge=1, le=MAX_LOOP_ITERATIONS, description="Number of iterations to execute")
+    count: int = Field(ge=1, le=constants.MAX_LOOP_ITERATIONS, description="Number of iterations to execute")
     index_variable: str = Field(
         default="index", description="Variable name for iteration counter", alias="indexVariable"
     )
@@ -162,10 +161,10 @@ class ScriptExecutorConfig(BaseModel):
     code: str = Field(min_length=1, description="Script code to execute")
     environment: dict[str, str] = Field(default_factory=dict, description="Environment variables for script execution")
     timeout_seconds: int = Field(
-        default=settings.SCRIPT_TIMEOUT_MINUTES * 60,
+        default=constants.DEFAULT_SCRIPT_TIMEOUT_SECONDS,
         ge=1,
         le=3600,
-        description="Timeout for script execution in seconds (default from NEXUS_SCRIPT_TIMEOUT_MINUTES, max: 3600)",
+        description="Timeout in seconds (default from NEXUS_SCRIPT_TIMEOUT_SECONDS, max: 3600)",
     )
 
 
@@ -227,10 +226,10 @@ class AgenticExecutorConfig(BaseModel):
     agent: str | None = Field(default=None, description="Optional agent identifier")
     model: str | None = Field(default=None, description="Optional model identifier")
     timeout: int = Field(
-        default=settings.AGENTIC_TIMEOUT_SECONDS,
+        default=constants.DEFAULT_AGENTIC_TIMEOUT_SECONDS,
         ge=1,
         le=3600,
-        description="Timeout for agent invocation in seconds (default from NEXUS_AGENTIC_TIMEOUT_SECONDS, max: 3600)",
+        description="Timeout in seconds (default from NEXUS_AGENTIC_TIMEOUT_SECONDS, max: 3600)",
     )
 
 

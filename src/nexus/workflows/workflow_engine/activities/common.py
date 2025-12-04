@@ -13,7 +13,7 @@ from typing import Any
 
 from temporalio.common import RetryPolicy
 
-from nexus.workflows.workflow_engine import settings
+from nexus.workflows.workflow_engine import constants
 
 
 class ActivityExecutionError(Exception):
@@ -137,27 +137,27 @@ def parse_timeout(timeout_str: str) -> timedelta:
     hours_match = re.search(r"(\d+)H", duration_part)
     if hours_match:
         hours = int(hours_match.group(1))
-        # Skip validation if MAX_DURATION_HOURS is 0 (unlimited)
-        if settings.MAX_DURATION_HOURS > 0 and hours > settings.MAX_DURATION_HOURS:
-            msg = f"Duration exceeds maximum: {timeout_str} (hours={hours} > {settings.MAX_DURATION_HOURS})"
+        # Skip validation if max_duration_hours is 0 (unlimited)
+        if constants.MAX_DURATION_HOURS > 0 and hours > constants.MAX_DURATION_HOURS:
+            msg = f"Duration exceeds maximum: {timeout_str} (hours={hours} > {constants.MAX_DURATION_HOURS})"
             raise ValueError(msg)
 
     # Match minutes (e.g., "30M")
     minutes_match = re.search(r"(\d+)M", duration_part)
     if minutes_match:
         minutes = int(minutes_match.group(1))
-        # Skip validation if MAX_DURATION_MINUTES is 0 (unlimited)
-        if settings.MAX_DURATION_MINUTES > 0 and minutes > settings.MAX_DURATION_MINUTES:
-            msg = f"Duration exceeds maximum: {timeout_str} (minutes={minutes} > {settings.MAX_DURATION_MINUTES})"
+        # Skip validation if max_duration_minutes is 0 (unlimited)
+        if constants.MAX_DURATION_MINUTES > 0 and minutes > constants.MAX_DURATION_MINUTES:
+            msg = f"Duration exceeds maximum: {timeout_str} (minutes={minutes} > {constants.MAX_DURATION_MINUTES})"
             raise ValueError(msg)
 
     # Match seconds (e.g., "45S")
     seconds_match = re.search(r"(\d+)S", duration_part)
     if seconds_match:
         seconds = int(seconds_match.group(1))
-        # Skip validation if MAX_DURATION_SECONDS is 0 (unlimited)
-        if settings.MAX_DURATION_SECONDS > 0 and seconds > settings.MAX_DURATION_SECONDS:
-            msg = f"Duration exceeds maximum: {timeout_str} (seconds={seconds} > {settings.MAX_DURATION_SECONDS})"
+        # Skip validation if max_duration_seconds is 0 (unlimited)
+        if constants.MAX_DURATION_SECONDS > 0 and seconds > constants.MAX_DURATION_SECONDS:
+            msg = f"Duration exceeds maximum: {timeout_str} (seconds={seconds} > {constants.MAX_DURATION_SECONDS})"
             raise ValueError(msg)
 
     # Ensure at least one component was parsed

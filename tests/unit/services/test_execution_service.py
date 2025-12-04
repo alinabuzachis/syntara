@@ -10,7 +10,7 @@ from uuid import UUID
 
 import pytest
 
-from nexus.api.constants import DEFAULT_TASK_QUEUE
+from nexus.core.config import get_settings
 from nexus.workflows.workflow_engine.services.temporal_execution_service import (
     TemporalExecutionService,
     create_temporal_execution_service,
@@ -431,11 +431,11 @@ class TestCreateTemporalExecutionService:
 
             assert isinstance(service, TemporalExecutionService)
             assert service.temporal_client is mock_client
-            assert service.task_queue == DEFAULT_TASK_QUEUE
+            assert service.task_queue == get_settings().task_queue
 
             mock_client_class.connect.assert_awaited_once_with(
-                "localhost:7233",
-                namespace="default",
+                get_settings().temporal_address,
+                namespace=get_settings().temporal_namespace,
             )
 
     @pytest.mark.asyncio

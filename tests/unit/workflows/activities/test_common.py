@@ -4,7 +4,6 @@ from datetime import timedelta
 
 import pytest
 
-from nexus.workflows.workflow_engine import settings
 from nexus.workflows.workflow_engine.activities.common import (
     ActivityExecutionError,
     build_retry_policy,
@@ -161,11 +160,20 @@ class TestParseTimeout:
             parse_timeout("PT0S")
 
     def test_unlimited_duration_when_limit_is_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test that setting MAX_DURATION_* to 0 disables validation (unlimited)."""
-        # Set all duration limits to 0 (unlimited)
-        monkeypatch.setattr(settings, "MAX_DURATION_HOURS", 0)
-        monkeypatch.setattr(settings, "MAX_DURATION_MINUTES", 0)
-        monkeypatch.setattr(settings, "MAX_DURATION_SECONDS", 0)
+        """Test that setting max_duration_* to 0 disables validation (unlimited)."""
+        # Monkeypatch the constants module to use unlimited duration limits
+        monkeypatch.setattr(
+            "nexus.workflows.workflow_engine.constants.MAX_DURATION_HOURS",
+            0,
+        )
+        monkeypatch.setattr(
+            "nexus.workflows.workflow_engine.constants.MAX_DURATION_MINUTES",
+            0,
+        )
+        monkeypatch.setattr(
+            "nexus.workflows.workflow_engine.constants.MAX_DURATION_SECONDS",
+            0,
+        )
 
         # These should now be accepted (previously would raise ValueError)
         result_hours = parse_timeout("PT100000H")  # 100,000 hours

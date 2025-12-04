@@ -17,8 +17,10 @@ Usage:
 import os
 import tempfile
 from functools import lru_cache
+from urllib.parse import quote_plus
+from uuid import UUID
 
-from pydantic import Field, SecretStr, computed_field
+from pydantic import Field, HttpUrl, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # =============================================================================
@@ -45,9 +47,22 @@ class OpenRouterSettings(BaseSettings):
         description="Default OpenRouter model to use (e.g., anthropic/claude-3.5-sonnet, openai/gpt-4)",
     )
 
-    openrouter_base_url: str = Field(
+    openrouter_base_url: HttpUrl = Field(  # type: ignore[assignment]
         default="https://openrouter.ai/api/v1",
         description="OpenRouter API base URL",
+    )
+
+    openrouter_temperature: float = Field(
+        default=0.7,
+        description="LLM temperature (0.0-1.0) for response randomness",
+        ge=0.0,
+        le=1.0,
+    )
+
+    openrouter_max_tokens: int = Field(
+        default=1000,
+        description="Maximum tokens in LLM response",
+        ge=1,
     )
 
 
@@ -219,12 +234,15 @@ class DatabaseSettings(BaseSettings):
 
         If NEXUS_DATABASE_URL env var is set, use it directly.
         Otherwise, compute from individual NEXUS_DB_* components.
+
+        Note: Username and password are URL-encoded to handle special characters.
         """
         override = os.environ.get("NEXUS_DATABASE_URL")
         if override:
             return override
-        password = self.db_password.get_secret_value()
-        return f"postgresql+asyncpg://{self.db_user}:{password}@{self.db_host}:{self.db_port}/{self.db_name}"
+        user = quote_plus(self.db_user)
+        password = quote_plus(self.db_password.get_secret_value())
+        return f"postgresql+asyncpg://{user}:{password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
 
 # =============================================================================
@@ -297,6 +315,141 @@ class LoggingSettings(BaseSettings):
 
 
 # =============================================================================
+# Temporal Configuration
+# =============================================================================
+
+
+class TemporalSettings(BaseSettings):
+    """Temporal workflow engine configuration settings.
+
+    Configures connection to Temporal server for workflow orchestration.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    temporal_address: str = Field(
+        default="localhost:7233",
+        description="Temporal server address (host:port)",
+    )
+
+    temporal_namespace: str = Field(
+        default="default",
+        description="Temporal namespace for workflow isolation",
+    )
+
+    task_queue: str = Field(
+        default="nexus-workflow-queue",
+        description="Temporal task queue name for workflow routing",
+    )
+
+    system_user_id: UUID = Field(
+        default=UUID("00000000-0000-0000-0000-000000000001"),
+        description="System user UUID for automated/workflow operations",
+    )
+
+    max_loop_iterations: int = Field(
+        default=10000,
+        description="Maximum iterations for loops to prevent runaway execution",
+        ge=1,
+    )
+
+
+# =============================================================================
+# Workflow Engine Configuration
+# =============================================================================
+
+
+class WorkflowEngineSettings(BaseSettings):
+    """Workflow execution settings and configuration.
+
+    Provides configuration for workflow execution timeouts, limits, and validation.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    # Activity execution timeouts
+    api_timeout_seconds: int = Field(
+        default=30,
+        description="Default timeout for API requests in seconds",
+        ge=1,
+    )
+
+    script_timeout_seconds: int = Field(
+        default=300,
+        description="Default timeout for script execution in seconds (5 minutes)",
+        ge=1,
+    )
+
+    agentic_timeout_seconds: int = Field(
+        default=300,
+        description="Default timeout for agentic activities in seconds (5 minutes)",
+        ge=1,
+    )
+
+    # Duration validation limits (0 = unlimited)
+    max_duration_hours: int = Field(
+        default=8760,
+        description="Maximum duration in hours (8760 = 1 year, 0 = unlimited)",
+        ge=0,
+    )
+
+    max_duration_minutes: int = Field(
+        default=525600,
+        description="Maximum duration in minutes (525600 = 1 year, 0 = unlimited)",
+        ge=0,
+    )
+
+    max_duration_seconds: int = Field(
+        default=31536000,
+        description="Maximum duration in seconds (31536000 = 1 year, 0 = unlimited)",
+        ge=0,
+    )
+
+    # Script execution settings
+    script_cleanup_terminate_timeout: float = Field(
+        default=1.0,
+        description="Timeout in seconds for graceful process termination",
+        ge=0.1,
+    )
+
+    script_cleanup_kill_timeout: float = Field(
+        default=0.5,
+        description="Timeout in seconds for forceful process kill",
+        ge=0.1,
+    )
+
+    max_env_var_length: int = Field(
+        default=32768,
+        description="Maximum length per environment variable in bytes (32KB)",
+        ge=1024,
+    )
+
+    # Agentic activity settings
+    max_prompt_length: int = Field(
+        default=100000,
+        description="Maximum prompt length for agentic activities in characters (100KB)",
+        ge=1000,
+    )
+
+    max_input_value_length: int = Field(
+        default=10000,
+        description="Maximum length for individual input values in characters (10KB)",
+        ge=100,
+    )
+
+    max_total_input_size: int = Field(
+        default=50000,
+        description="Maximum total size of all input values combined in characters (50KB)",
+        ge=1000,
+    )
+
+    agent_orchestrator_base_url: HttpUrl = Field(  # type: ignore[assignment]
+        default="http://localhost:8000/api/v1",
+        description="Base URL for Agent Orchestrator API",
+    )
+
+
+# =============================================================================
 # Main Settings
 # =============================================================================
 
@@ -310,6 +463,8 @@ class Settings(
     DatabaseSettings,
     ServerSettings,
     LoggingSettings,
+    TemporalSettings,
+    WorkflowEngineSettings,
 ):
     """Application-wide settings.
 

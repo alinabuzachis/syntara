@@ -11,11 +11,7 @@ import types
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from nexus.api.constants import (
-    DEFAULT_TASK_QUEUE,
-    DEFAULT_TEMPORAL_ADDRESS,
-    DEFAULT_TEMPORAL_NAMESPACE,
-)
+from nexus.core.config import get_settings
 from nexus.workflows.workflow_engine.activities.agentic_activity import execute_agentic_activity
 from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
@@ -142,18 +138,18 @@ _worker_service: TemporalWorkerService | None = None
 
 
 async def start_worker(
-    temporal_address: str = DEFAULT_TEMPORAL_ADDRESS,
-    namespace: str = DEFAULT_TEMPORAL_NAMESPACE,
-    task_queue: str = DEFAULT_TASK_QUEUE,
+    temporal_address: str | None = None,
+    namespace: str | None = None,
+    task_queue: str | None = None,
 ) -> TemporalWorkerService:
     """Start the global Temporal worker service.
 
     This function should be called during application startup.
 
     Args:
-        temporal_address: Temporal server address
-        namespace: Temporal namespace
-        task_queue: Task queue name
+        temporal_address: Temporal server address (default from settings)
+        namespace: Temporal namespace (default from settings)
+        task_queue: Task queue name (default from settings)
 
     Returns:
         TemporalWorkerService instance
@@ -168,10 +164,11 @@ async def start_worker(
         logger.warning("Temporal worker already running")
         return _worker_service
 
+    settings = get_settings()
     _worker_service = TemporalWorkerService(
-        temporal_address=temporal_address,
-        namespace=namespace,
-        task_queue=task_queue,
+        temporal_address=temporal_address or settings.temporal_address,
+        namespace=namespace or settings.temporal_namespace,
+        task_queue=task_queue or settings.task_queue,
     )
 
     await _worker_service.start()

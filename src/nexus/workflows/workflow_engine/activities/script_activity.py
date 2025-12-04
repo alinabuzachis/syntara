@@ -14,7 +14,7 @@ from typing import Any
 
 from temporalio import activity
 
-from nexus.workflows.workflow_engine import settings
+from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models import ScriptExecutorConfig
 
 from .common import ActivityExecutionError
@@ -78,13 +78,13 @@ async def _cleanup_process(process: asyncio.subprocess.Process) -> None:
         # Process still running, terminate it gracefully
         try:
             process.terminate()
-            await asyncio.wait_for(process.wait(), timeout=settings.SCRIPT_CLEANUP_TERMINATE_TIMEOUT)
+            await asyncio.wait_for(process.wait(), timeout=constants.SCRIPT_CLEANUP_TERMINATE_TIMEOUT)
             activity.logger.debug("Process terminated gracefully")
         except TimeoutError:
             activity.logger.warning("Process didn't terminate gracefully, force killing")
             try:
                 process.kill()
-                await asyncio.wait_for(process.wait(), timeout=settings.SCRIPT_CLEANUP_KILL_TIMEOUT)
+                await asyncio.wait_for(process.wait(), timeout=constants.SCRIPT_CLEANUP_KILL_TIMEOUT)
                 activity.logger.info("Process force killed successfully")
             except TimeoutError:
                 activity.logger.error("Process didn't die after kill signal, may be zombie")
@@ -136,8 +136,8 @@ def _sanitize_env_value(value: object) -> str:
     # Limit environment variable size to prevent resource exhaustion
     # Note: Systems have limits on total env size (all vars combined), typically 128-256KB
     # We limit individual vars to prevent resource exhaustion and leave room for system variables
-    if len(str_value) > settings.MAX_ENV_VAR_LENGTH:
-        msg = f"Environment variable value exceeds maximum length ({settings.MAX_ENV_VAR_LENGTH} bytes)"
+    if len(str_value) > constants.MAX_ENV_VAR_LENGTH:
+        msg = f"Environment variable value exceeds maximum length ({constants.MAX_ENV_VAR_LENGTH} bytes)"
         raise ValueError(msg)
 
     return str_value
