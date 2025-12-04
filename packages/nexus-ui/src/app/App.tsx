@@ -17,8 +17,8 @@ export default function App() {
       <AlertProvider>
         <AppLogin>
           <Compass
-            backgroundSrcDark="/background.jpg"
-            backgroundSrcLight="/background.jpg"
+            backgroundSrcDark="/src/assets/background.jpg"
+            backgroundSrcLight="/src/assets/background.jpg"
             header={
               <CompassHeader
                 logo={

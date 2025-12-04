@@ -3,7 +3,7 @@ import { ClosedCaptionIcon, GalleryVerticalEndIcon, SquarePlusIcon, Volume2Icon 
 
 export function AppLeftBar() {
   return (
-    <Toolbar orientation="vertical" className="glass mx-8 grow-0 self-center rounded-full border py-1">
+    <Toolbar orientation="vertical" className="glass grow-0 self-center rounded-full border py-1">
       <ToolbarButton>
         <SquarePlusIcon />
       </ToolbarButton>

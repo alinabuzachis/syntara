@@ -3,7 +3,7 @@ import { BellIcon, CircleQuestionMarkIcon, ListTodoIcon } from 'lucide-react'
 
 export function AppRightBar() {
   return (
-    <Toolbar orientation="vertical" className="glass mx-8 grow-0 self-center rounded-full border py-1">
+    <Toolbar orientation="vertical" className="glass grow-0 self-center rounded-full border py-1">
       <ToolbarButton>
         <BellIcon />
       </ToolbarButton>

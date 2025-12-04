@@ -685,7 +685,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         }
       `}</style>
       <ReactFlow<NodeType, EdgeType>
-        className="builder-flow"
+        className="builder-flow dark"
         colorMode="dark"
         nodes={nodes}
         edges={edgesToRender}

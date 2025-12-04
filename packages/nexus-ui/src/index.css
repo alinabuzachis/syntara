@@ -1,35 +1,50 @@
-@import 'tailwindcss';
-@import '@xyflow/react/dist/style.css';
+/* Define CSS layer order - later layers win */
+@layer tailwind-base, patternfly, tailwind-utilities, custom;
 
-/* @reference '../../nexus-ui-framework/src/index.css'; */
+/* Layer 1: Tailwind preflight (base resets) */
+@import 'tailwindcss/preflight' layer(tailwind-base);
+@import 'tailwindcss/theme' layer(tailwind-base);
 
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* Layer 2: PatternFly base CSS (overrides preflight) */
+@import '@patternfly/react-core/dist/styles/base.css' layer(patternfly);
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+/* Layer 3: Tailwind utilities (can add on top) */
+@import 'tailwindcss/utilities' layer(tailwind-utilities);
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+/* Framework CSS - import without layer so @utility directive can access Tailwind utilities */
+@import '@ansible/nexus-ui-framework/style.css';
 
-body {
-  @apply relative h-lvh w-lvw;
-}
+/* Layer 5: Other libraries */
+@import '@xyflow/react/dist/style.css' layer(custom);
 
-#root {
-  @apply h-full w-full;
-  @apply flex flex-col;
-  @apply max-h-lvh;
-  @apply isolate;
-}
+/* Layer 4: Custom styles */
+@layer custom {
+  /* App-specific styles */
+  :root {
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    color-scheme: light dark;
+    color: rgba(255, 255, 255, 0.87);
+    background-color: #242424;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-@layer utilities {
+  body {
+    @apply relative h-lvh w-lvw;
+  }
+
+  #root {
+    @apply h-full w-full;
+    @apply flex flex-col;
+    @apply max-h-lvh;
+    @apply isolate;
+  }
+
+  /* Custom utility classes */
   .label {
     @apply text-white/70;
     @apply mb-1;
@@ -65,30 +80,39 @@ body {
       -2px 2px 4px var(--color-pink-800),
       2px -2px 4px var(--color-pink-800);
   }
-}
 
-.react-flow.dark {
-  background: transparent;
-  --xy-controls-button-background-color-default: transparent;
-  --xy-edge-stroke-default: #fff6;
-  --xy-edge-stroke-width-default: 2.5px;
-}
+  .react-flow.dark {
+    background: transparent !important;
+    --xy-controls-button-background-color-default: transparent;
+    --xy-edge-stroke-default: #fff6;
+    --xy-edge-stroke-width-default: 2.5px;
+  }
 
-dt {
-  @apply mb-0.5 text-white/60;
-  font-size: medium;
-}
+  .react-flow.dark .react-flow__viewport {
+    background: transparent !important;
+  }
 
-dd {
-  @apply text-white not-last:mb-6;
-  font-size: small;
-}
+  .react-flow.dark .react-flow__renderer {
+    background: transparent !important;
+  }
 
-/* Add spacing to Compass layout */
-.pf-v6-c-compass__header {
-  padding: 2rem 2rem 2rem;
-}
+  .react-flow.dark .react-flow__pane {
+    background: transparent !important;
+  }
 
-.pf-v6-c-compass__content {
-  padding-top: var(--pf-t--global--spacer--md, 1rem);
+  /* Remove border-2 border-white/20 from elements inside CompassContent for config integrations page, hopefully temp fix */
+  .pf-v6-c-compass__content [class*='border-2'][class*='border-white'] {
+    border: none !important;
+    border-width: 0 !important;
+  }
+
+  dt {
+    @apply mb-0.5 text-white/60;
+    font-size: medium;
+  }
+
+  dd {
+    @apply text-white not-last:mb-6;
+    font-size: small;
+  }
 }
