@@ -345,7 +345,8 @@ format: ## Format code with ruff and pre-commit formatters
 	uv run pre-commit run yamlfmt --all-files
 	@echo "✅ Code formatting completed"
 
-.PHONY: ruff ## Format code with ruff
+.PHONY: ruff
+ruff: ## Format code with ruff
 	uv run ruff format $(FORMAT_PATHS)
 	uv run ruff check $(FORMAT_PATHS) --fix
 

@@ -91,6 +91,7 @@ class TestDatabaseSettings:
         finally:
             os.environ.pop("NEXUS_DATABASE_URL", None)
 
+
 # =============================================================================
 # ServerSettings Tests
 # =============================================================================

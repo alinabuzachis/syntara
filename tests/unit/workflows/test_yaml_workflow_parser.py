@@ -763,7 +763,7 @@ workflow:
         language: javascript
         code: console.log("Hello");
 """
-        with pytest.raises(WorkflowParseError) as exc_info:
+        with pytest.raises(WorkflowParseError):
             parse_workflow_yaml(yaml_str)
 
     def test_parse_script_with_powershell_language_rejected(self) -> None:
@@ -786,5 +786,5 @@ workflow:
         language: powershell
         code: Write-Host "Hello"
 """
-        with pytest.raises(WorkflowParseError) as exc_info:
+        with pytest.raises(WorkflowParseError):
             parse_workflow_yaml(yaml_str)
