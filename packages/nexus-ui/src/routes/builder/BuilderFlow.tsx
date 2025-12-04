@@ -614,12 +614,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
     setEdges,
   })
 
-  const isValidConnection = useCallback(
-    (connection: EdgeType | Connection) => {
-      return validateConnection(connection, nodes, edges)
-    },
-    [nodes, edges]
-  )
+  const isValidConnection = useCallback((connection: EdgeType | Connection) => {
+    return validateConnection(connection)
+  }, [])
 
   // Keep all edges visible during connection (including all button edges)
   const edgesToRender = useMemo(() => {
