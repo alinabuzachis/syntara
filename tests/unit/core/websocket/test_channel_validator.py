@@ -1,12 +1,14 @@
 """Tests for WebSocket channel validator."""
 
 import types
+from typing import Any
 
 from nexus.core.websocket.channel_validator import (
     ChannelValidationResult,
     check_missing_handlers,
     check_orphaned_handlers,
     get_handler_function_names,
+    get_server_pathname,
     is_snake_case,
     normalize_channel_name,
     validate_channel_addresses,
@@ -227,21 +229,23 @@ class TestCheckMissingHandlers:
 
     def test_all_handlers_present(self) -> None:
         """Test when all channels have handlers."""
+        spec: dict[str, Any] = {"operations": {}}
         channels: dict[str, object] = {"coffee": {}, "chat": {}}
         handler_functions: dict[str, list[str]] = {"handlers": ["coffee", "chat"], "on_connect": []}
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        check_missing_handlers(channels, handler_functions, result)
+        check_missing_handlers(channels, handler_functions, spec, result)
 
         assert len(result.warnings) == 0
 
     def test_missing_handler(self) -> None:
         """Test when a channel is missing its handler."""
+        spec: dict[str, Any] = {"operations": {}}
         channels: dict[str, object] = {"coffee": {}, "chat": {}}
         handler_functions: dict[str, list[str]] = {"handlers": ["coffee"], "on_connect": []}
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        check_missing_handlers(channels, handler_functions, result)
+        check_missing_handlers(channels, handler_functions, spec, result)
 
         assert len(result.warnings) == 1
         assert "handle_chat" in result.warnings[0]
@@ -249,14 +253,79 @@ class TestCheckMissingHandlers:
 
     def test_kebab_case_channel_name(self) -> None:
         """Test missing handler detection with kebab-case channel name."""
+        spec: dict[str, Any] = {"operations": {}}
         channels: dict[str, object] = {"agent-events": {}}
         handler_functions: dict[str, list[str]] = {"handlers": [], "on_connect": []}
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        check_missing_handlers(channels, handler_functions, result)
+        check_missing_handlers(channels, handler_functions, spec, result)
 
         assert len(result.warnings) == 1
         assert "handle_agent_events" in result.warnings[0]
+
+
+class TestCheckMissingHandlersReceiveOnly:
+    """Tests for check_missing_handlers with receive-only channels (Phase 3: AAP-58895)."""
+
+    def test_missing_handler_bidirectional_warns(self) -> None:
+        """Bidirectional channel without handler gets warning (existing behavior)."""
+        spec: dict[str, Any] = {
+            "operations": {},  # No operations = bidirectional
+            "channels": {"coffee": {}},
+        }
+        channels: dict[str, object] = {"coffee": {}}
+        handler_functions: dict[str, list[str]] = {"handlers": [], "on_connect": []}
+        result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
+
+        check_missing_handlers(channels, handler_functions, spec, result)
+
+        assert len(result.warnings) == 1
+        assert "handle_coffee" in result.warnings[0]
+
+    def test_missing_handler_receive_only_no_warning(self) -> None:
+        """Receive-only channel without handler does NOT get warning."""
+        spec = {
+            "operations": {
+                "receiveEvents": {
+                    "action": "receive",
+                    "channel": {"$ref": "#/channels/tokens"},
+                }
+            },
+            "channels": {"tokens": {}},
+        }
+        channels: dict[str, object] = {"tokens": {}}
+        handler_functions: dict[str, list[str]] = {"handlers": [], "on_connect": ["tokens"]}
+        result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
+
+        check_missing_handlers(channels, handler_functions, spec, result)
+
+        # No warning for receive-only channel
+        assert len(result.warnings) == 0
+
+    def test_mixed_channels_correct_warnings(self) -> None:
+        """Mixed bidirectional and receive-only channels get appropriate warnings."""
+        spec = {
+            "operations": {
+                "receiveTokens": {
+                    "action": "receive",
+                    "channel": {"$ref": "#/channels/tokens"},
+                }
+            },
+            "channels": {
+                "tokens": {},  # Receive-only
+                "coffee": {},  # Bidirectional (no operations)
+            },
+        }
+        channels: dict[str, object] = {"tokens": {}, "coffee": {}}
+        handler_functions: dict[str, list[str]] = {"handlers": [], "on_connect": ["tokens"]}
+        result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
+
+        check_missing_handlers(channels, handler_functions, spec, result)
+
+        # Warning only for bidirectional channel
+        assert len(result.warnings) == 1
+        assert "coffee" in result.warnings[0]
+        assert "tokens" not in result.warnings[0]
 
 
 class TestCheckOrphanedHandlers:
@@ -320,7 +389,8 @@ class TestValidateChannelAddresses:
         }
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        validate_channel_addresses("example", channels, result)
+        spec: dict[str, Any] = {"servers": {"development": {}}}
+        validate_channel_addresses(spec, "example", channels, result)
 
         assert len(result.errors) == 0
 
@@ -331,12 +401,13 @@ class TestValidateChannelAddresses:
         }
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        validate_channel_addresses("example", channels, result)
+        spec: dict[str, Any] = {"servers": {"development": {}}}
+        validate_channel_addresses(spec, "example", channels, result)
 
         assert len(result.errors) == 1
         assert "coffee" in result.errors[0]
         assert "example_test" in result.errors[0]
-        assert "Expected: /ws/example/v1/coffee" in result.errors[0]
+        assert "Expected to start with: /ws/example/v1/coffee" in result.errors[0]
 
     def test_invalid_channel_name(self) -> None:
         """Test channel with wrong channel name in address."""
@@ -345,12 +416,13 @@ class TestValidateChannelAddresses:
         }
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        validate_channel_addresses("example", channels, result)
+        spec: dict[str, Any] = {"servers": {"development": {}}}
+        validate_channel_addresses(spec, "example", channels, result)
 
         assert len(result.errors) == 1
         assert "coffee" in result.errors[0]
-        assert "Expected: /ws/example/v1/coffee" in result.errors[0]
-        assert "Got:      /ws/example/v1/tea" in result.errors[0]
+        assert "Expected to start with: /ws/example/v1/coffee" in result.errors[0]
+        assert "Got: /ws/example/v1/tea" in result.errors[0]
 
     def test_normalized_channel_name(self) -> None:
         """Test channel with kebab-case name uses normalized version in address."""
@@ -359,7 +431,8 @@ class TestValidateChannelAddresses:
         }
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        validate_channel_addresses("example", channels, result)
+        spec: dict[str, Any] = {"servers": {"development": {}}}
+        validate_channel_addresses(spec, "example", channels, result)
 
         assert len(result.errors) == 0
 
@@ -370,7 +443,8 @@ class TestValidateChannelAddresses:
         }
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        validate_channel_addresses("example", channels, result)
+        spec: dict[str, Any] = {"servers": {"development": {}}}
+        validate_channel_addresses(spec, "example", channels, result)
 
         assert len(result.errors) == 1
         assert "coffee" in result.errors[0]
@@ -383,7 +457,8 @@ class TestValidateChannelAddresses:
         }
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        validate_channel_addresses("example", channels, result)
+        spec: dict[str, Any] = {"servers": {"development": {}}}
+        validate_channel_addresses(spec, "example", channels, result)
 
         assert len(result.errors) == 1
         assert "coffee" in result.errors[0]
@@ -398,7 +473,8 @@ class TestValidateChannelAddresses:
         }
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        validate_channel_addresses("example", channels, result)
+        spec: dict[str, Any] = {"servers": {"development": {}}}
+        validate_channel_addresses(spec, "example", channels, result)
 
         assert len(result.errors) == 2
         assert any("coffee" in e and "wrong_component" in e for e in result.errors)
@@ -411,11 +487,12 @@ class TestValidateChannelAddresses:
         }
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        validate_channel_addresses("example", channels, result)
+        spec: dict[str, Any] = {"servers": {"development": {}}}
+        validate_channel_addresses(spec, "example", channels, result)
 
         assert len(result.errors) == 1
-        assert "Expected: /ws/example/v1/coffee" in result.errors[0]
-        assert "Got:      /ws/example/v2/coffee" in result.errors[0]
+        assert "Expected to start with: /ws/example/v1/coffee" in result.errors[0]
+        assert "Got: /ws/example/v2/coffee" in result.errors[0]
 
 
 class TestValidateChannelMappings:
@@ -561,3 +638,160 @@ class TestValidateChannelMappings:
         assert result.is_valid is True
         assert len(result.warnings) == 1
         assert "No channels defined" in result.warnings[0]
+
+
+class TestGetServerPathname:
+    """Tests for get_server_pathname function (Phase 1: AAP-58895)."""
+
+    def test_pathname_present(self) -> None:
+        """Extract pathname when present in spec."""
+        spec = {
+            "servers": {
+                "development": {
+                    "host": "localhost:8000",
+                    "protocol": "ws",
+                    "pathname": "/api/v1",
+                }
+            }
+        }
+        assert get_server_pathname(spec) == "/api/v1"
+
+    def test_pathname_with_trailing_slash(self) -> None:
+        """Strip trailing slash from pathname."""
+        spec = {"servers": {"development": {"pathname": "/api/v1/"}}}
+        assert get_server_pathname(spec) == "/api/v1"
+
+    def test_pathname_missing(self) -> None:
+        """Return empty string when pathname field is missing."""
+        spec = {"servers": {"development": {"host": "localhost:8000", "protocol": "ws"}}}
+        assert get_server_pathname(spec) == ""
+
+    def test_development_server_missing(self) -> None:
+        """Return empty string when development server is missing."""
+        spec = {"servers": {"production": {"pathname": "/api/v1"}}}
+        assert get_server_pathname(spec) == ""
+
+    def test_servers_section_missing(self) -> None:
+        """Return empty string when servers section is missing."""
+        spec: dict[str, Any] = {"channels": {}}
+        assert get_server_pathname(spec) == ""
+
+    def test_malformed_spec_not_dict(self) -> None:
+        """Handle malformed spec gracefully.
+
+        These tests intentionally pass invalid types to verify the function
+        handles malformed input gracefully by returning an empty string.
+        The type: ignore comments are required because we're testing edge cases
+        that violate the type contract.
+        """
+        assert get_server_pathname(None) == ""  # type: ignore[arg-type]  # NOSONAR - intentional type error for testing
+        assert get_server_pathname("not a dict") == ""  # type: ignore[arg-type]  # NOSONAR - intentional type error for testing
+        assert get_server_pathname([]) == ""  # type: ignore[arg-type]  # NOSONAR - intentional type error for testing
+
+    def test_malformed_servers_section(self) -> None:
+        """Handle malformed servers section gracefully."""
+        spec = {"servers": "not a dict"}
+        assert get_server_pathname(spec) == ""
+
+
+class TestValidateChannelAddressesWithPathVariables:
+    """Tests for validate_channel_addresses with path variables support (Phase 1: AAP-58895)."""
+
+    def test_no_path_variables(self) -> None:
+        """Validate channel without path variables (existing behavior)."""
+        spec: dict[str, Any] = {
+            "servers": {"development": {}},
+            "channels": {"invocations": {"address": "/ws/agent_orchestrator/v1/invocations"}},
+        }
+        result = ChannelValidationResult(component_name="agent_orchestrator", spec_path="test.yaml")
+        validate_channel_addresses(spec, "agent_orchestrator", spec["channels"], result)
+
+        assert not result.errors
+        assert result.is_valid
+
+    def test_single_path_variable(self) -> None:
+        """Validate channel with single path variable (example_schema_agent_orchestrator.yaml)."""
+        spec: dict[str, Any] = {
+            "servers": {"development": {}},
+            "channels": {"invocations": {"address": "/ws/agent_orchestrator/v1/invocations/{invocation_id}"}},
+        }
+        result = ChannelValidationResult(component_name="agent_orchestrator", spec_path="test.yaml")
+        validate_channel_addresses(spec, "agent_orchestrator", spec["channels"], result)
+
+        assert not result.errors
+        assert result.is_valid
+
+    def test_multiple_path_variables(self) -> None:
+        """Validate channel with multiple path variables."""
+        spec: dict[str, Any] = {
+            "servers": {"development": {}},
+            "channels": {"executions": {"address": "/ws/workflows/v1/executions/{execution_id}/steps/{step_id}"}},
+        }
+        result = ChannelValidationResult(component_name="workflows", spec_path="test.yaml")
+        validate_channel_addresses(spec, "workflows", spec["channels"], result)
+
+        assert not result.errors
+        assert result.is_valid
+
+    def test_with_pathname_no_variables(self) -> None:
+        """Validate channel with pathname prefix and no path variables."""
+        spec = {
+            "servers": {"development": {"pathname": "/api/v1"}},
+            "channels": {"invocations": {"address": "/api/v1/ws/agent_orchestrator/v1/invocations"}},
+        }
+        result = ChannelValidationResult(component_name="agent_orchestrator", spec_path="test.yaml")
+        validate_channel_addresses(spec, "agent_orchestrator", spec["channels"], result)
+
+        assert not result.errors
+        assert result.is_valid
+
+    def test_with_pathname_and_path_variables(self) -> None:
+        """Validate channel with both pathname prefix and path variables."""
+        spec = {
+            "servers": {"development": {"pathname": "/api/v1"}},
+            "channels": {"invocations": {"address": "/api/v1/ws/agent_orchestrator/v1/invocations/{invocation_id}"}},
+        }
+        result = ChannelValidationResult(component_name="agent_orchestrator", spec_path="test.yaml")
+        validate_channel_addresses(spec, "agent_orchestrator", spec["channels"], result)
+
+        assert not result.errors
+        assert result.is_valid
+
+    def test_wrong_component_name(self) -> None:
+        """Validation fails when component name doesn't match."""
+        spec: dict[str, Any] = {
+            "servers": {"development": {}},
+            "channels": {"invocations": {"address": "/ws/wrong_component/v1/invocations/{id}"}},
+        }
+        result = ChannelValidationResult(component_name="agent_orchestrator", spec_path="test.yaml")
+        validate_channel_addresses(spec, "agent_orchestrator", spec["channels"], result)
+
+        assert result.errors
+        assert not result.is_valid
+        assert any("wrong_component" in e for e in result.errors)
+
+    def test_wrong_base_path(self) -> None:
+        """Validation fails when base path is incorrect."""
+        spec: dict[str, Any] = {
+            "servers": {"development": {}},
+            "channels": {"invocations": {"address": "/api/agent_orchestrator/v1/invocations"}},  # Missing /ws/
+        }
+        result = ChannelValidationResult(component_name="agent_orchestrator", spec_path="test.yaml")
+        validate_channel_addresses(spec, "agent_orchestrator", spec["channels"], result)
+
+        assert result.errors
+        assert not result.is_valid
+
+    def test_missing_pathname_prefix(self) -> None:
+        """Validation fails when pathname is expected but missing from address."""
+        spec = {
+            "servers": {"development": {"pathname": "/api/v1"}},
+            "channels": {
+                "invocations": {"address": "/ws/agent_orchestrator/v1/invocations"}  # Missing /api/v1 prefix
+            },
+        }
+        result = ChannelValidationResult(component_name="agent_orchestrator", spec_path="test.yaml")
+        validate_channel_addresses(spec, "agent_orchestrator", spec["channels"], result)
+
+        assert result.errors
+        assert not result.is_valid

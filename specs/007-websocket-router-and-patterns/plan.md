@@ -81,37 +81,54 @@ graph TB
 
 ## Component Design
 
-### 1. WebSocket Router (YAML-First Multi-Channel Discovery)
+### 1. WebSocket Router (Convention-Based Multi-Channel Discovery)
 
-**Purpose**: Auto-discover and register WebSocket channels from AsyncAPI specs
+**Purpose**: Auto-discover and register WebSocket channels using automatic path mapping based on filename convention
 
 **Responsibilities**:
-- Scan `/ws/` directory for `.yaml` files
-- Map YAML filename to component name (e.g., `example.yaml` → component "example")
-- Extract all channels from each AsyncAPI spec
+- Scan `src/nexus/{component}/ws/*.py` for handler files
+- Automatically derive spec path from handler filename: `{handler}.py` → `schemas/{component}/websocket-{handler}.yaml`
+- Validate handler/spec pairing at startup (fail-fast if mismatch)
+- Load and parse AsyncAPI schemas from derived paths
+- Merge multiple schemas per component (if multiple handlers exist)
+- Extract all channels from merged AsyncAPI spec
 - Create WebSocket endpoints dynamically via endpoint factory for each channel
 - Register endpoints with FastAPI router at `/ws/{component}/v1/{channel}`
+- Cache merged schemas in `_SPEC_CACHE` for runtime validation
 
 **Interface**:
 ```python
 def build_websocket_router() -> APIRouter:
-    # Scan for YAML specs
-    # For each spec:
-    #   - Extract component name from filename
-    #   - Read all channels from spec
-    #   - For each channel: create endpoint at /ws/{component}/v1/{channel}
+    # Scan src/nexus/{component}/ws/*.py for handler files
+    # For each handler:
+    #   - Derive spec path: {handler}.py → schemas/{component}/websocket-{handler}.yaml
+    #   - Validate handler/spec pairing exists (fail-fast if mismatch)
+    #   - Load AsyncAPI schema from derived path
+    # Check for orphan specs (specs without handlers)
+    # Merge schemas per component
+    # For each channel in merged spec:
+    #   - Create endpoint at /ws/{component}/v1/{channel}
+    # Cache merged schemas
     # Register with router
     # Return configured router
 ```
 
 **Convention**:
-- `example.yaml` defines AsyncAPI spec with multiple channels (coffee, chat, agent-events)
-- Each channel has its own address field: `/ws/example/v1/coffee`, `/ws/example/v1/chat`, `/ws/example/v1/agent_events`
-- Channel names with hyphens (e.g., `agent-events`) are normalized to underscores (e.g., `agent_events`) for Python identifiers
-- `example.py` provides handler logic for all channels in the component
-- Handler functions named: `handle_{channel}()` (e.g., `handle_coffee()`, `handle_chat()`, `handle_agent_events()`)
+- Handler files in `src/nexus/{component}/ws/{handler}.py` are automatically mapped to specs
+- Spec path is derived from handler filename: `{handler}.py` → `schemas/{component}/websocket-{handler}.yaml`
+- Schema files in `schemas/{component}/` directory define channels
+- Each channel has address field: `/ws/example/v1/coffee`, `/ws/example/v1/chat`, etc.
+- Channel names with hyphens (e.g., `agent-events`) are normalized to underscores (e.g., `agent_events`)
+- Handler functions named: `handle_{channel}()` (e.g., `handle_coffee()`, `handle_chat()`)
 - Optional background tasks: `on_connect_{channel}()` for server-initiated messaging
-- If no Python handler exists, default empty handler is used
+- Multiple handlers per component allowed (schemas are merged)
+- Duplicate channel names across schemas cause startup error
+
+**Fail-Fast Validation**:
+- Handler without spec: If handler file exists but corresponding spec file is missing, fail startup
+- Spec without handler: If spec file exists but corresponding handler file is missing, fail startup
+- Derived spec path must follow `schemas/{component}/websocket-{handler}.yaml` pattern
+- Supports both `.yaml` and `.yml` extensions
 
 ### 2. Interceptor System (Bootstrap-Time Validation)
 
@@ -181,29 +198,41 @@ def get_current_connection_id() -> str | None:
 
 ### 4. Endpoint Factory (Dynamic Multi-Channel Creation)
 
-**Purpose**: Generate WebSocket endpoint functions from AsyncAPI specs with channel-specific handlers
+**Purpose**: Generate WebSocket endpoint functions from merged AsyncAPI specs with channel-specific handlers
 
 **Responsibilities**:
-- Load AsyncAPI spec and extract message types for specific channel
-- Extract component name from spec filename
-- Discover component handler module (or use default)
+- Accept merged AsyncAPI spec (already loaded and validated)
+- Extract component name from handler directory structure
+- Extract message types for specific channel from merged spec
+- Discover handler functions in `src/nexus/{component}/ws/*.py` files
 - Look up channel-specific handler function: `handle_{channel}()`
 - Check for optional background task: `on_connect_{channel}()`
 - Build hook pipeline from handler or use defaults
 - Create endpoint function with full lifecycle including background task management
+- Use cached schema from `_SPEC_CACHE` for runtime validation
 
 **Interface**:
 ```python
-def create_websocket_endpoint(channel_name: str, spec_path: Path) -> Callable:
-    # Extract component name from spec filename (e.g., example.yaml → "example")
-    # Load spec and extract message types for this channel
-    # Discover component handler module: src/nexus/ws/{component}.py
-    # Get channel-specific handler: handle_{channel}()
-    # Get optional background task: on_connect_{channel}()
-    # Create hooks instance
+def create_websocket_endpoint(
+    channel_name: str,
+    spec: dict[str, Any],  # Merged AsyncAPI spec
+    component_name: str     # Component name (e.g., "example")
+) -> Callable:
+    # Extract message types for this channel from merged spec
+    # Scan src/nexus/{component}/ws/*.py for handler modules
+    # Find handler function: handle_{channel}()
+    # Find optional background task: on_connect_{channel}()
+    # Create hooks instance (with validation using cached schema)
     # Build async endpoint function with background task support
     # Return endpoint callable
 ```
+
+**Path Mapping Convention** (validated at startup):
+- Handler filename determines spec filename: `{handler}.py` → `websocket-{handler}.yaml`
+- Spec files located in `schemas/{component}/` directory
+- Component name derived from handler's parent directory
+- Supports both `.yaml` and `.yml` extensions
+- Handler/spec pairing validated at startup (fail-fast)
 
 ### 5. WebSocket Endpoint (Generated per Channel)
 
@@ -633,7 +662,7 @@ nexus/
 1. ✅ Update `discovery.py` for convention-based matching
 2. ✅ Implement default empty handler creation
 3. ✅ Update `endpoint_factory.py` for YAML-first scanning
-4. ✅ Remove SPEC_PATH requirement
+4. ✅ Implement automatic path mapping (replaced SPEC_PATH)
 
 ### Phase 4: Router Integration (Completed)
 1. ✅ Update WebSocket router for auto-discovery

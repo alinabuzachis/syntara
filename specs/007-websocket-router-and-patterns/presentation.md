@@ -41,34 +41,61 @@ Provide a **generic, multi-channel WebSocket API** that enables real-time bidire
 
 The WebSocket API consists of these key components:
 
-1. **WebSocket Router**
-   - Scans `/ws/` directory for AsyncAPI specs
-   - Auto-discovers channels from YAML files
+**File Organization**:
+```
+src/nexus/
+└── {component}/
+    └── ws/
+        └── {handler}.py      # Handler files (auto-mapped to specs)
+
+schemas/
+└── {component}/
+    └── websocket-{handler}.yaml  # AsyncAPI specifications
+```
+
+1. **WebSocket Router** (Convention-Based Discovery)
+   - Scans `src/nexus/{component}/ws/*.py` for handler files
+   - Automatically derives spec path: `{handler}.py` → `schemas/{component}/websocket-{handler}.yaml`
+   - Validates handler/spec pairing at startup (fail-fast)
+   - Loads and merges AsyncAPI specs per component
+   - Auto-discovers channels from merged specifications
    - Registers channel-specific endpoints dynamically
+   - Caches merged schemas for runtime validation
 
 2. **Multi-Channel Endpoints**
    - `/ws/example/v1/coffee` - Request/response pattern
    - `/ws/example/v1/chat` - Bidirectional with server messages
    - `/ws/example/v1/agent_events` - Subscription-based events
 
-3. **Interceptor System** (Bootstrap)
+3. **Schema Discovery Flow**:
+   1. Scan handler files: `src/nexus/example/ws/example.py`
+   2. Derive spec path: `example.py` → `schemas/example/websocket-example.yaml`
+   3. Validate handler/spec pairing exists (fail-fast if missing)
+   4. Load AsyncAPI schema from derived path
+   5. Merge schemas if multiple handlers exist
+   6. Cache merged schema in `_SPEC_CACHE["example"]`
+   7. Create endpoints for all channels in merged spec
+
+4. **Interceptor System** (Bootstrap)
    - Validates configuration at startup
    - Ensures channel addresses match channel names
+   - Validates handler/spec pairing (fail-fast validation)
    - Prevents server start with misconfigurations
+   - Detects duplicate channels across schemas
 
-4. **Hook Pipeline** (Runtime)
-   - `before_receive`: Validates incoming messages against AsyncAPI schema
+5. **Hook Pipeline** (Runtime)
+   - `before_receive`: Validates incoming messages against cached AsyncAPI schema
    - `after_receive`: Optional message transformation
    - Handler function: Processes message, returns response
    - `before_send`: Adds timestamp and metadata
    - Error hooks: Format validation and handler errors
 
-5. **Connection Context**
+6. **Connection Context**
    - Tracks connection-specific state using ContextVar
    - Enables per-connection subscriptions (agent-events)
    - Accessible from handlers and background tasks
 
-6. **Background Tasks**
+7. **Background Tasks**
    - Optional per-channel server-initiated messaging
    - Chat: Sends random messages every 3 seconds
    - Agent-events: Two independent event streams (log, progress)
@@ -79,7 +106,9 @@ The WebSocket API consists of these key components:
 ```mermaid
 graph TB
     Client[WebSocket Client]
-    Router[WebSocket Router<br/>YAML Discovery]
+    Handler[Handler Files<br/>src/nexus/*/ws/*.py]
+    Schema[Schema Files<br/>schemas/*/websocket-*.yaml]
+    Router[WebSocket Router<br/>Convention-Based Discovery]
     Interceptor[Interceptor<br/>Bootstrap Validation]
 
     subgraph Channels
@@ -91,7 +120,7 @@ graph TB
     subgraph "Hook Pipeline"
         BeforeRcv[before_receive<br/>Schema Validation]
         AfterRcv[after_receive<br/>Transformation]
-        Handler[Channel Handler<br/>handle_coffee/chat/agent_events]
+        HandlerFunc[Channel Handler<br/>handle_coffee/chat/agent_events]
         BeforeSend[before_send<br/>Add Timestamp]
     end
 
@@ -100,6 +129,8 @@ graph TB
         AgentTask[Agent Background<br/>Event Streams]
     end
 
+    Handler -->|Auto-map| Router
+    Schema -->|Load & Merge| Router
     Router -->|Bootstrap| Interceptor
     Interceptor -->|Register| Coffee
     Interceptor -->|Register| Chat
@@ -114,8 +145,8 @@ graph TB
     Agent -->|Message| BeforeRcv
 
     BeforeRcv -->|Valid| AfterRcv
-    AfterRcv --> Handler
-    Handler --> BeforeSend
+    AfterRcv --> HandlerFunc
+    HandlerFunc --> BeforeSend
     BeforeSend --> Client
 
     Chat -.Start.-> ChatTask
@@ -124,6 +155,8 @@ graph TB
     AgentTask -.Events.-> Client
 
     style Client fill:#1a3a52,stroke:#64b5f6,color:#e3f2fd
+    style Handler fill:#2a3a4a,stroke:#81c784,color:#e8f5e9
+    style Schema fill:#3a2a4a,stroke:#9fa8da,color:#e8eaf6
     style Router fill:#2a4a2a,stroke:#81c784,color:#e8f5e9
     style Interceptor fill:#4a3020,stroke:#ffb74d,color:#fff3e0
     style Coffee fill:#3a2845,stroke:#ba68c8,color:#f3e5f5

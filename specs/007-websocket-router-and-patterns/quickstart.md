@@ -13,6 +13,12 @@ The example component demonstrates multi-channel WebSocket architecture with thr
 - **Chat Channel** (`/ws/example/v1/chat`): Bidirectional communication with uppercase echo and server-initiated random messages every 3 seconds
 - **Agent-Events Channel** (`/ws/example/v1/agent_events`): Subscription-based event streaming with dynamic subscription management for log and progress event groups
 
+**File Locations**:
+- **Handler**: `src/nexus/example/ws/example.py`
+- **Schema**: `schemas/example/websocket-example.yaml` (automatically mapped from handler filename)
+
+All message validation is performed against the AsyncAPI schema defined in the schema file.
+
 ## Prerequisites
 
 Before running this quickstart:
@@ -144,7 +150,7 @@ Before running this quickstart:
 **Validation**:
 - [ ] Error response received
 - [ ] Error code is "VALIDATION_ERROR"
-- [ ] Error message is descriptive
+- [ ] Error message is descriptive (based on validation rules in `schemas/example/websocket-example.yaml`)
 - [ ] Timestamp added by error hook
 - [ ] Connection remains open (can send more requests)
 

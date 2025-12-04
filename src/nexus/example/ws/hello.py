@@ -218,18 +218,23 @@ LOG_MESSAGES = [
     {"level": "warning", "message": "Request timeout, retrying..."},
 ]
 
+# Task name constants for progress messages
+TASK_PROCESSING_DOCUMENTS = "Processing documents"
+TASK_ANALYZING_DATA = "Analyzing data"
+TASK_TRAINING_MODEL = "Training model"
+
 # Static pool of progress updates
 PROGRESS_MESSAGES = [
-    {"task": "Processing documents", "progress": 15, "message": "Completed 15 of 100 documents"},
-    {"task": "Processing documents", "progress": 30, "message": "Completed 30 of 100 documents"},
-    {"task": "Processing documents", "progress": 45, "message": "Completed 45 of 100 documents"},
-    {"task": "Processing documents", "progress": 60, "message": "Completed 60 of 100 documents"},
-    {"task": "Processing documents", "progress": 75, "message": "Completed 75 of 100 documents"},
-    {"task": "Processing documents", "progress": 90, "message": "Completed 90 of 100 documents"},
-    {"task": "Analyzing data", "progress": 25, "message": "Analyzed 250 of 1000 records"},
-    {"task": "Analyzing data", "progress": 50, "message": "Analyzed 500 of 1000 records"},
-    {"task": "Analyzing data", "progress": 75, "message": "Analyzed 750 of 1000 records"},
-    {"task": "Training model", "progress": 40, "message": "Epoch 4 of 10 completed"},
+    {"task": TASK_PROCESSING_DOCUMENTS, "progress": 15, "message": "Completed 15 of 100 documents"},
+    {"task": TASK_PROCESSING_DOCUMENTS, "progress": 30, "message": "Completed 30 of 100 documents"},
+    {"task": TASK_PROCESSING_DOCUMENTS, "progress": 45, "message": "Completed 45 of 100 documents"},
+    {"task": TASK_PROCESSING_DOCUMENTS, "progress": 60, "message": "Completed 60 of 100 documents"},
+    {"task": TASK_PROCESSING_DOCUMENTS, "progress": 75, "message": "Completed 75 of 100 documents"},
+    {"task": TASK_PROCESSING_DOCUMENTS, "progress": 90, "message": "Completed 90 of 100 documents"},
+    {"task": TASK_ANALYZING_DATA, "progress": 25, "message": "Analyzed 250 of 1000 records"},
+    {"task": TASK_ANALYZING_DATA, "progress": 50, "message": "Analyzed 500 of 1000 records"},
+    {"task": TASK_ANALYZING_DATA, "progress": 75, "message": "Analyzed 750 of 1000 records"},
+    {"task": TASK_TRAINING_MODEL, "progress": 40, "message": "Epoch 4 of 10 completed"},
 ]
 
 
@@ -447,5 +452,74 @@ async def _send_progress_events(websocket: WebSocket, connection_id: str) -> Non
     except Exception:
         logger.exception(
             "Error in progress events task for connection '%s'",
+            connection_id,
+        )
+
+
+# Tokens Channel Implementation (Receive-Only)
+# ==============================================
+
+
+async def handle_tokens(_message: dict[str, Any]) -> dict[str, Any]:
+    """Handle tokens channel messages (should never be called).
+
+    This function exists only to satisfy handler discovery requirements.
+    It should never be called since tokens is a receive-only channel.
+
+    Args:
+        _message: Incoming message (should never receive any)
+
+    Returns:
+        Error response
+
+    Raises:
+        RuntimeError: Always raises since this should never be called
+
+    """
+    msg = "handle_tokens should never be called - tokens is a receive-only channel"
+    raise RuntimeError(msg)
+
+
+async def on_connect_tokens(websocket: WebSocket, connection_id: str) -> None:
+    """Background task for tokens channel - sends periodic tokens.
+
+    This demonstrates receive-only channel functionality where the server
+    sends events without requiring any client messages.
+
+    Args:
+        websocket: The WebSocket connection to send messages to
+        connection_id: Unique ID for this connection (for logging)
+
+    """
+    logger.info("Starting tokens background task for connection '%s'", connection_id)
+
+    try:
+        # Send 5 tokens with short delays for testing
+        for i in range(5):
+            await asyncio.sleep(0.2)  # Short delay for fast tests
+
+            # Send token event to client
+            await websocket.send_json(
+                {
+                    "token": f"token_{i}",
+                    "sequence": i,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            )
+
+            logger.debug(
+                "Sent token %d to connection '%s'",
+                i,
+                connection_id,
+            )
+
+    except WebSocketDisconnect:
+        logger.info("Tokens background task ended - connection closed: '%s'", connection_id)
+    except asyncio.CancelledError:
+        logger.info("Tokens background task cancelled for connection '%s'", connection_id)
+        raise
+    except Exception:
+        logger.exception(
+            "Error in tokens background task for connection '%s'",
             connection_id,
         )

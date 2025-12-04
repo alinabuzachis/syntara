@@ -103,6 +103,31 @@ channels:
       errorResponse:
         $ref: '#/components/messages/ErrorResponse'
 
+  tokens:
+    address: /ws/example/v1/tokens
+    description: |
+      Receive-only token streaming endpoint for integration testing.
+
+      This channel demonstrates receive-only functionality where the server
+      sends tokens to clients without requiring any client messages.
+
+      Features:
+      - Server sends periodic token events via on_connect handler
+      - No Request message required (receive-only)
+      - No handle_tokens function required (receive-only)
+      - Connection stays alive until client disconnects
+
+      Connection lifecycle:
+      1. Client initiates WebSocket handshake to /ws/example/v1/tokens
+      2. Server accepts connection
+      3. Server begins sending Token messages immediately via on_connect
+      4. Client receives tokens without sending any requests
+      5. Either party can close the connection
+
+    messages:
+      token:
+        $ref: '#/components/messages/Token'
+
 operations:
   sendCoffeeRequest:
     action: send
@@ -172,6 +197,18 @@ operations:
       - $ref: '#/channels/agent_events/messages/agentEventsResponse'
       - $ref: '#/channels/agent_events/messages/agentEvent'
       - $ref: '#/channels/agent_events/messages/errorResponse'
+
+  receiveTokens:
+    action: receive
+    channel:
+      $ref: '#/channels/tokens'
+    summary: Receive periodic token events
+    description: |
+      Server sends token events at regular intervals without requiring
+      any client messages. This is a receive-only operation demonstrating
+      server-push functionality.
+    messages:
+      - $ref: '#/channels/tokens/messages/token'
 
 components:
   messages:
@@ -531,3 +568,42 @@ components:
             progress: 45
             message: Completed 45 of 100 documents
             timestamp: '2025-10-29T10:30:00.000Z'
+
+    Token:
+      name: Token
+      title: Token
+      summary: Token event message for receive-only channel testing
+      contentType: application/json
+      payload:
+        type: object
+        required:
+          - token
+          - sequence
+        properties:
+          token:
+            type: string
+            description: The token value
+            example: token_0
+          sequence:
+            type: integer
+            description: Sequential number of this token
+            minimum: 0
+            example: 0
+          timestamp:
+            type: string
+            format: date-time
+            description: ISO 8601 timestamp when the token was generated (UTC)
+            example: '2025-12-01T10:30:00.000Z'
+      examples:
+        - name: FirstToken
+          summary: First token in sequence
+          payload:
+            token: token_0
+            sequence: 0
+            timestamp: '2025-12-01T10:30:00.000Z'
+        - name: SecondToken
+          summary: Second token in sequence
+          payload:
+            token: token_1
+            sequence: 1
+            timestamp: '2025-12-01T10:30:01.000Z'

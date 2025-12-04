@@ -291,23 +291,27 @@ async def on_handler_error(error: Exception, channel: str) -> dict:
 
 ## Hook Discovery
 
-Hooks are discovered automatically from handler modules. If a handler implements a function with a matching hook name, it replaces the default.
+Hooks are discovered automatically from handler modules in the `src/nexus/{component}/ws/` directory. If a handler implements a function with a matching hook name, it replaces the default.
 
 **Discovery Process**:
-1. Endpoint factory creates `WebSocketHooks` instance with defaults
-2. Discovery system loads handler module
-3. For each hook name, check if handler has matching function
-4. If found, replace default hook with handler's version
+1. Framework scans `src/nexus/{component}/ws/*.py` for handler files
+2. Spec path is automatically derived: `{handler}.py` → `schemas/{component}/websocket-{handler}.yaml`
+3. Handler/spec pairing is validated (fail-fast if mismatch)
+4. Endpoint factory creates `WebSocketHooks` instance with defaults
+5. For each hook name, check if handler has matching function
+6. If found, replace default hook with handler's version
 
 **Example Handler with Hooks**:
 ```python
-# example.py
+# src/nexus/example/ws/example.py
+# Schema automatically mapped to: schemas/example/websocket-example.yaml
+
 from typing import Any
 from datetime import UTC, datetime
 from nexus.core.websocket import ValidationError
 
 # Handler function (required)
-async def handle_message(message: dict[str, Any]) -> dict[str, Any]:
+async def handle_coffee(message: dict[str, Any]) -> dict[str, Any]:
     """Process message and return response."""
     input_text = message["input"]
     output = process_input(input_text)  # Your business logic
@@ -325,6 +329,57 @@ async def before_send(response: dict, channel: str) -> dict:
     response["version"] = "2.0"
     return response
 ```
+
+---
+
+## Automatic Path Mapping
+
+The framework automatically maps handler files to their AsyncAPI specifications based on filename convention. No configuration is needed.
+
+### Convention
+
+```
+src/nexus/{component}/ws/{handler}.py  →  schemas/{component}/websocket-{handler}.yaml
+```
+
+### Examples
+
+| Handler File | Schema File |
+|--------------|-------------|
+| `example.py` | `websocket-example.yaml` |
+| `invocations.py` | `websocket-invocations.yaml` |
+| `chat.py` | `websocket-chat.yaml` |
+
+### Fail-Fast Validation
+
+At startup, the framework validates handler/spec pairing:
+
+**Handler without spec** (causes startup error):
+```
+ValueError: Handler file 'orphan.py' in component 'example' has no corresponding spec file.
+Expected: schemas/example/websocket-orphan.yaml
+```
+
+**Spec without handler** (causes startup error):
+```
+ValueError: Found 1 orphan spec file(s) without corresponding handlers:
+  - schemas/example/websocket-missing.yaml (expected handler: src/nexus/example/ws/missing.py)
+```
+
+### Discovery and Caching
+
+**At startup**:
+1. All `.py` files in `src/nexus/{component}/ws/` are scanned
+2. Spec path is derived from handler filename
+3. Handler/spec pairing is validated (fail-fast if mismatch)
+4. AsyncAPI schema is loaded and parsed
+5. If component has multiple handlers, schemas are merged
+6. Merged schema is cached in `_SPEC_CACHE[component_name]`
+
+**At runtime**:
+- Validation uses cached schema (no file I/O)
+- Fast schema lookups by component name
+- Consistent validation across all channels in component
 
 ---
 
@@ -588,7 +643,9 @@ The WebSocket system uses dict-based messages validated against AsyncAPI schemas
 ### Simple Request/Response (Coffee Channel)
 
 ```python
-# src/nexus/ws/example.py
+# src/nexus/example/ws/example.py
+# Schema: schemas/example/websocket-example.yaml (automatic mapping)
+
 async def handle_coffee(message: dict) -> dict:
     """Convert input characters to coffee words."""
     input_text = message["input"]  # Already validated by before_receive hook
@@ -603,7 +660,9 @@ async def handle_coffee(message: dict) -> dict:
 ### Bidirectional with Background Task (Chat Channel)
 
 ```python
-# src/nexus/ws/example.py
+# src/nexus/example/ws/example.py
+# Schema automatically mapped to: schemas/example/websocket-example.yaml
+
 async def handle_chat(message: dict) -> dict:
     """Echo message in uppercase."""
     return {"reply": message["message"].upper(), "type": "echo"}
@@ -622,7 +681,8 @@ async def on_connect_chat(websocket, connection_id: str):
 ### Subscription-Based with Connection State (Agent-Events Channel)
 
 ```python
-# src/nexus/ws/example.py
+# src/nexus/example/ws/example.py
+# Schema automatically mapped to: schemas/example/websocket-example.yaml
 from collections import defaultdict
 from nexus.core.websocket.connection import get_current_connection_id
 

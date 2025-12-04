@@ -24,6 +24,93 @@ The example implementation provides three channels demonstrating different commu
 - Zero-configuration for simple use cases
 - Optional customization for complex scenarios
 
+**File Organization**:
+- Handler files in `src/nexus/{component}/ws/*.py` contain WebSocket logic
+- Schema files in `schemas/{component}/websocket-{handler}.[yaml,yml]` define message contracts
+- Automatic path mapping: handler filename determines spec filename (no configuration needed)
+- Multiple handlers per component supported, with automatic schema merging
+- Fail-fast validation ensures every handler has a matching spec and vice versa
+
+---
+
+## File Organization
+
+The WebSocket framework uses a two-directory structure that separates handler logic from schema definitions, with automatic path mapping based on filename conventions.
+
+### Handler Files: `src/nexus/{component}/ws/*.py`
+
+- **Location**: Component-specific WebSocket handlers
+- **Multiple files**: One component can have multiple `.py` files in its `ws/` directory
+- **Handler functions**: Files contain `handle_*` and optional `on_connect_*` functions
+- **No configuration needed**: Spec path is automatically derived from handler filename
+
+### Schema Files: `schemas/{component}/websocket-{handler}.[yaml,yml]`
+
+- **Centralized location**: All AsyncAPI specifications stored in `schemas/` directory
+- **Automatic mapping**: `{handler}.py` → `websocket-{handler}.yaml`
+- **Supported formats**: YAML (`.yaml`, `.yml`)
+
+### Automatic Path Mapping Convention
+
+The system automatically maps handler files to spec files based on filename:
+
+```
+src/nexus/{component}/ws/{handler}.py  →  schemas/{component}/websocket-{handler}.yaml
+```
+
+**Examples**:
+- `src/nexus/example/ws/example.py` → `schemas/example/websocket-example.yaml`
+- `src/nexus/agent_orchestrator/ws/invocations.py` → `schemas/agent_orchestrator/websocket-invocations.yaml`
+- `src/nexus/chat/ws/messages.py` → `schemas/chat/websocket-messages.yaml`
+
+### Example Structure
+
+```
+src/nexus/
+├── example/
+│   └── ws/
+│       ├── __init__.py
+│       └── example.py                # → schemas/example/websocket-example.yaml
+└── agent_orchestrator/
+    └── ws/
+        ├── __init__.py
+        ├── invocations.py            # → schemas/agent_orchestrator/websocket-invocations.yaml
+        └── workflows.py              # → schemas/agent_orchestrator/websocket-workflows.yaml
+
+schemas/
+├── example/
+│   └── websocket-example.yaml
+└── agent_orchestrator/
+    ├── websocket-invocations.yaml
+    └── websocket-workflows.yaml
+```
+
+### Fail-Fast Validation
+
+At application startup, the system validates handler/spec pairing:
+
+1. **Handler without spec**: If a handler file exists but the corresponding spec file is missing, the application fails to start with a clear error message
+2. **Spec without handler**: If a spec file exists but the corresponding handler file is missing (for components with a `ws/` directory), the application fails to start
+
+This ensures consistency between code and specifications, preventing runtime errors from misconfigurations.
+
+**Example error messages**:
+```
+ValueError: Handler file 'orphan.py' in component 'example' has no corresponding spec file.
+Expected: schemas/example/websocket-orphan.yaml
+
+ValueError: Found 1 orphan spec file(s) without corresponding handlers:
+  - schemas/example/websocket-missing.yaml (expected handler: src/nexus/example/ws/missing.py)
+```
+
+### Schema Merging
+
+When a component has multiple handler files:
+- All specs are loaded and validated based on automatic path mapping
+- Schemas are merged into a single unified specification for the component
+- **Duplicate channel names** across schemas cause an error at startup
+- Each handler function is matched to its corresponding channel from the merged schema
+
 ---
 
 ## Quick Guidelines
@@ -301,8 +388,10 @@ sequenceDiagram
 
 ### Key Entities
 
+All message entities are defined in AsyncAPI schemas located in `schemas/{component}/websocket-{handler}.yaml` files. Handler modules in `src/nexus/{component}/ws/{handler}.py` are automatically mapped to their corresponding schemas based on filename convention.
+
 - **WebSocketConnection**: Represents an active client connection to a specific channel. Tracks connection state, handles message routing, manages background tasks, and maintains subscription state for event streaming
-- **CoffeeRequest**: Message sent by client containing input text to convert to coffee words
+- **CoffeeRequest**: Message sent by client containing input text to convert to coffee words (defined in `schemas/example/websocket-example.yaml`)
 - **CoffeeResponse**: Message sent by server containing space-separated coffee words and timestamp
 - **ChatRequest**: Message sent by client containing message text for uppercase echo
 - **ChatResponse**: Message sent by server containing reply (uppercase echo or random message), type indicator ('echo' or 'random'), and timestamp
@@ -310,6 +399,56 @@ sequenceDiagram
 - **AgentEventsResponse**: Message sent by server confirming subscription changes, containing status, action, affected groups, and timestamp
 - **AgentEvent**: Event message sent by server to subscribed clients, containing type ('event'), group identifier ('log' or 'progress'), and group-specific fields (level/message for logs, progress/task for progress events)
 - **ErrorResponse**: Message sent by server when request validation or processing fails
+
+---
+
+## Advanced Channel Addressing
+
+### Path Variables in Channel Addresses
+
+Channel addresses can include path variables for dynamic routing patterns. This allows channels to accept parameterized connections without defining separate channels for each parameter value.
+
+**Example channel with path variable**:
+```yaml
+channels:
+  user_session:
+    address: /ws/example/v1/session/{session_id}
+
+  workflow_execution:
+    address: /ws/workflows/v1/execution/{execution_id}/step/{step_id}
+```
+
+**Validation behavior**:
+- Path variables (segments matching `/{variable_name}`) are stripped before validation
+- Base path must match expected format: `/ws/{component}/v1/{channel_name}`
+- Example: `/ws/example/v1/session/{session_id}` validates against `/ws/example/v1/session`
+
+**Use cases**:
+- User-specific channels (sessions, notifications)
+- Resource-specific channels (document editing, workflow monitoring)
+- Hierarchical resources (parent/child relationships)
+
+### Server Pathname Support
+
+AsyncAPI servers can specify a base pathname that is prepended to all channel addresses:
+
+**Schema definition**:
+```yaml
+servers:
+  development:
+    host: localhost:8000
+    protocol: ws
+    pathname: /api/v1  # Base path prepended to all channels
+```
+
+**Effect on endpoints**:
+- Without pathname: `/ws/example/v1/coffee`
+- With pathname `/api/v1`: `/api/v1/ws/example/v1/coffee`
+
+**Validation behavior**:
+- Expected format becomes: `{pathname}/ws/{component}/v1/{channel_name}`
+- Pathname is optional - defaults to empty string if not specified
+- Trailing slashes in pathname are automatically removed
 
 ---
 

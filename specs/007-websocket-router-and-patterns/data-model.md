@@ -15,6 +15,13 @@ This feature provides a generic, extensible multi-channel WebSocket router syste
 - Convention-based channel discovery
 - Optional handlers with defaults
 
+**File Organization**:
+- **Handler files**: Located in `src/nexus/{component}/ws/*.py`
+- **Schema files**: Centralized in `schemas/{component}/websocket-{handler}.[yaml,yml]`
+- **Automatic path mapping**: `{handler}.py` → `websocket-{handler}.yaml` (no configuration needed)
+- **Fail-fast validation**: Handler/spec pairing is validated at startup
+- **Component-level merging**: Multiple schemas per component are merged into a single specification
+
 ## Example Component Channels
 
 The example component demonstrates three channel types:
@@ -398,17 +405,45 @@ Dict → before_receive → after_receive → handler → before_send → Dict
 
 ## Message Validation
 
+### Schema Discovery and Caching
+
+The framework uses a two-level approach for schema validation:
+
+**1. Component-Level Discovery** (at startup):
+- Scans `src/nexus/{component}/ws/*.py` for handler files
+- Derives spec path automatically: `{handler}.py` → `schemas/{component}/websocket-{handler}.yaml`
+- Validates handler/spec pairing (fail-fast if mismatch)
+- Loads and parses AsyncAPI schema files
+- Merges multiple schemas per component (if multiple handlers exist)
+- Caches merged schema in `_SPEC_CACHE[component_name]`
+
+**2. Validation-Time Resolution**:
+- Validator accepts either component name (uses cache) or explicit file path
+- Component name lookup: `_SPEC_CACHE.get(component_name)`
+- Explicit path: Load and cache on first use
+- All subsequent validations use cached schema
+
+**Example**:
+```python
+# src/nexus/example/ws/example.py
+# Schema automatically mapped to: schemas/example/websocket-example.yaml
+
+async def handle_coffee(message: dict) -> dict:
+    # message already validated against cached schema
+    return {"output": process(message["input"])}
+```
+
 ### Dict Validation (via before_receive hook)
 ```python
 # Actual implementation in hooks.py
 async def before_receive(self, data: dict, message_type: str, channel: str) -> dict:
-    # Validate against AsyncAPI JSON schema
-    validate_message(data, message_type, self.spec_path)
+    # Validate against AsyncAPI JSON schema from cache
+    validate_message(data, message_type, component_name=self.component)
     return data
 ```
 
 **Schema Validation**:
-- Loads AsyncAPI spec and extracts message schema
+- Uses cached AsyncAPI spec for component
 - Validates required fields
 - Checks field types (string, number, boolean, etc.)
 - Validates constraints (minLength, maxLength, minimum, maximum)
@@ -442,17 +477,103 @@ async def before_send(self, response: dict, channel: str) -> dict:
 
 **No Migrations Required**: This is a new feature with no persistent storage
 
-**Convention-Based Configuration**:
-- WebSocket endpoints: Auto-discovered from `.yaml` files in `/ws/` directory
-- Example endpoint: `/ws/example/v1` (from `example.yaml`)
-- Max message size: 1MB (configurable via FastAPI)
-- Connection timeout: None (explicit close required)
-- Max connections: 100+ (configurable)
+## Convention-Based Configuration
 
-**Handler Convention**:
-- `example.yaml` → channel "example" → optional `example.py` handler
-- If no handler exists, default empty handler is used
+The WebSocket framework uses file location conventions for automatic discovery and registration:
+
+### Schema File Convention
+
+**Location**: `schemas/{component}/websocket-{handler}.[yaml,yml]`
+
+- All AsyncAPI specifications stored in central `schemas/` directory
+- Organized by component subdirectories
+- Filenames follow pattern: `websocket-{handler}.yaml` (matches handler filename)
+- Supported formats: YAML (`.yaml`, `.yml`)
+
+**Automatic Path Mapping**:
+- Handler filename determines spec filename (no configuration needed)
+- `example.py` → `websocket-example.yaml`
+- `invocations.py` → `websocket-invocations.yaml`
+
+**Examples**:
+- ✅ `schemas/example/websocket-example.yaml` (for `example.py`)
+- ✅ `schemas/example/websocket-channels.yml` (for `channels.py`)
+- ❌ `schemas/example/spec.yaml` (doesn't match any handler)
+
+### Handler File Convention
+
+**Location**: `src/nexus/{component}/ws/*.py`
+
+- Multiple `.py` files allowed per component
+- Each file contains handler functions (`handle_*`, `on_connect_*`)
+- Spec path automatically derived from handler filename
 - Handlers use plain dicts, no model classes
+
+**Multi-File Pattern Example**:
+
+```
+src/nexus/
+├── example/
+│   └── ws/
+│       ├── __init__.py
+│       └── example.py  # → schemas/example/websocket-example.yaml
+└── agent_orchestrator/
+    └── ws/
+        ├── __init__.py
+        ├── invocations.py  # → schemas/agent_orchestrator/websocket-invocations.yaml
+        └── workflows.py    # → schemas/agent_orchestrator/websocket-workflows.yaml
+
+schemas/
+├── example/
+│   └── websocket-example.yaml      # Single schema for example component
+└── agent_orchestrator/
+    ├── websocket-invocations.yaml  # First schema for agent_orchestrator
+    └── websocket-workflows.yaml    # Second schema for agent_orchestrator
+```
+
+### Schema Merging Behavior
+
+When a component has multiple handler files:
+
+1. **Discovery**: All `.py` files in `ws/` directory are scanned
+2. **Mapping**: Each handler is mapped to its spec via filename convention
+3. **Validation**: Handler/spec pairing is verified (fail-fast if mismatch)
+4. **Merging**: Schemas are merged into single specification per component
+5. **Caching**: Merged schema is cached for runtime validation
+
+**Example - agent_orchestrator component**:
+- `invocations.py` → `websocket-invocations.yaml`
+- `workflows.py` → `websocket-workflows.yaml`
+- Both schemas merged into single `agent_orchestrator` specification
+- If both define channel "status" → startup error (duplicate channel)
+
+### Duplicate Channel Detection
+
+The framework strictly enforces unique channel names per component:
+
+```yaml
+# schemas/agent_orchestrator/websocket-invocations.yaml
+channels:
+  invocations:
+    address: /ws/agent_orchestrator/v1/invocations
+
+# schemas/agent_orchestrator/websocket-workflows.yaml
+channels:
+  invocations:  # ❌ ERROR: Duplicate channel name
+    address: /ws/agent_orchestrator/v1/invocations
+```
+
+**Error at startup**:
+```
+ValueError: Duplicate channel 'invocations' found in agent_orchestrator schemas
+```
+
+### Configuration Parameters
+
+- **Max message size**: 1MB (configurable via FastAPI)
+- **Connection timeout**: None (explicit close required)
+- **Max connections**: 100+ (configurable)
+- **Schema validation**: Strict mode (all fields validated)
 
 **Backward Compatibility**: N/A (new feature)
 

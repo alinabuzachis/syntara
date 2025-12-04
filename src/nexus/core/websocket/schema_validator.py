@@ -44,23 +44,45 @@ class SchemaValidator:
         Args:
             data: Message data to validate
             message_type: Name of the message type (e.g., "ExampleRequest")
-            spec_path: Path to the AsyncAPI specification file
+            spec_path: Path to the AsyncAPI specification file or component name
 
         Raises:
             ValidationError: If validation fails
 
         """
-        spec_path = Path(spec_path)
+        spec_key = str(spec_path)
 
         # Load spec if not cached
-        if str(spec_path) not in self._specs:
-            if not spec_path.exists():
-                msg = f"AsyncAPI spec not found: {spec_path}"
-                raise FileNotFoundError(msg)
-            with spec_path.open() as f:
-                self._specs[str(spec_path)] = yaml.safe_load(f)
+        if spec_key not in self._specs:
+            # Try to load from global cache (for component names)
+            # Import here to avoid circular dependency
+            try:
+                from nexus.core.websocket.endpoint_factory import get_spec_from_cache  # noqa: PLC0415
 
-        spec = self._specs[str(spec_path)]
+                cached_spec = get_spec_from_cache(spec_key)
+                if cached_spec is not None:
+                    self._specs[spec_key] = cached_spec
+                    spec = cached_spec
+                else:
+                    # Fall back to file loading
+                    spec_path_obj = Path(spec_path)
+                    if not spec_path_obj.exists():
+                        msg = f"AsyncAPI spec not found: {spec_path}"
+                        raise FileNotFoundError(msg) from None
+                    with spec_path_obj.open() as f:
+                        self._specs[spec_key] = yaml.safe_load(f)
+                        spec = self._specs[spec_key]
+            except ImportError:
+                # Fall back to file loading if import fails
+                spec_path_obj = Path(spec_path)
+                if not spec_path_obj.exists():
+                    msg = f"AsyncAPI spec not found: {spec_path}"
+                    raise FileNotFoundError(msg) from None
+                with spec_path_obj.open() as f:
+                    self._specs[spec_key] = yaml.safe_load(f)
+                    spec = self._specs[spec_key]
+        else:
+            spec = self._specs[spec_key]
 
         # Find message definition
         messages = spec.get("components", {}).get("messages", {})

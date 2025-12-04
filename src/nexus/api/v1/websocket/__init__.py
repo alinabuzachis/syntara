@@ -5,42 +5,128 @@ WebSocket endpoints based on AsyncAPI specifications and handler modules.
 """
 
 import logging
-from pathlib import Path
+from dataclasses import dataclass, field
 from typing import Any
 
-import yaml
 from fastapi import APIRouter
 
 from nexus.core.websocket.endpoint_factory import create_websocket_endpoint, scan_handler_specs
-from nexus.core.websocket.interceptor import ValidationInterceptor, get_registry
+from nexus.core.websocket.interceptor import InterceptorRegistry, ValidationInterceptor, get_registry
 
 logger = logging.getLogger(__name__)
 
 
-def build_websocket_router(spec_path: str | Path | None = None) -> APIRouter:  # noqa: C901, PLR0915
+@dataclass
+class EndpointRegistrationResult:
+    """Result of endpoint registration attempt."""
+
+    success_count: int = 0
+    failure_count: int = 0
+    total_endpoints: int = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Calculate total endpoints after initialization."""
+        self.total_endpoints = self.success_count + self.failure_count
+
+
+def _register_channel_endpoint(
+    router: APIRouter,
+    component_name: str,
+    channel_name: str,
+    channel_def: dict[str, Any],
+    spec_data: dict[str, Any],
+    interceptor_registry: InterceptorRegistry,
+) -> bool:
+    """Register a single WebSocket channel endpoint.
+
+    Args:
+        router: FastAPI router to register endpoint on
+        component_name: Name of the component
+        channel_name: Name of the channel
+        channel_def: Channel definition from spec
+        spec_data: Full spec data
+        interceptor_registry: Registry for interceptor callbacks
+
+    Returns:
+        True if registration succeeded, False otherwise
+
+    """
+    address = channel_def.get("address")
+    if not address:
+        logger.warning("Channel '%s' has no address, skipping", channel_name)
+        return False
+
+    interceptor_registry.before_endpoint_creation(component_name, channel_name, channel_def)
+
+    try:
+        endpoint = create_websocket_endpoint(channel_name, spec_data, component_name)
+        router.add_websocket_route(address, endpoint)
+        logger.info("Registered WebSocket endpoint: %s (channel: %s)", address, channel_name)
+        interceptor_registry.after_endpoint_creation(component_name, channel_name, endpoint, success=True)
+        return True
+    except Exception as e:
+        logger.exception("Failed to create endpoint for channel '%s'", channel_name)
+        interceptor_registry.after_endpoint_creation(component_name, channel_name, None, success=False, error=e)
+        return False
+
+
+def _register_spec_endpoints(
+    router: APIRouter,
+    component_name: str,
+    spec_data: dict[str, Any],
+    interceptor_registry: InterceptorRegistry,
+) -> EndpointRegistrationResult:
+    """Register all endpoints for a single spec.
+
+    Args:
+        router: FastAPI router to register endpoints on
+        component_name: Name of the component
+        spec_data: Spec data containing channels
+        interceptor_registry: Registry for interceptor callbacks
+
+    Returns:
+        Registration result with success/failure counts
+
+    """
+    result = EndpointRegistrationResult()
+    channels = spec_data.get("channels", {})
+
+    for channel_name, channel_def in channels.items():
+        if _register_channel_endpoint(
+            router, component_name, channel_name, channel_def, spec_data, interceptor_registry
+        ):
+            result.success_count += 1
+        else:
+            result.failure_count += 1
+
+    return result
+
+
+def build_websocket_router() -> APIRouter:
     """Build an APIRouter with all WebSocket endpoints.
 
     This function creates a FastAPI router with WebSocket endpoints dynamically
-    generated from AsyncAPI specifications. It supports two modes:
+    generated from AsyncAPI specifications using auto-discovery.
 
-    1. Explicit spec path: Use the provided spec to create endpoints
-    2. Auto-discovery: Scan all handlers for SPEC_PATH and create endpoints
+    Auto-discovery uses convention-based path mapping:
+    src/nexus/{component}/ws/{handler}.py -> schemas/{component}/websocket-{handler}.yaml
+
+    Fail-fast validation ensures:
+    - Every handler file has a corresponding spec file
+    - Every spec file has a corresponding handler file
 
     Interceptors are used to validate channel mappings and can be extended
     for additional bootstrap-time checks.
 
-    Args:
-        spec_path: Optional path to AsyncAPI spec. If None, auto-discovers from handlers.
-
     Returns:
         Configured APIRouter with all WebSocket endpoints
 
+    Raises:
+        ValueError: If handler/spec pairing is incomplete
+
     Examples:
-        >>> # Auto-discovery mode
         >>> router = build_websocket_router()
-        >>>
-        >>> # Explicit spec mode
-        >>> router = build_websocket_router("path/to/spec.yaml")
+        >>> app.include_router(router)
 
     """
     router = APIRouter(tags=["WebSocket"])
@@ -50,105 +136,33 @@ def build_websocket_router(spec_path: str | Path | None = None) -> APIRouter:  #
     validation_interceptor = ValidationInterceptor()
     interceptor_registry.register(validation_interceptor)
 
-    # Collect specs to process
-    specs_to_process: dict[Path, Any] = {}
+    # Auto-discovery mode: scan handlers (returns dict[component_name, spec_dict])
+    specs_by_component = scan_handler_specs()
 
-    if spec_path:
-        # Explicit mode: use provided spec
-        spec_path = Path(spec_path)
-        if not spec_path.exists():
-            logger.error("Spec file not found: %s", spec_path)
-            return router
-
-        with spec_path.open() as f:
-            specs_to_process[spec_path] = yaml.safe_load(f)
-
-        logger.info("Using explicit spec: %s", spec_path)
-    else:
-        # Auto-discovery mode: scan handlers
-        handler_specs = scan_handler_specs()
-
-        if not handler_specs:
-            logger.warning("No handlers with SPEC_PATH found. WebSocket endpoints not registered.")
-            return router
-
-        # Load unique specs
-        for handler_name, handler_spec_path in handler_specs.items():
-            if handler_spec_path not in specs_to_process:
-                try:
-                    with handler_spec_path.open() as f:
-                        specs_to_process[handler_spec_path] = yaml.safe_load(f)
-                    logger.info("Loaded spec from handler '%s': %s", handler_name, handler_spec_path)
-                except Exception:
-                    logger.exception("Failed to load spec for handler '%s'", handler_name)
-
-    # Prepare specs for interceptors (component_name -> spec)
-    specs_by_component: dict[str, Any] = {}
-    for spec_path_obj, spec_data in specs_to_process.items():
-        component_name = spec_path_obj.stem
-        specs_by_component[component_name] = spec_data
+    if not specs_by_component:
+        logger.warning("No WebSocket handlers found. WebSocket endpoints not registered.")
+        return router
 
     # Notify interceptors that bootstrap is starting
     interceptor_registry.on_bootstrap_start(specs_by_component)
 
-    # Create endpoints for all channels in all specs
-    endpoint_count = 0
-    success_count = 0
-    failure_count = 0
+    # Register endpoints for all specs
+    total_success = 0
+    total_failure = 0
 
-    for spec_path_obj, spec_data in specs_to_process.items():
-        component_name = spec_path_obj.stem
-        channels = spec_data.get("channels", {})
-
-        for channel_name, channel_def in channels.items():
-            address = channel_def.get("address")
-            if not address:
-                logger.warning(
-                    "Channel '%s' in %s has no address, skipping",
-                    channel_name,
-                    spec_path_obj,
-                )
-                continue
-
-            # Notify interceptors before endpoint creation
-            interceptor_registry.before_endpoint_creation(component_name, channel_name, channel_def)
-
-            try:
-                # Create WebSocket endpoint
-                endpoint = create_websocket_endpoint(channel_name, spec_path_obj)
-
-                # Register endpoint
-                router.add_websocket_route(address, endpoint)
-
-                logger.info(
-                    "Registered WebSocket endpoint: %s (channel: %s)",
-                    address,
-                    channel_name,
-                )
-                endpoint_count += 1
-                success_count += 1
-
-                # Notify interceptors after successful endpoint creation
-                interceptor_registry.after_endpoint_creation(component_name, channel_name, endpoint, success=True)
-
-            except Exception as e:
-                logger.exception(
-                    "Failed to create endpoint for channel '%s'",
-                    channel_name,
-                )
-                failure_count += 1
-
-                # Notify interceptors after failed endpoint creation
-                interceptor_registry.after_endpoint_creation(component_name, channel_name, None, success=False, error=e)
+    for component_name, spec_data in specs_by_component.items():
+        result = _register_spec_endpoints(router, component_name, spec_data, interceptor_registry)
+        total_success += result.success_count
+        total_failure += result.failure_count
 
     # Notify interceptors that bootstrap is complete
     bootstrap_results = {
-        "total_endpoints": endpoint_count,
-        "success_count": success_count,
-        "failure_count": failure_count,
-        "specs_processed": len(specs_to_process),
+        "total_endpoints": total_success,
+        "success_count": total_success,
+        "failure_count": total_failure,
+        "specs_processed": len(specs_by_component),
     }
     interceptor_registry.on_bootstrap_complete(bootstrap_results)
 
-    logger.info("Registered %d WebSocket endpoint(s)", endpoint_count)
+    logger.info("Registered %d WebSocket endpoint(s)", total_success)
     return router

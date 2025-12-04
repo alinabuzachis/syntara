@@ -251,8 +251,8 @@ async def on_connect_agent_events(websocket, connection_id: str):
 - [X] **T013** Create router builder in `src/nexus/api/api/v1/websocket/__init__.py`:
   - Function: `build_websocket_router(spec_path: str | None = None) -> APIRouter`
   - **Auto-discovery mode (spec_path=None)**:
-    - Call `scan_handler_specs()` to find all handlers with SPEC_PATH
-    - Load unique AsyncAPI specs from discovered handlers
+    - Call `scan_handler_specs()` to find all handlers using automatic path mapping
+    - Load AsyncAPI specs from convention-derived paths
     - Create endpoints for all channels in all discovered specs
   - **Explicit mode (spec_path provided)**:
     - Load single AsyncAPI spec from provided path
@@ -269,16 +269,16 @@ from nexus.api.v1.websocket import build_websocket_router
 
 app = FastAPI()
 
-# Auto-discovery mode: Scans all handlers in src/nexus/ws/ for SPEC_PATH
+# Auto-discovery mode: Scans all handlers using automatic path mapping
 ws_router = build_websocket_router()
 app.include_router(ws_router)
 
 # That's it! All endpoints are auto-registered:
-# 1. System scans src/nexus/ws/*.py for SPEC_PATH variables
-# 2. Loads unique AsyncAPI specs found in handlers
-# 3. Creates endpoints for all channels in all specs
-# - /ws/hello/v1 (from hello.py handler)
-# - Any future handlers added to src/nexus/ws/
+# 1. System scans src/nexus/{component}/ws/*.py for handlers
+# 2. Derives spec path: {handler}.py → schemas/{component}/websocket-{handler}.yaml
+# 3. Loads AsyncAPI specs from derived paths
+# 4. Creates endpoints for all channels in all specs
+# - Any future handlers added will be auto-discovered
 
 # Alternative: Explicit spec mode (optional)
 # from pathlib import Path
@@ -303,35 +303,29 @@ channels:
         $ref: '#/components/messages/EchoResponse'
 ```
 
-2. **Create handler at `src/nexus/ws/echo.py`**:
+2. **Create handler at `src/nexus/example/ws/echo.py`**:
 ```python
 """Echo WebSocket handler - auto-discovered from channel name 'echo'."""
-from pathlib import Path
-from sqlmodel import SQLModel
-from nexus.core.websocket import get_model
+# Schema automatically mapped to: schemas/example/websocket-echo.yaml
 
-# REQUIRED: Path to the AsyncAPI spec (auto-discovered by system)
-SPEC_PATH = (
-    Path(__file__).parent.parent.parent.parent
-    / "specs" / "007-simple-websocket" / "contracts" / "websocket-api.yaml"
-)
-
-async def handle_message(message: SQLModel) -> SQLModel:
+async def handle_echo(message: dict) -> dict:
     """Echo back the received message."""
-    EchoResponse = get_model("EchoResponse", SPEC_PATH)
-    return EchoResponse(text=message.text)
+    return {"text": message["text"]}
 ```
 
-3. **Restart app** → endpoint `/ws/echo/v1` is automatically available!
+3. **Create spec at `schemas/example/websocket-echo.yaml`**
+
+4. **Restart app** → endpoint `/ws/example/v1/echo` is automatically available!
 
 **How it works:**
-- On startup, `build_websocket_router()` scans `src/nexus/ws/echo.py`
-- Extracts `SPEC_PATH` using AST parsing
+- On startup, `build_websocket_router()` scans `src/nexus/example/ws/echo.py`
+- Derives spec path: `echo.py` → `schemas/example/websocket-echo.yaml`
+- Validates handler/spec pairing exists (fail-fast if missing)
 - Loads the spec and finds the "echo" channel definition
-- Creates and registers endpoint at `/ws/echo/v1`
-- Auto-discovers `handle_message()` function from `echo.py`
+- Creates and registers endpoint at `/ws/example/v1/echo`
+- Auto-discovers `handle_echo()` function from `echo.py`
 
-**Warning:** If a handler file is missing `SPEC_PATH`, a warning is logged during FastAPI bootstrap, and that handler won't be auto-registered.
+**Warning:** If a handler file has no corresponding spec file, startup fails with an error message.
 
 ## Phase 3.5: Example Component Implementation
 

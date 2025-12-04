@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from types import ModuleType
 from typing import Any
 
-from .utils import normalize_channel_name
+from .utils import is_receive_only_channel, normalize_channel_name
 
 # Re-export for external use
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
     "check_missing_handlers",
     "check_orphaned_handlers",
     "get_handler_function_names",
+    "get_server_pathname",
     "is_snake_case",
     "normalize_channel_name",
     "validate_all_components",
@@ -28,6 +29,37 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+def get_server_pathname(spec: dict[str, Any]) -> str:
+    """Extract pathname from AsyncAPI server configuration.
+
+    The pathname is prepended to all channel addresses. For example, if pathname
+    is "/api/v1", channel addresses become "/api/v1/ws/component/v1/channel".
+
+    Args:
+        spec: AsyncAPI specification dictionary
+
+    Returns:
+        Pathname from servers.development.pathname, or empty string if not present
+
+    Examples:
+        >>> spec = {"servers": {"development": {"pathname": "/api/v1"}}}
+        >>> get_server_pathname(spec)
+        '/api/v1'
+
+        >>> spec = {"servers": {"development": {}}}
+        >>> get_server_pathname(spec)
+        ''
+
+    """
+    try:
+        servers = spec.get("servers", {})
+        development = servers.get("development", {})
+        pathname = development.get("pathname", "")
+        return pathname.rstrip("/") if pathname else ""  # Remove trailing slash
+    except (AttributeError, TypeError):
+        return ""
 
 
 @dataclass
@@ -142,13 +174,20 @@ def validate_naming_convention(channels: dict[str, Any], result: ChannelValidati
 
 
 def check_missing_handlers(
-    channels: dict[str, Any], handler_functions: dict[str, list[str]], result: ChannelValidationResult
+    channels: dict[str, Any],
+    handler_functions: dict[str, list[str]],
+    spec: dict[str, Any],
+    result: ChannelValidationResult,
 ) -> None:
     """Check for channels that don't have corresponding handler functions.
+
+    For receive-only channels, missing handlers are not a problem since they
+    only send events via on_connect handler.
 
     Args:
         channels: Dictionary of channel definitions from AsyncAPI spec
         handler_functions: Dictionary of discovered handler function names
+        spec: AsyncAPI specification dictionary (for receive-only detection)
         result: Validation result to update with warnings
 
     """
@@ -158,10 +197,21 @@ def check_missing_handlers(
         normalized_name = normalize_channel_name(channel_name)
 
         if normalized_name not in handler_names:
-            result.add_warning(
-                f"Missing handler 'handle_{normalized_name}' for channel "
-                f"'{channel_name}' in '{result.spec_path}' (will use default handler)"
-            )
+            # Check if this is a receive-only channel
+            is_receive_only = is_receive_only_channel(spec, channel_name)
+
+            if is_receive_only:
+                # Info message instead of warning for receive-only channels
+                logger.info(
+                    "No handler for receive-only channel '%s' (not required, events sent via on_connect)",
+                    channel_name,
+                )
+            else:
+                # Warning for bidirectional channels (existing behavior)
+                result.add_warning(
+                    f"Missing handler 'handle_{normalized_name}' for channel "
+                    f"'{channel_name}' in '{result.spec_path}' (will use default handler)"
+                )
 
 
 def check_orphaned_handlers(
@@ -199,21 +249,40 @@ def check_orphaned_handlers(
             )
 
 
-def validate_channel_addresses(component_name: str, channels: dict[str, Any], result: ChannelValidationResult) -> None:
+def validate_channel_addresses(
+    spec: dict[str, Any], component_name: str, channels: dict[str, Any], result: ChannelValidationResult
+) -> None:
     """Validate that channel addresses follow the expected format.
 
-    Expected format: /ws/{component_name}/v1/{normalized_channel_name}
+    Supports:
+    - Optional pathname prefix from servers section
+    - Path variables like {invocation_id} in addresses
+
+    Expected format (without pathname):
+      /ws/{component_name}/v1/{channel_name}[/{path_variables}...]
+
+    Expected format (with pathname):
+      {pathname}/ws/{component_name}/v1/{channel_name}[/{path_variables}...]
 
     Args:
+        spec: AsyncAPI specification dictionary
         component_name: Name of the component (e.g., 'example')
         channels: Dictionary of channel definitions from AsyncAPI spec
         result: Validation result to update with errors
 
     Examples:
         >>> # Valid: channel 'coffee' with address '/ws/example/v1/coffee'
+        >>> # Valid: channel 'invocations' with address '/ws/example/v1/invocations/{id}'
         >>> # Invalid: channel 'coffee' with address '/ws/example_test/v1/coffee'
 
     """
+    # Extract optional pathname from servers section
+    pathname = get_server_pathname(spec)
+
+    logger.info("Validating %d channels for component '%s'", len(channels), component_name)
+    if pathname:
+        logger.info("Using pathname prefix: %s", pathname)
+
     for channel_name, channel_def in channels.items():
         # Get the address from the channel definition
         address = channel_def.get("address", "")
@@ -222,16 +291,35 @@ def validate_channel_addresses(component_name: str, channels: dict[str, Any], re
             result.add_error(f"Channel '{channel_name}' in '{result.spec_path}' is missing 'address' field")
             continue
 
-        # Build expected address using normalized channel name
+        # Build expected address using normalized channel name with optional pathname
         normalized_channel = normalize_channel_name(channel_name)
-        expected_address = f"/ws/{component_name}/v1/{normalized_channel}"
+        expected_address = f"{pathname}/ws/{component_name}/v1/{normalized_channel}"
 
-        if address != expected_address:
+        # Strip path variables from actual address for comparison
+        # Pattern: /{anything_in_braces} → removed
+        # Example: /invocations/{id}/status/{status_id} → /invocations/status
+        base_address = re.sub(r"\{[^}]+\}", "", address)
+
+        logger.debug("Validating channel '%s':", channel_name)
+        logger.debug("  Expected prefix: %s", expected_address)
+        logger.debug("  Actual: %s", address)
+        logger.debug("  Base (without variables): %s", base_address)
+
+        # Check if base address starts with expected format (prefix match)
+        # This allows additional path segments after the channel name
+        # Examples:
+        #   - /ws/component/v1/channel ✓
+        #   - /ws/component/v1/channel/{id} ✓
+        #   - /ws/component/v1/channel/{id}/status ✓
+        if not base_address.startswith(expected_address):
             result.add_error(
                 f"Channel '{channel_name}' address mismatch in '{result.spec_path}'\n"
-                f"  Expected: {expected_address}\n"
-                f"  Got:      {address}"
+                f"  Expected to start with: {expected_address}\n"
+                f"  Got: {address}\n"
+                f"  (Base path after removing variables: {base_address})"
             )
+        else:
+            logger.debug("  ✓ Address valid")
 
 
 def validate_channel_mappings(
@@ -271,8 +359,8 @@ def validate_channel_mappings(
 
     # Run validations
     validate_naming_convention(channels, result)
-    validate_channel_addresses(component_name, channels, result)
-    check_missing_handlers(channels, handler_functions, result)
+    validate_channel_addresses(spec, component_name, channels, result)
+    check_missing_handlers(channels, handler_functions, spec, result)
     check_orphaned_handlers(channels, handler_functions, component_name, result)
 
     return result

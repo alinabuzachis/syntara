@@ -1,10 +1,10 @@
 """Handler auto-discovery for WebSocket channels.
 
 This module provides dynamic handler discovery based on component and channel names from AsyncAPI specs.
-Handlers are loaded from src/nexus/ws/{component_name}.py and channel-specific functions
-are discovered within the module (e.g., handle_{channel_name}).
+Handlers are loaded from src/nexus/{component_name}/ws/*.py files and channel-specific functions
+are discovered within the modules (e.g., handle_{channel_name}).
 
-If no handler file exists, a default empty handler is created automatically.
+If no handler file exists or handler function is missing, a default empty handler is created automatically.
 """
 
 import importlib
@@ -92,19 +92,22 @@ class HandlerRegistry:
     def discover_handler(self, component_name: str, channel_name: str) -> ModuleType:
         """Discover and load a handler module for the given component and channel.
 
-        Handlers are expected to be located at src/nexus/ws/{component_name}.py
+        Handlers are searched in src/nexus/{component_name}/ws/*.py files
         and should implement channel-specific functions:
         - async def handle_{channel_name}(message: dict) -> dict
         - async def on_connect_{channel_name}(websocket, connection_id) -> None (optional)
 
-        If no handler file exists, a default empty handler is created.
+        The function will scan all .py files in the ws/ directory to find
+        the one containing the handler function.
+
+        If no handler file or function exists, a default empty handler is created.
 
         Args:
             component_name: Name of the component (e.g., "example")
             channel_name: Name of the channel (e.g., "coffee", "chat")
 
         Returns:
-            Loaded handler module (or default handler if file doesn't exist)
+            Loaded handler module (or default handler if not found)
 
         Examples:
             >>> registry = HandlerRegistry()
@@ -119,59 +122,69 @@ class HandlerRegistry:
         if cache_key in self._handlers:
             return self._handlers[cache_key]
 
-        # Construct path to handler module
+        # Construct path to handler directory
         # Assuming this file is at: src/nexus/core/websocket/discovery.py
-        # We need to find: src/nexus/ws/{component_name}.py
+        # We need to find: src/nexus/{component_name}/ws/*.py
         current_file = Path(__file__)
         nexus_root = current_file.parent.parent.parent  # Go up to src/nexus/
-        handler_path = nexus_root / "ws" / f"{component_name}.py"
+        ws_dir = nexus_root / component_name / "ws"
 
-        # Check if handler file exists
-        if not handler_path.exists():
+        # Check if ws/ directory exists
+        if not ws_dir.exists() or not ws_dir.is_dir():
             logger.info(
-                "No handler file found for component '%s', using default empty handler",
+                "No ws/ directory found for component '%s', using default empty handler",
                 component_name,
             )
             module = _create_default_handler()
             self._handlers[cache_key] = module
             return module
 
-        # Load the module dynamically
-        try:
-            module_name = f"nexus.ws.{component_name}"
-            spec = importlib.util.spec_from_file_location(module_name, handler_path)
-            if spec is None or spec.loader is None:
-                self._raise_spec_error(channel_name, handler_path)
-
-            # After the check above, spec and spec.loader are guaranteed to be non-None
-            module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-            spec.loader.exec_module(module)  # type: ignore[union-attr]
-
-        except Exception as e:
-            msg = f"Failed to load handler module for component '{component_name}': {e!s}"
-            raise HandlerNotFoundError(
-                channel_name=channel_name,
-                message=msg,
-                details={"handler_path": str(handler_path), "error": str(e)},
-            ) from e
-
-        # Look for channel-specific handler function
-        # Normalize channel name: replace hyphens with underscores for Python identifiers
+        # Normalize channel name for function lookup
         normalized_channel_name = normalize_channel_name(channel_name)
         handler_func_name = f"handle_{normalized_channel_name}"
-        if not hasattr(module, handler_func_name):
+
+        # Search all .py files in ws/ directory for the handler function
+        found_module: ModuleType | None = None
+
+        for py_file in ws_dir.glob("*.py"):
+            if py_file.name == "__init__.py":
+                continue
+
+            try:
+                module_name = f"nexus.{component_name}.ws.{py_file.stem}"
+                spec = importlib.util.spec_from_file_location(module_name, py_file)
+                if spec is None or spec.loader is None:
+                    logger.debug("Failed to create module spec for %s, skipping", py_file)
+                    continue
+
+                temp_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(temp_module)
+
+                # Check if this module has the handler function
+                if hasattr(temp_module, handler_func_name):
+                    found_module = temp_module
+                    logger.debug(
+                        "Found handler '%s' in %s for channel '%s'", handler_func_name, py_file.name, channel_name
+                    )
+                    break
+
+            except Exception as e:  # noqa: BLE001
+                logger.debug("Failed to load %s: %s", py_file, e)
+                continue
+
+        # If no handler found, use default
+        if found_module is None:
             logger.warning(
-                "Handler for channel '%s' in component '%s' missing '%s', using default",
-                channel_name,
-                component_name,
+                "No handler '%s' found in ws/ directory for component '%s', using default",
                 handler_func_name,
+                component_name,
             )
             module = _create_default_handler()
             self._handlers[cache_key] = module
             return module
 
         # Verify handler function is callable
-        handler_func = getattr(module, handler_func_name)
+        handler_func = getattr(found_module, handler_func_name)
         if not callable(handler_func):
             logger.warning(
                 "Handler '%s' for channel '%s' is not callable, using default",
@@ -183,8 +196,8 @@ class HandlerRegistry:
             return module
 
         # Cache and return
-        self._handlers[cache_key] = module
-        return module
+        self._handlers[cache_key] = found_module
+        return found_module
 
     def clear_cache(self) -> None:
         """Clear all cached handler modules.
@@ -219,11 +232,12 @@ def discover_handler(component_name: str, channel_name: str) -> ModuleType:
     globally for performance.
 
     Handlers should:
-    - Be located at src/nexus/ws/{component_name}.py
+    - Be located in src/nexus/{component_name}/ws/*.py files
     - Implement: async def handle_{channel_name}(message: dict) -> dict
     - Optionally implement: async def on_connect_{channel_name}(websocket, connection_id) -> None
 
-    If no handler file exists, a default empty handler is created automatically.
+    The function scans all .py files in the ws/ directory to find the handler.
+    If no handler file or function exists, a default empty handler is created automatically.
 
     Args:
         component_name: Name of the component (e.g., "example")
@@ -270,59 +284,102 @@ def is_handler_cached(component_name: str, channel_name: str) -> bool:
 
 
 def get_handler_module_path(component_name: str) -> Path:
-    """Get the expected path for a handler module.
+    """Get the expected path for a handler module directory.
 
     Args:
         component_name: Name of the component
 
     Returns:
-        Path to the handler module file
+        Path to the handler ws/ directory
 
     Examples:
         >>> path = get_handler_module_path("example")
-        >>> str(path).endswith("src/nexus/ws/example.py")
+        >>> str(path).endswith("src/nexus/example/ws")
         True
 
     """
     current_file = Path(__file__)
     nexus_root = current_file.parent.parent.parent  # Go up to src/nexus/
-    return nexus_root / "ws" / f"{component_name}.py"
+    return nexus_root / component_name / "ws"
 
 
-def load_handler_module(component_name: str) -> ModuleType | None:
+def _load_module_from_path(component_name: str, handler_path: Path) -> ModuleType | None:
+    """Load a Python module from a file path.
+
+    Args:
+        component_name: Name of the component for module naming
+        handler_path: Path to the Python file
+
+    Returns:
+        Loaded module, or None if loading failed
+
+    """
+    module_name = f"nexus.{component_name}.ws.{handler_path.stem}"
+    spec = importlib.util.spec_from_file_location(module_name, handler_path)
+    if spec is None or spec.loader is None:
+        logger.error("Failed to create module spec for %s", handler_path)
+        return None
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _find_first_handler_file(ws_dir: Path) -> Path | None:
+    """Find the first .py file in a ws/ directory (excluding __init__.py).
+
+    Args:
+        ws_dir: Path to the ws/ directory
+
+    Returns:
+        Path to the first handler file, or None if not found
+
+    """
+    for py_file in ws_dir.glob("*.py"):
+        if py_file.name != "__init__.py":
+            return py_file
+    return None
+
+
+def load_handler_module(component_name: str, file_name: str | None = None) -> ModuleType | None:
     """Load a handler module without caching.
 
-    This function loads the handler module directly without going through
+    This function loads a handler module directly without going through
     the handler registry cache. Useful for validation and inspection.
 
     Args:
         component_name: Name of the component
+        file_name: Optional specific .py file in ws/ directory. If None, loads first found file.
 
     Returns:
         Loaded module, or None if the file doesn't exist
 
     Examples:
-        >>> module = load_handler_module("example")
+        >>> module = load_handler_module("example", "example.py")
         >>> module is not None
         True
 
     """
-    handler_path = get_handler_module_path(component_name)
+    ws_dir = get_handler_module_path(component_name)
 
-    if not handler_path.exists():
+    if not ws_dir.exists() or not ws_dir.is_dir():
         return None
 
-    try:
-        module_name = f"nexus.ws.{component_name}"
-        spec = importlib.util.spec_from_file_location(module_name, handler_path)
-        if spec is None or spec.loader is None:
-            logger.error("Failed to create module spec for component '%s'", component_name)
+    # Determine which file to load
+    handler_path: Path | None
+    if file_name:
+        handler_path = ws_dir / file_name
+        if not handler_path.exists():
             return None
+    else:
+        handler_path = _find_first_handler_file(ws_dir)
 
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
+    if handler_path is None:
+        return None
 
+    # Load the module
+    try:
+        return _load_module_from_path(component_name, handler_path)
     except Exception:
-        logger.exception("Failed to load handler module for component '%s'", component_name)
+        logger.exception("Failed to load handler module from %s", handler_path)
         return None
