@@ -354,8 +354,23 @@ ruff: ## Format code with ruff
 lint: ## Run linters and type checking (no file modifications)
 	@echo "📝 Running ruff linter..."
 	uv run ruff check $(FORMAT_PATHS)
-	@echo "📝 Running pre-commit checks..."
-	SKIP=ruff-format,yamlfmt,trailing-whitespace,end-of-file-fixer,mixed-line-ending pre-commit run --all-files
+	@echo "📝 Running ruff format check..."
+	uv run ruff format --check $(FORMAT_PATHS)
+	@echo "📝 Checking file formatting..."
+	uv run python tools/ci/check_file_formatting.py
+	@echo "📝 Checking YAML formatting..."
+	@if command -v podman >/dev/null 2>&1; then \
+		podman run --rm -v "$$(pwd):/project" --security-opt label=disable ghcr.io/google/yamlfmt:latest -lint -formatter include_document_start=true,retain_line_breaks=true,scan_folded_as_literal=true -gitignore_excludes -exclude '**/.venv/**' /project; \
+	else \
+		echo "⚠️  WARNING: podman not found, skipping yamlfmt check"; \
+	fi
+	@echo "📝 Running type checking..."
+	$(MAKE) typecheck
+	@echo "📝 Running path sequence validation..."
+	$(MAKE) check-path-sequence
+	@echo "📝 Running pre-commit validation checks..."
+	SKIP=ruff-format,yamlfmt,trailing-whitespace,end-of-file-fixer,mixed-line-ending,mypy,check-path-sequence uv run pre-commit run --all-files
+	@echo "✅ All lint checks passed"
 
 .PHONY: typecheck
 typecheck: ## Run type checking only with mypy
