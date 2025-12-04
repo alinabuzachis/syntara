@@ -1,26 +1,61 @@
 # Claude Skill: Pull Request Review
 
-Your goal is to review a pull request with high clarity, consistency, and alignment with the repo’s standards.
+Your goal is to review a pull request with high clarity, consistency, and alignment with the repo's standards.
 
 ---
 
-## 1. Load Context
+## 1. Identify PR Scope (CRITICAL)
+
+**Before reviewing ANY code, determine the exact changes in the PR:**
+
+### Step 1a: Check the commit history
+
+```bash
+# See commits on current branch not in main
+git log main..HEAD --oneline
+```
+
+### Step 1b: Verify file count matches PR
+
+```bash
+# For single-commit PRs, use git show
+git show <commit-hash> --stat
+
+# For multi-commit PRs, use git diff with the correct range
+git diff <first-commit>^..<last-commit> --stat
+```
+
+### Step 1c: Confirm scope with user
+
+**ALWAYS confirm:** "This PR contains X commit(s) changing Y files. Does this match what you expect?"
+
+If the numbers don't match the GitHub PR page (e.g., GitHub shows 3 files but git diff shows 17):
+
+- The branch may be **out of sync with main**
+- Use `git show <commit>` for single-commit PRs instead
+- Ask the user to clarify which commits to review
+
+### Common Pitfalls to Avoid
+
+| Problem                  | Cause                                                    | Solution                                              |
+| ------------------------ | -------------------------------------------------------- | ----------------------------------------------------- |
+| Reviewing too many files | `git diff main...HEAD` includes unrelated merged commits | Use `git show <commit>` for the PR's actual commit(s) |
+| Missing files            | Wrong commit range                                       | Check `git log` first to identify correct commits     |
+| Stale diff               | Branch not rebased                                       | Note this to the user, review only PR commits         |
+
+---
+
+## 2. Load Context
 
 Before reviewing the PR, read:
 
-- `claude.md` (global instructions)
+- `CLAUDE.md` (global instructions)
 - Any relevant project guidelines: architecture, naming, lint, testing
 - Any domain-specific instructions (e.g., Django, React, Tailwind, SOLID)
 
-**Branch Strategy:**
-
-- Base branch: `main` (unless specified otherwise)
-- Review diff: `git diff main...HEAD` or `main` → current branch
-- Focus on changes introduced by the current branch, not existing code in `main`
-
 ---
 
-## 2. Validate Against Guidelines
+## 3. Validate Against Guidelines
 
 Check whether the changes follow:
 
@@ -43,7 +78,7 @@ Check whether the changes follow:
 
 ---
 
-## 3. Detect Re-invented Patterns
+## 4. Detect Re-invented Patterns
 
 Ask:
 
@@ -59,7 +94,7 @@ Examples:
 
 ---
 
-## 4. Recommend Simpler / Native Alternatives
+## 5. Recommend Simpler / Native Alternatives
 
 If the PR implements a complex custom solution, propose:
 
@@ -70,7 +105,7 @@ If the PR implements a complex custom solution, propose:
 
 ---
 
-## 5. Evaluate Test Coverage
+## 6. Evaluate Test Coverage
 
 Check whether:
 
@@ -85,7 +120,7 @@ Generate a list of missing tests and suggested improvements.
 
 ---
 
-## 6. Explain the Changes Back (for Documentation)
+## 7. Explain the Changes Back (for Documentation)
 
 Generate a markdown summary file that explains:
 
@@ -98,7 +133,7 @@ Generate a markdown summary file that explains:
 
 ---
 
-## 7. Validation Commands
+## 8. Validation Commands
 
 Run these project commands:
 
@@ -117,7 +152,7 @@ Then ask the user to confirm manually:
 
 ---
 
-## 8. Final Deliverables
+## 9. Final Deliverables
 
 Output should include:
 
