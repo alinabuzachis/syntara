@@ -1,5 +1,6 @@
 """Unit tests for application configuration."""
 
+import importlib
 import os
 
 import pytest
@@ -366,3 +367,23 @@ class TestOpenRouterSettingsExtended:
                 Settings()
         finally:
             os.environ.pop("NEXUS_OPENROUTER_MAX_TOKENS", None)
+
+
+def test_custom_env_file_path(monkeypatch, tmp_path) -> None:
+    """Ensure NEXUS_ENV_FILE_PATH is honored when loading settings."""
+    from nexus.core import config as config_module
+
+    env_file = tmp_path / "custom.env"
+    env_file.write_text("NEXUS_OPENROUTER_MODEL=custom-model")
+
+    monkeypatch.setenv("NEXUS_ENV_FILE_PATH", str(env_file))
+
+    reloaded_config = importlib.reload(config_module)
+    reloaded_config.get_settings.cache_clear()
+
+    settings = reloaded_config.get_settings()
+
+    assert settings.openrouter_model == "custom-model"
+
+    monkeypatch.delenv("NEXUS_ENV_FILE_PATH", raising=False)
+    importlib.reload(config_module).get_settings.cache_clear()

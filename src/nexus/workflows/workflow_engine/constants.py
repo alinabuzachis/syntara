@@ -12,6 +12,9 @@ workflow execution, making them safe for workflow use.
 
 from nexus.core.config import get_settings
 
+# Clear cached settings so re-imports pick up any environment changes
+get_settings.cache_clear()
+
 # Load settings once at module import time
 _settings = get_settings()
 

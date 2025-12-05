@@ -249,6 +249,7 @@ make services-run
 **Environment Variables**:
 
 All services can be configured via `.env` file or environment variables:
+Set `NEXUS_ENV_FILE_PATH` to point at an alternate `.env` file if you want Nexus to load settings from a non-default location.
 
 ```bash
 # Project Configuration

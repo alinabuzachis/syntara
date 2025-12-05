@@ -497,6 +497,11 @@ class WorkflowEngineSettings(BaseSettings):
 # =============================================================================
 
 
+def _get_env_file() -> str:
+    """Get an optional custom .env file path."""
+    return os.getenv("NEXUS_ENV_FILE_PATH", ".env")
+
+
 class Settings(
     OpenRouterSettings,
     FileUploadSettings,
@@ -518,7 +523,7 @@ class Settings(
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_get_env_file(),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

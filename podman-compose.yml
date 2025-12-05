@@ -99,6 +99,7 @@ services:
       - NEXUS_OPENROUTER_API_KEY=${NEXUS_OPENROUTER_API_KEY}
       - NEXUS_OPENROUTER_MODEL=${NEXUS_OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
       - NEXUS_OPENROUTER_BASE_URL=${NEXUS_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
       - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
     volumes:
       - ./src:/opt/app-root/src/src:z
@@ -125,6 +126,7 @@ services:
       - NEXUS_TEMPORAL_ADDRESS=temporal:7233
       - NEXUS_TEMPORAL_NAMESPACE=default
       - NEXUS_TASK_QUEUE=nexus-workflow-queue
+      - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
       - NEXUS_LOG_LEVEL=INFO
     volumes:
       - ./src:/opt/app-root/src/src:z
