@@ -22,9 +22,10 @@ interface AIAgentFormData {
 interface AIAgentNodeFormProps {
   onSubmit: (data: AIAgentFormData) => void
   onCancel: () => void
+  submitButtonText?: string
 }
 
-function AIAgentFormFields() {
+function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) {
   const { register, control } = useFormContext<AIAgentFormData>()
   return (
     <>
@@ -88,7 +89,7 @@ function AIAgentFormFields() {
         )}
       />
       <Button type="submit" variant="primary" className="w-full justify-center text-xs">
-        Add node
+        {submitButtonText ?? 'Add node'}
       </Button>
     </>
   )
@@ -120,7 +121,7 @@ export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
         onSubmit={handleSubmit}
         className="flex flex-col gap-3"
       >
-        {() => <AIAgentFormFields />}
+        {() => <AIAgentFormFields submitButtonText={props.submitButtonText} />}
       </Form>
     </Card>
   )

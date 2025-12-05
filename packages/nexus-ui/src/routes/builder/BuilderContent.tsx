@@ -53,6 +53,7 @@ export function BuilderContent(props: BuilderContentProps) {
   const [targetNodeId, setTargetNodeId] = useState<string | null>(null)
   const [edgeIdToReplace, setEdgeIdToReplace] = useState<string | null>(null)
   const [sourceHandle, setSourceHandle] = useState<string | undefined>(undefined)
+  const [replacementNodeId, setReplacementNodeId] = useState<string | null>(null)
   const [workflowName, setWorkflowName] = useState('New Workflow')
   const [workflowDescription, setWorkflowDescription] = useState('New Workflow')
   const [isEnabled, setIsEnabled] = useState(false)
@@ -371,11 +372,26 @@ export function BuilderContent(props: BuilderContentProps) {
   }, [setWorkflow, setStoredEdges, navigate])
 
   const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node<NodeType['data']>) => {
-    setSelectedNode(node)
-    // Close other panels when opening node details
-    setAddNodePanelOpen(false)
-    setDetailsOpen(false)
-    setHistoryCardOpen(false)
+    // Check if this is a generic placeholder node
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isGeneric = (node.data as any).metadata?.__isGeneric === true
+
+    if (isGeneric) {
+      // For generic nodes, open AddNodePanel in replacement mode
+      setSelectedNode(null)
+      setDetailsOpen(false)
+      setHistoryCardOpen(false)
+      setSourceNodeId(null) // Clear sourceNodeId
+      setReplacementNodeId(node.id) // Set the node to be replaced
+      setAddNodePanelOpen(true)
+    } else {
+      // For regular nodes, show node details panel
+      setSelectedNode(node)
+      setAddNodePanelOpen(false)
+      setDetailsOpen(false)
+      setHistoryCardOpen(false)
+      setReplacementNodeId(null) // Clear replacementNodeId
+    }
   }, [])
 
   // Memoized callback for adding nodes from edges
@@ -389,6 +405,7 @@ export function BuilderContent(props: BuilderContentProps) {
     setTargetNodeId(targetId || null)
     setEdgeIdToReplace(edgeId || null)
     setSourceHandle(handle || undefined)
+    setReplacementNodeId(null) // Clear replacement mode
     setAddNodePanelOpen(true)
   }, [])
 
@@ -502,10 +519,48 @@ export function BuilderContent(props: BuilderContentProps) {
                     setTargetNodeId(null)
                     setEdgeIdToReplace(null)
                     setSourceHandle(undefined)
+                    setReplacementNodeId(null)
                   }}
                   onNodeSelect={showSuccess}
                   onNodeError={showError}
                   sourceNodeId={sourceNodeId}
+                  replacementNodeId={replacementNodeId}
+                  onNodeReplaced={(nodeId) => {
+                    // Close add node panel first
+                    setAddNodePanelOpen(false)
+                    setReplacementNodeId(null)
+                    setSourceNodeId(null)
+                    setTargetNodeId(null)
+                    setEdgeIdToReplace(null)
+                    setSourceHandle(undefined)
+
+                    // Wait for React Flow to update with the new node data after replacement
+                    // We need to poll because the update goes through: Zustand → BuilderFlow useMemo → useNodeUpdates → React Flow
+                    let attempts = 0
+                    const maxAttempts = 20
+
+                    const checkAndSelect = () => {
+                      const nodes = reactFlowInstance.getNodes() as NodeType[]
+                      const updatedNode = nodes.find((n) => n.id === nodeId)
+
+                      // Check if node is no longer generic (has been updated with real data)
+                      // Both the metadata flag should be removed AND the node type should have changed
+                      const isStillGeneric =
+                        updatedNode &&
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        ((updatedNode.data as any).metadata?.__isGeneric === true || updatedNode.type === 'generic')
+
+                      if (updatedNode && !isStillGeneric) {
+                        // Node has been updated, select it to open the edit form
+                        setSelectedNode(updatedNode)
+                      } else if (attempts < maxAttempts) {
+                        attempts++
+                        setTimeout(checkAndSelect, 50)
+                      }
+                    }
+
+                    checkAndSelect()
+                  }}
                   onConnect={(sourceId, targetId) => {
                     // Capture state values before they get cleared by panel close
                     const capturedEdgeIdToReplace = edgeIdToReplace

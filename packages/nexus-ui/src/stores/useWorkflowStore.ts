@@ -127,11 +127,9 @@ function removeActivityFromList(activities: Activity[], activityId: string): Act
     } else if (activity.type === 'loop') {
       const updatedDo = activity.loop.do ? removeActivityFromList(activity.loop.do, activityId) : []
 
-      // If loop has no body, skip it
-      if (updatedDo.length === 0) {
-        continue
-      }
-
+      // IMPORTANT: Keep loop nodes even with empty do arrays
+      // During editing, loop structure is defined by edges, not nested do array
+      // The do array is only populated when saving to API format
       filtered.push({
         ...activity,
         loop: {
@@ -619,7 +617,20 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
       })
 
       // Build graph from edges - map nested activities to their top-level parents
+      // Only consider sequential edges (not structural edges like loop bodies or condition branches)
       edges.forEach((edge) => {
+        // Skip non-sequential edges:
+        // - Loop body edges (sourceHandle='loop')
+        // - Condition branch edges (sourceHandle='true'/'false')
+        // - Loop-back edges (targetHandle='end')
+        const isSequentialEdge =
+          (!edge.sourceHandle || edge.sourceHandle === 'source' || edge.sourceHandle === 'done') &&
+          edge.targetHandle !== 'end'
+
+        if (!isSequentialEdge) {
+          return
+        }
+
         // Map source and target to top-level activities (or keep as-is if already top-level)
         const mappedSource = activityToParentMap.get(edge.source) || edge.source
         const mappedTarget = activityToParentMap.get(edge.target) || edge.target
@@ -949,7 +960,8 @@ export function createLoopActivity(
     items?: string
     condition?: string
     count?: number
-    maxIterations?: number
+    indexVariable?: string
+    itemVariable?: string
   }
 ): Extract<Activity, { type: 'loop' }> {
   const baseActivity = {
@@ -957,7 +969,7 @@ export function createLoopActivity(
     id,
     name,
     loop: {
-      loopType,
+      type: loopType,
       do: [],
     },
   }
@@ -967,8 +979,10 @@ export function createLoopActivity(
       ...baseActivity,
       loop: {
         ...baseActivity.loop,
-        loopType: 'forEach' as const,
+        type: 'forEach' as const,
         items: config.items,
+        itemVariable: config.itemVariable,
+        indexVariable: config.indexVariable,
       },
     }
   } else if (loopType === 'while' && config.condition) {
@@ -976,9 +990,8 @@ export function createLoopActivity(
       ...baseActivity,
       loop: {
         ...baseActivity.loop,
-        loopType: 'while' as const,
+        type: 'while' as const,
         condition: config.condition,
-        ...(config.maxIterations !== undefined && { maxIterations: config.maxIterations }),
       },
     }
   } else if (loopType === 'count' && config.count !== undefined) {
@@ -986,14 +999,23 @@ export function createLoopActivity(
       ...baseActivity,
       loop: {
         ...baseActivity.loop,
-        loopType: 'count' as const,
+        type: 'count' as const,
         count: config.count,
+        indexVariable: config.indexVariable,
       },
     }
   }
 
   // Fallback - should not happen if form validation works
-  return baseActivity as Extract<Activity, { type: 'loop' }>
+  // Default to forEach with empty items to satisfy type requirements
+  return {
+    ...baseActivity,
+    loop: {
+      type: 'forEach' as const,
+      items: '',
+      do: [],
+    },
+  }
 }
 
 export function createJoinActivity(
@@ -1068,4 +1090,29 @@ export function createConnectorActivity(
   }
 
   return activity
+}
+
+/**
+ * Create a generic placeholder activity that can be replaced with any node type
+ */
+export function createGenericActivity(id: string, name: string = 'New Node', customMessage?: string): TaskActivity {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activity: any = {
+    type: 'task',
+    id,
+    name,
+    metadata: {
+      __isGeneric: true, // Flag to identify this as a placeholder node
+      ...(customMessage ? { __customMessage: customMessage } : {}),
+    },
+    task: {
+      executor: 'script', // Use script executor as placeholder
+      config: {
+        language: 'python',
+        code: '# Click to configure this node',
+      },
+    },
+  }
+
+  return activity as TaskActivity
 }

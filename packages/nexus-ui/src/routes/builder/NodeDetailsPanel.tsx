@@ -68,7 +68,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     }
 
     // Render appropriate form based on node type
-    if (node.type === 'task') {
+    if (node.type === 'task' || node.type === 'task-reversed') {
       const taskData = node.data as TaskActivity
       return <TaskNodeDetails taskData={taskData} nodeId={node.id} onClose={onClose} />
     }

@@ -19,21 +19,26 @@ export function LoopNodeDetails({ loopData, nodeId, onClose }: LoopNodeDetailsPr
   const initialData = {
     name: loopData.name,
     logicType: 'loop' as const,
-    loopType: loopData.loop.loopType,
-    items: loopData.loop.loopType === 'forEach' && 'items' in loopData.loop ? loopData.loop.items : undefined,
-    condition: loopData.loop.loopType === 'while' && 'condition' in loopData.loop ? loopData.loop.condition : undefined,
-    count: loopData.loop.loopType === 'count' && 'count' in loopData.loop ? loopData.loop.count : undefined,
-    maxIterations:
-      loopData.loop.loopType === 'while' && 'maxIterations' in loopData.loop ? loopData.loop.maxIterations : undefined,
+    type: loopData.loop.type,
+    items: loopData.loop.type === 'forEach' && 'items' in loopData.loop ? loopData.loop.items : undefined,
+    condition: loopData.loop.type === 'while' && 'condition' in loopData.loop ? loopData.loop.condition : undefined,
+    count: loopData.loop.type === 'count' && 'count' in loopData.loop ? loopData.loop.count : undefined,
+    indexVariable:
+      (loopData.loop.type === 'forEach' || loopData.loop.type === 'count') && 'indexVariable' in loopData.loop
+        ? loopData.loop.indexVariable
+        : undefined,
+    itemVariable:
+      loopData.loop.type === 'forEach' && 'itemVariable' in loopData.loop ? loopData.loop.itemVariable : undefined,
   }
 
   const handleSubmit = (data: {
     name: string
-    loopType?: string
+    type?: string
     items?: string
     condition?: string
     count?: number
-    maxIterations?: number
+    indexVariable?: string
+    itemVariable?: string
   }) => {
     try {
       const updatedActivity: LoopActivity = {
@@ -41,11 +46,12 @@ export function LoopNodeDetails({ loopData, nodeId, onClose }: LoopNodeDetailsPr
         name: data.name,
         loop: {
           ...loopData.loop,
-          loopType: data.loopType!,
+          type: data.type! as 'forEach' | 'while' | 'count',
           ...(data.items && { items: data.items }),
           ...(data.condition && { condition: data.condition }),
           ...(data.count !== undefined && { count: data.count }),
-          ...(data.maxIterations !== undefined && { maxIterations: data.maxIterations }),
+          ...(data.indexVariable && { indexVariable: data.indexVariable }),
+          ...(data.itemVariable && { itemVariable: data.itemVariable }),
         },
       }
 

@@ -43,7 +43,7 @@ vi.mock('../node-forms/LogicNodeForm', () => ({
         onClick={() =>
           onSubmit({
             name: 'Updated Loop',
-            loopType: 'forEach',
+            type: 'forEach',
             items: 'input.newItems',
           })
         }
@@ -71,7 +71,7 @@ describe('LoopNodeDetails Component', () => {
       id: 'loop-1',
       name: 'Test Loop',
       loop: {
-        loopType: 'forEach',
+        type: 'forEach' as const,
         items: 'input.items',
         do: [],
       },
@@ -89,7 +89,7 @@ describe('LoopNodeDetails Component', () => {
       id: 'loop-1',
       name: 'Original Loop',
       loop: {
-        loopType: 'forEach',
+        type: 'forEach' as const,
         items: 'input.items',
         do: [],
       },
@@ -104,7 +104,7 @@ describe('LoopNodeDetails Component', () => {
       expect.objectContaining({
         name: 'Updated Loop',
         loop: expect.objectContaining({
-          loopType: 'forEach',
+          type: 'forEach',
           items: 'input.newItems',
         }),
       })
@@ -117,9 +117,8 @@ describe('LoopNodeDetails Component', () => {
       id: 'loop-1',
       name: 'Loop',
       loop: {
-        loopType: 'while',
+        type: 'while' as const,
         condition: 'counter < 10',
-        maxIterations: 100,
         do: [],
       },
     }
@@ -136,7 +135,7 @@ describe('LoopNodeDetails Component', () => {
       id: 'loop-1',
       name: 'Loop',
       loop: {
-        loopType: 'count',
+        type: 'count' as const,
         count: 5,
         do: [],
       },

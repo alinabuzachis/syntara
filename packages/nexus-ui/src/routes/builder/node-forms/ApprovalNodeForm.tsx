@@ -11,9 +11,10 @@ interface ApprovalFormData {
 interface ApprovalNodeFormProps {
   onSubmit: (data: ApprovalFormData) => void
   onCancel: () => void
+  submitButtonText?: string
 }
 
-function ApprovalFormFields() {
+function ApprovalFormFields({ submitButtonText }: { submitButtonText?: string }) {
   const { register } = useFormContext<ApprovalFormData>()
   return (
     <>
@@ -69,7 +70,7 @@ function ApprovalFormFields() {
         </NativeSelect>
       </div>
       <Button type="submit" variant="primary" className="w-full justify-center text-xs">
-        Add node
+        {submitButtonText ?? 'Add node'}
       </Button>
     </>
   )
@@ -92,7 +93,7 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
         onSubmit={props.onSubmit}
         className="flex flex-col gap-3"
       >
-        {() => <ApprovalFormFields />}
+        {() => <ApprovalFormFields submitButtonText={props.submitButtonText} />}
       </Form>
     </Card>
   )

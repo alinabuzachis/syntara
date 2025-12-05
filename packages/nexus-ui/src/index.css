@@ -81,6 +81,15 @@
       2px -2px 4px var(--color-pink-800);
   }
 
+  /* Fixed widths for workflow nodes - scales naturally with ReactFlow zoom */
+  .w-node {
+    width: 240px;
+  }
+
+  .w-node-trigger {
+    width: 180px;
+  }
+
   .react-flow.dark {
     background: transparent !important;
     --xy-controls-button-background-color-default: transparent;
@@ -115,4 +124,13 @@
     @apply text-white not-last:mb-6;
     font-size: small;
   }
+}
+
+/* Add spacing to Compass layout */
+.pf-v6-c-compass__header {
+  padding: 2rem 2rem 2rem;
+}
+
+.pf-v6-c-compass__content {
+  padding-top: var(--pf-t--global--spacer--md, 1rem);
 }

@@ -205,7 +205,7 @@ describe('NodeDetailsPanel Component', () => {
           id: 'loop-1',
           name: 'Test Loop',
           loop: {
-            loopType: 'forEach',
+            type: 'forEach',
             items: 'input.items',
             do: [],
           },
@@ -228,9 +228,8 @@ describe('NodeDetailsPanel Component', () => {
           id: 'loop-2',
           name: 'While Loop',
           loop: {
-            loopType: 'while',
+            type: 'while',
             condition: 'counter < 10',
-            maxIterations: 100,
             do: [],
           },
         },

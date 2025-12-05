@@ -13,10 +13,11 @@ interface LogicFormData {
   name: string
   logicType: string
   condition?: string
-  loopType?: string
+  type?: string
   items?: string
   count?: number
-  maxIterations?: number
+  indexVariable?: string
+  itemVariable?: string
   joinStrategy?: string
   joinCount?: number
 }
@@ -31,7 +32,7 @@ interface LogicNodeFormProps {
 function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
   const { register } = useFormContext<LogicFormData>()
   const logicType = useWatch({ name: 'logicType' })
-  const loopType = useWatch({ name: 'loopType' })
+  const type = useWatch({ name: 'type' })
   const joinStrategy = useWatch({ name: 'joinStrategy' })
 
   return (
@@ -76,60 +77,72 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
       {logicType === 'loop' && (
         <>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="logic-loopType" className="text-xs font-medium text-gray-300">
-              Loop Type
+            <label htmlFor="logic-type" className="text-xs font-medium text-gray-300">
+              Type
             </label>
-            <NativeSelect {...register('loopType')} id="logic-loopType">
+            <NativeSelect {...register('type')} id="logic-type">
               <option value="forEach">For Each</option>
               <option value="while">While</option>
               <option value="count">Count</option>
             </NativeSelect>
           </div>
 
-          {loopType === 'forEach' && (
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="logic-items" className="text-xs font-medium text-gray-300">
-                Items Expression <span className="text-red-500">*</span>
-              </label>
-              <Input
-                {...register('items', { required: true })}
-                id="logic-items"
-                placeholder="${input.users}"
-                className="font-mono text-xs"
-              />
-            </div>
-          )}
-
-          {loopType === 'while' && (
+          {type === 'forEach' && (
             <>
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="logic-condition-while" className="text-xs font-medium text-gray-300">
-                  Condition Expression <span className="text-red-500">*</span>
+                <label htmlFor="logic-items" className="text-xs font-medium text-gray-300">
+                  Items Expression <span className="text-red-500">*</span>
                 </label>
-                <Textarea
-                  {...register('condition', { required: true })}
-                  id="logic-condition-while"
-                  placeholder="${counter < 10}"
-                  rows={2}
+                <Input
+                  {...register('items', { required: true })}
+                  id="logic-items"
+                  placeholder="${input.item_list}"
                   className="font-mono text-xs"
                 />
               </div>
+
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="logic-maxIterations" className="text-xs font-medium text-gray-300">
-                  Max Iterations
+                <label htmlFor="logic-itemVariable" className="text-xs font-medium text-gray-300">
+                  Item Variable
                 </label>
                 <Input
-                  {...register('maxIterations', { valueAsNumber: true })}
-                  id="logic-maxIterations"
-                  type="number"
-                  min={1}
-                  className="text-xs"
+                  {...register('itemVariable')}
+                  id="logic-itemVariable"
+                  placeholder="item"
+                  className="font-mono text-xs"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="logic-indexVariable" className="text-xs font-medium text-gray-300">
+                  Index Variable
+                </label>
+                <Input
+                  {...register('indexVariable')}
+                  id="logic-indexVariable"
+                  placeholder="index"
+                  className="font-mono text-xs"
                 />
               </div>
             </>
           )}
 
-          {loopType === 'count' && (
+          {type === 'while' && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="logic-condition-while" className="text-xs font-medium text-gray-300">
+                Condition Expression <span className="text-red-500">*</span>
+              </label>
+              <Textarea
+                {...register('condition', { required: true })}
+                id="logic-condition-while"
+                placeholder="${counter < 10}"
+                rows={2}
+                className="font-mono text-xs"
+              />
+            </div>
+          )}
+
+          {type === 'count' && (
             <div className="flex flex-col gap-1.5">
               <label htmlFor="logic-count" className="text-xs font-medium text-gray-300">
                 Iteration Count <span className="text-red-500">*</span>
@@ -195,9 +208,10 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
   const defaultValues: LogicFormData = {
     name: '',
     logicType: 'condition',
-    loopType: 'forEach',
+    type: 'forEach',
     count: 10,
-    maxIterations: 1000,
+    indexVariable: 'index',
+    itemVariable: 'item',
     joinStrategy: 'all',
     joinCount: 2,
     ...props.initialData,
@@ -208,13 +222,14 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
       name: data.name,
       logicType: data.logicType,
       condition:
-        data.logicType === 'condition' || (data.logicType === 'loop' && data.loopType === 'while')
+        data.logicType === 'condition' || (data.logicType === 'loop' && data.type === 'while')
           ? data.condition
           : undefined,
-      loopType: data.logicType === 'loop' ? data.loopType : undefined,
-      items: data.logicType === 'loop' && data.loopType === 'forEach' ? data.items : undefined,
-      count: data.logicType === 'loop' && data.loopType === 'count' ? data.count : undefined,
-      maxIterations: data.logicType === 'loop' && data.loopType === 'while' ? data.maxIterations : undefined,
+      type: data.logicType === 'loop' ? data.type : undefined,
+      items: data.logicType === 'loop' && data.type === 'forEach' ? data.items : undefined,
+      count: data.logicType === 'loop' && data.type === 'count' ? data.count : undefined,
+      indexVariable: data.logicType === 'loop' && data.type === 'forEach' ? data.indexVariable : undefined,
+      itemVariable: data.logicType === 'loop' && data.type === 'forEach' ? data.itemVariable : undefined,
       joinStrategy: data.logicType === 'converge' ? data.joinStrategy : undefined,
       joinCount: data.logicType === 'converge' && data.joinStrategy === 'count' ? data.joinCount : undefined,
     }

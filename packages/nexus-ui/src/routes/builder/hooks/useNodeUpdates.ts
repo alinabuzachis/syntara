@@ -101,10 +101,16 @@ export function useNodeUpdates({
         return [...updatedNodes, ...preservedNodes]
       })
 
-      // DO NOT merge initialEdges after initialization
-      // This prevents ghost edges from being restored when storedEdges changes
-      // After initialization, React Flow edges are the source of truth, and useEdgeSynchronization
-      // handles syncing them to Zustand. Merging initialEdges here causes race conditions.
+      // SPECIAL CASE: When new edges are added (e.g., loop node creation with edges)
+      // Merge new edges while preserving existing ones
+      if (edgesDataChanged) {
+        setEdges((prevEdges) => {
+          const prevEdgeIds = new Set(prevEdges.map((e) => e.id))
+          const newEdges = initialEdges.filter((e) => !prevEdgeIds.has(e.id))
+          // Add new edges that don't exist yet, preserve all existing edges
+          return [...prevEdges, ...newEdges]
+        })
+      }
 
       // Update the ref with current node IDs
       previousNodeIdsRef.current = currentNodeIds

@@ -20,6 +20,8 @@ import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
 
 import { ButtonEdge } from './edges/ButtonEdge'
 import { DefaultEdge } from './edges/DefaultEdge'
+import { LoopBackEdge } from './edges/LoopBackEdge'
+import { LoopOutgoingEdge } from './edges/LoopOutgoingEdge'
 import { useButtonEdgeMaintenance } from './hooks/useButtonEdgeMaintenance'
 import { useEdgeActiveState } from './hooks/useEdgeActiveState'
 import { useEdgeSynchronization } from './hooks/useEdgeSynchronization'
@@ -28,6 +30,7 @@ import { usePendingEdgeManagement } from './hooks/usePendingEdgeManagement'
 import { useWorkflowInitialization } from './hooks/useWorkflowInitialization'
 import { PlaceholderNode } from './nodes/PlaceholderNode'
 import type { BuilderFlowProps, ConnectionState, PendingEdge } from './types'
+import { detectLoopBackNodes } from './utils/detectLoopBackNodes'
 import { EdgeFactory } from './utils/EdgeFactory'
 import { filterRealEdges, filterRealNodes } from './utils/filterHelpers'
 import { consumePendingDragHandle } from './utils/pendingDragHandle'
@@ -51,10 +54,13 @@ const builderEdgeTypes = {
   ...edgeTypes,
   default: DefaultEdge,
   buttonEdge: ButtonEdge,
+  loopBack: LoopBackEdge,
+  loopOutgoing: LoopOutgoingEdge,
 }
 
 /**
  * Applies Dagre layout algorithm to position nodes in a hierarchical flow
+ * with special handling for loop structures
  */
 const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { direction: 'TB' | 'LR' }) => {
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}))
@@ -63,7 +69,56 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
   const realNodes = filterRealNodes(nodes)
   const realEdges = filterRealEdges(edges)
 
-  realEdges.forEach((edge) => g.setEdge(edge.source, edge.target))
+  // Identify loop structures - find nodes in loop bodies
+  const loopBodyNodes = new Set<string>()
+  const loopParents = new Map<string, string>() // Map: nodeId -> loopNodeId
+  const loopBodies = new Map<string, string[]>() // Map: loopNodeId -> array of body node IDs
+
+  realNodes.forEach((node) => {
+    if (node.type === 'loop') {
+      // Find all edges from this loop's 'loop' handle
+      const loopEdges = realEdges.filter((e) => e.source === node.id && e.sourceHandle === 'loop')
+      const bodyNodeIds: string[] = []
+
+      loopEdges.forEach((loopEdge) => {
+        // Traverse from loop edge to find all nodes that connect back to loop's end handle
+        const visited = new Set<string>()
+        const queue: string[] = [loopEdge.target]
+
+        while (queue.length > 0) {
+          const nodeId = queue.shift()!
+          if (visited.has(nodeId)) continue
+          visited.add(nodeId)
+
+          loopBodyNodes.add(nodeId)
+          loopParents.set(nodeId, node.id)
+          bodyNodeIds.push(nodeId)
+
+          // Find outgoing edges (but don't follow edges back to loop's end)
+          const outgoing = realEdges.filter(
+            (e) =>
+              e.source === nodeId && e.sourceHandle === 'source' && !(e.target === node.id && e.targetHandle === 'end')
+          )
+
+          outgoing.forEach((e) => {
+            if (!visited.has(e.target)) {
+              queue.push(e.target)
+            }
+          })
+        }
+      })
+
+      if (bodyNodeIds.length > 0) {
+        loopBodies.set(node.id, bodyNodeIds)
+      }
+    }
+  })
+
+  // For layout purposes, exclude loop-back edges (edges to loop's end handle)
+  // This prevents Dagre from trying to create a circular layout
+  const layoutEdges = realEdges.filter((edge) => edge.targetHandle !== 'end')
+
+  layoutEdges.forEach((edge) => g.setEdge(edge.source, edge.target))
   realNodes.forEach((node) =>
     g.setNode(node.id, {
       ...node,
@@ -74,13 +129,72 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
 
   Dagre.layout(g)
 
+  // Calculate centered positions for loop body nodes
+  const loopBodyPositions = new Map<string, { x: number; y: number }>()
+
+  loopBodies.forEach((bodyNodeIds, loopId) => {
+    const loopNode = realNodes.find((n) => n.id === loopId)
+    const loopPosition = g.node(loopId)
+    const loopHeight = loopNode?.measured?.height ?? 0
+
+    // Get all body nodes with their Dagre positions (sorted by X position, then reversed)
+    const bodyNodesWithPositions = bodyNodeIds
+      .map((nodeId) => {
+        const node = realNodes.find((n) => n.id === nodeId)
+        const position = g.node(nodeId)
+        return {
+          nodeId,
+          width: node?.measured?.width ?? 0,
+          dagreX: position.x,
+        }
+      })
+      .sort((a, b) => a.dagreX - b.dagreX)
+      .reverse() // Reverse the order for display
+
+    // Calculate total width including spacing between nodes
+    const spacing = 50 // horizontal spacing between nodes
+    const totalWidth = bodyNodesWithPositions.reduce((sum, node, index) => {
+      return sum + node.width + (index > 0 ? spacing : 0)
+    }, 0)
+
+    // Calculate starting X position to center under loop node
+    const loopCenterX = loopPosition.x
+    let currentX = loopCenterX - totalWidth / 2
+
+    // Assign positions to each body node
+    bodyNodesWithPositions.forEach((bodyNode) => {
+      const y = loopPosition.y + loopHeight / 2 + 100
+      loopBodyPositions.set(bodyNode.nodeId, {
+        x: currentX,
+        y,
+      })
+      currentX += bodyNode.width + spacing
+    })
+  })
+
   return {
     nodes: nodes.map((node) => {
       if (!node.id.startsWith('placeholder-')) {
         const position = g.node(node.id)
-        const x = position.x - (node.measured?.width ?? 0) / 2
-        const y = position.y - (node.measured?.height ?? 0) / 2
-        return { ...node, position: { x, y } }
+        let x = position.x - (node.measured?.width ?? 0) / 2
+        let y = position.y - (node.measured?.height ?? 0) / 2
+
+        // Use pre-calculated centered positions for loop body nodes
+        if (loopBodyNodes.has(node.id)) {
+          const centeredPos = loopBodyPositions.get(node.id)
+          if (centeredPos) {
+            x = centeredPos.x
+            y = centeredPos.y
+          }
+        }
+
+        // Add className for loop body nodes to match loop node width
+        const isLoopBodyNode = loopBodyNodes.has(node.id)
+        return {
+          ...node,
+          position: { x, y },
+          className: isLoopBodyNode ? 'min-w-[300px]' : node.className,
+        }
       }
       return node
     }),
@@ -104,9 +218,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const workflowVersion = useWorkflowStore((state) => state.workflowVersion)
   const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow)
   const storedEdges = useWorkflowStore((state) => state.edges)
-  // Subscribe to activities and triggers arrays to detect when nodes are added/removed
+  // Subscribe to activities and triggers arrays to detect when nodes are added/removed/updated
   const activitiesCount = useWorkflowStore((state) => state.currentWorkflow?.workflow.activities.length ?? 0)
   const triggersCount = useWorkflowStore((state) => state.currentWorkflow?.triggers?.length ?? 0)
+  // Subscribe to activities array directly to detect updates to individual activities
+  const activities = useWorkflowStore((state) => state.currentWorkflow?.workflow.activities)
+  // Subscribe to edges count to detect when edges are added/removed (needed for loop node creation)
+  const edgesCount = useWorkflowStore((state) => state.edges.length)
   const setStoredEdges = useWorkflowStore((state) => state.setEdges)
   const batchRemoveNodesAndEdges = useWorkflowStore((state) => state.batchRemoveNodesAndEdges)
   const reactFlowInstance = useReactFlow()
@@ -146,20 +264,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     const activities = currentWorkflow?.workflow.activities || []
 
-    // BuilderContent already flattens all workflows via loadWorkflow() before storing
-    // So activities are ALWAYS flat here - just need to create nodes and use stored edges
-    const taskActivities = extractTaskActivities(activities)
-    taskActivities.forEach((activity: TaskActivity) => {
-      nodes.push({
-        id: activity.id,
-        type: 'task',
-        position: { x: 0, y: 0 },
-        data: activity,
-      })
-    })
-
-    // Create nodes for join, condition, and loop activities (they need to be visible on canvas)
-    // Parallel activities are NOT rendered - their branches are rendered as separate nodes
+    // Create nodes for join, condition, and loop activities first (needed for loop-back detection)
     activities.forEach((activity: Activity) => {
       if (activity.type === 'join') {
         nodes.push({
@@ -185,17 +290,24 @@ export function BuilderFlow(props: BuilderFlowProps) {
       }
     })
 
-    // Restore edges from store
-    // BuilderContent generates these via loadWorkflow() which flattens and extracts edges
+    // Restore edges from store (needed for loop-back detection)
     storedEdges.forEach(
       (edge: { id: string; source: string; target: string; sourceHandle?: string; targetHandle?: string }) => {
+        // Determine edge type based on handles (must match EdgeFactory logic)
+        let edgeType: string = 'default'
+        if (edge.targetHandle === 'end') {
+          edgeType = 'loopBack'
+        } else if (edge.sourceHandle === 'loop') {
+          edgeType = 'loopOutgoing'
+        }
+
         const restoredEdge: EdgeType = {
           id: edge.id,
           source: edge.source,
           target: edge.target,
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
-          type: 'default',
+          type: edgeType,
           markerEnd,
           data: {
             onAddNode: onAddNodeFromEdge,
@@ -205,18 +317,63 @@ export function BuilderFlow(props: BuilderFlowProps) {
       }
     )
 
+    // BuilderContent already flattens all workflows via loadWorkflow() before storing
+    // So activities are ALWAYS flat here - just need to create nodes and use stored edges
+    const taskActivities = extractTaskActivities(activities)
+    taskActivities.forEach((activity: TaskActivity) => {
+      // Check if this is a generic placeholder node
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isGeneric = (activity as any).metadata?.__isGeneric === true
+
+      nodes.push({
+        id: activity.id,
+        type: isGeneric ? 'generic' : 'task',
+        position: { x: 0, y: 0 },
+        data: activity,
+      })
+    })
+
+    // Detect which nodes are in loop-back paths (need edges, loop nodes, AND task nodes)
+    // IMPORTANT: This must happen AFTER all nodes (including tasks) are created
+    const loopBackNodeIds = detectLoopBackNodes(edges, nodes)
+
+    // Update node types/metadata based on loop-back detection
+    // - Task nodes: Convert to task-reversed type
+    // - Generic nodes: Set __reverseHandles metadata flag (don't change type)
+    loopBackNodeIds.forEach((nodeId) => {
+      const nodeIndex = nodes.findIndex((n) => n.id === nodeId)
+      if (nodeIndex !== -1) {
+        const node = nodes[nodeIndex]
+        if (node.type === 'task') {
+          nodes[nodeIndex] = { ...node, type: 'task-reversed' as const }
+        } else if (node.type === 'generic') {
+          // Set metadata flag for reversed handles
+          nodes[nodeIndex] = {
+            ...node,
+            data: {
+              ...node.data,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              metadata: { ...(node.data as any).metadata, __reverseHandles: true },
+            },
+          }
+        }
+      }
+    })
+
     return { nodes, edges }
     // Dependencies:
     // - workflowVersion: Changes when loading a new workflow (via setWorkflow)
     // - activitiesCount: Changes when activities are added/removed (via addActivity/removeActivity)
     // - triggersCount: Changes when triggers are added/removed (via addTrigger/removeTrigger)
+    // - activities: Changes when individual activities are updated (via updateActivity)
+    // - edgesCount: Changes when edges are added/removed (needed for loop node creation with edges)
     // - onAddNodeFromEdge: Callback function (should be stable)
     //
     // We DON'T depend on storedEdges directly to avoid infinite loops from edge synchronization.
-    // storedEdges changes are handled by useNodeUpdates which watches initialEdges.
+    // Using edgesCount instead allows us to detect edge additions without comparing entire edge objects.
     // We DON'T depend on currentWorkflow directly - we use workflowVersion to detect workflow changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workflowVersion, activitiesCount, triggersCount, onAddNodeFromEdge])
+  }, [workflowVersion, activitiesCount, triggersCount, activities, edgesCount, onAddNodeFromEdge])
 
   // CRITICAL FIX: Use controlled state instead of useNodesState/useEdgesState
   // React Flow's hooks reset state when initialNodes/initialEdges change
@@ -354,6 +511,74 @@ export function BuilderFlow(props: BuilderFlowProps) {
     isInitialized,
     setStoredEdges,
   })
+
+  // Effect to convert task nodes to/from task-reversed based on loop-back detection
+  // This runs AFTER initialization to handle dynamic edge changes
+  useEffect(() => {
+    if (!isInitialized) return
+
+    // Update node types if they need to change
+    setNodes((currentNodes) => {
+      // Detect which task nodes should be reversed based on current edges
+      // IMPORTANT: Use currentNodes here, not nodes from closure
+      const loopBackNodeIds = detectLoopBackNodes(edges, currentNodes)
+
+      let hasChanges = false
+      const updatedNodes = currentNodes.map((node) => {
+        const shouldBeReversed = loopBackNodeIds.has(node.id)
+
+        // Handle generic nodes - set metadata flag instead of changing type
+        if (node.type === 'generic') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const currentReverseHandles = (node.data as any).metadata?.__reverseHandles as boolean | undefined
+
+          if (shouldBeReversed && !currentReverseHandles) {
+            hasChanges = true
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                metadata: { ...(node.data as any).metadata, __reverseHandles: true },
+              },
+            }
+          } else if (!shouldBeReversed && currentReverseHandles) {
+            hasChanges = true
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+            const { __reverseHandles: _reverseHandles, ...restMetadata } = (node.data as any).metadata || {}
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                metadata: restMetadata,
+              },
+            }
+          }
+          return node
+        }
+
+        // Only handle task and task-reversed nodes
+        if (node.type !== 'task' && node.type !== 'task-reversed') {
+          return node
+        }
+
+        const isCurrentlyReversed = node.type === 'task-reversed'
+
+        // Convert if needed
+        if (shouldBeReversed && !isCurrentlyReversed) {
+          hasChanges = true
+          return { ...node, type: 'task-reversed' as const }
+        } else if (!shouldBeReversed && isCurrentlyReversed) {
+          hasChanges = true
+          return { ...node, type: 'task' as const }
+        }
+
+        return node
+      })
+
+      return hasChanges ? updatedNodes : currentNodes
+    })
+  }, [edges, isInitialized, setNodes])
 
   const onNodesDelete: OnNodesDelete = useCallback(
     (deletedNodes) => {

@@ -10,6 +10,7 @@ export interface BaseNodeFormProps<TData = unknown> {
   onSubmit: (data: TData) => void
   onCancel: () => void
   initialData?: Partial<TData>
+  submitButtonText?: string
 }
 
 /**

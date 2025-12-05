@@ -414,5 +414,62 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       expect(activities).toHaveLength(3)
       expect(activities.map((a) => a.id).sort()).toEqual(['A', 'B', 'C'])
     })
+
+    it('reorders activities with loop nodes using done handle', () => {
+      const trigger: Activity = {
+        type: 'trigger',
+        id: 'trigger',
+        name: 'Manual Trigger',
+        trigger: { type: 'manual' },
+      }
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const loopB: Activity = {
+        type: 'loop',
+        id: 'B',
+        name: 'Loop B',
+        loop: {
+          type: 'forEach',
+          items: 'input.items',
+          do: [],
+        },
+      }
+      const loopBodyC = createScriptActivity('C', 'Loop Body C', 'python', 'print("C")')
+
+      // Initial order: trigger->A->B with C in loop body
+      // Change to: trigger->B->A (reconnect edges)
+      useWorkflowStore.setState({
+        currentWorkflow: {
+          name: 'Test',
+          triggers: [],
+          workflow: {
+            // Activities in OLD order (A before B)
+            activities: [trigger, activityA, loopB, loopBodyC],
+          },
+        },
+        workflowVersion: 1,
+        edges: [
+          // NEW edge configuration: trigger->B->A
+          { id: 'trigger-B', source: 'trigger', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'B-A', source: 'B', target: 'A', sourceHandle: 'done', targetHandle: 'target' },
+          // Loop internal edges (should be ignored for ordering)
+          { id: 'B-C', source: 'B', target: 'C', sourceHandle: 'loop', targetHandle: 'target' },
+          { id: 'C-B', source: 'C', target: 'B', sourceHandle: 'source', targetHandle: 'end' },
+        ],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+
+      // Should be reordered to: trigger, B, A (with C remaining in the list)
+      const topLevelIds = activities.map((a) => a.id)
+      const triggerIndex = topLevelIds.indexOf('trigger')
+      const bIndex = topLevelIds.indexOf('B')
+      const aIndex = topLevelIds.indexOf('A')
+
+      // Verify correct ordering: trigger < B < A
+      expect(triggerIndex).toBeLessThan(bIndex)
+      expect(bIndex).toBeLessThan(aIndex)
+    })
   })
 })

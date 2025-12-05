@@ -12,6 +12,7 @@ export function NodeComponent(props: {
   disableTarget?: boolean
   enableStart?: boolean
   enableEnd?: boolean
+  reverseHandles?: boolean
   className?: string
   onClick?: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void
   nodeProps: NodeProps
@@ -54,8 +55,22 @@ export function NodeComponent(props: {
         tabIndex={props.onClick ? 0 : undefined}
       >
         {props.children}
-        {!props.disableTarget && <Handle type="target" id="target" position={Position.Left} style={handleStyle} />}
-        {!props.disableSource && <Handle type="source" id="source" position={Position.Right} style={handleStyle} />}
+        {!props.disableTarget && (
+          <Handle
+            type="target"
+            id="target"
+            position={props.reverseHandles ? Position.Right : Position.Left}
+            style={handleStyle}
+          />
+        )}
+        {!props.disableSource && (
+          <Handle
+            type="source"
+            id="source"
+            position={props.reverseHandles ? Position.Left : Position.Right}
+            style={handleStyle}
+          />
+        )}
         {props.enableStart && (
           <Handle type="source" id="start" position={Position.Right} style={{ ...handleStyle, top: '85%' }} />
         )}

@@ -2,6 +2,7 @@ import { SplitIcon } from 'lucide-react'
 
 import {
   createConditionActivity,
+  createGenericActivity,
   createJoinActivity,
   createLoopActivity,
   useWorkflowStore,
@@ -14,12 +15,24 @@ type LogicFormData = {
   name: string
   logicType: string
   condition?: string
-  loopType?: string
+  type?: string
   items?: string
   count?: number
-  maxIterations?: number
+  indexVariable?: string
+  itemVariable?: string
   joinStrategy?: string
   joinCount?: number
+}
+
+/**
+ * Generate a cryptographically secure random ID suffix
+ */
+function generateSecureRandomId(): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const crypto = window.crypto || (window as any).msCrypto
+  const array = new Uint32Array(2)
+  crypto.getRandomValues(array)
+  return array[0].toString(36) + array[1].toString(36)
 }
 
 /**
@@ -40,7 +53,7 @@ export default function registerLogicNode() {
       },
       (data, onSuccess, onError) => {
         try {
-          const activityId = `logic_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+          const activityId = `logic_${Date.now()}_${generateSecureRandomId()}`
 
           let activity
 
@@ -51,7 +64,7 @@ export default function registerLogicNode() {
             }
             activity = createConditionActivity(activityId, data.name, data.condition)
           } else if (data.logicType === 'loop') {
-            const loopType = data.loopType as 'forEach' | 'while' | 'count'
+            const loopType = data.type as 'forEach' | 'while' | 'count'
 
             if (loopType === 'forEach' && !data.items) {
               onError('Items expression is required for forEach loop')
@@ -70,8 +83,45 @@ export default function registerLogicNode() {
               items: data.items,
               condition: data.condition,
               count: data.count,
-              maxIterations: data.maxIterations,
+              indexVariable: data.indexVariable,
+              itemVariable: data.itemVariable,
             })
+
+            // Add the loop activity first
+            useWorkflowStore.getState().addActivity(activity)
+
+            // Create a generic placeholder node for the loop body with custom message
+            const genericNodeId = `task_${Date.now()}_${generateSecureRandomId()}`
+            const genericActivity = createGenericActivity(
+              genericNodeId,
+              '', // No name
+              'Replace this node to complete the loop' // Custom message
+            )
+            useWorkflowStore.getState().addActivity(genericActivity)
+
+            // Create edges: loop -> generic task -> loop (back)
+            const currentEdges = useWorkflowStore.getState().edges
+            useWorkflowStore.getState().setEdges([
+              ...currentEdges,
+              {
+                id: `${activityId}-loop-${genericNodeId}`,
+                source: activityId,
+                target: genericNodeId,
+                sourceHandle: 'loop',
+                targetHandle: 'target',
+              },
+              {
+                id: `${genericNodeId}-${activityId}-end`,
+                source: genericNodeId,
+                target: activityId,
+                sourceHandle: 'source',
+                targetHandle: 'end',
+              },
+            ])
+
+            // Signal success with the loop node ID (not the generic node)
+            onSuccess(activityId)
+            return
           } else if (data.logicType === 'converge') {
             const strategy = (data.joinStrategy || 'all') as 'all' | 'any' | 'majority' | 'count'
 

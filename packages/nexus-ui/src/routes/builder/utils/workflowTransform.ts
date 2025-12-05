@@ -32,6 +32,14 @@ export interface FlatWorkflow {
  */
 export class WorkflowTransform {
   /**
+   * Gets the appropriate source handle for an activity based on its type.
+   * Loop nodes use 'done' handle, all other nodes use 'source' handle.
+   */
+  private static getSourceHandle(activity: Activity): string {
+    return activity.type === 'loop' ? 'done' : 'source'
+  }
+
+  /**
    * Converts nested workflow structure to flat representation.
    *
    * This operation:
@@ -73,7 +81,7 @@ export class WorkflowTransform {
 
       // Handle parallel_for_* wrappers as target - connect to each branch
       if (isParallelWrapper(next)) {
-        edges.push(...createEdgesToWrapperBranches(current.id, next, 'source'))
+        edges.push(...createEdgesToWrapperBranches(current.id, next, this.getSourceHandle(current)))
         continue
       }
 
@@ -97,7 +105,7 @@ export class WorkflowTransform {
               id: `${currentBranch.id}-${nextBranch.id}`,
               source: currentBranch.id,
               target: nextBranch.id,
-              sourceHandle: 'source',
+              sourceHandle: this.getSourceHandle(currentBranch),
               targetHandle: 'target',
             })
           }
@@ -114,7 +122,7 @@ export class WorkflowTransform {
             id: `${branch.id}-${next.id}`,
             source: branch.id,
             target: next.id,
-            sourceHandle: 'source',
+            sourceHandle: this.getSourceHandle(branch),
             targetHandle: 'target',
           })
         }
@@ -130,7 +138,7 @@ export class WorkflowTransform {
             id: `${current.id}-${branch.id}`,
             source: current.id,
             target: branch.id,
-            sourceHandle: 'source',
+            sourceHandle: this.getSourceHandle(current),
             targetHandle: 'target',
           })
         }
@@ -142,7 +150,7 @@ export class WorkflowTransform {
         id: `${current.id}-${next.id}`,
         source: current.id,
         target: next.id,
-        sourceHandle: 'source',
+        sourceHandle: this.getSourceHandle(current),
         targetHandle: 'target',
       })
     }
@@ -189,6 +197,83 @@ export class WorkflowTransform {
 
     // Clone to avoid mutations
     let result = [...flatActivities]
+
+    // Find all loop activities and nest their bodies first
+    // Process loops before conditions to handle nested structures correctly
+    const loopActivities = result.filter((a) => a.type === 'loop')
+
+    for (const loopActivity of loopActivities) {
+      // Skip if already moved into another structure's branches
+      if (!result.some((a) => a.id === loopActivity.id)) {
+        continue
+      }
+
+      // Find edges from loop's 'loop' handle
+      const loopEdges = edges.filter((e) => e.source === loopActivity.id && e.sourceHandle === 'loop')
+      const loopStartIds = loopEdges.map((e) => e.target)
+
+      // Find all activities in the loop body using the same approach as findBranchActivities
+      // but stop at the loop's end handle instead of following all sequential edges
+      const loopBodyActivities: Activity[] = []
+      const loopBodyIds = new Set<string>()
+
+      // Collect all activities between loop handle and end handle
+      const visited = new Set<string>()
+      const queue: string[] = [...loopStartIds]
+
+      while (queue.length > 0) {
+        const activityId = queue.shift()!
+        if (visited.has(activityId)) continue
+        visited.add(activityId)
+
+        const activity = searchContext.find((a) => a.id === activityId)
+        if (!activity) continue
+
+        loopBodyActivities.push(activity)
+        loopBodyIds.add(activityId)
+
+        // Find outgoing edges (but don't follow edges back to the loop's end handle)
+        // Include both 'source' (regular nodes) and 'done' (loop nodes) handles
+        const outgoingEdges = edges.filter(
+          (e) =>
+            e.source === activityId &&
+            (!e.sourceHandle || e.sourceHandle === 'source' || e.sourceHandle === 'done') &&
+            !(e.target === loopActivity.id && e.targetHandle === 'end')
+        )
+
+        for (const edge of outgoingEdges) {
+          if (!visited.has(edge.target)) {
+            queue.push(edge.target)
+          }
+        }
+      }
+
+      if (loopBodyActivities.length > 0) {
+        // Remove loop body activities from top level
+        result = result.filter((a) => !loopBodyIds.has(a.id))
+
+        // Filter out edges that connect back to the loop's end handle
+        // These edges define the loop boundary and shouldn't be followed when nesting the loop body
+        const loopBodyEdges = edges.filter((e) => !(e.target === loopActivity.id && e.targetHandle === 'end'))
+
+        // Recursively process nested structures in loop body
+        const processedLoopBody = this.nest(loopBodyActivities, loopBodyEdges, searchContext)
+
+        // Update loop with nested body
+        const loopIndex = result.findIndex((a) => a.id === loopActivity.id)
+        if (loopIndex !== -1) {
+          const updatedLoop = {
+            ...loopActivity,
+            loop: {
+              ...loopActivity.loop,
+              do: processedLoopBody,
+            },
+          } as Extract<Activity, { type: 'loop' }>
+
+          result[loopIndex] = updatedLoop
+        }
+      }
+    }
 
     // Find all condition activities
     const conditionActivities = result.filter((a) => a.type === 'condition')
@@ -425,7 +510,7 @@ export class WorkflowTransform {
               id: `${currentBranch.id}-${nextBranch.id}`,
               source: currentBranch.id,
               target: nextBranch.id,
-              sourceHandle: 'source',
+              sourceHandle: this.getSourceHandle(currentBranch),
               targetHandle: 'target',
             })
           }
@@ -442,7 +527,7 @@ export class WorkflowTransform {
             id: `${branch.id}-${next.id}`,
             source: branch.id,
             target: next.id,
-            sourceHandle: 'source',
+            sourceHandle: this.getSourceHandle(branch),
             targetHandle: 'target',
           })
         }
@@ -458,7 +543,7 @@ export class WorkflowTransform {
             id: `${current.id}-${branch.id}`,
             source: current.id,
             target: branch.id,
-            sourceHandle: 'source',
+            sourceHandle: this.getSourceHandle(current),
             targetHandle: 'target',
           })
         }
@@ -487,17 +572,36 @@ export class WorkflowTransform {
   ): void {
     const doActivities = activity.loop.do || []
 
-    // Add loop node
-    flatActivities.push(activity)
+    // Add loop node with empty do array (activities will be flattened separately)
+    flatActivities.push({
+      ...activity,
+      loop: {
+        ...activity.loop,
+        do: [],
+      },
+    })
 
-    // Generate edge to first activity in body
     if (doActivities.length > 0) {
+      // Generate edge from loop's 'loop' handle to first activity in body
       edges.push({
-        id: `${activity.id}-${doActivities[0].id}`,
+        id: `${activity.id}-loop-${doActivities[0].id}`,
         source: activity.id,
         target: doActivities[0].id,
-        sourceHandle: 'source',
+        sourceHandle: 'loop',
         targetHandle: 'target',
+      })
+
+      // Generate sequential edges within the loop body
+      this.generateSequentialEdges(doActivities, edges)
+
+      // Generate loop-back edge from last activity to loop's 'end' handle
+      const lastActivity = doActivities[doActivities.length - 1]
+      edges.push({
+        id: `${lastActivity.id}-${activity.id}-end`,
+        source: lastActivity.id,
+        target: activity.id,
+        sourceHandle: this.getSourceHandle(lastActivity),
+        targetHandle: 'end',
       })
     }
 
@@ -513,13 +617,13 @@ export class WorkflowTransform {
       const next = activities[i + 1]
 
       if (isParallelWrapper(next)) {
-        edges.push(...createEdgesToWrapperBranches(current.id, next, 'source'))
+        edges.push(...createEdgesToWrapperBranches(current.id, next, this.getSourceHandle(current)))
       } else {
         edges.push({
           id: `${current.id}-${next.id}`,
           source: current.id,
           target: next.id,
-          sourceHandle: 'source',
+          sourceHandle: this.getSourceHandle(current),
           targetHandle: 'target',
         })
       }
@@ -559,8 +663,11 @@ export class WorkflowTransform {
       // Find sequential edges
       // CRITICAL FIX: Also include edges with undefined sourceHandle to catch edges created via ButtonEdge
       // ButtonEdge-created edges may not have sourceHandle set, or it could be undefined
+      // Include both 'source' (regular nodes) and 'done' (loop nodes) handles
       const sequentialEdges = edges.filter(
-        (edge) => edge.source === activityId && (!edge.sourceHandle || edge.sourceHandle === 'source')
+        (edge) =>
+          edge.source === activityId &&
+          (!edge.sourceHandle || edge.sourceHandle === 'source' || edge.sourceHandle === 'done')
       )
 
       for (const edge of sequentialEdges) {
@@ -653,7 +760,7 @@ export class WorkflowTransform {
   }
 
   /**
-   * Collects all activity IDs that are nested inside condition branches.
+   * Collects all activity IDs that are nested inside condition branches or loop bodies.
    * This is used to remove duplicates after recursive processing.
    */
   private static collectNestedActivityIds(activities: Activity[]): Set<string> {
@@ -678,6 +785,16 @@ export class WorkflowTransform {
           // Recursively collect from nested conditions
           const nestedElseIds = this.collectNestedActivityIds([elseActivity])
           nestedElseIds.forEach((id) => nestedIds.add(id))
+        }
+      } else if (activity.type === 'loop') {
+        const doActivities = activity.loop.do || []
+
+        // Add IDs from loop body
+        for (const doActivity of doActivities) {
+          nestedIds.add(doActivity.id)
+          // Recursively collect from nested structures in loop body
+          const nestedDoIds = this.collectNestedActivityIds([doActivity])
+          nestedDoIds.forEach((id) => nestedIds.add(id))
         }
       }
     }

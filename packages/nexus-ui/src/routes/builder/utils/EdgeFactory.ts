@@ -56,13 +56,24 @@ export class EdgeFactory {
         ? `${source}-${sourceHandle}-${target}`
         : `${source}-${target}`
 
+    // Determine edge type based on handles:
+    // - loopBack: edges connecting TO loop's end handle (looping back)
+    // - loopOutgoing: edges FROM loop's loop handle (exiting the loop to the next iteration)
+    // - default: all other edges
+    let edgeType: string = 'default'
+    if (targetHandle === 'end') {
+      edgeType = 'loopBack'
+    } else if (sourceHandle === 'loop') {
+      edgeType = 'loopOutgoing'
+    }
+
     return {
       id: edgeId,
       source,
       target,
       ...(sourceHandle ? { sourceHandle } : {}),
       targetHandle: targetHandle || 'target',
-      type: 'default',
+      type: edgeType,
       markerEnd,
       ...(onAddNode ? { data: { onAddNode } } : {}),
     } as EdgeType
@@ -134,10 +145,11 @@ export class EdgeFactory {
    * Button edges have IDs in the format:
    * - Regular nodes: `button-${nodeId}`
    * - Condition nodes: `button-${nodeId}-true` or `button-${nodeId}-false`
+   * - Loop nodes: `button-${nodeId}-done`
    *
    * @param nodeId - Node ID to remove button edges for
    * @param edges - Existing edges array
-   * @param sourceHandle - Optional specific handle to remove (for condition nodes)
+   * @param sourceHandle - Optional specific handle to remove (for condition/loop nodes)
    * @returns Filtered edges array
    *
    * @example
@@ -147,16 +159,23 @@ export class EdgeFactory {
    *
    * // Remove button edge for specific handle (condition node)
    * setEdges((eds) => EdgeFactory.removeButtonEdge('condition-1', eds, 'true'))
+   *
+   * // Remove button edge for specific handle (loop node)
+   * setEdges((eds) => EdgeFactory.removeButtonEdge('loop-1', eds, 'done'))
    * ```
    */
   static removeButtonEdge(nodeId: string, edges: EdgeType[], sourceHandle?: string): EdgeType[] {
-    if (sourceHandle && ['true', 'false'].includes(sourceHandle)) {
-      // Remove specific handle button edge for condition nodes
+    if (sourceHandle && ['true', 'false', 'done'].includes(sourceHandle)) {
+      // Remove specific handle button edge for condition/loop nodes
       return edges.filter((e) => e.id !== `button-${nodeId}-${sourceHandle}`)
     }
-    // Remove regular button edge and any condition handle button edges
+    // Remove regular button edge and any condition/loop handle button edges
     return edges.filter(
-      (e) => e.id !== `button-${nodeId}` && e.id !== `button-${nodeId}-true` && e.id !== `button-${nodeId}-false`
+      (e) =>
+        e.id !== `button-${nodeId}` &&
+        e.id !== `button-${nodeId}-true` &&
+        e.id !== `button-${nodeId}-false` &&
+        e.id !== `button-${nodeId}-done`
     )
   }
 
