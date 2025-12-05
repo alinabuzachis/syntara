@@ -55,7 +55,7 @@ schemas/
 
 1. **WebSocket Router** (Convention-Based Discovery)
    - Scans `src/nexus/{component}/ws/*.py` for handler files
-   - Automatically derives spec path: `{handler}.py` → `schemas/{component}/websocket-{handler}.yaml`
+   - Automatically derives spec path: `{handler}.py` → `src/nexus/schemas/{component}/websocket-{handler}.yaml`
    - Validates handler/spec pairing at startup (fail-fast)
    - Loads and merges AsyncAPI specs per component
    - Auto-discovers channels from merged specifications

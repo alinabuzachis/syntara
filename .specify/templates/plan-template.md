@@ -155,8 +155,8 @@ ios/ or android/
 2. **Generate API contracts** from functional requirements:
    - For each user action → endpoint
    - Use standard REST/GraphQL patterns
-   - Output OpenAPI/AsyncAPI schema to `[project root]/schemas/[component]/`
-   - Note: Schemas are stored at project root level, NOT within the specs folder
+   - Output OpenAPI/AsyncAPI schema to `src/nexus/schemas/[component]/`
+   - Note: Schemas are stored as package data files in src/nexus/schemas/, NOT at project root or within the specs folder
 
 3. **Generate contract tests** from contracts:
    - One test file per endpoint
@@ -176,7 +176,7 @@ ios/ or android/
    - Keep under 150 lines for token efficiency
    - Output to repository root
 
-**Output**: data-model.md, [project root]/schemas/[component]/*, failing tests, quickstart.md, agent-specific file
+**Output**: data-model.md, src/nexus/schemas/[component]/*, failing tests, quickstart.md, agent-specific file
 
 ## Phase 2: Task Planning Approach
 *This section describes what the /tasks command will do - DO NOT execute during /plan*

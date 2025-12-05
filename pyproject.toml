@@ -86,8 +86,8 @@ Issues = "https://github.com/syntara-orchestration/syntara/issues"
 packages = ["src/nexus"]
 
 [tool.hatch.build.targets.sdist]
-include = [
-    "src/nexus/**",
+only-include = [
+    "src/nexus",
     "README.md",
     "LICENSE",
     "uv.lock",

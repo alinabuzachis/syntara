@@ -5,11 +5,66 @@ import json
 import types
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from nexus.core.websocket.endpoint_factory import create_websocket_endpoint, scan_handler_specs
+
+
+def _create_mock_traversable(path: Path) -> Mock:
+    """Create a mock Traversable object for importlib.resources.
+
+    Args:
+        path: Path to wrap in a mock Traversable
+
+    Returns:
+        Mock object that behaves like a Traversable
+
+    """
+    mock = Mock()
+    mock.is_file.return_value = path.is_file()
+    mock.is_dir.return_value = path.is_dir()
+    mock.read_text.return_value = path.read_text() if path.is_file() else ""
+    mock.name = path.name
+    mock.suffix = path.suffix
+
+    # Use configure_mock for magic methods (lambda must accept self)
+    mock.configure_mock(__str__=lambda self: str(path), __fspath__=lambda self: str(path))  # noqa: ARG005
+
+    def joinpath(*parts: str) -> Mock:
+        new_path = path.joinpath(*parts)
+        return _create_mock_traversable(new_path)
+
+    def iterdir() -> list[Mock]:
+        if path.is_dir():
+            return [_create_mock_traversable(p) for p in path.iterdir()]
+        return []
+
+    mock.joinpath = joinpath
+    mock.iterdir = iterdir
+
+    return mock
+
+
+def _create_mock_files_function(nexus_dir: Path) -> object:
+    """Create a mock files() function for tests.
+
+    Args:
+        nexus_dir: Path to the test nexus directory
+
+    Returns:
+        Mock function that returns traversable for nexus package
+
+    """
+
+    def mock_files(package: str) -> Mock:
+        if package == "nexus":
+            return _create_mock_traversable(nexus_dir)
+        msg = f"Package {package} not found"
+        raise FileNotFoundError(msg)
+
+    return mock_files
 
 
 class TestAutomaticPathMapping:
@@ -27,7 +82,7 @@ class TestAutomaticPathMapping:
         ws_dir.mkdir(parents=True)
 
         # Create spec file following convention: websocket-{handler}.yaml
-        schemas_dir = tmp_path / "schemas" / "test_component"
+        schemas_dir = tmp_path / "src" / "nexus" / "schemas" / "test_component"
         schemas_dir.mkdir(parents=True)
         spec_file = schemas_dir / "websocket-example.yaml"
         spec_file.write_text("asyncapi: 3.0.0\nchannels: {}\n")
@@ -36,9 +91,12 @@ class TestAutomaticPathMapping:
         handler_file = ws_dir / "example.py"
         handler_file.write_text("# Handler file\n")
 
-        # Monkeypatch __file__
+        # Monkeypatch __file__ and files() function
         fake_file = core_websocket_dir / "endpoint_factory.py"
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+
+        # Mock importlib.resources.files to return our temp directory
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
 
         result = scan_handler_specs()
 
@@ -56,12 +114,19 @@ class TestAutomaticPathMapping:
         ws_dir = component_dir / "ws"
         ws_dir.mkdir(parents=True)
 
+        # Create schemas dir but no spec file
+        schemas_dir = tmp_path / "src" / "nexus" / "schemas" / "test_component"
+        schemas_dir.mkdir(parents=True)
+
         # Create handler file WITHOUT matching spec
         handler_file = ws_dir / "orphan_handler.py"
         handler_file.write_text("# Handler without spec\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+
+        # Mock importlib.resources.files
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
 
         with pytest.raises(ValueError, match="Missing Spec File"):
             scan_handler_specs()
@@ -77,13 +142,16 @@ class TestAutomaticPathMapping:
         ws_dir.mkdir(parents=True)
 
         # Create orphan spec file (no matching handler)
-        schemas_dir = tmp_path / "schemas" / "test_component"
+        schemas_dir = tmp_path / "src" / "nexus" / "schemas" / "test_component"
         schemas_dir.mkdir(parents=True)
         spec_file = schemas_dir / "websocket-orphan.yaml"
         spec_file.write_text("asyncapi: 3.0.0\nchannels: {}\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+
+        # Mock importlib.resources.files
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
 
         with pytest.raises(ValueError, match="Orphan Spec File"):
             scan_handler_specs()
@@ -122,7 +190,7 @@ class TestAutomaticPathMapping:
         ws_dir = component_dir / "ws"
         ws_dir.mkdir(parents=True)
 
-        schemas_dir = tmp_path / "schemas" / "multi_handler"
+        schemas_dir = tmp_path / "src" / "nexus" / "schemas" / "multi_handler"
         schemas_dir.mkdir(parents=True)
 
         # Create multiple handler/spec pairs
@@ -136,6 +204,9 @@ class TestAutomaticPathMapping:
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+
+        # Mock importlib.resources.files
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
 
         result = scan_handler_specs()
 
@@ -155,7 +226,7 @@ class TestAutomaticPathMapping:
         ws_dir = component_dir / "ws"
         ws_dir.mkdir(parents=True)
 
-        schemas_dir = tmp_path / "schemas" / "yml_component"
+        schemas_dir = tmp_path / "src" / "nexus" / "schemas" / "yml_component"
         schemas_dir.mkdir(parents=True)
         spec_file = schemas_dir / "websocket-test.yml"  # .yml extension
         spec_file.write_text("asyncapi: 3.0.0\nchannels: {}\n")
@@ -165,6 +236,9 @@ class TestAutomaticPathMapping:
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+
+        # Mock importlib.resources.files
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
 
         result = scan_handler_specs()
 
@@ -183,7 +257,7 @@ class TestAutomaticPathMapping:
         ws_dir = component_dir / "ws"
         ws_dir.mkdir(parents=True)
 
-        schemas_dir = tmp_path / "schemas" / "json_component"
+        schemas_dir = tmp_path / "src" / "nexus" / "schemas" / "json_component"
         schemas_dir.mkdir(parents=True)
 
         # Create a complete JSON AsyncAPI spec with channels, messages, and operations
@@ -248,6 +322,9 @@ class TestAutomaticPathMapping:
         fake_file = core_websocket_dir / "endpoint_factory.py"
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
 
+        # Mock importlib.resources.files
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
+
         result = scan_handler_specs()
 
         # Verify the component was discovered
@@ -298,13 +375,16 @@ class TestAutomaticPathMapping:
         handler_file = ws_dir / "example.py"
         handler_file.write_text("# Handler\n")
 
-        schemas_dir = tmp_path / "schemas" / "test_component"
+        schemas_dir = tmp_path / "src" / "nexus" / "schemas" / "test_component"
         schemas_dir.mkdir(parents=True)
         spec_file = schemas_dir / "websocket-example.yaml"
         spec_file.write_text("asyncapi: 3.0.0\nchannels: {}\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+
+        # Mock importlib.resources.files
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
 
         # Should not fail even though __init__.py has no matching spec
         result = scan_handler_specs()
@@ -349,13 +429,16 @@ class TestAutomaticPathMapping:
         handler_file.write_text("import nonexistent_module\n")
 
         # Create matching spec file (required for the handler)
-        schemas_dir = tmp_path / "schemas" / "test_component"
+        schemas_dir = tmp_path / "src" / "nexus" / "schemas" / "test_component"
         schemas_dir.mkdir(parents=True)
         spec_file = schemas_dir / "websocket-broken.yaml"
         spec_file.write_text("asyncapi: 3.0.0\nchannels: {}\n")
 
         fake_file = core_websocket_dir / "endpoint_factory.py"
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.__file__", str(fake_file))
+
+        # Mock importlib.resources.files
+        monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
 
         # Handler with import error is skipped (doesn't fail startup)
         result = scan_handler_specs()

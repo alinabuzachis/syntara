@@ -295,7 +295,7 @@ Hooks are discovered automatically from handler modules in the `src/nexus/{compo
 
 **Discovery Process**:
 1. Framework scans `src/nexus/{component}/ws/*.py` for handler files
-2. Spec path is automatically derived: `{handler}.py` → `schemas/{component}/websocket-{handler}.yaml`
+2. Spec path is automatically derived: `{handler}.py` → `src/nexus/schemas/{component}/websocket-{handler}.yaml`
 3. Handler/spec pairing is validated (fail-fast if mismatch)
 4. Endpoint factory creates `WebSocketHooks` instance with defaults
 5. For each hook name, check if handler has matching function
@@ -339,7 +339,7 @@ The framework automatically maps handler files to their AsyncAPI specifications 
 ### Convention
 
 ```
-src/nexus/{component}/ws/{handler}.py  →  schemas/{component}/websocket-{handler}.yaml
+src/nexus/{component}/ws/{handler}.py  →  src/nexus/schemas/{component}/websocket-{handler}.yaml
 ```
 
 ### Examples

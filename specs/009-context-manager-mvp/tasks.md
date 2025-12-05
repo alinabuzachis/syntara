@@ -10,7 +10,7 @@
    → Extract: tech stack, libraries, structure
 2. Load optional design documents:
    → data-model.md: Extract entities → model tasks
-   → [project root]/schemas/[component]/: Each schema file → contract test task
+   → src/nexus/schemas/[component]/: Each schema file → contract test task
    → research.md: Extract decisions → setup tasks
 3. Generate tasks by category:
    → Setup: project init, dependencies, linting

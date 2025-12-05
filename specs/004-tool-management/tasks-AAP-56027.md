@@ -34,7 +34,7 @@ This refactor involved a comprehensive migration of the Tool Manager system to u
 - [x] **T013** Update tools.yaml OpenAPI specification to remove ToolDetail
 - [x] **T014** Update tool-providers.yaml to use Resource schema references
 - [x] **T015** Update metrics.yaml for new model structure
-- [x] **T016** Copy schemas to `/schemas/tool_management/` directory
+- [x] **T016** Copy schemas to `/src/nexus/schemas/tool_management/` directory
 - [x] **T017** Create base shared-resources.openapi.yaml schema
 
 ### Phase 4: Remove ToolDetail Model ✅ COMPLETED

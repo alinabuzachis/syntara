@@ -275,7 +275,7 @@ app.include_router(ws_router)
 
 # That's it! All endpoints are auto-registered:
 # 1. System scans src/nexus/{component}/ws/*.py for handlers
-# 2. Derives spec path: {handler}.py → schemas/{component}/websocket-{handler}.yaml
+# 2. Derives spec path: {handler}.py → src/nexus/schemas/{component}/websocket-{handler}.yaml
 # 3. Loads AsyncAPI specs from derived paths
 # 4. Creates endpoints for all channels in all specs
 # - Any future handlers added will be auto-discovered

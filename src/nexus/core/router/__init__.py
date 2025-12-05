@@ -10,7 +10,7 @@ from .validator import RouteValidator, log_validation_errors
 logger = logging.getLogger("nexus.core.router")
 
 
-def validate_routes(app: FastAPI, schema_files: list[str], schemas_dir: str = "schemas") -> None:
+def validate_routes(app: FastAPI, schema_files: list[str]) -> None:
     """Validate FastAPI routes against OpenAPI schema specifications.
 
     This function performs comprehensive validation to ensure that:
@@ -29,7 +29,6 @@ def validate_routes(app: FastAPI, schema_files: list[str], schemas_dir: str = "s
                      Supports two patterns:
                      - '{domain}.json' (e.g., 'example.json')
                      - '{domain}/openapi.json' (e.g., 'example/openapi.json')
-        schemas_dir: Directory containing schema files (default: 'schemas')
 
     Example:
         >>> from fastapi import FastAPI
@@ -45,7 +44,7 @@ def validate_routes(app: FastAPI, schema_files: list[str], schemas_dir: str = "s
     logger.info("Schema files to validate: %s", ", ".join(schema_files))
 
     # Load all OpenAPI schemas
-    schemas = load_schemas(schema_files, schemas_dir)
+    schemas = load_schemas(schema_files)
 
     if not schemas:
         logger.error("No schemas loaded successfully. Validation aborted.")

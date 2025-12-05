@@ -25,6 +25,7 @@ import importlib
 import logging
 import os
 import tempfile
+from importlib.resources import files
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -435,21 +436,24 @@ def _build_schema_file_list(routers: list[RouterInfo]) -> list[str]:
 
     """
     schema_files = []
-    # Navigate from src/nexus/core/router_discovery.py to project root
-    # parent.parent.parent = src/nexus -> src -> project_root
-    project_root = Path(__file__).resolve().parent.parent.parent.parent
+    # Access schemas from package resources
+    schemas_package = files("nexus").joinpath("schemas")
 
     for router_info in routers:
         domain = router_info.domain
 
         # Check for both JSON and YAML schemas
         for ext in ["json", "yaml", "yml"]:
-            schema_path = project_root / "schemas" / domain / f"openapi.{ext}"
-            if schema_path.exists():
-                relative_path = f"{domain}/openapi.{ext}"
-                schema_files.append(relative_path)
-                logger.debug("Found schema: %s", relative_path)
-                break  # Use first found format
+            schema_resource = schemas_package.joinpath(domain).joinpath(f"openapi.{ext}")
+            try:
+                if schema_resource.is_file():
+                    relative_path = f"{domain}/openapi.{ext}"
+                    schema_files.append(relative_path)
+                    logger.debug("Found schema: %s", relative_path)
+                    break  # Use first found format
+            except (FileNotFoundError, AttributeError):
+                # Resource doesn't exist or directory doesn't exist
+                continue
 
     return schema_files
 

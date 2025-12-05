@@ -26,7 +26,7 @@ The example implementation provides three channels demonstrating different commu
 
 **File Organization**:
 - Handler files in `src/nexus/{component}/ws/*.py` contain WebSocket logic
-- Schema files in `schemas/{component}/websocket-{handler}.[yaml,yml]` define message contracts
+- Schema files in `src/nexus/schemas/{component}/websocket-{handler}.[yaml,yml]` define message contracts
 - Automatic path mapping: handler filename determines spec filename (no configuration needed)
 - Multiple handlers per component supported, with automatic schema merging
 - Fail-fast validation ensures every handler has a matching spec and vice versa
@@ -44,7 +44,7 @@ The WebSocket framework uses a two-directory structure that separates handler lo
 - **Handler functions**: Files contain `handle_*` and optional `on_connect_*` functions
 - **No configuration needed**: Spec path is automatically derived from handler filename
 
-### Schema Files: `schemas/{component}/websocket-{handler}.[yaml,yml]`
+### Schema Files: `src/nexus/schemas/{component}/websocket-{handler}.[yaml,yml]`
 
 - **Centralized location**: All AsyncAPI specifications stored in `schemas/` directory
 - **Automatic mapping**: `{handler}.py` → `websocket-{handler}.yaml`
@@ -55,7 +55,7 @@ The WebSocket framework uses a two-directory structure that separates handler lo
 The system automatically maps handler files to spec files based on filename:
 
 ```
-src/nexus/{component}/ws/{handler}.py  →  schemas/{component}/websocket-{handler}.yaml
+src/nexus/{component}/ws/{handler}.py  →  src/nexus/schemas/{component}/websocket-{handler}.yaml
 ```
 
 **Examples**:
@@ -388,7 +388,7 @@ sequenceDiagram
 
 ### Key Entities
 
-All message entities are defined in AsyncAPI schemas located in `schemas/{component}/websocket-{handler}.yaml` files. Handler modules in `src/nexus/{component}/ws/{handler}.py` are automatically mapped to their corresponding schemas based on filename convention.
+All message entities are defined in AsyncAPI schemas located in `src/nexus/schemas/{component}/websocket-{handler}.yaml` files. Handler modules in `src/nexus/{component}/ws/{handler}.py` are automatically mapped to their corresponding schemas based on filename convention.
 
 - **WebSocketConnection**: Represents an active client connection to a specific channel. Tracks connection state, handles message routing, manages background tasks, and maintains subscription state for event streaming
 - **CoffeeRequest**: Message sent by client containing input text to convert to coffee words (defined in `schemas/example/websocket-example.yaml`)

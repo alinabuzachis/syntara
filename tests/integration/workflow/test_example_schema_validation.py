@@ -5,6 +5,7 @@ workflow-definition.schema.json schema.
 """
 
 import json
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
@@ -21,10 +22,12 @@ def test_all_examples_valid_against_schema() -> None:
     This ensures that the examples we provide to users are actually valid
     and can be parsed correctly.
     """
-    # Load the JSON schema
-    schema_file = Path("schemas/workflows/workflow-definition.schema.json")
-    with Path.open(schema_file) as f:
-        schema = json.load(f)
+    # Load the JSON schema from package resources
+    schema_resource = (
+        files("nexus").joinpath("schemas").joinpath("workflows").joinpath("workflow-definition.schema.json")
+    )
+    schema_content = schema_resource.read_text()
+    schema = json.loads(schema_content)
 
     # Find all example YAML files recursively (including subdirectories)
     examples_dir = Path("tests/integration/workflow/examples")
@@ -86,10 +89,12 @@ def test_example_schema_validation(example_file: str) -> None:
 
     This provides better error reporting per file.
     """
-    # Load the JSON schema
-    schema_file = Path("schemas/workflows/workflow-definition.schema.json")
-    with Path.open(schema_file) as f:
-        schema = json.load(f)
+    # Load the JSON schema from package resources
+    schema_resource = (
+        files("nexus").joinpath("schemas").joinpath("workflows").joinpath("workflow-definition.schema.json")
+    )
+    schema_content = schema_resource.read_text()
+    schema = json.loads(schema_content)
 
     # Load the example file
     workflow_file = Path(f"tests/integration/workflow/examples/{example_file}")

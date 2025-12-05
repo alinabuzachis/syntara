@@ -13,6 +13,7 @@ import types
 import uuid
 from collections.abc import Callable
 from contextvars import ContextVar
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -84,7 +85,7 @@ async def _receive_message(websocket: WebSocket, channel_name: str) -> dict[str,
         return None
 
 
-def _handler_to_spec_path(component_name: str, handler_stem: str, project_root: Path) -> Path:
+def _handler_to_spec_path(component_name: str, handler_stem: str) -> Path:
     """Derive spec file path from handler file name.
 
     Uses automatic mapping convention:
@@ -95,26 +96,29 @@ def _handler_to_spec_path(component_name: str, handler_stem: str, project_root: 
     Args:
         component_name: Name of the component (e.g., 'example')
         handler_stem: Handler filename without extension (e.g., 'example')
-        project_root: Root directory of the project
 
     Returns:
         Path to the expected spec file (prefers .yaml, then .yml, then .json)
 
     """
-    base_path = project_root / "schemas" / component_name / f"websocket-{handler_stem}"
-    yaml_path = base_path.with_suffix(".yaml")
-    yml_path = base_path.with_suffix(".yml")
-    json_path = base_path.with_suffix(".json")
+    # Access schemas from package resources
+    schemas_package = files("nexus").joinpath("schemas").joinpath(component_name)
 
-    if yaml_path.exists():
-        return yaml_path
-    if yml_path.exists():
-        return yml_path
-    if json_path.exists():
-        return json_path
+    # Try different extensions in order
+    for ext in [".yaml", ".yml", ".json"]:
+        spec_name = f"websocket-{handler_stem}{ext}"
+        try:
+            spec_resource = schemas_package.joinpath(spec_name)
+            # Try to resolve the path - if it exists, return it
+            # Note: we need to convert to Path for compatibility with existing code
+            spec_path = Path(str(spec_resource))
+            if spec_resource.is_file():
+                return spec_path
+        except (FileNotFoundError, AttributeError):
+            continue
 
     # Return .yaml as default (for error messages)
-    return yaml_path
+    return Path(str(schemas_package.joinpath(f"websocket-{handler_stem}.yaml")))
 
 
 def _spec_to_handler_path(spec_path: Path, project_root: Path) -> tuple[str, str, Path]:
@@ -158,25 +162,38 @@ def _find_orphan_specs(project_root: Path, components_with_ws: set[str]) -> list
 
     """
     orphans: list[tuple[Path, str, Path]] = []
-    schemas_dir = project_root / "schemas"
+    # Access schemas from package resources
+    schemas_package = files("nexus").joinpath("schemas")
 
-    if not schemas_dir.exists():
-        return orphans
-
-    for pattern in ["*/websocket-*.yaml", "*/websocket-*.yml", "*/websocket-*.json"]:
-        for spec_path in schemas_dir.glob(pattern):
+    try:
+        # Iterate through schema subdirectories
+        for component_name in components_with_ws:
+            component_schemas = schemas_package.joinpath(component_name)
             try:
-                component_name, _handler_stem, expected_handler_path = _spec_to_handler_path(spec_path, project_root)
-            except ValueError as e:
-                logger.warning("Skipping malformed spec path: %s", e)
-                continue
+                # Check if component has a schemas directory
+                for resource in component_schemas.iterdir():
+                    resource_path = Path(str(resource))
+                    if resource_path.name.startswith("websocket-") and resource_path.suffix in [
+                        ".yaml",
+                        ".yml",
+                        ".json",
+                    ]:
+                        try:
+                            _component_name, _handler_stem, expected_handler_path = _spec_to_handler_path(
+                                resource_path, project_root
+                            )
+                        except ValueError as e:
+                            logger.warning("Skipping malformed spec path: %s", e)
+                            continue
 
-            # Only check components that have a ws/ directory
-            if component_name not in components_with_ws:
+                        if not expected_handler_path.exists():
+                            orphans.append((resource_path, component_name, expected_handler_path))
+            except (FileNotFoundError, AttributeError):
+                # Component has no schemas directory
                 continue
-
-            if not expected_handler_path.exists():
-                orphans.append((spec_path, component_name, expected_handler_path))
+    except (FileNotFoundError, AttributeError):
+        # Schemas package doesn't exist
+        return orphans
 
     return orphans
 
@@ -368,7 +385,7 @@ def _load_spec_file(spec_path: Path, py_file: Path) -> dict[str, Any] | None:
     """Load an AsyncAPI spec from a YAML or JSON file.
 
     Args:
-        spec_path: Path to the spec file
+        spec_path: Path to the spec file (can be a package resource path)
         py_file: Path to the Python file (for logging)
 
     Returns:
@@ -376,14 +393,16 @@ def _load_spec_file(spec_path: Path, py_file: Path) -> dict[str, Any] | None:
 
     """
     try:
-        with spec_path.open() as f:
-            if spec_path.suffix in (".yaml", ".yml"):
-                return yaml.safe_load(f)  # type: ignore[no-any-return]
-            if spec_path.suffix == ".json":
-                return json.load(f)  # type: ignore[no-any-return]
+        # Read content - handle both regular Path and package resource paths
+        content = spec_path.read_text() if hasattr(spec_path, "read_text") else Path(spec_path).read_text()
 
-            logger.warning("Unknown spec file format %s in %s, skipping", spec_path.suffix, py_file.name)
-            return None
+        if spec_path.suffix in (".yaml", ".yml"):
+            return yaml.safe_load(content)  # type: ignore[no-any-return]
+        if spec_path.suffix == ".json":
+            return json.loads(content)  # type: ignore[no-any-return]
+
+        logger.warning("Unknown spec file format %s in %s, skipping", spec_path.suffix, py_file.name)
+        return None
     except Exception as e:  # noqa: BLE001
         logger.warning("Failed to load spec from %s: %s", spec_path, e, exc_info=True)
         return None
@@ -417,7 +436,7 @@ def _scan_ws_directory(component_name: str, ws_dir: Path, project_root: Path) ->
 
         # Derive spec path from handler filename (automatic mapping)
         handler_stem = py_file.stem
-        expected_spec_path = _handler_to_spec_path(component_name, handler_stem, project_root)
+        expected_spec_path = _handler_to_spec_path(component_name, handler_stem)
 
         if not expected_spec_path.exists():
             rel_handler = py_file.relative_to(project_root)

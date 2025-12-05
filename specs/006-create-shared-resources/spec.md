@@ -236,7 +236,7 @@ graph TB
 **Rationale**:
 - Co-locates contracts with feature specification for easier review and versioning
 - Other feature specs can reference these schemas using relative paths
-- During implementation, schemas can be moved to a centralized location (e.g., `openapi/` or `src/nexus_shared/schemas/`) if needed
+- During implementation, schemas can be moved to a centralized location in `src/nexus/schemas/` as package data files if needed
 
 **Alternative Considered**: Place schemas directly in root-level `openapi/` directory for more intuitive cross-component references. This approach can be adopted during implementation if the team prefers centralized schema management.
 

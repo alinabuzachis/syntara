@@ -87,7 +87,7 @@ graph TB
 
 **Responsibilities**:
 - Scan `src/nexus/{component}/ws/*.py` for handler files
-- Automatically derive spec path from handler filename: `{handler}.py` → `schemas/{component}/websocket-{handler}.yaml`
+- Automatically derive spec path from handler filename: `{handler}.py` → `src/nexus/schemas/{component}/websocket-{handler}.yaml`
 - Validate handler/spec pairing at startup (fail-fast if mismatch)
 - Load and parse AsyncAPI schemas from derived paths
 - Merge multiple schemas per component (if multiple handlers exist)
@@ -101,7 +101,7 @@ graph TB
 def build_websocket_router() -> APIRouter:
     # Scan src/nexus/{component}/ws/*.py for handler files
     # For each handler:
-    #   - Derive spec path: {handler}.py → schemas/{component}/websocket-{handler}.yaml
+    #   - Derive spec path: {handler}.py → src/nexus/schemas/{component}/websocket-{handler}.yaml
     #   - Validate handler/spec pairing exists (fail-fast if mismatch)
     #   - Load AsyncAPI schema from derived path
     # Check for orphan specs (specs without handlers)
@@ -115,8 +115,8 @@ def build_websocket_router() -> APIRouter:
 
 **Convention**:
 - Handler files in `src/nexus/{component}/ws/{handler}.py` are automatically mapped to specs
-- Spec path is derived from handler filename: `{handler}.py` → `schemas/{component}/websocket-{handler}.yaml`
-- Schema files in `schemas/{component}/` directory define channels
+- Spec path is derived from handler filename: `{handler}.py` → `src/nexus/schemas/{component}/websocket-{handler}.yaml`
+- Schema files in `src/nexus/schemas/{component}/` directory define channels
 - Each channel has address field: `/ws/example/v1/coffee`, `/ws/example/v1/chat`, etc.
 - Channel names with hyphens (e.g., `agent-events`) are normalized to underscores (e.g., `agent_events`)
 - Handler functions named: `handle_{channel}()` (e.g., `handle_coffee()`, `handle_chat()`)
@@ -127,7 +127,7 @@ def build_websocket_router() -> APIRouter:
 **Fail-Fast Validation**:
 - Handler without spec: If handler file exists but corresponding spec file is missing, fail startup
 - Spec without handler: If spec file exists but corresponding handler file is missing, fail startup
-- Derived spec path must follow `schemas/{component}/websocket-{handler}.yaml` pattern
+- Derived spec path must follow `src/nexus/schemas/{component}/websocket-{handler}.yaml` pattern
 - Supports both `.yaml` and `.yml` extensions
 
 ### 2. Interceptor System (Bootstrap-Time Validation)
@@ -229,7 +229,7 @@ def create_websocket_endpoint(
 
 **Path Mapping Convention** (validated at startup):
 - Handler filename determines spec filename: `{handler}.py` → `websocket-{handler}.yaml`
-- Spec files located in `schemas/{component}/` directory
+- Spec files located in `src/nexus/schemas/{component}/` directory
 - Component name derived from handler's parent directory
 - Supports both `.yaml` and `.yml` extensions
 - Handler/spec pairing validated at startup (fail-fast)

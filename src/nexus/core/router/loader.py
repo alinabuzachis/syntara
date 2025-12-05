@@ -2,6 +2,7 @@
 
 import json
 import logging
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -178,71 +179,58 @@ class OpenAPISchema:
         return f"<OpenAPISchema {self.filename} ({len(self.endpoints)} endpoints)>"
 
 
-def load_openapi_schema(filename: str, schemas_dir: str = "schemas") -> OpenAPISchema | None:
-    """Load and parse an OpenAPI schema file.
+def load_openapi_schema(filename: str) -> OpenAPISchema | None:
+    """Load and parse an OpenAPI schema file from package resources.
 
     Supports both JSON and YAML formats. The format is detected automatically
     based on the file extension (.json, .yaml, .yml).
 
     Args:
         filename: Name of the schema file (e.g., 'example.json', 'example/openapi.yaml')
-        schemas_dir: Directory containing schema files (default: 'schemas')
 
     Returns:
         OpenAPISchema instance or None if loading fails
 
     """
-    # Find project root by looking for the schemas directory
-    # Start from current file location and go up
-    current_dir = Path(__file__).resolve().parent
-    project_root = current_dir
-
-    # Navigate up to find the project root (where schemas directory exists)
-    while project_root.parent != project_root:
-        potential_schemas = project_root.parent / schemas_dir
-        if potential_schemas.exists() and potential_schemas.is_dir():
-            project_root = project_root.parent
-            break
-        project_root = project_root.parent
-
-    schema_path = project_root / schemas_dir / filename
-
-    if not schema_path.exists():
-        logger.error("Schema file not found: %s", schema_path)
-        return None
-
     try:
-        with schema_path.open(encoding="utf-8") as f:
-            # Detect format based on file extension
-            if schema_path.suffix in {".yaml", ".yml"}:
-                schema_data = yaml.safe_load(f)
-            elif schema_path.suffix == ".json":
-                schema_data = json.load(f)
-            else:
-                logger.error("Unsupported schema format: %s (use .json, .yaml, or .yml)", schema_path.suffix)
-                return None
+        # Access schema files from the package
+        schemas_package = files("nexus").joinpath("schemas")
+        schema_resource = schemas_package.joinpath(filename)
+
+        if not schema_resource.is_file():
+            logger.error("Schema file not found in package: schemas/%s", filename)
+            return None
+
+        # Read the file content
+        content = schema_resource.read_text(encoding="utf-8")
+
+        # Detect format based on file extension
+        suffix = Path(filename).suffix
+        if suffix in {".yaml", ".yml"}:
+            schema_data = yaml.safe_load(content)
+        elif suffix == ".json":
+            schema_data = json.loads(content)
+        else:
+            logger.error("Unsupported schema format: %s (use .json, .yaml, or .yml)", suffix)
+            return None
 
         schema = OpenAPISchema(filename, schema_data)
         logger.info("Loaded %s: %d endpoints for domain '%s'", filename, len(schema.endpoints), schema.domain)
         return schema
 
-    except json.JSONDecodeError:
-        logger.exception("Invalid JSON in %s", filename)
-        return None
-    except yaml.YAMLError:
-        logger.exception("Invalid YAML in %s", filename)
+    except (FileNotFoundError, json.JSONDecodeError, yaml.YAMLError):
+        logger.exception("Error loading schema %s", filename)
         return None
     except Exception:
-        logger.exception("Error loading %s", filename)
+        logger.exception("Unexpected error loading %s", filename)
         return None
 
 
-def load_schemas(schema_files: list[str], schemas_dir: str = "schemas") -> list[OpenAPISchema]:
+def load_schemas(schema_files: list[str]) -> list[OpenAPISchema]:
     """Load multiple OpenAPI schema files.
 
     Args:
         schema_files: List of schema filenames
-        schemas_dir: Directory containing schema files
 
     Returns:
         List of successfully loaded OpenAPISchema instances
@@ -251,7 +239,7 @@ def load_schemas(schema_files: list[str], schemas_dir: str = "schemas") -> list[
     schemas = []
 
     for filename in schema_files:
-        schema = load_openapi_schema(filename, schemas_dir)
+        schema = load_openapi_schema(filename)
         if schema:
             schemas.append(schema)
 

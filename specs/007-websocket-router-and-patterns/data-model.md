@@ -17,7 +17,7 @@ This feature provides a generic, extensible multi-channel WebSocket router syste
 
 **File Organization**:
 - **Handler files**: Located in `src/nexus/{component}/ws/*.py`
-- **Schema files**: Centralized in `schemas/{component}/websocket-{handler}.[yaml,yml]`
+- **Schema files**: Centralized in `src/nexus/schemas/{component}/websocket-{handler}.[yaml,yml]`
 - **Automatic path mapping**: `{handler}.py` → `websocket-{handler}.yaml` (no configuration needed)
 - **Fail-fast validation**: Handler/spec pairing is validated at startup
 - **Component-level merging**: Multiple schemas per component are merged into a single specification
@@ -411,7 +411,7 @@ The framework uses a two-level approach for schema validation:
 
 **1. Component-Level Discovery** (at startup):
 - Scans `src/nexus/{component}/ws/*.py` for handler files
-- Derives spec path automatically: `{handler}.py` → `schemas/{component}/websocket-{handler}.yaml`
+- Derives spec path automatically: `{handler}.py` → `src/nexus/schemas/{component}/websocket-{handler}.yaml`
 - Validates handler/spec pairing (fail-fast if mismatch)
 - Loads and parses AsyncAPI schema files
 - Merges multiple schemas per component (if multiple handlers exist)
@@ -483,7 +483,7 @@ The WebSocket framework uses file location conventions for automatic discovery a
 
 ### Schema File Convention
 
-**Location**: `schemas/{component}/websocket-{handler}.[yaml,yml]`
+**Location**: `src/nexus/src/nexus/schemas/{component}/websocket-{handler}.[yaml,yml]`
 
 - All AsyncAPI specifications stored in central `schemas/` directory
 - Organized by component subdirectories

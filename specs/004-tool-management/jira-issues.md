@@ -30,7 +30,7 @@ This approach mirrors the successful workflow engine implementation pattern, ena
 - **Models**: `./src/nexus/tool_manager/models/`
 - **Lib/Shared**: `./src/nexus/tool_manager/lib/`
 - **Tests Root**: `./tests/`
-- **OpenAPI Schemas**: `./schemas/tool_management/`
+- **OpenAPI Schemas**: `./src/nexus/schemas/tool_management/`
 
 **Existing Tooling**:
 - Linting: ruff
@@ -116,7 +116,7 @@ Establish the provider-agnostic architecture for tool management. This ticket de
   - `test_error_handling.py` - Test error handling and timeout scenarios
   - `test_pagination_logic.py` - Validate pagination and filtering logic
   - Achieve ≥80% coverage for tool_core.py
-- Contract YAML templates in `./schemas/tool_management/`:
+- Contract YAML templates in `./src/nexus/schemas/tool_management/`:
   - Define expected API contracts (will be implemented in later tickets)
   - Include keyset pagination patterns
   - Document bracket filter syntax
@@ -206,7 +206,7 @@ Refactor the existing Tool Manager system to use SQLModel for unified database t
 - Update `tools.yaml` to remove ToolDetail schema references
 - Update `tool-providers.yaml` to use Resource schema inheritance
 - Update `metrics.yaml` for new model structure alignment
-- Copy all schemas to standardized `/schemas/tool_management/` directory
+- Copy all schemas to standardized `/src/nexus/schemas/tool_management/` directory
 - Create base `shared-resources.openapi.yaml` schema for Resource definitions
 - Ensure contract-implementation alignment throughout
 

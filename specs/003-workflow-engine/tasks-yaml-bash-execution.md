@@ -145,7 +145,7 @@ Implement the foundational workflow execution engine that reads YAML workflow de
 
 ## Phase 3: Core Implementation (ONLY after tests are failing)
 
-**Implementation Note**: T010-T018 completed with **schema-aligned approach** - all Pydantic models and workflow implementation match the official JSON schema at `schemas/workflows/workflow-definition.schema.json`. This includes proper activity types (task, parallel, sequence, condition, loop, join) rather than inline fields on activities.
+**Implementation Note**: T010-T018 completed with **schema-aligned approach** - all Pydantic models and workflow implementation match the official JSON schema at `src/nexus/schemas/workflows/workflow-definition.schema.json`. This includes proper activity types (task, parallel, sequence, condition, loop, join) rather than inline fields on activities.
 
 ### YAML Parser Implementation
 
@@ -162,7 +162,7 @@ Implement the foundational workflow execution engine that reads YAML workflow de
   - Support: All activity types (task, parallel, sequence, condition, loop, join)
   - Support: All executor types (script, api, connector, agentic) with bash language
   - Include: timeout, retry, inputs, outputs, conditions, loops, approvals, joins
-  - **Schema-aligned**: Matches official JSON schema at schemas/workflows/workflow-definition.schema.json
+  - **Schema-aligned**: Matches official JSON schema at src/nexus/schemas/workflows/workflow-definition.schema.json
 
 ### Temporal Workflow Implementation
 
