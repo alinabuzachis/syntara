@@ -6,6 +6,7 @@ from collections.abc import Generator
 import pytest
 
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
+from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.core.config import get_settings
 
 
@@ -25,7 +26,7 @@ class TestGetOpenRouterLLM:
         # Remove API key if it exists
         monkeypatch.delenv("NEXUS_OPENROUTER_API_KEY", raising=False)
 
-        with pytest.raises(ValueError, match="NEXUS_OPENROUTER_API_KEY environment variable is required"):
+        with pytest.raises(LLMConfigurationError, match="NEXUS_OPENROUTER_API_KEY environment variable is required"):
             get_openrouter_llm()
 
     def test_uses_settings_defaults_when_args_none(self, monkeypatch: pytest.MonkeyPatch) -> None:

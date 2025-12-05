@@ -22,9 +22,11 @@ from fastapi import (
 from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.context_manager.file_manager.validators import (
     ValidationError as FileValidationError,
 )
+from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.agent_orchestrator.models import (
     Invocation,
     InvocationCreateRequest,
@@ -108,6 +110,16 @@ async def invoke_agent(
         JSON requests (Content-Type: application/json) do not support file uploads.
 
     """
+    # Fail fast if LLM is not configured - return 503 Service Unavailable
+    # This prevents creating invocations that will immediately fail during execution
+    try:
+        get_openrouter_llm()
+    except LLMConfigurationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": "service_unavailable", "message": str(e)},
+        ) from e
+
     try:
         # Check content type to determine request format
         content_type = request.headers.get("content-type", "")

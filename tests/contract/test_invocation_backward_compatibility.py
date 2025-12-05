@@ -13,7 +13,7 @@ from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(auth_client: AsyncClient, test_user) -> None:
+async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
     """Test that application/json requests still work without files.
 
     Validates:
@@ -27,7 +27,7 @@ async def ***REMOVED***(auth_client: AsyncClient, test_user) -> None:
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         json=payload,
     )
@@ -40,7 +40,9 @@ async def ***REMOVED***(auth_client: AsyncClient, test_user) -> None:
 
 
 @pytest.mark.asyncio
-async def test_json_request_context_data_empty_without_files(auth_client: AsyncClient, test_user) -> None:
+async def test_json_request_context_data_empty_without_files(
+    auth_client_with_mocked_llm: AsyncClient, test_user
+) -> None:
     """Test that context_data is empty object when no files uploaded.
 
     Validates:
@@ -54,7 +56,7 @@ async def test_json_request_context_data_empty_without_files(auth_client: AsyncC
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         json=payload,
     )
@@ -67,7 +69,7 @@ async def test_json_request_context_data_empty_without_files(auth_client: AsyncC
 
 
 @pytest.mark.asyncio
-async def test_json_request_with_existing_context_data(auth_client: AsyncClient, test_user) -> None:
+async def test_json_request_with_existing_context_data(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
     """Test that existing context_data functionality still works.
 
     Validates:
@@ -85,7 +87,7 @@ async def test_json_request_with_existing_context_data(auth_client: AsyncClient,
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         json=payload,
     )
@@ -102,7 +104,7 @@ async def test_json_request_with_existing_context_data(auth_client: AsyncClient,
 
 
 @pytest.mark.asyncio
-async def test_multipart_request_without_files_compatible(auth_client: AsyncClient, test_user) -> None:
+async def test_multipart_request_without_files_compatible(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
     """Test that multipart/form-data without files also works.
 
     Validates:
@@ -116,7 +118,7 @@ async def test_multipart_request_without_files_compatible(auth_client: AsyncClie
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         data=data,
     )
@@ -128,7 +130,7 @@ async def test_multipart_request_without_files_compatible(auth_client: AsyncClie
 
 
 @pytest.mark.asyncio
-async def test_all_existing_fields_present_in_response(auth_client: AsyncClient, test_user) -> None:
+async def test_all_existing_fields_present_in_response(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
     """Test that all existing response fields still present.
 
     Validates:
@@ -142,7 +144,7 @@ async def test_all_existing_fields_present_in_response(auth_client: AsyncClient,
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         json=payload,
     )

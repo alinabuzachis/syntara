@@ -8,6 +8,7 @@ import logging
 
 from langchain_openai import ChatOpenAI
 
+from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ def get_openrouter_llm(
         Configured ChatOpenAI instance
 
     Raises:
-        ValueError: If NEXUS_OPENROUTER_API_KEY is not configured
+        LLMConfigurationError: If NEXUS_OPENROUTER_API_KEY is not configured
 
     """
     # Get configuration from settings
@@ -40,7 +41,7 @@ def get_openrouter_llm(
     # Validate required settings
     if not settings.openrouter_api_key:
         error_msg = "NEXUS_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
-        raise ValueError(error_msg)
+        raise LLMConfigurationError(error_msg)
 
     # Use provided values or defaults from settings
     selected_model = model or settings.openrouter_model

@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator import ContextManagerPlanner
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
+from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.api.db.session import get_db
 from nexus.core.constants import CONTEXT_KEY_FILE_METADATA
@@ -74,18 +75,13 @@ class InvocationExecutor:
                 llm = get_openrouter_llm()
                 context_manager_planner = ContextManagerPlanner()
                 orchestration_service = OrchestrationService(llm=llm, context_manager_planner=context_manager_planner)
-            except ValueError as e:
-                msg = (
-                    f"OrchestrationService not configured: {e}. "
-                    "Set NEXUS_OPENROUTER_API_KEY environment variable. "
-                    "Get your API key from https://openrouter.ai/keys"
-                )
+            except LLMConfigurationError as e:
                 # Mark invocation as failed
                 invocation.status = InvocationStatus.FAILED
-                invocation.error_message = msg
+                invocation.error_message = str(e)
                 invocation.completed_at = datetime.now(UTC)
                 await session.commit()
-                logger.exception("Invocation failed (invocation_id=%s): %s", invocation.id, msg)
+                logger.exception("Invocation failed (invocation_id=%s): %s", invocation.id, invocation.error_message)
                 return
 
             # Store ID for logging in case of session errors

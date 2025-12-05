@@ -35,3 +35,11 @@ class ContextIntegrationError(AgentError):
 
 class OrchestrationError(AgentError):
     """Exception for orchestration service failures."""
+
+
+class LLMConfigurationError(Exception):
+    """Raised when LLM model configuration is missing or invalid.
+
+    This exception indicates a server-side configuration issue,
+    not a problem with the client's request.
+    """

@@ -4,16 +4,20 @@ These tests validate:
 - RFC 9457 Problem Details format for file errors
 - 400 errors for validation failures (fileTooLarge, unsupportedFormat, tooManyFiles)
 - 500 errors for storage failures (generic message, no internal details exposed)
+- 503 errors for service configuration failures (LLM not configured)
 """
+
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
 
+from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from tests.fixtures import get_fixtures_dir
 
 
 @pytest.mark.asyncio
-async def test_file_too_large_error_format(auth_client: AsyncClient, test_user) -> None:
+async def test_file_too_large_error_format(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
     """Test RFC 9457 error format for fileTooLarge (400).
 
     Validates:
@@ -34,7 +38,7 @@ async def test_file_too_large_error_format(auth_client: AsyncClient, test_user) 
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         data=data,
         files=files,
@@ -53,7 +57,7 @@ async def test_file_too_large_error_format(auth_client: AsyncClient, test_user) 
 
 
 @pytest.mark.asyncio
-async def test_unsupported_format_error_format(auth_client: AsyncClient, test_user) -> None:
+async def test_unsupported_format_error_format(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
     """Test RFC 9457 error format for unsupportedFormat (400).
 
     Validates:
@@ -75,7 +79,7 @@ async def test_unsupported_format_error_format(auth_client: AsyncClient, test_us
         }
 
         # Act
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             data=data,
             files=files,
@@ -94,7 +98,7 @@ async def test_unsupported_format_error_format(auth_client: AsyncClient, test_us
 
 
 @pytest.mark.asyncio
-async def test_too_many_files_error_format(auth_client: AsyncClient, test_user) -> None:
+async def test_too_many_files_error_format(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
     """Test RFC 9457 error format for tooManyFiles (400).
 
     Validates:
@@ -110,7 +114,7 @@ async def test_too_many_files_error_format(auth_client: AsyncClient, test_user) 
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         data=data,
         files=files,
@@ -129,7 +133,7 @@ async def test_too_many_files_error_format(auth_client: AsyncClient, test_user) 
 
 
 @pytest.mark.asyncio
-async def test_validation_error_no_invocation_created(auth_client: AsyncClient, test_user) -> None:
+async def test_validation_error_no_invocation_created(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
     """Test that validation errors do not create invocation records.
 
     Validates:
@@ -144,7 +148,7 @@ async def test_validation_error_no_invocation_created(auth_client: AsyncClient, 
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         data=data,
         files=files,
@@ -154,14 +158,14 @@ async def test_validation_error_no_invocation_created(auth_client: AsyncClient, 
     assert response.status_code == 400
 
     # Verify no invocation created by checking list
-    list_response = await auth_client.get("/api/v1/invocations?session_id=error-test-005")
+    list_response = await auth_client_with_mocked_llm.get("/api/v1/invocations?session_id=error-test-005")
     assert list_response.status_code == 200
     list_data = list_response.json()
     assert len(list_data["resources"]) == 0
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(auth_client: AsyncClient, test_user) -> None:
+async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
     """Test that all error responses follow consistent RFC 9457 structure.
 
     Validates:
@@ -182,7 +186,7 @@ async def ***REMOVED***(auth_client: AsyncClient, test_user) -> None:
         }
 
         # Act
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             data=data,
             files=files,
@@ -196,3 +200,42 @@ async def ***REMOVED***(auth_client: AsyncClient, test_user) -> None:
     assert "detail" in error_data
     assert isinstance(error_data["detail"], str)
     assert len(error_data["detail"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_llm_not_configured_returns_503(auth_client: AsyncClient, test_user) -> None:
+    """Test 503 Service Unavailable when OpenRouter API key is not configured.
+
+    Validates response matches schema example exactly:
+    - 503 status code
+    - error: "service_unavailable"
+    - message: "OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
+    """
+    # Arrange - Mock get_openrouter_llm to raise LLMConfigurationError
+    # Error message must match schema example in agent-orchestrator-api.yaml
+    error_message = (
+        "NEXUS_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
+    )
+
+    with patch(
+        "nexus.api.v1.invocation.get_openrouter_llm",
+        side_effect=LLMConfigurationError(error_message),
+    ):
+        # Act
+        response = await auth_client.post(
+            "/api/v1/invocations",
+            json={
+                "prompt": "Test LLM configuration",
+                "session_id": "error-test-503",
+            },
+        )
+
+    # Assert - must match schema example exactly
+    assert response.status_code == 503
+    error_data = response.json()
+
+    # Exact match with schema example from agent-orchestrator-api.yaml
+    assert error_data == {
+        "error": "service_unavailable",
+        "message": error_message,
+    }

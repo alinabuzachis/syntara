@@ -139,7 +139,18 @@ paths:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
         '500':
           $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
-
+        '503':
+          description: Service Unavailable - LLM provider not configured
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+              examples:
+                openrouterNotConfigured:
+                  summary: OpenRouter API key not configured
+                  value:
+                    error: service_unavailable
+                    message: NEXUS_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys
     get:
       summary: List Invocations
       description: |

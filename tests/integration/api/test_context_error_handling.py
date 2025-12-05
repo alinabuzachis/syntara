@@ -22,7 +22,7 @@ class TestContextErrorHandling:
     @pytest.mark.asyncio
     async def test_context_manager_failure_graceful_fallback(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test that Context Manager failures don't break invocation processing.
@@ -43,7 +43,7 @@ class TestContextErrorHandling:
             session_id = "error-handling-test"
 
             # Create invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": prompt,
@@ -57,18 +57,15 @@ class TestContextErrorHandling:
             invocation_id = data["id"]
 
             # Wait for completion using the helper
-            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+            async with wait_for_invocation_execution(
+                auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
+            ) as final_data:
                 data = final_data if final_data else data
 
-            # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
-                # No OpenRouter API key configured (CI environment)
-                # Skip test since we can't test context failure without working LLM
-                return
-
             # Should still complete successfully despite context failure
+            error_msg = data.get("error_message")
             assert data["status"] == "completed", (
-                "Invocation should complete successfully even when context processing fails"
+                f"Invocation should complete even when context processing fails: {error_msg}"
             )
             assert data["result"] is not None
 
@@ -89,7 +86,7 @@ class TestContextErrorHandling:
     @pytest.mark.asyncio
     async def test_context_manager_timeout_handling(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test graceful handling of Context Manager timeouts.
@@ -111,7 +108,7 @@ class TestContextErrorHandling:
             start_time = asyncio.get_event_loop().time()
 
             # Create invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": prompt,
@@ -125,7 +122,9 @@ class TestContextErrorHandling:
             invocation_id = data["id"]
 
             # Wait for completion with shorter timeout than mocked delay
-            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=3.0) as final_data:
+            async with wait_for_invocation_execution(
+                auth_client_with_mocked_llm, invocation_id, max_wait_time=3.0
+            ) as final_data:
                 data = final_data if final_data else data
 
             end_time = asyncio.get_event_loop().time()
@@ -138,7 +137,7 @@ class TestContextErrorHandling:
     @pytest.mark.asyncio
     async def test_partial_context_failure_handling(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test handling of partial context failures.
@@ -161,7 +160,7 @@ class TestContextErrorHandling:
             session_id = "partial-failure-test"
 
             # Create invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": prompt,
@@ -175,17 +174,13 @@ class TestContextErrorHandling:
             invocation_id = data["id"]
 
             # Wait for completion using the helper
-            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+            async with wait_for_invocation_execution(
+                auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
+            ) as final_data:
                 data = final_data if final_data else data
 
-            # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
-                # No OpenRouter API key configured (CI environment)
-                # Skip test since we can't test partial context failure without working LLM
-                return
-
             # Should complete successfully
-            assert data["status"] == "completed"
+            assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
             assert data["result"] is not None
             result = data["result"]
 
@@ -197,7 +192,7 @@ class TestContextErrorHandling:
     @pytest.mark.asyncio
     async def test_context_manager_exception_types(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test handling of different types of Context Manager exceptions.
@@ -219,7 +214,7 @@ class TestContextErrorHandling:
                 session_id = f"{type(exception).__name__.lower()}-test"
 
                 # Create invocation via API
-                response = await auth_client.post(
+                response = await auth_client_with_mocked_llm.post(
                     "/api/v1/invocations",
                     json={
                         "prompt": prompt,
@@ -233,24 +228,22 @@ class TestContextErrorHandling:
                 invocation_id = data["id"]
 
                 # Wait for completion using the helper
-                async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+                async with wait_for_invocation_execution(
+                    auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
+                ) as final_data:
                     data = final_data if final_data else data
 
-                # Handle both cases: with and without OpenRouter API key
-                if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
-                    # No OpenRouter API key configured (CI environment)
-                    # Skip test since we can't test context failure handling without working LLM
-                    continue
-
                 # Should complete successfully regardless of exception type
-                assert data["status"] == "completed", f"Should handle {type(exception).__name__} gracefully"
+                assert data["status"] == "completed", (
+                    f"Should handle {type(exception).__name__} gracefully: {data.get('error_message')}"
+                )
                 assert data["result"] is not None
                 assert "content" in data["result"]
 
     @pytest.mark.asyncio
     async def test_context_logging_on_failures(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test that context failures are properly logged for debugging.
@@ -266,7 +259,7 @@ class TestContextErrorHandling:
             session_id = "logging-test"
 
             # Create invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": prompt,
@@ -280,17 +273,13 @@ class TestContextErrorHandling:
             invocation_id = data["id"]
 
             # Wait for completion using the helper
-            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+            async with wait_for_invocation_execution(
+                auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
+            ) as final_data:
                 data = final_data if final_data else data
 
-            # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
-                # No OpenRouter API key configured (CI environment)
-                # Skip test since we can't test context failure logging without working LLM
-                return
-
             # Should complete successfully
-            assert data["status"] == "completed"
+            assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
 
             # Note: Logging verification removed as the LangGraph architecture
             # handles context failures differently than the original implementation.

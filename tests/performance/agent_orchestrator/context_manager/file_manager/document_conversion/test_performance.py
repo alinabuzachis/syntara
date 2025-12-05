@@ -11,7 +11,6 @@ import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from unittest.mock import patch
 
 import psutil  # type: ignore[import-untyped]
 import pytest
@@ -131,72 +130,70 @@ class TestConversionTimePerformance:
     """Test conversion time performance requirements (NFR-001)."""
 
     @pytest.mark.asyncio
-    async def test_pdf_conversion_under_30_seconds(self, auth_client: AsyncClient) -> None:
+    async def test_pdf_conversion_under_30_seconds(self, auth_client_with_mocked_llm: AsyncClient) -> None:
         """Test that PDF conversion completes within 30 seconds (NFR-001)."""
         # Create a reasonably-sized PDF for testing (2MB)
         pdf_content = create_large_pdf_content(2.0)
 
         start_time = time.time()
 
-        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"):
-            # Create multipart form data with document upload
-            files = {"files": ("performance_test.pdf", io.BytesIO(pdf_content), "application/pdf")}
-            data = {
-                "prompt": "Analyze this document for performance testing.",
-                "session_id": "performance-test-pdf",
-            }
+        # Create multipart form data with document upload
+        files = {"files": ("performance_test.pdf", io.BytesIO(pdf_content), "application/pdf")}
+        data = {
+            "prompt": "Analyze this document for performance testing.",
+            "session_id": "performance-test-pdf",
+        }
 
-            # POST invocation with document
-            response = await auth_client.post(
-                "/api/v1/invocations",
-                data=data,
-                files=files,
-            )
+        # POST invocation with document
+        response = await auth_client_with_mocked_llm.post(
+            "/api/v1/invocations",
+            data=data,
+            files=files,
+        )
 
-            assert response.status_code == 202
-            invocation_data = response.json()
-            invocation_id = invocation_data["id"]
+        assert response.status_code == 202
+        invocation_data = response.json()
+        invocation_id = invocation_data["id"]
 
-            # Wait for conversion and execution with extended timeout for performance test
-            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=35.0):
-                conversion_time = time.time() - start_time
+        # Wait for conversion and execution with extended timeout for performance test
+        async with wait_for_invocation_execution(auth_client_with_mocked_llm, invocation_id, max_wait_time=35.0):
+            conversion_time = time.time() - start_time
 
-                # Verify conversion completed within 30 seconds (NFR-001)
-                assert conversion_time < 30.0, f"PDF conversion took {conversion_time:.2f}s, exceeding 30s limit"
+            # Verify conversion completed within 30 seconds (NFR-001)
+            assert conversion_time < 30.0, f"PDF conversion took {conversion_time:.2f}s, exceeding 30s limit"
 
     @pytest.mark.asyncio
-    async def test_text_conversion_under_30_seconds(self, auth_client: AsyncClient) -> None:
+    async def test_text_conversion_under_30_seconds(self, auth_client_with_mocked_llm: AsyncClient) -> None:
         """Test that large text file conversion completes within 30 seconds (NFR-001)."""
         # Create a large text file (5MB)
         text_content = create_large_text_content(5.0)
 
         start_time = time.time()
 
-        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"):
-            # Create multipart form data with document upload
-            files = {"files": ("performance_test.txt", io.BytesIO(text_content), "text/plain")}
-            data = {
-                "prompt": "Summarize this large text document.",
-                "session_id": "performance-test-text",
-            }
+        # Create multipart form data with document upload
+        files = {"files": ("performance_test.txt", io.BytesIO(text_content), "text/plain")}
+        data = {
+            "prompt": "Summarize this large text document.",
+            "session_id": "performance-test-text",
+        }
 
-            # POST invocation with document
-            response = await auth_client.post(
-                "/api/v1/invocations",
-                data=data,
-                files=files,
-            )
+        # POST invocation with document
+        response = await auth_client_with_mocked_llm.post(
+            "/api/v1/invocations",
+            data=data,
+            files=files,
+        )
 
-            assert response.status_code == 202
-            invocation_data = response.json()
-            invocation_id = invocation_data["id"]
+        assert response.status_code == 202
+        invocation_data = response.json()
+        invocation_id = invocation_data["id"]
 
-            # Wait for conversion and execution
-            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=35.0):
-                conversion_time = time.time() - start_time
+        # Wait for conversion and execution
+        async with wait_for_invocation_execution(auth_client_with_mocked_llm, invocation_id, max_wait_time=35.0):
+            conversion_time = time.time() - start_time
 
-                # Verify conversion completed within 30 seconds (NFR-001)
-                assert conversion_time < 30.0, f"Text conversion took {conversion_time:.2f}s, exceeding 30s limit"
+            # Verify conversion completed within 30 seconds (NFR-001)
+            assert conversion_time < 30.0, f"Text conversion took {conversion_time:.2f}s, exceeding 30s limit"
 
     @pytest.mark.asyncio
     async def test_service_level_conversion_performance(self) -> None:
@@ -239,34 +236,33 @@ class TestFileSizeLimitPerformance:
     """Test file size limit performance requirements (NFR-002)."""
 
     @pytest.mark.asyncio
-    async def test_10mb_file_size_limit_enforcement(self, auth_client: AsyncClient) -> None:
+    async def test_10mb_file_size_limit_enforcement(self, auth_client_with_mocked_llm: AsyncClient) -> None:
         """Test that 10MB file size limit is enforced (NFR-002)."""
         # Create a file that exceeds 10MB
         oversized_content = create_large_text_content(11.0)  # 11MB file
 
-        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"):
-            # Try to upload oversized file
-            files = {"files": ("oversized.txt", io.BytesIO(oversized_content), "text/plain")}
-            data = {
-                "prompt": "This should fail due to size limit.",
-                "session_id": "size-limit-test",
-            }
+        # Try to upload oversized file
+        files = {"files": ("oversized.txt", io.BytesIO(oversized_content), "text/plain")}
+        data = {
+            "prompt": "This should fail due to size limit.",
+            "session_id": "size-limit-test",
+        }
 
-            # POST invocation with oversized document
-            response = await auth_client.post(
-                "/api/v1/invocations",
-                data=data,
-                files=files,
-            )
+        # POST invocation with oversized document
+        response = await auth_client_with_mocked_llm.post(
+            "/api/v1/invocations",
+            data=data,
+            files=files,
+        )
 
-            # File size limit should be enforced at the API level with 400 Bad Request
-            assert response.status_code == 400, f"Expected 400 for oversized file, got {response.status_code}"
+        # File size limit should be enforced at the API level with 400 Bad Request
+        assert response.status_code == 400, f"Expected 400 for oversized file, got {response.status_code}"
 
-            # Verify error message indicates file size issue
-            response_data = response.json()
-            assert "size" in str(response_data).lower() or "large" in str(response_data).lower(), (
-                "Error response should indicate file size issue"
-            )
+        # Verify error message indicates file size issue
+        response_data = response.json()
+        assert "size" in str(response_data).lower() or "large" in str(response_data).lower(), (
+            "Error response should indicate file size issue"
+        )
 
     @pytest.mark.asyncio
     async def test_max_file_size_boundary(self) -> None:
@@ -486,7 +482,7 @@ class TestPerformanceBenchmarks:
         # Note: benchmark results are captured for performance tracking
 
     @pytest.mark.asyncio
-    async def test_end_to_end_performance_benchmark(self, auth_client: AsyncClient) -> None:
+    async def test_end_to_end_performance_benchmark(self, auth_client_with_mocked_llm: AsyncClient) -> None:
         """Benchmark end-to-end performance including API overhead."""
         test_files = [
             ("small.txt", create_large_text_content(0.5), "text/plain"),
@@ -495,41 +491,42 @@ class TestPerformanceBenchmarks:
 
         benchmark_results = {}
 
-        with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"):
-            for filename, content, mime_type in test_files:
-                start_time = time.time()
+        for filename, content, mime_type in test_files:
+            start_time = time.time()
 
-                # Create multipart form data with document upload
-                files = {"files": (filename, io.BytesIO(content), mime_type)}
-                data = {
-                    "prompt": f"Process {filename} for benchmarking.",
-                    "session_id": f"benchmark-{filename}",
+            # Create multipart form data with document upload
+            files = {"files": (filename, io.BytesIO(content), mime_type)}
+            data = {
+                "prompt": f"Process {filename} for benchmarking.",
+                "session_id": f"benchmark-{filename}",
+            }
+
+            # POST invocation with document
+            response = await auth_client_with_mocked_llm.post(
+                "/api/v1/invocations",
+                data=data,
+                files=files,
+            )
+
+            assert response.status_code == 202
+            invocation_data = response.json()
+            invocation_id = invocation_data["id"]
+
+            # Wait for conversion and execution
+            async with wait_for_invocation_execution(
+                auth_client_with_mocked_llm, invocation_id, max_wait_time=30.0
+            ) as final_data:
+                total_time = time.time() - start_time
+
+                file_size_mb = len(content) / (1024 * 1024)
+                benchmark_results[filename] = {
+                    "total_time_seconds": total_time,
+                    "file_size_mb": file_size_mb,
+                    "throughput_mb_per_s": file_size_mb / total_time if total_time > 0 else 0,
+                    "success": final_data is not None and final_data["status"] != "failed",
                 }
 
-                # POST invocation with document
-                response = await auth_client.post(
-                    "/api/v1/invocations",
-                    data=data,
-                    files=files,
-                )
-
-                assert response.status_code == 202
-                invocation_data = response.json()
-                invocation_id = invocation_data["id"]
-
-                # Wait for conversion and execution
-                async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=30.0) as final_data:
-                    total_time = time.time() - start_time
-
-                    file_size_mb = len(content) / (1024 * 1024)
-                    benchmark_results[filename] = {
-                        "total_time_seconds": total_time,
-                        "file_size_mb": file_size_mb,
-                        "throughput_mb_per_s": file_size_mb / total_time if total_time > 0 else 0,
-                        "success": final_data is not None and final_data["status"] != "failed",
-                    }
-
-                    # End-to-end should complete within reasonable time
-                    assert total_time < 30.0, f"End-to-end processing took {total_time:.2f}s"
+                # End-to-end should complete within reasonable time
+                assert total_time < 30.0, f"End-to-end processing took {total_time:.2f}s"
 
         # Note: benchmark results are captured for performance tracking

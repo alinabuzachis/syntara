@@ -17,7 +17,9 @@ from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA
 
 
 @pytest.mark.asyncio
-async def test_files_parameter_is_optional(auth_client: AsyncClient) -> None:
+async def test_files_parameter_is_optional(
+    auth_client_with_mocked_llm: AsyncClient,
+) -> None:
     """Test that files parameter is optional (backward compatibility).
 
     Validates:
@@ -31,7 +33,7 @@ async def test_files_parameter_is_optional(auth_client: AsyncClient) -> None:
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         data=data,
     )
@@ -43,7 +45,9 @@ async def test_files_parameter_is_optional(auth_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_files_array_max_items_constraint(auth_client: AsyncClient) -> None:
+async def test_files_array_max_items_constraint(
+    auth_client_with_mocked_llm: AsyncClient,
+) -> None:
     """Test that files array enforces maxItems: 10 constraint.
 
     Validates:
@@ -58,7 +62,7 @@ async def test_files_array_max_items_constraint(auth_client: AsyncClient) -> Non
     }
 
     # Act - 10 files
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         data=data,
         files=files_10,
@@ -71,7 +75,7 @@ async def test_files_array_max_items_constraint(auth_client: AsyncClient) -> Non
     files_11 = [("files", (f"file{i}.pdf", b"PDF content", "application/pdf")) for i in range(11)]
 
     # Act - 11 files
-    response_11 = await auth_client.post(
+    response_11 = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         data=data,
         files=files_11,
@@ -82,7 +86,9 @@ async def test_files_array_max_items_constraint(auth_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
-async def test_response_schema_file_metadata(auth_client: AsyncClient) -> None:
+async def test_response_schema_file_metadata(
+    auth_client_with_mocked_llm: AsyncClient,
+) -> None:
     """Test file_metadata array schema in response.
 
     Validates:
@@ -103,7 +109,7 @@ async def test_response_schema_file_metadata(auth_client: AsyncClient) -> None:
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         data=data,
         files=files,

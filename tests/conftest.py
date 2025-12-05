@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -25,6 +26,7 @@ from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
+from langchain_core.messages import AIMessage
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -418,6 +420,42 @@ async def session_app(worker_id: str) -> AsyncGenerator[FastAPI, None]:
         yield app
 
 
+@pytest.fixture
+def mock_openrouter_llm() -> Generator[MagicMock, None, None]:
+    """Mock get_openrouter_llm to avoid requiring OPENROUTER_API_KEY.
+
+    Use this fixture in tests that call API endpoints which check for LLM configuration.
+    This prevents 503 errors when the API key is not set in the test environment.
+
+    The mock LLM supports async invocation (ainvoke) and returns a properly structured
+    AIMessage response that matches what the GenericAgent expects.
+
+    Yields:
+        MagicMock representing the LLM instance with async support
+
+    """
+    mock_llm = MagicMock()
+    # Mock ainvoke to return a proper AIMessage (used by GenericAgent._execute)
+    mock_llm.ainvoke = AsyncMock(
+        return_value=AIMessage(
+            content="Mock LLM response for testing",
+            response_metadata={"model": "mock-model", "finish_reason": "stop"},
+        )
+    )
+    # Patch in all locations where get_openrouter_llm is imported
+    with (
+        patch(
+            "nexus.api.v1.invocation.get_openrouter_llm",
+            return_value=mock_llm,
+        ),
+        patch(
+            "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
+            return_value=mock_llm,
+        ),
+    ):
+        yield mock_llm
+
+
 @pytest_asyncio.fixture
 async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
     """Create a base test client with database session override (no authentication).
@@ -451,6 +489,28 @@ async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> As
     # Clean up test session factory
     if hasattr(session_app.state, "test_session_factory"):
         delattr(session_app.state, "test_session_factory")
+
+
+@pytest_asyncio.fixture
+async def base_client_with_mocked_llm(base_client: AsyncClient, mock_openrouter_llm: MagicMock) -> AsyncClient:
+    """Create a base test client with mocked OpenRouter LLM.
+
+    Use this fixture for tests that need to:
+    - Bypass the 503 check when OpenRouter API key is not configured
+    - Test invocation execution with a mocked LLM response
+
+    The mock LLM supports async invocation (ainvoke) and returns a properly
+    structured AIMessage response.
+
+    Args:
+        base_client: Base test client with database session
+        mock_openrouter_llm: Mock for OpenRouter LLM configuration
+
+    Returns:
+        AsyncClient for API testing with mocked LLM
+
+    """
+    return base_client
 
 
 @pytest_asyncio.fixture
@@ -611,6 +671,31 @@ async def auth_client(base_client: AsyncClient, test_user: "User") -> AsyncClien
     app.dependency_overrides[get_current_user] = override_get_current_user
 
     return base_client
+
+
+@pytest_asyncio.fixture
+async def auth_client_with_mocked_llm(base_client_with_mocked_llm: AsyncClient, test_user: "User") -> AsyncClient:
+    """Create an authenticated test client with mocked OpenRouter LLM.
+
+    Use this fixture for tests that need authentication AND a mocked LLM.
+    This is useful for integration tests that test invocation execution
+    without requiring a real OpenRouter API key.
+
+    Args:
+        base_client_with_mocked_llm: Base test client with mocked LLM
+        test_user: Test user for authentication
+
+    Returns:
+        AsyncClient: Authenticated test client with mocked LLM
+
+    """
+
+    async def override_get_current_user() -> User:
+        return test_user
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    return base_client_with_mocked_llm
 
 
 @pytest.fixture

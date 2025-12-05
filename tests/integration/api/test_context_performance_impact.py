@@ -22,7 +22,7 @@ class TestContextPerformanceImpact:
     @pytest.mark.asyncio
     async def test_baseline_vs_context_enhanced_performance(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test performance comparison between baseline and context-enhanced invocations.
@@ -39,7 +39,7 @@ class TestContextPerformanceImpact:
         start_time = time.time()
 
         # Create baseline invocation via API
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             json={
                 "prompt": baseline_prompt,
@@ -53,21 +53,15 @@ class TestContextPerformanceImpact:
         baseline_invocation_id = baseline_data["id"]
 
         # Wait for completion using the helper
-        async with wait_for_invocation_execution(auth_client, baseline_invocation_id, max_wait_time=30.0) as final_data:
+        async with wait_for_invocation_execution(
+            auth_client_with_mocked_llm, baseline_invocation_id, max_wait_time=30.0
+        ) as final_data:
             baseline_data = final_data if final_data else baseline_data
 
         baseline_end_time = time.time()
         baseline_duration = baseline_end_time - start_time
 
-        # Handle both cases: with and without OpenRouter API key
-        if baseline_data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (
-            baseline_data.get("error_message", "")
-        ):
-            # No OpenRouter API key configured (CI environment)
-            # Skip context enhancement tests when LLM is not available
-            return
-
-        assert baseline_data["status"] == "completed"
+        assert baseline_data["status"] == "completed", f"Baseline failed: {baseline_data.get('error_message')}"
         assert baseline_duration < 30.0, "Baseline should complete within reasonable time"
 
         # Test 2: Context-enhanced performance (simulated heavy context)
@@ -88,7 +82,7 @@ class TestContextPerformanceImpact:
             context_start_time = time.time()
 
             # Create context invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": context_prompt,
@@ -103,20 +97,14 @@ class TestContextPerformanceImpact:
 
             # Wait for completion using the helper
             async with wait_for_invocation_execution(
-                auth_client, context_invocation_id, max_wait_time=30.0
+                auth_client_with_mocked_llm, context_invocation_id, max_wait_time=30.0
             ) as final_data:
                 context_data = final_data if final_data else context_data
 
             context_end_time = time.time()
             context_duration = context_end_time - context_start_time
 
-        # Handle both cases: with and without OpenRouter API key
-        if context_data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (context_data.get("error_message", "")):
-            # No OpenRouter API key configured (CI environment)
-            # Skip context enhancement tests when LLM is not available
-            return
-
-        assert context_data["status"] == "completed"
+        assert context_data["status"] == "completed", f"Context invocation failed: {context_data.get('error_message')}"
 
         # Performance analysis
         performance_overhead = context_duration - baseline_duration
@@ -134,7 +122,7 @@ class TestContextPerformanceImpact:
     @pytest.mark.asyncio
     async def test_context_processing_timeout_performance(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test that context processing timeouts don't significantly impact performance.
@@ -154,7 +142,7 @@ class TestContextPerformanceImpact:
             start_time = time.time()
 
             # Create invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": prompt,
@@ -168,7 +156,9 @@ class TestContextPerformanceImpact:
             invocation_id = data["id"]
 
             # Wait for completion with timeout
-            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=15.0) as final_data:
+            async with wait_for_invocation_execution(
+                auth_client_with_mocked_llm, invocation_id, max_wait_time=15.0
+            ) as final_data:
                 data = final_data if final_data else data
 
             end_time = time.time()
@@ -180,7 +170,7 @@ class TestContextPerformanceImpact:
     @pytest.mark.asyncio
     async def test_concurrent_context_enhanced_invocations(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test performance under concurrent context-enhanced invocations.
@@ -206,7 +196,7 @@ class TestContextPerformanceImpact:
 
             # Start all invocations concurrently
             for i in range(num_concurrent):
-                response = await auth_client.post(
+                response = await auth_client_with_mocked_llm.post(
                     "/api/v1/invocations",
                     json={
                         "prompt": f"Concurrent test prompt {i}",
@@ -221,27 +211,20 @@ class TestContextPerformanceImpact:
             # Wait for all to complete using wait helpers
             invocation_results = []
             for invocation_id in invocation_ids:
-                async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=20.0) as final_data:
+                async with wait_for_invocation_execution(
+                    auth_client_with_mocked_llm, invocation_id, max_wait_time=20.0
+                ) as final_data:
                     invocation_results.append(final_data)
 
             end_time = time.time()
             total_duration = end_time - start_time
 
-            # Handle both cases: with and without OpenRouter API key
-            for result in invocation_results:
-                if (
-                    result
-                    and result["status"] == "failed"
-                    and "NEXUS_OPENROUTER_API_KEY" in (result.get("error_message", ""))
-                ):
-                    # No OpenRouter API key configured (CI environment)
-                    # Skip context enhancement tests when LLM is not available
-                    return
-
             # Verify all completed successfully
             for i, result in enumerate(invocation_results):
                 assert result
-                assert result["status"] == "completed", f"Invocation {i} should complete"
+                assert result["status"] == "completed", (
+                    f"Invocation {i} should complete: {result.get('error_message') if result else 'None'}"
+                )
 
             # Concurrent processing should not take much longer than sequential
             # With proper async handling, should be closer to single invocation time
@@ -253,7 +236,7 @@ class TestContextPerformanceImpact:
     @pytest.mark.asyncio
     async def test_memory_usage_with_context_enhancement(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test that context enhancement doesn't cause excessive memory usage.
@@ -281,7 +264,7 @@ class TestContextPerformanceImpact:
                 start_time = time.time()
 
                 # Create invocation via API
-                response = await auth_client.post(
+                response = await auth_client_with_mocked_llm.post(
                     "/api/v1/invocations",
                     json={
                         "prompt": prompt,
@@ -295,25 +278,21 @@ class TestContextPerformanceImpact:
                 invocation_id = data["id"]
 
                 # Wait for completion using the helper
-                async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=15.0) as final_data:
+                async with wait_for_invocation_execution(
+                    auth_client_with_mocked_llm, invocation_id, max_wait_time=15.0
+                ) as final_data:
                     data = final_data if final_data else data
 
                 end_time = time.time()
                 duration = end_time - start_time
 
-                # Handle both cases: with and without OpenRouter API key
-                if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
-                    # No OpenRouter API key configured (CI environment)
-                    # Skip context enhancement tests when LLM is not available
-                    return
-
-                assert data["status"] == "completed"
+                assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
                 assert duration < 15.0, f"Large context ({context_size}B) should not cause excessive delays"
 
     @pytest.mark.asyncio
     async def test_context_caching_performance_benefit(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test potential performance benefits from context caching (future optimization).
@@ -337,7 +316,7 @@ class TestContextPerformanceImpact:
             start_time = time.time()
 
             # Create invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": prompt,
@@ -351,20 +330,16 @@ class TestContextPerformanceImpact:
             invocation_id = data["id"]
 
             # Wait for completion using the helper
-            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=15.0) as final_data:
+            async with wait_for_invocation_execution(
+                auth_client_with_mocked_llm, invocation_id, max_wait_time=15.0
+            ) as final_data:
                 data = final_data if final_data else data
 
             end_time = time.time()
             duration = end_time - start_time
             durations.append(duration)
 
-            # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
-                # No OpenRouter API key configured (CI environment)
-                # Skip context enhancement tests when LLM is not available
-                return
-
-            assert data["status"] == "completed"
+            assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
 
         # For now, just verify all completed successfully
         # Future implementations might show performance improvement for similar queries

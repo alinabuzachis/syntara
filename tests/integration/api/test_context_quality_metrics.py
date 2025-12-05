@@ -21,7 +21,7 @@ class TestContextQualityMetrics:
     @pytest.mark.asyncio
     async def test_grounding_score_reflects_context_quality(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test that grounding scores accurately reflect context quality.
@@ -38,7 +38,7 @@ class TestContextQualityMetrics:
         session_id = "empty-context-test"
 
         # Create invocation via API
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             json={
                 "prompt": prompt_empty_context,
@@ -52,16 +52,12 @@ class TestContextQualityMetrics:
         invocation_id = data["id"]
 
         # Wait for completion using the helper
-        async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+        async with wait_for_invocation_execution(
+            auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
+        ) as final_data:
             data = final_data if final_data else data
 
-        # Handle both cases: with and without OpenRouter API key
-        if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
-            # No OpenRouter API key configured (CI environment)
-            # Skip context enhancement tests when LLM is not available
-            return
-
-        assert data["status"] == "completed"
+        assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
         assert data["result"] is not None
         result = data["result"]
 
@@ -88,7 +84,7 @@ class TestContextQualityMetrics:
             session_id_context = "high-context-test"
 
             # Create context invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": prompt_with_context,
@@ -103,19 +99,13 @@ class TestContextQualityMetrics:
 
             # Wait for completion using the helper
             async with wait_for_invocation_execution(
-                auth_client, context_invocation_id, max_wait_time=10.0
+                auth_client_with_mocked_llm, context_invocation_id, max_wait_time=10.0
             ) as final_data:
                 context_data = final_data if final_data else context_data
 
-            # Handle both cases: with and without OpenRouter API key
-            if context_data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (
-                context_data.get("error_message", "")
-            ):
-                # No OpenRouter API key configured (CI environment)
-                # Skip context enhancement tests when LLM is not available
-                return
-
-            assert context_data["status"] == "completed"
+            assert context_data["status"] == "completed", (
+                f"Context invocation failed: {context_data.get('error_message')}"
+            )
             assert context_data["result"] is not None
             result_context = context_data["result"]
 
@@ -128,7 +118,7 @@ class TestContextQualityMetrics:
     @pytest.mark.asyncio
     async def test_grounding_score_range_validation(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test that grounding scores are always in valid range (0.0-1.0).
@@ -151,7 +141,7 @@ class TestContextQualityMetrics:
                 session_id = f"score-test-{score}"
 
                 # Create invocation via API
-                response = await auth_client.post(
+                response = await auth_client_with_mocked_llm.post(
                     "/api/v1/invocations",
                     json={
                         "prompt": prompt,
@@ -165,16 +155,12 @@ class TestContextQualityMetrics:
                 invocation_id = data["id"]
 
                 # Wait for completion using the helper
-                async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+                async with wait_for_invocation_execution(
+                    auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
+                ) as final_data:
                     data = final_data if final_data else data
 
-                # Handle both cases: with and without OpenRouter API key
-                if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
-                    # No OpenRouter API key configured (CI environment)
-                    # Skip context enhancement tests when LLM is not available
-                    return
-
-                assert data["status"] == "completed"
+                assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
                 assert data["result"] is not None
                 result = data["result"]
 
@@ -187,7 +173,7 @@ class TestContextQualityMetrics:
     @pytest.mark.asyncio
     async def test_context_enhancement_completeness(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test that context enhancement provides complete information for quality assessment.
@@ -213,7 +199,7 @@ class TestContextQualityMetrics:
             session_id = "metadata-completeness-test"
 
             # Create invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": prompt,
@@ -227,16 +213,12 @@ class TestContextQualityMetrics:
             invocation_id = data["id"]
 
             # Wait for completion using the helper
-            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+            async with wait_for_invocation_execution(
+                auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
+            ) as final_data:
                 data = final_data if final_data else data
 
-            # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
-                # No OpenRouter API key configured (CI environment)
-                # Skip context enhancement tests when LLM is not available
-                return
-
-            assert data["status"] == "completed"
+            assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
             assert data["result"] is not None
             result = data["result"]
 
@@ -262,7 +244,7 @@ class TestContextQualityMetrics:
     @pytest.mark.asyncio
     async def test_empty_vs_populated_context_distinction(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test that system can distinguish between empty and populated context scenarios.
@@ -282,7 +264,7 @@ class TestContextQualityMetrics:
 
         with patch.object(ContextManagerPlanner, "plan_request", return_value=mock_empty_context):
             # Create empty context invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": "Test empty context",
@@ -297,16 +279,13 @@ class TestContextQualityMetrics:
 
             # Wait for completion using the helper
             async with wait_for_invocation_execution(
-                auth_client, empty_invocation_id, max_wait_time=10.0
+                auth_client_with_mocked_llm, empty_invocation_id, max_wait_time=10.0
             ) as final_data:
                 empty_data = final_data if final_data else empty_data
 
-            # Handle both cases: with and without OpenRouter API key
-            if empty_data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (empty_data.get("error_message", "")):
-                # No OpenRouter API key configured (CI environment)
-                # Skip context enhancement tests when LLM is not available
-                return
-
+            assert empty_data["status"] == "completed", (
+                f"Empty context invocation failed: {empty_data.get('error_message')}"
+            )
             assert empty_data["result"] is not None
             result_empty = empty_data["result"]
             assert result_empty["grounding_score"] == 0.0
@@ -322,7 +301,7 @@ class TestContextQualityMetrics:
 
         with patch.object(ContextManagerPlanner, "plan_request", return_value=mock_populated_context):
             # Create populated context invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": "Test populated context",
@@ -337,18 +316,13 @@ class TestContextQualityMetrics:
 
             # Wait for completion using the helper
             async with wait_for_invocation_execution(
-                auth_client, populated_invocation_id, max_wait_time=10.0
+                auth_client_with_mocked_llm, populated_invocation_id, max_wait_time=10.0
             ) as final_data:
                 populated_data = final_data if final_data else populated_data
 
-            # Handle both cases: with and without OpenRouter API key
-            if populated_data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (
-                populated_data.get("error_message", "")
-            ):
-                # No OpenRouter API key configured (CI environment)
-                # Skip context enhancement tests when LLM is not available
-                return
-
+            assert populated_data["status"] == "completed", (
+                f"Populated context invocation failed: {populated_data.get('error_message')}"
+            )
             assert populated_data["result"] is not None
             result_populated = populated_data["result"]
             assert result_populated["grounding_score"] == 0.6
@@ -363,7 +337,7 @@ class TestContextQualityMetrics:
     @pytest.mark.asyncio
     async def test_context_correlation_via_correlation_id(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test that correlation_id enables proper correlation between invocation and context.
@@ -386,7 +360,7 @@ class TestContextQualityMetrics:
             session_id = "correlation-test"
 
             # Create invocation via API
-            response = await auth_client.post(
+            response = await auth_client_with_mocked_llm.post(
                 "/api/v1/invocations",
                 json={
                     "prompt": prompt,
@@ -400,16 +374,12 @@ class TestContextQualityMetrics:
             invocation_id = data["id"]
 
             # Wait for completion using the helper
-            async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+            async with wait_for_invocation_execution(
+                auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
+            ) as final_data:
                 data = final_data if final_data else data
 
-            # Handle both cases: with and without OpenRouter API key
-            if data["status"] == "failed" and "NEXUS_OPENROUTER_API_KEY" in (data.get("error_message", "")):
-                # No OpenRouter API key configured (CI environment)
-                # Skip context enhancement tests when LLM is not available
-                return
-
-            assert data["status"] == "completed"
+            assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
             assert data["result"] is not None
             result = data["result"]
 

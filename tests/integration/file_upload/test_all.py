@@ -22,7 +22,7 @@ from tests.fixtures import generate_large_file
 
 
 @pytest.mark.asyncio
-async def test_upload_pdf_file(auth_client: AsyncClient, test_user, sample_pdf_path: Path) -> None:
+async def test_upload_pdf_file(auth_client_with_mocked_llm: AsyncClient, test_user, sample_pdf_path: Path) -> None:
     """Scenario 1: Upload Valid PDF File.
 
     Validates:
@@ -40,14 +40,13 @@ async def test_upload_pdf_file(auth_client: AsyncClient, test_user, sample_pdf_p
         }
 
         # Act
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             data=data,
             files=files,
         )
 
     # Assert
-    # This test will fail until implementation is done
     assert response.status_code == 202
 
     response_data = response.json()
@@ -66,7 +65,7 @@ async def test_upload_pdf_file(auth_client: AsyncClient, test_user, sample_pdf_p
 
 
 @pytest.mark.asyncio
-async def test_upload_docx_file(auth_client: AsyncClient, test_user, sample_docx_path: Path) -> None:
+async def test_upload_docx_file(auth_client_with_mocked_llm: AsyncClient, test_user, sample_docx_path: Path) -> None:
     """Scenario 2: Upload DOCX File.
 
     Validates:
@@ -85,14 +84,13 @@ async def test_upload_docx_file(auth_client: AsyncClient, test_user, sample_docx
         }
 
         # Act
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             data=data,
             files=files,
         )
 
     # Assert
-    # This test will fail until implementation is done
     assert response.status_code == 202
 
     response_data = response.json()
@@ -108,7 +106,10 @@ async def test_upload_docx_file(auth_client: AsyncClient, test_user, sample_docx
 
 @pytest.mark.asyncio
 async def test_upload_text_and_markdown(
-    auth_client: AsyncClient, test_user, sample_txt_path: Path, sample_md_path: Path
+    auth_client_with_mocked_llm: AsyncClient,
+    test_user,
+    sample_txt_path: Path,
+    sample_md_path: Path,
 ) -> None:
     """Scenario 3: Upload Text/Markdown Files.
 
@@ -125,14 +126,13 @@ async def test_upload_text_and_markdown(
             "session_id": "test-session-003a",
         }
 
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             data=data,
             files=files,
         )
 
     # Assert TXT
-    # This test will fail until implementation is done
     assert response.status_code == 202
     response_data = response.json()
     file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
@@ -146,7 +146,7 @@ async def test_upload_text_and_markdown(
             "session_id": "test-session-003b",
         }
 
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             data=data,
             files=files,
@@ -161,7 +161,7 @@ async def test_upload_text_and_markdown(
 
 
 @pytest.mark.asyncio
-async def test_invocation_without_files(auth_client: AsyncClient, test_user) -> None:
+async def test_invocation_without_files(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
     """Scenario 4: Invocation Without Files (Backward Compatibility).
 
     Validates:
@@ -177,7 +177,7 @@ async def test_invocation_without_files(auth_client: AsyncClient, test_user) -> 
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         json=payload,
     )
@@ -192,7 +192,7 @@ async def test_invocation_without_files(auth_client: AsyncClient, test_user) -> 
 
 
 @pytest.mark.asyncio
-async def test_file_too_large_error(auth_client: AsyncClient, test_user) -> None:
+async def test_file_too_large_error(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
     """Scenario 5: File Too Large Error.
 
     Validates:
@@ -211,7 +211,7 @@ async def test_file_too_large_error(auth_client: AsyncClient, test_user) -> None
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         data=data,
         files=files,
@@ -230,7 +230,9 @@ async def test_file_too_large_error(auth_client: AsyncClient, test_user) -> None
 
 
 @pytest.mark.asyncio
-async def test_unsupported_format_error(auth_client: AsyncClient, test_user, sample_image_path: Path) -> None:
+async def test_unsupported_format_error(
+    auth_client_with_mocked_llm: AsyncClient, test_user, sample_image_path: Path
+) -> None:
     """Scenario 6: Unsupported Format Error.
 
     Validates:
@@ -248,7 +250,7 @@ async def test_unsupported_format_error(auth_client: AsyncClient, test_user, sam
         }
 
         # Act
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             data=data,
             files=files,
@@ -268,7 +270,7 @@ async def test_unsupported_format_error(auth_client: AsyncClient, test_user, sam
 
 
 @pytest.mark.asyncio
-async def test_too_many_files_error(auth_client: AsyncClient, test_user, sample_pdf_path: Path) -> None:
+async def test_too_many_files_error(auth_client_with_mocked_llm: AsyncClient, test_user, sample_pdf_path: Path) -> None:
     """Scenario 7: Too Many Files Error.
 
     Validates:
@@ -289,7 +291,7 @@ async def test_too_many_files_error(auth_client: AsyncClient, test_user, sample_
     }
 
     # Act
-    response = await auth_client.post(
+    response = await auth_client_with_mocked_llm.post(
         "/api/v1/invocations",
         data=data,
         files=files,
@@ -308,7 +310,7 @@ async def test_too_many_files_error(auth_client: AsyncClient, test_user, sample_
     assert "15" in detail  # Actual count
 
     # Verify no invocation created
-    list_response = await auth_client.get("/api/v1/invocations?session_id=test-session-007")
+    list_response = await auth_client_with_mocked_llm.get("/api/v1/invocations?session_id=test-session-007")
     assert list_response.status_code == 200
     list_data = list_response.json()
     assert len(list_data["resources"]) == 0
@@ -316,7 +318,11 @@ async def test_too_many_files_error(auth_client: AsyncClient, test_user, sample_
 
 @pytest.mark.asyncio
 async def test_multiple_files_upload(
-    auth_client: AsyncClient, test_user, sample_pdf_path: Path, sample_docx_path: Path, sample_txt_path: Path
+    auth_client_with_mocked_llm: AsyncClient,
+    test_user,
+    sample_pdf_path: Path,
+    sample_docx_path: Path,
+    sample_txt_path: Path,
 ) -> None:
     """Scenario 8: Multiple Files Upload.
 
@@ -347,14 +353,13 @@ async def test_multiple_files_upload(
         }
 
         # Act
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             data=data,
             files=files,
         )
 
     # Assert
-    # This test will fail until implementation is done
     assert response.status_code == 202
 
     response_data = response.json()
@@ -382,7 +387,7 @@ async def test_multiple_files_upload(
 
 
 @pytest.mark.asyncio
-async def test_context_metadata(auth_client: AsyncClient, test_user, sample_pdf_path: Path) -> None:
+async def test_context_metadata(auth_client_with_mocked_llm: AsyncClient, test_user, sample_pdf_path: Path) -> None:
     """Scenario 9: Context Data Integration.
 
     Validates:
@@ -400,20 +405,19 @@ async def test_context_metadata(auth_client: AsyncClient, test_user, sample_pdf_
         }
 
         # Act - Create invocation with file
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             data=data,
             files=files,
         )
 
     # Assert creation
-    # This test will fail until implementation is done
     assert response.status_code == 202
     response_data = response.json()
     invocation_id = response_data["id"]
 
     # Retrieve invocation details
-    invocation_response = await auth_client.get(f"/api/v1/invocations/{invocation_id}")
+    invocation_response = await auth_client_with_mocked_llm.get(f"/api/v1/invocations/{invocation_id}")
     assert invocation_response.status_code == 200
 
     invocation_data = invocation_response.json()

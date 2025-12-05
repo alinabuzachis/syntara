@@ -17,7 +17,7 @@ class TestContextEnhancedInvocations:
     @pytest.mark.asyncio
     async def test_invocation_includes_context_enhancement(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test that invocations automatically include context enhancement.
@@ -35,7 +35,7 @@ class TestContextEnhancedInvocations:
         session_id = "test-session-001"
 
         # Create invocation via API
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             json={
                 "prompt": prompt,
@@ -49,19 +49,13 @@ class TestContextEnhancedInvocations:
         invocation_id = data["id"]
 
         # Wait for invocation to complete using the helper
-        async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+        async with wait_for_invocation_execution(
+            auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
+        ) as final_data:
             data = final_data if final_data else data
 
-        # Handle both cases: with and without OpenRouter API key
-        if data["status"] == "failed":
-            # No OpenRouter API key configured (CI environment)
-            assert data["error_message"] is not None
-            assert "NEXUS_OPENROUTER_API_KEY" in data["error_message"]
-            # Skip context enhancement tests when LLM is not available
-            return
-
-        # Verify invocation completed successfully (when API key is available)
-        assert data["status"] == "completed"
+        # Verify invocation completed successfully
+        assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
         assert data["result"] is not None
 
         result = data["result"]
@@ -93,7 +87,7 @@ class TestContextEnhancedInvocations:
     @pytest.mark.asyncio
     async def test_context_enhancement_includes_correlation_info(
         self,
-        auth_client: AsyncClient,
+        auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
         """Test that context enhancement includes proper correlation information.
@@ -106,7 +100,7 @@ class TestContextEnhancedInvocations:
         session_id = "correlation-test-session"
 
         # Create invocation via API
-        response = await auth_client.post(
+        response = await auth_client_with_mocked_llm.post(
             "/api/v1/invocations",
             json={
                 "prompt": prompt,
@@ -120,18 +114,13 @@ class TestContextEnhancedInvocations:
         invocation_id = data["id"]
 
         # Wait for completion using the helper
-        async with wait_for_invocation_execution(auth_client, invocation_id, max_wait_time=10.0) as final_data:
+        async with wait_for_invocation_execution(
+            auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
+        ) as final_data:
             data = final_data if final_data else data
 
-        # Handle both cases: with and without OpenRouter API key
-        if data["status"] == "failed":
-            # No OpenRouter API key configured (CI environment)
-            assert data["error_message"] is not None
-            assert "NEXUS_OPENROUTER_API_KEY" in data["error_message"]
-            # Skip context enhancement tests when LLM is not available
-            return
-
-        assert data["status"] == "completed"
+        # Verify invocation completed successfully
+        assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
         assert data["result"] is not None
         result = data["result"]
 
