@@ -153,11 +153,11 @@ export function Table<T>(props: {
             </span>
             {bulkActions && bulkActions.length > 0 && (
               <div className="flex gap-2">
-                {bulkActions.map((action, index) => {
+                {bulkActions.map((action) => {
                   const Icon = action.icon
                   return (
                     <button
-                      key={index}
+                      key={action.label}
                       className={clsx(
                         'flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm transition-colors',
                         action.variant === 'destructive'
@@ -240,7 +240,7 @@ export function Table<T>(props: {
                             const isDisabled =
                               typeof action.disabled === 'function' ? action.disabled(item) : action.disabled
                             return (
-                              <Fragment key={actionIndex}>
+                              <Fragment key={action.label}>
                                 {action.separator && actionIndex > 0 && <MenuSeparator />}
                                 <MenuItem
                                   onClick={() => !isDisabled && action.onClick(item)}

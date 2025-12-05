@@ -592,8 +592,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
       deletedNodes.forEach((node) => {
         if (node.type === FlowNodeType.TRIGGER) {
-          const triggerIndex = parseInt(node.id.split('-')[1])
-          if (!isNaN(triggerIndex)) {
+          const triggerIndex = Number.parseInt(node.id.split('-')[1])
+          if (!Number.isNaN(triggerIndex)) {
             triggerIndices.push(triggerIndex)
           }
         } else if (node.type !== FlowNodeType.PLACEHOLDER) {

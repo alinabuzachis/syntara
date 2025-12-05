@@ -104,7 +104,7 @@ function toDateOnly(isoString: string): string {
 
   try {
     const date = new Date(isoString)
-    if (isNaN(date.getTime())) return ''
+    if (Number.isNaN(date.getTime())) return ''
 
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -124,7 +124,7 @@ function extractTime(isoString: string): { hour: number; minute: number; period:
 
   try {
     const date = new Date(isoString)
-    if (isNaN(date.getTime())) return { hour: 12, minute: 0, period: 'AM' }
+    if (Number.isNaN(date.getTime())) return { hour: 12, minute: 0, period: 'AM' }
 
     const hours24 = date.getHours()
     const minutes = date.getMinutes()
@@ -160,7 +160,7 @@ function toISOString(dateValue: string, hour: number, minute: number, period: 'A
     if (!year || !month || !day) return ''
 
     const date = new Date(Date.UTC(year, month - 1, day, hours24, minute, 0, 0))
-    if (isNaN(date.getTime())) return ''
+    if (Number.isNaN(date.getTime())) return ''
 
     return date.toISOString()
   } catch {
@@ -274,7 +274,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
               type="number"
               value={triggerHour}
               onChange={(e) => {
-                const val = parseInt(e.target.value) || 1
+                const val = Number.parseInt(e.target.value) || 1
                 setTriggerHour(Math.max(1, Math.min(12, val)))
               }}
               min={1}
@@ -287,7 +287,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
               type="number"
               value={String(triggerMinute).padStart(2, '0')}
               onChange={(e) => {
-                const val = parseInt(e.target.value) || 0
+                const val = Number.parseInt(e.target.value) || 0
                 setTriggerMinute(Math.max(0, Math.min(59, val)))
               }}
               min={0}

@@ -60,7 +60,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     // Handle trigger node
     if (node.type === FlowNodeType.TRIGGER) {
       // Get trigger from workflow by index (assuming node id is "trigger-0", "trigger-1", etc.)
-      const triggerIndex = parseInt(node.id.split('-')[1] || '0')
+      const triggerIndex = Number.parseInt(node.id.split('-')[1] || '0')
       const trigger = currentWorkflow?.triggers?.[triggerIndex]
 
       if (trigger) {
