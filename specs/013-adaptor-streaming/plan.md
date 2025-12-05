@@ -205,7 +205,7 @@ src/
 │   │   ├── agents/
 │   │   │   └── generic_agent.py                    # MODIFIED: Add streaming support
 │   │   └── services/
-│   │       ├── streaming_service.py                # NEW: StreamingSession management
+│   │       ├── streaming_service.py                # NEW: WebSocket streaming service
 │   │       └── error_handler.py                    # NEW: Streaming error handling
 │   ├── ws/
 │   │   └── agent_orchestrator.py                   # NEW: WebSocket handler for streaming
@@ -292,7 +292,7 @@ _Prerequisites: research.md complete_
    - Add new tech from current plan
    - Keep under 150 lines for content efficiency
 
-**Output**: ✅ data-model.md, ✅ schemas/agent_orchestrator/websocket-api.yaml, [ ] failing tests (Phase 2), [ ] quickstart.md (Phase 2), [ ] CLAUDE.md (Phase 2)
+**Output**: ✅ data-model.md, ✅ src/nexus/schemas/agent_orchestrator/websocket-adaptor_streaming.yaml, [ ] failing tests (Phase 2), [ ] quickstart.md (Phase 2), [ ] CLAUDE.md (Phase 2)
 
 ## Phase 2: Task Planning Approach
 

@@ -108,7 +108,7 @@ class TestConcurrentRequestPerformance:
                     end_time = time.perf_counter()
                     latency_ms = (end_time - start_time) * 1000
                     return True, latency_ms
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     await session.rollback()
                     end_time = time.perf_counter()
                     latency_ms = (end_time - start_time) * 1000
@@ -245,7 +245,7 @@ class TestConcurrentRequestPerformance:
                     latency_ms = (end_time - start_time) * 1000
                     user_results[user_id]["latencies"].append(latency_ms)
                     return True, latency_ms
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     await session.rollback()
                     end_time = time.perf_counter()
                     latency_ms = (end_time - start_time) * 1000
@@ -386,7 +386,7 @@ class TestConcurrentRequestPerformance:
                     await session.rollback()
                     rejected.append(request_num)
                     return False
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     await session.rollback()
                     logger.warning("Unexpected error in request %d: %s", request_num, e)
                     return False

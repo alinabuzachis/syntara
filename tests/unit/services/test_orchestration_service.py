@@ -1,14 +1,47 @@
-"""Unit tests for OrchestrationService LangGraph integration."""
+"""Unit tests for OrchestrationService LangGraph streaming integration."""
 
+from collections.abc import AsyncGenerator
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from langchain_core.messages import AIMessage
 
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
-from nexus.agent_orchestrator.exceptions import AgentError
-from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
+
+
+def create_mock_streaming_event(event_type: str, content: str | None = None) -> dict[str, Any]:
+    """Helper to create mock LangGraph streaming events.
+
+    Args:
+        event_type: Type of event (e.g., "on_chat_model_stream", "on_chain_end")
+        content: Optional content for chunk
+
+    Returns:
+        Mock event dictionary
+
+    """
+    if event_type == "on_chat_model_stream":
+        chunk = MagicMock()
+        chunk.content = content
+        return {"event": event_type, "data": {"chunk": chunk}}
+    return {"event": event_type, "data": {}}
+
+
+async def mock_astream_events_generator(*chunks: str) -> AsyncGenerator[dict[str, Any], None]:
+    """Create async generator for mocked astream_events.
+
+    Args:
+        *chunks: String chunks to yield as streaming events
+
+    Yields:
+        Mock streaming events
+
+    """
+    for chunk in chunks:
+        yield create_mock_streaming_event("on_chat_model_stream", chunk)
+    # Yield final non-streaming event to signal completion
+    yield {"event": "on_chain_end", "data": {}}
 
 
 class TestOrchestrationServiceInitialization:
@@ -21,6 +54,8 @@ class TestOrchestrationServiceInitialization:
         mock_context_manager = MagicMock()
 
         # Act
+        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
+
         service = OrchestrationService(mock_llm, mock_context_manager)
 
         # Assert
@@ -29,15 +64,14 @@ class TestOrchestrationServiceInitialization:
         assert service.context_manager == mock_context_manager
 
 
-class TestOrchestrationServiceExecution:
-    """Test OrchestrationService execution flow."""
+class TestOrchestrationServiceStreamingExecution:
+    """Test OrchestrationService streaming execution flow."""
 
     @pytest.mark.asyncio
-    async def test_orchestration_service_executes_full_workflow(self) -> None:
-        """Test full orchestration workflow with context integration and agent execution."""
+    async def test_orchestration_service_streams_llm_responses(self) -> None:
+        """Test that OrchestrationService streams LLM responses to Valkey."""
         # Arrange
         mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="Test response from LLM")
         mock_llm.model_name = "test-model"
 
         mock_context_manager = MagicMock()
@@ -49,332 +83,326 @@ class TestOrchestrationServiceExecution:
         )
         mock_context_manager.plan_request.return_value = test_context
 
-        service = OrchestrationService(mock_llm, mock_context_manager)
-        invocation_id = uuid4()
-
-        # Act
-        result = await service.execute(
-            prompt="What deployment tools are available?",
-            session_id="test-session",
-            invocation_id=invocation_id,
-            correlation_id="initial-correlation",
-        )
-
-        # Assert
-        assert isinstance(result, dict)
-        assert "content" in result
-        assert result["content"] == "Test response from LLM"
-        assert "correlation_id" in result
-        assert "grounding_score" in result
-        assert "context_enhancement" in result
-
-        # Verify context manager was called
-        mock_context_manager.plan_request.assert_called_once()
-
-        # Verify LLM was called
-        mock_llm.ainvoke.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_orchestration_service_handles_context_failure_gracefully(self) -> None:
-        """Test that orchestration continues when context integration fails."""
-        # Arrange
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="Response without context")
-        mock_llm.model_name = "test-model"
-
-        mock_context_manager = MagicMock()
-        mock_context_manager.plan_request.side_effect = ConnectionError("Context service unavailable")
+        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 
         service = OrchestrationService(mock_llm, mock_context_manager)
         invocation_id = uuid4()
 
-        # Act
-        result = await service.execute(
-            prompt="What tools are available?",
-            session_id="test-session",
-            invocation_id=invocation_id,
-            correlation_id="initial-correlation",
-        )
+        # Mock astream_events to return streaming chunks
+        with (
+            patch.object(
+                service.graph,
+                "astream_events",
+                return_value=mock_astream_events_generator("Hello", " ", "World"),
+            ),
+            patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
+        ):
+            mock_client_instance = AsyncMock()
+            mock_stream_client.return_value.__aenter__.return_value = mock_client_instance
 
-        # Assert
-        assert isinstance(result, dict)
-        assert "content" in result
-        assert result["content"] == "Response without context"
-        assert "correlation_id" in result
-
-        # Should still have correlation_id from initial state when context fails
-        assert result["correlation_id"] == "initial-correlation"
-
-        # Verify LLM was still called despite context failure
-        mock_llm.ainvoke.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_orchestration_service_handles_llm_errors(self) -> None:
-        """Test error handling when LLM execution fails."""
-        # Arrange
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.side_effect = RuntimeError("LLM service unavailable")
-        mock_llm.model_name = "test-model"
-
-        mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
-        mock_context_manager.plan_request.return_value = test_context
-
-        service = OrchestrationService(mock_llm, mock_context_manager)
-        invocation_id = uuid4()
-
-        # Act & Assert - Should raise AgentError when LLM fails
-        with pytest.raises(AgentError) as exc_info:
-            await service.execute(
+            # Act
+            result = await service.execute(
                 prompt="Test prompt",
                 session_id="test-session",
                 invocation_id=invocation_id,
                 correlation_id="initial-correlation",
             )
 
-        # Verify the error contains the original LLM error message
-        assert "Execution error: LLM service unavailable" in str(exc_info.value)
-        assert exc_info.value.invocation_id == str(invocation_id)
+            # Assert - Result should contain streaming metadata
+            assert isinstance(result, dict)
+            assert "response_metadata" in result
+            assert result["response_metadata"]["source"] == "streaming"
+            assert result["response_metadata"]["orchestration"] == "langgraph"
+            assert "stream_id" in result["response_metadata"]
+            assert result["type"] == "answer"
+            assert "WebSocket endpoint" in result["content"]
+
+            # Verify events were published to Valkey
+            # 3 delta events (Hello, " ", World) + 1 completion event = 4 publish calls
+            assert mock_client_instance.publish.call_count == 4
+
+            # Verify delta events
+            delta_calls = [c for c in mock_client_instance.publish.call_args_list if "delta" in str(c)]
+            assert len(delta_calls) == 3
+
+            # Verify completion event
+            completion_calls = [c for c in mock_client_instance.publish.call_args_list if "completion" in str(c)]
+            assert len(completion_calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_orchestration_service_publishes_delta_events_correctly(self) -> None:
+        """Test that delta events are published with correct structure."""
+        # Arrange
+        mock_llm = AsyncMock()
+        mock_llm.model_name = "test-model"
+
+        mock_context_manager = MagicMock()
+        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
+        mock_context_manager.plan_request.return_value = test_context
+
+        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
+
+        service = OrchestrationService(mock_llm, mock_context_manager)
+        invocation_id = uuid4()
+
+        # Mock astream_events
+        with (
+            patch.object(service.graph, "astream_events", return_value=mock_astream_events_generator("Test")),
+            patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
+        ):
+            mock_client_instance = AsyncMock()
+            mock_stream_client.return_value.__aenter__.return_value = mock_client_instance
+
+            # Act
+            await service.execute(
+                prompt="Test",
+                session_id="test-session",
+                invocation_id=invocation_id,
+            )
+
+            # Assert - Check delta event structure
+            delta_call = next(c for c in mock_client_instance.publish.call_args_list if "delta" in str(c))
+            _stream_id, event = delta_call[0]
+
+            assert event["event_type"] == "delta"
+            assert event["invocation_id"] == str(invocation_id)
+            assert "timestamp" in event
+            assert event["data"]["delta"] == "Test"
+
+    @pytest.mark.asyncio
+    async def test_orchestration_service_publishes_completion_event(self) -> None:
+        """Test that completion event is published after streaming."""
+        # Arrange
+        mock_llm = AsyncMock()
+        mock_llm.model_name = "test-model"
+
+        mock_context_manager = MagicMock()
+        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
+        mock_context_manager.plan_request.return_value = test_context
+
+        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
+
+        service = OrchestrationService(mock_llm, mock_context_manager)
+        invocation_id = uuid4()
+
+        # Mock astream_events
+        with (
+            patch.object(service.graph, "astream_events", return_value=mock_astream_events_generator("Done")),
+            patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
+        ):
+            mock_client_instance = AsyncMock()
+            mock_stream_client.return_value.__aenter__.return_value = mock_client_instance
+
+            # Act
+            await service.execute(
+                prompt="Test",
+                session_id="test-session",
+                invocation_id=invocation_id,
+            )
+
+            # Assert - Check completion event
+            completion_call = next(c for c in mock_client_instance.publish.call_args_list if "completion" in str(c))
+            _stream_id, event = completion_call[0]
+
+            assert event["event_type"] == "completion"
+            assert event["invocation_id"] == str(invocation_id)
+            assert "timestamp" in event
+            assert event["data"] == {}
+
+
+class TestOrchestrationServiceErrorHandling:
+    """Test OrchestrationService streaming error handling."""
+
+    @pytest.mark.asyncio
+    async def test_orchestration_service_handles_llm_errors_during_streaming(self) -> None:
+        """Test error handling when LLM streaming fails."""
+        # Arrange
+        mock_llm = AsyncMock()
+        mock_llm.model_name = "test-model"
+
+        mock_context_manager = MagicMock()
+        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
+        mock_context_manager.plan_request.return_value = test_context
+
+        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
+
+        service = OrchestrationService(mock_llm, mock_context_manager)
+        invocation_id = uuid4()
+
+        # Mock astream_events to raise error
+
+        async def error_generator() -> AsyncGenerator[dict[str, Any], None]:
+            yield create_mock_streaming_event("on_chat_model_stream", "Partial")
+            msg = "LLM streaming error"
+            raise RuntimeError(msg)
+
+        with (
+            patch.object(service.graph, "astream_events", return_value=error_generator()),
+            patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
+        ):
+            mock_client_instance = AsyncMock()
+            mock_stream_client.return_value.__aenter__.return_value = mock_client_instance
+
+            # Act & Assert - Should raise error
+            with pytest.raises(RuntimeError) as exc_info:
+                await service.execute(
+                    prompt="Test",
+                    session_id="test-session",
+                    invocation_id=invocation_id,
+                )
+
+            assert "LLM streaming error" in str(exc_info.value)
+
+            # Verify error event was published
+            error_calls = [c for c in mock_client_instance.publish.call_args_list if "error" in str(c)]
+            assert len(error_calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_orchestration_service_publishes_error_event_on_failure(self) -> None:
+        """Test that error events are published when streaming fails."""
+        # Arrange
+        mock_llm = AsyncMock()
+        mock_llm.model_name = "test-model"
+
+        mock_context_manager = MagicMock()
+        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
+        mock_context_manager.plan_request.return_value = test_context
+
+        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
+
+        service = OrchestrationService(mock_llm, mock_context_manager)
+        invocation_id = uuid4()
+
+        # Mock astream_events to raise error - no partial content, immediate failure
+
+        async def error_generator(*, should_yield: bool = False) -> AsyncGenerator[dict[str, Any], None]:
+            msg = "Test error"
+            if should_yield:  # Never called with True, but makes this a generator
+                yield create_mock_streaming_event("on_chat_model_stream", "")
+            raise ValueError(msg)
+
+        with (
+            patch.object(service.graph, "astream_events", return_value=error_generator()),
+            patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
+        ):
+            mock_client_instance = AsyncMock()
+            mock_stream_client.return_value.__aenter__.return_value = mock_client_instance
+
+            # Act & Assert
+            with pytest.raises(ValueError):
+                await service.execute(
+                    prompt="Test",
+                    session_id="test-session",
+                    invocation_id=invocation_id,
+                )
+
+            # Verify error event was published
+            error_calls = [c for c in mock_client_instance.publish.call_args_list if "error" in str(c)]
+            assert len(error_calls) == 1
+
+
+class TestOrchestrationServiceSessionManagement:
+    """Test OrchestrationService session management for multi-turn conversations."""
 
     @pytest.mark.asyncio
     async def test_orchestration_service_uses_session_checkpointing(self) -> None:
         """Test that session checkpointing works for multi-turn conversations."""
         # Arrange
         mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="First response")
         mock_llm.model_name = "test-model"
 
         mock_context_manager = MagicMock()
         test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
         mock_context_manager.plan_request.return_value = test_context
+
+        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 
         service = OrchestrationService(mock_llm, mock_context_manager)
         session_id = "multi-turn-session"
         invocation_id_1 = uuid4()
         invocation_id_2 = uuid4()
 
-        # Act - First invocation
-        result1 = await service.execute(
-            prompt="First prompt",
-            session_id=session_id,
-            invocation_id=invocation_id_1,
-        )
+        # Mock astream_events
+        with (
+            patch.object(service.graph, "astream_events", return_value=mock_astream_events_generator("Response")),
+            patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
+        ):
+            mock_client_instance = AsyncMock()
+            mock_stream_client.return_value.__aenter__.return_value = mock_client_instance
 
-        # Configure for second invocation
-        mock_llm.ainvoke.return_value = AIMessage(content="Second response")
+            # Act - First invocation
+            result1 = await service.execute(
+                prompt="First prompt",
+                session_id=session_id,
+                invocation_id=invocation_id_1,
+            )
 
-        # Act - Second invocation with same session
-        result2 = await service.execute(
-            prompt="Second prompt",
-            session_id=session_id,
-            invocation_id=invocation_id_2,
-        )
+            # Act - Second invocation with same session
+            result2 = await service.execute(
+                prompt="Second prompt",
+                session_id=session_id,
+                invocation_id=invocation_id_2,
+            )
 
-        # Assert
-        assert result1["content"] == "First response"
-        assert result2["content"] == "Second response"
+            # Assert - Both should return streaming metadata
+            assert "response_metadata" in result1
+            assert "response_metadata" in result2
+            assert result1["response_metadata"]["source"] == "streaming"
+            assert result2["response_metadata"]["source"] == "streaming"
 
-        # Both should have been executed (checkpointing allows state persistence)
-        assert mock_llm.ainvoke.call_count == 2
+            # Both should have been executed with same session_id for checkpointing
+            assert service.graph.astream_events.call_count == 2  # type: ignore[attr-defined]
 
-
-class TestOrchestrationServiceRouting:
-    """Test OrchestrationService routing logic through LangGraph."""
-
-    @pytest.mark.asyncio
-    async def test_orchestration_service_routes_to_generic_agent(self) -> None:
-        """Test that orchestration routes to generic agent correctly."""
-        # Arrange
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="Generic agent response")
-        mock_llm.model_name = "test-model"
-
-        mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
-        mock_context_manager.plan_request.return_value = test_context
-
-        service = OrchestrationService(mock_llm, mock_context_manager)
-
-        # Act
-        result = await service.execute(
-            prompt="What tools are available?",  # Non-workflow prompt
-            session_id="test-session",
-            invocation_id=uuid4(),
-        )
-
-        # Assert
-        assert "content" in result
-        assert result["content"] == "Generic agent response"
-
-        # Verify the LLM was called (indicating generic agent was executed)
-        mock_llm.ainvoke.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_orchestration_service_routes_workflow_prompts_correctly(self) -> None:
-        """Test routing of workflow-related prompts."""
-        # Arrange
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="Workflow-related response")
-        mock_llm.model_name = "test-model"
-
-        mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
-        mock_context_manager.plan_request.return_value = test_context
-
-        service = OrchestrationService(mock_llm, mock_context_manager)
-
-        # Act
-        result = await service.execute(
-            prompt="Create a deployment workflow",  # Workflow prompt
-            session_id="test-session",
-            invocation_id=uuid4(),
-        )
-
-        # Assert
-        assert "content" in result
-        assert result["content"] == "Workflow-related response"
-
-        # Currently routes to generic agent (as per current implementation)
-        mock_llm.ainvoke.assert_called_once()
-
-
-class TestOrchestrationServiceContextEnhancement:
-    """Test context enhancement functionality in OrchestrationService."""
-
-    @pytest.mark.asyncio
-    async def test_orchestration_service_enhances_result_with_context_metadata(self) -> None:
-        """Test that results are enhanced with context metadata."""
-        # Arrange
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="Enhanced response")
-        mock_llm.model_name = "test-model"
-
-        mock_context_manager = MagicMock()
-        test_context = ContextPackage(
-            id="context-package-123",
-            correlation_id="test-correlation",
-            payload={"docs": "Relevant info"},
-            grounding_score=0.85,
-            citations=[{"source": "doc1.md"}, {"source": "doc2.md"}],
-        )
-        mock_context_manager.plan_request.return_value = test_context
-
-        service = OrchestrationService(mock_llm, mock_context_manager)
-
-        # Act
-        result = await service.execute(
-            prompt="Test prompt with context",
-            session_id="test-session",
-            invocation_id=uuid4(),
-            correlation_id="initial-correlation",
-        )
-
-        # Assert
-        assert result["correlation_id"] == "test-correlation"  # From context package
-        assert result["grounding_score"] == 0.85
-        assert "context_enhancement" in result
-        assert result["context_enhancement"]["turn_id"] == "context-package-123"
-        assert result["context_enhancement"]["citations"] == [{"source": "doc1.md"}, {"source": "doc2.md"}]
-        assert result["context_enhancement"]["context_applied"] is True
-
-    @pytest.mark.asyncio
-    async def test_orchestration_service_handles_no_context_metadata(self) -> None:
-        """Test result enhancement when no context is applied."""
-        # Arrange
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="Response without context")
-        mock_llm.model_name = "test-model"
-
-        mock_context_manager = MagicMock()
-        mock_context_manager.plan_request.side_effect = ConnectionError("No context")
-
-        service = OrchestrationService(mock_llm, mock_context_manager)
-        initial_correlation_id = "initial-correlation"
-
-        # Act
-        result = await service.execute(
-            prompt="Test prompt without context",
-            session_id="test-session",
-            invocation_id=uuid4(),
-            correlation_id=initial_correlation_id,
-        )
-
-        # Assert
-        # Should use initial correlation_id when no context is applied
-        assert result["correlation_id"] == initial_correlation_id
-        assert "grounding_score" not in result or result.get("grounding_score") is None
-        assert "context_enhancement" not in result or result.get("context_enhancement") is None
+            # Verify both used the same session_id in config
+            call1 = service.graph.astream_events.call_args_list[0]  # type: ignore[attr-defined]
+            call2 = service.graph.astream_events.call_args_list[1]  # type: ignore[attr-defined]
+            assert call1[0][1]["configurable"]["thread_id"] == session_id
+            assert call2[0][1]["configurable"]["thread_id"] == session_id
 
 
 class TestOrchestrationServiceLogging:
     """Test OrchestrationService logging and observability."""
 
     @pytest.mark.asyncio
-    async def test_orchestration_service_logs_execution_flow(self) -> None:
-        """Test that orchestration service logs execution with correlation IDs."""
+    async def test_orchestration_service_logs_streaming_flow(self) -> None:
+        """Test that orchestration service logs streaming execution."""
         # Arrange
         mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="Test response")
         mock_llm.model_name = "test-model"
 
         mock_context_manager = MagicMock()
         test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
         mock_context_manager.plan_request.return_value = test_context
 
+        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
+
         service = OrchestrationService(mock_llm, mock_context_manager)
         invocation_id = uuid4()
 
-        # Act
-        with patch("nexus.agent_orchestrator.services.orchestration_service.logger") as mock_logger:
+        # Mock astream_events
+        with (
+            patch.object(service.graph, "astream_events", return_value=mock_astream_events_generator("Test")),
+            patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
+            patch("nexus.agent_orchestrator.services.orchestration_service.logger") as mock_logger,
+        ):
+            mock_client_instance = AsyncMock()
+            mock_stream_client.return_value.__aenter__.return_value = mock_client_instance
+
+            # Act
             await service.execute(
                 prompt="Test prompt",
                 session_id="test-session",
                 invocation_id=invocation_id,
             )
 
-            # Assert
-            # Verify execution start was logged
-            start_calls = [call for call in mock_logger.info.call_args_list if "Executing orchestration" in str(call)]
+            # Assert - Verify streaming start was logged
+            start_calls = [c for c in mock_logger.info.call_args_list if "Executing streaming orchestration" in str(c)]
             assert len(start_calls) == 1
             assert str(invocation_id) in str(start_calls[0])
 
             # Verify completion was logged
             completion_calls = [
-                call for call in mock_logger.info.call_args_list if "Orchestration completed" in str(call)
+                c for c in mock_logger.info.call_args_list if "Streaming orchestration completed" in str(c)
             ]
             assert len(completion_calls) == 1
             assert str(invocation_id) in str(completion_calls[0])
-
-    @pytest.mark.asyncio
-    async def test_orchestration_service_logs_failures(self) -> None:
-        """Test that orchestration service logs failures appropriately."""
-        # Arrange
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.side_effect = RuntimeError("Test failure")
-        mock_llm.model_name = "test-model"
-
-        mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
-        mock_context_manager.plan_request.return_value = test_context
-
-        service = OrchestrationService(mock_llm, mock_context_manager)
-        invocation_id = uuid4()
-
-        # Act & Assert
-        with patch("nexus.agent_orchestrator.services.orchestration_service.logger") as mock_logger:
-            with pytest.raises(AgentError) as exc_info:
-                await service.execute(
-                    prompt="Test prompt",
-                    session_id="test-session",
-                    invocation_id=invocation_id,
-                )
-
-            # Assert - Should raise AgentError when LLM fails
-            assert "Execution error: Test failure" in str(exc_info.value)
-            assert exc_info.value.invocation_id == str(invocation_id)
-
-            # Verify orchestration failure was logged
-            failure_calls = [
-                call for call in mock_logger.exception.call_args_list if "Orchestration failed" in str(call)
-            ]
-            assert len(failure_calls) == 1  # Orchestration failure should be logged

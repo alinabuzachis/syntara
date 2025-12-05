@@ -94,6 +94,11 @@ services:
       - NEXUS_DB_NAME=${NEXUS_DB_NAME:-nexus_api}
       - NEXUS_TEMPORAL_ADDRESS=temporal:7233
       - NEXUS_TEMPORAL_NAMESPACE=default
+      - NEXUS_VALKEY_HOST=valkey
+      - NEXUS_VALKEY_PASSWORD=${VALKEY_PASSWORD:-valkey}
+      - NEXUS_OPENROUTER_API_KEY=${NEXUS_OPENROUTER_API_KEY}
+      - NEXUS_OPENROUTER_MODEL=${NEXUS_OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
+      - NEXUS_OPENROUTER_BASE_URL=${NEXUS_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
     volumes:
       - ./src:/opt/app-root/src/src:z
@@ -101,6 +106,8 @@ services:
       database:
         condition: service_healthy
       temporal:
+        condition: service_healthy
+      valkey:
         condition: service_healthy
     healthcheck:
       test: [CMD, curl, -f, 'http://localhost:8000/health']

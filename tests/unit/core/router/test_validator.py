@@ -162,7 +162,7 @@ class TestRouteValidator:
 
         mock_schema.endpoints = [endpoint]
 
-        validator._validate_api_prefix(mock_schema)  # noqa: SLF001
+        validator._validate_api_prefix(mock_schema)
 
         if should_pass:
             assert len(validator.errors) == 0
@@ -223,7 +223,7 @@ class TestRouteValidator:
 
         mock_schema.endpoints = [endpoint]
 
-        validator._validate_api_prefix(mock_schema)  # noqa: SLF001
+        validator._validate_api_prefix(mock_schema)
 
         if should_pass:
             assert len(validator.errors) == 0, f"Expected no errors for {base_path}{endpoint_path}"
@@ -272,7 +272,7 @@ class TestRouteValidator:
                 return {}
 
         validator = RouteValidator(app, [])
-        routes = validator._extract_routes()  # noqa: SLF001
+        routes = validator._extract_routes()
 
         mock_schema = MagicMock(spec=OpenAPISchema)
         mock_schema.base_path = ""  # No base path for this test
@@ -281,7 +281,7 @@ class TestRouteValidator:
         endpoint.path = search_path
         endpoint.method = search_method
 
-        matching_route = validator._find_matching_route(endpoint, mock_schema, routes)  # noqa: SLF001
+        matching_route = validator._find_matching_route(endpoint, mock_schema, routes)
 
         if should_match:
             assert matching_route is not None
@@ -328,7 +328,7 @@ class TestRouteValidator:
         app.add_api_route("/api/v1/example/test", handler, methods=["GET"])
 
         validator = RouteValidator(app, [])
-        routes = validator._extract_routes()  # noqa: SLF001
+        routes = validator._extract_routes()
         route = next(r for r in routes if r.path == "/api/v1/example/test")
 
         mock_schema = MagicMock(spec=OpenAPISchema)
@@ -339,7 +339,7 @@ class TestRouteValidator:
         endpoint.method = "get"
         endpoint.path = "/api/v1/example/test"
 
-        validator._validate_parameters(endpoint, route, mock_schema)  # noqa: SLF001
+        validator._validate_parameters(endpoint, route, mock_schema)
 
         if should_pass:
             assert len(validator.errors) == 0
@@ -395,7 +395,7 @@ class TestRouteValidator:
         endpoint.operation_id = "getTest"
         endpoint.expected_function_name = "get_test"
 
-        validator._add_missing_handler_error(endpoint, mock_schema)  # noqa: SLF001
+        validator._add_missing_handler_error(endpoint, mock_schema)
 
         assert len(validator.errors) == 1
         assert validator.errors[0].error_type == "missing_handler"
@@ -410,7 +410,7 @@ class TestRouteValidator:
             return {}
 
         validator = RouteValidator(app, [])
-        routes = validator._extract_routes()  # noqa: SLF001
+        routes = validator._extract_routes()
         route = next(r for r in routes if r.path == "/api/v1/example/test")
 
         mock_schema = MagicMock(spec=OpenAPISchema)
@@ -422,7 +422,7 @@ class TestRouteValidator:
         endpoint.method = "get"
         endpoint.path = "/api/v1/example/test"
 
-        validator._validate_function_naming(endpoint, route, mock_schema)  # noqa: SLF001
+        validator._validate_function_naming(endpoint, route, mock_schema)
 
         assert len(validator.errors) == 1
         assert validator.errors[0].error_type == "function_name_mismatch"
@@ -438,13 +438,13 @@ class TestRouteValidator:
             return {}
 
         validator = RouteValidator(app, [])
-        routes = validator._extract_routes()  # noqa: SLF001
+        routes = validator._extract_routes()
 
         mock_schema = MagicMock(spec=OpenAPISchema)
         mock_schema.endpoints = []
 
         validator.schemas = [mock_schema]
-        validator._validate_orphaned_routes(routes)  # noqa: SLF001
+        validator._validate_orphaned_routes(routes)
 
         orphaned_errors = [e for e in validator.errors if e.error_type == "orphaned_handler"]
         assert any("/api/v1/example/orphaned" in e.details.get("path", "") for e in orphaned_errors)
@@ -466,7 +466,7 @@ class TestRouteValidator:
         app = FastAPI()
         validator = RouteValidator(app, [])
 
-        domain = validator._extract_domain_from_path(path)  # noqa: SLF001
+        domain = validator._extract_domain_from_path(path)
 
         assert domain == expected_domain
 

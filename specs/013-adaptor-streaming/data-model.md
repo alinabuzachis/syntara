@@ -106,49 +106,18 @@ Represents an active WebSocket connection for streaming events. Managed in-memor
 
 ---
 
-### StreamingSession
-
-Runtime state for **active** streaming sessions only. Provides coordination between GenericAgent and WebSocket handlers. **Does not exist** for completed invocations.
-
-**Fields:**
-
-- `session_id`: UUID (Primary Key) - **Auto-generated**
-- `invocation_id`: UUID - **Required** (Foreign key to Invocation, 1:1 relationship)
-- `started_at`: Timestamp - **Auto-generated**
-- `status`: Enum - **Auto-managed** (values: initializing, streaming, completing, completed, cancelled, error)
-- `cancellation_reason`: String - **Optional** (Reason for cancellation if applicable)
-- `error_details`: JSON - **Optional** (Error information if streaming failed)
-
-**State Transitions:**
-
-```
-initializing → streaming
-streaming → completing → completed
-streaming → cancelled
-streaming → error
-```
-
-**Storage Location:** In-memory (GenericAgent streaming state)
-
-**Note:** Metrics (delta counts, streaming rates, etc.) are derived from Valkey stream events when needed, not tracked in the session state.
-
-**Lifecycle Management:**
-- **Created**: When GenericAgent starts LLM streaming (`initialize` → `streaming`)
-- **Active**: While LLM is streaming content (`streaming` → `completing`)
-- **Destroyed**: When LLM completes or fails (`completed`, `cancelled`, `error`)
-
-**Note**: For completed invocations, clients connect to WebSocket but get historical events from Valkey Streams (no StreamingSession exists).
-
 ### Client Connection Scenarios
 
-**Active Streaming (StreamingSession exists):**
+Coordination between GenericAgent (event publisher) and WebSocket handlers (event consumers) occurs entirely through Valkey Streams. No in-memory session state is needed for coordination.
+
+**Active Streaming:**
 - Client connects → WebSocket handler reads from Valkey stream
 - Handler replays historical events (if any) from Valkey
 - Handler blocks waiting for new events to arrive in Valkey
 - GenericAgent publishes delta events to Valkey as LLM generates them
 - Client receives real-time delta events through Valkey stream
 
-**Completed Invocation (No StreamingSession):**
+**Completed Invocation:**
 - Client connects → Gets all historical events from Valkey Streams only
 - No live streaming (LLM already finished)
 - Client receives replay of all stored events (deltas, errors, completion status)
@@ -156,7 +125,7 @@ streaming → error
 
 **Failed Invocation:**
 - Similar to completed, but error events are included in replay
-- No StreamingSession (already cleaned up)
+- Client receives error event with classification (retryable/non-retryable)
 
 ### Stream Completion Detection
 
@@ -224,10 +193,8 @@ The existing `Invocation` entity is **not extended** with additional streaming f
 ### Primary Relationships
 
 ```
-Invocation (1) -----> (1) StreamingSession
 Invocation (1) -----> (N) StreamingEvent (Valkey)
 Invocation (1) -----> (N) WebSocketConnection (in-memory)
-StreamingSession (1) -----> (N) StreamingEvent
 ```
 
 ### Valkey Stream Structure

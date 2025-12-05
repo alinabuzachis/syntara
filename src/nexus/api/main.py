@@ -20,6 +20,7 @@ from nexus.api.db import get_db
 from nexus.api.v1.websocket import build_websocket_router
 from nexus.core.config import get_settings
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
+from nexus.core.websocket.manager import get_connection_lifecycle_manager
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +76,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     ws_router = build_websocket_router()
     app.include_router(ws_router)
 
+    # Start WebSocket connection health monitoring
+    # This background task runs every 30 seconds to clean up stale connections
+    # that haven't responded to ping frames within the timeout period (60s)
+    lifecycle_manager = get_connection_lifecycle_manager()
+    lifecycle_manager.start_monitoring()
+    logger.info("WebSocket connection health monitoring started")
+
     try:
         yield
     finally:
+        # Stop WebSocket connection monitoring
+        lifecycle_manager.stop_monitoring()
+        logger.info("WebSocket connection health monitoring stopped")
+
         # Clean up lock file created by this server instance
         lock_file = _get_lock_file_path()
         try:

@@ -5,7 +5,6 @@ They focus on worker lifecycle management (start, stop, context manager) and ens
 the worker can successfully process workflows.
 """
 
-# ruff: noqa: SLF001
 # SLF001: Integration tests need to verify internal state (_worker_task) of the service
 
 import asyncio

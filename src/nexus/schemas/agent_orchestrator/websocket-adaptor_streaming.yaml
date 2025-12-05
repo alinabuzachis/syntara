@@ -12,7 +12,7 @@ servers:
     description: Local development server
 
 channels:
-  invocations_streaming:
+  invocations:
     address: /ws/agent_orchestrator/v1/invocations/{invocation_id}
     description: |
       WebSocket endpoint for real-time streaming of LLM responses.
@@ -33,22 +33,26 @@ channels:
       - last_event_id: Resume from specific event ID (takes precedence over replay_count)
 
     messages:
-      streamingConnectionRequest:
-        $ref: '#/components/messages/StreamingConnectionRequest'
       streamingEvent:
         $ref: '#/components/messages/StreamingEvent'
+    parameters:
+      invocation_id:
+        $ref: '#/components/parameters/invocation_id_param'
+      replay_count:
+        $ref: '#/components/parameters/replayCountParam'
+      last_event_id:
+        $ref: '#/components/parameters/lastEventIdParam'
+
+operations:
+  receiveInvocationEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/invocations'
+    summary: Receive streaming events from server
+    description: Server sends LLM response events to client (receive-only)
 
 components:
   messages:
-    StreamingConnectionRequest:
-      description: Dummy request message (framework requirement - not actually used)
-      payload:
-        type: object
-        properties:
-          dummy:
-            type: boolean
-            description: Placeholder field
-
     StreamingEvent:
       description: Streaming event sent from server to client
       payload:
@@ -96,8 +100,9 @@ components:
             - $ref: '#/components/schemas/CompletionEventData'
         event_id:
           type: string
+          nullable: true
           title: Event ID
-          description: Valkey stream event ID for resumption and ordering (format {milliseconds}-{sequence})
+          description: Valkey stream event ID for resumption and ordering (format {milliseconds}-{sequence}). Can be null for events not yet persisted.
           example: 1691431234567-42
 
     DeltaEventData:

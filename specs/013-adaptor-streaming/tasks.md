@@ -1,7 +1,7 @@
 # Tasks: Adaptor Streaming
 
 **Input**: Design documents from `/specs/013-adaptor-streaming/`
-**Prerequisites**: plan.md (required), research.md, data-model.md, schemas/agent_orchestrator/websocket-api.yaml
+**Prerequisites**: plan.md (required), research.md, data-model.md, src/nexus/schemas/agent_orchestrator/websocket-adaptor_streaming.yaml
 
 ## Execution Flow (main)
 ```
@@ -10,7 +10,7 @@
    → Extract: tech stack (Python 3.12+, LangChain/LangGraph, Valkey, FastAPI), structure (backend API enhancement)
 2. Load optional design documents:
    → data-model.md: Extract entities → model tasks
-   → schemas/agent_orchestrator/websocket-api.yaml: WebSocket event schemas → contract test tasks
+   → src/nexus/schemas/agent_orchestrator/websocket-adaptor_streaming.yaml: WebSocket event schemas → contract test tasks
    → research.md: Extract decisions → setup tasks
    → quickstart.md: Integration scenarios → integration test tasks
 3. Generate tasks by category:
@@ -42,21 +42,21 @@
 - Paths follow project structure: agent_orchestrator, core, tests
 
 ## Phase 3.1: Setup
-- [ ] T001 Configure LLM streaming API credentials and LangChain/LangGraph integration
-- [ ] T002 Set up Valkey connection for event streams in core configuration
-- [ ] T003 [P] Configure pytest-asyncio for WebSocket streaming tests
+- [X] T001 Configure LLM streaming API credentials and LangChain/LangGraph integration
+- [X] T002 Set up Valkey connection for event streams in core configuration
+- [X] T003 [P] Configure pytest-asyncio for WebSocket streaming tests
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
-- [ ] T004 [P] Contract test for StreamingEvent delta schema in tests/contract/test_streaming_events.py
-- [ ] T005 [P] Contract test for StreamingEvent error schema in tests/contract/test_streaming_events.py
-- [ ] T006 [P] Contract test for StreamingEvent completion schema in tests/contract/test_streaming_events.py
-- [ ] T007 [P] Contract test for StreamingEvent cancelled schema in tests/contract/test_streaming_events.py
-- [ ] T008 [P] Integration test streaming LLM response end-to-end in tests/integration/websocket/test_websocket_streaming.py
-- [ ] T009 [P] Integration test multi-client streaming synchronization in tests/integration/websocket/test_websocket_streaming.py
-- [ ] T010 [P] Integration test error handling and cancellation in tests/integration/websocket/test_websocket_streaming.py
+- [X] T004 [P] Contract test for StreamingEvent delta schema in tests/contract/test_streaming_events.py
+- [X] T005 [P] Contract test for StreamingEvent error schema in tests/contract/test_streaming_events.py
+- [X] T006 [P] Contract test for StreamingEvent completion schema in tests/contract/test_streaming_events.py
+- [X] T007 [P] Contract test for StreamingEvent cancelled schema in tests/contract/test_streaming_events.py
+- [x] T008 [P] Integration test streaming LLM response end-to-end in tests/integration/websocket/test_websocket_streaming.py
+- [x] T009 [P] Integration test multi-client streaming synchronization in tests/integration/websocket/test_websocket_streaming.py
+- [x] T010 [P] Integration test error handling and cancellation in tests/integration/websocket/test_websocket_streaming.py
   - ✅ Constitution compliance: WebSocket error events follow RFC 9457 Problem Details format
-- [ ] T011 [P] Integration test historical event replay in tests/integration/websocket/test_websocket_streaming.py
+- [x] T011 [P] Integration test historical event replay in tests/integration/websocket/test_websocket_streaming.py
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
 **Architecture Reminders**:
@@ -77,25 +77,25 @@
 - Document security schemes for authenticated endpoints
 - Validate schema changes for backward compatibility
 
-- [ ] T012 Add new GenericAgent.stream() method with LangChain/LangGraph streaming support (astream()/astream_events()) and remove execute() method in src/nexus/agent_orchestrator/agents/generic_agent.py
-- [ ] T013 Create StreamingSession runtime state management in src/nexus/agent_orchestrator/services/streaming_service.py
-- [ ] T014 [P] Implement Valkey stream client for publishing and reading events in src/nexus/core/valkey/stream.py
-- [ ] T015 Create WebSocket handler for invocation streaming in src/nexus/ws/agent_orchestrator.py
-- [ ] T016 Integrate streaming with existing InvocationService in src/nexus/agent_orchestrator/agents/generic_agent.py
-- [ ] T017 Add invocation status management during streaming lifecycle in src/nexus/agent_orchestrator/services/invocation_service.py
-- [ ] T018 Add error classification for streaming exceptions in src/nexus/agent_orchestrator/services/error_handler.py
-- [ ] T019 Implement WebSocket connection lifecycle management in src/nexus/core/websocket/manager.py
+- [X] T012 Add new GenericAgent.stream() method with LangChain/LangGraph streaming support (astream()/astream_events()) and remove execute() method in src/nexus/agent_orchestrator/agents/generic_agent.py
+- [X] T013 Create WebSocket streaming service in src/nexus/agent_orchestrator/services/streaming_service.py
+- [X] T014 [P] Implement Valkey stream client for publishing and reading events in src/nexus/core/valkey/stream.py
+- [X] T015 Create WebSocket handler for invocation streaming in src/nexus/ws/agent_orchestrator.py
+- [X] T016 Integrate streaming with existing InvocationService in src/nexus/agent_orchestrator/agents/generic_agent.py
+- [X] T017 Add invocation status management during streaming lifecycle in src/nexus/agent_orchestrator/services/invocation_service.py
+- [X] T018 Add error classification for streaming exceptions in src/nexus/agent_orchestrator/services/error_handler.py
+- [X] T019 Implement WebSocket connection lifecycle management in src/nexus/core/websocket/manager.py
 
 ## Phase 3.4: Integration
-- [ ] T020 Configure Valkey stream TTL and cleanup in core configuration
+- [x] T020 Configure Valkey stream TTL and cleanup in core configuration
 
 ## Phase 3.5: Polish
-- [ ] T021 [P] Unit tests for StreamingSession state management in tests/unit/agent_orchestrator/test_streaming_session.py
-- [ ] T022 [P] Unit tests for Valkey stream client in tests/unit/core/valkey/test_stream.py
-- [ ] T023 [P] Unit tests for error classification in tests/unit/agent_orchestrator/test_error_handler.py
-- [ ] T024 [P] Unit tests for invocation status management in tests/unit/agent_orchestrator/test_invocation_status.py
-- [ ] T025 Run manual testing scenarios from quickstart.md
-- [ ] T026 Refactor: Remove duplication (DRY), ensure SOLID compliance across streaming components
+- [X] T021 [P] Unit tests for streaming service in tests/unit/agent_orchestrator/test_streaming_session.py
+- [X] T022 [P] Unit tests for Valkey stream client in tests/unit/core/valkey/test_stream.py
+- [X] T023 [P] Unit tests for error classification in tests/unit/agent_orchestrator/test_error_handler.py
+- [X] T024 [P] Unit tests for invocation status management in tests/unit/agent_orchestrator/test_invocation_status.py
+- [x] T025 Run manual testing scenarios from quickstart.md
+- [X] T026 Refactor: Remove duplication (DRY), ensure SOLID compliance across streaming components
 
 ## Dependencies
 - Tests (T004-T011) before implementation (T012-T019)
@@ -128,7 +128,7 @@ Task: "Integration test historical event replay in tests/integration/websocket/t
 
 ```bash
 # Core streaming components (some can be parallel):
-Task: "Create StreamingSession runtime state management in src/nexus/agent_orchestrator/services/streaming_service.py"
+Task: "Create WebSocket streaming service in src/nexus/agent_orchestrator/services/streaming_service.py"
 Task: "Implement Valkey stream client for publishing and reading events in src/nexus/core/valkey/stream.py" [P]
 Task: "Create WebSocket handler for invocation streaming in src/nexus/ws/agent_orchestrator.py"
 ```
@@ -147,7 +147,7 @@ graph TD
     TESTS --> CORE[T012-T019: Core Implementation]
 
     %% Core tasks with dependencies
-    T012[Add GenericAgent.stream()] --> T013[StreamingSession]
+    T012[Add GenericAgent.stream()] --> T013[Streaming Service]
     T012 --> T016[InvocationService integration]
     T013 --> T020[WebSocket router]
 
@@ -206,13 +206,12 @@ graph TD
 
 ## Task Generation Rules Applied
 
-1. **From Schemas** (`schemas/agent_orchestrator/websocket-api.yaml`):
+1. **From Schemas** (`src/nexus/schemas/agent_orchestrator/websocket-adaptor_streaming.yaml`):
    - Each event type (delta, error, completion, cancelled) → contract test task [P]
 
 2. **From Data Model** (`data-model.md`):
    - StreamingEvent entity → stream client logic
    - WebSocketConnection → connection management
-   - StreamingSession → runtime state management
 
 3. **From Quickstart** (`quickstart.md`):
    - Each example scenario → integration test task [P]

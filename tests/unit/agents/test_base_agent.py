@@ -44,7 +44,7 @@ class TestBaseAgentErrorHandling:
         original_error = TimeoutError("Connection timed out")
 
         with pytest.raises(AgentTimeoutError) as exc_info:
-            agent._handle_execution_error(original_error, invocation_id)  # noqa: SLF001
+            agent._handle_execution_error(original_error, invocation_id)
 
         assert exc_info.value.invocation_id == invocation_id
         assert exc_info.value.__cause__ == original_error
@@ -56,7 +56,7 @@ class TestBaseAgentErrorHandling:
         original_error = KeyError("API_KEY")
 
         with pytest.raises(AgentConfigurationError) as exc_info:
-            agent._handle_execution_error(original_error, invocation_id)  # noqa: SLF001
+            agent._handle_execution_error(original_error, invocation_id)
 
         assert exc_info.value.invocation_id == invocation_id
         assert "API_KEY" in str(exc_info.value)
@@ -69,7 +69,7 @@ class TestBaseAgentErrorHandling:
         original_error = ValueError("Invalid configuration")
 
         with pytest.raises(AgentConfigurationError) as exc_info:
-            agent._handle_execution_error(original_error, invocation_id)  # noqa: SLF001
+            agent._handle_execution_error(original_error, invocation_id)
 
         assert exc_info.value.invocation_id == invocation_id
         assert "Invalid configuration" in str(exc_info.value)
@@ -82,7 +82,7 @@ class TestBaseAgentErrorHandling:
         original_error = RuntimeError("Invalid API key provided")
 
         with pytest.raises(AgentConfigurationError) as exc_info:
-            agent._handle_execution_error(original_error, invocation_id)  # noqa: SLF001
+            agent._handle_execution_error(original_error, invocation_id)
 
         assert exc_info.value.invocation_id == invocation_id
         assert "Invalid API key" in str(exc_info.value)
@@ -95,7 +95,7 @@ class TestBaseAgentErrorHandling:
         original_error = RuntimeError("Rate limit exceeded for API")
 
         with pytest.raises(AgentRateLimitError) as exc_info:
-            agent._handle_execution_error(original_error, invocation_id)  # noqa: SLF001
+            agent._handle_execution_error(original_error, invocation_id)
 
         assert exc_info.value.invocation_id == invocation_id
         assert "Rate limit exceeded" in str(exc_info.value)
@@ -108,7 +108,7 @@ class TestBaseAgentErrorHandling:
         original_error = ConnectionError("Network failure")
 
         with pytest.raises(AgentError) as exc_info:
-            agent._handle_execution_error(original_error, invocation_id)  # noqa: SLF001
+            agent._handle_execution_error(original_error, invocation_id)
 
         assert exc_info.value.invocation_id == invocation_id
         assert "Network failure" in str(exc_info.value)
@@ -124,9 +124,7 @@ class TestBaseAgentEmptyResponseHandling:
         invocation_id = str(uuid4())
         response_metadata: dict[str, object] = {"model": "test-model"}
 
-        result = agent._handle_empty_response(  # noqa: SLF001
-            invocation_id, response_metadata, message=None
-        )
+        result = agent._handle_empty_response(invocation_id, response_metadata, message=None)
 
         assert result.type == "answer"
         assert "couldn't generate an answer" in result.content
@@ -140,9 +138,7 @@ class TestBaseAgentEmptyResponseHandling:
         response_metadata: dict[str, object] = {}
         custom_message = "Custom fallback message"
 
-        result = agent._handle_empty_response(  # noqa: SLF001
-            invocation_id, response_metadata, message=custom_message
-        )
+        result = agent._handle_empty_response(invocation_id, response_metadata, message=custom_message)
 
         assert result.content == custom_message
         assert result.response_metadata["warning"] == "empty_response"
@@ -158,7 +154,7 @@ class TestBaseAgentLogging:
         session_id = "test-session-123"
 
         with patch.object(agent.logger, "info") as mock_info:
-            agent._log_execution_start(invocation_id, session_id)  # noqa: SLF001
+            agent._log_execution_start(invocation_id, session_id)
 
             mock_info.assert_called_once()
             call_args = mock_info.call_args[0]
@@ -174,7 +170,7 @@ class TestBaseAgentLogging:
         invocation_id = str(uuid4())
 
         with patch.object(agent.logger, "info") as mock_info:
-            agent._log_execution_success(invocation_id)  # noqa: SLF001
+            agent._log_execution_success(invocation_id)
 
             mock_info.assert_called_once()
             call_args = mock_info.call_args[0]

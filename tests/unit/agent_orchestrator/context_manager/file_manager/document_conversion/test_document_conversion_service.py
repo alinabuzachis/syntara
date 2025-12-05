@@ -161,25 +161,25 @@ class TestDocumentConversionServiceInitialization:
     def test_generate_output_filename_pdf_extension(self) -> None:
         """Test output filename generation for PDF files."""
         # Access private method for testing purposes
-        result = DocumentConversionService._generate_output_filename("document.pdf")  # noqa: SLF001
+        result = DocumentConversionService._generate_output_filename("document.pdf")
         assert result == "document.md"
 
     def test_generate_output_filename_docx_extension(self) -> None:
         """Test output filename generation for DOCX files."""
         # Access private method for testing purposes
-        result = DocumentConversionService._generate_output_filename("report.docx")  # noqa: SLF001
+        result = DocumentConversionService._generate_output_filename("report.docx")
         assert result == "report.md"
 
     def test_generate_output_filename_no_extension(self) -> None:
         """Test output filename generation for files without extensions."""
         # Access private method for testing purposes
-        result = DocumentConversionService._generate_output_filename("document")  # noqa: SLF001
+        result = DocumentConversionService._generate_output_filename("document")
         assert result == "document.md"
 
     def test_generate_output_filename_multiple_dots(self) -> None:
         """Test output filename generation for files with multiple dots."""
         # Access private method for testing purposes
-        result = DocumentConversionService._generate_output_filename("my.document.pdf")  # noqa: SLF001
+        result = DocumentConversionService._generate_output_filename("my.document.pdf")
         assert result == "my.document.md"
 
 
@@ -403,7 +403,7 @@ class TestDocumentConversionServiceStorageIntegration:
         conversion_helper.mock_file_manager.get_retriever_for_file.return_value = mock_storage_retriever
 
         # Access private method for testing purposes
-        output_filename, output_path = await conversion_helper.service._store_converted_file(  # noqa: SLF001
+        output_filename, output_path = await conversion_helper.service._store_converted_file(
             file_metadata, conversion_result
         )
 
@@ -436,4 +436,4 @@ class TestDocumentConversionServiceStorageIntegration:
 
         with pytest.raises(ValueError, match="Cannot store file: conversion result has no content"):
             # Access private method for testing purposes
-            await conversion_helper.service._store_converted_file(file_metadata, conversion_result)  # noqa: SLF001
+            await conversion_helper.service._store_converted_file(file_metadata, conversion_result)

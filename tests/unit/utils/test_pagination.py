@@ -87,7 +87,7 @@ class TestPaginationFunctions:
             decoded_bytes = base64.b64decode(cursor.encode())
             decoded_json = json.loads(decoded_bytes.decode())
             assert "id" in decoded_json
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             pytest.fail(f"Cursor should be valid base64 JSON: {e}")
 
     def test_decode_cursor_basic(self) -> None:
@@ -229,7 +229,7 @@ class TestPaginationFunctions:
                 decoded = decode_cursor(cursor)
                 assert isinstance(decoded, dict)
                 assert "id" in decoded
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 pytest.fail(f"Cursor should be valid: {e}")
 
     def test_invalid_cursor_handling(self) -> None:

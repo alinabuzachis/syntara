@@ -121,7 +121,7 @@ class TestDocumentConversionTaskUpdateMetadata:
             mock_load_invocation.return_value = sample_invocation
 
             # Create metadata updater
-            updater = task._get_metadata_updater(sample_invocation_id)  # noqa: SLF001
+            updater = task._get_metadata_updater(sample_invocation_id)
 
             # Update the file metadata status
             updated_metadata = sample_file_metadata.model_copy(update={"status": "converted"})
@@ -185,7 +185,7 @@ class TestDocumentConversionTaskUpdateMetadata:
             mock_load_invocation.return_value = multi_file_invocation
 
             # Create metadata updater
-            updater = task._get_metadata_updater(sample_invocation_id)  # noqa: SLF001
+            updater = task._get_metadata_updater(sample_invocation_id)
 
             # Update the second file's metadata
             updated_file_2 = file_metadata_2.model_copy(update={"status": "converted"})
@@ -226,7 +226,7 @@ class TestDocumentConversionTaskUpdateMetadata:
             mock_load_invocation.return_value = None
 
             # Create metadata updater
-            updater = task._get_metadata_updater(sample_invocation_id)  # noqa: SLF001
+            updater = task._get_metadata_updater(sample_invocation_id)
 
             # Try to update metadata (should not raise error)
             await updater(sample_file_metadata)
@@ -263,7 +263,7 @@ class TestDocumentConversionTaskUpdateMetadata:
             mock_load_invocation.return_value = sample_invocation
 
             # Create metadata updater
-            updater = task._get_metadata_updater(sample_invocation_id)  # noqa: SLF001
+            updater = task._get_metadata_updater(sample_invocation_id)
 
             # Update with additional metadata fields
             updated_metadata = sample_file_metadata.model_copy(
@@ -305,7 +305,7 @@ class TestDocumentConversionTaskLoadFileMetadata:
         self, sample_invocation: Invocation, sample_file_metadata: FileMetadata
     ) -> None:
         """Test successful file metadata loading."""
-        result = await DocumentConversionTask._load_invocation_file_metadata(sample_invocation)  # noqa: SLF001
+        result = await DocumentConversionTask._load_invocation_file_metadata(sample_invocation)
 
         assert len(result) == 1
         assert result[0]["filename"] == sample_file_metadata.filename
@@ -313,14 +313,14 @@ class TestDocumentConversionTaskLoadFileMetadata:
     @pytest.mark.asyncio
     async def test_load_invocation_file_metadata_no_invocation(self) -> None:
         """Test file metadata loading when invocation is None."""
-        result = await DocumentConversionTask._load_invocation_file_metadata(None)  # noqa: SLF001
+        result = await DocumentConversionTask._load_invocation_file_metadata(None)
         assert result == []
 
     @pytest.mark.asyncio
     async def test_load_invocation_file_metadata_no_context_data(self, sample_invocation_id: UUID) -> None:
         """Test file metadata loading when no context data exists."""
         invocation = Invocation(id=sample_invocation_id, agent_name="test_agent")
-        result = await DocumentConversionTask._load_invocation_file_metadata(invocation)  # noqa: SLF001
+        result = await DocumentConversionTask._load_invocation_file_metadata(invocation)
         assert result == []
 
     @pytest.mark.asyncio
@@ -331,7 +331,7 @@ class TestDocumentConversionTaskLoadFileMetadata:
             agent_name="test_agent",
             context_data={"other_key": "other_value"},
         )
-        result = await DocumentConversionTask._load_invocation_file_metadata(invocation)  # noqa: SLF001
+        result = await DocumentConversionTask._load_invocation_file_metadata(invocation)
         assert result == []
 
 
@@ -351,7 +351,7 @@ class TestDocumentConversionTaskSingleDocumentConversion:
 
         file_metadata_dict = sample_file_metadata.model_dump()
 
-        result = await task_helper.task._convert_single_document(sample_invocation_id, file_metadata_dict)  # noqa: SLF001
+        result = await task_helper.task._convert_single_document(sample_invocation_id, file_metadata_dict)
 
         assert result == ConversionState.SUCCESS
         task_helper.mock_service.convert_file.assert_called_once()
@@ -368,7 +368,7 @@ class TestDocumentConversionTaskSingleDocumentConversion:
         file_metadata = sample_file_metadata.model_copy(update={"status": "converted"})
         file_metadata_dict = file_metadata.model_dump()
 
-        result = await task_helper.task._convert_single_document(sample_invocation_id, file_metadata_dict)  # noqa: SLF001
+        result = await task_helper.task._convert_single_document(sample_invocation_id, file_metadata_dict)
 
         assert result == ConversionState.SKIPPED
 
@@ -388,7 +388,7 @@ class TestDocumentConversionTaskSingleDocumentConversion:
         ):
             file_metadata_dict = sample_file_metadata.model_dump()
 
-            result = await task._convert_single_document(sample_invocation_id, file_metadata_dict)  # noqa: SLF001
+            result = await task._convert_single_document(sample_invocation_id, file_metadata_dict)
 
             assert result == ConversionState.FAILED
             # Verify that the metadata updater was called twice:
@@ -407,7 +407,7 @@ class TestDocumentConversionTaskSingleDocumentConversion:
         invalid_metadata: dict[str, object] = {"invalid": "data"}
 
         # The implementation will catch the ValidationError and return FAILED
-        result = await task._convert_single_document(sample_invocation_id, invalid_metadata)  # noqa: SLF001
+        result = await task._convert_single_document(sample_invocation_id, invalid_metadata)
 
         assert result == ConversionState.FAILED
 
@@ -428,7 +428,7 @@ class TestDocumentConversionTaskProcessConversions:
         ):
             files_to_convert = [sample_file_metadata.model_dump()]
 
-            successful, failed, skipped = await task._process_conversions(sample_invocation_id, files_to_convert)  # noqa: SLF001
+            successful, failed, skipped = await task._process_conversions(sample_invocation_id, files_to_convert)
 
             assert successful == 1
             assert failed == 0
@@ -452,7 +452,7 @@ class TestDocumentConversionTaskProcessConversions:
         # Mock different outcomes for each file
         return_values = [ConversionState.SUCCESS, ConversionState.FAILED, ConversionState.SKIPPED]
         with patch.object(task, "_convert_single_document", new_callable=AsyncMock, side_effect=return_values):
-            successful, failed, skipped = await task._process_conversions(sample_invocation_id, files_to_convert)  # noqa: SLF001
+            successful, failed, skipped = await task._process_conversions(sample_invocation_id, files_to_convert)
 
             # With the fixed implementation, all files should be processed
             assert successful == 1
@@ -472,7 +472,7 @@ class TestDocumentConversionTaskProcessConversions:
         with patch.object(
             task, "_convert_single_document", new_callable=AsyncMock, side_effect=Exception("Test error")
         ):
-            successful, failed, skipped = await task._process_conversions(sample_invocation_id, files_to_convert)  # noqa: SLF001
+            successful, failed, skipped = await task._process_conversions(sample_invocation_id, files_to_convert)
 
             assert successful == 0
             assert failed == 1
@@ -489,7 +489,7 @@ class TestDocumentConversionTaskExecuteInvocation:
         task_helper: DocumentConversionTaskTestHelper,
     ) -> None:
         """Test successful invocation execution after conversion."""
-        await task_helper.task._execute_invocation_after_conversion(sample_invocation_id)  # noqa: SLF001
+        await task_helper.task._execute_invocation_after_conversion(sample_invocation_id)
 
         task_helper.mock_invocation_executor.execute_invocation.assert_called_once_with(sample_invocation_id)
 
@@ -504,6 +504,6 @@ class TestDocumentConversionTaskExecuteInvocation:
         task_helper.mock_invocation_executor.execute_invocation.side_effect = Exception("Execution error")
 
         # Should not raise exception, just log it
-        await task_helper.task._execute_invocation_after_conversion(sample_invocation_id)  # noqa: SLF001
+        await task_helper.task._execute_invocation_after_conversion(sample_invocation_id)
 
         task_helper.mock_invocation_executor.execute_invocation.assert_called_once_with(sample_invocation_id)

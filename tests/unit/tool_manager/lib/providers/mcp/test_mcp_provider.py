@@ -10,7 +10,6 @@ Tests cover:
 - Error conditions and timeout scenarios
 - Configuration and client management
 """
-# ruff: noqa: SLF001
 # mypy: disable-error-code=unreachable
 
 from datetime import datetime

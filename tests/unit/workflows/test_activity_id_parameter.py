@@ -4,7 +4,6 @@ These tests verify that the activity.id from the workflow definition is correctl
 passed to Temporal's workflow.execute_activity function for both script and API executors.
 """
 
-# ruff: noqa: SLF001
 # SLF001: These tests specifically test private methods (_execute_script_executor, _execute_api_executor)
 
 from datetime import timedelta

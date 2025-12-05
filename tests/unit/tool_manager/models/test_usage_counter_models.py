@@ -144,7 +144,7 @@ def test_usage_counter_constraints(test_user: User) -> None:
     assert counter.total_duration_ms == 0
 
     # Negative request_count should be invalid
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(ValueError):
         UsageCounter(
             id=uuid4(),
             counter_type=CounterType.TOOL,
@@ -157,7 +157,7 @@ def test_usage_counter_constraints(test_user: User) -> None:
         )
 
     # Negative success_count should be invalid
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(ValueError):
         UsageCounter(
             id=uuid4(),
             counter_type=CounterType.TOOL,
@@ -170,7 +170,7 @@ def test_usage_counter_constraints(test_user: User) -> None:
         )
 
     # Negative error_count should be invalid
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(ValueError):
         UsageCounter(
             id=uuid4(),
             counter_type=CounterType.TOOL,
@@ -183,7 +183,7 @@ def test_usage_counter_constraints(test_user: User) -> None:
         )
 
     # Negative total_duration_ms should be invalid
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(ValueError):
         UsageCounter(
             id=uuid4(),
             counter_type=CounterType.TOOL,

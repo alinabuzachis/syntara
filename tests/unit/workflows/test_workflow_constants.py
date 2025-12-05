@@ -7,7 +7,6 @@ Note: This test file imports modules inside test functions (not at top level)
 to test module reloading behavior. This is intentional and required for these tests.
 """
 
-# ruff: noqa: PLC0415
 import importlib
 import os
 import sys

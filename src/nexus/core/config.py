@@ -183,6 +183,49 @@ class RouterDiscoverySettings(BaseSettings):
 
 
 # =============================================================================
+# Valkey Configuration
+# =============================================================================
+
+
+class ValkeySettings(BaseSettings):
+    """Valkey (Redis-compatible) configuration for event streaming.
+
+    Used for persistent event storage and multi-client synchronization.
+    Valkey provides Redis-compatible streams for event caching and replay.
+    """
+
+    valkey_host: str = Field(
+        default="localhost",
+        description="Valkey server hostname",
+    )
+
+    valkey_port: int = Field(
+        default=6379,
+        description="Valkey server port",
+    )
+
+    valkey_db: int = Field(
+        default=0,
+        description="Valkey database number",
+    )
+
+    valkey_password: SecretStr = Field(
+        default=SecretStr("valkey"),  # Default matches podman-compose.yml
+        description="Valkey server password (if required)",
+    )
+
+    valkey_stream_ttl_seconds: int = Field(
+        default=86400,  # 24 hours
+        description="Time-to-live for streaming event streams in seconds",
+    )
+
+    valkey_connection_pool_size: int = Field(
+        default=10,
+        description="Maximum number of Valkey connections in pool",
+    )
+
+
+# =============================================================================
 # Database Configuration
 # =============================================================================
 
@@ -460,6 +503,7 @@ class Settings(
     DocumentConversionSettings,
     OpenAPIValidationSettings,
     RouterDiscoverySettings,
+    ValkeySettings,
     DatabaseSettings,
     ServerSettings,
     LoggingSettings,
@@ -469,6 +513,7 @@ class Settings(
     """Application-wide settings.
 
     Combines all configuration sections into a single settings object.
+    Defines the configuration for loading settings from environment variables and .env files.
     Additional settings can be added by inheriting from more BaseSettings classes.
     """
 

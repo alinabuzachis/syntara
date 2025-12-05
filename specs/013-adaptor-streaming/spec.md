@@ -86,15 +86,13 @@ As a user, I want LLM responses to stream back progressively so that I can see p
 - **FR-009**: System MUST maintain event ordering and prevent duplicate delivery
 - **FR-010**: System MUST support both live streaming and historical event replay
 - **FR-011**: System MUST return invocation ID immediately (no waiting for LLM completion)
-- **FR-012**: System MUST authenticate connections by validating the invocation belongs to the authenticated user
+- **FR-012**: System MUST authenticate connections by validating the invocation belongs to the authenticated user. This requirement is postponed. It can be combined with REST api authencation process at a later phase.
 - **FR-013**: System MUST classify errors as retryable or non-retryable; clients receiving retryable errors MUST create new invocation requests to retry (system does not automatically retry)
 
 ### Key Entities
 
 - **StreamingEvent**: Individual event published during streaming (delta, error, cancelled, completion)
-- **ClientConnection**: Active client connection with session state and reconnection tracking
-- **StreamingSession**: Runtime state for active LLM streaming sessions
-- **EventStream**: Persistent event storage with TTL for replay capability
+- **EventStream**: Persistent event storage with TTL for replay capability (implemented via Valkey Streams)
 - **Delta**: Individual content chunk delivered in streaming events
 
 ---

@@ -118,7 +118,7 @@ def test_rate_limit_constraints(test_user: User) -> None:
     assert rate_limit.current_usage == 0
 
     # Zero requests_per_window should be invalid
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(ValueError):
         RateLimit(
             id=uuid4(),
             target_type=TargetType.USER,
@@ -129,7 +129,7 @@ def test_rate_limit_constraints(test_user: User) -> None:
         )
 
     # Negative requests_per_window should be invalid
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(ValueError):
         RateLimit(
             id=uuid4(),
             target_type=TargetType.USER,
@@ -140,7 +140,7 @@ def test_rate_limit_constraints(test_user: User) -> None:
         )
 
     # Zero window_duration_seconds should be invalid
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(ValueError):
         RateLimit(
             id=uuid4(),
             target_type=TargetType.USER,
@@ -151,7 +151,7 @@ def test_rate_limit_constraints(test_user: User) -> None:
         )
 
     # Negative window_duration_seconds should be invalid
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(ValueError):
         RateLimit(
             id=uuid4(),
             target_type=TargetType.USER,
@@ -162,7 +162,7 @@ def test_rate_limit_constraints(test_user: User) -> None:
         )
 
     # Negative burst_allowance should be invalid
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(ValueError):
         RateLimit(
             id=uuid4(),
             target_type=TargetType.USER,
@@ -174,7 +174,7 @@ def test_rate_limit_constraints(test_user: User) -> None:
         )
 
     # Negative current_usage should be invalid
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(ValueError):
         RateLimit(
             id=uuid4(),
             target_type=TargetType.USER,

@@ -132,7 +132,7 @@ class TestMCPProviderIntegration:
         # See https://github.com/beartype/beartype/issues/542 (for example).
         # Unfortunately the simplest solution is to isolate the MCP tests from all others.
         # This means we also need to lazy-import our ExampleMCPServer to avoid it being loaded early.
-        from tests.fixtures.example_mcp_server import ExampleMCPServer  # noqa: PLC0415
+        from tests.fixtures.example_mcp_server import ExampleMCPServer
 
         test_server = ExampleMCPServer(host="localhost", port=8765)
 
@@ -224,7 +224,7 @@ class TestMCPProviderIntegration:
         # See https://github.com/beartype/beartype/issues/542 (for example).
         # Unfortunately the simplest solution is to isolate the MCP tests from all others.
         # This means we also need to lazy-import our ExampleMCPServer to avoid it being loaded early.
-        from tests.fixtures.example_mcp_server import ExampleMCPServer  # noqa: PLC0415
+        from tests.fixtures.example_mcp_server import ExampleMCPServer
 
         test_server = ExampleMCPServer(host="localhost", port=8766)
 
@@ -300,7 +300,7 @@ class TestMCPProviderIntegration:
         # See https://github.com/beartype/beartype/issues/542 (for example).
         # Unfortunately the simplest solution is to isolate the MCP tests from all others.
         # This means we also need to lazy-import our ExampleMCPServer to avoid it being loaded early.
-        from tests.fixtures.example_mcp_server import ExampleMCPServer  # noqa: PLC0415
+        from tests.fixtures.example_mcp_server import ExampleMCPServer
 
         test_server = ExampleMCPServer(host="localhost", port=8767)
 

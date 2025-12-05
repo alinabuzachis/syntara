@@ -156,7 +156,7 @@ class TestSortParsing:
         assert field == "NAME"
 
         # Wrong case should fail
-        with pytest.raises(ValueError):  # noqa: PT011
+        with pytest.raises(ValueError):
             parse_sort("nAmE", allowed_fields)
 
     def test_multiple_dash_prefix_handling(self) -> None:

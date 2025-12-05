@@ -59,8 +59,8 @@ class TestInterceptorRegistry:
 
         registry.register(interceptor)
 
-        assert len(registry._interceptors) == 1  # noqa: SLF001 - Test needs to verify internal state
-        assert registry._interceptors[0] is interceptor  # noqa: SLF001
+        assert len(registry._interceptors) == 1
+        assert registry._interceptors[0] is interceptor
 
     def test_on_bootstrap_start(self) -> None:
         """Test on_bootstrap_start lifecycle hook."""

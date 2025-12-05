@@ -162,7 +162,7 @@ def test_tool_execution_constraints() -> None:
     assert execution.duration_ms == 0
 
     # Negative duration_ms should be invalid
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(ValueError):
         ToolExecution(
             id=uuid4(),
             tool_id=tool_id,

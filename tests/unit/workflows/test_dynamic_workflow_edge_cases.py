@@ -4,7 +4,6 @@ These tests cover duration parsing, output mappings, and retry policy building.
 Expression resolution logic is tested in test_expression_resolver.py.
 """
 
-# ruff: noqa: SLF001
 # SLF001: These tests specifically test private methods (_process_output_mappings, etc.)
 # PLR2004: Test assertions use literal values which is standard practice in unit tests
 # FBT001: Test parameters include boolean values for parameterized tests

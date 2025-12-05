@@ -3,7 +3,6 @@
 Tests the TemporalWorkerService class and global worker management functions.
 """
 
-# ruff: noqa: SLF001
 # SLF001: Tests need to access private members (_worker_task, _worker_service) to verify internal state
 
 import asyncio

@@ -77,9 +77,11 @@ class InvocationExecutor:
                 orchestration_service = OrchestrationService(llm=llm, context_manager_planner=context_manager_planner)
             except LLMConfigurationError as e:
                 # Mark invocation as failed
+                now = datetime.now(UTC)
+                invocation.started_at = now  # Set started_at to indicate when failure was detected
                 invocation.status = InvocationStatus.FAILED
                 invocation.error_message = str(e)
-                invocation.completed_at = datetime.now(UTC)
+                invocation.completed_at = now
                 await session.commit()
                 logger.exception("Invocation failed (invocation_id=%s): %s", invocation.id, invocation.error_message)
                 return
@@ -138,9 +140,13 @@ class InvocationExecutor:
         fresh_invocation = await session.get(Invocation, invocation_id)
         if fresh_invocation:
             # Mark invocation as failed
+            now = datetime.now(UTC)
+            # Set started_at if not already set (failure before execution started)
+            if fresh_invocation.started_at is None:
+                fresh_invocation.started_at = now
             fresh_invocation.status = InvocationStatus.FAILED
             fresh_invocation.error_message = str(error)
-            fresh_invocation.completed_at = datetime.now(UTC)
+            fresh_invocation.completed_at = now
             await session.commit()
 
     def _log_conversion_failures(self, invocation: Invocation) -> None:

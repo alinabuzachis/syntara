@@ -20,6 +20,12 @@ from nexus.core.websocket.endpoint_factory import (
     scan_handler_specs,
 )
 from nexus.core.websocket.hooks import WebSocketHooks, discover_hooks
+from nexus.core.websocket.manager import (
+    ConnectionState,
+    WebSocketConnectionInfo,
+    WebSocketConnectionLifecycleManager,
+    get_connection_lifecycle_manager,
+)
 from nexus.core.websocket.schema_validator import (
     ValidationError,
     clear_validator_cache,
@@ -28,8 +34,11 @@ from nexus.core.websocket.schema_validator import (
 
 __all__ = [
     "ConnectionInfo",
+    "ConnectionState",
     "HandlerNotFoundError",
     "ValidationError",
+    "WebSocketConnectionInfo",
+    "WebSocketConnectionLifecycleManager",
     "WebSocketConnectionManager",
     "WebSocketHooks",
     "clear_handler_cache",
@@ -37,6 +46,7 @@ __all__ = [
     "create_websocket_endpoint",
     "discover_handler",
     "discover_hooks",
+    "get_connection_lifecycle_manager",
     "get_connection_manager",
     "is_handler_cached",
     "scan_handler_specs",

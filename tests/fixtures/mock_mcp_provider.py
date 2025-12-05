@@ -267,7 +267,7 @@ class MockMCPProvider(ToolProviderAdapter):
                 validated_at=end_time,
             )
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             end_time = datetime.now(UTC)
             duration_ms = int((end_time - start_time).total_seconds() * 1000)
 

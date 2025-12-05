@@ -25,6 +25,7 @@ dependencies = [
     "fastapi>=0.104.0",
     "httpx>=0.28.1",
     "uvicorn[standard]>=0.24.0",
+    "valkey>=6.1.0",
     "sqlalchemy[asyncio]>=2.0.0",
     "sqlmodel>=0.0.14",
     "pydantic>=2.0.0",
@@ -119,6 +120,15 @@ ignore = [
     "TD002",    # TODO formatting
     "TD003",    # TODO formatting
     "ARG001",   # Allow unused test fixture arguments
+    "SLF001",   # Allow private member access in tests (for unit testing internal state)
+    "PERF401",  # Allow append in loops (readability over performance in tests)
+    "S110",     # Allow try-except-pass in test cleanup
+    "BLE001",   # Allow catching Exception in test cleanup
+    "SIM105",   # Allow try-except-pass in test cleanup
+    "PLC0415",  # Allow imports within test functions
+    "D401",     # Allow non-imperative docstrings in tests
+    "PT011",    # Allow broad pytest.raises for contract tests
+    "PGH003",   # Allow generic type: ignore comments in tests
 ]
 "src/nexus/api/repositories/*.py" = ["ANN401"]  # Allow Any for database row types
 "src/nexus/api/alembic/**/*.py" = ["INP001", "D400", "D415", "PLR0915"]  # Alembic files (auto-generated)
@@ -158,6 +168,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+asyncio_mode = "auto"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
