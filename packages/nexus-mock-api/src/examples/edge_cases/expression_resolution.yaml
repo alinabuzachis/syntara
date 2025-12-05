@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -19,48 +20,48 @@ variables:
     retries: 3
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: test_multiple_placeholders
-    name: Test Multiple Expression Placeholders
-    type: task
-    task:
-      executor: script
-      inputs:
-        greeting: Hello, ${input.firstName} ${input.lastName}!
-      config:
-        language: bash
-        code: |
-          echo "Greeting: $INPUT_GREETING"
-      outputs:
-        result: $.stdout
+    - id: test_multiple_placeholders
+      name: Test Multiple Expression Placeholders
+      type: task
+      task:
+        executor: script
+        inputs:
+          greeting: Hello, ${input.firstName} ${input.lastName}!
+        config:
+          language: bash
+          code: |
+            echo "Greeting: $INPUT_GREETING"
+        outputs:
+          result: $.stdout
 
-  - id: test_variable_reference
-    name: Test Variable Reference
-    type: task
-    task:
-      executor: script
-      inputs:
-        timeout_value: ${variables.config.timeout}
-      config:
-        language: bash
-        code: |
-          echo "Timeout: $INPUT_TIMEOUT_VALUE seconds"
-      outputs:
-        result: $.stdout
+    - id: test_variable_reference
+      name: Test Variable Reference
+      type: task
+      task:
+        executor: script
+        inputs:
+          timeout_value: ${variables.config.timeout}
+        config:
+          language: bash
+          code: |
+            echo "Timeout: $INPUT_TIMEOUT_VALUE seconds"
+        outputs:
+          result: $.stdout
 
-  - id: test_activity_output_reference
-    name: Test Activity Output Reference
-    type: task
-    task:
-      executor: script
-      inputs:
-        previous_result: ${test_multiple_placeholders.output.result}
-      config:
-        language: bash
-        code: |
-          echo "Previous output was: $INPUT_PREVIOUS_RESULT"
-      outputs:
-        final: $.stdout
+    - id: test_activity_output_reference
+      name: Test Activity Output Reference
+      type: task
+      task:
+        executor: script
+        inputs:
+          previous_result: ${test_multiple_placeholders.output.result}
+        config:
+          language: bash
+          code: |
+            echo "Previous output was: $INPUT_PREVIOUS_RESULT"
+        outputs:
+          final: $.stdout

@@ -1,0 +1,34 @@
+---
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: post-with-body
+  description: HTTP POST request with JSON body and headers
+
+inputs:
+  data:
+    type: object
+    description: Data to post
+    default:
+      name: Test Resource
+      value: 123
+
+triggers:
+  - type: manual
+
+workflow:
+  activities:
+    - id: create_resource
+      type: task
+      task:
+        executor: api
+        config:
+          method: POST
+          url: http://test-api.example.com/api/create
+          headers:
+            Content-Type: application/json
+            X-Custom-Header: test-value
+          body: ${input.data}
+        inputs:
+          data: ${inputs.data}

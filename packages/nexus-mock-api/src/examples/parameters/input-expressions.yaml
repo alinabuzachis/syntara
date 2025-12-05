@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,31 +7,31 @@ metadata:
   description: Test input parameter expressions
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: source
-    name: Source Activity
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo '{"count": 42, "status": "active"}'
-      outputs:
-        data: $.stdout
+    - id: source
+      name: Source Activity
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo '{"count": 42, "status": "active"}'
+        outputs:
+          data: $.stdout
 
-  - id: consumer
-    name: Consumer Activity
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "Count: $INPUT_COUNT, Status: $INPUT_STATUS"
-      inputs:
-        count: ${source.output.data.count}
-        status: ${source.output.data.status}
+    - id: consumer
+      name: Consumer Activity
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Count: $INPUT_COUNT, Status: $INPUT_STATUS"
+        inputs:
+          count: ${source.output.data.count}
+          status: ${source.output.data.status}

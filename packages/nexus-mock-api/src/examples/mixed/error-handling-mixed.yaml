@@ -1,0 +1,34 @@
+---
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: error-handling-mixed
+  description: Error handling across different executor types
+
+triggers:
+  - type: manual
+
+workflow:
+  activities:
+    - id: bash_success
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Bash executed successfully"
+
+    - id: python_fail
+      type: task
+      task:
+        executor: script
+        config:
+          language: python
+          code: |
+            raise Exception("Python intentional error")
+      retryPolicy:
+        maxAttempts: 2
+        backoff: fixed
+        initialInterval: PT1S

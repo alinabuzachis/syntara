@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,7 +7,7 @@ metadata:
   description: Test nested/chained conditional logic
 
 triggers:
-- type: manual
+  - type: manual
 
 inputs:
   outer_value:
@@ -20,38 +21,38 @@ inputs:
 
 workflow:
   activities:
-  - id: outer_check
-    name: Outer Check
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "Outer check passed"
-      outputs:
-        outer_result: $.stdout
+    - id: outer_check
+      name: Outer Check
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Outer check passed"
+        outputs:
+          outer_result: $.stdout
 
-  - id: inner_check
-    name: Inner Check
-    type: task
-    condition: ${input.outer_value} > 0
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "Inner check passed"
-      outputs:
-        inner_result: $.stdout
+    - id: inner_check
+      name: Inner Check
+      type: task
+      condition: ${input.outer_value} > 0
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Inner check passed"
+        outputs:
+          inner_result: $.stdout
 
-  - id: final_action
-    name: Final Action
-    type: task
-    condition: ${input.inner_value} > 0
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "Both conditions met"
+    - id: final_action
+      name: Final Action
+      type: task
+      condition: ${input.inner_value} > 0
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Both conditions met"

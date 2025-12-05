@@ -5,12 +5,13 @@
 1. [Project Overview](#project-overview)
 2. [Local Development Setup](#local-development-setup)
 3. [Architecture](#architecture)
-4. [Development Workflow](#development-workflow)
-5. [Testing](#testing)
-6. [Performance Optimization](#performance-optimization)
-7. [Debugging](#debugging)
-8. [Common Pitfalls](#common-pitfalls)
-9. [Best Practices](#best-practices)
+4. [Updating API Contracts](#updating-api-contracts)
+5. [Development Workflow](#development-workflow)
+6. [Testing](#testing)
+7. [Performance Optimization](#performance-optimization)
+8. [Debugging](#debugging)
+9. [Common Pitfalls](#common-pitfalls)
+10. [Best Practices](#best-practices)
 
 ## Project Overview
 
@@ -69,6 +70,70 @@ npm start
 - Lazy-loaded components
 - Type-safe API calls
 - Automatic memoization via React Compiler
+
+## Updating API Contracts
+
+The `nexus-contracts` package contains auto-generated TypeScript types from the backend OpenAPI schemas. These must be updated whenever the backend API changes.
+
+### Prerequisites
+
+- Local clone of the [nexus backend](https://github.com/syntara-orchestration/syntara) repository
+- The backend repo should be at a sibling path or you'll need to adjust the paths below
+
+### Updating Contracts
+
+```bash
+cd packages/nexus-contracts
+
+# Generate TypeScript types from OpenAPI schemas
+# Replace /path/to/nexus with your local backend path
+npx openapi-typescript /path/to/nexus/schemas/workflows/workflow-api.yaml \
+  --output ./src/workflow-api.ts --default-non-nullable false
+
+npx openapi-typescript /path/to/nexus/schemas/tool_management/tools.yaml \
+  --output ./src/tools.ts --default-non-nullable false
+
+npx openapi-typescript /path/to/nexus/schemas/tool_management/tool-providers.yaml \
+  --output ./src/tool-providers.ts --default-non-nullable false
+
+# Copy example workflows to mock API
+cp -r /path/to/nexus/tests/integration/workflow/examples ../nexus-mock-api/src/
+
+# Format the generated files
+cd ../..
+npm run format
+```
+
+### Alternative: Using the gen script
+
+If you have SSH access to the backend repo, you can use the built-in script:
+
+```bash
+cd packages/nexus-contracts
+npm run gen
+```
+
+This will:
+
+1. Clone the backend repo temporarily
+2. Generate all TypeScript types
+3. Copy example workflows
+4. Clean up the cloned repo
+
+### After Updating
+
+1. Run tests to ensure nothing is broken: `npm test`
+2. Check for TypeScript errors in the UI: `npm run tsc --prefix packages/nexus-ui`
+3. Update any UI code that uses changed types
+4. Commit the updated contract files
+
+### Contract Files
+
+| File                | Source Schema                                 | Description                  |
+| ------------------- | --------------------------------------------- | ---------------------------- |
+| `workflow-api.ts`   | `schemas/workflows/workflow-api.yaml`         | Workflow and execution types |
+| `tools.ts`          | `schemas/tool_management/tools.yaml`          | Tool management types        |
+| `tool-providers.ts` | `schemas/tool_management/tool-providers.yaml` | Tool provider types          |
 
 ## Development Workflow
 

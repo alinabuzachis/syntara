@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,38 +7,38 @@ metadata:
   description: Test error propagation
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: first_task
-    name: First Task
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "First task successful"
-          echo '{"status": "ok"}'
+    - id: first_task
+      name: First Task
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "First task successful"
+            echo '{"status": "ok"}'
 
-  - id: second_task
-    name: Second Task
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "Second task fails"
-          exit 1
+    - id: second_task
+      name: Second Task
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Second task fails"
+            exit 1
 
-  - id: third_task
-    name: Third Task
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "This should not execute if second task fails"
+    - id: third_task
+      name: Third Task
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "This should not execute if second task fails"

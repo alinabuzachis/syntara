@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,25 +7,25 @@ metadata:
   description: Test count loop with fixed number of iterations
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: count_loop
-    name: Count Loop
-    type: loop
-    loop:
-      type: count
-      count: 5
-      indexVariable: idx
-      do:
-      - id: count_task
-        type: task
-        task:
-          executor: script
-          config:
-            language: bash
-            code: |
-              echo "Count loop iteration"
-          outputs:
-            result: $.stdout
+    - id: count_loop
+      name: Count Loop
+      type: loop
+      loop:
+        type: count
+        count: 5
+        indexVariable: idx
+        do:
+          - id: count_task
+            type: task
+            task:
+              executor: script
+              config:
+                language: bash
+                code: |
+                  echo "Count loop iteration"
+              outputs:
+                result: $.stdout

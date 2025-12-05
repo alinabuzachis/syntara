@@ -1637,7 +1637,7 @@ export interface components {
          * @description Script language
          * @enum {string}
          */
-        language: 'python' | 'javascript' | 'bash' | 'powershell'
+        language: 'python' | 'bash'
         /** @description Script code to execute */
         code: string
         /** @description Environment variables for script execution */

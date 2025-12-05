@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,45 +7,45 @@ metadata:
   description: Test retry policy with linear backoff strategy
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: flaky_task_linear
-    name: Flaky Task with Linear Backoff
-    type: task
-    retryPolicy:
-      maxAttempts: 3
-      initialInterval: PT1S
-      maxInterval: PT5S
-      backoff: linear
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          # This script fails on first 2 attempts, succeeds on 3rd
-          ATTEMPT_FILE="/tmp/linear_backoff_attempts_$WORKFLOW_ID"
+    - id: flaky_task_linear
+      name: Flaky Task with Linear Backoff
+      type: task
+      retryPolicy:
+        maxAttempts: 3
+        initialInterval: PT1S
+        maxInterval: PT5S
+        backoff: linear
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            # This script fails on first 2 attempts, succeeds on 3rd
+            ATTEMPT_FILE="/tmp/linear_backoff_attempts_$WORKFLOW_ID"
 
-          # Create file if it doesn't exist
-          if [ ! -f "$ATTEMPT_FILE" ]; then
-            echo "0" > "$ATTEMPT_FILE"
-          fi
+            # Create file if it doesn't exist
+            if [ ! -f "$ATTEMPT_FILE" ]; then
+              echo "0" > "$ATTEMPT_FILE"
+            fi
 
-          # Read current attempt count
-          ATTEMPTS=$(cat "$ATTEMPT_FILE")
-          ATTEMPTS=$((ATTEMPTS + 1))
-          echo "$ATTEMPTS" > "$ATTEMPT_FILE"
+            # Read current attempt count
+            ATTEMPTS=$(cat "$ATTEMPT_FILE")
+            ATTEMPTS=$((ATTEMPTS + 1))
+            echo "$ATTEMPTS" > "$ATTEMPT_FILE"
 
-          echo "Attempt $ATTEMPTS"
+            echo "Attempt $ATTEMPTS"
 
-          # Fail on first 2 attempts
-          if [ "$ATTEMPTS" -lt 3 ]; then
-            echo "Simulated failure on attempt $ATTEMPTS"
-            exit 1
-          fi
+            # Fail on first 2 attempts
+            if [ "$ATTEMPTS" -lt 3 ]; then
+              echo "Simulated failure on attempt $ATTEMPTS"
+              exit 1
+            fi
 
-          # Succeed on 3rd attempt
-          echo "Success on attempt $ATTEMPTS"
-          rm "$ATTEMPT_FILE"
-          exit 0
+            # Succeed on 3rd attempt
+            echo "Success on attempt $ATTEMPTS"
+            rm "$ATTEMPT_FILE"
+            exit 0

@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -12,38 +13,38 @@ inputs:
     default: 25
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: age_check
-    name: Check Age
-    type: condition
-    condition: ${input.age} >= 18
-    then:
-    - id: adult_message
-      name: Adult Message
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "You are an adult (age >= 18)"
-            echo "Access granted"
-        outputs:
-          message: $.stdout
+    - id: age_check
+      name: Check Age
+      type: condition
+      condition: ${input.age} >= 18
+      then:
+        - id: adult_message
+          name: Adult Message
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "You are an adult (age >= 18)"
+                echo "Access granted"
+            outputs:
+              message: $.stdout
 
-    else:
-    - id: minor_message
-      name: Minor Message
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "You are a minor (age < 18)"
-            echo "Access denied"
-        outputs:
-          message: $.stdout
+      else:
+        - id: minor_message
+          name: Minor Message
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "You are a minor (age < 18)"
+                echo "Access denied"
+            outputs:
+              message: $.stdout

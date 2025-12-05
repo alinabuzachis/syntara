@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,16 +7,16 @@ metadata:
   description: Test error with unsupported duration unit
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: task_with_unsupported_timeout
-    name: Task With Unsupported Duration Unit
-    type: task
-    timeout: PT5D      # Days not supported - should raise ValueError
-    task:
-      executor: script
-      config:
-        language: bash
-        code: echo "Should not execute"
+    - id: task_with_unsupported_timeout
+      name: Task With Unsupported Duration Unit
+      type: task
+      timeout: PT5D # Days not supported - should raise ValueError
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Should not execute"

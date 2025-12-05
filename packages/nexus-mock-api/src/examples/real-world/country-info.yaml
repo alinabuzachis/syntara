@@ -1,0 +1,158 @@
+---
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: country-info
+  description: Fetch and analyze country information from REST Countries API
+  tags:
+    - real-world
+    - api
+    - geography
+  owner: demo-team
+
+triggers:
+  - type: manual
+
+inputs:
+  country_code:
+    type: string
+    description: ISO 3166-1 alpha-2 country code
+    default: US
+    pattern: ^[A-Z]{2}$
+
+workflow:
+  activities:
+    # Fetch country information
+    - id: fetch_country
+      name: Fetch Country Information
+      type: task
+      task:
+        executor: api
+        config:
+          method: GET
+          url: https://restcountries.com/v3.1/alpha/${input.country_code}
+          headers:
+            Accept: application/json
+        outputs:
+          countryData: $.body
+          name: $.body.0.name.common
+          officialName: $.body.0.name.official
+          capital: $.body.0.capital.0
+          region: $.body.0.region
+          subregion: $.body.0.subregion
+          population: $.body.0.population
+          area: $.body.0.area
+          languages: $.body.0.languages
+          currencies: $.body.0.currencies
+          timezones: $.body.0.timezones
+          flag: $.body.0.flags.png
+      timeout: PT30S
+
+    # Fetch neighboring countries
+    - id: fetch_neighbors
+      name: Fetch Neighbor Information
+      type: task
+      task:
+        executor: api
+        config:
+          method: GET
+          url: https://restcountries.com/v3.1/alpha/${input.country_code}?fields=borders
+          headers:
+            Accept: application/json
+        outputs:
+          borders: $.body.0.borders
+      timeout: PT30S
+
+    # Analyze country data
+    - id: analyze_country
+      name: Analyze Country Data
+      type: task
+      task:
+        executor: script
+        config:
+          language: python
+          code: |
+            import json
+            import os
+
+            # Get inputs
+            name = os.getenv('INPUT_NAME', 'Unknown')
+            official_name = os.getenv('INPUT_OFFICIAL_NAME', 'Unknown')
+            capital = os.getenv('INPUT_CAPITAL', 'Unknown')
+            region = os.getenv('INPUT_REGION', 'Unknown')
+            subregion = os.getenv('INPUT_SUBREGION', 'Unknown')
+            population = int(os.getenv('INPUT_POPULATION', '0'))
+            area = float(os.getenv('INPUT_AREA', '0'))
+            languages_json = os.getenv('INPUT_LANGUAGES', '{}')
+            currencies_json = os.getenv('INPUT_CURRENCIES', '{}')
+            timezones_json = os.getenv('INPUT_TIMEZONES', '[]')
+            borders_json = os.getenv('INPUT_BORDERS', '[]')
+
+            # Parse JSON inputs
+            languages = json.loads(languages_json)
+            currencies = json.loads(currencies_json)
+            timezones = json.loads(timezones_json)
+            borders = json.loads(borders_json) if borders_json != 'null' else []
+
+            # Calculate population density
+            density = population / area if area > 0 else 0
+
+            # Determine size category
+            if area > 1000000:
+                size_category = "Large"
+            elif area > 100000:
+                size_category = "Medium"
+            else:
+                size_category = "Small"
+
+            # Format languages
+            language_list = list(languages.values()) if isinstance(languages, dict) else []
+
+            # Format currencies
+            currency_list = []
+            if isinstance(currencies, dict):
+                for code, info in currencies.items():
+                    if isinstance(info, dict):
+                        currency_list.append(f"{info.get('name', code)} ({code})")
+
+            # Create analysis
+            analysis = {
+                "country": name,
+                "official_name": official_name,
+                "capital": capital,
+                "geography": {
+                    "region": region,
+                    "subregion": subregion,
+                    "area_km2": area,
+                    "size_category": size_category,
+                    "bordering_countries": borders if isinstance(borders, list) else [],
+                    "timezone_count": len(timezones) if isinstance(timezones, list) else 0
+                },
+                "demographics": {
+                    "population": population,
+                    "population_density": round(density, 2),
+                    "languages": language_list,
+                    "currencies": currency_list
+                },
+                "summary": f"{name} is a {size_category.lower()} country in {subregion} with a population of {population:,} and {len(borders) if isinstance(borders, list) else 0} neighboring countries."
+            }
+
+            print(json.dumps(analysis, indent=2))
+        inputs:
+          name: ${fetch_country.output.name}
+          official_name: ${fetch_country.output.officialName}
+          capital: ${fetch_country.output.capital}
+          region: ${fetch_country.output.region}
+          subregion: ${fetch_country.output.subregion}
+          population: ${fetch_country.output.population}
+          area: ${fetch_country.output.area}
+          languages: ${fetch_country.output.languages}
+          currencies: ${fetch_country.output.currencies}
+          timezones: ${fetch_country.output.timezones}
+          borders: ${fetch_neighbors.output.borders}
+        outputs:
+          analysis: $.output
+          summary: $.output.summary
+          population: $.output.demographics.population
+      timeout: PT1M

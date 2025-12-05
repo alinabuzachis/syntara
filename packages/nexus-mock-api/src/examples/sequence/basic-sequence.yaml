@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,52 +7,52 @@ metadata:
   description: Test basic sequence activity type - executes steps in order
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: sequential_tasks
-    name: Sequential Tasks
-    type: sequence
-    steps:
-    - id: step1
-      name: First Step
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Step 1: Starting"
-            sleep 1
-            echo "Step 1: Complete"
-        outputs:
-          result: $.stdout
+    - id: sequential_tasks
+      name: Sequential Tasks
+      type: sequence
+      steps:
+        - id: step1
+          name: First Step
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "Step 1: Starting"
+                sleep 1
+                echo "Step 1: Complete"
+            outputs:
+              result: $.stdout
 
-    - id: step2
-      name: Second Step
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Step 2: Starting"
-            sleep 1
-            echo "Step 2: Complete"
-        outputs:
-          result: $.stdout
+        - id: step2
+          name: Second Step
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "Step 2: Starting"
+                sleep 1
+                echo "Step 2: Complete"
+            outputs:
+              result: $.stdout
 
-    - id: step3
-      name: Third Step
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Step 3: Starting"
-            sleep 1
-            echo "Step 3: Complete"
-        outputs:
-          result: $.stdout
+        - id: step3
+          name: Third Step
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "Step 3: Starting"
+                sleep 1
+                echo "Step 3: Complete"
+            outputs:
+              result: $.stdout

@@ -1,0 +1,22 @@
+---
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: simple-python-script
+  description: Execute a simple Python script that prints JSON output
+
+triggers:
+  - type: manual
+
+workflow:
+  activities:
+    - id: hello_python
+      type: task
+      task:
+        executor: script
+        config:
+          language: python
+          code: |
+            import json
+            print(json.dumps({"message": "Hello from Python!"}))

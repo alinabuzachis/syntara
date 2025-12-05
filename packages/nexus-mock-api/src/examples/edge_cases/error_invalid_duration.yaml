@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,16 +7,16 @@ metadata:
   description: Test error with invalid ISO 8601 duration format
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: task_with_invalid_timeout
-    name: Task With Invalid Timeout
-    type: task
-    timeout: 5M      # Missing PT prefix - should raise ValueError
-    task:
-      executor: script
-      config:
-        language: bash
-        code: echo "Should not execute"
+    - id: task_with_invalid_timeout
+      name: Task With Invalid Timeout
+      type: task
+      timeout: 5M # Missing PT prefix - should raise ValueError
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Should not execute"

@@ -34,6 +34,10 @@ export interface paths {
             /** @description Exact match of the provider type. ?provider_type[eq]=<type> */
             eq?: string
           }
+          /** @description Filter by enabled status */
+          enabled?: boolean
+          /** @description Sort field and direction (e.g., 'name', '-created_at') */
+          sort?: string
           /**
            * @description Number of resources to return per page
            * @example 20
@@ -83,7 +87,7 @@ export interface paths {
           }
           content: {
             'application/json': components['schemas']['ResourcesResponseBase'] & {
-              resources: components['schemas']['ToolProvider'][]
+              resources: components['schemas']['ToolProviderWithConfiguration'][]
             }
           }
         }
@@ -122,7 +126,7 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': components['schemas']['ToolProvider']
+            'application/json': components['schemas']['ToolProviderWithConfiguration']
           }
         }
         /** @description Invalid provider configuration */
@@ -188,7 +192,7 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': components['schemas']['ToolProvider']
+            'application/json': components['schemas']['ToolProviderWithConfiguration']
           }
         }
         /** @description Admin access required */
@@ -236,7 +240,7 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': components['schemas']['ToolProvider']
+            'application/json': components['schemas']['ToolProviderWithConfiguration']
           }
         }
         /** @description Invalid provider configuration */
@@ -338,7 +342,7 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': components['schemas']['ToolProvider']
+            'application/json': components['schemas']['ToolProviderWithConfiguration']
           }
         }
         /** @description Invalid provider configuration */
@@ -396,17 +400,8 @@ export interface paths {
       }
       requestBody?: never
       responses: {
-        /** @description Provider validation successful */
+        /** @description Provider validation completed (check 'valid' field for success/failure) */
         200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['ToolProviderValidationResult']
-          }
-        }
-        /** @description Provider validation failed */
-        400: {
           headers: {
             [name: string]: unknown
           }
@@ -535,17 +530,8 @@ export interface paths {
         }
       }
       responses: {
-        /** @description Provider definition test completed successfully */
+        /** @description Provider definition test completed (check 'valid' field for success/failure) */
         200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['ToolProviderValidationResult']
-          }
-        }
-        /** @description Invalid provider configuration or test failed */
-        400: {
           headers: {
             [name: string]: unknown
           }
@@ -574,7 +560,7 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
-    ToolProvider: components['schemas']['Resource'] & {
+    ToolProviderWithConfiguration: components['schemas']['Resource'] & {
       /** @description Provider-specific configuration */
       configuration: components['schemas']['MCPConfiguration']
       /** @default true */
@@ -588,7 +574,17 @@ export interface components {
       last_validated_at?: string | null
       validation_error?: string | null
     }
-    ToolProviderCreate: components['schemas']['NamedResource'] & {
+    ToolProviderCreate: {
+      /**
+       * Name
+       * @description Human-readable name for the provider
+       */
+      name: string
+      /**
+       * Description
+       * @description Detailed description of the provider
+       */
+      description?: string | null
       /** @description Provider-specific configuration */
       configuration: components['schemas']['MCPConfiguration']
     }
@@ -609,10 +605,16 @@ export interface components {
     }
     MCPConfiguration: {
       /** @constant */
-      provider_type?: 'mcp'
+      provider_type: 'mcp'
       /** Format: uri */
       base_url: string
       api_key: string
+    } & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      provider_type: 'MCPConfiguration'
     }
     ToolProviderValidationResult: {
       valid: boolean

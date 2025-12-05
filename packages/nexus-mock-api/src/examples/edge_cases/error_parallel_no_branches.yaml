@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,11 +7,11 @@ metadata:
   description: Test error when parallel activity has no branches
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: invalid_parallel
-    name: Parallel Without Branches
-    type: parallel
+    - id: invalid_parallel
+      name: Parallel Without Branches
+      type: parallel
       # Missing 'branches' field - should raise ValueError

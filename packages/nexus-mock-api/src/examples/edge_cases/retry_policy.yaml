@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,24 +7,24 @@ metadata:
   description: Test retry policy with exponential backoff
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: task_with_retry
-    name: Task With Retry Policy
-    type: task
-    retryPolicy:
-      maxAttempts: 3
-      initialInterval: PT1S
-      maxInterval: PT30S
-      backoff: exponential
-      multiplier: 2.0
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "Task executed successfully"
-      outputs:
-        result: $.stdout
+    - id: task_with_retry
+      name: Task With Retry Policy
+      type: task
+      retryPolicy:
+        maxAttempts: 3
+        initialInterval: PT1S
+        maxInterval: PT30S
+        backoff: exponential
+        multiplier: 2.0
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Task executed successfully"
+        outputs:
+          result: $.stdout

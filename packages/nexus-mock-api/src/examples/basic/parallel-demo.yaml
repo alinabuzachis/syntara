@@ -1,53 +1,54 @@
+---
 schemaVersion: 1.0.0
 version: 1
 metadata:
   name: parallel-demo
   description: Demonstrates parallel execution
 triggers:
-- type: manual
+  - type: manual
 workflow:
   activities:
-  - id: parallel_tasks
-    type: parallel
-    branches:
-    - id: task1
+    - id: parallel_tasks
+      type: parallel
+      branches:
+        - id: task1
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "Task 1 starting..."
+                sleep 1
+                echo "Task 1 complete!"
+
+        - id: task2
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "Task 2 starting..."
+                sleep 1
+                echo "Task 2 complete!"
+
+        - id: task3
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "Task 3 starting..."
+                sleep 1
+                echo "Task 3 complete!"
+
+    - id: summary
       type: task
       task:
         executor: script
         config:
           language: bash
           code: |
-            echo "Task 1 starting..."
-            sleep 1
-            echo "Task 1 complete!"
-
-    - id: task2
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Task 2 starting..."
-            sleep 1
-            echo "Task 2 complete!"
-
-    - id: task3
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Task 3 starting..."
-            sleep 1
-            echo "Task 3 complete!"
-
-  - id: summary
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: |
-          echo "All parallel tasks completed!"
+            echo "All parallel tasks completed!"

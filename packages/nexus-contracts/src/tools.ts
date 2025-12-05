@@ -30,6 +30,10 @@ export interface paths {
           enabled?: boolean
           /** @description Filter tools by provider ID */
           provider_id?: string
+          /** @description Sort field and direction (e.g., 'name', '-created_at') */
+          sort?: string
+          /** @description Filter tools by namespaced name with text matching */
+          namespaced_name?: string
           /**
            * @description Number of resources to return per page
            * @example 20
@@ -79,7 +83,7 @@ export interface paths {
           }
           content: {
             'application/json': components['schemas']['ResourcesResponseBase'] & {
-              resources: components['schemas']['Tool'][]
+              resources: components['schemas']['ToolWithParameters'][]
             }
           }
         }
@@ -130,7 +134,7 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': components['schemas']['Tool']
+            'application/json': components['schemas']['ToolWithParameters']
           }
         }
         /** @description Admin access required */
@@ -173,7 +177,7 @@ export interface paths {
       }
       requestBody: {
         content: {
-          'application/json': components['schemas']['ToolUpdate']
+          'application/merge-patch+json': components['schemas']['ToolUpdate']
         }
       }
       responses: {
@@ -183,7 +187,7 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': components['schemas']['Tool']
+            'application/json': components['schemas']['ToolWithParameters']
           }
         }
         /** @description Invalid tool configuration */
@@ -243,10 +247,7 @@ export interface paths {
       }
       requestBody: {
         content: {
-          'application/json': {
-            tool_ids: string[]
-            enabled: boolean
-          }
+          'application/json': components['schemas']['ToolBulkUpdate']
         }
       }
       responses: {
@@ -256,12 +257,7 @@ export interface paths {
             [name: string]: unknown
           }
           content: {
-            'application/json': {
-              updated_count?: number
-              skipped_count?: number
-              /** Format: date-time */
-              updated_at?: string
-            }
+            'application/json': components['schemas']['ToolBulkUpdateResponse']
           }
         }
         /** @description Invalid request */
@@ -290,23 +286,39 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
-    Tool: components['schemas']['Resource'] & {
-      /** Format: uuid */
+    ToolWithParameters: components['schemas']['Resource'] & {
+      /**
+       * Format: uuid
+       * @description UUID of the associated tool provider
+       */
       provider_id: string
+      /** @description Unique namespaced name for the tool */
       namespaced_name: string
-      /** @default true */
+      /**
+       * @description Whether the tool is enabled
+       * @default true
+       */
       enabled: boolean
       /**
+       * @description Current status of the tool
        * @default available
        * @enum {string}
        */
       status: 'available' | 'missing' | 'error'
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Timestamp of last execution
+       */
       last_executed_at?: string | null
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Timestamp of last refresh from provider
+       */
       last_refreshed_at?: string | null
+      /** @description Error message from last refresh attempt */
       refresh_error?: string | null
-      parameters?: components['schemas']['ToolParameter'][]
+      /** @description Tool parameters */
+      parameters: components['schemas']['ToolParameter'][]
     }
     ToolParameter: {
       /** Format: uuid */
@@ -321,6 +333,23 @@ export interface components {
     }
     ToolUpdate: {
       enabled: boolean
+    }
+    ToolBulkUpdate: {
+      /** @description List of tool UUIDs to update (max 50) */
+      tool_ids: string[]
+      /** @description Enable/disable the tools */
+      enabled: boolean
+    }
+    ToolBulkUpdateResponse: {
+      /** @description Number of tools successfully updated */
+      updated_count: number
+      /** @description Number of tools skipped (already in target state) */
+      skipped_count: number
+      /**
+       * Format: date-time
+       * @description Timestamp when bulk update completed
+       */
+      updated_at: string
     }
     /**
      * Paginated Response Base

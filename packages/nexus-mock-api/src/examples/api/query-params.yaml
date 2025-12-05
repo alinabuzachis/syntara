@@ -1,0 +1,37 @@
+---
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: query-params
+  description: Test query parameter construction
+
+inputs:
+  filter:
+    type: string
+    description: Filter parameter
+    default: active
+  limit:
+    type: number
+    description: Limit parameter
+    default: 10
+
+triggers:
+  - type: manual
+
+workflow:
+  activities:
+    - id: query_test
+      type: task
+      task:
+        executor: api
+        config:
+          method: GET
+          url: http://test-api.example.com/api/data
+          queryParams:
+            filter: ${input.filter}
+            limit: ${input.limit}
+            sort: name
+        inputs:
+          filter: ${inputs.filter}
+          limit: ${inputs.limit}

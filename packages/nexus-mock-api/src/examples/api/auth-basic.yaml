@@ -1,0 +1,28 @@
+---
+schemaVersion: 1.0.0
+version: 1
+
+metadata:
+  name: auth-basic
+  description: API request with basic authentication
+
+secrets:
+  basic_credentials:
+    secretId: test-basic-credentials
+    type: basic_auth
+
+triggers:
+  - type: manual
+
+workflow:
+  activities:
+    - id: fetch_with_basic_auth
+      type: task
+      task:
+        executor: api
+        config:
+          method: GET
+          url: http://test-api.example.com/api/basic-auth
+          authentication:
+            type: basic
+            credentials: ${secrets.basic_credentials}

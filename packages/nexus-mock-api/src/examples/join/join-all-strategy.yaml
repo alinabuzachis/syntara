@@ -1,41 +1,42 @@
+---
 schemaVersion: 1.0.0
 version: 1
 metadata:
   name: join-all-test
   description: Test join with all strategy - waits for all branches to complete
 triggers:
-- type: manual
+  - type: manual
 workflow:
   activities:
-  - id: parallel_tasks
-    type: parallel
-    branches:
-    - id: task1
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: echo "Task 1 complete"
-    - id: task2
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: echo "Task 2 complete"
-    - id: task3
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: echo "Task 3 complete"
-  - id: join_all
-    type: join
-    join:
+    - id: parallel_tasks
+      type: parallel
       branches:
-      - task1
-      - task2
-      - task3
-      strategy: all
+        - id: task1
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Task 1 complete"
+        - id: task2
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Task 2 complete"
+        - id: task3
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Task 3 complete"
+    - id: join_all
+      type: join
+      join:
+        branches:
+          - task1
+          - task2
+          - task3
+        strategy: all

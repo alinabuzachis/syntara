@@ -1,3 +1,4 @@
+---
 schemaVersion: 1.0.0
 version: 1
 
@@ -6,11 +7,11 @@ metadata:
   description: Test error when task activity has no task definition
 
 triggers:
-- type: manual
+  - type: manual
 
 workflow:
   activities:
-  - id: invalid_task
-    name: Task Without Task Definition
-    type: task
+    - id: invalid_task
+      name: Task Without Task Definition
+      type: task
       # Missing 'task' field - should raise ValueError
