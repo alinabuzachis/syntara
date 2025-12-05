@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { flushSync } from 'react-dom'
 
+import { FlowNodeType } from '../../../constants'
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import { filterButtonEdges, filterRealNodes } from '../utils/filterHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
@@ -140,8 +141,8 @@ export function useButtonEdgeMaintenance({
 
       // Step 2: Determine which nodes need ButtonEdges and which placeholders to add
       realNodes.forEach((node) => {
-        const isConditionNode = node.type === 'condition'
-        const isLoopNode = node.type === 'loop'
+        const isConditionNode = node.type === FlowNodeType.CONDITION
+        const isLoopNode = node.type === FlowNodeType.LOOP
 
         if (isConditionNode) {
           // Handle condition nodes specially - they have 'true' and 'false' handles
@@ -401,13 +402,13 @@ export function useButtonEdgeMaintenance({
           if (node.id.startsWith('pending-target-')) return node
 
           // Check if this is a condition node with any button edges
-          const isConditionNode = node.type === 'condition'
+          const isConditionNode = node.type === FlowNodeType.CONDITION
           const conditionHasButtonEdge = isConditionNode
             ? conditionHandlesNeedingButtonEdgesRef.current.some((h) => h.nodeId === node.id)
             : false
 
           // Check if this is a loop node with any button edges
-          const isLoopNode = node.type === 'loop'
+          const isLoopNode = node.type === FlowNodeType.LOOP
           const loopHasButtonEdge = isLoopNode
             ? loopHandlesNeedingButtonEdgesRef.current.some((h) => h.nodeId === node.id)
             : false

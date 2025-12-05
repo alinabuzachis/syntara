@@ -1,3 +1,4 @@
+export * from './KebabMenuTrigger'
 export * from './Menu'
 export * from './MenuCheckboxItem'
 export * from './MenuGroup'

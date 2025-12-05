@@ -76,10 +76,10 @@
   .ai-shadow {
     box-shadow:
       -2px -2px 4px var(--color-violet-800),
-      2px 2px 4px var(--color-sky-700),
-      -2px 2px 4px var(--color-pink-800),
-      2px -2px 4px var(--color-pink-800);
+      2px 2px 4px var(--color-blue-800);
   }
+
+  /* Force reload comment - 1 */
 
   /* Fixed widths for workflow nodes - scales naturally with ReactFlow zoom */
   .w-node {

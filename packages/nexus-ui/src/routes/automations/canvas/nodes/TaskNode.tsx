@@ -14,20 +14,32 @@ import {
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { nodeMetadata, executorMetadata } from './nodeMetadata'
 
 export type TaskNode = { type: 'task' } & Node<TaskActivity>
 
 export function TaskNodeComponent(props: NodeProps<TaskNode>) {
   const metadata = nodeMetadata.task
+  const menuActions = useNodeMenuActions({
+    nodeId: props.data.id,
+    nodeType: MenuNodeType.ACTIVITY,
+  })
+
   return (
     <NodeComponent className={metadata.className} nodeProps={props}>
-      <TaskActivityDetails data={props.data} />
+      <TaskActivityDetails data={props.data} menuActions={menuActions} />
     </NodeComponent>
   )
 }
 
-export function TaskActivityDetails(props: { data: TaskActivity; showJson?: boolean }) {
+export function TaskActivityDetails(
+  props: Readonly<{
+    data: TaskActivity
+    showJson?: boolean
+    menuActions?: ReturnType<typeof useNodeMenuActions>
+  }>
+) {
   // Check if this is an AAP/connector node disguised as agentic (workaround for backend)
   const overrideExecutorType = props.data.metadata?.__executorType
 
@@ -72,6 +84,7 @@ export function TaskActivityDetails(props: { data: TaskActivity; showJson?: bool
         title={props.data.name}
         subtitle={taskExecutor}
         expandable
+        menuActions={props.menuActions}
       />
       <NodeBody>
         <Details>

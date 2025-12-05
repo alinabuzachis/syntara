@@ -1,0 +1,216 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { ReactFlowProvider } from '@xyflow/react'
+import type { NodeProps, Node } from '@xyflow/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { createManualTrigger, useWorkflowStore } from '../../stores/useWorkflowStore'
+import { TriggerNodeComponent } from '../automations/canvas/nodes/TriggerNode'
+
+// Mock deleteElements to track calls
+const mockDeleteElements = vi.fn()
+vi.mock('@xyflow/react', async () => {
+  const actual = await vi.importActual('@xyflow/react')
+  return {
+    ...actual,
+    useReactFlow: () => ({
+      deleteElements: mockDeleteElements,
+    }),
+  }
+})
+
+// Helper to wrap component with required providers
+function renderWithProviders(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  })
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ReactFlowProvider>{ui}</ReactFlowProvider>
+    </QueryClientProvider>
+  )
+}
+
+// Create mock node props for TriggerNodeComponent
+function createMockTriggerNodeProps(id: string, label: string): NodeProps<Node<{ label: string }>> {
+  return {
+    id,
+    type: 'trigger',
+    data: { label },
+    dragging: false,
+    selected: false,
+    isConnectable: true,
+    positionAbsoluteX: 0,
+    positionAbsoluteY: 0,
+    zIndex: 0,
+  }
+}
+
+describe('Trigger Node Kebab Menu Delete', () => {
+  beforeEach(() => {
+    // Reset workflow store before each test
+    useWorkflowStore.getState().setWorkflow(null)
+    vi.clearAllMocks()
+  })
+
+  it('renders trigger node with kebab menu button', () => {
+    // Setup workflow with a trigger
+    const trigger = createManualTrigger()
+    useWorkflowStore.getState().setWorkflow({
+      schemaVersion: '1.0.0',
+      version: 1,
+      metadata: { name: 'Test', description: 'Test' },
+      triggers: [trigger],
+      workflow: { activities: [] },
+    })
+
+    const props = createMockTriggerNodeProps('trigger-0', 'Manual')
+
+    renderWithProviders(<TriggerNodeComponent {...props} />)
+
+    // Verify the node renders with the correct title
+    expect(screen.getByText('Manual')).toBeInTheDocument()
+
+    // Verify the kebab menu button is present
+    expect(screen.getByRole('button', { name: /node actions menu/i })).toBeInTheDocument()
+  })
+
+  it('opens dropdown menu when kebab button is clicked', async () => {
+    const user = userEvent.setup()
+
+    // Setup workflow with a trigger
+    const trigger = createManualTrigger()
+    useWorkflowStore.getState().setWorkflow({
+      schemaVersion: '1.0.0',
+      version: 1,
+      metadata: { name: 'Test', description: 'Test' },
+      triggers: [trigger],
+      workflow: { activities: [] },
+    })
+
+    const props = createMockTriggerNodeProps('trigger-0', 'Manual')
+
+    renderWithProviders(<TriggerNodeComponent {...props} />)
+
+    // Click the kebab menu button
+    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    await user.click(menuButton)
+
+    // Verify the dropdown menu opens and shows the Delete option
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeInTheDocument()
+    })
+  })
+
+  it('deletes trigger when Delete menu item is clicked', async () => {
+    const user = userEvent.setup()
+
+    // Setup workflow with two triggers
+    const trigger1 = createManualTrigger()
+    const trigger2 = createManualTrigger(true)
+    useWorkflowStore.getState().setWorkflow({
+      schemaVersion: '1.0.0',
+      version: 1,
+      metadata: { name: 'Test', description: 'Test' },
+      triggers: [trigger1, trigger2],
+      workflow: { activities: [] },
+    })
+
+    const props = createMockTriggerNodeProps('trigger-0', 'Manual')
+
+    renderWithProviders(<TriggerNodeComponent {...props} />)
+
+    // Click the kebab menu button
+    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    await user.click(menuButton)
+
+    // Wait for menu to open and click Delete
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeInTheDocument()
+    })
+
+    const deleteButton = screen.getByRole('menuitem', { name: 'Delete' })
+    await user.click(deleteButton)
+
+    // Verify deleteElements was called with correct trigger node id
+    // This triggers React Flow's onNodesDelete which handles proper cleanup
+    await waitFor(() => {
+      expect(mockDeleteElements).toHaveBeenCalledWith({ nodes: [{ id: 'trigger-0' }] })
+    })
+  })
+
+  it('applies danger styling to Delete menu item', async () => {
+    const user = userEvent.setup()
+
+    // Setup workflow with a trigger
+    const trigger = createManualTrigger()
+    useWorkflowStore.getState().setWorkflow({
+      schemaVersion: '1.0.0',
+      version: 1,
+      metadata: { name: 'Test', description: 'Test' },
+      triggers: [trigger],
+      workflow: { activities: [] },
+    })
+
+    const props = createMockTriggerNodeProps('trigger-0', 'Manual')
+
+    renderWithProviders(<TriggerNodeComponent {...props} />)
+
+    // Click the kebab menu button
+    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    await user.click(menuButton)
+
+    // Verify Delete has danger styling (coral color via menu-item-danger class)
+    await waitFor(() => {
+      const deleteItem = screen.getByRole('menuitem', { name: 'Delete' })
+      expect(deleteItem).toHaveClass('menu-item-danger')
+    })
+  })
+
+  it('prevents click propagation from menu trigger to node', async () => {
+    const user = userEvent.setup()
+
+    // Setup workflow with a trigger
+    const trigger = createManualTrigger()
+    useWorkflowStore.getState().setWorkflow({
+      schemaVersion: '1.0.0',
+      version: 1,
+      metadata: { name: 'Test', description: 'Test' },
+      triggers: [trigger],
+      workflow: { activities: [] },
+    })
+
+    const props = createMockTriggerNodeProps('trigger-0', 'Manual')
+
+    // Track if the parent was clicked (would happen in ReactFlow for node selection)
+    let parentClicked = false
+
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+          })
+        }
+      >
+        <ReactFlowProvider>
+          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+          <div onClick={() => (parentClicked = true)}>
+            <TriggerNodeComponent {...props} />
+          </div>
+        </ReactFlowProvider>
+      </QueryClientProvider>
+    )
+
+    // Click the kebab menu button
+    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    await user.click(menuButton)
+
+    // Parent should NOT have been clicked due to stopPropagation
+    expect(parentClicked).toBe(false)
+  })
+})

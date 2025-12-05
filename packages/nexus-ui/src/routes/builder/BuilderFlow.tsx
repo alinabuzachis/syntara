@@ -13,6 +13,7 @@ import {
 } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { FlowNodeType } from '../../constants'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import { CanvasControls } from '../automations/canvas/CanvasControls'
 import { edgeTypes } from '../automations/canvas/edges/EdgeType'
@@ -590,12 +591,12 @@ export function BuilderFlow(props: BuilderFlowProps) {
       const triggerIndices: number[] = []
 
       deletedNodes.forEach((node) => {
-        if (node.type === 'trigger') {
+        if (node.type === FlowNodeType.TRIGGER) {
           const triggerIndex = parseInt(node.id.split('-')[1])
           if (!isNaN(triggerIndex)) {
             triggerIndices.push(triggerIndex)
           }
-        } else if (node.type !== 'placeholder') {
+        } else if (node.type !== FlowNodeType.PLACEHOLDER) {
           activityIds.push(node.id)
         }
       })
@@ -722,7 +723,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         if (!sourceNode) return filtered
 
         // For condition nodes, only remove the class if both handles are connected
-        const isConditionNode = sourceNode.type === 'condition'
+        const isConditionNode = sourceNode.type === FlowNodeType.CONDITION
         if (isConditionNode) {
           // Check if there are any remaining condition handle placeholders for this node
           const hasRemainingPlaceholders = filtered.some(

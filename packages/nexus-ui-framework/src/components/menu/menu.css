@@ -1,9 +1,36 @@
 @layer components {
   .menu-items {
-    @apply glass rounded-xl p-1 shadow-lg shadow-black/50;
+    @apply glass rounded-lg shadow-lg shadow-black/50;
+    padding: 4px !important;
+    z-index: 9999;
+    min-width: 0 !important;
+    width: fit-content !important;
+    display: table !important;
   }
 
   .menu-item {
-    @apply cursor-pointer rounded-lg px-3 py-1.5 hover:bg-white/10;
+    @apply cursor-pointer rounded text-left text-sm text-white/90 hover:bg-white/10;
+    /* Increased size based on feedback: text-sm (14px) + larger padding */
+    padding: 6px 12px !important;
+    line-height: 1.4 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    white-space: nowrap !important;
+    border: none !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+  }
+
+  .menu-item-danger {
+    /* Coral/salmon color matching the mockups */
+    color: #f28482;
+  }
+
+  .menu-item-danger:hover {
+    color: #f9a8a7;
+    @apply bg-white/10;
   }
 }

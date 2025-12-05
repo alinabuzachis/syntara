@@ -10,6 +10,7 @@ import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
 import { workflowClient } from '../../client'
+import { FlowNodeType } from '../../constants'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import { NodeExpandedAllContext } from '../automations/canvas/nodes/common/NodeExpandedAllContext'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
@@ -631,7 +632,7 @@ export function BuilderContent(props: BuilderContentProps) {
                           const sourceNode = filtered.find((n) => n.id === sourceId)
                           if (!sourceNode) return filtered
 
-                          const isConditionNode = sourceNode.type === 'condition'
+                          const isConditionNode = sourceNode.type === FlowNodeType.CONDITION
                           if (isConditionNode) {
                             // Check if there are any remaining condition handle placeholders for this node
                             const hasRemainingPlaceholders = filtered.some(

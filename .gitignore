@@ -26,3 +26,9 @@ dist-ssr
 .playwright-mcp
 
 **/coverage.claude/
+
+# Playwright test files and reports
+**/e2e/
+**/playwright-report/
+**/playwright.config.ts
+**/test-results/

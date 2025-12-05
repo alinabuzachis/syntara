@@ -8,6 +8,7 @@ import { handleStyle } from './common/handleStyle'
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { nodeMetadata } from './nodeMetadata'
 
 export type ConditionNode = { type: 'condition' } & Node<ConditionActivity>
@@ -15,9 +16,14 @@ export type ConditionNode = { type: 'condition' } & Node<ConditionActivity>
 export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
   const metadata = nodeMetadata.condition
   const Icon = metadata.icon!
+  const menuActions = useNodeMenuActions({
+    nodeId: props.data.id,
+    nodeType: MenuNodeType.ACTIVITY,
+  })
+
   return (
     <NodeComponent className={metadata.className} nodeProps={props} disableSource>
-      <ConditionNodeDetails conditionActivity={props.data} icon={<Icon />}>
+      <ConditionNodeDetails conditionActivity={props.data} icon={<Icon />} menuActions={menuActions}>
         <NodeHandles>
           <NodeHandle id="true">True</NodeHandle>
           <NodeHandle id="false">False</NodeHandle>
@@ -32,6 +38,7 @@ export function ConditionNodeDetails(props: {
   children?: React.ReactNode
   showJson?: boolean
   icon?: React.ReactNode
+  menuActions?: ReturnType<typeof useNodeMenuActions>
 }) {
   const metadata = nodeMetadata.condition
   return (
@@ -41,6 +48,7 @@ export function ConditionNodeDetails(props: {
         title={props.conditionActivity.name ?? 'Untitled Condition'}
         subtitle={metadata.label}
         expandable
+        menuActions={props.menuActions}
       />
       <div className="flex justify-end overflow-hidden">
         <NodeBody>

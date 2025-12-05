@@ -3,6 +3,7 @@ import { SidePanel } from '@ansible/nexus-ui-framework'
 import type { Node } from '@xyflow/react'
 import { FileTextIcon } from 'lucide-react'
 
+import { FlowNodeType } from '../../constants'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
@@ -37,19 +38,19 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow)
 
   const getNodeTitle = () => {
-    if (node.type === 'trigger') {
+    if (node.type === FlowNodeType.TRIGGER) {
       return 'Trigger Details'
     }
-    if (node.type === 'task' && typeof node.data === 'object' && node.data && 'name' in node.data) {
+    if (node.type === FlowNodeType.TASK && typeof node.data === 'object' && node.data && 'name' in node.data) {
       return node.data.name as string
     }
-    if (node.type === 'condition' && typeof node.data === 'object' && node.data && 'name' in node.data) {
+    if (node.type === FlowNodeType.CONDITION && typeof node.data === 'object' && node.data && 'name' in node.data) {
       return node.data.name as string
     }
-    if (node.type === 'loop' && typeof node.data === 'object' && node.data && 'name' in node.data) {
+    if (node.type === FlowNodeType.LOOP && typeof node.data === 'object' && node.data && 'name' in node.data) {
       return node.data.name as string
     }
-    if (node.type === 'join' && typeof node.data === 'object' && node.data && 'name' in node.data) {
+    if (node.type === FlowNodeType.JOIN && typeof node.data === 'object' && node.data && 'name' in node.data) {
       return node.data.name as string
     }
     return 'Node Details'
@@ -57,7 +58,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
 
   const renderContent = () => {
     // Handle trigger node
-    if (node.type === 'trigger') {
+    if (node.type === FlowNodeType.TRIGGER) {
       // Get trigger from workflow by index (assuming node id is "trigger-0", "trigger-1", etc.)
       const triggerIndex = parseInt(node.id.split('-')[1] || '0')
       const trigger = currentWorkflow?.triggers?.[triggerIndex]
@@ -68,22 +69,22 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     }
 
     // Render appropriate form based on node type
-    if (node.type === 'task' || node.type === 'task-reversed') {
+    if (node.type === FlowNodeType.TASK) {
       const taskData = node.data as TaskActivity
       return <TaskNodeDetails taskData={taskData} nodeId={node.id} onClose={onClose} />
     }
 
-    if (node.type === 'condition') {
+    if (node.type === FlowNodeType.CONDITION) {
       const conditionData = node.data as ConditionActivity
       return <ConditionNodeDetails conditionData={conditionData} nodeId={node.id} onClose={onClose} />
     }
 
-    if (node.type === 'loop') {
+    if (node.type === FlowNodeType.LOOP) {
       const loopData = node.data as LoopActivity
       return <LoopNodeDetails loopData={loopData} nodeId={node.id} onClose={onClose} />
     }
 
-    if (node.type === 'join') {
+    if (node.type === FlowNodeType.JOIN) {
       const joinData = node.data as JoinActivity
       return <JoinNodeDetails joinData={joinData} nodeId={node.id} onClose={onClose} />
     }

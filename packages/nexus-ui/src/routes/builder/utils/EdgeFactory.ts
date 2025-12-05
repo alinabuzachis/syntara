@@ -4,9 +4,6 @@ import type { EdgeConnection } from '../types/edge'
 
 import { markerEnd, type EdgeType } from './workflowToGraph'
 
-// Re-export for convenience
-export type { EdgeConnection, EdgeType }
-
 export interface CreateEdgeOptions {
   source: string
   target: string
