@@ -17,10 +17,7 @@ metadata:
   timeout: PT2H
 
 triggers:
-  - type: scheduled
-    schedule:
-      scheduleType: interval
-      interval: PT1H # Every hour
+  - type: manual
 
 inputs:
   campaignId:

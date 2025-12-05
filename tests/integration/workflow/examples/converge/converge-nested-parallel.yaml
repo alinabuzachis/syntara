@@ -2,8 +2,8 @@
 schemaVersion: 1.0.0
 version: 1
 metadata:
-  name: join-nested-parallel-test
-  description: Test join with nested parallel execution
+  name: converge-nested-parallel-test
+  description: Test converge with nested parallel execution
 triggers:
   - type: manual
 workflow:
@@ -42,9 +42,9 @@ workflow:
             config:
               language: bash
               code: echo "Branch 2B"
-    - id: join_groups
-      type: join
-      join:
+    - id: converge_groups
+      type: converge
+      converge:
         branches:
           - branch1a
           - branch1b

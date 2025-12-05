@@ -3,8 +3,8 @@ schemaVersion: 1.0.0
 version: 1
 
 metadata:
-  name: join-timeout-continue-test
-  description: Test join with timeout that continues when timeout is reached
+  name: converge-timeout-continue-test
+  description: Test converge with timeout that continues when timeout is reached
 
 triggers:
   - type: manual
@@ -35,10 +35,10 @@ workflow:
                 sleep 3
                 echo "Slow task completed"
 
-    - id: join_with_timeout_continue
-      name: Join with Timeout (Continue)
-      type: join
-      join:
+    - id: converge_with_timeout_continue
+      name: Converge with Timeout (Continue)
+      type: converge
+      converge:
         branches:
           - fast_task
           - slow_task
@@ -47,12 +47,12 @@ workflow:
         onTimeout: continue
         aggregateOutputs: true
 
-    - id: post_join_task
-      name: Post-Join Task
+    - id: post_converge_task
+      name: Post-Converge Task
       type: task
       task:
         executor: script
         config:
           language: bash
           code: |
-            echo "Post-join task executed after timeout"
+            echo "Post-converge task executed after timeout"

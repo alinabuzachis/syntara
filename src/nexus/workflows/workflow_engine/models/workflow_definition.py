@@ -31,7 +31,7 @@ class ActivityType(str, Enum):
     SEQUENCE = "sequence"
     CONDITION = "condition"
     LOOP = "loop"
-    JOIN = "join"
+    CONVERGE = "converge"
 
 
 class LoopType(str, Enum):
@@ -39,16 +39,12 @@ class LoopType(str, Enum):
 
     FOR_EACH = "forEach"
     WHILE = "while"
-    COUNT = "count"
 
 
-class JoinStrategy(str, Enum):
-    """Join strategies for parallel execution."""
+class ConvergeStrategy(str, Enum):
+    """Converge strategies for parallel execution."""
 
     ALL = "all"
-    ANY = "any"
-    MAJORITY = "majority"
-    COUNT = "count"
 
 
 class TimeoutAction(str, Enum):
@@ -113,20 +109,7 @@ class WhileLoopDefinition(BaseModel):
     do: list["Activity"] = Field(description="Activities to execute in each iteration", min_length=1)
 
 
-class CountLoopDefinition(BaseModel):
-    """Count loop configuration (executes N times)."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    type: Literal[LoopType.COUNT] = Field(description="Loop type")
-    count: int = Field(ge=1, le=constants.MAX_LOOP_ITERATIONS, description="Number of iterations to execute")
-    index_variable: str = Field(
-        default="index", description="Variable name for iteration counter", alias="indexVariable"
-    )
-    do: list["Activity"] = Field(description="Activities to execute in each iteration", min_length=1)
-
-
-LoopDefinition = ForEachLoopDefinition | WhileLoopDefinition | CountLoopDefinition
+LoopDefinition = ForEachLoopDefinition | WhileLoopDefinition
 
 
 # Task executor configurations
@@ -272,17 +255,16 @@ class ApprovalDefinition(BaseModel):
     metadata: dict[str, Any] | None = Field(default=None, description="Additional context to display to approvers")
 
 
-class JoinDefinition(BaseModel):
-    """Join pattern configuration - waits for specific activities to complete."""
+class ConvergeDefinition(BaseModel):
+    """Converge pattern configuration - waits for specific activities to complete."""
 
     model_config = ConfigDict(populate_by_name=True)
 
     branches: list[str] = Field(description="List of activity IDs to wait for", min_length=1)
-    strategy: JoinStrategy = Field(default=JoinStrategy.ALL, description="Join strategy: all, any, majority, or count")
-    count: int | None = Field(
-        default=None, ge=1, description="Required number of completed branches (only for 'count' strategy)"
+    strategy: ConvergeStrategy = Field(
+        default=ConvergeStrategy.ALL, description="Converge strategy (only 'all' is supported)"
     )
-    timeout: str | None = Field(default=None, description="Maximum time to wait for join condition")
+    timeout: str | None = Field(default=None, description="Maximum time to wait for converge condition")
     on_timeout: TimeoutAction = Field(
         default=TimeoutAction.FAIL, description="Action to take if timeout is reached", alias="onTimeout"
     )
@@ -302,8 +284,8 @@ class Activity(BaseModel):
     - parallel: Execute multiple activities in parallel
     - sequence: Execute multiple activities sequentially
     - condition: Conditional branching (if/then/else)
-    - loop: Loop execution (forEach, while, count)
-    - join: Wait for multiple activities to complete
+    - loop: Loop execution (forEach, while)
+    - converge: Wait for multiple activities to complete
     """
 
     model_config = ConfigDict(populate_by_name=True)
@@ -311,9 +293,6 @@ class Activity(BaseModel):
     id: str = Field(description="Unique identifier for the activity", pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$")
     name: str | None = Field(default=None, description="Human-readable activity name")
     type: ActivityType = Field(description="Activity type")
-    condition: str | None = Field(
-        default=None, description="Conditional expression (for condition type or conditional execution)"
-    )
     requires_approval: bool = Field(
         default=False, description="Whether this activity requires human approval", alias="requiresApproval"
     )
@@ -336,6 +315,9 @@ class Activity(BaseModel):
     steps: list["Activity"] | None = Field(
         default=None, description="Activities to execute sequentially (required for type=sequence)", min_length=1
     )
+    condition: str | None = Field(
+        default=None, description="Conditional expression (required for type=condition)", min_length=1
+    )
     then: list["Activity"] | None = Field(
         default=None,
         description="Activities to execute if condition is true (required for type=condition)",
@@ -345,7 +327,9 @@ class Activity(BaseModel):
         default=None, alias="else", description="Activities to execute if condition is false (for type=condition)"
     )
     loop: LoopDefinition | None = Field(default=None, description="Loop definition (required for type=loop)")
-    join: JoinDefinition | None = Field(default=None, description="Join definition (required for type=join)")
+    converge: ConvergeDefinition | None = Field(
+        default=None, description="Converge definition (required for type=converge)"
+    )
 
     @field_validator("task")
     @classmethod
@@ -396,12 +380,14 @@ class Activity(BaseModel):
             raise ValueError(msg)
         return v
 
-    @field_validator("join")
+    @field_validator("converge")
     @classmethod
-    def validate_join_required(cls, v: JoinDefinition | None, info: ValidationInfo) -> JoinDefinition | None:
-        """Ensure join is provided when type=join."""
-        if info.data.get("type") == "join" and v is None:
-            msg = "join field is required when type='join'"
+    def validate_converge_required(
+        cls, v: ConvergeDefinition | None, info: ValidationInfo
+    ) -> ConvergeDefinition | None:
+        """Ensure converge is provided when type=converge."""
+        if info.data.get("type") == "converge" and v is None:
+            msg = "converge field is required when type='converge'"
             raise ValueError(msg)
         return v
 
@@ -464,29 +450,7 @@ class ManualTrigger(BaseModel):
     )
 
 
-class ScheduledTrigger(BaseModel):
-    """Scheduled trigger - time-based execution."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    type: Literal["scheduled"] = Field(description="Trigger type")
-    schedule: dict[str, Any] = Field(description="Schedule configuration (cron, interval, or continuous)")
-    start_time: str | None = Field(
-        default=None, description="Start time for scheduled execution (ISO 8601)", alias="startTime"
-    )
-    end_time: str | None = Field(
-        default=None, description="End time for scheduled execution (ISO 8601)", alias="endTime"
-    )
-
-
-class EventTrigger(BaseModel):
-    """Event-driven trigger - external events initiate workflow."""
-
-    type: Literal["event"] = Field(description="Trigger type")
-    event: dict[str, Any] = Field(description="Event source and type configuration")
-
-
-Trigger = ManualTrigger | ScheduledTrigger | EventTrigger
+Trigger = ManualTrigger
 
 
 class Metadata(BaseModel):
@@ -533,4 +497,3 @@ class WorkflowDefinition(BaseModel):
 Activity.model_rebuild()
 ForEachLoopDefinition.model_rebuild()
 WhileLoopDefinition.model_rebuild()
-CountLoopDefinition.model_rebuild()

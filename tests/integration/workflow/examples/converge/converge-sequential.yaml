@@ -2,8 +2,8 @@
 schemaVersion: 1.0.0
 version: 1
 metadata:
-  name: join-sequential-test
-  description: Test join after sequential activities complete
+  name: converge-sequential-test
+  description: Test converge after sequential activities complete
 triggers:
   - type: manual
 workflow:
@@ -29,9 +29,9 @@ workflow:
         config:
           language: bash
           code: echo "Step 3"
-    - id: join_sequential
-      type: join
-      join:
+    - id: converge_sequential
+      type: converge
+      converge:
         branches:
           - seq1
           - seq2

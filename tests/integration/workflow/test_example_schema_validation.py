@@ -69,8 +69,6 @@ def test_all_examples_valid_against_schema() -> None:
         "basic/parallel-demo.yaml",
         "basic/conditional-demo.yaml",
         "basic/retry-demo.yaml",
-        "conditionals/positive-negative-zero.yaml",
-        "conditionals/nested-conditions.yaml",
         "error-handling/failing-task.yaml",
         "error-handling/transient-errors.yaml",
         "error-handling/error-propagation.yaml",

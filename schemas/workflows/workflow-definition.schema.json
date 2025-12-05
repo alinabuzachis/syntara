@@ -62,20 +62,10 @@
     },
     "triggers": {
       "type": "array",
-      "description": "Workflow trigger configuration - manual, scheduled, or event-driven",
+      "description": "Workflow trigger configuration - manual trigger only",
       "minItems": 1,
       "items": {
-        "oneOf": [
-          {
-            "$ref": "#/definitions/manualTrigger"
-          },
-          {
-            "$ref": "#/definitions/scheduledTrigger"
-          },
-          {
-            "$ref": "#/definitions/eventTrigger"
-          }
-        ]
+        "$ref": "#/definitions/manualTrigger"
       }
     },
     "inputs": {
@@ -165,122 +155,6 @@
       },
       "additionalProperties": false
     },
-    "scheduledTrigger": {
-      "type": "object",
-      "description": "Scheduled trigger - time-based or continuous execution",
-      "required": ["type", "schedule"],
-      "properties": {
-        "type": {
-          "const": "scheduled"
-        },
-        "schedule": {
-          "oneOf": [
-            {
-              "type": "object",
-              "description": "Cron-based scheduling",
-              "required": ["scheduleType", "cron"],
-              "properties": {
-                "scheduleType": {
-                  "const": "cron"
-                },
-                "cron": {
-                  "type": "string",
-                  "description": "Cron expression for scheduling (standard 5-field format or special strings)",
-                  "pattern": "^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\\d+(ns|us|µs|ms|s|m|h))+)|(((\\d+|\\*|\\*/\\d+|\\d+-\\d+|\\d+(,\\d+)+)\\s+){4}(\\d+|\\*|\\*/\\d+|\\d+-\\d+|\\d+(,\\d+)+))$",
-                  "examples": ["0 0 * * *", "@daily", "*/5 * * * *", "0 */6 * * *"]
-                },
-                "timezone": {
-                  "type": "string",
-                  "description": "IANA timezone for cron execution",
-                  "default": "UTC",
-                  "examples": ["America/New_York", "UTC", "Europe/London"]
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "description": "Interval-based scheduling",
-              "required": ["scheduleType", "interval"],
-              "properties": {
-                "scheduleType": {
-                  "const": "interval"
-                },
-                "interval": {
-                  "type": "string",
-                  "description": "Execution interval (ISO 8601 duration)",
-                  "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
-                  "examples": ["PT15M", "PT1H", "P1D"]
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "description": "Continuous execution",
-              "required": ["scheduleType", "continuous"],
-              "properties": {
-                "scheduleType": {
-                  "const": "continuous"
-                },
-                "continuous": {
-                  "type": "boolean",
-                  "const": true,
-                  "description": "Run workflow continuously (restart on completion)"
-                }
-              },
-              "additionalProperties": false
-            }
-          ]
-        },
-        "startTime": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Start time for scheduled execution (ISO 8601)"
-        },
-        "endTime": {
-          "type": "string",
-          "format": "date-time",
-          "description": "End time for scheduled execution (ISO 8601)"
-        }
-      },
-      "additionalProperties": false
-    },
-    "eventTrigger": {
-      "type": "object",
-      "description": "Event-driven trigger - external events initiate workflow",
-      "required": ["type", "event"],
-      "properties": {
-        "type": {
-          "const": "event"
-        },
-        "event": {
-          "type": "object",
-          "required": ["source", "eventType"],
-          "properties": {
-            "source": {
-              "type": "string",
-              "description": "Event source identifier (e.g., webhook, message queue, external system)",
-              "minLength": 1,
-              "examples": ["webhook", "kafka", "rabbitmq", "sqs"]
-            },
-            "eventType": {
-              "type": "string",
-              "description": "Type of event to trigger on",
-              "minLength": 1,
-              "examples": ["order.created", "user.registered", "payment.completed"]
-            },
-            "filter": {
-              "type": "object",
-              "description": "Filter conditions for event matching (JSONPath or similar)",
-              "additionalProperties": true
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
     "parameter": {
       "type": "object",
       "description": "Parameter definition with type and validation",
@@ -337,12 +211,6 @@
           "type": "string",
           "description": "Human-readable name for the activity",
           "minLength": 1
-        },
-        "condition": {
-          "type": "string",
-          "description": "Optional condition for executing this activity (activity is skipped if condition evaluates to false)",
-          "minLength": 1,
-          "examples": ["${output.status == 'success'}", "${input.amount > 1000}"]
         },
         "requiresApproval": {
           "type": "boolean",
@@ -494,19 +362,19 @@
       },
       "unevaluatedProperties": false
     },
-    "joinActivity": {
+    "convergeActivity": {
       "allOf": [
         { "$ref": "#/definitions/baseActivity" }
       ],
       "type": "object",
-      "required": ["type", "join"],
+      "required": ["type", "converge"],
       "properties": {
         "type": {
-          "const": "join"
+          "const": "converge"
         },
-        "join": {
-          "$ref": "#/definitions/joinDefinition",
-          "description": "Join definition"
+        "converge": {
+          "$ref": "#/definitions/convergeDefinition",
+          "description": "Converge definition"
         }
       },
       "unevaluatedProperties": false
@@ -518,7 +386,7 @@
         { "$ref": "#/definitions/sequenceActivity" },
         { "$ref": "#/definitions/conditionActivity" },
         { "$ref": "#/definitions/loopActivity" },
-        { "$ref": "#/definitions/joinActivity" }
+        { "$ref": "#/definitions/convergeActivity" }
       ],
       "discriminator": {
         "propertyName": "type",
@@ -528,7 +396,7 @@
           "sequence": "#/definitions/sequenceActivity",
           "condition": "#/definitions/conditionActivity",
           "loop": "#/definitions/loopActivity",
-          "join": "#/definitions/joinActivity"
+          "converge": "#/definitions/convergeActivity"
         }
       }
     },
@@ -823,43 +691,16 @@
       },
       "unevaluatedProperties": false
     },
-    "countLoop": {
-      "allOf": [
-        { "$ref": "#/definitions/baseLoop" }
-      ],
-      "type": "object",
-      "required": ["type", "count"],
-      "properties": {
-        "type": {
-          "const": "count"
-        },
-        "count": {
-          "type": "integer",
-          "description": "Number of iterations to execute",
-          "minimum": 1,
-          "maximum": 10000
-        },
-        "indexVariable": {
-          "type": "string",
-          "description": "Variable name for iteration counter",
-          "default": "index",
-          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-        }
-      },
-      "unevaluatedProperties": false
-    },
     "loopDefinition": {
       "oneOf": [
         { "$ref": "#/definitions/forEachLoop" },
-        { "$ref": "#/definitions/whileLoop" },
-        { "$ref": "#/definitions/countLoop" }
+        { "$ref": "#/definitions/whileLoop" }
       ],
       "discriminator": {
         "propertyName": "type",
         "mapping": {
           "forEach": "#/definitions/forEachLoop",
-          "while": "#/definitions/whileLoop",
-          "count": "#/definitions/countLoop"
+          "while": "#/definitions/whileLoop"
         }
       }
     },
@@ -972,9 +813,9 @@
       },
       "additionalProperties": false
     },
-    "joinDefinition": {
+    "convergeDefinition": {
       "type": "object",
-      "description": "Join pattern configuration - waits for specific activities to complete before proceeding",
+      "description": "Converge pattern configuration - waits for specific activities to complete before proceeding",
       "required": ["branches"],
       "properties": {
         "branches": {
@@ -989,25 +830,20 @@
         },
         "strategy": {
           "type": "string",
-          "enum": ["all", "any", "majority", "count"],
-          "description": "Join strategy: 'all' waits for all specified branches, 'any' waits for first completion, 'majority' waits for >50%, 'count' waits for specific number",
+          "enum": ["all"],
+          "description": "Converge strategy: 'all' waits for all specified branches",
           "default": "all"
-        },
-        "count": {
-          "type": "integer",
-          "description": "Required number of completed branches (only for 'count' strategy)",
-          "minimum": 1
         },
         "timeout": {
           "type": "string",
-          "description": "Maximum time to wait for join condition (ISO 8601 duration)",
+          "description": "Maximum time to wait for converge condition (ISO 8601 duration)",
           "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
           "examples": ["PT5M", "PT30M", "PT1H"]
         },
         "onTimeout": {
           "type": "string",
           "enum": ["continue", "fail"],
-          "description": "Action to take if timeout is reached before join condition is met",
+          "description": "Action to take if timeout is reached before converge condition is met",
           "default": "fail"
         },
         "aggregateOutputs": {

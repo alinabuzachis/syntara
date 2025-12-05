@@ -1,6 +1,6 @@
 ---
 # Example 2: Parallel Execution Workflow
-# Demonstrates: Parallel execution, multiple data sources, scheduled trigger
+# Demonstrates: Parallel execution, multiple data sources
 
 schemaVersion: 1.0.0
 version: 1
@@ -16,12 +16,7 @@ metadata:
   timeout: PT2H
 
 triggers:
-  - type: scheduled
-    schedule:
-      scheduleType: cron
-      cron: 0 */6 * * * # Every 6 hours
-      timezone: America/New_York
-    startTime: '2025-10-01T00:00:00Z'
+  - type: manual
 
 inputs:
   includeArchived:

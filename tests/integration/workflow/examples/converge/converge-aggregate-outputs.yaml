@@ -2,41 +2,42 @@
 schemaVersion: 1.0.0
 version: 1
 metadata:
-  name: join-all-test
-  description: Test join with all strategy - waits for all branches to complete
+  name: converge-aggregate-test
+  description: Test converge with output aggregation from multiple branches
 triggers:
   - type: manual
 workflow:
   activities:
-    - id: parallel_tasks
+    - id: parallel_aggregate
       type: parallel
       branches:
-        - id: task1
+        - id: data_task1
           type: task
           task:
             executor: script
             config:
               language: bash
-              code: echo "Task 1 complete"
-        - id: task2
+              code: "echo '{\"value\": 10}'"
+        - id: data_task2
           type: task
           task:
             executor: script
             config:
               language: bash
-              code: echo "Task 2 complete"
-        - id: task3
+              code: "echo '{\"value\": 20}'"
+        - id: data_task3
           type: task
           task:
             executor: script
             config:
               language: bash
-              code: echo "Task 3 complete"
-    - id: join_all
-      type: join
-      join:
+              code: "echo '{\"value\": 30}'"
+    - id: converge_aggregate
+      type: converge
+      converge:
         branches:
-          - task1
-          - task2
-          - task3
+          - data_task1
+          - data_task2
+          - data_task3
         strategy: all
+        aggregateOutputs: true

@@ -3,15 +3,15 @@ schemaVersion: 1.0.0
 version: 1
 
 metadata:
-  name: join-post-activities-test
-  description: Test join with activities that execute after join completes
+  name: converge-post-activities-test
+  description: Test converge with activities that execute after converge completes
 
 triggers:
   - type: manual
 
 workflow:
   activities:
-    # Parallel tasks that will be joined
+    # Parallel tasks that will be converged
     - id: parallel_work
       type: parallel
       branches:
@@ -54,10 +54,10 @@ workflow:
             outputs:
               data: $.stdout
 
-    # Join waits for all parallel tasks to complete
+    # Converge waits for all parallel tasks to complete
     - id: aggregate_data
-      type: join
-      join:
+      type: converge
+      converge:
         branches:
           - fetch_data_a
           - fetch_data_b
@@ -65,7 +65,7 @@ workflow:
         strategy: all
         aggregateOutputs: true
 
-    # These activities should NOT start until the join completes
+    # These activities should NOT start until the converge completes
     - id: process_aggregated_data
       name: Process Aggregated Data
       type: task

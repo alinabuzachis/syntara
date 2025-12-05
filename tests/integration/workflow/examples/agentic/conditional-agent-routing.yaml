@@ -20,6 +20,7 @@ inputs:
 workflow:
   activities:
     - id: classify_request
+      name: Classify User Request
       type: task
       task:
         executor: agentic
@@ -28,7 +29,7 @@ workflow:
           model: claude-3-5-sonnet-20241022
           prompt: |
             Classify the following request and determine the appropriate domain:
-            ${input.user_request}
+            ${inputs.user_request}
 
             Domains:
             - technical: Technical questions, coding, architecture
@@ -41,51 +42,58 @@ workflow:
         outputs:
           domain: $.result.content
 
+    # Route to appropriate specialist based on classification
     - id: route_to_specialist
+      name: Route to Specialist
       type: condition
-      condition: ${classify_request.output.domain}
+      condition: ${classify_request.output.domain} == 'technical'
       then:
-        - id: handle_technical
+        - id: technical_specialist
+          name: Technical Specialist
           type: task
-          condition: ${classify_request.output.domain} == 'technical'
           task:
             executor: agentic
             config:
               agent: production://technical-specialist
               model: claude-3-5-sonnet-20241022
               prompt: |
-                Provide technical assistance for: ${input.user_request}
+                Provide technical assistance for: ${inputs.user_request}
             inputs:
               user_request: ${inputs.user_request}
             outputs:
               response: $.result.content
-
-        - id: handle_business
-          type: task
+      else:
+        - id: check_business
+          name: Check if Business Domain
+          type: condition
           condition: ${classify_request.output.domain} == 'business'
-          task:
-            executor: agentic
-            config:
-              agent: production://business-specialist
-              model: claude-3-5-sonnet-20241022
-              prompt: |
-                Provide business guidance for: ${input.user_request}
-            inputs:
-              user_request: ${inputs.user_request}
-            outputs:
-              response: $.result.content
-
-        - id: handle_creative
-          type: task
-          condition: ${classify_request.output.domain} == 'creative'
-          task:
-            executor: agentic
-            config:
-              agent: production://creative-specialist
-              model: claude-3-5-sonnet-20241022
-              prompt: |
-                Provide creative assistance for: ${input.user_request}
-            inputs:
-              user_request: ${inputs.user_request}
-            outputs:
-              response: $.result.content
+          then:
+            - id: business_specialist
+              name: Business Specialist
+              type: task
+              task:
+                executor: agentic
+                config:
+                  agent: production://business-specialist
+                  model: claude-3-5-sonnet-20241022
+                  prompt: |
+                    Provide business guidance for: ${inputs.user_request}
+                inputs:
+                  user_request: ${inputs.user_request}
+                outputs:
+                  response: $.result.content
+          else:
+            - id: creative_specialist
+              name: Creative Specialist
+              type: task
+              task:
+                executor: agentic
+                config:
+                  agent: production://creative-specialist
+                  model: claude-3-5-sonnet-20241022
+                  prompt: |
+                    Provide creative assistance for: ${inputs.user_request}
+                inputs:
+                  user_request: ${inputs.user_request}
+                outputs:
+                  response: $.result.content

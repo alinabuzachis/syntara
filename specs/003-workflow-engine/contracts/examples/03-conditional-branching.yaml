@@ -1,6 +1,6 @@
 ---
 # Example 3: Conditional Branching Workflow
-# Demonstrates: Conditional logic, decision making, event-driven trigger
+# Demonstrates: Conditional logic, decision making
 
 schemaVersion: 1.0.0
 version: 1
@@ -17,12 +17,7 @@ metadata:
   timeout: P1D
 
 triggers:
-  - type: event
-    event:
-      source: webhook
-      eventType: order.created
-      filter:
-        status: pending
+  - type: manual
 
 inputs:
   orderId:

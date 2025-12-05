@@ -2,8 +2,8 @@
 schemaVersion: 1.0.0
 version: 1
 metadata:
-  name: join-missing-branch-test
-  description: Test join with a branch ID that doesn't exist
+  name: converge-missing-branch-test
+  description: Test converge with a branch ID that doesn't exist
 triggers:
   - type: manual
 workflow:
@@ -15,9 +15,9 @@ workflow:
         config:
           language: bash
           code: echo "Existing task"
-    - id: join_missing
-      type: join
-      join:
+    - id: converge_missing
+      type: converge
+      converge:
         branches:
           - existing_task
           - nonexistent_task

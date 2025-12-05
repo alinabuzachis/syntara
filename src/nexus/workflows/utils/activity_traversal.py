@@ -1,7 +1,7 @@
 """Utilities for traversing activity trees in workflow definitions.
 
 This module provides shared utilities for recursively traversing nested activity
-structures, supporting all activity types: task, sequence, parallel, condition, loop, join.
+structures, supporting all activity types: task, sequence, parallel, condition, loop, converge.
 """
 
 from collections.abc import Callable

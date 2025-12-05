@@ -32,10 +32,9 @@ from .models import (
     Activity,
     ActivityType,
     APIExecutorConfig,
-    CountLoopDefinition,
+    ConvergeDefinition,
     ExecutorType,
     ForEachLoopDefinition,
-    JoinDefinition,
     LoopType,
     ScriptExecutorConfig,
     TimeoutAction,
@@ -49,7 +48,7 @@ class DynamicWorkflow:
     """Temporal workflow that executes YAML workflow definitions.
 
     This workflow dynamically executes activities defined in a WorkflowDefinition,
-    supporting multiple activity types: task, parallel, sequence, condition, loop, join.
+    supporting multiple activity types: task, parallel, sequence, condition, loop, converge.
     """
 
     def __init__(self) -> None:
@@ -225,8 +224,7 @@ class DynamicWorkflow:
             return await self._execute_condition_activity(activity, execution_id, workflow_state)
         if activity.type == ActivityType.LOOP:
             return await self._execute_loop_activity(activity, execution_id, workflow_state)
-        # activity.type == ActivityType.JOIN  # noqa: ERA001
-        return await self._execute_join_activity(activity, workflow_state)
+        return await self._execute_converge_activity(activity, workflow_state)
 
     async def _execute_script_executor(
         self,
@@ -415,16 +413,6 @@ class DynamicWorkflow:
             msg = f"Activity {activity.id} is type=task but has no task definition"
             raise ValueError(msg)
 
-        # Check conditional execution
-        if activity.condition:
-            should_execute = self.expression_resolver.evaluate_condition(activity.condition, workflow_state)
-            if not should_execute:
-                workflow.logger.info(
-                    f"Task {activity.id} skipped (condition evaluated to false)",
-                    extra={"activity_id": activity.id, "execution_id": execution_id},
-                )
-                return {"skipped": True, "reason": "condition_false"}
-
         # Prepare task inputs
         task_inputs = self._prepare_task_inputs(activity, workflow_state)
 
@@ -465,12 +453,12 @@ class DynamicWorkflow:
             extra={"activity_id": activity.id, "execution_id": execution_id},
         )
 
-        # Check if next activity is a join for these branches
-        # If so, don't execute yet - let the join handle it
-        next_activity_is_join = self._check_if_next_is_join(activity, workflow_state)
+        # Check if next activity is a converge for these branches
+        # If so, don't execute yet - let the converge handle it
+        next_activity_is_converge = self._check_if_next_is_converge(activity, workflow_state)
 
-        if not next_activity_is_join:
-            # No join follows, execute all branches in parallel immediately
+        if not next_activity_is_converge:
+            # No converge follows, execute all branches in parallel immediately
             tasks = [self._execute_activity(branch, execution_id, workflow_state) for branch in activity.branches]
             results = await asyncio.gather(*tasks)
 
@@ -482,7 +470,7 @@ class DynamicWorkflow:
 
             return {"type": "parallel", "branches": branch_results}
 
-        # If next is join, store coroutines for the join to execute
+        # If next is converge, store coroutines for the converge to execute
         for branch in activity.branches:
             # Store the branch activity definition, not a task
             workflow_state.setdefault("pending_branches", {})[branch.id] = {
@@ -490,17 +478,17 @@ class DynamicWorkflow:
                 "execution_id": execution_id,
             }
 
-        return {"type": "parallel", "branches": {}, "deferred_to_join": True}
+        return {"type": "parallel", "branches": {}, "deferred_to_converge": True}
 
-    def _check_if_next_is_join(self, current_activity: Activity, workflow_state: dict[str, Any]) -> bool:
-        """Check if the next activity in the workflow is a join for this parallel's branches.
+    def _check_if_next_is_converge(self, current_activity: Activity, workflow_state: dict[str, Any]) -> bool:
+        """Check if the next activity in the workflow is a converge for this parallel's branches.
 
         Args:
             current_activity: Current parallel activity
             workflow_state: Workflow state containing the full workflow definition
 
         Returns:
-            True if next activity is a join for these branches
+            True if next activity is a converge for these branches
 
         """
         # Get the workflow definition from state
@@ -519,20 +507,20 @@ class DynamicWorkflow:
         if current_index is None or current_index >= len(activities) - 1:
             return False
 
-        # Check if next activity is a join
+        # Check if next activity is a converge
         next_activity = activities[current_index + 1]
-        if next_activity.type != "join" or not next_activity.join:
+        if next_activity.type != "converge" or not next_activity.converge:
             return False
 
-        # Check if the join is waiting for branches from this parallel
+        # Check if the converge is waiting for branches from this parallel
         if not current_activity.branches:
             return False
 
         parallel_branch_ids = {b.id for b in current_activity.branches}
-        join_branch_ids = set(next_activity.join.branches)
+        converge_branch_ids = set(next_activity.converge.branches)
 
-        # If there's any overlap, the join is waiting for this parallel
-        return bool(parallel_branch_ids & join_branch_ids)
+        # If there's any overlap, the converge is waiting for this parallel
+        return bool(parallel_branch_ids & converge_branch_ids)
 
     async def _execute_sequence_activity(
         self,
@@ -646,8 +634,9 @@ class DynamicWorkflow:
             return await self._execute_foreach_loop(loop_def, execution_id, workflow_state)
         if loop_def.type == LoopType.WHILE:
             return await self._execute_while_loop(loop_def, execution_id, workflow_state)
-        # loop_def.type == LoopType.COUNT  # noqa: ERA001
-        return await self._execute_count_loop(loop_def, execution_id, workflow_state)
+
+        msg = f"Unsupported loop type: {loop_def.type}"  # type: ignore[unreachable]
+        raise ValueError(msg)
 
     async def _execute_foreach_loop(
         self,
@@ -750,62 +739,19 @@ class DynamicWorkflow:
 
         return {"type": "while", "iterations": iteration_count, "results": iteration_results}
 
-    async def _execute_count_loop(
-        self,
-        loop_def: CountLoopDefinition,
-        execution_id: str,
-        workflow_state: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Execute count loop (fixed number of iterations).
-
-        Args:
-            loop_def: Count loop definition
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
-
-        Returns:
-            Aggregated results from all iterations
-
-        """
-        count = loop_def.count
-
-        workflow.logger.info(
-            f"Executing count loop {count} times",
-            extra={"execution_id": execution_id},
-        )
-
-        iteration_results = []
-        for index in range(count):
-            # Create iteration-specific state
-            iteration_state = workflow_state.copy()
-            iteration_state[loop_def.index_variable] = index
-
-            # Execute loop body activities
-            for do_activity in loop_def.do:
-                result = await self._execute_activity(do_activity, execution_id, iteration_state)
-                iteration_results.append(
-                    {
-                        "index": index,
-                        "activity_id": do_activity.id,
-                        "result": result,
-                    }
-                )
-
-        return {"type": "count", "iterations": count, "results": iteration_results}
-
-    def _handle_join_timeout(self, activity: Activity, join_def: JoinDefinition) -> None:
-        """Handle join timeout by raising error if configured to fail.
+    def _handle_converge_timeout(self, activity: Activity, converge_def: ConvergeDefinition) -> None:
+        """Handle converge timeout by raising error if configured to fail.
 
         Args:
             activity: Activity that timed out
-            join_def: Join definition with timeout configuration
+            converge_def: Converge definition with timeout configuration
 
         Raises:
-            TimeoutError: If join is configured to fail on timeout
+            TimeoutError: If converge is configured to fail on timeout
 
         """
-        if join_def.on_timeout == TimeoutAction.FAIL:
-            msg = f"Join activity {activity.id} timed out after {join_def.timeout}"
+        if converge_def.on_timeout == TimeoutAction.FAIL:
+            msg = f"Converge activity {activity.id} timed out after {converge_def.timeout}"
             raise TimeoutError(msg)
 
     async def _process_completed_tasks(
@@ -835,19 +781,19 @@ class DynamicWorkflow:
                     if isinstance(task.exception(), asyncio.CancelledError):
                         raise
 
-    async def _execute_join_with_timeout(
+    async def _execute_converge_with_timeout(
         self,
         activity: Activity,
-        join_def: JoinDefinition,
+        converge_def: ConvergeDefinition,
         branches_to_execute: list[tuple[str, Activity, str]],
         timeout_seconds: float,
         workflow_state: dict[str, Any],
     ) -> None:
-        """Execute join branches with timeout using workflow.wait().
+        """Execute converge branches with timeout using workflow.wait().
 
         Args:
-            activity: Join activity definition
-            join_def: Join definition
+            activity: Converge activity definition
+            converge_def: Converge definition
             branches_to_execute: List of (branch_id, branch_activity, exec_id) tuples
             timeout_seconds: Timeout in seconds
             workflow_state: Current workflow state
@@ -892,16 +838,16 @@ class DynamicWorkflow:
             for task in pending:
                 task.cancel()
             # Raise error only if configured to fail
-            if join_def.on_timeout == TimeoutAction.FAIL:
-                msg = f"Join activity {activity.id} timed out after {join_def.timeout}"
+            if converge_def.on_timeout == TimeoutAction.FAIL:
+                msg = f"Converge activity {activity.id} timed out after {converge_def.timeout}"
                 raise TimeoutError(msg)
 
-    async def _execute_join_without_timeout(
+    async def _execute_converge_without_timeout(
         self,
         branches_to_execute: list[tuple[str, Activity, str]],
         workflow_state: dict[str, Any],
     ) -> None:
-        """Execute join branches without timeout using asyncio.gather().
+        """Execute converge branches without timeout using asyncio.gather().
 
         Args:
             branches_to_execute: List of (branch_id, branch_activity, exec_id) tuples
@@ -918,9 +864,9 @@ class DynamicWorkflow:
         # Store results
         for (branch_id, _, _), result in zip(branches_to_execute, results, strict=True):
             if isinstance(result, Exception):
-                # Log the exception but don't fail the entire join
+                # Log the exception but don't fail the entire converge
                 workflow.logger.error(
-                    f"Branch {branch_id} failed in join execution: {result}",
+                    f"Branch {branch_id} failed in converge execution: {result}",
                     extra={"branch_id": branch_id},
                     exc_info=result,
                 )
@@ -934,34 +880,34 @@ class DynamicWorkflow:
 
             workflow_state.get("pending_branches", {}).pop(branch_id, None)
 
-    async def _execute_join_activity(
+    async def _execute_converge_activity(
         self,
         activity: Activity,
         workflow_state: dict[str, Any],
     ) -> dict[str, Any]:
-        """Execute join activity (wait for multiple activities to complete).
+        """Execute converge activity (wait for multiple activities to complete).
 
         Args:
-            activity: Join activity definition
+            activity: Converge activity definition
             workflow_state: Current workflow state
 
         Returns:
-            Aggregated outputs from joined activities
+            Aggregated outputs from converged activities
 
         Raises:
-            TimeoutError: If timeout is specified and join condition not met within timeout period
+            TimeoutError: If timeout is specified and converge condition not met within timeout period
 
         """
-        if not activity.join:
-            msg = f"Activity {activity.id} is type=join but has no join definition"
+        if not activity.converge:
+            msg = f"Activity {activity.id} is type=converge but has no converge definition"
             raise ValueError(msg)
 
-        join_def = activity.join
-        timeout_seconds = parse_timeout(join_def.timeout).total_seconds() if join_def.timeout else None
+        converge_def = activity.converge
+        timeout_seconds = parse_timeout(converge_def.timeout).total_seconds() if converge_def.timeout else None
 
         # Collect pending branches that need to be executed
         branches_to_execute = []
-        for branch_id in join_def.branches:
+        for branch_id in converge_def.branches:
             if branch_id in workflow_state.get("pending_branches", {}):
                 branch_info = workflow_state["pending_branches"][branch_id]
                 branches_to_execute.append((branch_id, branch_info["activity"], branch_info["execution_id"]))
@@ -969,19 +915,19 @@ class DynamicWorkflow:
         # Execute all branches in parallel if there are any pending
         if branches_to_execute:
             if timeout_seconds:
-                await self._execute_join_with_timeout(
-                    activity, join_def, branches_to_execute, timeout_seconds, workflow_state
+                await self._execute_converge_with_timeout(
+                    activity, converge_def, branches_to_execute, timeout_seconds, workflow_state
                 )
             else:
-                await self._execute_join_without_timeout(branches_to_execute, workflow_state)
+                await self._execute_converge_without_timeout(branches_to_execute, workflow_state)
 
-        # Collect results from all joined branches (completed ones)
-        join_results = {}
-        for branch_id in join_def.branches:
+        # Collect results from all converged branches (completed ones)
+        converge_results = {}
+        for branch_id in converge_def.branches:
             if branch_id in workflow_state["activity_outputs"]:
-                join_results[branch_id] = workflow_state["activity_outputs"][branch_id]
+                converge_results[branch_id] = workflow_state["activity_outputs"][branch_id]
 
-        return {"type": "join", "strategy": join_def.strategy, "results": join_results}
+        return {"type": "converge", "strategy": converge_def.strategy, "results": converge_results}
 
     def _prepare_task_inputs(
         self,

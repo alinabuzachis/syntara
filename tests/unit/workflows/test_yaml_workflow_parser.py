@@ -5,7 +5,6 @@ from unittest.mock import patch
 import pytest
 
 from nexus.workflows.workflow_engine.models import (
-    CountLoopDefinition,
     ForEachLoopDefinition,
     ScriptExecutorConfig,
     WhileLoopDefinition,
@@ -567,43 +566,6 @@ workflow:
         assert isinstance(loop_def, WhileLoopDefinition)
         assert loop_def.condition == "${variables.counter} < 10"
 
-    def test_parse_count_loop(self) -> None:
-        """Test parsing count loop activity."""
-        yaml_str = """
-schemaVersion: "1.0.0"
-version: 1
-metadata:
-  name: test-workflow
-  description: Test
-triggers:
-- type: manual
-workflow:
-  activities:
-  - id: count_loop
-    type: loop
-    loop:
-      type: count
-      count: 5
-      indexVariable: i
-      do:
-      - id: iterate
-        type: task
-        task:
-          executor: script
-          config:
-            language: bash
-            code: echo "iteration ${i}"
-"""
-        workflow_def = parse_workflow_yaml(yaml_str)
-
-        activity = workflow_def.workflow.activities[0]
-        loop_def = activity.loop
-        assert loop_def is not None
-        assert loop_def.type == "count"
-        assert isinstance(loop_def, CountLoopDefinition)
-        assert loop_def.count == 5
-        assert loop_def.index_variable == "i"
-
 
 class TestYAMLParserTriggers:
     """Test parsing different trigger types."""
@@ -633,38 +595,8 @@ workflow:
         assert len(workflow_def.triggers) == 1
         assert workflow_def.triggers[0].type == "manual"
 
-    def test_parse_scheduled_trigger(self) -> None:
-        """Test parsing scheduled trigger."""
-        yaml_str = """
-schemaVersion: "1.0.0"
-version: 1
-metadata:
-  name: test-workflow
-  description: Test
-triggers:
-- type: scheduled
-  schedule:
-    cron: "0 0 * * *"
-workflow:
-  activities:
-  - id: task1
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: echo "test"
-"""
-        workflow_def = parse_workflow_yaml(yaml_str)
-
-        assert len(workflow_def.triggers) == 1
-        # Triggers are Union types, need to check via model
-        trigger = workflow_def.triggers[0]
-        assert trigger.type == "scheduled"
-        assert trigger.schedule["cron"] == "0 0 * * *"
-
-    def test_parse_multiple_triggers(self) -> None:
-        """Test parsing multiple triggers."""
+    def test_parse_multiple_manual_triggers(self) -> None:
+        """Test parsing multiple manual triggers."""
         yaml_str = """
 schemaVersion: "1.0.0"
 version: 1
@@ -673,13 +605,8 @@ metadata:
   description: Test
 triggers:
 - type: manual
-- type: scheduled
-  schedule:
-    cron: "0 0 * * *"
-- type: event
-  event:
-    source: webhook
-    path: "/api/webhook"
+- type: manual
+  requiresApproval: true
 workflow:
   activities:
   - id: task1
@@ -692,10 +619,10 @@ workflow:
 """
         workflow_def = parse_workflow_yaml(yaml_str)
 
-        assert len(workflow_def.triggers) == 3
+        assert len(workflow_def.triggers) == 2
         assert workflow_def.triggers[0].type == "manual"
-        assert workflow_def.triggers[1].type == "scheduled"
-        assert workflow_def.triggers[2].type == "event"
+        assert workflow_def.triggers[1].type == "manual"
+        assert workflow_def.triggers[1].requires_approval is True
 
     def test_parse_script_with_environment_variables(self) -> None:
         """Test parsing script activity with environment variables."""
