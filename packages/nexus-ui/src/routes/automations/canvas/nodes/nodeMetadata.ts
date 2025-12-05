@@ -54,9 +54,9 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
     className: 'w-node rounded-4xl',
     expandable: false,
   },
-  join: {
+  converge: {
     icon: MergeIcon,
-    label: 'Join',
+    label: 'Converge',
     className: 'w-node rounded-3xl',
     expandable: false,
   },

@@ -242,25 +242,26 @@ describe('NodeDetailsPanel Component', () => {
     })
   })
 
-  describe('Join Node', () => {
-    it('renders join node details panel', () => {
-      const joinNode: Node<NodeType['data']> = {
-        id: 'join-1',
-        type: 'join',
+  describe('Converge Node', () => {
+    it('renders converge node details panel', () => {
+      const convergeNode: Node<NodeType['data']> = {
+        id: 'converge-1',
+        type: 'converge',
         position: { x: 0, y: 0 },
         data: {
-          type: 'join',
-          id: 'join-1',
-          name: 'Test Join',
-          join: {
+          type: 'converge',
+          id: 'converge-1',
+          name: 'Test Converge',
+          converge: {
+            branches: [],
             strategy: 'all',
           },
         },
       }
 
-      render(<NodeDetailsPanel node={joinNode} onClose={mockOnClose} />)
+      render(<NodeDetailsPanel node={convergeNode} onClose={mockOnClose} />)
 
-      expect(screen.getByRole('heading', { name: 'Test Join' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Test Converge' })).toBeInTheDocument()
       expect(screen.getByTestId('logic-node-form')).toBeInTheDocument()
     })
   })

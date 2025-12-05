@@ -9,11 +9,6 @@ export type Trigger =
 
 export type Activity = WorkflowAPI.components['schemas']['activity']
 export type TaskActivity = Extract<Activity, { type: 'task' }>
-export type ConditionActivity = Extract<Activity, { type: 'condition' }>
-export type SequenceActivity = Extract<Activity, { type: 'sequence' }>
-export type ParallelActivity = Extract<Activity, { type: 'parallel' }>
-export type LoopActivity = Extract<Activity, { type: 'loop' }>
-export type JoinActivity = Extract<Activity, { type: 'join' }>
 
 export const markerEnd = {
   type: MarkerType.ArrowClosed,

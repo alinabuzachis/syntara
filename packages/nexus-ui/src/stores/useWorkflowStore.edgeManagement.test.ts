@@ -2,7 +2,12 @@ import { describe, expect, it, beforeEach } from 'vitest'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
 
-import { useWorkflowStore, createScriptActivity, createJoinActivity, createConditionActivity } from './useWorkflowStore'
+import {
+  useWorkflowStore,
+  createScriptActivity,
+  createConvergeActivity,
+  createConditionActivity,
+} from './useWorkflowStore'
 
 describe('useWorkflowStore - Edge Management', () => {
   beforeEach(() => {
@@ -133,12 +138,12 @@ describe('useWorkflowStore - Edge Management', () => {
     })
   })
 
-  describe('Edge patterns with joins', () => {
-    it('tracks multiple edges to join node', () => {
+  describe('Edge patterns with converges', () => {
+    it('tracks multiple edges to converge node', () => {
       const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const joinJ = createJoinActivity('J', 'Join J', 'all')
+      const joinJ = createConvergeActivity('J', 'Converge J')
 
       const edges: EdgeConnection[] = [
         { id: 'A-J', source: 'A', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
@@ -163,10 +168,10 @@ describe('useWorkflowStore - Edge Management', () => {
       expect(storedEdges.filter((e) => e.target === 'J')).toHaveLength(3)
     })
 
-    it('handles edges from join to downstream activities', () => {
+    it('handles edges from converge to downstream activities', () => {
       const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const joinJ = createJoinActivity('J', 'Join J', 'all')
+      const joinJ = createConvergeActivity('J', 'Converge J')
       const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
 
       const edges: EdgeConnection[] = [
@@ -190,17 +195,17 @@ describe('useWorkflowStore - Edge Management', () => {
       const storedEdges = useWorkflowStore.getState().edges
       expect(storedEdges).toHaveLength(3)
 
-      // Verify edges to join
+      // Verify edges to converge
       expect(storedEdges.filter((e) => e.target === 'J')).toHaveLength(2)
 
-      // Verify edge from join
+      // Verify edge from converge
       expect(storedEdges.find((e) => e.source === 'J')).toBeDefined()
     })
 
     it('preserves edges during parallel container creation', () => {
       const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const joinJ = createJoinActivity('J', 'Join J', 'all')
+      const joinJ = createConvergeActivity('J', 'Converge J')
 
       const edges: EdgeConnection[] = [
         { id: 'A-J', source: 'A', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
@@ -220,7 +225,7 @@ describe('useWorkflowStore - Edge Management', () => {
       })
 
       // Sync join branches (creates parallel container)
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       // Edges should be preserved
       const storedEdges = useWorkflowStore.getState().edges
@@ -351,14 +356,14 @@ describe('useWorkflowStore - Edge Management', () => {
       expect(storedEdges.filter((e) => e.target === 'D')).toHaveLength(2)
     })
 
-    it('handles multiple parallel paths with joins', () => {
+    it('handles multiple parallel paths with converges', () => {
       const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const joinJ1 = createJoinActivity('J1', 'Join 1', 'all')
+      const convergeJ1 = createConvergeActivity('J1', 'Converge 1')
       const taskD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
       const taskE = createScriptActivity('E', 'Task E', 'python', 'print("E")')
-      const joinJ2 = createJoinActivity('J2', 'Join 2', 'all')
+      const convergeJ2 = createConvergeActivity('J2', 'Converge 2')
 
       const edges: EdgeConnection[] = [
         // First parallel section
@@ -378,7 +383,7 @@ describe('useWorkflowStore - Edge Management', () => {
           name: 'Test',
           triggers: [],
           workflow: {
-            activities: [taskA, taskB, taskC, joinJ1, taskD, taskE, joinJ2],
+            activities: [taskA, taskB, taskC, convergeJ1, taskD, taskE, convergeJ2],
           },
         },
         workflowVersion: 1,
@@ -402,7 +407,7 @@ describe('useWorkflowStore - Edge Management', () => {
       const condition = createConditionActivity('A', 'Condition A', 'input.value > 10')
       const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const joinJ = createJoinActivity('J', 'Join J', 'all')
+      const joinJ = createConvergeActivity('J', 'Converge J')
       const taskD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
 
       const edges: EdgeConnection[] = [
@@ -544,7 +549,7 @@ describe('useWorkflowStore - Edge Management', () => {
     it('maintains edge state during join synchronization', () => {
       const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const joinJ = createJoinActivity('J', 'Join J', 'all')
+      const joinJ = createConvergeActivity('J', 'Converge J')
 
       const edges: EdgeConnection[] = [
         { id: 'A-J', source: 'A', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
@@ -564,7 +569,7 @@ describe('useWorkflowStore - Edge Management', () => {
       })
 
       // Sync join branches
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       // Edges should remain unchanged
       expect(useWorkflowStore.getState().edges).toEqual(edges)

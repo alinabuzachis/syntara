@@ -13,7 +13,6 @@ export const FlowNodeType = {
   TRIGGER: 'trigger',
   TASK: 'task',
   CONDITION: 'condition',
-  JOIN: 'join',
   PARALLEL: 'parallel',
   LOOP: 'loop',
   PLACEHOLDER: 'placeholder',
@@ -30,11 +29,11 @@ export type FlowNodeTypeValue = (typeof FlowNodeType)[keyof typeof FlowNodeType]
  * import { MenuNodeType } from '@/constants/nodeTypes'
  *
  * if (nodeType === MenuNodeType.ACTIVITY) {
- *   // Handle activity node (Task, Condition, Join, Loop, Parallel)
+ *   // Handle activity node (Task, Condition, Converge, Loop, Parallel)
  * }
  */
 export const MenuNodeType = {
-  /** Activity nodes: Task, Condition, Join, Loop, Parallel */
+  /** Activity nodes: Task, Condition, Converge, Loop, Parallel */
   ACTIVITY: 'activity',
   /** Trigger nodes: Manual, Scheduled, Webhook, etc. */
   TRIGGER: 'trigger',

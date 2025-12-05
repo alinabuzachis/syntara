@@ -1392,88 +1392,6 @@ export interface components {
        */
       requiresApproval?: boolean
     }
-    /** @description Scheduled trigger - time-based or continuous execution */
-    scheduledTrigger: {
-      /** @constant */
-      type: 'scheduled'
-      schedule:
-        | {
-            /** @constant */
-            scheduleType: 'cron'
-            /**
-             * @description Cron expression for scheduling (standard 5-field format or special strings)
-             * @example 0 0 * * *
-             * @example @daily
-             * @example *\/5 * * * *
-             * @example 0 *\/6 * * *
-             */
-            cron: string
-            /**
-             * @description IANA timezone for cron execution
-             * @default UTC
-             * @example America/New_York
-             * @example UTC
-             * @example Europe/London
-             */
-            timezone?: string
-          }
-        | {
-            /** @constant */
-            scheduleType: 'interval'
-            /**
-             * @description Execution interval (ISO 8601 duration)
-             * @example PT15M
-             * @example PT1H
-             * @example P1D
-             */
-            interval: string
-          }
-        | {
-            /** @constant */
-            scheduleType: 'continuous'
-            /**
-             * @description Run workflow continuously (restart on completion)
-             * @constant
-             */
-            continuous: true
-          }
-      /**
-       * Format: date-time
-       * @description Start time for scheduled execution (ISO 8601)
-       */
-      startTime?: string
-      /**
-       * Format: date-time
-       * @description End time for scheduled execution (ISO 8601)
-       */
-      endTime?: string
-    }
-    /** @description Event-driven trigger - external events initiate workflow */
-    eventTrigger: {
-      /** @constant */
-      type: 'event'
-      event: {
-        /**
-         * @description Event source identifier (e.g., webhook, message queue, external system)
-         * @example webhook
-         * @example kafka
-         * @example rabbitmq
-         * @example sqs
-         */
-        source: string
-        /**
-         * @description Type of event to trigger on
-         * @example order.created
-         * @example user.registered
-         * @example payment.completed
-         */
-        eventType: string
-        /** @description Filter conditions for event matching (JSONPath or similar) */
-        filter?: {
-          [key: string]: unknown
-        }
-      }
-    }
     /** @description Human approval configuration */
     approvalDefinition: {
       /** @description List of users or roles who can approve */
@@ -1556,12 +1474,6 @@ export interface components {
       id: string
       /** @description Human-readable name for the activity */
       name?: string
-      /**
-       * @description Optional condition for executing this activity (activity is skipped if condition evaluates to false)
-       * @example ${output.status == 'success'}
-       * @example ${input.amount > 1000}
-       */
-      condition?: string
       /**
        * @description Whether this activity requires human approval before execution
        * @default false
@@ -1745,7 +1657,7 @@ export interface components {
       | components['schemas']['sequenceActivity']
       | components['schemas']['conditionActivity']
       | components['schemas']['loopActivity']
-      | components['schemas']['joinActivity']
+      | components['schemas']['convergeActivity']
     parallelActivity: {
       /** @constant */
       type: 'parallel'
@@ -1783,7 +1695,7 @@ export interface components {
       then: components['schemas']['activity'][]
       /** @description Activities to execute if condition is false */
       else?: components['schemas']['activity'][]
-    } & (WithRequired<components['schemas']['baseActivity'], 'condition'> & {
+    } & (components['schemas']['baseActivity'] & {
       /**
        * @description discriminator enum property added by openapi-typescript
        * @enum {string}
@@ -1842,27 +1754,7 @@ export interface components {
        */
       type: 'while'
     })
-    countLoop: {
-      /** @constant */
-      type: 'count'
-      /** @description Number of iterations to execute */
-      count: number
-      /**
-       * @description Variable name for iteration counter
-       * @default index
-       */
-      indexVariable?: string
-    } & (components['schemas']['baseLoop'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: 'count'
-    })
-    loopDefinition:
-      | components['schemas']['forEachLoop']
-      | components['schemas']['whileLoop']
-      | components['schemas']['countLoop']
+    loopDefinition: components['schemas']['forEachLoop'] | components['schemas']['whileLoop']
     loopActivity: {
       /** @constant */
       type: 'loop'
@@ -1875,27 +1767,25 @@ export interface components {
        */
       type: 'loop'
     })
-    /** @description Join pattern configuration - waits for specific activities to complete before proceeding */
-    joinDefinition: {
+    /** @description Converge pattern configuration - waits for specific activities to complete before proceeding */
+    convergeDefinition: {
       /** @description List of activity IDs to wait for */
       branches: string[]
       /**
-       * @description Join strategy: 'all' waits for all specified branches, 'any' waits for first completion, 'majority' waits for >50%, 'count' waits for specific number
+       * @description Converge strategy: 'all' waits for all specified branches
        * @default all
        * @enum {string}
        */
-      strategy?: 'all' | 'any' | 'majority' | 'count'
-      /** @description Required number of completed branches (only for 'count' strategy) */
-      count?: number
+      strategy?: 'all'
       /**
-       * @description Maximum time to wait for join condition (ISO 8601 duration)
+       * @description Maximum time to wait for converge condition (ISO 8601 duration)
        * @example PT5M
        * @example PT30M
        * @example PT1H
        */
       timeout?: string
       /**
-       * @description Action to take if timeout is reached before join condition is met
+       * @description Action to take if timeout is reached before converge condition is met
        * @default fail
        * @enum {string}
        */
@@ -1906,17 +1796,17 @@ export interface components {
        */
       aggregateOutputs?: boolean
     }
-    joinActivity: {
+    convergeActivity: {
       /** @constant */
-      type: 'join'
-      /** @description Join definition */
-      join: components['schemas']['joinDefinition']
+      type: 'converge'
+      /** @description Converge definition */
+      converge: components['schemas']['convergeDefinition']
     } & (components['schemas']['baseActivity'] & {
       /**
        * @description discriminator enum property added by openapi-typescript
        * @enum {string}
        */
-      type: 'join'
+      type: 'converge'
     })
     /**
      * Workflow Definition Schema
@@ -1955,12 +1845,8 @@ export interface components {
          */
         timeout?: string
       }
-      /** @description Workflow trigger configuration - manual, scheduled, or event-driven */
-      triggers?: (
-        | components['schemas']['manualTrigger']
-        | components['schemas']['scheduledTrigger']
-        | components['schemas']['eventTrigger']
-      )[]
+      /** @description Workflow trigger configuration - manual trigger only */
+      triggers?: components['schemas']['manualTrigger'][]
       /** @description Input parameter definitions for the workflow */
       inputs?: {
         [key: string]: definitions['parameter']
@@ -2139,7 +2025,4 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-type WithRequired<T, K extends keyof T> = T & {
-  [P in K]-?: T[P]
-}
 export type operations = Record<string, never>

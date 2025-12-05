@@ -191,10 +191,10 @@ describe('buildNestedConditionStructure', () => {
         },
         parallelWrapper,
         {
-          type: 'join',
+          type: 'converge',
           id: 'J',
-          name: 'Join J',
-          join: { strategy: 'all' },
+          name: 'Converge J',
+          converge: { strategy: 'all', branches: [] },
         },
       ]
 
@@ -219,7 +219,7 @@ describe('buildNestedConditionStructure', () => {
       expect(wrapper.type).toBe('parallel')
       expect(wrapper.id).toBe('parallel_for_J')
 
-      // Join should be a sibling after the condition, not inside the branch
+      // Converge should be a sibling after the condition, not inside the branch
       expect(result[1].id).toBe('J')
     })
 
@@ -263,10 +263,10 @@ describe('buildNestedConditionStructure', () => {
           task: { executor: 'script', config: { language: 'python', code: 'print("D")' } },
         },
         {
-          type: 'join',
+          type: 'converge',
           id: 'J',
-          name: 'Join J',
-          join: { strategy: 'all' },
+          name: 'Converge J',
+          converge: { strategy: 'all', branches: [] },
         },
       ]
 
@@ -276,7 +276,7 @@ describe('buildNestedConditionStructure', () => {
         { id: 'A-C', source: 'A', target: 'C', sourceHandle: 'true', targetHandle: 'target' },
         // Nested condition B connects to D
         { id: 'B-D', source: 'B', target: 'D', sourceHandle: 'true', targetHandle: 'target' },
-        // D and C connect to join
+        // D and C connect to converge
         { id: 'D-J', source: 'D', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
         { id: 'C-J', source: 'C', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
       ]

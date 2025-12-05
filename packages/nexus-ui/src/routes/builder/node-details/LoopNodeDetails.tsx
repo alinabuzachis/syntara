@@ -16,17 +16,23 @@ export function LoopNodeDetails({ loopData, nodeId, onClose }: LoopNodeDetailsPr
   const { showError } = useAlerts()
   const updateActivity = useWorkflowStore((state) => state.updateActivity)
 
+  // Handle potentially malformed loop data
+  if (!loopData.loop) {
+    showError('Invalid loop node data', 'Error')
+    onClose()
+    return null
+  }
+
   const initialData = {
     name: loopData.name,
     logicType: 'loop' as const,
     type: loopData.loop.type,
     items: loopData.loop.type === 'forEach' && 'items' in loopData.loop ? loopData.loop.items : undefined,
     condition: loopData.loop.type === 'while' && 'condition' in loopData.loop ? loopData.loop.condition : undefined,
-    count: loopData.loop.type === 'count' && 'count' in loopData.loop ? loopData.loop.count : undefined,
+    maxIterations:
+      loopData.loop.type === 'while' && 'maxIterations' in loopData.loop ? loopData.loop.maxIterations : undefined,
     indexVariable:
-      (loopData.loop.type === 'forEach' || loopData.loop.type === 'count') && 'indexVariable' in loopData.loop
-        ? loopData.loop.indexVariable
-        : undefined,
+      loopData.loop.type === 'forEach' && 'indexVariable' in loopData.loop ? loopData.loop.indexVariable : undefined,
     itemVariable:
       loopData.loop.type === 'forEach' && 'itemVariable' in loopData.loop ? loopData.loop.itemVariable : undefined,
   }
@@ -36,7 +42,7 @@ export function LoopNodeDetails({ loopData, nodeId, onClose }: LoopNodeDetailsPr
     type?: string
     items?: string
     condition?: string
-    count?: number
+    maxIterations?: number
     indexVariable?: string
     itemVariable?: string
   }) => {
@@ -46,10 +52,10 @@ export function LoopNodeDetails({ loopData, nodeId, onClose }: LoopNodeDetailsPr
         name: data.name,
         loop: {
           ...loopData.loop,
-          type: data.type! as 'forEach' | 'while' | 'count',
+          type: data.type! as 'forEach' | 'while',
           ...(data.items && { items: data.items }),
           ...(data.condition && { condition: data.condition }),
-          ...(data.count !== undefined && { count: data.count }),
+          ...(data.maxIterations !== undefined && { maxIterations: data.maxIterations }),
           ...(data.indexVariable && { indexVariable: data.indexVariable }),
           ...(data.itemVariable && { itemVariable: data.itemVariable }),
         },

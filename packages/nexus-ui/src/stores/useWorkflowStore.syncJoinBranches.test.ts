@@ -1,11 +1,11 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { describe, expect, it, beforeEach } from 'vitest'
 
-import { useWorkflowStore, createScriptActivity, createJoinActivity } from './useWorkflowStore'
+import { useWorkflowStore, createScriptActivity, createConvergeActivity } from './useWorkflowStore'
 
 type Activity = WorkflowAPI.components['schemas']['activity']
 
-describe('useWorkflowStore - syncJoinBranches', () => {
+describe('useWorkflowStore - syncConvergeBranches', () => {
   beforeEach(() => {
     useWorkflowStore.setState({
       currentWorkflow: null,
@@ -14,18 +14,18 @@ describe('useWorkflowStore - syncJoinBranches', () => {
     })
   })
 
-  describe('Join with 2+ incoming edges', () => {
+  describe('Converge with 2+ incoming edges', () => {
     it('creates parallel container for two branches', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const joinActivity = createJoinActivity('J', 'Join J', 'all')
+      const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
         currentWorkflow: {
           name: 'Test',
           triggers: [],
           workflow: {
-            activities: [activityB, activityC, joinActivity],
+            activities: [activityB, activityC, convergeActivity],
           },
         },
         workflowVersion: 1,
@@ -35,7 +35,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
         ],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
 
@@ -47,9 +47,9 @@ describe('useWorkflowStore - syncJoinBranches', () => {
       expect(parallel.branches?.map((b) => b.id)).toContain('B')
       expect(parallel.branches?.map((b) => b.id)).toContain('C')
 
-      // Join should reference the parallel container
-      const join = activities.find((a) => a.id === 'J') as Extract<Activity, { type: 'join' }>
-      expect(join.join.branches).toEqual(['parallel_for_J'])
+      // Converge should reference the parallel container
+      const converge = activities.find((a) => a.id === 'J') as Extract<Activity, { type: 'converge' }>
+      expect(converge.converge.branches).toEqual(['parallel_for_J'])
 
       // Source activities should not be in main array anymore
       expect(activities.find((a) => a.id === 'B')).toBeUndefined()
@@ -60,14 +60,14 @@ describe('useWorkflowStore - syncJoinBranches', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
       const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
-      const joinActivity = createJoinActivity('J', 'Join J', 'all')
+      const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
         currentWorkflow: {
           name: 'Test',
           triggers: [],
           workflow: {
-            activities: [activityB, activityC, activityD, joinActivity],
+            activities: [activityB, activityC, activityD, convergeActivity],
           },
         },
         workflowVersion: 1,
@@ -78,7 +78,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
         ],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
       const parallel = activities.find((a) => a.id === 'parallel_for_J') as Extract<Activity, { type: 'parallel' }>
@@ -91,7 +91,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
       const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
-      const joinActivity = createJoinActivity('J', 'Join J', 'all')
+      const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       // Start with B and C
       useWorkflowStore.setState({
@@ -99,7 +99,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
           name: 'Test',
           triggers: [],
           workflow: {
-            activities: [activityB, activityC, joinActivity],
+            activities: [activityB, activityC, convergeActivity],
           },
         },
         workflowVersion: 1,
@@ -109,7 +109,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
         ],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       // Add D to activities and edges
       useWorkflowStore.setState({
@@ -126,7 +126,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
         ],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
       const parallel = activities.find((a) => a.id === 'parallel_for_J') as Extract<Activity, { type: 'parallel' }>
@@ -139,7 +139,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
       const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
-      const joinActivity = createJoinActivity('J', 'Join J', 'all')
+      const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       // Start with B, C, D
       useWorkflowStore.setState({
@@ -147,7 +147,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
           name: 'Test',
           triggers: [],
           workflow: {
-            activities: [activityB, activityC, activityD, joinActivity],
+            activities: [activityB, activityC, activityD, convergeActivity],
           },
         },
         workflowVersion: 1,
@@ -158,7 +158,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
         ],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       // Remove edge from C to J (now only B and D connect to J)
       useWorkflowStore.setState({
@@ -168,7 +168,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
         ],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
 
@@ -181,33 +181,33 @@ describe('useWorkflowStore - syncJoinBranches', () => {
     })
   })
 
-  describe('Join with single incoming edge', () => {
+  describe('Converge with single incoming edge', () => {
     it('removes parallel container and references activity directly', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const joinActivity = createJoinActivity('J', 'Join J', 'all')
+      const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
         currentWorkflow: {
           name: 'Test',
           triggers: [],
           workflow: {
-            activities: [activityB, joinActivity],
+            activities: [activityB, convergeActivity],
           },
         },
         workflowVersion: 1,
         edges: [{ id: 'B-J', source: 'B', target: 'J', sourceHandle: 'source', targetHandle: 'target' }],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
 
       // Should NOT create parallel container
       expect(activities.find((a) => a.id === 'parallel_for_J')).toBeUndefined()
 
-      // Join should reference B directly
-      const join = activities.find((a) => a.id === 'J') as Extract<Activity, { type: 'join' }>
-      expect(join.join.branches).toEqual(['B'])
+      // Converge should reference B directly
+      const converge = activities.find((a) => a.id === 'J') as Extract<Activity, { type: 'converge' }>
+      expect(converge.converge.branches).toEqual(['B'])
 
       // B should still be in main activities
       expect(activities.find((a) => a.id === 'B')).toBeDefined()
@@ -216,7 +216,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
     it('removes existing parallel when going from 2 to 1 branch', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const joinActivity = createJoinActivity('J', 'Join J', 'all')
+      const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       // Start with 2 branches
       useWorkflowStore.setState({
@@ -224,7 +224,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
           name: 'Test',
           triggers: [],
           workflow: {
-            activities: [activityB, activityC, joinActivity],
+            activities: [activityB, activityC, convergeActivity],
           },
         },
         workflowVersion: 1,
@@ -234,7 +234,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
         ],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       // Verify parallel exists
       let activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
@@ -245,7 +245,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
         edges: [{ id: 'B-J', source: 'B', target: 'J', sourceHandle: 'source', targetHandle: 'target' }],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
 
@@ -256,17 +256,17 @@ describe('useWorkflowStore - syncJoinBranches', () => {
       expect(activities.find((a) => a.id === 'B')).toBeDefined()
       expect(activities.find((a) => a.id === 'C')).toBeDefined()
 
-      // Join should reference only B
-      const join = activities.find((a) => a.id === 'J') as Extract<Activity, { type: 'join' }>
-      expect(join.join.branches).toEqual(['B'])
+      // Converge should reference only B
+      const converge = activities.find((a) => a.id === 'J') as Extract<Activity, { type: 'converge' }>
+      expect(converge.converge.branches).toEqual(['B'])
     })
   })
 
-  describe('Join with no incoming edges', () => {
-    it('clears join branches and removes parallel if exists', () => {
+  describe('Converge with no incoming edges', () => {
+    it('clears converge branches and removes parallel if exists', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const joinActivity = createJoinActivity('J', 'Join J', 'all')
+      const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       // Start with 2 branches
       useWorkflowStore.setState({
@@ -274,7 +274,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
           name: 'Test',
           triggers: [],
           workflow: {
-            activities: [activityB, activityC, joinActivity],
+            activities: [activityB, activityC, convergeActivity],
           },
         },
         workflowVersion: 1,
@@ -284,11 +284,11 @@ describe('useWorkflowStore - syncJoinBranches', () => {
         ],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       // Remove all edges
       useWorkflowStore.setState({ edges: [] })
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
 
@@ -296,8 +296,8 @@ describe('useWorkflowStore - syncJoinBranches', () => {
       expect(activities.find((a) => a.id === 'parallel_for_J')).toBeUndefined()
 
       // Join branches should be empty
-      const join = activities.find((a) => a.id === 'J') as Extract<Activity, { type: 'join' }>
-      expect(join.join.branches).toEqual([])
+      const converge = activities.find((a) => a.id === 'J') as Extract<Activity, { type: 'converge' }>
+      expect(converge.converge.branches).toEqual([])
 
       // B and C should be restored to main activities
       expect(activities.find((a) => a.id === 'B')).toBeDefined()
@@ -305,21 +305,21 @@ describe('useWorkflowStore - syncJoinBranches', () => {
     })
   })
 
-  describe('Multiple joins', () => {
-    it('handles multiple independent joins', () => {
+  describe('Multiple converges', () => {
+    it('handles multiple independent converges', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
       const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
       const activityE = createScriptActivity('E', 'Task E', 'python', 'print("E")')
-      const joinJ1 = createJoinActivity('J1', 'Join 1', 'all')
-      const joinJ2 = createJoinActivity('J2', 'Join 2', 'all')
+      const convergeJ1 = createConvergeActivity('J1', 'Converge 1')
+      const convergeJ2 = createConvergeActivity('J2', 'Converge 2')
 
       useWorkflowStore.setState({
         currentWorkflow: {
           name: 'Test',
           triggers: [],
           workflow: {
-            activities: [activityB, activityC, activityD, activityE, joinJ1, joinJ2],
+            activities: [activityB, activityC, activityD, activityE, convergeJ1, convergeJ2],
           },
         },
         workflowVersion: 1,
@@ -331,7 +331,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
         ],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
 
@@ -346,11 +346,11 @@ describe('useWorkflowStore - syncJoinBranches', () => {
       expect(parallel2.branches?.map((b) => b.id).sort()).toEqual(['D', 'E'])
 
       // Joins should reference their respective parallels
-      const join1 = activities.find((a) => a.id === 'J1') as Extract<Activity, { type: 'join' }>
-      const join2 = activities.find((a) => a.id === 'J2') as Extract<Activity, { type: 'join' }>
+      const join1 = activities.find((a) => a.id === 'J1') as Extract<Activity, { type: 'converge' }>
+      const join2 = activities.find((a) => a.id === 'J2') as Extract<Activity, { type: 'converge' }>
 
-      expect(join1.join.branches).toEqual(['parallel_for_J1'])
-      expect(join2.join.branches).toEqual(['parallel_for_J2'])
+      expect(join1.converge.branches).toEqual(['parallel_for_J1'])
+      expect(join2.converge.branches).toEqual(['parallel_for_J2'])
     })
   })
 
@@ -358,7 +358,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
     it('does nothing when no workflow is set', () => {
       useWorkflowStore.setState({ currentWorkflow: null })
 
-      expect(() => useWorkflowStore.getState().syncJoinBranches()).not.toThrow()
+      expect(() => useWorkflowStore.getState().syncConvergeBranches()).not.toThrow()
       expect(useWorkflowStore.getState().currentWorkflow).toBeNull()
     })
 
@@ -378,7 +378,7 @@ describe('useWorkflowStore - syncJoinBranches', () => {
         edges: [{ id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' }],
       })
 
-      useWorkflowStore.getState().syncJoinBranches()
+      useWorkflowStore.getState().syncConvergeBranches()
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
       expect(activities).toHaveLength(2)

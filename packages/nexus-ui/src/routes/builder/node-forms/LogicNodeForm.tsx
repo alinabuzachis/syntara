@@ -15,11 +15,12 @@ interface LogicFormData {
   condition?: string
   type?: string
   items?: string
-  count?: number
+  maxIterations?: number
   indexVariable?: string
   itemVariable?: string
-  joinStrategy?: string
-  joinCount?: number
+  timeout?: string
+  onTimeout?: 'continue' | 'fail'
+  aggregateOutputs?: boolean
 }
 
 interface LogicNodeFormProps {
@@ -33,7 +34,6 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
   const { register } = useFormContext<LogicFormData>()
   const logicType = useWatch({ name: 'logicType' })
   const type = useWatch({ name: 'type' })
-  const joinStrategy = useWatch({ name: 'joinStrategy' })
 
   return (
     <>
@@ -83,7 +83,6 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
             <NativeSelect {...register('type')} id="logic-type">
               <option value="forEach">For Each</option>
               <option value="while">While</option>
-              <option value="count">Count</option>
             </NativeSelect>
           </div>
 
@@ -128,33 +127,35 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
           )}
 
           {type === 'while' && (
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="logic-condition-while" className="text-xs font-medium text-gray-300">
-                Condition Expression <span className="text-red-500">*</span>
-              </label>
-              <Textarea
-                {...register('condition', { required: true })}
-                id="logic-condition-while"
-                placeholder="${counter < 10}"
-                rows={2}
-                className="font-mono text-xs"
-              />
-            </div>
-          )}
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="logic-condition-while" className="text-xs font-medium text-gray-300">
+                  Condition Expression <span className="text-red-500">*</span>
+                </label>
+                <Textarea
+                  {...register('condition', { required: true })}
+                  id="logic-condition-while"
+                  placeholder="${counter < 10}"
+                  rows={2}
+                  className="font-mono text-xs"
+                />
+              </div>
 
-          {type === 'count' && (
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="logic-count" className="text-xs font-medium text-gray-300">
-                Iteration Count <span className="text-red-500">*</span>
-              </label>
-              <Input
-                {...register('count', { required: true, valueAsNumber: true })}
-                id="logic-count"
-                type="number"
-                min={1}
-                className="text-xs"
-              />
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="logic-maxIterations" className="text-xs font-medium text-gray-300">
+                  Max Iterations
+                </label>
+                <Input
+                  {...register('maxIterations', { valueAsNumber: true })}
+                  id="logic-maxIterations"
+                  type="number"
+                  min={1}
+                  placeholder="1000 (default)"
+                  className="text-xs"
+                />
+                <p className="text-xs text-gray-400">Maximum iterations to prevent infinite loops (default: 1000)</p>
+              </div>
+            </>
           )}
         </>
       )}
@@ -162,35 +163,41 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
       {logicType === 'converge' && (
         <>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="logic-joinStrategy" className="text-xs font-medium text-gray-300">
-              Join Strategy
+            <label htmlFor="logic-timeout" className="text-xs font-medium text-gray-300">
+              Timeout (ISO 8601 Duration)
             </label>
-            <NativeSelect {...register('joinStrategy')} id="logic-joinStrategy">
-              <option value="all">All - Wait for all branches</option>
-              <option value="any">Any - Wait for first completion</option>
-              <option value="majority">Majority - Wait for &gt;50%</option>
-              <option value="count">Count - Wait for specific number</option>
+            <Input
+              {...register('timeout')}
+              id="logic-timeout"
+              placeholder="PT5M (5 minutes)"
+              className="font-mono text-xs"
+            />
+            <p className="text-xs text-gray-400">Maximum time to wait for all branches (e.g., PT5M, PT1H, P1D)</p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="logic-onTimeout" className="text-xs font-medium text-gray-300">
+              On Timeout
+            </label>
+            <NativeSelect {...register('onTimeout')} id="logic-onTimeout">
+              <option value="fail">Fail - Stop workflow</option>
+              <option value="continue">Continue - Proceed anyway</option>
             </NativeSelect>
           </div>
 
-          {joinStrategy === 'count' && (
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="logic-joinCount" className="text-xs font-medium text-gray-300">
-                Required Branch Count <span className="text-red-500">*</span>
-              </label>
-              <Input
-                {...register('joinCount', { required: true, valueAsNumber: true })}
-                id="logic-joinCount"
-                type="number"
-                min={1}
-                className="text-xs"
-              />
-            </div>
-          )}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="logic-aggregateOutputs" className="text-xs font-medium text-gray-300">
+              Aggregate Outputs
+            </label>
+            <NativeSelect {...register('aggregateOutputs')} id="logic-aggregateOutputs">
+              <option value="true">Yes - Collect outputs from all branches</option>
+              <option value="false">No - Don't aggregate outputs</option>
+            </NativeSelect>
+          </div>
 
           <div className="rounded-md bg-blue-500/10 p-3">
             <p className="text-xs text-blue-300">
-              <strong>Note:</strong> Converge (Join) nodes wait for multiple parallel branches to complete before
+              <strong>Note:</strong> Converge nodes wait for all connected parallel branches to complete before
               proceeding. Connect incoming edges from the branches you want to synchronize.
             </p>
           </div>
@@ -209,11 +216,10 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
     name: '',
     logicType: 'condition',
     type: 'forEach',
-    count: 10,
     indexVariable: 'index',
     itemVariable: 'item',
-    joinStrategy: 'all',
-    joinCount: 2,
+    onTimeout: 'fail',
+    aggregateOutputs: true,
     ...props.initialData,
   }
 
@@ -227,11 +233,12 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
           : undefined,
       type: data.logicType === 'loop' ? data.type : undefined,
       items: data.logicType === 'loop' && data.type === 'forEach' ? data.items : undefined,
-      count: data.logicType === 'loop' && data.type === 'count' ? data.count : undefined,
+      maxIterations: data.logicType === 'loop' && data.type === 'while' ? data.maxIterations : undefined,
       indexVariable: data.logicType === 'loop' && data.type === 'forEach' ? data.indexVariable : undefined,
       itemVariable: data.logicType === 'loop' && data.type === 'forEach' ? data.itemVariable : undefined,
-      joinStrategy: data.logicType === 'converge' ? data.joinStrategy : undefined,
-      joinCount: data.logicType === 'converge' && data.joinStrategy === 'count' ? data.joinCount : undefined,
+      timeout: data.logicType === 'converge' ? data.timeout : undefined,
+      onTimeout: data.logicType === 'converge' ? data.onTimeout : undefined,
+      aggregateOutputs: data.logicType === 'converge' ? data.aggregateOutputs : undefined,
     }
     props.onSubmit(cleanedData)
   }

@@ -2,8 +2,8 @@ import { SplitIcon } from 'lucide-react'
 
 import {
   createConditionActivity,
+  createConvergeActivity,
   createGenericActivity,
-  createJoinActivity,
   createLoopActivity,
   useWorkflowStore,
 } from '../../../../stores/useWorkflowStore'
@@ -17,11 +17,12 @@ type LogicFormData = {
   condition?: string
   type?: string
   items?: string
-  count?: number
+  maxIterations?: number
   indexVariable?: string
   itemVariable?: string
-  joinStrategy?: string
-  joinCount?: number
+  timeout?: string
+  onTimeout?: 'continue' | 'fail'
+  aggregateOutputs?: boolean
 }
 
 /**
@@ -64,7 +65,7 @@ export default function registerLogicNode() {
             }
             activity = createConditionActivity(activityId, data.name, data.condition)
           } else if (data.logicType === 'loop') {
-            const loopType = data.type as 'forEach' | 'while' | 'count'
+            const loopType = data.type as 'forEach' | 'while'
 
             if (loopType === 'forEach' && !data.items) {
               onError('Items expression is required for forEach loop')
@@ -74,15 +75,11 @@ export default function registerLogicNode() {
               onError('Condition expression is required for while loop')
               return
             }
-            if (loopType === 'count' && data.count === undefined) {
-              onError('Count is required for count loop')
-              return
-            }
 
             activity = createLoopActivity(activityId, data.name, loopType, {
               items: data.items,
               condition: data.condition,
-              count: data.count,
+              maxIterations: data.maxIterations,
               indexVariable: data.indexVariable,
               itemVariable: data.itemVariable,
             })
@@ -123,14 +120,11 @@ export default function registerLogicNode() {
             onSuccess(activityId)
             return
           } else if (data.logicType === 'converge') {
-            const strategy = (data.joinStrategy || 'all') as 'all' | 'any' | 'majority' | 'count'
-
-            if (strategy === 'count' && data.joinCount === undefined) {
-              onError('Branch count is required for count strategy')
-              return
-            }
-
-            activity = createJoinActivity(activityId, data.name, strategy, data.joinCount)
+            activity = createConvergeActivity(activityId, data.name, {
+              timeout: data.timeout,
+              onTimeout: data.onTimeout,
+              aggregateOutputs: data.aggregateOutputs,
+            })
           } else {
             onError('Invalid logic type')
             return

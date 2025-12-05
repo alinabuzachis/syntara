@@ -10,19 +10,19 @@ describe('NodeRawDataView Component', () => {
   it('renders node type correctly', () => {
     const node: Node<NodeType['data']> = {
       id: 'test-node-1',
-      type: 'join',
+      type: 'converge',
       position: { x: 0, y: 0 },
       data: {
-        type: 'join',
+        type: 'converge',
         id: 'test-node-1',
-        name: 'Test Join Node',
+        name: 'Test Converge Node',
       },
     }
 
     render(<NodeRawDataView node={node} />)
 
     expect(screen.getByText('Node Type')).toBeInTheDocument()
-    expect(screen.getByText('join')).toBeInTheDocument()
+    expect(screen.getByText('converge')).toBeInTheDocument()
   })
 
   it('renders node ID correctly', () => {
@@ -42,10 +42,10 @@ describe('NodeRawDataView Component', () => {
   it('renders node data as formatted JSON', () => {
     const node: Node<NodeType['data']> = {
       id: 'data-test',
-      type: 'join',
+      type: 'converge',
       position: { x: 100, y: 200 },
       data: {
-        type: 'join',
+        type: 'converge',
         id: 'data-test',
         name: 'Test Data',
         customField: 'custom value',
@@ -59,7 +59,7 @@ describe('NodeRawDataView Component', () => {
     // Check that the JSON is displayed
     const preElement = screen.getByText(/Test Data/)
     expect(preElement).toBeInTheDocument()
-    expect(preElement.textContent).toContain('"type": "join"')
+    expect(preElement.textContent).toContain('"type": "converge"')
     expect(preElement.textContent).toContain('"name": "Test Data"')
     expect(preElement.textContent).toContain('"customField": "custom value"')
   })
@@ -95,7 +95,7 @@ describe('NodeRawDataView Component', () => {
   it('handles empty node data', () => {
     const node: Node<NodeType['data']> = {
       id: 'empty-data',
-      type: 'join',
+      type: 'converge',
       position: { x: 0, y: 0 },
       data: {},
     }

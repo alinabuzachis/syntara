@@ -236,10 +236,10 @@ describe('Condition Node Integration', () => {
           else: [],
         },
         {
-          type: 'join',
+          type: 'converge',
           id: 'J',
-          name: 'Join J',
-          join: { strategy: 'all' },
+          name: 'Converge J',
+          converge: { strategy: 'all', branches: [] },
         },
       ]
 
@@ -305,10 +305,10 @@ describe('Condition Node Integration', () => {
           else: [],
         },
         {
-          type: 'join',
+          type: 'converge',
           id: 'J',
-          name: 'Join J',
-          join: { strategy: 'all' },
+          name: 'Converge J',
+          converge: { strategy: 'all', branches: [] },
         },
       ]
 

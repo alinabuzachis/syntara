@@ -469,7 +469,7 @@ export class WorkflowTransform {
     } else {
       // User-created parallel - flatten to extract branch tasks
       // Parallel container is NOT added to canvas - branches become separate top-level activities
-      // When branches connect to a join node, syncJoinBranches() will auto-generate parallel_for_${joinId} wrapper
+      // When branches connect to a join node, syncConvergeBranches() will auto-generate parallel_for_${joinId} wrapper
 
       // Extract and recursively flatten each branch
       for (const branch of branches) {
@@ -478,7 +478,7 @@ export class WorkflowTransform {
 
       // Generate sequential edges between branches (they execute in parallel, so no edges between them)
       // Each branch becomes an independent activity that can connect to downstream nodes
-      // If they all connect to a join node, syncJoinBranches() will wrap them in a parallel container
+      // If they all connect to a join node, syncConvergeBranches() will wrap them in a parallel container
     }
   }
 

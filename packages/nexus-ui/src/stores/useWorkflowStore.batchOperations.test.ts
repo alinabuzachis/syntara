@@ -3,7 +3,7 @@ import { describe, expect, it, beforeEach } from 'vitest'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
 
-import { useWorkflowStore, createScriptActivity, createJoinActivity, createManualTrigger } from './useWorkflowStore'
+import { useWorkflowStore, createScriptActivity, createConvergeActivity, createManualTrigger } from './useWorkflowStore'
 
 type Activity = WorkflowAPI.components['schemas']['activity']
 
@@ -89,7 +89,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
     })
   })
 
-  describe('Join node cleanup', () => {
+  describe('Converge node cleanup', () => {
     it('removes join and cleans up parallel container', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
@@ -99,14 +99,14 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         name: 'Parallel for J',
         branches: [activityB, activityC],
       }
-      const joinActivity = createJoinActivity('J', 'Join J', 'all')
+      const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
         currentWorkflow: {
           name: 'Test',
           triggers: [],
           workflow: {
-            activities: [parallelActivity, joinActivity],
+            activities: [parallelActivity, convergeActivity],
           },
         },
         workflowVersion: 1,
@@ -153,15 +153,15 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         branches: [activityD, activityE],
       }
 
-      const joinJ1 = createJoinActivity('J1', 'Join 1', 'all')
-      const joinJ2 = createJoinActivity('J2', 'Join 2', 'all')
+      const convergeJ1 = createConvergeActivity('J1', 'Converge 1')
+      const convergeJ2 = createConvergeActivity('J2', 'Converge 2')
 
       useWorkflowStore.setState({
         currentWorkflow: {
           name: 'Test',
           triggers: [],
           workflow: {
-            activities: [parallel1, joinJ1, parallel2, joinJ2],
+            activities: [parallel1, convergeJ1, parallel2, convergeJ2],
           },
         },
         workflowVersion: 1,
@@ -308,7 +308,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       expect(state.edges).toEqual([])
     })
 
-    it('handles complex scenario with joins, triggers, and edges', () => {
+    it('handles complex scenario with converges, triggers, and edges', () => {
       const trigger = createManualTrigger(false)
       const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
@@ -320,14 +320,14 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         name: 'Parallel for J',
         branches: [activityB, activityC],
       }
-      const joinActivity = createJoinActivity('J', 'Join J', 'all')
+      const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
         currentWorkflow: {
           name: 'Test',
           triggers: [trigger],
           workflow: {
-            activities: [activityA, parallel, joinActivity],
+            activities: [activityA, parallel, convergeActivity],
           },
         },
         workflowVersion: 1,

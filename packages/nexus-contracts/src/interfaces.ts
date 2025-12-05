@@ -27,47 +27,4 @@ export type TaskActivity = WorkflowAPI.components['schemas']['taskActivity']
 export type SequenceActivity = WorkflowAPI.components['schemas']['sequenceActivity']
 export type ParallelActivity = WorkflowAPI.components['schemas']['parallelActivity']
 export type LoopActivity = WorkflowAPI.components['schemas']['loopActivity']
-export type JoinActivity = WorkflowAPI.components['schemas']['joinActivity']
-
-/**
- * Script language type derived from the API contract.
- * This ensures the UI stays in sync with backend-supported languages.
- */
-export type ScriptLanguage = WorkflowAPI.components['schemas']['scriptTask']['config']['language']
-
-/**
- * Script task type derived from the API contract.
- */
-export type ScriptTask = WorkflowAPI.components['schemas']['scriptTask']
-
-/**
- * HTTP method type derived from the API contract.
- */
-export type HttpMethod = WorkflowAPI.components['schemas']['apiTask']['config']['method']
-
-/**
- * API authentication type derived from the API contract.
- */
-export type ApiAuthenticationType = NonNullable<
-  WorkflowAPI.components['schemas']['apiTask']['config']['authentication']
->['type']
-
-/**
- * API task type derived from the API contract.
- */
-export type ApiTask = WorkflowAPI.components['schemas']['apiTask']
-
-/**
- * Agentic task type derived from the API contract.
- */
-export type AgenticTask = WorkflowAPI.components['schemas']['agenticTask']
-
-/**
- * Connector task type derived from the API contract.
- */
-export type ConnectorTask = WorkflowAPI.components['schemas']['connectorTask']
-
-/**
- * Task definition union type derived from the API contract.
- */
-export type TaskDefinition = WorkflowAPI.components['schemas']['taskDefinition']
+export type ConvergeActivity = WorkflowAPI.components['schemas']['convergeActivity']

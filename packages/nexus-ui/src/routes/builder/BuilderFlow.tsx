@@ -265,12 +265,12 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     const activities = currentWorkflow?.workflow.activities || []
 
-    // Create nodes for join, condition, and loop activities first (needed for loop-back detection)
+    // Create nodes for converge, condition, and loop activities first (needed for loop-back detection)
     activities.forEach((activity: Activity) => {
-      if (activity.type === 'join') {
+      if (activity.type === 'converge') {
         nodes.push({
           id: activity.id,
-          type: 'join',
+          type: 'converge',
           position: { x: 0, y: 0 },
           data: activity,
         })

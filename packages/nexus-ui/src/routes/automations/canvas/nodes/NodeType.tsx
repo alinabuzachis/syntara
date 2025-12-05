@@ -1,8 +1,8 @@
 import { type NodeTypes } from '@xyflow/react'
 
 import { type ConditionNode, ConditionNodeComponent } from './ConditionNode'
+import { type ConvergeNode, ConvergeNodeComponent } from './ConvergeNode'
 import { type GenericNode, GenericNodeComponent } from './GenericNode'
-import { type JoinNode, JoinNodeComponent } from './JoinNode'
 import { type LoopNode, LoopNodeComponent } from './LoopNode'
 import { type ParallelNode, ParallelNodeComponent } from './ParallelNode'
 import { type TaskNode, TaskNodeComponent } from './TaskNode'
@@ -14,7 +14,7 @@ export type NodeType =
   | TaskNode
   | TaskReversedNode
   | ConditionNode
-  | JoinNode
+  | ConvergeNode
   | ParallelNode
   | LoopNode
   | GenericNode
@@ -24,7 +24,7 @@ export const nodeTypes: NodeTypes = {
   task: TaskNodeComponent,
   'task-reversed': TaskReversedNodeComponent,
   condition: ConditionNodeComponent,
-  join: JoinNodeComponent,
+  converge: ConvergeNodeComponent,
   parallel: ParallelNodeComponent,
   loop: LoopNodeComponent,
   generic: GenericNodeComponent,

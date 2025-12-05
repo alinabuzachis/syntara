@@ -8,12 +8,8 @@ This directory contains example YAML workflow files used for testing, demonstrat
   - `hello-world.yaml` - Simple sequential workflow with two bash script activities
   - `loop-demo.yaml` - forEach loop execution with default input values
   - `parallel-demo.yaml` - Parallel activity execution
-  - `conditional-demo.yaml` - Conditional branching based on temperature input
+  - `conditional-demo.yaml` - Conditional branching based on temperature input using nested condition activities
   - `retry-demo.yaml` - Retry policies with exponential and fixed backoff strategies
-
-- **`conditionals/`** - Examples focused on conditional logic
-  - `positive-negative-zero.yaml` - Three-way conditional branching (positive/negative/zero)
-  - `nested-conditions.yaml` - Chained/nested conditional logic
 
 - **`loops/`** - Examples focused on loop constructs
   - `foreach-items.yaml` - forEach loop with item processing and default values
@@ -59,11 +55,11 @@ python tools/workflow_cli.py run tests/integration/workflow/examples/basic/paral
 python tools/workflow_cli.py run tests/integration/workflow/examples/basic/conditional-demo.yaml \
   --inputs '{"temperature": 35}'   # Hot weather
 
-python tools/workflow_cli.py run tests/integration/workflow/examples/conditionals/positive-negative-zero.yaml \
-  --inputs '{"number": 10}'        # Positive number
+python tools/workflow_cli.py run tests/integration/workflow/examples/basic/conditional-demo.yaml \
+  --inputs '{"temperature": 10}'   # Cold weather
 
-python tools/workflow_cli.py run tests/integration/workflow/examples/conditionals/nested-conditions.yaml \
-  --inputs '{"outer_value": 10, "inner_value": 5}'
+python tools/workflow_cli.py run tests/integration/workflow/examples/basic/conditional-demo.yaml \
+  --inputs '{"temperature": 22}'   # Mild weather
 
 # Retry policies
 python tools/workflow_cli.py run tests/integration/workflow/examples/basic/retry-demo.yaml \

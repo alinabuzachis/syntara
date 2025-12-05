@@ -4,7 +4,6 @@ import type { INavigationItem } from '../components/nav/NavItem'
 
 import { AppRoute } from './AppRoute'
 
-const Automation = lazy(() => import('../routes/automations/Automation'))
 const Automations = lazy(() => import('../routes/automations/Automations'))
 const BuilderNew = lazy(() => import('../routes/builder/BuilderNew'))
 const BuilderEdit = lazy(() => import('../routes/builder/BuilderEdit'))
@@ -35,11 +34,6 @@ export const navigationItems: INavigationItem[] = [
         label: 'Automations',
         path: AppRoute.Automations.Root,
         element: <Automations />,
-      },
-      {
-        label: 'Automation',
-        path: AppRoute.Automations.Automation,
-        element: <Automation />,
       },
       {
         label: 'Executions',

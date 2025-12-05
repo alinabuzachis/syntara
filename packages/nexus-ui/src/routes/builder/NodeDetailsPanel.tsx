@@ -9,7 +9,7 @@ import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
 import {
   ConditionNodeDetails,
-  JoinNodeDetails,
+  ConvergeNodeDetails,
   LoopNodeDetails,
   TaskNodeDetails,
   TriggerNodeDetails,
@@ -26,7 +26,7 @@ import { NodeRawDataView } from './NodeRawDataView'
 type TaskActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'task' }
 type ConditionActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'condition' }
 type LoopActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'loop' }
-type JoinActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'join' }
+type ConvergeActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'converge' }
 
 interface NodeDetailsPanelProps {
   node: Node<NodeType['data']>
@@ -50,7 +50,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     if (node.type === FlowNodeType.LOOP && typeof node.data === 'object' && node.data && 'name' in node.data) {
       return node.data.name as string
     }
-    if (node.type === FlowNodeType.JOIN && typeof node.data === 'object' && node.data && 'name' in node.data) {
+    if (node.type === 'converge' && typeof node.data === 'object' && node.data && 'name' in node.data) {
       return node.data.name as string
     }
     return 'Node Details'
@@ -84,9 +84,9 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       return <LoopNodeDetails loopData={loopData} nodeId={node.id} onClose={onClose} />
     }
 
-    if (node.type === FlowNodeType.JOIN) {
-      const joinData = node.data as JoinActivity
-      return <JoinNodeDetails joinData={joinData} nodeId={node.id} onClose={onClose} />
+    if (node.type === 'converge') {
+      const convergeData = node.data as ConvergeActivity
+      return <ConvergeNodeDetails convergeData={convergeData} nodeId={node.id} onClose={onClose} />
     }
 
     // Default fallback - show raw data

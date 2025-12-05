@@ -4,7 +4,7 @@ version: 1
 
 metadata:
   name: conditional-demo
-  description: Demonstrates conditional branching based on activity outputs
+  description: Demonstrates conditional branching based on temperature input
 
 triggers:
   - type: manual
@@ -29,58 +29,63 @@ workflow:
             echo "Checked at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "$INPUT_TEMP"
         inputs:
-          temp: ${input.temperature}
+          temp: ${inputs.temperature}
         outputs:
           temp_value: $.stdout
 
-    - id: hot_weather
-      name: Hot Weather Action
-      type: task
-      condition: ${input.temperature} > 30
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "🌡️  Hot weather detected!"
-            echo "Recommended actions:"
-            echo "  - Turn on air conditioning"
-            echo "  - Stay hydrated"
-            echo "  - Avoid outdoor activities during peak hours"
-
-    - id: cold_weather
-      name: Cold Weather Action
-      type: task
-      condition: ${input.temperature} < 15
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "❄️  Cold weather detected!"
-            echo "Recommended actions:"
-            echo "  - Turn on heating"
-            echo "  - Dress warmly"
-            echo "  - Check for frost warnings"
-
-    - id: mild_weather
-      name: Mild Weather Action
-      type: task
-      condition: ${input.temperature} >= 15
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            # Check if temperature is in mild range (15-30)
-            if [ "$INPUT_TEMP" -le 30 ]; then
-              echo "☀️  Pleasant weather conditions!"
-              echo "Temperature is just right: ${INPUT_TEMP}°C"
-              echo "  - Enjoy outdoor activities"
-              echo "  - No special precautions needed"
-            fi
-        inputs:
-          temp: ${input.temperature}
+    # Conditional routing based on temperature
+    - id: temperature_routing
+      name: Temperature-Based Routing
+      type: condition
+      condition: ${inputs.temperature} > 30
+      then:
+        - id: hot_weather
+          name: Hot Weather Action
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "🌡️  Hot weather detected!"
+                echo "Recommended actions:"
+                echo "  - Turn on air conditioning"
+                echo "  - Stay hydrated"
+                echo "  - Avoid outdoor activities during peak hours"
+      else:
+        - id: check_cold
+          name: Check for Cold Weather
+          type: condition
+          condition: ${inputs.temperature} < 15
+          then:
+            - id: cold_weather
+              name: Cold Weather Action
+              type: task
+              task:
+                executor: script
+                config:
+                  language: bash
+                  code: |
+                    echo "❄️  Cold weather detected!"
+                    echo "Recommended actions:"
+                    echo "  - Turn on heating"
+                    echo "  - Dress warmly"
+                    echo "  - Check for frost warnings"
+          else:
+            - id: mild_weather
+              name: Mild Weather Action
+              type: task
+              task:
+                executor: script
+                config:
+                  language: bash
+                  code: |
+                    echo "☀️  Pleasant weather conditions!"
+                    echo "Temperature is just right: ${INPUT_TEMP}°C"
+                    echo "  - Enjoy outdoor activities"
+                    echo "  - No special precautions needed"
+                inputs:
+                  temp: ${inputs.temperature}
 
     - id: summary
       name: Weather Summary
@@ -100,4 +105,4 @@ workflow:
             echo "  • Mild weather (15-30°C): Shows pleasant weather message"
             echo "=============================="
         inputs:
-          temp: ${input.temperature}
+          temp: ${inputs.temperature}

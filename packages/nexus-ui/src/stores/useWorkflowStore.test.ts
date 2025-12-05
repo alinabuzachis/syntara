@@ -3,7 +3,7 @@ import { describe, expect, it, beforeEach } from 'vitest'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
 
-import { useWorkflowStore, createManualTrigger, createJoinActivity, createScriptActivity } from './useWorkflowStore'
+import { useWorkflowStore, createManualTrigger, createConvergeActivity, createScriptActivity } from './useWorkflowStore'
 
 type Activity = WorkflowAPI.components['schemas']['activity']
 type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
@@ -241,14 +241,14 @@ describe('useWorkflowStore', () => {
             createScriptActivity('C', 'Task C', 'python', 'print("C")'),
           ],
         }
-        const joinActivity = createJoinActivity('J', 'Join J', 'all')
+        const convergeActivity = createConvergeActivity('J', 'Converge J')
 
         useWorkflowStore.setState({
           currentWorkflow: {
             name: 'Test',
             triggers: [],
             workflow: {
-              activities: [parallelActivity, joinActivity],
+              activities: [parallelActivity, convergeActivity],
             },
           },
           workflowVersion: 1,

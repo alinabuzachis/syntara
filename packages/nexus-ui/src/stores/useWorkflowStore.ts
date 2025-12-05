@@ -24,7 +24,7 @@ interface WorkflowStore {
   addActivity: (activity: Activity) => void
   removeActivity: (activityId: string) => void
   updateActivity: (activityId: string, updates: Partial<Activity>) => void
-  syncJoinBranches: () => void
+  syncConvergeBranches: () => void
   moveActivityBefore: (activityId: string, beforeActivityId: string) => void
   moveActivityAfter: (activityId: string, afterActivityId: string) => void
   reorderActivitiesFromEdges: () => void
@@ -188,7 +188,7 @@ function updateActivityInList(activities: Activity[], activityId: string, update
 }
 
 // ============================================================================
-// Helper functions for syncJoinBranches
+// Helper functions for syncConvergeBranches
 // ============================================================================
 
 /**
@@ -197,7 +197,7 @@ function updateActivityInList(activities: Activity[], activityId: string, update
 function removeParallelAndRestoreBranches(
   activities: Activity[],
   parallelId: string,
-  joinActivityId: string
+  convergeActivityId: string
 ): Activity[] {
   const parallelIndex = activities.findIndex((a) => a.id === parallelId)
   if (parallelIndex === -1) return activities
@@ -208,11 +208,11 @@ function removeParallelAndRestoreBranches(
   // Remove the parallel activity
   const result = activities.filter((a) => a.id !== parallelId)
 
-  // Add back the activities that were in the parallel (before the join)
+  // Add back the activities that were in the parallel (before the converge)
   if (parallelBranches.length > 0) {
-    const joinIndex = result.findIndex((a) => a.id === joinActivityId)
-    if (joinIndex !== -1) {
-      result.splice(joinIndex, 0, ...parallelBranches)
+    const convergeIndex = result.findIndex((a) => a.id === convergeActivityId)
+    if (convergeIndex !== -1) {
+      result.splice(convergeIndex, 0, ...parallelBranches)
     } else {
       result.push(...parallelBranches)
     }
@@ -222,20 +222,20 @@ function removeParallelAndRestoreBranches(
 }
 
 /**
- * Insert activities before a join activity
+ * Insert activities before a converge activity
  */
-function insertActivitiesBeforeJoin(
+function insertActivitiesBeforeConverge(
   activities: Activity[],
   activitiesToInsert: Activity[],
-  joinActivityId: string
+  convergeActivityId: string
 ): Activity[] {
   if (activitiesToInsert.length === 0) return activities
 
   const result = [...activities]
-  const joinIndex = result.findIndex((a) => a.id === joinActivityId)
+  const convergeIndex = result.findIndex((a) => a.id === convergeActivityId)
 
-  if (joinIndex !== -1) {
-    result.splice(joinIndex, 0, ...activitiesToInsert)
+  if (convergeIndex !== -1) {
+    result.splice(convergeIndex, 0, ...activitiesToInsert)
   } else {
     result.push(...activitiesToInsert)
   }
@@ -244,21 +244,22 @@ function insertActivitiesBeforeJoin(
 }
 
 /**
- * Update a join activity's branches
+ * Update a converge activity's branches
  */
-function updateJoinBranches(activities: Activity[], joinActivity: Activity, branchIds: string[]): Activity[] {
-  const updatedJoin: Extract<Activity, { type: 'join' }> = {
-    ...joinActivity,
-    join: {
-      ...joinActivity.join,
+function updateConvergeBranches(activities: Activity[], convergeActivity: Activity, branchIds: string[]): Activity[] {
+  const existing = convergeActivity as Extract<Activity, { type: 'converge' }>
+  const updatedConverge: Extract<Activity, { type: 'converge' }> = {
+    ...existing,
+    converge: {
+      ...existing.converge,
       branches: branchIds,
     },
-  } as Extract<Activity, { type: 'join' }>
+  }
 
-  const joinIndex = activities.findIndex((a) => a.id === joinActivity.id)
-  if (joinIndex !== -1) {
+  const convergeIndex = activities.findIndex((a) => a.id === convergeActivity.id)
+  if (convergeIndex !== -1) {
     const result = [...activities]
-    result[joinIndex] = updatedJoin
+    result[convergeIndex] = updatedConverge
     return result
   }
 
@@ -351,9 +352,9 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
 
       let activities = [...state.currentWorkflow.workflow.activities]
 
-      // Check if we're removing a join activity
+      // Check if we're removing a converge activity
       const activityToRemove = findActivityById(activities, activityId)
-      if (activityToRemove?.type === 'join') {
+      if (activityToRemove?.type === 'converge') {
         // Find and cleanup the associated parallel container
         const parallelId = `parallel_for_${activityId}`
         const parallelIndex = activities.findIndex((a) => a.id === parallelId)
@@ -367,11 +368,11 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
           // Remove the parallel activity
           activities = activities.filter((a) => a.id !== parallelId)
 
-          // Add the branch activities back to main activities array (before where the join was)
+          // Add the branch activities back to main activities array (before where the converge was)
           if (branchActivities.length > 0) {
-            const joinIndex = activities.findIndex((a) => a.id === activityId)
-            if (joinIndex !== -1) {
-              activities.splice(joinIndex, 0, ...branchActivities)
+            const activityIndex = activities.findIndex((a) => a.id === activityId)
+            if (activityIndex !== -1) {
+              activities.splice(activityIndex, 0, ...branchActivities)
             } else {
               activities.push(...branchActivities)
             }
@@ -410,22 +411,22 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
     })
   },
 
-  syncJoinBranches: () => {
+  syncConvergeBranches: () => {
     set((state) => {
       if (!state.currentWorkflow) return state
 
-      // Process all join activities and restructure the workflow
+      // Process all converge activities and restructure the workflow
       let activities = [...state.currentWorkflow.workflow.activities]
-      const joinActivities = activities.filter((a) => a.type === 'join')
+      const convergeActivities = activities.filter((a) => a.type === 'converge')
 
-      for (const joinActivity of joinActivities) {
-        const parallelId = `parallel_for_${joinActivity.id}`
+      for (const convergeActivity of convergeActivities) {
+        const parallelId = `parallel_for_${convergeActivity.id}`
 
-        // Find all edges that target this join activity
-        const incomingEdges = state.edges.filter((edge) => edge.target === joinActivity.id)
+        // Find all edges that target this converge activity
+        const incomingEdges = state.edges.filter((edge) => edge.target === convergeActivity.id)
         const sourceActivityIds = incomingEdges.map((edge) => edge.source)
 
-        // Check if a parallel activity already exists for this join
+        // Check if a parallel activity already exists for this converge
         const existingParallelIndex = activities.findIndex((a) => a.id === parallelId)
         const hasExistingParallel = existingParallelIndex !== -1
 
@@ -453,35 +454,35 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
           activities = activities.filter((a) => !sourceActivityIds.includes(a.id))
 
           // Restore orphaned activities back to main array
-          activities = insertActivitiesBeforeJoin(activities, orphanedActivities, joinActivity.id)
+          activities = insertActivitiesBeforeConverge(activities, orphanedActivities, convergeActivity.id)
 
           // Create and insert the parallel activity
           const parallelActivity: Extract<Activity, { type: 'parallel' }> = {
             type: 'parallel',
             id: parallelId,
-            name: `Parallel branches for ${joinActivity.name}`,
+            name: `Parallel branches for ${convergeActivity.name}`,
             branches: sourceActivities,
           }
-          activities = insertActivitiesBeforeJoin(activities, [parallelActivity], joinActivity.id)
+          activities = insertActivitiesBeforeConverge(activities, [parallelActivity], convergeActivity.id)
 
-          // Update the join to reference the parallel
-          activities = updateJoinBranches(activities, joinActivity, [parallelId])
+          // Update the converge to reference the parallel
+          activities = updateConvergeBranches(activities, convergeActivity, [parallelId])
         } else if (sourceActivityIds.length === 1) {
           // Only one source - no parallel needed, reference activity directly
           if (hasExistingParallel) {
-            activities = removeParallelAndRestoreBranches(activities, parallelId, joinActivity.id)
+            activities = removeParallelAndRestoreBranches(activities, parallelId, convergeActivity.id)
           }
 
-          // Update join to reference the single source activity
-          activities = updateJoinBranches(activities, joinActivity, sourceActivityIds)
+          // Update converge to reference the single source activity
+          activities = updateConvergeBranches(activities, convergeActivity, sourceActivityIds)
         } else {
-          // No sources - remove parallel if it exists, clear join branches
+          // No sources - remove parallel if it exists, clear converge branches
           if (hasExistingParallel) {
-            activities = removeParallelAndRestoreBranches(activities, parallelId, joinActivity.id)
+            activities = removeParallelAndRestoreBranches(activities, parallelId, convergeActivity.id)
           }
 
-          // Clear join branches
-          activities = updateJoinBranches(activities, joinActivity, [])
+          // Clear converge branches
+          activities = updateConvergeBranches(activities, convergeActivity, [])
         }
       }
 
@@ -742,9 +743,9 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
 
       // Remove each activity
       nodeIds.forEach((nodeId) => {
-        // Check if we're removing a join activity
+        // Check if we're removing a converge activity
         const activityToRemove = findActivityById(activities, nodeId)
-        if (activityToRemove?.type === 'join') {
+        if (activityToRemove?.type === 'converge') {
           // Find and cleanup the associated parallel container
           const parallelId = `parallel_for_${nodeId}`
           const parallelIndex = activities.findIndex((a) => a.id === parallelId)
@@ -758,9 +759,9 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
 
             // Add the branch activities back to main activities array
             if (branchActivities.length > 0) {
-              const joinIndex = activities.findIndex((a) => a.id === nodeId)
-              if (joinIndex !== -1) {
-                activities.splice(joinIndex, 0, ...branchActivities)
+              const convergeIndex = activities.findIndex((a) => a.id === nodeId)
+              if (convergeIndex !== -1) {
+                activities.splice(convergeIndex, 0, ...branchActivities)
               } else {
                 activities.push(...branchActivities)
               }
@@ -955,11 +956,11 @@ export function createConditionActivity(
 export function createLoopActivity(
   id: string,
   name: string,
-  loopType: 'forEach' | 'while' | 'count',
+  loopType: 'forEach' | 'while',
   config: {
     items?: string
     condition?: string
-    count?: number
+    maxIterations?: number
     indexVariable?: string
     itemVariable?: string
   }
@@ -992,16 +993,7 @@ export function createLoopActivity(
         ...baseActivity.loop,
         type: 'while' as const,
         condition: config.condition,
-      },
-    }
-  } else if (loopType === 'count' && config.count !== undefined) {
-    return {
-      ...baseActivity,
-      loop: {
-        ...baseActivity.loop,
-        type: 'count' as const,
-        count: config.count,
-        indexVariable: config.indexVariable,
+        maxIterations: config.maxIterations,
       },
     }
   }
@@ -1018,27 +1010,29 @@ export function createLoopActivity(
   }
 }
 
-export function createJoinActivity(
+export function createConvergeActivity(
   id: string,
   name: string,
-  strategy: 'all' | 'any' | 'majority' | 'count',
-  count?: number
-): Extract<Activity, { type: 'join' }> {
-  const joinActivity: Extract<Activity, { type: 'join' }> = {
-    type: 'join',
+  config?: {
+    timeout?: string
+    onTimeout?: 'continue' | 'fail'
+    aggregateOutputs?: boolean
+  }
+): Extract<Activity, { type: 'converge' }> {
+  const convergeActivity: Extract<Activity, { type: 'converge' }> = {
+    type: 'converge',
     id,
     name,
-    join: {
+    converge: {
       branches: [], // Will be populated based on incoming edges
-      strategy,
+      strategy: 'all', // Only 'all' strategy is supported
+      timeout: config?.timeout,
+      onTimeout: config?.onTimeout,
+      aggregateOutputs: config?.aggregateOutputs,
     },
   }
 
-  if (strategy === 'count' && count !== undefined) {
-    joinActivity.join.count = count
-  }
-
-  return joinActivity
+  return convergeActivity
 }
 
 export function createConnectorActivity(
