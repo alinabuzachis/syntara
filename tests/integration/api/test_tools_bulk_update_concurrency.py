@@ -20,7 +20,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.auth.dependencies import get_current_user
 from nexus.api.db import get_db
-from nexus.api.main import app
 from nexus.core.models import User
 from nexus.tool_manager.models import Tool
 
@@ -29,11 +28,13 @@ if TYPE_CHECKING:
 
 
 @pytest_asyncio.fixture
-async def concurrency_client(test_db_engine, test_user: User) -> AsyncGenerator[AsyncClient, None]:
+async def concurrency_client(test_db_engine, test_user: User, session_app) -> AsyncGenerator[AsyncClient, None]:
     """Client for concurrency testing that creates a new DB session for each request.
 
     Unlike base_client which shares a single session, this allows concurrent requests
     to each get their own session, preventing SQLAlchemy session conflicts.
+
+    Uses session_app to ensure router discovery has been completed.
 
     See https://docs.sqlalchemy.org/en/20/errors.html#illegalstatechangeerror-and-concurrency-exceptions
     """
@@ -55,19 +56,19 @@ async def concurrency_client(test_db_engine, test_user: User) -> AsyncGenerator[
         return test_user
 
     # Store original overrides to restore later
-    original_overrides = dict(app.dependency_overrides)
+    original_overrides = dict(session_app.dependency_overrides)
 
     # Apply dependency overrides
-    app.dependency_overrides[get_db] = get_db_for_concurrency
-    app.dependency_overrides[get_current_user] = get_test_user
+    session_app.dependency_overrides[get_db] = get_db_for_concurrency
+    session_app.dependency_overrides[get_current_user] = get_test_user
 
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        async with AsyncClient(transport=ASGITransport(app=session_app), base_url="http://testserver") as client:
             yield client
     finally:
         # Restore original overrides
-        app.dependency_overrides.clear()
-        app.dependency_overrides.update(original_overrides)
+        session_app.dependency_overrides.clear()
+        session_app.dependency_overrides.update(original_overrides)
 
 
 @pytest_asyncio.fixture
