@@ -7,6 +7,8 @@
 ### 1. RelevantDocument
 **Purpose**: Represents a document with relevancy score and metadata for retrieval results
 
+**Model Type**: **Transient model** - Created on-demand during retrieval, not stored in database
+
 **Fields**:
 - `content: str` - Full document content (no chunking at service level)
 - `relevancy_score: float` - Numeric score indicating relevance to query (0.0 to 1.0)
@@ -19,8 +21,11 @@
 - `content` must not be empty
 - `source_type` must be valid registered retriever type
 
-**Relationships**:
-- Links to `FileMetadata` in `Invocation.context_data` via `file_metadata` reference
+**Implementation Notes**:
+- Uses Pydantic BaseModel (not SQLModel - not a database table)
+- Created during document retrieval process and returned to caller
+- **No database persistence** - purely in-memory processing model
+- References existing `FileMetadata` from `Invocation.context_data`
 
 ### 2. RelevancyConfiguration  
 **Purpose**: Configuration container for relevancy checker tuning parameters (from `src/nexus/core/config.py`)
@@ -204,7 +209,8 @@ graph TB
 - No database persistence required for configuration at this stage
 
 ### Data Models
-- `RelevantDocument`: Transient model, not stored (created on demand)
+- `RelevantDocument`: **Transient model** - Created during retrieval process, never persisted to database
+- `RelevancyConfiguration`: **Configuration model** - Loaded from environment variables via Pydantic settings
 - Registries: In-memory with initialization from configuration
 
 ### Document Storage
