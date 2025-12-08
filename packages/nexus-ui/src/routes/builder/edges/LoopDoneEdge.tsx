@@ -1,8 +1,8 @@
-import { BaseEdge, EdgeLabelRenderer, useReactFlow, type EdgeProps } from '@xyflow/react'
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, useReactFlow, type EdgeProps } from '@xyflow/react'
 import { Trash2 } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 
-interface LoopBackEdgeProps extends EdgeProps {
+interface LoopDoneEdgeProps extends EdgeProps {
   data?: {
     onAddNode?: (sourceNodeId: string, targetNodeId: string, edgeId: string, sourceHandle?: string) => void
     isActive?: boolean
@@ -11,14 +11,29 @@ interface LoopBackEdgeProps extends EdgeProps {
 }
 
 /**
- * Loop-back edge component with custom path routing
- * This edge type is optimized for connections that loop back to a loop node's end handle
- * Routes the edge below the loop body nodes for clear visual flow
+ * Loop done edge component with bezier curve
+ * This edge type is optimized for connections from a loop node's done handle
+ * Uses bezier curve for smooth, natural routing
  */
-export function LoopBackEdge(props: LoopBackEdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, label, style, id, source, target, data, markerEnd, selected } = props
+export function LoopDoneEdge(props: LoopDoneEdgeProps) {
+  const {
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    label,
+    style,
+    id,
+    source,
+    target,
+    data,
+    markerEnd,
+    selected,
+  } = props
   const reactFlowInstance = useReactFlow()
-  const { setEdges, getNodes } = reactFlowInstance
+  const { setEdges } = reactFlowInstance
 
   const fullEdge = reactFlowInstance.getEdge(id)
   const actualSourceHandle = fullEdge?.sourceHandle
@@ -34,57 +49,15 @@ export function LoopBackEdge(props: LoopBackEdgeProps) {
       ? "url('#hover-arrow-marker')"
       : markerEnd
 
-  // Calculate vertical offset dynamically based on nodes in the loop body
-  // Find the loop node (target of this edge)
-  const targetNode = getNodes().find((n) => n.id === target)
-  const sourceNode = getNodes().find((n) => n.id === source)
-
-  // Calculate the maximum bottom position of nodes between source and target
-  // This ensures the edge goes below all loop body nodes
-  let maxBottomY = sourceY
-
-  if (targetNode && sourceNode) {
-    const allNodes = getNodes()
-    // Find nodes that are in the loop body (between source X and target X, same Y level)
-    const loopBodyNodes = allNodes.filter((node) => {
-      if (!node.position || !node.measured?.height) return false
-      const nodeY = node.position.y + node.measured.height / 2
-      const nodeX = node.position.x
-      // Nodes at similar Y level to target/source and between them horizontally
-      return (
-        Math.abs(nodeY - targetY) < 100 && // Similar Y level (within 100px)
-        nodeX > targetX && // To the right of target (loop node)
-        nodeX < sourceX // To the left of source (last node in loop)
-      )
-    })
-
-    // Find the maximum bottom edge of these nodes
-    loopBodyNodes.forEach((node) => {
-      const nodeBottom = node.position.y + (node.measured?.height ?? 0)
-      maxBottomY = Math.max(maxBottomY, nodeBottom)
-    })
-  }
-
-  // Add padding below the lowest node (very compact)
-  const verticalOffset = maxBottomY - sourceY + 20
-
-  // Calculate the path:
-  // 1. Go right from source
-  // 2. Drop down below the nodes
-  // 3. Route horizontally back to target X
-  // 4. Come up to target
-  const edgePath = `
-    M ${sourceX},${sourceY}
-    L ${sourceX + 10},${sourceY}
-    L ${sourceX + 10},${sourceY + verticalOffset}
-    L ${targetX - 10},${sourceY + verticalOffset}
-    L ${targetX - 10},${targetY}
-    L ${targetX},${targetY}
-  `
-
-  // Position label in the middle of the horizontal bottom segment
-  const labelX = (sourceX + targetX) / 2
-  const labelY = sourceY + verticalOffset
+  // Use bezier path for smooth curved routing
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  })
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -146,7 +119,7 @@ export function LoopBackEdge(props: LoopBackEdgeProps) {
           />
         </marker>
       </defs>
-      {/* Visible edge with bezier curve routing */}
+      {/* Visible edge with smooth step routing that curves upward */}
       <BaseEdge
         path={edgePath}
         markerEnd={effectiveMarkerEnd}

@@ -30,6 +30,7 @@ interface WorkflowStore {
   reorderActivitiesFromEdges: () => void
   // Atomic batch update to prevent race conditions
   batchRemoveNodesAndEdges: (params: { nodeIds: string[]; edges: EdgeConnection[]; triggerIndices?: number[] }) => void
+  batchAddActivitiesAndEdges: (params: { activities: Activity[]; edges: EdgeConnection[] }) => void
 }
 
 // ============================================================================
@@ -432,41 +433,65 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
 
         if (sourceActivityIds.length >= 2) {
           // We need a parallel activity with 2+ branches
-          let sourceActivities: Activity[] = []
-          let orphanedActivities: Activity[] = []
+          // BUT: Structural nodes (loop, condition) should NOT be moved into parallels
+          // Only regular task/action nodes should be parallelized
 
-          if (hasExistingParallel) {
-            const existingParallel = activities[existingParallelIndex] as Extract<Activity, { type: 'parallel' }>
+          const sourceActivitiesAll = activities.filter((a) => sourceActivityIds.includes(a.id))
+          const structuralNodes = sourceActivitiesAll.filter((a) => a.type === 'loop' || a.type === 'condition')
+          const regularNodes = sourceActivitiesAll.filter((a) => a.type !== 'loop' && a.type !== 'condition')
 
-            // Separate activities that still have edges vs those that lost them
-            orphanedActivities = existingParallel.branches.filter((a) => !sourceActivityIds.includes(a.id))
-            const activitiesFromParallel = existingParallel.branches.filter((a) => sourceActivityIds.includes(a.id))
-            const activitiesFromMain = activities.filter((a) => sourceActivityIds.includes(a.id))
-            sourceActivities = [...activitiesFromParallel, ...activitiesFromMain]
-
-            // Remove existing parallel - we'll create a new one
-            activities = activities.filter((a) => a.id !== parallelId)
+          // If all source nodes are structural (loops/conditions), don't create parallel
+          // The edges encode the parallelism, no container needed
+          if (structuralNodes.length === sourceActivityIds.length) {
+            // All structural nodes - just update converge to reference them directly
+            if (hasExistingParallel) {
+              activities = removeParallelAndRestoreBranches(activities, parallelId, convergeActivity.id)
+            }
+            activities = updateConvergeBranches(activities, convergeActivity, sourceActivityIds)
           } else {
-            sourceActivities = activities.filter((a) => sourceActivityIds.includes(a.id))
+            // Mix of structural and regular nodes, or all regular nodes
+            let sourceActivities: Activity[] = []
+            let orphanedActivities: Activity[] = []
+
+            if (hasExistingParallel) {
+              const existingParallel = activities[existingParallelIndex] as Extract<Activity, { type: 'parallel' }>
+
+              // Separate activities that still have edges vs those that lost them
+              orphanedActivities = existingParallel.branches.filter((a) => !sourceActivityIds.includes(a.id))
+              const activitiesFromParallel = existingParallel.branches.filter((a) => sourceActivityIds.includes(a.id))
+              const activitiesFromMain = regularNodes // Only regular nodes from main array
+              sourceActivities = [...activitiesFromParallel, ...activitiesFromMain]
+
+              // Remove existing parallel - we'll create a new one
+              activities = activities.filter((a) => a.id !== parallelId)
+            } else {
+              sourceActivities = regularNodes // Only wrap regular nodes
+            }
+
+            // Remove ONLY regular source activities from main array (they'll be in the parallel)
+            // Structural nodes stay in main array
+            const regularNodeIds = regularNodes.map((a) => a.id)
+            activities = activities.filter((a) => !regularNodeIds.includes(a.id))
+
+            // Restore orphaned activities back to main array
+            activities = insertActivitiesBeforeConverge(activities, orphanedActivities, convergeActivity.id)
+
+            // Create and insert the parallel activity
+            const parallelActivity: Extract<Activity, { type: 'parallel' }> = {
+              type: 'parallel',
+              id: parallelId,
+              name: `Parallel branches for ${convergeActivity.name}`,
+              branches: sourceActivities,
+            }
+            activities = insertActivitiesBeforeConverge(activities, [parallelActivity], convergeActivity.id)
+
+            // Update the converge to reference both the parallel and structural nodes
+            const branchIds = [
+              ...(sourceActivities.length > 0 ? [parallelId] : []),
+              ...structuralNodes.map((a) => a.id),
+            ]
+            activities = updateConvergeBranches(activities, convergeActivity, branchIds)
           }
-
-          // Remove source activities from main array (they'll be in the parallel)
-          activities = activities.filter((a) => !sourceActivityIds.includes(a.id))
-
-          // Restore orphaned activities back to main array
-          activities = insertActivitiesBeforeConverge(activities, orphanedActivities, convergeActivity.id)
-
-          // Create and insert the parallel activity
-          const parallelActivity: Extract<Activity, { type: 'parallel' }> = {
-            type: 'parallel',
-            id: parallelId,
-            name: `Parallel branches for ${convergeActivity.name}`,
-            branches: sourceActivities,
-          }
-          activities = insertActivitiesBeforeConverge(activities, [parallelActivity], convergeActivity.id)
-
-          // Update the converge to reference the parallel
-          activities = updateConvergeBranches(activities, convergeActivity, [parallelId])
         } else if (sourceActivityIds.length === 1) {
           // Only one source - no parallel needed, reference activity directly
           if (hasExistingParallel) {
@@ -787,6 +812,36 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
       }
     })
   },
+
+  /**
+   * Atomic batch operation to add activities and update edges simultaneously.
+   * This prevents race conditions by updating all related state in a single transaction.
+   *
+   * Use this instead of calling addActivity() and setEdges() separately to avoid:
+   * - Multiple re-renders triggering initialNodes recomputation
+   * - Race conditions between multiple async updates
+   * - useNodeUpdates running multiple times before positioning can complete
+   */
+  batchAddActivitiesAndEdges: ({ activities: newActivities, edges }) => {
+    set((state) => {
+      if (!state.currentWorkflow) return state
+
+      const activities = [...state.currentWorkflow.workflow.activities, ...newActivities]
+
+      // Update state atomically - all changes in one transaction
+      return {
+        ...state,
+        currentWorkflow: {
+          ...state.currentWorkflow,
+          workflow: {
+            ...state.currentWorkflow.workflow,
+            activities,
+          },
+        },
+        edges,
+      }
+    })
+  },
 }))
 
 // Helper functions to create triggers (return plain objects)
@@ -987,14 +1042,20 @@ export function createLoopActivity(
       },
     }
   } else if (loopType === 'while' && config.condition) {
+    const whileLoop: Extract<Activity, { type: 'loop' }>['loop'] = {
+      ...baseActivity.loop,
+      type: 'while' as const,
+      condition: config.condition,
+    }
+
+    // Only include maxIterations if it has a valid value
+    if (config.maxIterations !== undefined && config.maxIterations !== null) {
+      whileLoop.maxIterations = config.maxIterations
+    }
+
     return {
       ...baseActivity,
-      loop: {
-        ...baseActivity.loop,
-        type: 'while' as const,
-        condition: config.condition,
-        maxIterations: config.maxIterations,
-      },
+      loop: whileLoop,
     }
   }
 

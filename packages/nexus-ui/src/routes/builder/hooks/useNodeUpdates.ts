@@ -73,6 +73,15 @@ export function useNodeUpdates({
     if (hasNewNodes && isInitialized) {
       // Track which nodes are newly added (need positioning after measurement)
       const newNodeIds = Array.from(currentNodeIds).filter((id) => !previousNodeIds.has(id))
+
+      // CRITICAL: If these nodes are already in the tracking set, it means a previous effect run
+      // in this render cycle is already handling them. Skip to avoid duplicate processing.
+      const alreadyTracked = newNodeIds.every((id) => newlyAddedNodeIdsRef.current.has(id))
+      if (alreadyTracked) {
+        previousNodeIdsRef.current = currentNodeIds
+        return
+      }
+
       newNodeIds.forEach((id) => newlyAddedNodeIdsRef.current.add(id))
 
       // Notify parent of new nodes
@@ -87,10 +96,11 @@ export function useNodeUpdates({
         const updatedNodes = initialNodes.map((newNode) => {
           const existingNode = prevNodeMap.get(newNode.id)
           if (existingNode) {
-            // Keep existing position and measured dimensions
+            // CRITICAL: Keep existing position and measured dimensions
+            // This preserves positions set by BuilderFlow's positioning effect
             return { ...newNode, position: existingNode.position, measured: existingNode.measured }
           } else {
-            // New node - add it with default position, will be positioned after measurement
+            // Truly new node - add it with default position from initialNodes
             return newNode
           }
         })

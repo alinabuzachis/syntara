@@ -56,12 +56,15 @@ export class EdgeFactory {
     // Determine edge type based on handles:
     // - loopBack: edges connecting TO loop's end handle (looping back)
     // - loopOutgoing: edges FROM loop's loop handle (exiting the loop to the next iteration)
+    // - loopDone: edges FROM loop's done handle (exiting the loop when complete)
     // - default: all other edges
     let edgeType: string = 'default'
     if (targetHandle === 'end') {
       edgeType = 'loopBack'
     } else if (sourceHandle === 'loop') {
       edgeType = 'loopOutgoing'
+    } else if (sourceHandle === 'done') {
+      edgeType = 'loopDone'
     }
 
     return {
@@ -142,7 +145,7 @@ export class EdgeFactory {
    * Button edges have IDs in the format:
    * - Regular nodes: `button-${nodeId}`
    * - Condition nodes: `button-${nodeId}-true` or `button-${nodeId}-false`
-   * - Loop nodes: `button-${nodeId}-done`
+   * - Loop nodes: `button-${nodeId}-done` or `button-${nodeId}-loop`
    *
    * @param nodeId - Node ID to remove button edges for
    * @param edges - Existing edges array
@@ -159,10 +162,11 @@ export class EdgeFactory {
    *
    * // Remove button edge for specific handle (loop node)
    * setEdges((eds) => EdgeFactory.removeButtonEdge('loop-1', eds, 'done'))
+   * setEdges((eds) => EdgeFactory.removeButtonEdge('loop-1', eds, 'loop'))
    * ```
    */
   static removeButtonEdge(nodeId: string, edges: EdgeType[], sourceHandle?: string): EdgeType[] {
-    if (sourceHandle && ['true', 'false', 'done'].includes(sourceHandle)) {
+    if (sourceHandle && ['true', 'false', 'done', 'loop'].includes(sourceHandle)) {
       // Remove specific handle button edge for condition/loop nodes
       return edges.filter((e) => e.id !== `button-${nodeId}-${sourceHandle}`)
     }
@@ -172,7 +176,8 @@ export class EdgeFactory {
         e.id !== `button-${nodeId}` &&
         e.id !== `button-${nodeId}-true` &&
         e.id !== `button-${nodeId}-false` &&
-        e.id !== `button-${nodeId}-done`
+        e.id !== `button-${nodeId}-done` &&
+        e.id !== `button-${nodeId}-loop`
     )
   }
 

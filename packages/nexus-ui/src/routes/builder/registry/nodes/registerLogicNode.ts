@@ -84,9 +84,6 @@ export default function registerLogicNode() {
               itemVariable: data.itemVariable,
             })
 
-            // Add the loop activity first
-            useWorkflowStore.getState().addActivity(activity)
-
             // Create a generic placeholder node for the loop body with custom message
             const genericNodeId = `task_${Date.now()}_${generateSecureRandomId()}`
             const genericActivity = createGenericActivity(
@@ -94,27 +91,30 @@ export default function registerLogicNode() {
               '', // No name
               'Replace this node to complete the loop' // Custom message
             )
-            useWorkflowStore.getState().addActivity(genericActivity)
 
-            // Create edges: loop -> generic task -> loop (back)
+            // ATOMIC UPDATE: Add both activities and edges in a single transaction
+            // This prevents race conditions from multiple store updates triggering initialNodes recomputation
             const currentEdges = useWorkflowStore.getState().edges
-            useWorkflowStore.getState().setEdges([
-              ...currentEdges,
-              {
-                id: `${activityId}-loop-${genericNodeId}`,
-                source: activityId,
-                target: genericNodeId,
-                sourceHandle: 'loop',
-                targetHandle: 'target',
-              },
-              {
-                id: `${genericNodeId}-${activityId}-end`,
-                source: genericNodeId,
-                target: activityId,
-                sourceHandle: 'source',
-                targetHandle: 'end',
-              },
-            ])
+            useWorkflowStore.getState().batchAddActivitiesAndEdges({
+              activities: [activity, genericActivity],
+              edges: [
+                ...currentEdges,
+                {
+                  id: `${activityId}-loop-${genericNodeId}`,
+                  source: activityId,
+                  target: genericNodeId,
+                  sourceHandle: 'loop',
+                  targetHandle: 'target',
+                },
+                {
+                  id: `${genericNodeId}-${activityId}-end`,
+                  source: genericNodeId,
+                  target: activityId,
+                  sourceHandle: 'source',
+                  targetHandle: 'end',
+                },
+              ],
+            })
 
             // Signal success with the loop node ID (not the generic node)
             onSuccess(activityId)

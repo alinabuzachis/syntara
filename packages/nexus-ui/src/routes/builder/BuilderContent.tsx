@@ -54,6 +54,7 @@ export function BuilderContent(props: BuilderContentProps) {
   const [targetNodeId, setTargetNodeId] = useState<string | null>(null)
   const [edgeIdToReplace, setEdgeIdToReplace] = useState<string | null>(null)
   const [sourceHandle, setSourceHandle] = useState<string | undefined>(undefined)
+  const [targetHandle, setTargetHandle] = useState<string | undefined>(undefined)
   const [replacementNodeId, setReplacementNodeId] = useState<string | null>(null)
   const [workflowName, setWorkflowName] = useState('New Workflow')
   const [workflowDescription, setWorkflowDescription] = useState('New Workflow')
@@ -396,19 +397,31 @@ export function BuilderContent(props: BuilderContentProps) {
   }, [])
 
   // Memoized callback for adding nodes from edges
-  const handleAddNodeFromEdge = useCallback((sourceId: string, targetId?: string, edgeId?: string, handle?: string) => {
-    // Close other panels when opening add node panel
-    setSelectedNode(null)
-    setDetailsOpen(false)
-    setHistoryCardOpen(false)
-    // Set up add node panel state
-    setSourceNodeId(sourceId)
-    setTargetNodeId(targetId || null)
-    setEdgeIdToReplace(edgeId || null)
-    setSourceHandle(handle || undefined)
-    setReplacementNodeId(null) // Clear replacement mode
-    setAddNodePanelOpen(true)
-  }, [])
+  const handleAddNodeFromEdge = useCallback(
+    (sourceId: string, targetId?: string, edgeId?: string, handle?: string) => {
+      // Close other panels when opening add node panel
+      setSelectedNode(null)
+      setDetailsOpen(false)
+      setHistoryCardOpen(false)
+
+      // If we have an edgeId, look up the edge to get its targetHandle
+      let edgeTargetHandle: string | undefined = undefined
+      if (edgeId && reactFlowInstance) {
+        const edge = reactFlowInstance.getEdge(edgeId)
+        edgeTargetHandle = edge?.targetHandle ?? undefined
+      }
+
+      // Set up add node panel state
+      setSourceNodeId(sourceId)
+      setTargetNodeId(targetId || null)
+      setEdgeIdToReplace(edgeId || null)
+      setSourceHandle(handle || undefined)
+      setTargetHandle(edgeTargetHandle)
+      setReplacementNodeId(null) // Clear replacement mode
+      setAddNodePanelOpen(true)
+    },
+    [reactFlowInstance]
+  )
 
   return (
     <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
@@ -438,6 +451,7 @@ export function BuilderContent(props: BuilderContentProps) {
                   setTargetNodeId(null)
                   setEdgeIdToReplace(null)
                   setSourceHandle(undefined)
+                  setTargetHandle(undefined)
                   setAddNodePanelOpen(true)
                 }}
                 className="text-sm whitespace-nowrap"
@@ -520,6 +534,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     setTargetNodeId(null)
                     setEdgeIdToReplace(null)
                     setSourceHandle(undefined)
+                    setTargetHandle(undefined)
                     setReplacementNodeId(null)
                   }}
                   onNodeSelect={showSuccess}
@@ -534,6 +549,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     setTargetNodeId(null)
                     setEdgeIdToReplace(null)
                     setSourceHandle(undefined)
+                    setTargetHandle(undefined)
 
                     // Wait for React Flow to update with the new node data after replacement
                     // We need to poll because the update goes through: Zustand → BuilderFlow useMemo → useNodeUpdates → React Flow
@@ -567,6 +583,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     const capturedEdgeIdToReplace = edgeIdToReplace
                     const capturedTargetNodeId = targetNodeId
                     const capturedSourceHandle = sourceHandle
+                    const capturedTargetHandle = targetHandle
 
                     // Wait for target node to be rendered and measured by React Flow
                     let attempts = 0
@@ -608,7 +625,7 @@ export function BuilderContent(props: BuilderContentProps) {
                             source: targetId,
                             target: capturedTargetNodeId,
                             sourceHandle: 'source',
-                            targetHandle: 'target',
+                            targetHandle: capturedTargetHandle || 'target',
                             onAddNode: handleAddNodeFromEdge,
                           })
 

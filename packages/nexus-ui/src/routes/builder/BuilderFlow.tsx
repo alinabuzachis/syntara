@@ -22,6 +22,7 @@ import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
 import { ButtonEdge } from './edges/ButtonEdge'
 import { DefaultEdge } from './edges/DefaultEdge'
 import { LoopBackEdge } from './edges/LoopBackEdge'
+import { LoopDoneEdge } from './edges/LoopDoneEdge'
 import { LoopOutgoingEdge } from './edges/LoopOutgoingEdge'
 import { useButtonEdgeMaintenance } from './hooks/useButtonEdgeMaintenance'
 import { useEdgeActiveState } from './hooks/useEdgeActiveState'
@@ -56,6 +57,7 @@ const builderEdgeTypes = {
   default: DefaultEdge,
   buttonEdge: ButtonEdge,
   loopBack: LoopBackEdge,
+  loopDone: LoopDoneEdge,
   loopOutgoing: LoopOutgoingEdge,
 }
 
@@ -119,26 +121,51 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
   // This prevents Dagre from trying to create a circular layout
   const layoutEdges = realEdges.filter((edge) => edge.targetHandle !== 'end')
 
+  // Calculate the total width needed for loop nodes (including their body nodes)
+  const loopWidths = new Map<string, number>()
+  loopBodies.forEach((bodyNodeIds, loopId) => {
+    const loopNode = realNodes.find((n) => n.id === loopId)
+    const loopWidth = loopNode?.measured?.width ?? 0
+
+    // Calculate total width of loop body nodes
+    let totalBodyWidth = 0
+    bodyNodeIds.forEach((nodeId) => {
+      const bodyNode = realNodes.find((n) => n.id === nodeId)
+      totalBodyWidth += bodyNode?.measured?.width ?? 0
+    })
+
+    // Add spacing: initial gap + spacing between nodes
+    const horizontalSpacing = 50
+    const nodeSpacing = 40
+    const spacingWidth = horizontalSpacing + Math.max(0, bodyNodeIds.length - 1) * nodeSpacing
+
+    // Total width = loop width + spacing + body nodes width
+    const totalWidth = loopWidth + spacingWidth + totalBodyWidth
+    loopWidths.set(loopId, totalWidth)
+  })
+
   layoutEdges.forEach((edge) => g.setEdge(edge.source, edge.target))
-  realNodes.forEach((node) =>
+  realNodes.forEach((node) => {
+    // Use extended width for loop nodes to account for their body nodes
+    const width = loopWidths.get(node.id) ?? node.measured?.width ?? 0
     g.setNode(node.id, {
       ...node,
-      width: node.measured?.width ?? 0,
+      width,
       height: node.measured?.height ?? 0,
     })
-  )
+  })
 
   Dagre.layout(g)
 
-  // Calculate centered positions for loop body nodes
+  // Calculate positions for loop body nodes (right and below the loop node)
   const loopBodyPositions = new Map<string, { x: number; y: number }>()
 
   loopBodies.forEach((bodyNodeIds, loopId) => {
     const loopNode = realNodes.find((n) => n.id === loopId)
     const loopPosition = g.node(loopId)
-    const loopHeight = loopNode?.measured?.height ?? 0
+    const loopWidth = loopNode?.measured?.width ?? 0
 
-    // Get all body nodes with their Dagre positions (sorted by X position, then reversed)
+    // Get all body nodes with their Dagre positions (maintain dagre order)
     const bodyNodesWithPositions = bodyNodeIds
       .map((nodeId) => {
         const node = realNodes.find((n) => n.id === nodeId)
@@ -146,30 +173,27 @@ const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { di
         return {
           nodeId,
           width: node?.measured?.width ?? 0,
+          height: node?.measured?.height ?? 0,
           dagreX: position.x,
         }
       })
       .sort((a, b) => a.dagreX - b.dagreX)
-      .reverse() // Reverse the order for display
 
-    // Calculate total width including spacing between nodes
-    const spacing = 50 // horizontal spacing between nodes
-    const totalWidth = bodyNodesWithPositions.reduce((sum, node, index) => {
-      return sum + node.width + (index > 0 ? spacing : 0)
-    }, 0)
+    // Position nodes completely to the right of the loop node (same vertical center)
+    const horizontalSpacing = 50 // Space to the right of loop node (compact)
+    const nodeSpacing = 40 // Spacing between consecutive nodes (increased for readability)
 
-    // Calculate starting X position to center under loop node
-    const loopCenterX = loopPosition.x
-    let currentX = loopCenterX - totalWidth / 2
+    // Start position: to the right of loop node, vertically centered with loop
+    let currentX = loopPosition.x + loopWidth / 2 + horizontalSpacing
+    const baseY = loopPosition.y // Same vertical position as loop node center
 
-    // Assign positions to each body node
+    // Assign positions to each body node (flowing left to right)
     bodyNodesWithPositions.forEach((bodyNode) => {
-      const y = loopPosition.y + loopHeight / 2 + 100
       loopBodyPositions.set(bodyNode.nodeId, {
         x: currentX,
-        y,
+        y: baseY,
       })
-      currentX += bodyNode.width + spacing
+      currentX += bodyNode.width + nodeSpacing
     })
   })
 
@@ -219,17 +243,14 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const workflowVersion = useWorkflowStore((state) => state.workflowVersion)
   const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow)
   const storedEdges = useWorkflowStore((state) => state.edges)
-  // Subscribe to activities and triggers arrays to detect when nodes are added/removed/updated
-  const activitiesCount = useWorkflowStore((state) => state.currentWorkflow?.workflow.activities.length ?? 0)
+  // Subscribe to triggers array to detect when triggers are added/removed/updated
   const triggersCount = useWorkflowStore((state) => state.currentWorkflow?.triggers?.length ?? 0)
   // Subscribe to activities array directly to detect updates to individual activities
   const activities = useWorkflowStore((state) => state.currentWorkflow?.workflow.activities)
-  // Subscribe to edges count to detect when edges are added/removed (needed for loop node creation)
-  const edgesCount = useWorkflowStore((state) => state.edges.length)
   const setStoredEdges = useWorkflowStore((state) => state.setEdges)
   const batchRemoveNodesAndEdges = useWorkflowStore((state) => state.batchRemoveNodesAndEdges)
   const reactFlowInstance = useReactFlow()
-  const { fitView, getViewport, screenToFlowPosition } = reactFlowInstance
+  const { fitView, getViewport, screenToFlowPosition, updateNode } = reactFlowInstance
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Track pending edge that was dragged to canvas
@@ -321,15 +342,40 @@ export function BuilderFlow(props: BuilderFlowProps) {
     // BuilderContent already flattens all workflows via loadWorkflow() before storing
     // So activities are ALWAYS flat here - just need to create nodes and use stored edges
     const taskActivities = extractTaskActivities(activities)
+
+    // CRITICAL: Detect loop body nodes to position them correctly
+    // A loop body node is connected to a loop node via sourceHandle='loop'
+    const loopBodyNodes = new Set<string>()
+    const loopBodyToLoopMap = new Map<string, string>() // body node ID -> loop node ID
+    storedEdges.forEach((edge) => {
+      if (edge.sourceHandle === 'loop') {
+        loopBodyNodes.add(edge.target)
+        loopBodyToLoopMap.set(edge.target, edge.source)
+      }
+    })
+
+    // Position loop nodes with proper spacing
+    const LOOP_NODE_WIDTH = 290 // Loop node default width + some margin
+    const HORIZONTAL_SPACING = 50
+
     taskActivities.forEach((activity: TaskActivity) => {
       // Check if this is a generic placeholder node
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const isGeneric = (activity as any).metadata?.__isGeneric === true
 
+      // Determine position: loop body nodes should be positioned to the right of their loop nodes
+      let position = { x: 0, y: 0 }
+      if (loopBodyNodes.has(activity.id)) {
+        // This is a loop body node - position it to the right of the loop node
+        // Note: Loop node position will be set by the positioning effect, but we set a relative offset
+        // The offset will be preserved when the loop node is positioned
+        position = { x: LOOP_NODE_WIDTH + HORIZONTAL_SPACING, y: 0 }
+      }
+
       nodes.push({
         id: activity.id,
         type: isGeneric ? 'generic' : 'task',
-        position: { x: 0, y: 0 },
+        position,
         data: activity,
       })
     })
@@ -371,10 +417,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
     // - onAddNodeFromEdge: Callback function (should be stable)
     //
     // We DON'T depend on storedEdges directly to avoid infinite loops from edge synchronization.
-    // Using edgesCount instead allows us to detect edge additions without comparing entire edge objects.
+    // We depend on activities and storedEdges directly to detect changes.
     // We DON'T depend on currentWorkflow directly - we use workflowVersion to detect workflow changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workflowVersion, activitiesCount, triggersCount, activities, edgesCount, onAddNodeFromEdge])
+  }, [workflowVersion, triggersCount, activities, storedEdges, onAddNodeFromEdge])
 
   // CRITICAL FIX: Use controlled state instead of useNodesState/useEdgesState
   // React Flow's hooks reset state when initialNodes/initialEdges change
@@ -642,31 +688,121 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   useEffect(() => {
     if (newlyAddedNodeIdsRef.current.size > 0 && isInitialized) {
-      const nodesToPosition = nodes.filter(
-        (node) =>
-          newlyAddedNodeIdsRef.current.has(node.id) && node.measured && node.position.x === 0 && node.position.y === 0
-      )
+      // Build a Map of loop body nodes for O(1) lookup instead of O(n) edges.some() calls
+      const loopBodyNodeMap = new Map<string, string>() // body node ID -> loop node ID
+      edges.forEach((e) => {
+        if (e.sourceHandle === 'loop') {
+          loopBodyNodeMap.set(e.target, e.source)
+        }
+      })
+
+      // For loop body nodes, they start with x: 340 (offset), so we check for that OR x: 0
+      // For all other nodes, they start with x: 0
+      const nodesToPosition = nodes.filter((node) => {
+        if (!newlyAddedNodeIdsRef.current.has(node.id) || !node.measured) return false
+
+        // Loop body nodes have an initial offset position (340, 0)
+        if (loopBodyNodeMap.has(node.id)) {
+          return node.position.x > 0 && node.position.y === 0
+        }
+
+        // All other nodes start at (0, 0)
+        return node.position.x === 0 && node.position.y === 0
+      })
 
       if (nodesToPosition.length > 0) {
-        const viewport = getViewport()
-        const viewportWidth = containerRef.current?.clientWidth ?? window.innerWidth
-        const padding = 50
-        const newNodeX = (-viewport.x + viewportWidth - 350 - padding) / viewport.zoom
-        const newNodeY = (-viewport.y + padding) / viewport.zoom
+        const hasLoopBodyNodes = nodesToPosition.some((n) => loopBodyNodeMap.has(n.id))
 
-        setNodes((currentNodes) =>
-          currentNodes.map((node) => {
-            if (nodesToPosition.some((n) => n.id === node.id)) {
-              newlyAddedNodeIdsRef.current.delete(node.id)
-              return { ...node, position: { x: newNodeX, y: newNodeY } }
+        if (hasLoopBodyNodes) {
+          // Two-pass positioning for loop nodes - place on left side of viewport
+          const viewport = getViewport()
+          const padding = 50
+          const baseX = (-viewport.x + padding) / viewport.zoom
+          const baseY = (-viewport.y + padding) / viewport.zoom
+
+          setNodes((currentNodes) => {
+            const loopPositions = new Map<string, { x: number; y: number; width: number; height: number }>()
+            const positionedNodes = new Map<string, NodeType>()
+
+            // Single pass: position both loop nodes and body nodes
+            const updatedNodes = currentNodes.map((node) => {
+              // First: position loop nodes
+              if (
+                newlyAddedNodeIdsRef.current.has(node.id) &&
+                node.measured &&
+                node.position.x === 0 &&
+                node.position.y === 0 &&
+                node.type === 'loop'
+              ) {
+                const loopWidth = node.measured?.width ?? 240
+                const loopHeight = node.measured?.height ?? 0
+                loopPositions.set(node.id, { x: baseX, y: baseY, width: loopWidth, height: loopHeight })
+                newlyAddedNodeIdsRef.current.delete(node.id)
+                const updatedNode = { ...node, position: { x: baseX, y: baseY } }
+                positionedNodes.set(node.id, updatedNode)
+                return updatedNode
+              }
+
+              // Second: position body nodes if their loop was positioned
+              if (newlyAddedNodeIdsRef.current.has(node.id) && node.measured && loopBodyNodeMap.has(node.id)) {
+                const loopNodeId = loopBodyNodeMap.get(node.id)!
+                const loopPos = loopPositions.get(loopNodeId)
+
+                if (loopPos) {
+                  // Match getLayoutedElements behavior:
+                  // Body node's top-left Y is positioned at loop node's center Y
+                  const horizontalSpacing = 50
+                  const calculatedX = loopPos.x + loopPos.width + horizontalSpacing
+                  const calculatedY = loopPos.y + loopPos.height / 2
+
+                  newlyAddedNodeIdsRef.current.delete(node.id)
+                  const updatedNode = {
+                    ...node,
+                    position: { x: calculatedX, y: calculatedY },
+                  }
+                  positionedNodes.set(node.id, updatedNode)
+                  return updatedNode
+                }
+              }
+              return node
+            })
+
+            // Force ReactFlow to update the positioned nodes immediately
+            if (positionedNodes.size > 0) {
+              setTimeout(() => {
+                positionedNodes.forEach((node, nodeId) => {
+                  updateNode(nodeId, { position: node.position })
+                })
+              }, 100)
             }
-            return node
+
+            return updatedNodes
           })
-        )
+        } else {
+          // Standard viewport-based positioning for non-loop nodes
+          const viewport = getViewport()
+          const viewportWidth = containerRef.current?.clientWidth ?? window.innerWidth
+          const padding = 50
+          const newNodeX = (-viewport.x + viewportWidth - 350 - padding) / viewport.zoom
+          const newNodeY = (-viewport.y + padding) / viewport.zoom
+
+          // Build a Set for O(1) lookup
+          const nodesToPositionSet = new Set(nodesToPosition.map((n) => n.id))
+
+          setNodes((currentNodes) =>
+            currentNodes.map((node) => {
+              if (nodesToPositionSet.has(node.id)) {
+                newlyAddedNodeIdsRef.current.delete(node.id)
+                return { ...node, position: { x: newNodeX, y: newNodeY } }
+              }
+              return node
+            })
+          )
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, isInitialized, getViewport, setNodes])
+  }, [nodes, edges, isInitialized, getViewport, setNodes])
 
   useEffect(() => {
     if (isInitialized) {
