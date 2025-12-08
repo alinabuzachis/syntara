@@ -196,13 +196,14 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
   const [triggerPeriod, setTriggerPeriod] = useState<'AM' | 'PM'>(time.period)
   const [endDate, setEndDate] = useState(parsed.end ? toDateOnly(parsed.end) : '')
 
-  // Track previous value to detect external changes
+  // Track previous value and last emitted value to detect external changes
   const prevValueRef = useRef(value)
-  const isInternalChangeRef = useRef(false)
+  const lastEmittedRef = useRef<string | undefined>(undefined)
 
-  // Update local state when value prop changes
+  // Update local state when value prop changes from external source
   useEffect(() => {
-    if (!isInternalChangeRef.current && value !== prevValueRef.current) {
+    // Only update if value changed and it's not what we just emitted
+    if (value !== prevValueRef.current && value !== lastEmittedRef.current) {
       const parsed = parseRepeatingInterval(value)
       const time = extractTime(parsed.start)
 
@@ -215,7 +216,6 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
       setEndDate(parsed.end ? toDateOnly(parsed.end) : '')
     }
     prevValueRef.current = value
-    isInternalChangeRef.current = false
   }, [value])
 
   // Emit the ISO 8601 repeating interval string when values change
@@ -245,7 +245,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
     }
 
     if (interval !== value) {
-      isInternalChangeRef.current = true
+      lastEmittedRef.current = interval
       onChange?.(interval)
     }
   }, [startDate, cadence, triggerHour, triggerMinute, triggerPeriod, endDate, onChange, value])
@@ -311,13 +311,16 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
 
       {/* End Date (Optional) */}
       <Field label="End Date" htmlFor="cadence-end">
-        <Input
-          id="cadence-end"
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          placeholder="Never ends"
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            id="cadence-end"
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            placeholder="Never ends"
+          />
+          {!endDate && <span className="text-xs text-gray-400">(Never ends)</span>}
+        </div>
       </Field>
     </div>
   )

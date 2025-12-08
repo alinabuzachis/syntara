@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { Textarea } from './Textarea'
 
@@ -13,7 +13,7 @@ describe('Textarea', () => {
   it('applies correct default styling classes', () => {
     render(<Textarea />)
     const textarea = screen.getByRole('textbox')
-    expect(textarea).toHaveClass('w-full', 'rounded-lg', 'bg-black/20', 'px-3', 'py-2')
+    expect(textarea).toHaveClass('w-full', 'rounded-md', 'bg-white/5', 'px-3', 'py-2')
   })
 
   it('accepts standard textarea props', () => {

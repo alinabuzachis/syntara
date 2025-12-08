@@ -27,9 +27,10 @@
     "start": "vite build --watch",
     "dev": "vite --open",
     "build": "vite build",
-    "test": "concurrently npm:eslint npm:tsc",
+    "test": "concurrently npm:eslint npm:tsc npm:vitest",
     "tsc": "tsc --noEmit",
-    "eslint": "eslint ."
+    "eslint": "eslint .",
+    "vitest": "vitest run"
   },
   "peerDependencies": {
     "@patternfly/react-core": "^6.5.0-prerelease.12",
