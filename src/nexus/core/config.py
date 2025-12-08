@@ -341,6 +341,114 @@ class ServerSettings(BaseSettings):
 
 
 # =============================================================================
+# Retriever Service Configuration
+# =============================================================================
+
+
+class RetrieverServiceSettings(BaseSettings):
+    """RetrieverService configuration settings.
+
+    Configuration settings for the RetrieverService framework for document
+    retrieval and relevancy checking.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    # LLM Relevancy Checker Configuration
+    retriever_llm_model: str = Field(
+        default="anthropic/claude-3.5-sonnet",
+        description="OpenRouter model for LLM relevancy checking",
+    )
+
+    retriever_llm_temperature: float = Field(
+        default=0.3,
+        description="Temperature for LLM relevancy checking",
+        ge=0.0,
+        le=2.0,
+    )
+
+    retriever_llm_max_tokens: int = Field(
+        default=150,
+        description="Maximum tokens for LLM relevancy responses",
+        ge=1,
+        le=4000,
+    )
+
+    retriever_llm_similarity_threshold: float = Field(
+        default=0.7,
+        description="Similarity threshold for LLM relevancy filtering",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_llm_max_results: int = Field(
+        default=10,
+        description="Maximum results returned by LLM relevancy checking",
+        ge=1,
+        le=1000,
+    )
+
+    # Keyword Relevancy Checker Configuration
+    retriever_keyword_similarity_threshold: float = Field(
+        default=0.4,
+        description="Similarity threshold for keyword relevancy filtering",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_keyword_max_results: int = Field(
+        default=15,
+        description="Maximum results returned by keyword relevancy checking",
+        ge=1,
+        le=1000,
+    )
+
+    retriever_keyword_case_sensitive: bool = Field(
+        default=False,
+        description="Whether keyword matching is case sensitive",
+    )
+
+    retriever_keyword_stem_words: bool = Field(
+        default=True,
+        description="Whether to apply word stemming in keyword matching",
+    )
+
+    retriever_keyword_remove_stopwords: bool = Field(
+        default=True,
+        description="Whether to remove stopwords in keyword processing",
+    )
+
+    retriever_keyword_phrase_bonus_multiplier: float = Field(
+        default=1.5,
+        description="Multiplier bonus for exact phrase matches",
+        ge=0.1,
+        le=10.0,
+    )
+
+    # General Retriever Configuration
+    retriever_context_window_size: int = Field(
+        default=2000,
+        description="Maximum characters for document content excerpt",
+        ge=100,
+        le=10000,
+    )
+
+    retriever_cache_ttl_seconds: int = Field(
+        default=300,
+        description="Time-to-live for relevancy cache entries in seconds",
+        ge=60,
+        le=3600,
+    )
+
+    retriever_cache_max_size: int = Field(
+        default=100,
+        description="Maximum number of entries in relevancy cache",
+        ge=10,
+        le=1000,
+    )
+
+
+# =============================================================================
 # Logging Configuration
 # =============================================================================
 
@@ -511,6 +619,7 @@ class Settings(
     ValkeySettings,
     DatabaseSettings,
     ServerSettings,
+    RetrieverServiceSettings,
     LoggingSettings,
     TemporalSettings,
     WorkflowEngineSettings,
