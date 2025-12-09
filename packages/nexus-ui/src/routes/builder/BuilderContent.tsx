@@ -23,6 +23,7 @@ import { buildNestedConditionStructure } from './utils/buildNestedStructure'
 import { EdgeFactory } from './utils/EdgeFactory'
 import { loadWorkflow } from './utils/loadWorkflow'
 import { validateRoundTrip, validateSavePath } from './utils/validateRoundTrip'
+import { validateWorkflow } from './utils/validation'
 import type { EdgeType } from './utils/workflowToGraph'
 import { WorkflowSidepanel } from './WorkflowSidepanel'
 
@@ -277,6 +278,22 @@ export function BuilderContent(props: BuilderContentProps) {
   }, [currentWorkflow, workflowName, workflowDescription])
 
   const handleSaveWorkflow = useCallback(() => {
+    // Validate workflow before saving
+    if (!currentWorkflow) {
+      showError('No workflow to save', 'Validation Failed')
+      return
+    }
+
+    const edges = useWorkflowStore.getState().edges
+    const validationResult = validateWorkflow(currentWorkflow.workflow.activities, edges)
+
+    if (!validationResult.valid) {
+      // Build error message from validation errors
+      const errorMessages = validationResult.errors.map((error) => error.message).join('\n• ')
+      showError(`Workflow validation failed:\n• ${errorMessages}`, 'Validation Failed')
+      return
+    }
+
     const workflowDef = getWorkflowDefinition()
     const workflowData = {
       name: workflowName,
@@ -331,6 +348,7 @@ export function BuilderContent(props: BuilderContentProps) {
       )
     }
   }, [
+    currentWorkflow,
     workflowName,
     workflowDescription,
     isEnabled,
