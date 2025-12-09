@@ -2,10 +2,7 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { MarkerType } from '@xyflow/react'
 
 // Type aliases from API contracts
-export type Trigger =
-  | WorkflowAPI.components['schemas']['manualTrigger']
-  | WorkflowAPI.components['schemas']['scheduledTrigger']
-  | WorkflowAPI.components['schemas']['eventTrigger']
+export type Trigger = WorkflowAPI.components['schemas']['manualTrigger']
 
 export type Activity = WorkflowAPI.components['schemas']['activity']
 export type TaskActivity = Extract<Activity, { type: 'task' }>

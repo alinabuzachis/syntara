@@ -24,6 +24,8 @@ interface NodeConfig<TFormData = unknown> {
   order?: number
   /** Form component to render when selected */
   formComponent: ComponentType<BaseNodeFormProps<TFormData>>
+  /** Whether this node type is enabled (default: true) */
+  enabled?: boolean
 }
 
 /**

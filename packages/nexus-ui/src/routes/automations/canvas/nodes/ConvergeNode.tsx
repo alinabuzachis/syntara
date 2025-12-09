@@ -20,7 +20,12 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
 
   return (
     <NodeComponent className={metadata.className} nodeProps={props}>
-      <StandardNodeHeader icon={<Icon />} title={props.data.name} subtitle={metadata.label} expandable />
+      <StandardNodeHeader
+        icon={<Icon className="rotate-90" />}
+        title={props.data.name}
+        subtitle={metadata.label}
+        expandable
+      />
       <div className="justify-left flex overflow-hidden">
         <NodeBody>
           <Details>

@@ -68,8 +68,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
           data.name,
           data.connectorId,
           data.operation,
-          data.parameters,
-          data.requiresApproval
+          data.parameters
         )
 
         updateActivity(nodeId, updatedActivity)

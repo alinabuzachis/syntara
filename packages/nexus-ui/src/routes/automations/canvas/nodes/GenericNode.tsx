@@ -1,6 +1,6 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
-import { PlusCircleIcon } from 'lucide-react'
+import { ReplaceIcon } from 'lucide-react'
 
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
@@ -33,13 +33,13 @@ export function GenericNodeComponent(props: NodeProps<GenericNode>) {
       reverseHandles={reverseHandles}
     >
       <StandardNodeHeader
-        icon={<PlusCircleIcon className="size-6 text-gray-500" />}
+        icon={<ReplaceIcon className="size-6 scale-x-[-1] text-gray-500" />}
         title={showTitle ? 'Click to configure' : undefined}
         expandable={false}
       />
       <NodeBody>
         <div className="flex items-center justify-center py-4">
-          <p className="text-xs text-gray-500">{displayMessage}</p>
+          <p className="text-base font-bold text-gray-500">{displayMessage}</p>
         </div>
       </NodeBody>
     </NodeComponent>

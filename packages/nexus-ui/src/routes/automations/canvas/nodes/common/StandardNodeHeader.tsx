@@ -25,15 +25,14 @@ interface StandardNodeHeaderProps {
  * - Danger styling for destructive actions (variant: 'danger')
  * - Icons for menu items
  *
- * Note: The chevron (expand toggle) and kebab menu are placed side by side in a flex container
- * on the right side of the header, matching the mockup specifications.
+ * Layout: Icon and kebab menu on first line, title and subtitle on second line below.
  */
 export function StandardNodeHeader(props: Readonly<StandardNodeHeaderProps>) {
   return (
     <div className="relative">
       <NodeHeader>
         {props.icon && <NodeIcon>{props.icon}</NodeIcon>}
-        <NodeTitle title={props.title} subTitle={props.subtitle} />
+        <div className="flex-1" />
         <div className="flex items-center gap-2">
           {props.expandable && <NodeExpandToggle />}
           {props.menuActions && props.menuActions.length > 0 && (
@@ -65,6 +64,9 @@ export function StandardNodeHeader(props: Readonly<StandardNodeHeaderProps>) {
           )}
         </div>
       </NodeHeader>
+      <div className="px-6 pt-2">
+        <NodeTitle title={props.title} subTitle={props.subtitle} />
+      </div>
     </div>
   )
 }

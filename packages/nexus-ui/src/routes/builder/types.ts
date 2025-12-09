@@ -22,6 +22,8 @@ export interface BuilderFlowProps {
   onNodeClick?: NodeMouseHandler<NodeType>
   /** Handler for adding a node from an edge */
   onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string, sourceHandle?: string) => void
+  /** Handler called after nodes are deleted */
+  onNodesDeleted?: (deletedNodeIds: string[]) => void
 }
 
 /**

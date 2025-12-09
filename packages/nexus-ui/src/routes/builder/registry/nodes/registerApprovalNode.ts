@@ -6,6 +6,7 @@ import { NodeRegistry } from '../NodeRegistry'
 
 /**
  * Register the Approval node type
+ * NOTE: Currently disabled - approval functionality moved to individual node forms
  */
 export default function registerApprovalNode() {
   NodeRegistry.register(
@@ -18,6 +19,7 @@ export default function registerApprovalNode() {
       keywords: ['approve', 'approval', 'review', 'manual', 'gate', 'checkpoint'],
       order: 50,
       formComponent: ApprovalNodeForm,
+      enabled: false,
     })
   )
 }

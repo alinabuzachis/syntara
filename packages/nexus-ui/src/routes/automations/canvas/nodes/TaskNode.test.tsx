@@ -44,7 +44,7 @@ describe('TaskActivityDetails', () => {
     render(<TaskActivityDetails data={mockApiTask} />)
 
     expect(screen.getByText('API Task')).toBeInTheDocument()
-    expect(screen.getByText('API Call')).toBeInTheDocument()
+    expect(screen.getByText('REST Api')).toBeInTheDocument()
     expect(screen.getByText('GET')).toBeInTheDocument()
     expect(screen.getByText('https://api.example.com')).toBeInTheDocument()
   })

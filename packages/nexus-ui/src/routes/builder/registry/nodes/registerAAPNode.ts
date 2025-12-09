@@ -27,8 +27,7 @@ export default function registerAAPNode() {
           data.name,
           data.connectorId,
           data.operation,
-          data.parameters,
-          data.requiresApproval
+          data.parameters
         )
 
         useWorkflowStore.getState().addActivity(activity)

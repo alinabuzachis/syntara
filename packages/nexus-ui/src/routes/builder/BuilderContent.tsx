@@ -462,6 +462,16 @@ export function BuilderContent(props: BuilderContentProps) {
     [reactFlowInstance]
   )
 
+  const handleNodesDeleted = useCallback((deletedNodeIds: string[]) => {
+    // Close the details panel if the selected node was deleted
+    setSelectedNode((current) => {
+      if (current && deletedNodeIds.includes(current.id)) {
+        return null
+      }
+      return current
+    })
+  }, [])
+
   return (
     <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
       <AppPage>
@@ -562,6 +572,7 @@ export function BuilderContent(props: BuilderContentProps) {
                   activeEdgeId={addNodePanelOpen ? edgeIdToReplace : null}
                   onNodeClick={handleNodeClick}
                   onAddNodeFromEdge={handleAddNodeFromEdge}
+                  onNodesDeleted={handleNodesDeleted}
                 />
               </div>
 

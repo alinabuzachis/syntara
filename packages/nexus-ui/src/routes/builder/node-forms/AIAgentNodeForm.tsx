@@ -1,14 +1,4 @@
-import {
-  Button,
-  Card,
-  Checkbox,
-  Controller,
-  Form,
-  Input,
-  NativeSelect,
-  Textarea,
-  useFormContext,
-} from '@ansible/nexus-ui-framework'
+import { Button, Card, Form, Input, NativeSelect, Textarea, useFormContext } from '@ansible/nexus-ui-framework'
 
 interface AIAgentFormData {
   name: string
@@ -16,7 +6,6 @@ interface AIAgentFormData {
   tools: string
   prompt: string
   model: string
-  requiresApproval?: boolean
 }
 
 interface AIAgentNodeFormProps {
@@ -26,7 +15,7 @@ interface AIAgentNodeFormProps {
 }
 
 function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) {
-  const { register, control } = useFormContext<AIAgentFormData>()
+  const { register } = useFormContext<AIAgentFormData>()
   return (
     <>
       <div className="flex flex-col gap-1.5">
@@ -81,13 +70,6 @@ function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) 
           className="text-xs"
         />
       </div>
-      <Controller
-        control={control}
-        name="requiresApproval"
-        render={({ field }) => (
-          <Checkbox checked={field.value} onCheckedChange={field.onChange} label="Require approval" />
-        )}
-      />
       <Button type="submit" variant="primary" className="w-full justify-center text-xs">
         {submitButtonText ?? 'Add node'}
       </Button>
@@ -102,15 +84,10 @@ export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
     tools: '',
     prompt: '',
     model: 'claude-3-sonnet',
-    requiresApproval: false,
   }
 
   const handleSubmit = (data: AIAgentFormData) => {
-    const cleanedData: AIAgentFormData = {
-      ...data,
-      requiresApproval: data.requiresApproval || undefined,
-    }
-    props.onSubmit(cleanedData)
+    props.onSubmit(data)
   }
 
   return (

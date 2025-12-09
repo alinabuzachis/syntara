@@ -1101,8 +1101,7 @@ export function createConnectorActivity(
   name: string,
   connectorId: string,
   operation: string,
-  parameters?: string,
-  requiresApproval?: boolean
+  parameters?: string
 ): TaskActivity {
   // Parse parameters if provided
   let parsedParameters: { [key: string]: unknown } | undefined
@@ -1128,7 +1127,6 @@ export function createConnectorActivity(
     type: 'task',
     id,
     name,
-    ...(requiresApproval === true && { requiresApproval: true }),
     // Add metadata to indicate this is actually an AAP connector node
     // This allows the UI to render it with the Ansible icon/label
     metadata: {

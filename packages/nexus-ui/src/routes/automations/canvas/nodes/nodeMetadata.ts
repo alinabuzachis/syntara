@@ -1,11 +1,11 @@
 import {
-  PlayCircleIcon,
+  PlayIcon,
   SplitIcon,
   RepeatIcon,
   MergeIcon,
   BrainIcon,
-  FileTerminalIcon,
-  GlobeIcon,
+  CurlyBracesIcon,
+  CloudCogIcon,
   PlugIcon,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
@@ -25,9 +25,9 @@ export interface NodeMetadata {
 
 export const nodeMetadata: Record<string, NodeMetadata> = {
   trigger: {
-    icon: PlayCircleIcon,
+    icon: PlayIcon,
     label: 'Trigger',
-    className: 'w-node-trigger rounded-4xl rounded-l-[48px] border-l-8 pl-2',
+    className: 'w-node-trigger rounded-l-full min-h-[80px]',
     disableTarget: true,
     expandable: false,
   },
@@ -64,9 +64,9 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
 
 // Task executor metadata - different tasks have different icons
 export const executorMetadata: Record<string, { icon: ComponentType<{ className?: string }>; label: string }> = {
-  script: { icon: FileTerminalIcon, label: 'Script' },
+  script: { icon: CurlyBracesIcon, label: 'Script' },
   agentic: { icon: BrainIcon, label: 'Agentic' },
-  api: { icon: GlobeIcon, label: 'API Call' },
+  api: { icon: CloudCogIcon, label: 'REST Api' },
   connector: { icon: PlugIcon, label: 'Connector' },
   aap: { icon: AnsibleIcon, label: 'AAP Job' }, // Ansible Automation Platform
 }

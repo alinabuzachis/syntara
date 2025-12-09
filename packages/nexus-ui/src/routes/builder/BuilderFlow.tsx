@@ -241,6 +241,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     activeEdgeId,
     onNodeClick,
     onAddNodeFromEdge,
+    onNodesDeleted,
   } = props
 
   const workflowVersion = useWorkflowStore((state) => state.workflowVersion)
@@ -747,8 +748,14 @@ export function BuilderFlow(props: BuilderFlowProps) {
       setTimeout(() => {
         isDeletingRef.current = false
       }, 100)
+
+      // Notify parent component about deleted nodes
+      if (onNodesDeleted) {
+        const deletedIds = Array.from(deletedNodeIds)
+        onNodesDeleted(deletedIds)
+      }
     },
-    [batchRemoveNodesAndEdges, setEdges, setNodes, nodes, onAddNodeFromEdge]
+    [batchRemoveNodesAndEdges, setEdges, setNodes, nodes, onAddNodeFromEdge, onNodesDeleted]
   )
 
   useEffect(() => {

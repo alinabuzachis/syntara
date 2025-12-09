@@ -1,13 +1,11 @@
+import { KebabMenuTrigger, Menu, MenuItem, MenuItems } from '@ansible/nexus-ui-framework'
 import { type Node, type NodeProps } from '@xyflow/react'
 import type { WorkflowAPI } from 'nexus-contracts'
 
-import { CodeBlock } from '../../../../components/details/CodeBlock'
-import { Detail } from '../../../../components/details/Detail'
-import { Details } from '../../../../components/details/Details'
-
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
-import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { NodeHeader } from './common/NodeHeader'
+import { NodeIcon } from './common/NodeIcon'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { nodeMetadata } from './nodeMetadata'
 
@@ -46,33 +44,45 @@ export function TriggerNodeDetails(
   }>
 ) {
   const nodeData = props.node
-  const metadata = nodeMetadata.trigger
 
   return (
     <>
-      <StandardNodeHeader
-        icon={props.icon}
-        title={nodeData.label}
-        subtitle={metadata.label}
-        menuActions={props.menuActions}
-      />
-      {nodeData.inputs && Object.keys(nodeData.inputs).length > 0 && (
-        <NodeBody>
-          <Details>
-            <Detail label="Inputs">
-              <CodeBlock>
-                <ul className="flex flex-col gap-1">
-                  {Object.entries(nodeData.inputs).map(([inputName, inputDef]) => (
-                    <li key={inputName}>
-                      <span className="font-mono font-bold">{inputName}</span>: {inputDef.type}
-                    </li>
-                  ))}
-                </ul>
-              </CodeBlock>
-            </Detail>
-          </Details>
-        </NodeBody>
-      )}
+      <NodeHeader>
+        <div className="ml-2">{props.icon && <NodeIcon>{props.icon}</NodeIcon>}</div>
+        <div className="flex-1" />
+        {props.menuActions && props.menuActions.length > 0 && (
+          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Intentional for ReactFlow node interaction isolation
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="nodrag nopan -mr-2"
+          >
+            <Menu>
+              <KebabMenuTrigger label="Node actions menu" />
+              <MenuItems>
+                {props.menuActions.map((action) => (
+                  <MenuItem
+                    key={action.id}
+                    onClick={() => {
+                      action.onClick()
+                    }}
+                    className={action.variant === 'danger' ? 'menu-item-danger' : ''}
+                  >
+                    {action.icon && <span className="mr-2">{action.icon}</span>}
+                    {action.label}
+                  </MenuItem>
+                ))}
+              </MenuItems>
+            </Menu>
+          </div>
+        )}
+      </NodeHeader>
+      <NodeBody>
+        <div className="-mt-1 ml-2">
+          <div className="text-sm font-semibold">{nodeData.label}</div>
+          <div className="text-xs text-white/60">{'Manual trigger'}</div>
+        </div>
+      </NodeBody>
     </>
   )
 }

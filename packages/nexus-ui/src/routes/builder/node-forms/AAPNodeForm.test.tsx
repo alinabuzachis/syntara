@@ -9,25 +9,6 @@ vi.mock('@ansible/nexus-ui-framework', async () => {
   const actual = await vi.importActual('@ansible/nexus-ui-framework')
   return {
     ...actual,
-    Checkbox: ({
-      checked,
-      onCheckedChange,
-      label,
-    }: {
-      checked: boolean
-      onCheckedChange: (checked: boolean) => void
-      label: string
-    }) => (
-      <label>
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => onCheckedChange(e.target.checked)}
-          aria-label={label}
-        />
-        {label}
-      </label>
-    ),
     Button: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
       <button {...props}>{children}</button>
     ),
@@ -64,24 +45,21 @@ describe('AAPNodeForm', () => {
       connectorId: 'ansible-automation-platform',
       operation: 'launch_job',
       parameters: '',
-      requiresApproval: undefined,
     })
   })
 
-  it('submits with approval and different operation', async () => {
+  it('submits with different operation', async () => {
     const user = userEvent.setup()
     render(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Cancel Job')
     await user.type(screen.getByPlaceholderText(/ansible-automation-platform/i), 'ansible-automation-platform')
     await user.selectOptions(screen.getByRole('combobox'), 'cancel_job')
-    await user.click(screen.getByLabelText(/Require approval/i))
     await user.click(screen.getByRole('button', { name: /Add node/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         operation: 'cancel_job',
-        requiresApproval: true,
       })
     )
   })

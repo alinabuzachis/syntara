@@ -1,8 +1,6 @@
 import {
   Button,
   Card,
-  Checkbox,
-  Controller,
   Form,
   Input,
   NativeSelect,
@@ -27,7 +25,6 @@ export interface ActionFormData {
   headers?: string
   body?: string
   parameters?: string
-  requiresApproval?: boolean
 }
 
 interface ActionNodeFormProps {
@@ -40,7 +37,7 @@ interface ActionNodeFormProps {
 // Constants (Priority 4)
 const EXECUTOR_OPTIONS: Array<{ label: string; value: ExecutorType }> = [
   { label: 'Script', value: 'script' },
-  { label: 'API Call', value: 'api' },
+  { label: 'REST Api', value: 'api' },
 ]
 
 const SCRIPT_LANGUAGE_OPTIONS: Array<{ label: string; value: ScriptLanguage }> = [
@@ -60,7 +57,7 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
  * Form fields component that manually registers fields with react-hook-form
  */
 function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
-  const { register, control } = useFormContext<ActionFormData>()
+  const { register } = useFormContext<ActionFormData>()
   const executor = useWatch({ name: 'executor' })
 
   return (
@@ -196,14 +193,6 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
         </>
       )}
 
-      <Controller
-        control={control}
-        name="requiresApproval"
-        render={({ field }) => (
-          <Checkbox checked={field.value} onCheckedChange={field.onChange} label="Require approval" />
-        )}
-      />
-
       <Button type="submit" variant="primary" className="w-full justify-center text-xs">
         {submitButtonText ?? 'Add node'}
       </Button>
@@ -217,7 +206,6 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
     executor: 'script',
     language: 'python',
     method: 'GET',
-    requiresApproval: false,
     ...props.initialData,
   }
 
@@ -234,7 +222,6 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
       headers: data.executor === 'api' ? data.headers : undefined,
       body: data.executor === 'api' ? data.body : undefined,
       parameters: data.parameters || undefined,
-      requiresApproval: data.requiresApproval || undefined,
     }
     props.onSubmit(cleanedData)
   }

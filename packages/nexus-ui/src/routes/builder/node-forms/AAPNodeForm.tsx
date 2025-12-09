@@ -1,14 +1,4 @@
-import {
-  Button,
-  Card,
-  Checkbox,
-  Controller,
-  Form,
-  Input,
-  NativeSelect,
-  Textarea,
-  useFormContext,
-} from '@ansible/nexus-ui-framework'
+import { Button, Card, Form, Input, NativeSelect, Textarea, useFormContext } from '@ansible/nexus-ui-framework'
 import { useState } from 'react'
 
 export interface AAPFormData {
@@ -16,7 +6,6 @@ export interface AAPFormData {
   connectorId: string
   operation: string
   parameters: string
-  requiresApproval?: boolean
 }
 
 interface AAPNodeFormProps {
@@ -27,7 +16,7 @@ interface AAPNodeFormProps {
 }
 
 function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
-  const { register, control } = useFormContext<AAPFormData>()
+  const { register } = useFormContext<AAPFormData>()
   const [jsonError, setJsonError] = useState<string | null>(null)
 
   // Validate JSON on change
@@ -101,22 +90,6 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
           Optional: Provide parameters as a JSON object for the connector operation
         </p>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Controller
-          control={control}
-          name="requiresApproval"
-          render={({ field }) => (
-            <Checkbox
-              checked={field.value}
-              onCheckedChange={field.onChange}
-              label="Require approval before execution"
-            />
-          )}
-        />
-        <p className="text-xs text-gray-400">
-          When enabled, this activity will pause and wait for human approval before executing
-        </p>
-      </div>
       <Button type="submit" variant="primary" className="w-full justify-center text-xs" disabled={!!jsonError}>
         {submitButtonText ?? 'Add node'}
       </Button>
@@ -130,16 +103,11 @@ export function AAPNodeForm(props: AAPNodeFormProps) {
     connectorId: '',
     operation: 'launch_job',
     parameters: '',
-    requiresApproval: false,
     ...props.initialData,
   }
 
   const handleSubmit = (data: AAPFormData) => {
-    const cleanedData: AAPFormData = {
-      ...data,
-      requiresApproval: data.requiresApproval || undefined,
-    }
-    props.onSubmit(cleanedData)
+    props.onSubmit(data)
   }
 
   return (

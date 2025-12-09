@@ -23,7 +23,11 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
 
   return (
     <NodeComponent className={metadata.className} nodeProps={props} disableSource>
-      <ConditionNodeDetails conditionActivity={props.data} icon={<Icon />} menuActions={menuActions}>
+      <ConditionNodeDetails
+        conditionActivity={props.data}
+        icon={<Icon className="rotate-90" />}
+        menuActions={menuActions}
+      >
         <BranchHandles>
           <BranchHandle id="true">True</BranchHandle>
           <BranchHandle id="false">False</BranchHandle>

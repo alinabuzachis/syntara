@@ -60,14 +60,6 @@ describe('createConnectorActivity', () => {
     expect(invalidPrompt).not.toHaveProperty('parameters')
   })
 
-  it('includes requiresApproval only when true', () => {
-    const withApproval = createConnectorActivity('id', 'name', 'connector', 'op', undefined, true)
-    const withoutApproval = createConnectorActivity('id', 'name', 'connector', 'op', undefined, false)
-
-    expect(withApproval.requiresApproval).toBe(true)
-    expect(withoutApproval).not.toHaveProperty('requiresApproval')
-  })
-
   it('supports all AAP operations', () => {
     const operations = ['launch_job', 'launch_workflow', 'get_job_status', 'cancel_job']
 
@@ -84,15 +76,13 @@ describe('createConnectorActivity', () => {
       'Deploy Production',
       'ansible-automation-platform',
       'launch_job',
-      '{"job_template_id": "42", "inventory": "production"}',
-      true
+      '{"job_template_id": "42", "inventory": "production"}'
     )
 
     expect(activity).toMatchObject({
       type: 'task',
       id: 'activity_deploy_prod',
       name: 'Deploy Production',
-      requiresApproval: true,
       metadata: {
         __executorType: 'aap',
         __connectorId: 'ansible-automation-platform',
