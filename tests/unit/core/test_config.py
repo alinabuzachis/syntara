@@ -387,3 +387,20 @@ def test_custom_env_file_path(monkeypatch, tmp_path) -> None:
 
     monkeypatch.delenv("NEXUS_ENV_FILE_PATH", raising=False)
     importlib.reload(config_module).get_settings.cache_clear()
+
+
+# =============================================================================
+# AdapterRetrySettings Tests
+# =============================================================================
+
+
+class TestAdapterRetrySettings:
+    """Tests for AdapterRetrySettings configuration."""
+
+    def test_adapter_backoff_relationship_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that max_backoff must be >= initial_backoff."""
+        monkeypatch.setenv("NEXUS_ADAPTER_INITIAL_BACKOFF_SECONDS", "10.0")
+        monkeypatch.setenv("NEXUS_ADAPTER_MAX_BACKOFF_SECONDS", "2.0")
+
+        with pytest.raises(ValueError, match="adapter_max_backoff_seconds"):
+            Settings()

@@ -11,6 +11,7 @@ from langchain_openai import ChatOpenAI
 from nexus.agent_orchestrator.agents.base_agent import BaseAgent
 from nexus.agent_orchestrator.models.agent_response import GenericAgentResponse
 from nexus.agent_orchestrator.models.agent_state import AgentState
+from nexus.agent_orchestrator.utils.retry import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class GenericAgent(BaseAgent):
             ]
         )
 
+    @retry_with_backoff
     async def _execute(self, state: AgentState) -> GenericAgentResponse:
         """Execute GenericAgent-specific logic: query LLM for answer.
 

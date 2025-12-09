@@ -20,7 +20,7 @@ from functools import lru_cache
 from urllib.parse import quote_plus
 from uuid import UUID
 
-from pydantic import Field, HttpUrl, SecretStr, computed_field
+from pydantic import Field, HttpUrl, SecretStr, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # =============================================================================
@@ -350,8 +350,6 @@ class RetrieverServiceSettings(BaseSettings):
 
     Configuration settings for the RetrieverService framework for document
     retrieval and relevancy checking.
-
-    Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
 
     # LLM Relevancy Checker Configuration
@@ -446,6 +444,66 @@ class RetrieverServiceSettings(BaseSettings):
         ge=10,
         le=1000,
     )
+
+
+# LLM Adapter Retry Configuration
+# =============================================================================
+
+
+class AdapterRetrySettings(BaseSettings):
+    """LLM adapter retry and recovery configuration settings.
+
+    Configures retry behavior for LLM adapter operations to handle transient
+    failures (network issues, rate limiting, temporary service outages).
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    adapter_max_retries: int = Field(
+        default=3,
+        description="Maximum number of retry attempts (0 disables retries)",
+        ge=0,
+    )
+
+    adapter_initial_backoff_seconds: float = Field(
+        default=1.0,
+        description="Initial delay before first retry in seconds",
+        gt=0,
+    )
+
+    adapter_backoff_growth_factor: float = Field(
+        default=2.0,
+        description="Exponential growth factor for backoff delays (1.0 = fixed, >1.0 = exponential)",
+        ge=1.0,
+    )
+
+    adapter_max_backoff_seconds: float = Field(
+        default=10.0,
+        description="Maximum cap for backoff delay in seconds",
+        gt=0,
+    )
+
+    adapter_request_timeout_seconds: float = Field(
+        default=30.0,
+        description="Per-attempt timeout to prevent unbounded wait times (applies to initial + all retries)",
+        gt=0,
+    )
+
+    @model_validator(mode="after")
+    def validate_backoff_relationship(self) -> "AdapterRetrySettings":
+        """Validate that max_backoff >= initial_backoff.
+
+        This ensures exponential backoff works as intended. If max < initial,
+        all retry attempts would be immediately capped to max, defeating the
+        purpose of exponential growth.
+        """
+        if self.adapter_max_backoff_seconds < self.adapter_initial_backoff_seconds:
+            msg = (
+                f"adapter_max_backoff_seconds ({self.adapter_max_backoff_seconds}) "
+                f"must be >= adapter_initial_backoff_seconds ({self.adapter_initial_backoff_seconds})"
+            )
+            raise ValueError(msg)
+        return self
 
 
 # =============================================================================
@@ -620,6 +678,7 @@ class Settings(
     DatabaseSettings,
     ServerSettings,
     RetrieverServiceSettings,
+    AdapterRetrySettings,
     LoggingSettings,
     TemporalSettings,
     WorkflowEngineSettings,
