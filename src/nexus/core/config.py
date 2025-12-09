@@ -564,6 +564,140 @@ class TemporalSettings(BaseSettings):
 
 
 # =============================================================================
+# Context Manager Configuration
+# =============================================================================
+
+
+class ContextManagerSettings(BaseSettings):
+    """Context Manager configuration settings.
+
+    Provides configuration for context retrieval, compression, assembly,
+    and grounding score requirements.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    # Grounding score requirements
+    context_manager_required_grounding_score: float = Field(
+        default=0.7,
+        description="Required grounding score threshold",
+        ge=0.0,
+        le=1.0,
+    )
+
+    context_manager_minimum_grounding_score: float = Field(
+        default=0.5,
+        description="Minimum grounding score threshold",
+        ge=0.0,
+        le=1.0,
+    )
+
+    # Token budget settings
+    context_manager_max_total_tokens: int = Field(
+        default=4000,
+        description="Maximum total tokens in context package",
+        ge=1,
+    )
+
+    context_manager_max_context_tokens: int = Field(
+        default=3000,
+        description="Maximum tokens for context content",
+        ge=1,
+    )
+
+    context_manager_max_system_tokens: int = Field(
+        default=500,
+        description="Maximum tokens for system prompts",
+        ge=1,
+    )
+
+    context_manager_max_user_tokens: int = Field(
+        default=500,
+        description="Maximum tokens for user messages",
+        ge=1,
+    )
+
+    # Retrieval settings
+    context_manager_default_k: int = Field(
+        default=10,
+        description="Default number of documents to retrieve",
+        ge=1,
+    )
+
+    context_manager_enable_hybrid_search: bool = Field(
+        default=True,
+        description="Enable hybrid search (semantic + lexical)",
+    )
+
+    context_manager_semantic_weight: float = Field(
+        default=0.7,
+        description="Weight for semantic search in hybrid mode",
+        ge=0.0,
+        le=1.0,
+    )
+
+    context_manager_lexical_weight: float = Field(
+        default=0.3,
+        description="Weight for lexical search in hybrid mode",
+        ge=0.0,
+        le=1.0,
+    )
+
+    # Compression settings
+    context_manager_compression_mode: str = Field(
+        default="extractive",
+        description="Compression mode (extractive, abstractive, etc.)",
+    )
+
+    context_manager_max_snippets_per_doc: int = Field(
+        default=3,
+        description="Maximum number of snippets to extract per document",
+        ge=1,
+    )
+
+    context_manager_snippet_min_length: int = Field(
+        default=100,
+        description="Minimum length of extracted snippets in characters",
+        ge=1,
+    )
+
+    context_manager_snippet_max_length: int = Field(
+        default=500,
+        description="Maximum length of extracted snippets in characters",
+        ge=1,
+    )
+
+    # Assembly settings
+    context_manager_enforce_hierarchy: bool = Field(
+        default=True,
+        description="Enforce hierarchical ordering of context sections",
+    )
+
+    context_manager_priority_order: list[str] = Field(
+        default=["system", "context", "user"],
+        description="Priority order for context sections",
+    )
+
+    context_manager_include_citations: bool = Field(
+        default=True,
+        description="Include source citations in assembled context",
+    )
+
+    # Timing and performance
+    context_manager_request_timeout_seconds: int = Field(
+        default=30,
+        description="Maximum time allowed for context manager requests",
+        ge=1,
+    )
+
+    context_manager_max_concurrent_requests: int = Field(
+        default=5,
+        description="Maximum number of concurrent context requests",
+        ge=1,
+    )
+
+
+# =============================================================================
 # Workflow Engine Configuration
 # =============================================================================
 
@@ -681,6 +815,7 @@ class Settings(
     AdapterRetrySettings,
     LoggingSettings,
     TemporalSettings,
+    ContextManagerSettings,
     WorkflowEngineSettings,
 ):
     """Application-wide settings.

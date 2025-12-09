@@ -7,9 +7,10 @@ compression, and assembly phases to produce final context packages.
 import logging
 import time
 
+from nexus.core.config import get_settings
+
 from .assembler import AssemblerService
 from .compressor import CompressorService
-from .config import get_default_config, get_required_grounding_score
 from .models import ContextPackage
 from .retriever import RetrieverService
 
@@ -25,7 +26,7 @@ class ContextManagerPlanner:
 
     def __init__(self) -> None:
         """Initialize the context manager planner."""
-        self.config = get_default_config()
+        self.settings = get_settings()
 
     def plan_request(
         self,
@@ -106,8 +107,8 @@ class ContextManagerPlanner:
             **timing_data,
             "query": query,
             "config_used": {
-                "required_grounding_score": get_required_grounding_score(),
-                "max_total_tokens": self.config["max_total_tokens"],
+                "required_grounding_score": self.settings.context_manager_required_grounding_score,
+                "max_total_tokens": self.settings.context_manager_max_total_tokens,
             },
         }
 

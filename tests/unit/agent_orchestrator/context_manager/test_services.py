@@ -8,9 +8,8 @@ from nexus.agent_orchestrator.context_manager import (
     AssemblerService,
     CompressorService,
     RetrieverService,
-    get_default_config,
-    get_required_grounding_score,
 )
+from nexus.core.config import get_settings
 
 
 class TestRetrieverService:
@@ -84,50 +83,36 @@ class TestAssemblerService:
         service.assemble({}, "empty-sections-correlation")
 
 
-class TestConfigurationFunctions:
-    """Test the configuration helper functions."""
+class TestContextManagerSettings:
+    """Test the Context Manager settings integration."""
 
-    def test_get_default_config(self) -> None:
-        """Test get_default_config returns expected structure."""
-        config = get_default_config()
+    def test_context_manager_settings_accessible(self) -> None:
+        """Test Context Manager settings are accessible via get_settings()."""
+        settings = get_settings()
 
-        assert isinstance(config, dict)
+        # Verify grounding score settings
+        assert hasattr(settings, "context_manager_required_grounding_score")
+        assert hasattr(settings, "context_manager_minimum_grounding_score")
+        assert isinstance(settings.context_manager_required_grounding_score, float)
+        assert isinstance(settings.context_manager_minimum_grounding_score, float)
 
-        # Verify required keys exist
-        required_keys = [
-            "required_grounding_score",
-            "minimum_grounding_score",
-            "max_total_tokens",
-            "max_context_tokens",
-            "default_k",
-            "enable_hybrid_search",
-            "compression_mode",
-        ]
+    def test_context_manager_default_values(self) -> None:
+        """Test Context Manager settings have expected default values."""
+        settings = get_settings()
 
-        for key in required_keys:
-            assert key in config
+        # Verify specific default values
+        assert settings.context_manager_required_grounding_score == 0.7
+        assert settings.context_manager_minimum_grounding_score == 0.5
+        assert settings.context_manager_max_total_tokens == 4000
+        assert settings.context_manager_max_context_tokens == 3000
+        assert settings.context_manager_default_k == 10
+        assert settings.context_manager_enable_hybrid_search is True
+        assert settings.context_manager_compression_mode == "extractive"
 
-        # Verify specific values
-        assert config["required_grounding_score"] == 0.7
-        assert config["minimum_grounding_score"] == 0.5
-        assert config["max_total_tokens"] == 4000
-        assert config["compression_mode"] == "extractive"
-        assert config["enable_hybrid_search"] is True
+    def test_context_manager_settings_cached(self) -> None:
+        """Test that get_settings() returns the same instance (cached)."""
+        settings1 = get_settings()
+        settings2 = get_settings()
 
-    def test_get_required_grounding_score(self) -> None:
-        """Test get_required_grounding_score returns correct value."""
-        score = get_required_grounding_score()
-
-        assert isinstance(score, float)
-        assert score == 0.7
-
-    def test_config_is_copy(self) -> None:
-        """Test that get_default_config returns a copy, not reference."""
-        config1 = get_default_config()
-        config2 = get_default_config()
-
-        # Modify one config
-        config1["required_grounding_score"] = 0.9
-
-        # Other config should be unchanged
-        assert config2["required_grounding_score"] == 0.7
+        # Should be the same cached instance
+        assert settings1 is settings2

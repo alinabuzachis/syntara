@@ -21,9 +21,9 @@ class TestContextManagerPlanner:
         """Test that ContextManagerPlanner initializes correctly."""
         planner = ContextManagerPlanner()
 
-        assert planner.config is not None
-        assert "required_grounding_score" in planner.config
-        assert planner.config["required_grounding_score"] == 0.7
+        assert planner.settings is not None
+        assert hasattr(planner.settings, "context_manager_required_grounding_score")
+        assert planner.settings.context_manager_required_grounding_score == 0.7
 
     def test_plan_request_successful_workflow(self) -> None:
         """Test plan_request executes the full workflow successfully."""
