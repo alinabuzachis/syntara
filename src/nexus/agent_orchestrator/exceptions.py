@@ -1,5 +1,7 @@
 """Custom exceptions for agent orchestration system."""
 
+from uuid import UUID
+
 
 class AgentError(Exception):
     """Base exception for all agent-related errors."""
@@ -43,3 +45,19 @@ class LLMConfigurationError(Exception):
     This exception indicates a server-side configuration issue,
     not a problem with the client's request.
     """
+
+
+class InvocationCancelledError(Exception):
+    """Raised when an invocation has been cancelled during execution."""
+
+    def __init__(self, invocation_id: UUID, phase: str = "unknown") -> None:
+        """Initialize exception with invocation ID and phase where cancellation occurred.
+
+        Args:
+            invocation_id: The UUID of the cancelled invocation
+            phase: The execution phase where cancellation was detected (e.g., 'retrieval', 'compression', 'assembly')
+
+        """
+        self.invocation_id = invocation_id
+        self.phase = phase
+        super().__init__(f"Invocation {invocation_id} was cancelled during {phase} phase")

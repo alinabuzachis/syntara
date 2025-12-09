@@ -18,14 +18,15 @@ services:
       retries: 5
 
   valkey:
-    image: quay.io/sclorg/valkey-8-c10s:latest
+    image: ${VALKEY_IMAGE:-quay.io/sclorg/valkey-8-c10s:latest}
     restart: unless-stopped
     ports:
       - ${VALKEY_PORT:-6379}:6379
     environment:
       - VALKEY_PASSWORD=valkey
+      - REDIS_PASSWORD=valkey
     healthcheck:
-      test: [CMD-SHELL, 'valkey-cli -h 127.0.0.1 -p 6379 -a $${VALKEY_PASSWORD:-valkey} PING']
+      test: [CMD-SHELL, 'redis-cli -h 127.0.0.1 -p 6379 -a $${VALKEY_PASSWORD:-valkey} PING || valkey-cli -h 127.0.0.1 -p 6379 -a $${VALKEY_PASSWORD:-valkey} PING']
       interval: 10s
       timeout: 5s
       retries: 5

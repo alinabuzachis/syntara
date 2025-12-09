@@ -4,9 +4,18 @@ Main orchestrator for the Context Manager that coordinates retrieval,
 compression, and assembly phases to produce final context packages.
 """
 
+import contextlib
 import logging
 import time
+from collections.abc import AsyncGenerator, Callable
+from uuid import UUID
 
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from nexus.agent_orchestrator.exceptions import InvocationCancelledError
+from nexus.agent_orchestrator.models import Invocation, InvocationStatus
+from nexus.api.db.session import get_db
 from nexus.core.config import get_settings
 
 from .assembler import AssemblerService
@@ -24,15 +33,50 @@ class ContextManagerPlanner:
     handles errors gracefully while maintaining correlation_id tracing.
     """
 
-    def __init__(self) -> None:
-        """Initialize the context manager planner."""
-        self.settings = get_settings()
+    def __init__(self, session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] = get_db) -> None:
+        """Initialize the context manager planner.
 
-    def plan_request(
+        Args:
+            session_factory: Session factory for cancellation checks. Defaults to get_db.
+
+        """
+        self.settings = get_settings()
+        self.session_factory = session_factory
+        self.get_async_session_context = contextlib.asynccontextmanager(session_factory)
+
+    async def _check_cancellation(self, invocation_id: UUID, phase: str) -> None:
+        """Check if invocation has been cancelled.
+
+        Args:
+            invocation_id: UUID of the invocation to check
+            phase: Current execution phase for error reporting
+
+        Raises:
+            InvocationCancelledError: If invocation has been cancelled
+
+        """
+        try:
+            # Create a short-lived session for the cancellation check
+            async with self.get_async_session_context() as session:
+                invocation = await session.get(Invocation, invocation_id)
+                if invocation and invocation.status == InvocationStatus.CANCELLED:
+                    logger.info("Invocation cancelled during %s phase (invocation_id=%s)", phase, invocation_id)
+                    raise InvocationCancelledError(invocation_id, phase)
+        except (SQLAlchemyError, OSError) as e:
+            # Log but don't fail on database errors - graceful degradation
+            logger.warning(
+                "Failed to check cancellation status for invocation_id=%s, continuing execution: %s",
+                invocation_id,
+                e,
+                exc_info=True,
+            )
+
+    async def plan_request(
         self,
         correlation_id: str,
         session_id: str,
         query: str,
+        invocation_id: UUID | None = None,
     ) -> ContextPackage:
         """Plan and execute a context request.
 
@@ -45,9 +89,13 @@ class ContextManagerPlanner:
             correlation_id: Correlation identifier for distributed tracing
             session_id: Session identifier for grouping related invocations
             query: User query string for context retrieval
+            invocation_id: Optional invocation ID for cancellation checking
 
         Returns:
             ContextPackage: Assembled context ready for LLM consumption
+
+        Raises:
+            InvocationCancelledError: If invocation has been cancelled
 
         """
         start_time = time.time()
@@ -59,6 +107,10 @@ class ContextManagerPlanner:
         timing_data = {}
 
         # Phase 1: Retrieval
+        # Check for cancellation before starting retrieval
+        if invocation_id:
+            await self._check_cancellation(invocation_id, "retrieval")
+
         retrieval_start = time.time()
         try:
             retriever = RetrieverService()
@@ -72,6 +124,10 @@ class ContextManagerPlanner:
             retrieved_docs = None
 
         # Phase 2: Compression
+        # Check for cancellation before starting compression
+        if invocation_id:
+            await self._check_cancellation(invocation_id, "compression")
+
         compression_start = time.time()
         try:
             compressor = CompressorService()
@@ -85,6 +141,10 @@ class ContextManagerPlanner:
             compressed_sections = None
 
         # Phase 3: Assembly
+        # Check for cancellation before starting assembly
+        if invocation_id:
+            await self._check_cancellation(invocation_id, "assembly")
+
         assembly_start = time.time()
         try:
             assembler = AssemblerService()

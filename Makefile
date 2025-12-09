@@ -133,19 +133,42 @@ db-clean: ## Stop database and remove all data (destructive)
 
 # Valkey
 # ========================================================
+# Auto-detect architecture and set appropriate Valkey/Redis image and command
+# This uses enterprise-friendly registries (Red Hat) to avoid docker.io dependency
+ARCH := $(shell uname -m)
+ifeq ($(ARCH),arm64)
+	# ARM64: Use Redis (enterprise-friendly) as fallback for Valkey compatibility
+	VALKEY_IMAGE := registry.redhat.io/rhel8/redis-6:latest
+	VALKEY_USE_PASSWORD_CONFIG := 1
+else ifeq ($(ARCH),aarch64)
+	# ARM64: Use Redis (enterprise-friendly) as fallback for Valkey compatibility
+	VALKEY_IMAGE := registry.redhat.io/rhel8/redis-6:latest
+	VALKEY_USE_PASSWORD_CONFIG := 1
+else
+	# x86-64: Use Valkey (preferred)
+	VALKEY_IMAGE := quay.io/sclorg/valkey-8-c10s:latest
+	VALKEY_USE_PASSWORD_CONFIG := 0
+endif
+
 .PHONY: valkey-run
 valkey-run: ## Start Valkey cache container (foreground, Ctrl+C to stop)
-	@echo "🚀 Starting Valkey cache..."
+	@echo "🚀 Starting Valkey/Redis cache..."
+	@echo "📍 Architecture: $(ARCH)"
+	@echo "📍 Using image: $(VALKEY_IMAGE)"
 	@echo "📍 Connection: valkey://localhost:$${VALKEY_PORT:-6379}"
+	@echo "📍 Note: ARM64 uses Redis for Valkey compatibility"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	$(COMPOSE_FINAL_CMD) up valkey
+	VALKEY_IMAGE=$(VALKEY_IMAGE) $(COMPOSE_FINAL_CMD) up valkey
 
 .PHONY: valkey-clean
 valkey-clean: ## Stop Valkey and remove data
 	@echo "🧹 Stopping Valkey cache..."
-	$(COMPOSE_FINAL_CMD) stop valkey
-	$(COMPOSE_FINAL_CMD) rm -f valkey
+	$(COMPOSE_FINAL_CMD) stop valkey || true
+	@if podman container exists nexus_valkey_1 2>/dev/null; then \
+		echo "Removing valkey container..."; \
+		podman container rm -f nexus_valkey_1; \
+	fi
 	@echo "✅ Valkey stopped"
 
 
@@ -163,8 +186,13 @@ temporal-run: ## Start Temporal server, UI, and worker (foreground, Ctrl+C to st
 .PHONY: temporal-clean
 temporal-clean: ## Stop Temporal and remove data
 	@echo "🧹 Stopping Temporal server and UI..."
-	$(COMPOSE_FINAL_CMD) stop temporal temporal-ui
-	$(COMPOSE_FINAL_CMD) rm -f temporal temporal-ui
+	$(COMPOSE_FINAL_CMD) stop temporal temporal-ui || true
+	@for container in nexus_temporal_1 nexus_temporal-ui_1; do \
+		if podman container exists $$container 2>/dev/null; then \
+			echo "Removing $$container..."; \
+			podman container rm -f $$container; \
+		fi; \
+	done
 	@echo "✅ Temporal stopped"
 
 .PHONY: build-images
@@ -178,6 +206,8 @@ build-images: ## Build container images for nexus and temporal-worker
 .PHONY: run-all
 run-all: ## Start all services (foreground, Ctrl+C to stop)
 	@echo "🚀 Starting all services..."
+	@echo "📍 Architecture: $(ARCH)"
+	@echo "📍 Using Valkey image: $(VALKEY_IMAGE)"
 	@echo "📍 Nexus API: http://localhost:$${NEXUS_API_PORT:-8000}"
 	@echo "📍 Nexus UI: http://localhost:$${NEXUS_UI_PORT:-8080}"
 	@echo "📍 Database: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
@@ -187,17 +217,19 @@ run-all: ## Start all services (foreground, Ctrl+C to stop)
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	$(COMPOSE_FINAL_CMD) up --build
+	VALKEY_IMAGE=$(VALKEY_IMAGE) $(COMPOSE_FINAL_CMD) up --build
 
 .PHONY: services-run
 services-run: ## Start all services (database + valkey + temporal + UI + worker + MCP) in background
 	@echo "🚀 Starting all services (database + valkey + temporal + UI + worker + MCP)..."
+	@echo "📍 Architecture: $(ARCH)"
+	@echo "📍 Using Valkey image: $(VALKEY_IMAGE)"
 	@echo "📍 Database: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
 	@echo "📍 Valkey Cache: valkey://localhost:$${VALKEY_PORT:-6379}"
 	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
 	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
-	$(COMPOSE_FINAL_CMD) up --build -d database valkey temporal temporal-ui temporal-worker mcp-server
+	VALKEY_IMAGE=$(VALKEY_IMAGE) $(COMPOSE_FINAL_CMD) up --build -d database valkey temporal temporal-ui temporal-worker mcp-server
 	@echo "✅ All services started in background"
 	@echo "   Use 'make services-logs' to view logs"
 	@echo "   Use 'make services-stop' to stop services"

@@ -1,7 +1,7 @@
 """Unit tests for OrchestratorAgent context integration and routing."""
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -28,7 +28,7 @@ class TestOrchestratorAgentContextIntegration:
             grounding_score=0.85,
             citations=[{"source": "doc1.md"}, {"source": "doc2.md"}],
         )
-        mock_context_manager.plan_request.return_value = test_context
+        mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         orchestrator = OrchestratorAgent(mock_context_manager)
         invocation_id = str(uuid4())
@@ -64,7 +64,7 @@ class TestOrchestratorAgentContextIntegration:
         """Test graceful fallback when context integration fails."""
         # Arrange
         mock_context_manager = MagicMock()
-        mock_context_manager.plan_request.side_effect = ConnectionError("Context service unavailable")
+        mock_context_manager.plan_request = AsyncMock(side_effect=ConnectionError("Context service unavailable"))
 
         orchestrator = OrchestratorAgent(mock_context_manager)
         invocation_id = str(uuid4())
@@ -110,7 +110,7 @@ class TestOrchestratorAgentContextIntegration:
         for exception in exceptions:
             # Arrange
             mock_context_manager = MagicMock()
-            mock_context_manager.plan_request.side_effect = exception
+            mock_context_manager.plan_request = AsyncMock(side_effect=exception)
 
             orchestrator = OrchestratorAgent(mock_context_manager)
             invocation_id = str(uuid4())
@@ -151,8 +151,8 @@ class TestOrchestratorAgentRouting:
         for prompt in workflow_prompts:
             # Arrange
             mock_context_manager = MagicMock()
-            mock_context_manager.plan_request.return_value = ContextPackage(
-                correlation_id="test", payload={}, grounding_score=0.0
+            mock_context_manager.plan_request = AsyncMock(
+                return_value=ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
             )
 
             orchestrator = OrchestratorAgent(mock_context_manager)
@@ -187,8 +187,8 @@ class TestOrchestratorAgentRouting:
         for prompt in default_prompts:
             # Arrange
             mock_context_manager = MagicMock()
-            mock_context_manager.plan_request.return_value = ContextPackage(
-                correlation_id="test", payload={}, grounding_score=0.0
+            mock_context_manager.plan_request = AsyncMock(
+                return_value=ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
             )
 
             orchestrator = OrchestratorAgent(mock_context_manager)
@@ -228,7 +228,7 @@ class TestOrchestratorAgentPromptFormatting:
             },
             grounding_score=0.90,
         )
-        mock_context_manager.plan_request.return_value = test_context
+        mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         orchestrator = OrchestratorAgent(mock_context_manager)
         invocation_id = str(uuid4())
@@ -271,7 +271,7 @@ class TestOrchestratorAgentPromptFormatting:
             payload={},  # Empty payload
             grounding_score=0.0,
         )
-        mock_context_manager.plan_request.return_value = test_context
+        mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         orchestrator = OrchestratorAgent(mock_context_manager)
         invocation_id = str(uuid4())
@@ -306,7 +306,7 @@ class TestOrchestratorAgentLogging:
         # Arrange
         mock_context_manager = MagicMock()
         test_context = ContextPackage(correlation_id="test-correlation", payload={}, grounding_score=0.75)
-        mock_context_manager.plan_request.return_value = test_context
+        mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         orchestrator = OrchestratorAgent(mock_context_manager)
         invocation_id = str(uuid4())

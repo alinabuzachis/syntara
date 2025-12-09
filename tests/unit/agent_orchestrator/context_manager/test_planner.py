@@ -25,7 +25,8 @@ class TestContextManagerPlanner:
         assert hasattr(planner.settings, "context_manager_required_grounding_score")
         assert planner.settings.context_manager_required_grounding_score == 0.7
 
-    def test_plan_request_successful_workflow(self) -> None:
+    @pytest.mark.asyncio
+    async def test_plan_request_successful_workflow(self) -> None:
         """Test plan_request executes the full workflow successfully."""
         planner = ContextManagerPlanner()
 
@@ -53,7 +54,9 @@ class TestContextManagerPlanner:
                 "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble", side_effect=mock_assemble
             ),
         ):
-            result = planner.plan_request(correlation_id="test-run-123", session_id="test-session", query="test query")
+            result = await planner.plan_request(
+                correlation_id="test-run-123", session_id="test-session", query="test query"
+            )
 
         # Verify return type and structure
         assert isinstance(result, ContextPackage)
@@ -81,11 +84,12 @@ class TestContextManagerPlanner:
         assert "compress:test-run-123" in service_calls
         assert "assemble:test-run-123" in service_calls
 
-    def test_plan_request_with_different_parameters(self) -> None:
+    @pytest.mark.asyncio
+    async def test_plan_request_with_different_parameters(self) -> None:
         """Test plan_request with different parameter combinations."""
         planner = ContextManagerPlanner()
 
-        result = planner.plan_request(
+        result = await planner.plan_request(
             correlation_id="different-run", session_id="different-session", query="different query"
         )
 
@@ -93,11 +97,14 @@ class TestContextManagerPlanner:
         assert result.package_metadata["session_id"] == "different-session"
         assert result.package_metadata["query"] == "different query"
 
-    def test_plan_request_timing_metadata(self) -> None:
+    @pytest.mark.asyncio
+    async def test_plan_request_timing_metadata(self) -> None:
         """Test that timing metadata is properly recorded."""
         planner = ContextManagerPlanner()
 
-        result = planner.plan_request(correlation_id="timing-test", session_id="test-session", query="timing query")
+        result = await planner.plan_request(
+            correlation_id="timing-test", session_id="test-session", query="timing query"
+        )
 
         # Verify timing fields exist and are reasonable
         metadata = result.package_metadata
@@ -116,7 +123,8 @@ class TestContextManagerPlanner:
         total_phases = metadata["retrieval_time_ms"] + metadata["compression_time_ms"] + metadata["assembly_time_ms"]
         assert metadata["total_time_ms"] >= total_phases
 
-    def test_plan_request_with_service_exceptions(self) -> None:
+    @pytest.mark.asyncio
+    async def test_plan_request_with_service_exceptions(self) -> None:
         """Test plan_request handles service exceptions gracefully."""
         planner = ContextManagerPlanner()
 
@@ -131,7 +139,9 @@ class TestContextManagerPlanner:
             mock_assemble.side_effect = Exception("Assembly failed")
 
             # Should not raise exception despite service failures
-            result = planner.plan_request(correlation_id="error-test", session_id="test-session", query="error query")
+            result = await planner.plan_request(
+                correlation_id="error-test", session_id="test-session", query="error query"
+            )
 
             # Verify planner still returns a result despite errors
             assert isinstance(result, ContextPackage)
@@ -147,11 +157,14 @@ class TestContextManagerPlanner:
             assert "compression_time_ms" in result.package_metadata
             assert "assembly_time_ms" in result.package_metadata
 
-    def test_plan_request_config_in_metadata(self) -> None:
+    @pytest.mark.asyncio
+    async def test_plan_request_config_in_metadata(self) -> None:
         """Test that configuration values are included in metadata."""
         planner = ContextManagerPlanner()
 
-        result = planner.plan_request(correlation_id="config-test", session_id="test-session", query="config query")
+        result = await planner.plan_request(
+            correlation_id="config-test", session_id="test-session", query="config query"
+        )
 
         # Verify config values are in metadata
         assert "config_used" in result.package_metadata

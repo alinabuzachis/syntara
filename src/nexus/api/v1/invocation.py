@@ -29,10 +29,13 @@ from nexus.agent_orchestrator.context_manager.file_manager.validators import (
 from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.agent_orchestrator.models import (
     Invocation,
+    InvocationCancelRequest,
+    InvocationCancelResponse,
     InvocationCreateRequest,
     InvocationListParams,
     InvocationListResponse,
 )
+from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.agent_orchestrator.services import InvocationService
 from nexus.api.auth import get_current_user
 from nexus.api.db import get_db
@@ -345,3 +348,86 @@ async def get_invocation(
     # For GenericAgent: {"type": "answer", "content": "...", "metadata": {...}}
     # For WorkflowGeneratorAgent: workflow execution results
     return invocation
+
+
+@router.post(
+    "/{invocation_id}/cancel",
+    summary="Cancel Invocation",
+    description="Cancel a running or pending invocation. Only the invocation owner can cancel it.",
+)
+async def cancel_invocation(
+    invocation_id: Annotated[
+        str,
+        Path(
+            description="UUID of the invocation to cancel",
+        ),
+    ],
+    request_body: InvocationCancelRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> InvocationCancelResponse:
+    """Cancel a running or pending invocation.
+
+    Args:
+        invocation_id: UUID of the invocation to cancel
+        request_body: Request containing optional cancellation reason
+        db: Database session (dependency injected)
+        current_user: Current authenticated user
+
+    Returns:
+        InvocationCancelResponse indicating success or failure
+
+    Raises:
+        HTTPException: 400 for invalid UUID, 404 if not found or unauthorized, 409 if not cancellable
+
+    """
+    # Parse UUID
+    try:
+        uuid_obj = UUID(invocation_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid UUID format: {invocation_id}",
+        ) from e
+
+    # Attempt cancellation
+    try:
+        service = InvocationService(db, current_user)
+        result = await service.cancel_invocation(uuid_obj, request_body.reason)
+
+        if result == CancellationResult.SUCCESS:
+            return InvocationCancelResponse(
+                success=True,
+                message=f"Invocation {invocation_id} cancelled successfully",
+            )
+
+        if result == CancellationResult.NOT_FOUND:
+            raise HTTPException(  # noqa: TRY301
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Invocation {invocation_id} not found",
+            )
+
+        if result == CancellationResult.NOT_CANCELLABLE:
+            # Get the invocation to provide current status in error message
+            invocation = await service.get_invocation(uuid_obj)
+            current_status = invocation.status.value if invocation else "unknown"
+            raise HTTPException(  # noqa: TRY301
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Invocation {invocation_id} cannot be cancelled (status: {current_status})",
+            )
+
+        # Should never happen, but defensive programming
+        raise HTTPException(  # noqa: TRY301
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected cancellation result",
+        )
+
+    except HTTPException:
+        # Re-raise HTTPExceptions without wrapping
+        raise
+    except Exception as e:
+        logger.exception("Unexpected error cancelling invocation %s", invocation_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        ) from e

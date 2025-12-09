@@ -7,6 +7,7 @@ handling context integration and routing requests to appropriate specialist agen
 import copy
 import logging
 from typing import Any, ClassVar
+from uuid import UUID
 
 from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.context_manager.planner import ContextManagerPlanner
@@ -75,8 +76,11 @@ class OrchestratorAgent:
             logger.debug("Calling context manager for session %s", state["session_id"])
 
             # Call context manager using PR 168 pattern
-            context_package = self.context_manager.plan_request(
-                correlation_id=state["correlation_id"], session_id=state["session_id"], query=state["original_prompt"]
+            context_package = await self.context_manager.plan_request(
+                correlation_id=state["correlation_id"],
+                session_id=state["session_id"],
+                query=state["original_prompt"],
+                invocation_id=UUID(state["invocation_id"]),
             )
 
             # Enhance prompt with context

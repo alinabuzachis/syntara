@@ -10,7 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator import ContextManagerPlanner
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
-from nexus.agent_orchestrator.exceptions import LLMConfigurationError
+from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.api.db.session import get_db
 from nexus.core.constants import CONTEXT_KEY_FILE_METADATA
@@ -57,6 +57,11 @@ class InvocationExecutor:
                 logger.error("Invocation not found for execution (invocation_id=%s)", invocation_id)
                 return
 
+            # Check if invocation was cancelled before execution
+            if invocation.status == InvocationStatus.CANCELLED:
+                logger.info("Invocation was cancelled before execution (invocation_id=%s)", invocation_id)
+                return
+
             logger.info(
                 "Executing invocation (invocation_id=%s)",
                 invocation.id,
@@ -73,7 +78,7 @@ class InvocationExecutor:
                 )
 
                 llm = get_openrouter_llm()
-                context_manager_planner = ContextManagerPlanner()
+                context_manager_planner = ContextManagerPlanner(session_factory=self.session_factory)
                 orchestration_service = OrchestrationService(llm=llm, context_manager_planner=context_manager_planner)
             except LLMConfigurationError as e:
                 # Mark invocation as failed
@@ -111,12 +116,27 @@ class InvocationExecutor:
                     correlation_id=correlation_id,
                 )
 
-                # Store result and mark as completed
+                # Check if invocation was cancelled during execution (fix race condition)
+                # Refresh the current invocation to get latest status from database
+                await session.refresh(invocation)
+
+                if invocation.status == InvocationStatus.CANCELLED:
+                    logger.info(
+                        "Invocation was cancelled during execution, skipping completion (invocation_id=%s)",
+                        exec_invocation_id,
+                    )
+                    return  # Don't override the CANCELLED status
+
+                # Store result and mark as completed (after cancellation check)
                 invocation.result = result_dict
                 invocation.status = InvocationStatus.COMPLETED
                 invocation.completed_at = datetime.now(UTC)
                 await session.commit()
 
+            except InvocationCancelledError:
+                # Invocation was cancelled during execution - this is expected behavior
+                # Don't mark as failed since cancellation is already handled
+                logger.info("Invocation cancelled during execution (invocation_id=%s)", exec_invocation_id)
             except Exception as e:  # noqa: BLE001 - Need to catch all exceptions for graceful error handling
                 await self._handle_execution_error(e, exec_invocation_id, session)
 

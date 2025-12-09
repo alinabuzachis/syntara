@@ -81,7 +81,7 @@ class TestOrchestrationServiceStreamingExecution:
             grounding_score=0.8,
             citations=[{"source": "doc1.md"}],
         )
-        mock_context_manager.plan_request.return_value = test_context
+        mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 
@@ -313,7 +313,7 @@ class TestOrchestrationServiceSessionManagement:
 
         mock_context_manager = MagicMock()
         test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
-        mock_context_manager.plan_request.return_value = test_context
+        mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 
@@ -372,7 +372,7 @@ class TestOrchestrationServiceLogging:
 
         mock_context_manager = MagicMock()
         test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
-        mock_context_manager.plan_request.return_value = test_context
+        mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 

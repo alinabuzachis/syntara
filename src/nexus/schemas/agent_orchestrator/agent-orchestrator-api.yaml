@@ -536,40 +536,113 @@ paths:
 
   /invocations/{invocationId}/cancel:
     post:
-      summary: Cancel running agent
+      summary: Cancel Invocation
       description: |
-        Cancel a running or paused agent invocation. Agent performs cleanup and transitions to cancelled state.
-        Cancellation is irreversible - invocation cannot be resumed after cancellation.
+        Cancel a running or pending invocation. Only the invocation owner can cancel it.
 
-      operationId: cancelAgent
+        Cancellation is irreversible - invocation cannot be resumed after cancellation.
+        Agent performs cleanup and transitions to cancelled state with optional reason tracking.
+
+      operationId: cancelInvocation
       tags:
         - Control
       parameters:
         - name: invocationId
           in: path
           required: true
-          description: Invocation ID of agent to cancel
+          description: UUID of the invocation to cancel
           schema:
             type: string
             format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvocationCancelRequest'
+            examples:
+              default_reason:
+                summary: Default cancellation reason
+                value:
+                  reason: User cancelled
+              custom_reason:
+                summary: Custom cancellation reason
+                value:
+                  reason: Request taking too long
       responses:
         '200':
-          description: Cancel signal acknowledged
+          description: Cancellation successful
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ControlResponse'
-              example:
-                invocationId: 550e8400-e29b-41d4-a716-446655440000
-                action: cancel
-                status: completed
-                currentState: cancelled
-                acknowledgedAt: '2025-10-21T10:35:00Z'
-                message: Agent cancelled successfully, cleanup completed
+                $ref: '#/components/schemas/InvocationCancelResponse'
+              examples:
+                success:
+                  summary: Successful cancellation
+                  value:
+                    success: true
+                    message: Invocation 550e8400-e29b-41d4-a716-446655440000 cancelled successfully
         '400':
-          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ValidationError
+          description: Invalid UUID format
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+              examples:
+                invalid_uuid:
+                  summary: Invalid UUID format
+                  value:
+                    type: https://nexus.example.com/errors/validation
+                    title: Invalid Request Format
+                    status: 400
+                    detail: 'Invalid UUID format: abc123'
+                    instance: /api/v1/invocations/abc123/cancel
         '404':
-          $ref: ../base/shared-resources.openapi.yaml#/components/responses/NotFoundError
+          description: Invocation not found
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+              examples:
+                not_found:
+                  summary: Invocation not found
+                  value:
+                    type: https://nexus.example.com/errors/not-found
+                    title: Resource Not Found
+                    status: 404
+                    detail: Invocation 550e8400-e29b-41d4-a716-446655440000 not found
+                    instance: /api/v1/invocations/550e8400-e29b-41d4-a716-446655440000/cancel
+        '409':
+          description: Invocation cannot be cancelled (wrong state)
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+              examples:
+                wrong_state:
+                  summary: Invocation not in cancellable state
+                  value:
+                    type: https://nexus.example.com/errors/state-conflict
+                    title: Operation Not Allowed
+                    status: 409
+                    detail: 'Invocation 550e8400-e29b-41d4-a716-446655440000 cannot be cancelled (status: completed)'
+                    instance: /api/v1/invocations/550e8400-e29b-41d4-a716-446655440000/cancel
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+              examples:
+                server_error:
+                  summary: Internal server error
+                  value:
+                    type: https://nexus.example.com/errors/internal
+                    title: Internal Server Error
+                    status: 500
+                    detail: Internal server error
+                    instance: /api/v1/invocations/550e8400-e29b-41d4-a716-446655440000/cancel
 
 components:
   parameters:
@@ -1085,6 +1158,39 @@ components:
           title: Error
           description: Error message (if status=rejected)
           example:
+
+    InvocationCancelRequest:
+      type: object
+      title: Invocation Cancel Request
+      description: Request body for cancelling an invocation
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          default: User cancelled
+          title: Reason
+          description: Optional reason for cancellation
+          example: Request taking too long
+      required: []
+
+    InvocationCancelResponse:
+      type: object
+      title: Invocation Cancel Response
+      description: Response after attempting to cancel an invocation
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          title: Success
+          description: True if cancellation was successful, False otherwise
+          example: true
+        message:
+          type: string
+          title: Message
+          description: Human-readable message describing the cancellation result
+          example: Invocation 550e8400-e29b-41d4-a716-446655440000 cancelled successfully
 
   securitySchemes:
     BearerAuth:

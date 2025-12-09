@@ -2,6 +2,7 @@
 
 import logging
 from collections.abc import AsyncGenerator, Callable, Iterable
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -15,6 +16,7 @@ from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.t
     get_document_conversion_task,
 )
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
+from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA, CONTEXT_KEY_FILE_METADATA_CONVERSION
 from nexus.core.models import User
 from nexus.core.services import BaseService
@@ -190,6 +192,122 @@ class InvocationService(BaseService):
         """
         invocation: Invocation | None = await self.session.get(Invocation, invocation_id)
         return InvocationServiceConvertResourceMixin().convert_resource(invocation) if invocation else None
+
+    async def cancel_invocation(self, invocation_id: UUID, reason: str = "User cancelled") -> CancellationResult:
+        """Cancel a running invocation.
+
+        Args:
+            invocation_id: UUID of the invocation to cancel
+            reason: Reason for cancellation
+
+        Returns:
+            CancellationResult enum indicating the outcome of the cancellation attempt
+
+        """
+        invocation = await self.session.get(Invocation, invocation_id)
+
+        if not invocation:
+            logger.warning("Cancellation failed: Invocation not found (invocation_id=%s)", invocation_id)
+            return CancellationResult.NOT_FOUND
+
+        # Check if invocation is in a cancellable state
+        if invocation.status not in (InvocationStatus.CREATED, InvocationStatus.RUNNING):
+            logger.warning(
+                "Cancellation failed: Invocation not in cancellable state (invocation_id=%s, status=%s)",
+                invocation_id,
+                invocation.status.value,
+            )
+            return CancellationResult.NOT_CANCELLABLE
+
+        # Update invocation with cancellation details using existing fields
+        invocation.status = InvocationStatus.CANCELLED
+        invocation.error_message = f"User cancelled: {reason}"
+        invocation.completed_at = datetime.now(UTC)
+
+        # Store cancellation metadata in checkpoint_data for debugging
+        cancellation_data: dict[str, object] = {
+            "cancelled_at": invocation.completed_at.isoformat(),
+            "cancelled_by": str(self.user.id),
+            "reason": reason,
+        }
+
+        # Merge with existing checkpoint_data if it exists
+        if invocation.checkpoint_data:
+            invocation.checkpoint_data.update(cancellation_data)
+        else:
+            invocation.checkpoint_data = cancellation_data
+
+        # Clean up uploaded and converted files associated with this invocation
+        await self._cleanup_invocation_files(invocation)
+
+        # Note: Background document conversion tasks cannot be cancelled directly due to
+        # FastAPI BackgroundTasks limitations. However, conversion tasks are typically
+        # short-lived and will complete harmlessly even for cancelled invocations.
+
+        await self.session.commit()
+
+        logger.info("Invocation cancelled successfully (invocation_id=%s, reason=%s)", invocation_id, reason)
+        return CancellationResult.SUCCESS
+
+    async def _cleanup_invocation_files(self, invocation: Invocation) -> None:
+        """Clean up uploaded and converted files associated with an invocation.
+
+        This method extracts file paths from the invocation's context_data and
+        attempts to delete them from storage. It handles both:
+        - Original uploaded files (file_path)
+        - Converted files (conversion.output_path)
+
+        Args:
+            invocation: The invocation whose files should be cleaned up
+
+        Note:
+            This is a best-effort cleanup that won't raise exceptions if
+            file deletion fails. Errors are logged for debugging.
+
+        """
+        if not invocation.context_data or CONTEXT_KEY_FILE_METADATA not in invocation.context_data:
+            logger.debug("No files to clean up for invocation %s", invocation.id)
+            return
+
+        file_metadata_list = invocation.context_data[CONTEXT_KEY_FILE_METADATA]
+        if not file_metadata_list:
+            logger.debug("Empty file metadata list for invocation %s", invocation.id)
+            return
+
+        # Type guard: ensure file_metadata_list is actually a list
+        if not isinstance(file_metadata_list, list):
+            logger.warning("file_metadata is not a list for invocation %s", invocation.id)
+            return
+
+        files_to_cleanup: list[str] = []
+
+        # Collect file paths that need cleanup
+        for file_metadata in file_metadata_list:
+            # Type check: ensure we have a dict-like object
+            if not isinstance(file_metadata, dict):
+                logger.warning("Skipping non-dict file metadata for invocation %s", invocation.id)
+                continue
+            # Add original uploaded file
+            if "file_path" in file_metadata:
+                files_to_cleanup.append(file_metadata["file_path"])
+
+            # Add converted file if it exists
+            conversion_data = file_metadata.get(CONTEXT_KEY_FILE_METADATA_CONVERSION)
+            if conversion_data and "output_path" in conversion_data:
+                files_to_cleanup.append(conversion_data["output_path"])
+
+        if files_to_cleanup:
+            logger.info("Cleaning up %d files for cancelled invocation %s", len(files_to_cleanup), invocation.id)
+            try:
+                await file_utils.cleanup_files(files_to_cleanup, context="after invocation cancellation")
+            except Exception:
+                # File cleanup should not prevent successful cancellation
+                # This is a best-effort cleanup - log the error but continue
+                logger.exception(
+                    "File cleanup failed for cancelled invocation %s, but cancellation will proceed", invocation.id
+                )
+        else:
+            logger.debug("No file paths found to clean up for invocation %s", invocation.id)
 
     async def list_invocations(
         self,

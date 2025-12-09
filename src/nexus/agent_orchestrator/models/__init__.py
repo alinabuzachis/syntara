@@ -11,13 +11,19 @@ from nexus.agent_orchestrator.models.invocation import (
     InvocationStatus,
 )
 from nexus.agent_orchestrator.models.query_params import InvocationListParams
-from nexus.agent_orchestrator.models.request import InvocationCreateRequest
+from nexus.agent_orchestrator.models.request import (
+    InvocationCancelRequest,
+    InvocationCancelResponse,
+    InvocationCreateRequest,
+)
 
 __all__ = [
     "AgentState",
     "BaseAgentResponse",
     "GenericAgentResponse",
     "Invocation",
+    "InvocationCancelRequest",
+    "InvocationCancelResponse",
     "InvocationCreateRequest",
     "InvocationListParams",
     "InvocationListResponse",
