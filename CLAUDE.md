@@ -357,6 +357,145 @@ Step 3: Use existing ConfirmDialog from framework
 Result: No new code needed, use import from 'nexus-ui-framework'
 ```
 
+### Code Review: Spotting Abstraction Opportunities
+
+**CRITICAL: Before implementing new features or during code review, actively look for patterns that indicate abstraction opportunities.**
+
+#### Pattern Recognition Checklist
+
+| Pattern Detected                      | Action Required                                 |
+| ------------------------------------- | ----------------------------------------------- |
+| **Repeated JSX structure** (2+ times) | → Create a **Component**                        |
+| **Repeated logic/state** (2+ times)   | → Create a **Hook**                             |
+| **Repeated utility functions**        | → Create a **shared utility**                   |
+| **Similar components with variants**  | → Extend existing component with props/variants |
+
+#### JSX Repetition → Component
+
+**Signs you need a component:**
+
+- Same JSX structure appears in multiple files
+- Copy-pasted markup with minor variations
+- Similar styling patterns repeated
+
+```tsx
+// ❌ BAD: Repeated JSX pattern
+<div className="glass rounded-lg p-4">
+  <h3 className="text-lg font-bold">{title1}</h3>
+  <p className="text-white/60">{description1}</p>
+</div>
+<div className="glass rounded-lg p-4">
+  <h3 className="text-lg font-bold">{title2}</h3>
+  <p className="text-white/60">{description2}</p>
+</div>
+
+// ✅ GOOD: Extract to component
+<InfoCard title={title1} description={description1} />
+<InfoCard title={title2} description={description2} />
+```
+
+#### Logic Repetition → Hook
+
+**Signs you need a hook:**
+
+- Same useState + useEffect pattern repeated
+- Identical data fetching logic
+- Common event handling patterns
+- Shared form validation logic
+
+```tsx
+// ❌ BAD: Repeated logic in multiple components
+const [search, setSearch] = useState('')
+const fuse = new Fuse(items, { keys: ['name'] })
+const filtered = search ? fuse.search(search).map((r) => r.item) : items
+
+// ✅ GOOD: Extract to hook
+const { search, setSearch, items: filtered } = useFuse(items, ['name'])
+```
+
+#### Review Questions to Ask
+
+When reviewing code, always ask:
+
+1. **"Have I seen this JSX pattern before?"**
+   - Search codebase for similar structures
+   - Check if a framework component already exists
+   - Consider if it belongs in `nexus-ui-framework`
+
+2. **"Is this logic reusable?"**
+   - Would other components benefit from this?
+   - Is there already a hook for this in the codebase?
+   - Should this be a framework-level hook?
+
+3. **"Can I extend an existing component?"**
+   - Does a similar component exist with different variants?
+   - Can I add a prop instead of creating new component?
+   - Would Tailwind variants solve this?
+
+#### Migration Triggers
+
+Proactively identify migration opportunities:
+
+```text
+Codebase Search Patterns:
+- Search for duplicate className patterns
+- Look for repeated useState/useEffect combinations
+- Find similar component structures across routes
+- Check for copy-pasted utility functions
+```
+
+**When to migrate to framework:**
+
+- Component used in 2+ unrelated features
+- Hook provides generic, reusable functionality
+- Pattern is not domain-specific to nexus-ui
+
+### Testing Guidelines
+
+#### Core Principle: Test Behavior, Not Implementation
+
+Write tests that verify **what** your code does, not **how** it does it. Tests should survive refactoring.
+
+#### AAA Pattern (Arrange-Act-Assert)
+
+Structure every test with three phases:
+
+```typescript
+it('increments counter when button clicked', async () => {
+  // Arrange - Set up test data and render
+  const user = userEvent.setup()
+  render(<Counter initialValue={0} />)
+
+  // Act - Perform the action
+  await user.click(screen.getByRole('button', { name: 'Increment' }))
+
+  // Assert - Verify the outcome
+  expect(screen.getByText('Count: 1')).toBeInTheDocument()
+})
+```
+
+#### What to Test
+
+| Type          | Focus On                                                |
+| ------------- | ------------------------------------------------------- |
+| **Component** | User interactions, conditional rendering, accessibility |
+| **Hook**      | Return values, state transitions, callback invocations  |
+| **Store**     | Actions modify state correctly, edge cases              |
+| **Utility**   | Input → output transformations, boundary conditions     |
+
+#### What NOT to Test
+
+- Implementation details (internal state, private methods)
+- Third-party library behavior
+- Static content that doesn't change
+
+#### Quick Reference
+
+- **Components**: Use `render()`, `screen`, `userEvent` from Testing Library
+- **Hooks**: Use `renderHook()` and wrap state changes in `act()`
+- **Stores**: Reset state in `beforeEach`, test via `getState()` and actions
+- **Mocking**: Use `vi.fn()` for callbacks, `vi.mock()` for modules
+
 ### Critical Development Workflows
 
 1. Dependency Management
