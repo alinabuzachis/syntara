@@ -67,10 +67,11 @@ export function useEdgeActiveState({
           const edgeHandle = edge.data?.sourceHandle || edge.sourceHandle || 'source'
 
           // Determine if this button edge should be active
-          // For condition nodes (true/false handles), both nodeId AND handle must match
+          // For condition nodes (true/false handles) and loop nodes (done/loop handles), both nodeId AND handle must match
           // For regular nodes (source handle), nodeId must match and handle should be 'source' or not specified
-          const isConditionHandle = edgeHandle === 'true' || edgeHandle === 'false'
-          const isActive = isConditionHandle
+          const isSpecificHandle =
+            edgeHandle === 'true' || edgeHandle === 'false' || edgeHandle === 'done' || edgeHandle === 'loop'
+          const isActive = isSpecificHandle
             ? activeEdgeButtonNodeId === nodeId && activeEdgeButtonHandle === edgeHandle
             : activeEdgeButtonNodeId === nodeId && (activeEdgeButtonHandle === 'source' || !activeEdgeButtonHandle)
 

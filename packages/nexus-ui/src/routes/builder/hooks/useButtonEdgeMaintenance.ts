@@ -6,6 +6,38 @@ import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import { filterButtonEdges, filterRealNodes } from '../utils/filterHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
 
+// Helper function to extract handle ID from loop node button edge ID
+function extractLoopHandleId(edgeId: string): 'done' | 'loop' {
+  return edgeId.includes('-done') ? 'done' : 'loop'
+}
+
+// Helper function to process loop node handle and create placeholder if needed
+function processLoopNodeHandle(
+  nodeId: string,
+  handleId: 'done' | 'loop',
+  node: NodeType,
+  nodes: NodeType[],
+  placeholderNodesToAdd: NodeType[]
+) {
+  const placeholderId = `placeholder-${nodeId}-${handleId}`
+  const placeholderExists = nodes.some((n) => n.id === placeholderId)
+
+  if (!placeholderExists) {
+    // Position 'done' handle placeholder above, 'loop' handle placeholder to the right
+    const yOffset = handleId === 'done' ? -30 : 0
+    const xOffset = 200
+    placeholderNodesToAdd.push({
+      id: placeholderId,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      type: 'placeholder' as any,
+      position: { x: node.position.x + xOffset, y: node.position.y + yOffset },
+      data: {},
+      draggable: false,
+      selectable: false,
+    } as NodeType)
+  }
+}
+
 interface UseButtonEdgeMaintenanceOptions {
   nodes: NodeType[]
   edges: EdgeType[]
@@ -179,30 +211,19 @@ export function useButtonEdgeMaintenance({
 
         if (isLoopNode) {
           // Handle loop nodes specially - they have 'done' and 'loop' handles
-          // Only the 'done' handle gets a button edge
-          const handleId = 'done'
-          const handleConnected = connectedHandles.get(node.id)?.has(handleId) || false
-          const hasPendingEdge = pendingEdge?.sourceNodeId === node.id && pendingEdge?.sourceHandle === handleId
+          // Both handles get button edges when not connected
+          const handles = ['done', 'loop'] as const
+          handles.forEach((handleId) => {
+            const handleConnected = connectedHandles.get(node.id)?.has(handleId) || false
+            const hasPendingEdge = pendingEdge?.sourceNodeId === node.id && pendingEdge?.sourceHandle === handleId
 
-          if (!handleConnected && !hasPendingEdge) {
-            loopHandlesNeedingButtonEdgesRef.current.push({ nodeId: node.id, handleId })
-
-            // Create placeholder for the 'done' handle
-            const placeholderId = `placeholder-${node.id}-${handleId}`
-            const placeholderExists = nodes.some((n) => n.id === placeholderId)
-
-            if (!placeholderExists) {
-              placeholderNodesToAddRef.current.push({
-                id: placeholderId,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                type: 'placeholder' as any,
-                position: { x: node.position.x + 200, y: node.position.y - 30 },
-                data: {},
-                draggable: false,
-                selectable: false,
-              } as NodeType)
+            if (!handleConnected && !hasPendingEdge) {
+              loopHandlesNeedingButtonEdgesRef.current.push({ nodeId: node.id, handleId })
+              // CRITICAL: Always ensure placeholder exists, even if button edge already exists
+              // The placeholder might have been removed during node deletion
+              processLoopNodeHandle(node.id, handleId, node, nodes, placeholderNodesToAddRef.current)
             }
-          }
+          })
           return
         }
 
@@ -271,16 +292,18 @@ export function useButtonEdgeMaintenance({
             })
         )
 
-        // Track which loop 'done' handles already have ButtonEdges
+        // Track which loop handles (both 'done' and 'loop') already have ButtonEdges
         const loopHandlesWithButtonEdges = new Set(
-          existingButtonEdges.filter((edge) => edge.id.includes('-done')).map((edge) => `${edge.source}-done`)
+          existingButtonEdges
+            .filter((edge) => edge.id.includes('-done') || edge.id.includes('-loop'))
+            .map((edge) => `${edge.source}-${extractLoopHandleId(edge.id)}`)
         )
 
         // Determine which ButtonEdges to keep, remove, and add
         const buttonEdgesToKeep: EdgeType[] = []
         const buttonEdgesToAdd: EdgeType[] = []
 
-        // Keep ButtonEdges that are still needed
+        // Keep ButtonEdges that are still needed and update their active state
         existingButtonEdges.forEach((edge) => {
           // Check if it's a condition handle button edge
           if (edge.id.includes('-true') || edge.id.includes('-false')) {
@@ -289,16 +312,42 @@ export function useButtonEdgeMaintenance({
               (h) => h.nodeId === edge.source && h.handleId === handleId
             )
             if (isNeeded) {
-              buttonEdgesToKeep.push(edge)
+              // Update active state for condition handles
+              buttonEdgesToKeep.push({
+                ...edge,
+                data: {
+                  ...edge.data,
+                  isActive: activeEdgeButtonNodeId === edge.source && activeEdgeButtonHandle === handleId,
+                },
+              })
             }
-          } else if (edge.id.includes('-done')) {
-            // Check if it's a loop 'done' handle button edge
-            const isNeeded = loopHandlesNeedingButtonEdgesRef.current.some((h) => h.nodeId === edge.source)
+          } else if (edge.id.includes('-done') || edge.id.includes('-loop')) {
+            // Check if it's a loop handle button edge ('done' or 'loop')
+            const handleId = extractLoopHandleId(edge.id)
+            const isNeeded = loopHandlesNeedingButtonEdgesRef.current.some(
+              (h) => h.nodeId === edge.source && h.handleId === handleId
+            )
             if (isNeeded) {
-              buttonEdgesToKeep.push(edge)
+              // Update active state for loop handles
+              buttonEdgesToKeep.push({
+                ...edge,
+                data: {
+                  ...edge.data,
+                  isActive: activeEdgeButtonNodeId === edge.source && activeEdgeButtonHandle === handleId,
+                },
+              })
             }
           } else if (nodesNeedingButtonEdgesRef.current.includes(edge.source)) {
-            buttonEdgesToKeep.push(edge)
+            // Update active state for regular source handles
+            buttonEdgesToKeep.push({
+              ...edge,
+              data: {
+                ...edge.data,
+                isActive:
+                  activeEdgeButtonNodeId === edge.source &&
+                  (activeEdgeButtonHandle === 'source' || !activeEdgeButtonHandle),
+              },
+            })
           }
         })
 
@@ -356,7 +405,7 @@ export function useButtonEdgeMaintenance({
           }
         })
 
-        // Add missing ButtonEdges for loop node 'done' handles
+        // Add missing ButtonEdges for loop node handles ('done' and 'loop')
         loopHandlesNeedingButtonEdgesRef.current.forEach(({ nodeId, handleId }) => {
           const key = `${nodeId}-${handleId}`
           if (!loopHandlesWithButtonEdges.has(key)) {
@@ -416,12 +465,27 @@ export function useButtonEdgeMaintenance({
           const shouldHaveButtonEdge =
             nodesNeedingButtonEdgesRef.current.includes(node.id) || conditionHasButtonEdge || loopHasButtonEdge
           const currentClassName = node.className || ''
-          const hasClass = currentClassName.includes('has-button-edge')
 
-          if (shouldHaveButtonEdge && !hasClass) {
-            return { ...node, className: `${currentClassName} has-button-edge`.trim() }
-          } else if (!shouldHaveButtonEdge && hasClass) {
-            return { ...node, className: currentClassName.replace('has-button-edge', '').trim() }
+          // Build new className with button edge class and connected handle classes
+          let newClassName = currentClassName
+            .replaceAll(/\bhas-button-edge\b/g, '')
+            .replaceAll(/\bhandle-\w+-connected\b/g, '')
+            .trim()
+
+          if (shouldHaveButtonEdge) {
+            newClassName = `${newClassName} has-button-edge`.trim()
+          }
+
+          // Add classes for connected handles (handles that have real edges, not button edges)
+          const connectedHandlesForNode = connectedHandles.get(node.id)
+          if (connectedHandlesForNode && connectedHandlesForNode.size > 0) {
+            connectedHandlesForNode.forEach((handleId) => {
+              newClassName = `${newClassName} handle-${handleId}-connected`.trim()
+            })
+          }
+
+          if (newClassName !== currentClassName) {
+            return { ...node, className: newClassName }
           }
           return node
         })

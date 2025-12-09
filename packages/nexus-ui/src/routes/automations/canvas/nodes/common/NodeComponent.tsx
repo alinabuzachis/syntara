@@ -75,7 +75,17 @@ export function NodeComponent(props: {
           <Handle type="source" id="start" position={Position.Right} style={{ ...handleStyle, top: '85%' }} />
         )}
         {props.enableEnd && (
-          <Handle type="target" id="end" position={Position.Left} style={{ ...handleStyle, top: '85%' }} />
+          <Handle
+            type="target"
+            id="end"
+            position={Position.Left}
+            style={{
+              ...handleStyle,
+              top: '50%', // Same position as main target handle
+              opacity: 0, // Invisible
+              pointerEvents: 'none', // Non-interactive
+            }}
+          />
         )}
       </div>
     </NodeExpandedContext.Provider>

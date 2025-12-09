@@ -128,8 +128,9 @@ export function useNodeUpdates({
       // Only handle deletions (new nodes handled above)
       setNodes((prevNodes) => {
         const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
+        const initialNodeIds = new Set(initialNodes.map((n) => n.id))
 
-        return initialNodes.map((newNode) => {
+        const updatedNodes = initialNodes.map((newNode) => {
           const existingNode = prevNodeMap.get(newNode.id)
           if (existingNode) {
             // Keep existing position and measured dimensions
@@ -139,6 +140,11 @@ export function useNodeUpdates({
             return newNode
           }
         })
+
+        // CRITICAL: Preserve nodes that aren't in initialNodes (like placeholder nodes for ButtonEdges)
+        const preservedNodes = prevNodes.filter((node) => !initialNodeIds.has(node.id))
+
+        return [...updatedNodes, ...preservedNodes]
       })
 
       // DO NOT merge initialEdges after initialization

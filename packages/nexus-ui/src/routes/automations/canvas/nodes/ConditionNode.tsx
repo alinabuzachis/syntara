@@ -3,7 +3,7 @@ import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
 
-import { renderCondition, renderOutputs, renderJson } from './common/detailRenderers'
+import { renderCondition, renderJson, renderOutputs } from './common/detailRenderers'
 import { handleStyle } from './common/handleStyle'
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
@@ -87,7 +87,18 @@ function NodeHandle(props: { children: React.ReactNode; id: string }) {
           opacity: 1,
         }}
       />
-      {/* Visual indicator circle */}
+      {/* Visual indicator half-circle - only visible when parent has handle-{id}-connected class */}
+      <div
+        className={`handle-${props.id}-indicator pointer-events-none absolute top-1/2 right-0 -translate-y-1/2 opacity-0`}
+        style={{
+          width: '8px',
+          height: '16px',
+          borderRadius: '8px 0 0 8px',
+          border: '2px solid #6b7280',
+          borderRight: 'none',
+          background: 'white',
+        }}
+      />
     </div>
   )
 }

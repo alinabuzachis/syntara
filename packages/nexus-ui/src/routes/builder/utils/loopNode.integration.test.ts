@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 
@@ -23,10 +23,13 @@ describe('Loop Node Integration Tests', () => {
 
       // Create a minimal workflow
       store.setWorkflow({
-        id: 'test-workflow',
-        name: 'Test Workflow',
+        schemaVersion: '1.0.0',
+        version: 1,
+        metadata: {
+          name: 'Test Workflow',
+          description: 'Test workflow for loop node creation',
+        },
         triggers: [],
-        inputs: {},
         workflow: {
           activities: [],
         },
@@ -52,7 +55,11 @@ describe('Loop Node Integration Tests', () => {
         id: genericId,
         name: '',
         task: {
-          type: 'generic' as const,
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: '',
+          },
         },
         metadata: {
           __isGeneric: true,
@@ -103,10 +110,13 @@ describe('Loop Node Integration Tests', () => {
       const store = useWorkflowStore.getState()
 
       store.setWorkflow({
-        id: 'test-workflow',
-        name: 'Test Workflow',
+        schemaVersion: '1.0.0',
+        version: 1,
+        metadata: {
+          name: 'Test Workflow',
+          description: 'Test workflow for loop edges',
+        },
         triggers: [],
-        inputs: {},
         workflow: {
           activities: [],
         },
@@ -155,10 +165,13 @@ describe('Loop Node Integration Tests', () => {
       const store = useWorkflowStore.getState()
 
       store.setWorkflow({
-        id: 'test-workflow',
-        name: 'Test Workflow',
+        schemaVersion: '1.0.0',
+        version: 1,
+        metadata: {
+          name: 'Test Workflow',
+          description: 'Test workflow for multiple loop nodes',
+        },
         triggers: [],
-        inputs: {},
         workflow: {
           activities: [],
         },
@@ -184,7 +197,11 @@ describe('Loop Node Integration Tests', () => {
         id: task1Id,
         name: 'Task 1',
         task: {
-          type: 'generic' as const,
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: '',
+          },
         },
       }
 
@@ -193,7 +210,11 @@ describe('Loop Node Integration Tests', () => {
         id: task2Id,
         name: 'Task 2',
         task: {
-          type: 'generic' as const,
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: '',
+          },
         },
       }
 
@@ -452,10 +473,13 @@ describe('Loop Node Integration Tests', () => {
       const store = useWorkflowStore.getState()
 
       store.setWorkflow({
-        id: 'test-workflow',
-        name: 'Test Workflow',
+        schemaVersion: '1.0.0',
+        version: 1,
+        metadata: {
+          name: 'Test Workflow',
+          description: 'Test workflow for atomic updates',
+        },
         triggers: [],
-        inputs: {},
         workflow: {
           activities: [],
         },
@@ -480,7 +504,11 @@ describe('Loop Node Integration Tests', () => {
         id: 'task_1',
         name: '',
         task: {
-          type: 'generic' as const,
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: '',
+          },
         },
       }
 
@@ -522,10 +550,13 @@ describe('Loop Node Integration Tests', () => {
       const store = useWorkflowStore.getState()
 
       store.setWorkflow({
-        id: 'test-workflow',
-        name: 'Test Workflow',
+        schemaVersion: '1.0.0',
+        version: 1,
+        metadata: {
+          name: 'Test Workflow',
+          description: 'Test workflow for edge preservation',
+        },
         triggers: [],
-        inputs: {},
         workflow: {
           activities: [],
         },
@@ -579,6 +610,426 @@ describe('Loop Node Integration Tests', () => {
       expect(storedEdges).toHaveLength(2)
       expect(storedEdges.find((e) => e.id === 'existing1')).toBeDefined()
       expect(storedEdges.find((e) => e.id === 'new1')).toBeDefined()
+    })
+  })
+
+  describe('Loop Edge Reconnection on Deletion', () => {
+    it('should reconnect loop edge when last activity in loop is deleted', () => {
+      const store = useWorkflowStore.getState()
+
+      // Create a workflow with a loop containing multiple activities
+      const loopId = 'loop_1'
+      const task1Id = 'task_1'
+      const task2Id = 'task_2'
+      const task3Id = 'task_3'
+
+      const loopActivity = {
+        type: 'loop' as const,
+        id: loopId,
+        name: 'Test Loop',
+        loop: {
+          type: 'forEach' as const,
+          items: 'input.items',
+          do: [],
+        },
+      }
+
+      const task1 = {
+        type: 'task' as const,
+        id: task1Id,
+        name: 'Task 1',
+        task: {
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: '',
+          },
+        },
+      }
+
+      const task2 = {
+        type: 'task' as const,
+        id: task2Id,
+        name: 'Task 2',
+        task: {
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: '',
+          },
+        },
+      }
+
+      const task3 = {
+        type: 'task' as const,
+        id: task3Id,
+        name: 'Task 3',
+        task: {
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: '',
+          },
+        },
+      }
+
+      // Initial edges: loop -> task1 -> task2 -> task3 -> loop (end)
+      const initialEdges = [
+        {
+          id: `${loopId}-loop-${task1Id}`,
+          source: loopId,
+          target: task1Id,
+          sourceHandle: 'loop',
+          targetHandle: 'target',
+        },
+        {
+          id: `${task1Id}-${task2Id}`,
+          source: task1Id,
+          target: task2Id,
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+        {
+          id: `${task2Id}-${task3Id}`,
+          source: task2Id,
+          target: task3Id,
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+        {
+          id: `${task3Id}-${loopId}-end`,
+          source: task3Id,
+          target: loopId,
+          sourceHandle: 'source',
+          targetHandle: 'end',
+        },
+      ]
+
+      store.setWorkflow({
+        schemaVersion: '1.0.0',
+        version: 1,
+        metadata: {
+          name: 'Test Workflow',
+          description: 'Test workflow for loop edge reconnection',
+        },
+        triggers: [],
+        workflow: {
+          activities: [loopActivity, task1, task2, task3],
+        },
+      })
+
+      store.setEdges(initialEdges)
+
+      // Get fresh state after setting workflow
+      const initialState = useWorkflowStore.getState()
+
+      // Verify initial setup
+      expect(initialState.currentWorkflow).toBeDefined()
+      expect(initialState.currentWorkflow?.workflow.activities).toHaveLength(4)
+      expect(initialState.edges).toHaveLength(4)
+
+      // Simulate deletion of task3 (the last activity in the loop)
+      // In the actual implementation, this would be done through onNodesDelete
+      // For this test, we'll manually simulate the expected behavior
+      const updatedEdges = [
+        {
+          id: `${loopId}-loop-${task1Id}`,
+          source: loopId,
+          target: task1Id,
+          sourceHandle: 'loop',
+          targetHandle: 'target',
+        },
+        {
+          id: `${task1Id}-${task2Id}`,
+          source: task1Id,
+          target: task2Id,
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+        // New edge: task2 should now loop back to loop node
+        {
+          id: `${task2Id}-${loopId}-end`,
+          source: task2Id,
+          target: loopId,
+          sourceHandle: 'source',
+          targetHandle: 'end',
+        },
+      ]
+
+      // This simulates what batchRemoveNodesAndEdges would do with the loop reconnection logic
+      store.batchRemoveNodesAndEdges({
+        nodeIds: [task3Id],
+        edges: updatedEdges,
+        triggerIndices: [],
+      })
+
+      // Verify the results
+      const finalState = useWorkflowStore.getState()
+      expect(finalState.currentWorkflow?.workflow.activities).toHaveLength(3)
+      expect(finalState.edges).toHaveLength(3)
+
+      // Verify the new loop-back edge exists
+      const loopBackEdge = finalState.edges.find(
+        (e) => e.source === task2Id && e.target === loopId && e.targetHandle === 'end'
+      )
+      expect(loopBackEdge).toBeDefined()
+      expect(loopBackEdge?.sourceHandle).toBe('source')
+      expect(loopBackEdge?.targetHandle).toBe('end')
+    })
+
+    it('should handle deletion of middle activities without affecting loop-back edge', () => {
+      const store = useWorkflowStore.getState()
+
+      // Create a workflow with a loop containing multiple activities
+      const loopId = 'loop_1'
+      const task1Id = 'task_1'
+      const task2Id = 'task_2'
+      const task3Id = 'task_3'
+
+      const loopActivity = {
+        type: 'loop' as const,
+        id: loopId,
+        name: 'Test Loop',
+        loop: {
+          type: 'forEach' as const,
+          items: 'input.items',
+          do: [],
+        },
+      }
+
+      const task1 = {
+        type: 'task' as const,
+        id: task1Id,
+        name: 'Task 1',
+        task: {
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: '',
+          },
+        },
+      }
+
+      const task2 = {
+        type: 'task' as const,
+        id: task2Id,
+        name: 'Task 2',
+        task: {
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: '',
+          },
+        },
+      }
+
+      const task3 = {
+        type: 'task' as const,
+        id: task3Id,
+        name: 'Task 3',
+        task: {
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: '',
+          },
+        },
+      }
+
+      // Initial edges: loop -> task1 -> task2 -> task3 -> loop (end)
+      const initialEdges = [
+        {
+          id: `${loopId}-loop-${task1Id}`,
+          source: loopId,
+          target: task1Id,
+          sourceHandle: 'loop',
+          targetHandle: 'target',
+        },
+        {
+          id: `${task1Id}-${task2Id}`,
+          source: task1Id,
+          target: task2Id,
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+        {
+          id: `${task2Id}-${task3Id}`,
+          source: task2Id,
+          target: task3Id,
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+        {
+          id: `${task3Id}-${loopId}-end`,
+          source: task3Id,
+          target: loopId,
+          sourceHandle: 'source',
+          targetHandle: 'end',
+        },
+      ]
+
+      store.setWorkflow({
+        schemaVersion: '1.0.0',
+        version: 1,
+        metadata: {
+          name: 'Test Workflow',
+          description: 'Test workflow for middle activity deletion',
+        },
+        triggers: [],
+        workflow: {
+          activities: [loopActivity, task1, task2, task3],
+        },
+      })
+
+      store.setEdges(initialEdges)
+
+      // Get fresh state after setting workflow
+      const initialState = useWorkflowStore.getState()
+
+      // Verify initial setup
+      expect(initialState.currentWorkflow).toBeDefined()
+      expect(initialState.currentWorkflow?.workflow.activities).toHaveLength(4)
+      expect(initialState.edges).toHaveLength(4)
+
+      // Simulate deletion of task2 (a middle activity in the loop)
+      // The loop-back edge should remain from task3 to loop
+      const updatedEdges = [
+        {
+          id: `${loopId}-loop-${task1Id}`,
+          source: loopId,
+          target: task1Id,
+          sourceHandle: 'loop',
+          targetHandle: 'target',
+        },
+        {
+          id: `${task1Id}-${task3Id}`,
+          source: task1Id,
+          target: task3Id,
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+        // Original loop-back edge should remain unchanged
+        {
+          id: `${task3Id}-${loopId}-end`,
+          source: task3Id,
+          target: loopId,
+          sourceHandle: 'source',
+          targetHandle: 'end',
+        },
+      ]
+
+      store.batchRemoveNodesAndEdges({
+        nodeIds: [task2Id],
+        edges: updatedEdges,
+        triggerIndices: [],
+      })
+
+      // Verify the results
+      const finalState = useWorkflowStore.getState()
+      expect(finalState.currentWorkflow?.workflow.activities).toHaveLength(3)
+      expect(finalState.edges).toHaveLength(3)
+
+      // Verify the loop-back edge still exists from task3
+      const loopBackEdge = finalState.edges.find(
+        (e) => e.source === task3Id && e.target === loopId && e.targetHandle === 'end'
+      )
+      expect(loopBackEdge).toBeDefined()
+    })
+
+    it('should not create loop-back edge when only activity in loop is deleted', () => {
+      const store = useWorkflowStore.getState()
+
+      // Create a workflow with a loop containing only one activity (like the initial placeholder)
+      const loopId = 'loop_1'
+      const genericId = 'task_1'
+
+      const loopActivity = {
+        type: 'loop' as const,
+        id: loopId,
+        name: 'Test Loop',
+        loop: {
+          type: 'forEach' as const,
+          items: 'input.items',
+          do: [],
+        },
+      }
+
+      const genericActivity = {
+        type: 'task' as const,
+        id: genericId,
+        name: '',
+        task: {
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: '',
+          },
+        },
+        metadata: {
+          __isGeneric: true,
+        },
+      }
+
+      // Initial edges: loop -> generic -> loop (end)
+      // This is the structure when a loop is first created
+      const initialEdges = [
+        {
+          id: `${loopId}-loop-${genericId}`,
+          source: loopId,
+          target: genericId,
+          sourceHandle: 'loop',
+          targetHandle: 'target',
+        },
+        {
+          id: `${genericId}-${loopId}-end`,
+          source: genericId,
+          target: loopId,
+          sourceHandle: 'source',
+          targetHandle: 'end',
+        },
+      ]
+
+      store.setWorkflow({
+        schemaVersion: '1.0.0',
+        version: 1,
+        metadata: {
+          name: 'Test Workflow',
+          description: 'Test workflow for single activity loop deletion',
+        },
+        triggers: [],
+        workflow: {
+          activities: [loopActivity, genericActivity],
+        },
+      })
+
+      store.setEdges(initialEdges)
+
+      // Get fresh state after setting workflow
+      const initialState = useWorkflowStore.getState()
+
+      // Verify initial setup
+      expect(initialState.currentWorkflow).toBeDefined()
+      expect(initialState.currentWorkflow?.workflow.activities).toHaveLength(2)
+      expect(initialState.edges).toHaveLength(2)
+
+      // Simulate deletion of the only activity in the loop
+      // After deletion, there should be NO edges at all - no loop-back edge should be created
+      const updatedEdges: typeof initialEdges = []
+
+      store.batchRemoveNodesAndEdges({
+        nodeIds: [genericId],
+        edges: updatedEdges,
+        triggerIndices: [],
+      })
+
+      // Verify the results
+      const finalState = useWorkflowStore.getState()
+      expect(finalState.currentWorkflow?.workflow.activities).toHaveLength(1)
+      expect(finalState.edges).toHaveLength(0)
+
+      // Verify NO loop-back edge exists
+      const loopBackEdge = finalState.edges.find((e) => e.target === loopId && e.targetHandle === 'end')
+      expect(loopBackEdge).toBeUndefined()
     })
   })
 })

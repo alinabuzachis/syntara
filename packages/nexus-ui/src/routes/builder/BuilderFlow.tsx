@@ -19,6 +19,9 @@ import { CanvasControls } from '../automations/canvas/CanvasControls'
 import { edgeTypes } from '../automations/canvas/edges/EdgeType'
 import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
 
+// Type helper for activity data with optional metadata
+type ActivityWithMetadata = Activity & { metadata?: Record<string, unknown> }
+
 import { ButtonEdge } from './edges/ButtonEdge'
 import { DefaultEdge } from './edges/DefaultEdge'
 import { LoopBackEdge } from './edges/LoopBackEdge'
@@ -360,8 +363,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     taskActivities.forEach((activity: TaskActivity) => {
       // Check if this is a generic placeholder node
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const isGeneric = (activity as any).metadata?.__isGeneric === true
+      const isGeneric = (activity as ActivityWithMetadata).metadata?.__isGeneric === true
 
       // Determine position: loop body nodes should be positioned to the right of their loop nodes
       let position = { x: 0, y: 0 }
@@ -399,10 +401,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
             ...node,
             data: {
               ...node.data,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              metadata: { ...(node.data as any).metadata, __reverseHandles: true },
+              metadata: { ...(node.data as ActivityWithMetadata).metadata, __reverseHandles: true },
             },
-          }
+          } as NodeType
         }
       }
     })
@@ -576,8 +577,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
         // Handle generic nodes - set metadata flag instead of changing type
         if (node.type === 'generic') {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const currentReverseHandles = (node.data as any).metadata?.__reverseHandles as boolean | undefined
+          const currentReverseHandles = (node.data as ActivityWithMetadata).metadata?.__reverseHandles as
+            | boolean
+            | undefined
 
           if (shouldBeReversed && !currentReverseHandles) {
             hasChanges = true
@@ -585,14 +587,14 @@ export function BuilderFlow(props: BuilderFlowProps) {
               ...node,
               data: {
                 ...node.data,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                metadata: { ...(node.data as any).metadata, __reverseHandles: true },
+                metadata: { ...(node.data as ActivityWithMetadata).metadata, __reverseHandles: true },
               },
             }
           } else if (!shouldBeReversed && currentReverseHandles) {
             hasChanges = true
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-            const { __reverseHandles: _reverseHandles, ...restMetadata } = (node.data as any).metadata || {}
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { __reverseHandles: _reverseHandles, ...restMetadata } =
+              (node.data as ActivityWithMetadata).metadata || {}
             return {
               ...node,
               data: {
@@ -648,14 +650,64 @@ export function BuilderFlow(props: BuilderFlowProps) {
       })
 
       const storedEdges = useWorkflowStore.getState().edges
+
+      // CRITICAL: Detect loop reconnection needs BEFORE filtering edges
+      // When the last activity in a loop is deleted, we need to reconnect the new last activity to the loop
+      const loopReconnections: Array<{ source: string; target: string; targetHandle: string; sourceHandle?: string }> =
+        []
+
+      deletedNodeIds.forEach((deletedNodeId) => {
+        // Find if this deleted node had an edge TO a loop's 'end' handle (was the last activity in a loop)
+        const loopBackEdge = storedEdges.find((edge) => edge.source === deletedNodeId && edge.targetHandle === 'end')
+
+        if (loopBackEdge) {
+          // Find the node that connects TO the deleted node (the new last activity)
+          const incomingEdge = storedEdges.find(
+            (edge) => edge.target === deletedNodeId && !deletedNodeIds.has(edge.source)
+          )
+
+          if (incomingEdge) {
+            // CRITICAL: Don't create a loop-back edge if the incoming edge is from the loop node itself
+            // This means the deleted node was the only activity in the loop, so no loop-back edge should exist
+            const isFromLoopNode = incomingEdge.source === loopBackEdge.target && incomingEdge.sourceHandle === 'loop'
+
+            if (!isFromLoopNode) {
+              // Get the new last node to determine the correct source handle
+              const newLastNode = nodes.find((n) => n.id === incomingEdge.source)
+              const sourceHandle = newLastNode?.type === FlowNodeType.LOOP ? 'done' : 'source'
+
+              // Create a new loop-back edge from the new last activity to the loop node
+              loopReconnections.push({
+                source: incomingEdge.source,
+                target: loopBackEdge.target,
+                targetHandle: 'end',
+                sourceHandle,
+              })
+            }
+          }
+        }
+      })
+
       const filteredEdges = storedEdges.filter(
         (edge) => !deletedNodeIds.has(edge.source) && !deletedNodeIds.has(edge.target)
       )
 
+      // Add loop reconnection edges to the filtered edges
+      const edgesWithReconnections = [
+        ...filteredEdges,
+        ...loopReconnections.map((reconnection) => ({
+          id: `${reconnection.source}-${reconnection.target}-end`,
+          source: reconnection.source,
+          target: reconnection.target,
+          sourceHandle: reconnection.sourceHandle,
+          targetHandle: reconnection.targetHandle,
+        })),
+      ]
+
       // ATOMIC UPDATE: Update workflow and edges in a single transaction to prevent race conditions
       batchRemoveNodesAndEdges({
         nodeIds: activityIds,
-        edges: filteredEdges,
+        edges: edgesWithReconnections,
         triggerIndices,
       })
 
@@ -668,6 +720,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
       // CRITICAL: Remove edges connected to deleted nodes to avoid validation errors
       // and ensure ButtonEdges are recreated by useButtonEdgeMaintenance
+      // Also add loop reconnection edges
       setEdges((currentEdges) => {
         const filtered = currentEdges.filter(
           (edge) =>
@@ -675,7 +728,19 @@ export function BuilderFlow(props: BuilderFlowProps) {
             !deletedNodeIds.has(edge.target) &&
             !placeholderIdsToRemove.has(edge.target)
         )
-        return filtered
+
+        // Add loop reconnection edges with proper edge types
+        const reconnectionEdges = loopReconnections.map((reconnection) =>
+          EdgeFactory.createEdge({
+            source: reconnection.source,
+            target: reconnection.target,
+            sourceHandle: reconnection.sourceHandle,
+            targetHandle: reconnection.targetHandle,
+            onAddNode: onAddNodeFromEdge,
+          })
+        )
+
+        return [...filtered, ...reconnectionEdges]
       })
 
       // Clear deletion flag after all updates complete
@@ -683,7 +748,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         isDeletingRef.current = false
       }, 100)
     },
-    [batchRemoveNodesAndEdges, setEdges, setNodes]
+    [batchRemoveNodesAndEdges, setEdges, setNodes, nodes, onAddNodeFromEdge]
   )
 
   useEffect(() => {
@@ -997,9 +1062,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
           height: 16px !important;
           border-radius: 8px 0 0 8px !important;
           border-right: none !important;
-          opacity: 1 !important;
+          opacity: 0 !important; /* Hidden by default, only show when connected */
           right: 2px !important;
           z-index: 10 !important;
+        }
+        /* Show source handle when connected to a real edge (only for regular nodes, not loop/condition handles) */
+        .builder-flow .handle-source-connected .react-flow__handle.source {
+          opacity: 1 !important;
         }
         .builder-flow .has-button-edge .react-flow__handle.source {
           /* Cover just the edge line, stops before button */
@@ -1034,6 +1103,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
         .builder-flow marker#selected-arrow-marker polyline,
         .builder-flow marker#hover-arrow-marker polyline {
           filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
+        }
+        /* Visual indicators for connected handles */
+        .builder-flow .handle-loop-connected .handle-loop-indicator,
+        .builder-flow .handle-done-connected .handle-done-indicator,
+        .builder-flow .handle-true-connected .handle-true-indicator,
+        .builder-flow .handle-false-connected .handle-false-indicator {
+          opacity: 1 !important;
         }
         /* Don't allow button edges to be selected */
         .builder-flow .react-flow__edge[data-id*="button-"] {

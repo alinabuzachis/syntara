@@ -37,6 +37,27 @@ interface BuilderContentProps {
   workflowId: string | null
 }
 
+// Helper function to check if condition node has remaining placeholders
+function hasConditionNodePlaceholders(nodes: Node[], sourceId: string): boolean {
+  return nodes.some((n) => n.id === `placeholder-${sourceId}-true` || n.id === `placeholder-${sourceId}-false`)
+}
+
+// Helper function to check if loop node has remaining placeholders
+function hasLoopNodePlaceholders(nodes: Node[], sourceId: string): boolean {
+  return nodes.some((n) => n.id === `placeholder-${sourceId}-done` || n.id === `placeholder-${sourceId}-loop`)
+}
+
+// Helper function to remove has-button-edge class from a node
+function removeButtonEdgeClass(nodes: Node[], sourceId: string): Node[] {
+  return nodes.map((n) => {
+    if (n.id === sourceId) {
+      const className = (n.className || '').replace('has-button-edge', '').trim()
+      return { ...n, className }
+    }
+    return n
+  })
+}
+
 export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId } = props
   const [, navigate] = useLocation()
@@ -635,40 +656,50 @@ export function BuilderContent(props: BuilderContentProps) {
                           useWorkflowStore.getState().moveActivityBefore(targetId, capturedTargetNodeId)
                         }
 
+                        // SPECIAL CASE: If adding to loop handle, automatically create loop-back edge
+                        if (capturedSourceHandle === 'loop' && !capturedEdgeIdToReplace) {
+                          const loopBackEdge = EdgeFactory.createEdge({
+                            source: targetId,
+                            target: sourceId,
+                            sourceHandle: 'source',
+                            targetHandle: 'end',
+                            onAddNode: handleAddNodeFromEdge,
+                          })
+
+                          reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(loopBackEdge, eds as EdgeType[]))
+                        }
+
                         // Remove placeholder node and update source node class
                         const isConditionHandle =
                           capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
-                        const sourcePlaceholderId = isConditionHandle
-                          ? `placeholder-${sourceId}-${capturedSourceHandle}`
-                          : `placeholder-${sourceId}`
+                        const isLoopHandle = capturedSourceHandle && ['done', 'loop'].includes(capturedSourceHandle)
+                        const sourcePlaceholderId =
+                          isConditionHandle || isLoopHandle
+                            ? `placeholder-${sourceId}-${capturedSourceHandle}`
+                            : `placeholder-${sourceId}`
 
                         reactFlowInstance.setNodes((nds) => {
                           const filtered = nds.filter((n) => n.id !== sourcePlaceholderId)
 
-                          // For condition nodes, only remove the class if both handles are now connected
+                          // For condition nodes and loop nodes, only remove the class if all handles are now connected
                           const sourceNode = filtered.find((n) => n.id === sourceId)
                           if (!sourceNode) return filtered
 
                           const isConditionNode = sourceNode.type === FlowNodeType.CONDITION
-                          if (isConditionNode) {
-                            // Check if there are any remaining condition handle placeholders for this node
-                            const hasRemainingPlaceholders = filtered.some(
-                              (n) => n.id === `placeholder-${sourceId}-true` || n.id === `placeholder-${sourceId}-false`
-                            )
-                            if (hasRemainingPlaceholders) {
-                              // Keep the class since there are still button edges
-                              return filtered
-                            }
+                          const isLoopNode = sourceNode.type === FlowNodeType.LOOP
+
+                          if (isConditionNode && hasConditionNodePlaceholders(filtered, sourceId)) {
+                            // Keep the class since there are still button edges
+                            return filtered
+                          }
+
+                          if (isLoopNode && hasLoopNodePlaceholders(filtered, sourceId)) {
+                            // Keep the class since there are still button edges
+                            return filtered
                           }
 
                           // Remove the has-button-edge class if no more button edges
-                          return filtered.map((n) => {
-                            if (n.id === sourceId) {
-                              const className = (n.className || '').replace('has-button-edge', '').trim()
-                              return { ...n, className }
-                            }
-                            return n
-                          })
+                          return removeButtonEdgeClass(filtered, sourceId)
                         })
                       } else if (attempts < maxAttempts) {
                         attempts++
