@@ -32,7 +32,6 @@ describe('IntegrationCard Component', () => {
 
       const nameElement = screen.getByText('Test MCP Server')
       expect(nameElement).toBeInTheDocument()
-      expect(nameElement).toHaveClass('text-lg', 'font-bold')
     })
 
     it('displays integration description', () => {
@@ -130,16 +129,14 @@ describe('IntegrationCard Component', () => {
       const { container } = render(<IntegrationCard integration={mockIntegration} />)
 
       const card = container.firstChild as HTMLElement
-      // Card component with variant="glass" padding="lg" applies: glass, border, rounded-lg, p-6
-      // Plus custom classes: flex, flex-col, gap-4, rounded-2xl
-      expect(card).toHaveClass('glass', 'flex', 'flex-col', 'gap-4', 'rounded-2xl', 'border', 'p-6')
+      expect(card).toHaveClass('pf-v6-c-card', 'glass')
     })
 
     it('applies correct styling to description', () => {
       render(<IntegrationCard integration={mockIntegration} />)
 
       const description = screen.getByText('This is a test integration server for development purposes')
-      expect(description).toHaveClass('mt-4', 'text-white/70')
+      expect(description).toHaveAttribute('id', 'description')
     })
   })
 })

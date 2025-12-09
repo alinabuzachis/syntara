@@ -1,6 +1,6 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { ConfirmDialog, useAlerts, Input, Button } from '@ansible/nexus-ui-framework'
-import { PlayIcon, ListIcon, PencilIcon } from 'lucide-react'
+import { PlayIcon, ListIcon, PencilAltIcon } from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 
@@ -58,7 +58,7 @@ export default function Automations() {
     () => [
       {
         label: 'Edit automation',
-        icon: PencilIcon,
+        icon: PencilAltIcon,
         onClick: (workflow) => {
           setLocation(`/automation-builder/${workflow.id}`)
         },

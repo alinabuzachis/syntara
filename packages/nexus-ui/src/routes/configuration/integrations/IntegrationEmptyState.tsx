@@ -1,12 +1,11 @@
-import { CompassPanel } from '@ansible/nexus-ui-framework'
-import { Flex, FlexItem, Button, Content, ContentVariants, Title } from '@patternfly/react-core'
+import { CompassPanel, Flex, FlexItem, Button, Content, ContentVariants, Title } from '@patternfly/react-core'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute.tsx'
 
 export function IntegrationEmptyState() {
   return (
-    <CompassPanel glass isFullHeight>
+    <CompassPanel isFullHeight>
       <Flex
         alignItems={{ default: 'alignItemsCenter' }}
         justifyContent={{ default: 'justifyContentFlexStart' }}

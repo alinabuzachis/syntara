@@ -1,17 +1,35 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
+import { useAlerts } from '@ansible/nexus-ui-framework'
 import {
-  ConfirmDialog,
-  EmptyStateFilter,
-  Menu,
-  MenuGroup,
-  MenuItems,
-  MenuRadioGroup,
-  MenuRadioItem,
-  MenuTrigger,
-  Scrollable,
-  useAlerts,
-} from '@ansible/nexus-ui-framework'
-import { CheckCircle2Icon, EllipsisVerticalIcon, EyeIcon, Loader2Icon, Trash2Icon, XCircleIcon } from 'lucide-react'
+  Button,
+  Card,
+  CardBody,
+  Content,
+  ContentVariants,
+  Dropdown,
+  DropdownGroup,
+  DropdownItem,
+  DropdownList,
+  Flex,
+  FlexItem,
+  Gallery,
+  MenuToggle,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  SearchInput,
+  Title,
+} from '@patternfly/react-core'
+import type { MenuToggleElement } from '@patternfly/react-core'
+import {
+  CheckCircleIcon,
+  EllipsisVIcon,
+  EyeIcon,
+  SyncAltIcon,
+  TrashIcon,
+  TimesCircleIcon,
+} from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 
@@ -31,28 +49,28 @@ import { IntegrationEmptyState } from './IntegrationEmptyState'
 type ProviderStatus = 'available' | 'error' | 'validating'
 
 const statusIcons: Record<ProviderStatus, React.ComponentType<{ className?: string }>> = {
-  available: CheckCircle2Icon,
-  error: XCircleIcon,
-  validating: Loader2Icon,
+  available: CheckCircleIcon,
+  error: TimesCircleIcon,
+  validating: SyncAltIcon,
 }
 
 const statusColors: Record<ProviderStatus, string> = {
-  available: 'text-green-400',
-  error: 'text-red-400',
-  validating: 'text-blue-400',
+  available: 'var(--pf-t--global--color--status--success--default)',
+  error: 'var(--pf-t--global--color--status--danger--default)',
+  validating: 'var(--pf-t--global--color--status--info--default)',
 }
 
 function StatusLabel({ status }: { status: string }) {
   const providerStatus = status as ProviderStatus
-  const Icon = statusIcons[providerStatus] || XCircleIcon
-  const colorClass = statusColors[providerStatus] || 'text-gray-400'
+  const Icon = statusIcons[providerStatus] || TimesCircleIcon
+  const color = statusColors[providerStatus] || 'var(--pf-t--global--color--status--default--default)'
   const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1)
 
   return (
-    <div className={`flex items-center gap-1.5 ${colorClass}`}>
-      <Icon className="size-4" />
+    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }} style={{ color }}>
+      <Icon />
       <span>{capitalizedStatus}</span>
-    </div>
+    </Flex>
   )
 }
 
@@ -153,7 +171,7 @@ export default function Integrations() {
       },
       {
         label: 'Validate connection',
-        icon: CheckCircle2Icon,
+        icon: CheckCircleIcon,
         onClick: (provider: ToolProvider) => {
           setProviderToValidate(provider)
           setValidateDialogOpen(true)
@@ -161,7 +179,7 @@ export default function Integrations() {
       },
       {
         label: 'Uninstall',
-        icon: Trash2Icon,
+        icon: TrashIcon,
         variant: 'destructive' as const,
         onClick: (provider: ToolProvider) => {
           setProviderToDelete(provider)
@@ -173,6 +191,7 @@ export default function Integrations() {
   )
 
   const [view, setView] = useState<'table' | 'cards'>('table')
+  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false)
 
   const queryState = useQueryState(query, 'Error loading integrations')
   if (queryState) return queryState
@@ -181,33 +200,55 @@ export default function Integrations() {
     <AppPage>
       {query.data?.resources && query.data.resources.length > 0 && (
         <AppPageHeader title="Integrations">
-          {/* <ExampleToggleGroup /> */}
-          <input
-            className="search grow"
+          <SearchInput
             placeholder="Search integrations..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(_event, value) => setSearch(value)}
+            onClear={() => setSearch('')}
+            style={{ width: '250px' }}
           />
-          <button
-            className="rounded-full bg-blue-400/70 px-4 py-1"
-            onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}
-          >
+          <Button variant="primary" onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}>
             Add Integration
-          </button>
-          <Menu>
-            <MenuTrigger>
-              <EllipsisVerticalIcon />
-            </MenuTrigger>
-            <MenuItems>
-              <MenuGroup label="View">
-                <MenuRadioGroup value={view} onValueChange={setView}>
-                  <MenuRadioItem value="table">Table</MenuRadioItem>
-                  <MenuRadioItem value="cards">Cards</MenuRadioItem>
-                </MenuRadioGroup>
-              </MenuGroup>
-            </MenuItems>
-          </Menu>
-          {/* <ExampleToggleGroup /> */}
+          </Button>
+          <Dropdown
+            isOpen={isViewMenuOpen}
+            onOpenChange={(isOpen) => setIsViewMenuOpen(isOpen)}
+            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+              <MenuToggle
+                ref={toggleRef}
+                onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
+                isExpanded={isViewMenuOpen}
+                variant="plain"
+              >
+                <EllipsisVIcon />
+              </MenuToggle>
+            )}
+          >
+            <DropdownList>
+              <DropdownGroup label="View">
+                <DropdownItem
+                  key="table"
+                  isSelected={view === 'table'}
+                  onClick={() => {
+                    setView('table')
+                    setIsViewMenuOpen(false)
+                  }}
+                >
+                  Table
+                </DropdownItem>
+                <DropdownItem
+                  key="cards"
+                  isSelected={view === 'cards'}
+                  onClick={() => {
+                    setView('cards')
+                    setIsViewMenuOpen(false)
+                  }}
+                >
+                  Cards
+                </DropdownItem>
+              </DropdownGroup>
+            </DropdownList>
+          </Dropdown>
         </AppPageHeader>
       )}
       {view !== 'cards' ? (
@@ -247,34 +288,81 @@ export default function Integrations() {
               render: (item) => <StringCell>{item.tool_count}</StringCell>,
             },
           ]}
-          emptyState={search ? <EmptyStateFilter /> : <IntegrationEmptyState />}
+          emptyState={
+            search ? (
+              <Card isPlain className="glass" isFullHeight>
+                <CardBody>
+                  <Flex
+                    alignItems={{ default: 'alignItemsCenter' }}
+                    gap={{ default: 'gap4xl' }}
+                    flexWrap={{ default: 'nowrap' }}
+                  >
+                    <FlexItem>
+                      <img
+                        src="/src/assets/collage-circle-sparkles-window-server-dark-RH.png"
+                        alt="No results"
+                        style={{ maxWidth: '320px', height: 'auto', objectFit: 'contain' }}
+                      />
+                    </FlexItem>
+                    <FlexItem>
+                      <Flex
+                        direction={{ default: 'column' }}
+                        alignItems={{ default: 'alignItemsFlexStart' }}
+                        gap={{ default: 'gapMd' }}
+                      >
+                        <Title headingLevel="h2" size="lg">
+                          No results found
+                        </Title>
+                        <Content component={ContentVariants.p}>
+                          No results match the filter criteria. Try changing your filter settings.
+                        </Content>
+                        <Button variant="primary" onClick={() => setSearch('')}>
+                          Clear all filters
+                        </Button>
+                      </Flex>
+                    </FlexItem>
+                  </Flex>
+                </CardBody>
+              </Card>
+            ) : (
+              <IntegrationEmptyState />
+            )
+          }
         />
       ) : (
-        <Scrollable className="glass grow rounded-4xl border">
-          <div className={`grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4 p-8`}>
+        <Card isPlain>
+          <Gallery hasGutter minWidths={{ default: '500px' }} style={{ padding: 'var(--pf-t--global--spacer--2xl)' }}>
             {results.map((integration) => (
               <IntegrationCard key={integration.id} integration={integration} />
             ))}
-          </div>
-        </Scrollable>
+          </Gallery>
+        </Card>
       )}
       <ChatInput />
-      <ConfirmDialog
-        open={validateDialogOpen}
-        onOpenChange={setValidateDialogOpen}
-        title="Validate integration"
-        description={`Are you sure you want to validate the connection for "${providerToValidate?.name}"?`}
-        confirmLabel="Validate"
-        onConfirm={handleValidate}
-      />
-      <ConfirmDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        title="Delete integration"
-        description={`Are you sure you want to delete "${providerToDelete?.name}"? This action cannot be undone.`}
-        confirmLabel="Delete"
-        onConfirm={handleDelete}
-      />
+      <Modal isOpen={validateDialogOpen} onClose={() => setValidateDialogOpen(false)} variant="small">
+        <ModalHeader title="Validate integration" />
+        <ModalBody>Are you sure you want to validate the connection for "{providerToValidate?.name}"?</ModalBody>
+        <ModalFooter>
+          <Button variant="primary" onClick={handleValidate}>
+            Validate
+          </Button>
+          <Button variant="link" onClick={() => setValidateDialogOpen(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+      <Modal isOpen={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} variant="small">
+        <ModalHeader title="Delete integration" />
+        <ModalBody>Are you sure you want to delete "{providerToDelete?.name}"? This action cannot be undone.</ModalBody>
+        <ModalFooter>
+          <Button variant="danger" onClick={handleDelete}>
+            Delete
+          </Button>
+          <Button variant="link" onClick={() => setDeleteDialogOpen(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
     </AppPage>
   )
 }

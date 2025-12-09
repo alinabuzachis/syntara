@@ -1,15 +1,8 @@
-import {
-  Checkbox,
-  Menu,
-  MenuItem,
-  MenuItems,
-  MenuSeparator,
-  MenuTrigger,
-  Scrollable,
-} from '@ansible/nexus-ui-framework'
+import { Scrollable } from '@ansible/nexus-ui-framework'
+import { Button, Checkbox, Divider, Dropdown, DropdownItem, DropdownList, MenuToggle } from '@patternfly/react-core'
+import type { MenuToggleElement } from '@patternfly/react-core'
+import { AngleLeftIcon, AngleRightIcon, EllipsisVIcon } from '@patternfly/react-icons'
 import clsx from 'clsx'
-import type { LucideIcon } from 'lucide-react'
-import { ChevronLeftIcon, ChevronRightIcon, EllipsisVerticalIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
@@ -18,7 +11,7 @@ import type { Column } from './Column'
 export interface IRowAction<T> {
   label: string
   onClick: (item: T) => unknown
-  icon?: LucideIcon
+  icon?: React.ComponentType<{ className?: string }>
   variant?: 'default' | 'destructive'
   disabled?: boolean | ((item: T) => boolean)
   separator?: boolean // Add separator before this action
@@ -27,7 +20,7 @@ export interface IRowAction<T> {
 export interface IBulkAction<T> {
   label: string
   onClick: (items: T[]) => unknown
-  icon?: LucideIcon
+  icon?: React.ComponentType<{ className?: string }>
   variant?: 'default' | 'destructive'
 }
 
@@ -56,6 +49,7 @@ export function Table<T>(props: {
   const { items, columns, bulkActions, keyFn, isSelected, onSelectionChange, showSelect } = props
   const [atTop, setAtTop] = useState<boolean | undefined>(true)
   const [atBottom, setAtBottom] = useState<boolean | undefined>(true)
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | number | null>(null)
 
   // Generate unique keys for items
   const getItemKey = useCallback(
@@ -156,23 +150,19 @@ export function Table<T>(props: {
                 {bulkActions.map((action) => {
                   const Icon = action.icon
                   return (
-                    <button
+                    <Button
                       key={action.label}
-                      className={clsx(
-                        'flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm transition-colors',
-                        action.variant === 'destructive'
-                          ? 'bg-red-500/70 hover:bg-red-500/90'
-                          : 'bg-violet-500/70 hover:bg-violet-500/90'
-                      )}
+                      variant={action.variant === 'destructive' ? 'danger' : 'primary'}
+                      size="sm"
                       onClick={() => {
                         action.onClick(selectedItemObjects)
                         setUserModifiedSelection(true)
                         setManualSelection(new Set()) // Clear selection after action
                       }}
                     >
-                      {Icon && <Icon className="size-4" />}
+                      {Icon && <Icon className="mr-2 size-4" />}
                       {action.label}
-                    </button>
+                    </Button>
                   )
                 })}
               </div>
@@ -196,7 +186,11 @@ export function Table<T>(props: {
             <tr className="bg-white/5 text-left *:h-16 *:border-b *:border-violet-300/20 *:px-8">
               {showBulkActions && (
                 <th className="w-12">
-                  <Checkbox checked={allSelected} indeterminate={someSelected} onCheckedChange={toggleAll} />
+                  <Checkbox
+                    id="select-all"
+                    isChecked={allSelected ? true : someSelected ? null : false}
+                    onChange={toggleAll}
+                  />
                 </th>
               )}
               {columns.map((column) => (
@@ -220,7 +214,7 @@ export function Table<T>(props: {
                 >
                   {showBulkActions && (
                     <td>
-                      <Checkbox checked={isSelected} onCheckedChange={() => toggleItem(itemKey)} />
+                      <Checkbox id={`select-${itemKey}`} isChecked={isSelected} onChange={() => toggleItem(itemKey)} />
                     </td>
                   )}
                   {columns.map((column) => (
@@ -230,35 +224,49 @@ export function Table<T>(props: {
                   ))}
                   {props?.rowActions && props.rowActions.length > 0 && (
                     <td>
-                      <Menu>
-                        <MenuTrigger className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-white/10">
-                          <EllipsisVerticalIcon className="size-4" />
-                        </MenuTrigger>
-                        <MenuItems>
+                      <Dropdown
+                        isOpen={openActionMenuId === itemKey}
+                        onOpenChange={(isOpen) => setOpenActionMenuId(isOpen ? itemKey : null)}
+                        toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                          <MenuToggle
+                            ref={toggleRef}
+                            onClick={() => setOpenActionMenuId(openActionMenuId === itemKey ? null : itemKey)}
+                            isExpanded={openActionMenuId === itemKey}
+                            variant="plain"
+                            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-white/10"
+                          >
+                            <EllipsisVIcon className="size-4" />
+                          </MenuToggle>
+                        )}
+                      >
+                        <DropdownList>
                           {props?.rowActions?.map((action, actionIndex) => {
                             const Icon = action.icon
                             const isDisabled =
                               typeof action.disabled === 'function' ? action.disabled(item) : action.disabled
                             return (
                               <Fragment key={action.label}>
-                                {action.separator && actionIndex > 0 && <MenuSeparator />}
-                                <MenuItem
-                                  onClick={() => !isDisabled && action.onClick(item)}
-                                  disabled={isDisabled}
-                                  className={clsx(
-                                    'flex items-center gap-2',
-                                    action.variant === 'destructive' && 'text-red-400 hover:bg-red-500/20',
-                                    isDisabled && 'cursor-not-allowed opacity-50'
-                                  )}
+                                {action.separator && actionIndex > 0 && <Divider />}
+                                <DropdownItem
+                                  onClick={() => {
+                                    if (!isDisabled) {
+                                      action.onClick(item)
+                                    }
+                                    setOpenActionMenuId(null)
+                                  }}
+                                  isDisabled={isDisabled}
+                                  isDanger={action.variant === 'destructive'}
                                 >
-                                  {Icon && <Icon className="size-4" />}
-                                  {action.label}
-                                </MenuItem>
+                                  <span className="flex items-center gap-2">
+                                    {Icon && <Icon className="size-4" />}
+                                    {action.label}
+                                  </span>
+                                </DropdownItem>
                               </Fragment>
                             )
                           })}
-                        </MenuItems>
-                      </Menu>
+                        </DropdownList>
+                      </Dropdown>
                     </td>
                   )}
                 </tr>
@@ -294,38 +302,32 @@ export function Table<T>(props: {
           </div>
           {props.pagination && props.onPageChange && (props.pagination.prev || props.pagination.next) && (
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant="plain"
                 onClick={() => {
                   if (props.pagination?.prev !== undefined) {
                     props.onPageChange?.(props.pagination.prev, 'prev')
                   }
                 }}
-                disabled={!props.pagination.prev}
-                className={clsx(
-                  'flex h-8 items-center gap-1 rounded-lg px-3 text-sm transition-colors',
-                  props.pagination.prev ? 'hover:bg-white/10' : 'cursor-not-allowed opacity-50'
-                )}
+                isDisabled={!props.pagination.prev}
                 aria-label="Previous page"
               >
-                <ChevronLeftIcon className="size-4" />
+                <AngleLeftIcon className="mr-1 size-4" />
                 Previous
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="plain"
                 onClick={() => {
                   if (props.pagination?.next !== undefined) {
                     props.onPageChange?.(props.pagination.next, 'next')
                   }
                 }}
-                disabled={!props.pagination.next}
-                className={clsx(
-                  'flex h-8 items-center gap-1 rounded-lg px-3 text-sm transition-colors',
-                  props.pagination.next ? 'hover:bg-white/10' : 'cursor-not-allowed opacity-50'
-                )}
+                isDisabled={!props.pagination.next}
                 aria-label="Next page"
               >
                 Next
-                <ChevronRightIcon className="size-4" />
-              </button>
+                <AngleRightIcon className="ml-1 size-4" />
+              </Button>
             </div>
           )}
         </div>
