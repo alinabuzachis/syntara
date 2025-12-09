@@ -136,6 +136,9 @@ get_feature_paths() {
     # Use prefix-based lookup to support multiple branches per spec
     local feature_dir=$(find_feature_dir_by_prefix "$repo_root" "$current_branch")
 
+    # Calculate relative path from repo root to feature dir
+    local feature_dir_rel="${feature_dir#$repo_root/}"
+
     cat <<EOF
 REPO_ROOT='$repo_root'
 CURRENT_BRANCH='$current_branch'
@@ -148,6 +151,14 @@ RESEARCH='$feature_dir/research.md'
 DATA_MODEL='$feature_dir/data-model.md'
 QUICKSTART='$feature_dir/quickstart.md'
 CONTRACTS_DIR='$feature_dir/contracts'
+FEATURE_DIR_REL='$feature_dir_rel'
+FEATURE_SPEC_REL='$feature_dir_rel/spec.md'
+IMPL_PLAN_REL='$feature_dir_rel/plan.md'
+TASKS_REL='$feature_dir_rel/tasks.md'
+RESEARCH_REL='$feature_dir_rel/research.md'
+DATA_MODEL_REL='$feature_dir_rel/data-model.md'
+QUICKSTART_REL='$feature_dir_rel/quickstart.md'
+CONTRACTS_DIR_REL='$feature_dir_rel/contracts'
 EOF
 }
 

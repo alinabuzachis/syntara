@@ -10,7 +10,10 @@ $ARGUMENTS
 
 Given the implementation details provided as an argument, do this:
 
-1. Run `.specify/scripts/bash/setup-plan.sh --json` from the repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH. All future file paths must be absolute.
+1. Run `.specify/scripts/bash/setup-plan.sh --json` from the repo root and parse JSON for:
+   - File operations (reading/writing): Use FEATURE_SPEC, IMPL_PLAN, SPECS_DIR (absolute paths)
+   - Documentation: Use FEATURE_SPEC_REL, IMPL_PLAN_REL, SPECS_DIR_REL (relative paths for portability)
+   - Also parse: BRANCH, HAS_GIT
    - BEFORE proceeding, inspect FEATURE_SPEC for a `## Clarifications` section with at least one `Session` subheading. If missing or clearly ambiguous areas remain (vague adjectives, unresolved critical choices), PAUSE and instruct the user to run `/clarify` first to reduce rework. Only continue if: (a) Clarifications exist OR (b) an explicit user override is provided (e.g., "proceed without clarification"). Do not attempt to fabricate clarifications yourself.
 2. Read and analyze the feature specification to understand:
    - The feature requirements and user stories
@@ -24,7 +27,7 @@ Given the implementation details provided as an argument, do this:
 
 5. Execute the implementation plan template:
    - Load `.specify/templates/plan-template.md` (already copied to IMPL_PLAN path)
-   - Set Input path to FEATURE_SPEC
+   - Set Input path to FEATURE_SPEC_REL (use relative path for documentation)
    - Run the Execution Flow (main) function steps 1-9
    - The template is self-contained and executable
    - Follow error handling and gate checks as specified
@@ -45,6 +48,6 @@ Given the implementation details provided as an argument, do this:
    - For each feature where `features[feature-name].plan === true`:
      - If the feature is enabled, read and execute the instructions from `.specify/extensions/[feature-name]/plan.md`
      - Include any outputs from extension execution in the final report
-8. Report results with branch name, file paths, generated artifacts, and any generated extension outputs.
+8. Report results with branch name, file paths (using _REL variables for portability), generated artifacts, and any generated extension outputs.
 
-Use absolute paths with the repository root for all file operations to avoid path issues.
+Use absolute paths (FEATURE_SPEC, IMPL_PLAN, SPECS_DIR) for all file operations to avoid path issues, but use relative paths (*_REL variables) when documenting in generated artifacts.

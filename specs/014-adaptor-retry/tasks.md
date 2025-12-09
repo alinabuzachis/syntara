@@ -1,6 +1,6 @@
 # Tasks: LLM Adapter Retry and Recovery Mechanisms
 
-**Input**: Design documents from ``
+**Input**: Design documents from `/specs/014-adaptor-retry/`
 **Prerequisites**: plan.md, research.md, data-model.md, quickstart.md
 
 ## Task Dependency Visualization

@@ -2,7 +2,7 @@
 # Implementation Plan: LLM Adapter Retry and Recovery Mechanisms
 
 **Branch**: `014-adaptor-retry` | **Date**: 2025-11-24 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from ``
+**Input**: Feature specification from `/specs/014-adaptor-retry/spec.md`
 
 ## Execution Flow (/plan command scope)
 ```

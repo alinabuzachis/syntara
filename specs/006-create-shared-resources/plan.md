@@ -2,7 +2,7 @@
 # Implementation Plan: Shared API Resources and Conventions
 
 **Branch**: `006-create-shared-resources` | **Date**: 2025-10-09 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from ``
+**Input**: Feature specification from `/specs/006-create-shared-resources/spec.md`
 
 ## Execution Flow (/plan command scope)
 ```
