@@ -50,6 +50,9 @@ dependencies = [
     "pypandoc-binary>=1.16.2",
     "pymupdf>=1.26.6",
     "tiktoken>=0.5.0",
+    "scikit-learn>=1.7.2",
+    "rapidfuzz>=3.14.3",
+    "spacy>=3.8.11",
 ]
 
 [project.optional-dependencies]
@@ -73,6 +76,7 @@ dev = [
     "types-jsonschema>=4.0.0",  # for mypy type stubs
     "types-requests>=2.31.0",  # type stubs for requests library
     "psutil>=5.9.0",  # for memory monitoring in performance tests
+    "scikit-learn-stubs>=0.0.3",  # type stubs for scikit-learn
     # MCP testing infrastructure
     "fastmcp>=2.13.0",  # for MCP test server creation
 ]

@@ -8,8 +8,9 @@ import logging
 
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import RegistryError
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.document_retriever import DocumentRetriever
-
-# NOTE: Retriever imports will be available in PR 4
+from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploaded_file_retriever import (
+    UploadedFileRetriever,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -122,9 +123,10 @@ class RetrieverRegistry:
 # Generator for dependency injection
 # ---------------------------------------------------
 def _setup_default_registry() -> "RetrieverRegistry":
-    """Set up default retriever registry."""
-    # NOTE: Default registrations will be added in PR 4 when implementations are available
+    """Set up default retriever registry with uploaded file retriever."""
+    # Register default retrievers
     registry: RetrieverRegistry = RetrieverRegistry()
+    registry.register_retriever("uploaded_file", UploadedFileRetriever)
 
     logger.info("Initialized RetrieverRegistry with %d default retrievers", len(registry.list_retrievers()))
 

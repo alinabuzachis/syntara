@@ -263,8 +263,8 @@ class TestWorkflowEngineSettings:
         assert settings.max_duration_hours == 8760
         assert settings.max_duration_minutes == 525600
         assert settings.max_duration_seconds == 31536000
-        assert settings.script_cleanup_terminate_timeout == 1.0
-        assert settings.script_cleanup_kill_timeout == 0.5
+        assert settings.script_cleanup_terminate_timeout == pytest.approx(1.0)
+        assert settings.script_cleanup_kill_timeout == pytest.approx(0.5)
         assert settings.max_env_var_length == 32768
         assert settings.max_prompt_length == 100000
         assert settings.max_input_value_length == 10000
@@ -327,7 +327,7 @@ class TestOpenRouterSettingsExtended:
     def test_openrouter_extended_defaults(self) -> None:
         """Test default OpenRouter temperature and max_tokens values."""
         settings = Settings()
-        assert settings.openrouter_temperature == 0.7
+        assert settings.openrouter_temperature == pytest.approx(0.7)
         assert settings.openrouter_max_tokens == 1000
 
     def test_openrouter_extended_settings_from_env(self) -> None:
@@ -337,7 +337,7 @@ class TestOpenRouterSettingsExtended:
 
         try:
             settings = Settings()
-            assert settings.openrouter_temperature == 0.5
+            assert settings.openrouter_temperature == pytest.approx(0.5)
             assert settings.openrouter_max_tokens == 2000
         finally:
             os.environ.pop("NEXUS_OPENROUTER_TEMPERATURE", None)
@@ -367,6 +367,82 @@ class TestOpenRouterSettingsExtended:
                 Settings()
         finally:
             os.environ.pop("NEXUS_OPENROUTER_MAX_TOKENS", None)
+
+
+# =============================================================================
+# RetrieverServiceSettings Tests
+# =============================================================================
+
+
+class TestRetrieverServiceSettings:
+    """Tests for RetrieverServiceSettings configuration."""
+
+    def test_keyword_ranking_weights_sum_success(self) -> None:
+        """Test successful validation when keyword ranking weights sum to valid value."""
+        # Test with default values (sum to 1.0)
+        settings = Settings()
+        assert settings.retriever_keyword_ranking_term_frequency == pytest.approx(0.4)
+        assert settings.retriever_keyword_ranking_filename_match == pytest.approx(0.25)
+        assert settings.retriever_keyword_ranking_content_density == pytest.approx(0.15)
+        assert settings.retriever_keyword_ranking_proximity_bonus == pytest.approx(0.05)
+        assert settings.retriever_keyword_ranking_exact_match_bonus == pytest.approx(0.1)
+        assert settings.retriever_keyword_ranking_fuzzy_match_bonus == pytest.approx(0.05)
+
+        # Test with custom values that sum to 0.8 (valid range)
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY"] = "0.3"
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH"] = "0.2"
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY"] = "0.15"
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS"] = "0.1"
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS"] = "0.04"
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS"] = "0.01"
+
+        try:
+            settings = Settings()
+            # Should not raise any validation errors
+            assert settings.retriever_keyword_ranking_term_frequency == pytest.approx(0.3)
+            assert settings.retriever_keyword_ranking_filename_match == pytest.approx(0.2)
+            assert settings.retriever_keyword_ranking_content_density == pytest.approx(0.15)
+            assert settings.retriever_keyword_ranking_proximity_bonus == pytest.approx(0.1)
+            assert settings.retriever_keyword_ranking_exact_match_bonus == pytest.approx(0.04)
+            assert settings.retriever_keyword_ranking_fuzzy_match_bonus == pytest.approx(0.01)
+        finally:
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY", None)
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH", None)
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY", None)
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS", None)
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS", None)
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS", None)
+
+    def test_keyword_ranking_weights_sum_failure(self) -> None:
+        """Test validation failure when keyword ranking weights sum exceeds valid range."""
+        # Test with values that sum to 1.55 (invalid - exceeds 1.0)
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY"] = "0.5"
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH"] = "0.4"
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY"] = "0.3"
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS"] = "0.2"
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS"] = "0.1"
+        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS"] = "0.05"
+
+        try:
+            with pytest.raises(ValueError) as exc_info:
+                Settings()
+
+            error_msg = str(exc_info.value)
+            assert "Keyword ranking weights must sum to between 0.0 and 1.0" in error_msg
+            assert "but sum to 1.550" in error_msg
+            assert "retriever_keyword_ranking_term_frequency" in error_msg
+            assert "retriever_keyword_ranking_filename_match" in error_msg
+            assert "retriever_keyword_ranking_content_density" in error_msg
+            assert "retriever_keyword_ranking_proximity_bonus" in error_msg
+            assert "retriever_keyword_ranking_exact_match_bonus" in error_msg
+            assert "retriever_keyword_ranking_fuzzy_match_bonus" in error_msg
+        finally:
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY", None)
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH", None)
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY", None)
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS", None)
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS", None)
+            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS", None)
 
 
 def test_custom_env_file_path(monkeypatch, tmp_path) -> None:

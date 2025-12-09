@@ -17,11 +17,14 @@ Usage:
 import os
 import tempfile
 from functools import lru_cache
+from typing import Self
 from urllib.parse import quote_plus
 from uuid import UUID
 
 from pydantic import Field, HttpUrl, SecretStr, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from nexus.core.constants import RetrieverServiceDefaults
 
 # =============================================================================
 # LLM Provider Configuration
@@ -354,33 +357,33 @@ class RetrieverServiceSettings(BaseSettings):
 
     # LLM Relevancy Checker Configuration
     retriever_llm_model: str = Field(
-        default="anthropic/claude-3.5-sonnet",
+        default=RetrieverServiceDefaults.LLM_MODEL,
         description="OpenRouter model for LLM relevancy checking",
     )
 
     retriever_llm_temperature: float = Field(
-        default=0.3,
+        default=RetrieverServiceDefaults.LLM_TEMPERATURE,
         description="Temperature for LLM relevancy checking",
         ge=0.0,
         le=2.0,
     )
 
     retriever_llm_max_tokens: int = Field(
-        default=150,
+        default=RetrieverServiceDefaults.LLM_MAX_TOKENS,
         description="Maximum tokens for LLM relevancy responses",
         ge=1,
         le=4000,
     )
 
     retriever_llm_similarity_threshold: float = Field(
-        default=0.7,
+        default=RetrieverServiceDefaults.LLM_SIMILARITY_THRESHOLD,
         description="Similarity threshold for LLM relevancy filtering",
         ge=0.0,
         le=1.0,
     )
 
     retriever_llm_max_results: int = Field(
-        default=10,
+        default=RetrieverServiceDefaults.LLM_MAX_RESULTS,
         description="Maximum results returned by LLM relevancy checking",
         ge=1,
         le=1000,
@@ -388,36 +391,36 @@ class RetrieverServiceSettings(BaseSettings):
 
     # Keyword Relevancy Checker Configuration
     retriever_keyword_similarity_threshold: float = Field(
-        default=0.4,
+        default=RetrieverServiceDefaults.KEYWORD_SIMILARITY_THRESHOLD,
         description="Similarity threshold for keyword relevancy filtering",
         ge=0.0,
         le=1.0,
     )
 
     retriever_keyword_max_results: int = Field(
-        default=15,
+        default=RetrieverServiceDefaults.KEYWORD_MAX_RESULTS,
         description="Maximum results returned by keyword relevancy checking",
         ge=1,
         le=1000,
     )
 
     retriever_keyword_case_sensitive: bool = Field(
-        default=False,
+        default=RetrieverServiceDefaults.KEYWORD_CASE_SENSITIVE,
         description="Whether keyword matching is case sensitive",
     )
 
     retriever_keyword_stem_words: bool = Field(
-        default=True,
+        default=RetrieverServiceDefaults.KEYWORD_STEM_WORDS,
         description="Whether to apply word stemming in keyword matching",
     )
 
     retriever_keyword_remove_stopwords: bool = Field(
-        default=True,
+        default=RetrieverServiceDefaults.KEYWORD_REMOVE_STOPWORDS,
         description="Whether to remove stopwords in keyword processing",
     )
 
     retriever_keyword_phrase_bonus_multiplier: float = Field(
-        default=1.5,
+        default=RetrieverServiceDefaults.KEYWORD_PHRASE_BONUS_MULTIPLIER,
         description="Multiplier bonus for exact phrase matches",
         ge=0.1,
         le=10.0,
@@ -425,25 +428,189 @@ class RetrieverServiceSettings(BaseSettings):
 
     # General Retriever Configuration
     retriever_context_window_size: int = Field(
-        default=2000,
+        default=RetrieverServiceDefaults.CONTEXT_WINDOW_SIZE,
         description="Maximum characters for document content excerpt",
         ge=100,
         le=10000,
     )
 
-    retriever_cache_ttl_seconds: int = Field(
-        default=300,
-        description="Time-to-live for relevancy cache entries in seconds",
-        ge=60,
-        le=3600,
+    # LLM Relevancy Configuration Defaults
+    retriever_llm_ranking_content_similarity: float = Field(
+        default=RetrieverServiceDefaults.LLM_RANKING_CONTENT_SIMILARITY,
+        description="Weight for content similarity in LLM relevancy ranking",
+        ge=0.0,
+        le=1.0,
     )
 
-    retriever_cache_max_size: int = Field(
-        default=100,
-        description="Maximum number of entries in relevancy cache",
-        ge=10,
-        le=1000,
+    retriever_llm_ranking_file_metadata_relevance: float = Field(
+        default=RetrieverServiceDefaults.LLM_RANKING_FILE_METADATA_RELEVANCE,
+        description="Weight for file metadata relevance in LLM relevancy ranking",
+        ge=0.0,
+        le=1.0,
     )
+
+    retriever_llm_ranking_recency: float = Field(
+        default=RetrieverServiceDefaults.LLM_RANKING_RECENCY,
+        description="Weight for recency in LLM relevancy ranking",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_llm_system_prompt: str = Field(
+        default=RetrieverServiceDefaults.LLM_SYSTEM_PROMPT,
+        description="System prompt for LLM relevancy checking",
+    )
+
+    retriever_llm_include_file_metadata: bool = Field(
+        default=RetrieverServiceDefaults.LLM_INCLUDE_FILE_METADATA,
+        description="Whether to include file metadata in LLM grounding",
+    )
+
+    retriever_llm_use_title_weighting: bool = Field(
+        default=RetrieverServiceDefaults.LLM_USE_TITLE_WEIGHTING,
+        description="Whether to use title weighting in LLM grounding",
+    )
+
+    retriever_llm_recency_weight: float = Field(
+        default=RetrieverServiceDefaults.LLM_RECENCY_WEIGHT,
+        description="Recency weight for LLM relevancy configuration",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_llm_mmr_lambda_param: float = Field(
+        default=RetrieverServiceDefaults.LLM_MMR_LAMBDA_PARAM,
+        description="Lambda parameter for LLM MMR (Maximal Marginal Relevance)",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_llm_mmr_enabled: bool = Field(
+        default=RetrieverServiceDefaults.LLM_MMR_ENABLED,
+        description="Whether to enable MMR for LLM relevancy",
+    )
+
+    # Keyword Relevancy Configuration Defaults
+    retriever_keyword_ranking_term_frequency: float = Field(
+        default=RetrieverServiceDefaults.KEYWORD_RANKING_TERM_FREQUENCY,
+        description="Weight for term frequency in keyword relevancy ranking",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_keyword_ranking_filename_match: float = Field(
+        default=RetrieverServiceDefaults.KEYWORD_RANKING_FILENAME_MATCH,
+        description="Weight for filename match in keyword relevancy ranking",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_keyword_ranking_content_density: float = Field(
+        default=RetrieverServiceDefaults.KEYWORD_RANKING_CONTENT_DENSITY,
+        description="Weight for content density in keyword relevancy ranking",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_keyword_ranking_proximity_bonus: float = Field(
+        default=RetrieverServiceDefaults.KEYWORD_RANKING_PROXIMITY_BONUS,
+        description="Weight for proximity bonus in keyword relevancy ranking",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_keyword_ranking_exact_match_bonus: float = Field(
+        default=RetrieverServiceDefaults.KEYWORD_RANKING_EXACT_MATCH_BONUS,
+        description="Weight for exact match bonus in keyword relevancy ranking",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_keyword_ranking_fuzzy_match_bonus: float = Field(
+        default=RetrieverServiceDefaults.KEYWORD_RANKING_FUZZY_MATCH_BONUS,
+        description="Weight for fuzzy match bonus in keyword relevancy ranking",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_keyword_proximity_scoring: bool = Field(
+        default=RetrieverServiceDefaults.KEYWORD_PROXIMITY_SCORING,
+        description="Whether to enable proximity scoring in keyword matching",
+    )
+
+    retriever_keyword_fuzzy_matching: bool = Field(
+        default=RetrieverServiceDefaults.KEYWORD_FUZZY_MATCHING,
+        description="Whether to enable fuzzy matching in keyword relevancy",
+    )
+
+    retriever_keyword_boost_title_matches: bool = Field(
+        default=RetrieverServiceDefaults.KEYWORD_BOOST_TITLE_MATCHES,
+        description="Whether to boost title matches in keyword grounding",
+    )
+
+    retriever_keyword_boost_filename_matches: bool = Field(
+        default=RetrieverServiceDefaults.KEYWORD_BOOST_FILENAME_MATCHES,
+        description="Whether to boost filename matches in keyword grounding",
+    )
+
+    retriever_keyword_penalty_for_short_documents: bool = Field(
+        default=RetrieverServiceDefaults.KEYWORD_PENALTY_FOR_SHORT_DOCUMENTS,
+        description="Whether to apply penalty for short documents in keyword grounding",
+    )
+
+    retriever_keyword_recency_weight: float = Field(
+        default=RetrieverServiceDefaults.KEYWORD_RECENCY_WEIGHT,
+        description="Recency weight for keyword relevancy configuration",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_keyword_mmr_lambda_param: float = Field(
+        default=RetrieverServiceDefaults.KEYWORD_MMR_LAMBDA_PARAM,
+        description="Lambda parameter for keyword MMR (Maximal Marginal Relevance)",
+        ge=0.0,
+        le=1.0,
+    )
+
+    retriever_keyword_mmr_enabled: bool = Field(
+        default=RetrieverServiceDefaults.KEYWORD_MMR_ENABLED,
+        description="Whether to enable MMR for keyword relevancy",
+    )
+
+    @model_validator(mode="after")
+    def validate_keyword_ranking_weights_sum(self) -> Self:
+        """Validate that all keyword ranking weights sum to between 0.0 and 1.0.
+
+        This validator runs after all fields are processed and checks that the
+        sum of all keyword ranking weights is within the valid range.
+        """
+        # Get all keyword ranking weight values from the model instance
+        weights = [
+            self.retriever_keyword_ranking_term_frequency,
+            self.retriever_keyword_ranking_filename_match,
+            self.retriever_keyword_ranking_content_density,
+            self.retriever_keyword_ranking_proximity_bonus,
+            self.retriever_keyword_ranking_exact_match_bonus,
+            self.retriever_keyword_ranking_fuzzy_match_bonus,
+        ]
+
+        total = sum(weights)
+        if not (0.0 <= total <= 1.0):
+            field_names = [
+                "retriever_keyword_ranking_term_frequency",
+                "retriever_keyword_ranking_filename_match",
+                "retriever_keyword_ranking_content_density",
+                "retriever_keyword_ranking_proximity_bonus",
+                "retriever_keyword_ranking_exact_match_bonus",
+                "retriever_keyword_ranking_fuzzy_match_bonus",
+            ]
+            msg = (
+                f"Keyword ranking weights must sum to between 0.0 and 1.0, "
+                f"but sum to {total:.3f}. Affected fields: {', '.join(field_names)}"
+            )
+            raise ValueError(msg)
+
+        return self
 
 
 # LLM Adapter Retry Configuration

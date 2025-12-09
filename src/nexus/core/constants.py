@@ -58,3 +58,60 @@ MIME_TYPE_DETECTION_MIN_BYTES = 512
 CONTEXT_KEY = "context_data"
 CONTEXT_KEY_FILE_METADATA = "file_metadata"  # Key for file metadata array in invocation context_data
 CONTEXT_KEY_FILE_METADATA_CONVERSION = "conversion"  # Key for file conversion metadata in file_metadata
+
+
+class RetrieverServiceDefaults:
+    """Default values for RetrieverService configuration."""
+
+    # LLM Relevancy Checker Defaults
+    LLM_MODEL = "anthropic/claude-3.5-sonnet"
+    LLM_TEMPERATURE = 0.3
+    LLM_MAX_TOKENS = 150
+    LLM_SIMILARITY_THRESHOLD = 0.7
+    LLM_MAX_RESULTS = 10
+    LLM_INCLUDE_FILE_METADATA = True
+    LLM_USE_TITLE_WEIGHTING = True
+    LLM_RECENCY_WEIGHT = 0.1
+    LLM_MMR_LAMBDA_PARAM = 0.7
+    LLM_MMR_ENABLED = False
+    LLM_SYSTEM_PROMPT = (
+        "You are a document relevancy scorer. Given a query and document content, "
+        "score the relevance from 0.0 to 1.0. Consider semantic meaning, context, "
+        "and specific information that answers the query. Return only the numeric score."
+    )
+
+    # LLM Ranking Weights (must sum to 1.0)
+    LLM_RANKING_CONTENT_SIMILARITY = 0.7
+    LLM_RANKING_FILE_METADATA_RELEVANCE = 0.2
+    LLM_RANKING_RECENCY = 0.1
+
+    # Keyword Relevancy Checker Defaults
+    KEYWORD_SIMILARITY_THRESHOLD = 0.4
+    KEYWORD_MAX_RESULTS = 15
+    KEYWORD_CASE_SENSITIVE = False
+    KEYWORD_STEM_WORDS = True
+    KEYWORD_REMOVE_STOPWORDS = True
+    KEYWORD_PHRASE_BONUS_MULTIPLIER = 1.5
+    KEYWORD_PROXIMITY_SCORING = True
+    KEYWORD_FUZZY_MATCHING = False
+    KEYWORD_BOOST_TITLE_MATCHES = True
+    KEYWORD_BOOST_FILENAME_MATCHES = True
+    KEYWORD_PENALTY_FOR_SHORT_DOCUMENTS = False
+    KEYWORD_RECENCY_WEIGHT = 0.05
+    KEYWORD_MMR_LAMBDA_PARAM = 0.5
+    KEYWORD_MMR_ENABLED = False
+
+    # Keyword Processing Constants
+    KEYWORD_MINIMUM_STEM_LENGTH = 3
+    KEYWORD_MINIMUM_QUERY_WORDS = 2
+
+    # Keyword Ranking Weights (must sum to 1.0)
+    KEYWORD_RANKING_TERM_FREQUENCY = 0.4
+    KEYWORD_RANKING_FILENAME_MATCH = 0.25
+    KEYWORD_RANKING_CONTENT_DENSITY = 0.15
+    KEYWORD_RANKING_PROXIMITY_BONUS = 0.05
+    KEYWORD_RANKING_EXACT_MATCH_BONUS = 0.1
+    KEYWORD_RANKING_FUZZY_MATCH_BONUS = 0.05
+
+    # General Retriever Configuration
+    CONTEXT_WINDOW_SIZE = 2000

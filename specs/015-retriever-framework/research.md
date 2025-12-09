@@ -30,6 +30,35 @@ All technical context was resolved through codebase analysis. No external resear
 
 **Implementation**: Use existing `get_openrouter_llm()` factory with appropriate model selection for relevancy checking tasks.
 
+## Library Analysis for KeywordRelevancyChecker
+
+### Decision: Established NLP and ML Libraries for Reliable Performance
+**Rationale**: The KeywordRelevancyChecker implementation uses three well-established libraries that provide robust, production-ready functionality for text processing and fuzzy string matching. These libraries were chosen after evaluating alternatives including nltk, textdistance, and custom implementations.
+
+**Alternatives considered**:
+- **nltk**: Rejected - requires internet access for additional resources, unsuitable for air-gapped environments
+- **textdistance**: Replaced with rapidfuzz for better performance and maintenance
+- **Custom development**: Rejected - unnecessary reinvention of well-tested algorithms
+
+### Library Comparison Analysis
+
+| Library | Version | GitHub Stars | Downloads/Month | License | Maintenance Status | Key Features | Last Release |
+|---------|---------|--------------|-----------------|---------|-------------------|--------------|--------------|
+| **rapidfuzz** | 3.14.3 | 3.6k | 106M | MIT | Healthy | Fast fuzzy string matching, C++ optimized, multiple similarity metrics | Nov 2025 |
+| **scikit-learn** | 1.7.2+ | 64.2k | 75M+ | BSD-3-Clause | Sustainable | TF-IDF vectorization, cosine similarity, mature ML library | Sep 2025 |
+| **spaCy** | 3.8.11 | 32.9k | Unknown | MIT | Healthy | Industrial NLP, 70+ languages, tokenization, lemmatization | Nov 2025 |
+
+### Library Assessment Summary
+
+**rapidfuzz** provides the fuzzy string matching capabilities using JaroWinkler and Levenshtein distance algorithms. It's significantly faster than alternatives like textdistance due to its C++ optimizations and offers a clean MIT license suitable for commercial use.
+
+**scikit-learn** serves as the backbone for TF-IDF vectorization and cosine similarity calculations. As one of the most popular ML libraries in Python with sustainable maintenance, it offers battle-tested implementations of text analysis algorithms with extensive documentation and community support.
+
+**spaCy** handles NLP preprocessing tasks including tokenization, lemmatization, and stopword management. Its industrial-strength design and support for 70+ languages makes it ideal for production environments, with active development and regular releases throughout 2025.
+
+### Air-gapped Environment Compatibility
+All three libraries are compatible with air-gapped environments once installed, as they don't require runtime internet access for core functionality. This addresses the initial concern with nltk that required downloading additional resources during operation.
+
 ## Data Models
 
 ### Decision: SQLModel for Unified Data Models

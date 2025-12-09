@@ -55,24 +55,27 @@ class ConfigurationManager:
             checker_type="llm",
             similarity_threshold=settings.retriever_llm_similarity_threshold,
             max_results=settings.retriever_llm_max_results,
-            ranking_weights={"content_similarity": 0.7, "file_metadata_relevance": 0.2, "recency": 0.1},
+            ranking_weights={
+                "content_similarity": settings.retriever_llm_ranking_content_similarity,
+                "file_metadata_relevance": settings.retriever_llm_ranking_file_metadata_relevance,
+                "recency": settings.retriever_llm_ranking_recency,
+            },
             algorithm_parameters={
                 "model": settings.retriever_llm_model,
                 "temperature": settings.retriever_llm_temperature,
                 "max_tokens": settings.retriever_llm_max_tokens,
-                "system_prompt": (
-                    "You are a document relevancy scorer. Given a query and document content, "
-                    "score the relevance from 0.0 to 1.0. Consider semantic meaning, context, "
-                    "and specific information that answers the query. Return only the numeric score."
-                ),
+                "system_prompt": settings.retriever_llm_system_prompt,
             },
             grounding_parameters={
-                "include_file_metadata": True,
+                "include_file_metadata": settings.retriever_llm_include_file_metadata,
                 "context_window_size": settings.retriever_context_window_size,
-                "use_title_weighting": True,
+                "use_title_weighting": settings.retriever_llm_use_title_weighting,
             },
-            recency_weight=0.1,
-            mmr_settings={"lambda_param": 0.7, "enable_mmr": False},
+            recency_weight=settings.retriever_llm_recency_weight,
+            mmr_settings={
+                "lambda_param": settings.retriever_llm_mmr_lambda_param,
+                "enable_mmr": settings.retriever_llm_mmr_enabled,
+            },
         )
 
         # Keyword configuration using settings
@@ -81,26 +84,31 @@ class ConfigurationManager:
             similarity_threshold=settings.retriever_keyword_similarity_threshold,
             max_results=settings.retriever_keyword_max_results,
             ranking_weights={
-                "term_frequency": 0.4,
-                "filename_match": 0.3,
-                "content_density": 0.2,
-                "exact_match_bonus": 0.1,
+                "term_frequency": settings.retriever_keyword_ranking_term_frequency,
+                "filename_match": settings.retriever_keyword_ranking_filename_match,
+                "content_density": settings.retriever_keyword_ranking_content_density,
+                "proximity_bonus": settings.retriever_keyword_ranking_proximity_bonus,
+                "exact_match_bonus": settings.retriever_keyword_ranking_exact_match_bonus,
+                "fuzzy_match_bonus": settings.retriever_keyword_ranking_fuzzy_match_bonus,
             },
             algorithm_parameters={
                 "case_sensitive": settings.retriever_keyword_case_sensitive,
                 "stem_words": settings.retriever_keyword_stem_words,
                 "remove_stopwords": settings.retriever_keyword_remove_stopwords,
                 "phrase_bonus_multiplier": settings.retriever_keyword_phrase_bonus_multiplier,
-                "proximity_scoring": True,
-                "fuzzy_matching": False,
+                "proximity_scoring": settings.retriever_keyword_proximity_scoring,
+                "fuzzy_matching": settings.retriever_keyword_fuzzy_matching,
             },
             grounding_parameters={
-                "boost_title_matches": True,
-                "boost_filename_matches": True,
-                "penalty_for_short_documents": False,
+                "boost_title_matches": settings.retriever_keyword_boost_title_matches,
+                "boost_filename_matches": settings.retriever_keyword_boost_filename_matches,
+                "penalty_for_short_documents": settings.retriever_keyword_penalty_for_short_documents,
             },
-            recency_weight=0.05,
-            mmr_settings={"lambda_param": 0.5, "enable_mmr": False},
+            recency_weight=settings.retriever_keyword_recency_weight,
+            mmr_settings={
+                "lambda_param": settings.retriever_keyword_mmr_lambda_param,
+                "enable_mmr": settings.retriever_keyword_mmr_enabled,
+            },
         )
 
         self._loaded = True

@@ -7,7 +7,13 @@ different RelevancyChecker implementations with their associated configurations.
 import logging
 from typing import Any
 
-# NOTE: Checker imports will be available in PR 4
+from nexus.agent_orchestrator.context_manager.retriever_service.checkers.keyword_relevancy_checker import (
+    KeywordRelevancyChecker,
+)
+from nexus.agent_orchestrator.context_manager.retriever_service.checkers.llm_relevancy_checker import (
+    LLMRelevancyChecker,
+)
+from nexus.agent_orchestrator.context_manager.retriever_service.config.configuration_manager import ConfigurationManager
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import RegistryError
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.relevancy_checker import RelevancyChecker
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
@@ -287,9 +293,21 @@ class RelevancyRegistry:
 # Generator for dependency injection
 # ---------------------------------------------------
 def _setup_default_registry() -> "RelevancyRegistry":
-    """Set up default relevancy registry."""
-    # NOTE: Default registrations will be added in PR 4 when implementations are available
+    """Set up default relevancy registry with LLM and keyword checkers."""
     registry: RelevancyRegistry = RelevancyRegistry()
+    config_manager = ConfigurationManager()
+
+    # Register LLM checker as primary
+    llm_config = config_manager.get_llm_configuration()
+    registry.register_checker("llm", LLMRelevancyChecker, llm_config)
+
+    # Register keyword checker as fallback
+    keyword_config = config_manager.get_keyword_configuration()
+    registry.register_checker("keyword", KeywordRelevancyChecker, keyword_config)
+
+    # Set primary and fallback explicitly
+    registry.set_primary_checker("llm")
+    registry.set_fallback_checker("keyword")
 
     logger.info("Initialized RelevancyRegistry with %d default checkers", len(registry.list_checkers()))
 

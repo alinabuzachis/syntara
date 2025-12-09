@@ -1,7 +1,5 @@
 """Unit tests for ConfigurationManager implementation."""
 
-from unittest.mock import MagicMock, patch
-
 import pytest
 
 from nexus.agent_orchestrator.context_manager.retriever_service.config.configuration_manager import (
@@ -10,6 +8,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.config.configura
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
     RelevancyConfiguration,
 )
+from nexus.core.constants import RetrieverServiceDefaults
 
 
 class TestConfigurationManager:
@@ -20,58 +19,126 @@ class TestConfigurationManager:
         """Create ConfigurationManager instance."""
         return ConfigurationManager()
 
-    @pytest.fixture
-    def mock_settings(self) -> MagicMock:
-        """Create mock settings object."""
-        mock = MagicMock()
-        mock.retriever_llm_similarity_threshold = 0.7
-        mock.retriever_llm_max_results = 10
-        mock.retriever_llm_model = "anthropic/claude-3.5-sonnet"
-        mock.retriever_llm_temperature = 0.3
-        mock.retriever_llm_max_tokens = 150
-        mock.retriever_context_window_size = 2000
-        mock.retriever_keyword_similarity_threshold = 0.5
-        mock.retriever_keyword_max_results = 15
-        mock.retriever_keyword_case_sensitive = False
-        mock.retriever_keyword_stem_words = True
-        mock.retriever_keyword_remove_stopwords = True
-        mock.retriever_keyword_phrase_bonus_multiplier = 1.5
-        return mock
-
     def test_initialization(self, manager: ConfigurationManager) -> None:
         """Test ConfigurationManager initialization."""
         assert manager._default_llm_config is None
         assert manager._default_keyword_config is None
         assert manager._loaded is False
 
-    @patch("nexus.agent_orchestrator.context_manager.retriever_service.config.configuration_manager.get_settings")
-    def test_get_llm_configuration(
-        self, mock_get_settings: MagicMock, manager: ConfigurationManager, mock_settings: MagicMock
-    ) -> None:
-        """Test getting LLM configuration."""
-        mock_get_settings.return_value = mock_settings
-
+    def test_get_llm_configuration(self, manager: ConfigurationManager) -> None:
+        """Test getting LLM configuration with real settings."""
         config = manager.get_llm_configuration()
 
         assert isinstance(config, RelevancyConfiguration)
         assert config.checker_type == "llm"
-        assert config.similarity_threshold == pytest.approx(0.7)
-        assert config.max_results == 10
-        assert config.algorithm_parameters["model"] == "anthropic/claude-3.5-sonnet"
-        assert config.algorithm_parameters["temperature"] == pytest.approx(0.3)
+        assert config.similarity_threshold == pytest.approx(RetrieverServiceDefaults.LLM_SIMILARITY_THRESHOLD)
+        assert config.max_results == RetrieverServiceDefaults.LLM_MAX_RESULTS
+        assert config.algorithm_parameters["model"] == RetrieverServiceDefaults.LLM_MODEL
+        assert config.algorithm_parameters["temperature"] == pytest.approx(RetrieverServiceDefaults.LLM_TEMPERATURE)
+        assert config.algorithm_parameters["max_tokens"] == RetrieverServiceDefaults.LLM_MAX_TOKENS
+        assert config.algorithm_parameters["system_prompt"] == RetrieverServiceDefaults.LLM_SYSTEM_PROMPT
 
-    @patch("nexus.agent_orchestrator.context_manager.retriever_service.config.configuration_manager.get_settings")
-    def test_get_keyword_configuration(
-        self, mock_get_settings: MagicMock, manager: ConfigurationManager, mock_settings: MagicMock
-    ) -> None:
-        """Test getting keyword configuration."""
-        mock_get_settings.return_value = mock_settings
+        # Test ranking weights
+        expected_weights = {
+            "content_similarity": RetrieverServiceDefaults.LLM_RANKING_CONTENT_SIMILARITY,
+            "file_metadata_relevance": RetrieverServiceDefaults.LLM_RANKING_FILE_METADATA_RELEVANCE,
+            "recency": RetrieverServiceDefaults.LLM_RANKING_RECENCY,
+        }
+        for key, expected_value in expected_weights.items():
+            assert config.ranking_weights[key] == pytest.approx(expected_value)
 
+        # Test grounding parameters
+        assert (
+            config.grounding_parameters["include_file_metadata"] == RetrieverServiceDefaults.LLM_INCLUDE_FILE_METADATA
+        )
+        assert config.grounding_parameters["use_title_weighting"] == RetrieverServiceDefaults.LLM_USE_TITLE_WEIGHTING
+        assert config.grounding_parameters["context_window_size"] == RetrieverServiceDefaults.CONTEXT_WINDOW_SIZE
+
+        # Test MMR settings
+        assert config.mmr_settings["lambda_param"] == pytest.approx(RetrieverServiceDefaults.LLM_MMR_LAMBDA_PARAM)
+        assert config.mmr_settings["enable_mmr"] == RetrieverServiceDefaults.LLM_MMR_ENABLED
+
+    def test_get_keyword_configuration(self, manager: ConfigurationManager) -> None:
+        """Test getting keyword configuration with real settings."""
         config = manager.get_keyword_configuration()
 
         assert isinstance(config, RelevancyConfiguration)
         assert config.checker_type == "keyword"
-        assert config.similarity_threshold == pytest.approx(0.5)
-        assert config.max_results == 15
-        assert config.algorithm_parameters["case_sensitive"] is False
-        assert config.algorithm_parameters["stem_words"] is True
+        assert config.similarity_threshold == pytest.approx(RetrieverServiceDefaults.KEYWORD_SIMILARITY_THRESHOLD)
+        assert config.max_results == RetrieverServiceDefaults.KEYWORD_MAX_RESULTS
+
+        # Test algorithm parameters
+        expected_algorithm_params = {
+            "case_sensitive": RetrieverServiceDefaults.KEYWORD_CASE_SENSITIVE,
+            "stem_words": RetrieverServiceDefaults.KEYWORD_STEM_WORDS,
+            "remove_stopwords": RetrieverServiceDefaults.KEYWORD_REMOVE_STOPWORDS,
+            "phrase_bonus_multiplier": RetrieverServiceDefaults.KEYWORD_PHRASE_BONUS_MULTIPLIER,
+            "proximity_scoring": RetrieverServiceDefaults.KEYWORD_PROXIMITY_SCORING,
+            "fuzzy_matching": RetrieverServiceDefaults.KEYWORD_FUZZY_MATCHING,
+        }
+        for key, expected_value in expected_algorithm_params.items():
+            if isinstance(expected_value, float):
+                assert config.algorithm_parameters[key] == pytest.approx(expected_value)
+
+            if isinstance(expected_value, bool):
+                assert config.algorithm_parameters[key] == expected_value
+
+        # Test ranking weights (must sum to 1.0)
+        expected_weights = {
+            "term_frequency": RetrieverServiceDefaults.KEYWORD_RANKING_TERM_FREQUENCY,
+            "filename_match": RetrieverServiceDefaults.KEYWORD_RANKING_FILENAME_MATCH,
+            "content_density": RetrieverServiceDefaults.KEYWORD_RANKING_CONTENT_DENSITY,
+            "proximity_bonus": RetrieverServiceDefaults.KEYWORD_RANKING_PROXIMITY_BONUS,
+            "exact_match_bonus": RetrieverServiceDefaults.KEYWORD_RANKING_EXACT_MATCH_BONUS,
+        }
+        for key, expected_value in expected_weights.items():
+            assert config.ranking_weights[key] == pytest.approx(expected_value)
+
+        # Verify weights sum to 1.0
+        total_weight = sum(config.ranking_weights.values())
+        assert total_weight == pytest.approx(1.0)
+
+        # Test grounding parameters
+        expected_grounding_params = {
+            "boost_title_matches": RetrieverServiceDefaults.KEYWORD_BOOST_TITLE_MATCHES,
+            "boost_filename_matches": RetrieverServiceDefaults.KEYWORD_BOOST_FILENAME_MATCHES,
+            "penalty_for_short_documents": RetrieverServiceDefaults.KEYWORD_PENALTY_FOR_SHORT_DOCUMENTS,
+        }
+        for key, expected_value in expected_grounding_params.items():
+            assert config.grounding_parameters[key] == expected_value
+
+        # Test MMR settings
+        assert config.mmr_settings["lambda_param"] == pytest.approx(RetrieverServiceDefaults.KEYWORD_MMR_LAMBDA_PARAM)
+        assert config.mmr_settings["enable_mmr"] == RetrieverServiceDefaults.KEYWORD_MMR_ENABLED
+
+    def test_llm_configuration_has_all_required_settings(self, manager: ConfigurationManager) -> None:
+        """Test that LLM configuration contains all settings required by LLMRelevancyChecker."""
+        config = manager.get_llm_configuration()
+
+        # All algorithm parameters required by LLMRelevancyChecker
+        required_algorithm_params = ["model", "temperature", "max_tokens", "system_prompt"]
+        for param in required_algorithm_params:
+            assert param in config.algorithm_parameters, f"Missing required algorithm parameter: {param}"
+            assert config.algorithm_parameters[param] is not None, f"Algorithm parameter {param} is None"
+
+        # All grounding parameters required by LLMRelevancyChecker
+        required_grounding_params = ["include_file_metadata", "use_title_weighting", "context_window_size"]
+        for param in required_grounding_params:
+            assert param in config.grounding_parameters, f"Missing required grounding parameter: {param}"
+            assert config.grounding_parameters[param] is not None, f"Grounding parameter {param} is None"
+
+    def test_keyword_configuration_has_all_required_settings(self, manager: ConfigurationManager) -> None:
+        """Test that keyword configuration contains all settings required by KeywordRelevancyChecker."""
+        config = manager.get_keyword_configuration()
+
+        # All algorithm parameters required by KeywordRelevancyChecker
+        required_algorithm_params = [
+            "case_sensitive",
+            "stem_words",
+            "remove_stopwords",
+            "phrase_bonus_multiplier",
+            "proximity_scoring",
+        ]
+        for param in required_algorithm_params:
+            assert param in config.algorithm_parameters, f"Missing required algorithm parameter: {param}"
+            assert config.algorithm_parameters[param] is not None, f"Algorithm parameter {param} is None"
