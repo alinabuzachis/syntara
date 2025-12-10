@@ -128,7 +128,15 @@ services:
       - NEXUS_TEMPORAL_NAMESPACE=default
       - NEXUS_TASK_QUEUE=nexus-workflow-queue
       - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
-      - NEXUS_LOG_LEVEL=INFO
+      - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
+      # AAP Configuration (for AAP Job Template activity)
+      - NEXUS_AAP_BASE_URL=${NEXUS_AAP_BASE_URL}
+      - NEXUS_AAP_USERNAME=${NEXUS_AAP_USERNAME}
+      - NEXUS_AAP_PASSWORD=${NEXUS_AAP_PASSWORD}
+      - NEXUS_AAP_TOKEN=${NEXUS_AAP_TOKEN}
+      - NEXUS_AAP_TIMEOUT_SECONDS=${NEXUS_AAP_TIMEOUT_SECONDS:-3600}
+      - NEXUS_AAP_POLL_INTERVAL_SECONDS=${NEXUS_AAP_POLL_INTERVAL_SECONDS:-5.0}
+      - NEXUS_AAP_VERIFY_SSL=${NEXUS_AAP_VERIFY_SSL:-true}
     volumes:
       - ./src:/opt/app-root/src/src:z
     depends_on:

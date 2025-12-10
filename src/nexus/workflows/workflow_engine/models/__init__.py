@@ -13,6 +13,7 @@ from .responses import (
     WorkflowTerminationResponse,
 )
 from .workflow_definition import (
+    AAPJobTemplateExecutorConfig,
     Activity,
     ActivityType,
     AgenticExecutorConfig,
@@ -43,6 +44,7 @@ from .workflow_definition import (
 )
 
 __all__ = [
+    "AAPJobTemplateExecutorConfig",
     "APIExecutorConfig",
     # Workflow definition models
     "Activity",

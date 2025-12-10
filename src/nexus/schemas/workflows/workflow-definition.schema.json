@@ -603,12 +603,75 @@
       },
       "unevaluatedProperties": false
     },
+    "aapJobTemplateTask": {
+      "allOf": [
+        { "$ref": "#/definitions/baseTaskDefinition" }
+      ],
+      "type": "object",
+      "required": ["executor", "config"],
+      "properties": {
+        "executor": {
+          "const": "aap_job_template",
+          "description": "Task executor type - Ansible Automation Platform Job Template"
+        },
+        "config": {
+          "type": "object",
+          "required": ["jobTemplateId"],
+          "properties": {
+            "jobTemplateId": {
+              "type": "integer",
+              "description": "AAP job template ID to launch",
+              "minimum": 1
+            },
+            "inventory": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Override default inventory (ID only)"
+            },
+            "credentials": {
+              "type": "array",
+              "description": "List of credential IDs to use",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "extraVars": {
+              "type": "object",
+              "description": "Extra variables to pass to the job (can use expressions like ${input.version})",
+              "additionalProperties": true
+            },
+            "limit": {
+              "type": "string",
+              "description": "Limit job execution to specific hosts"
+            },
+            "tags": {
+              "type": "string",
+              "description": "Ansible tags to run (comma-separated)"
+            },
+            "skipTags": {
+              "type": "string",
+              "description": "Ansible tags to skip (comma-separated)"
+            },
+            "verbosity": {
+              "type": "integer",
+              "description": "Job verbosity level",
+              "minimum": 0,
+              "maximum": 5,
+              "default": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "unevaluatedProperties": false
+    },
     "taskDefinition": {
       "oneOf": [
         { "$ref": "#/definitions/agenticTask" },
         { "$ref": "#/definitions/scriptTask" },
         { "$ref": "#/definitions/apiTask" },
-        { "$ref": "#/definitions/connectorTask" }
+        { "$ref": "#/definitions/connectorTask" },
+        { "$ref": "#/definitions/aapJobTemplateTask" }
       ],
       "discriminator": {
         "propertyName": "executor",
@@ -616,7 +679,8 @@
           "agentic": "#/definitions/agenticTask",
           "script": "#/definitions/scriptTask",
           "api": "#/definitions/apiTask",
-          "connector": "#/definitions/connectorTask"
+          "connector": "#/definitions/connectorTask",
+          "aap_job_template": "#/definitions/aapJobTemplateTask"
         }
       }
     },

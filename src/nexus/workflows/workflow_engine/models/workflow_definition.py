@@ -216,6 +216,72 @@ class AgenticExecutorConfig(BaseModel):
     )
 
 
+class AAPJobTemplateExecutorConfig(BaseModel):
+    """Configuration for AAP Job Template executor.
+
+    Launches job templates in Ansible Automation Platform and polls for completion.
+
+    Attributes:
+        job_template_id: AAP job template ID to launch (required)
+        inventory: Override default inventory (name or ID)
+        credentials: List of credential IDs to use
+        extra_vars: Extra variables to pass to job
+        limit: Limit job execution to specific hosts
+        tags: Ansible tags to run (comma-separated)
+        skip_tags: Ansible tags to skip (comma-separated)
+        verbosity: Job verbosity level (0-5)
+        timeout: Timeout for job execution in seconds (default: 3600)
+
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    job_template_id: int = Field(
+        ...,
+        ge=1,
+        description="AAP job template ID to launch",
+        alias="jobTemplateId",
+    )
+    inventory: int | None = Field(
+        default=None,
+        ge=1,
+        description="Override default inventory (ID only)",
+    )
+    credentials: list[int] | None = Field(
+        default=None,
+        description="List of credential IDs to use",
+    )
+    extra_vars: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Extra variables to pass to job",
+        alias="extraVars",
+    )
+    limit: str | None = Field(
+        default=None,
+        description="Limit job execution to specific hosts",
+    )
+    tags: str | None = Field(
+        default=None,
+        description="Ansible tags to run (comma-separated)",
+    )
+    skip_tags: str | None = Field(
+        default=None,
+        description="Ansible tags to skip (comma-separated)",
+        alias="skipTags",
+    )
+    verbosity: int = Field(
+        default=0,
+        ge=0,
+        le=5,
+        description="Job verbosity level (0-5)",
+    )
+    timeout: int = Field(
+        default=constants.DEFAULT_AAP_TIMEOUT_SECONDS,
+        ge=1,
+        description="Timeout for job execution in seconds (default from NEXUS_AAP_TIMEOUT_SECONDS)",
+    )
+
+
 # Executor type enum
 class ExecutorType(str, Enum):
     """Supported executor types for tasks."""
@@ -223,10 +289,11 @@ class ExecutorType(str, Enum):
     SCRIPT = "script"
     API = "api"
     AGENTIC = "agentic"
+    AAP_JOB_TEMPLATE = "aap_job_template"
 
 
 # Union type for executor configs (strict - only typed configs allowed)
-ExecutorConfig = ScriptExecutorConfig | APIExecutorConfig | AgenticExecutorConfig
+ExecutorConfig = ScriptExecutorConfig | APIExecutorConfig | AgenticExecutorConfig | AAPJobTemplateExecutorConfig
 
 
 # Task definitions

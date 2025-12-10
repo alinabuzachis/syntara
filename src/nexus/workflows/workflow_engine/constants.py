@@ -25,6 +25,7 @@ MAX_LOOP_ITERATIONS = _settings.max_loop_iterations
 DEFAULT_SCRIPT_TIMEOUT_SECONDS = _settings.script_timeout_seconds
 DEFAULT_AGENTIC_TIMEOUT_SECONDS = _settings.agentic_timeout_seconds
 API_TIMEOUT_SECONDS = _settings.api_timeout_seconds
+DEFAULT_AAP_TIMEOUT_SECONDS = _settings.aap_timeout_seconds
 
 # Agentic activity limits
 MAX_INPUT_VALUE_LENGTH = _settings.max_input_value_length

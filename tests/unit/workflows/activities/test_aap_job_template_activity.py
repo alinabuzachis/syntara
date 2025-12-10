@@ -1,0 +1,595 @@
+"""Unit tests for AAP job template activity (T005).
+
+Tests AAP job template execution including:
+- Basic job execution (success/failure)
+- Heartbeat during polling
+- Cancellation handling
+- Expression resolution
+- Authentication (token and basic)
+- Timeout handling
+- Error handling
+"""
+
+from collections.abc import Generator
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import httpx
+import pytest
+from pydantic import ValidationError
+
+from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
+    AAPJobExecutionError,
+    execute_aap_job_template_activity,
+)
+from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+
+# Test constants
+TEST_AAP_URL = "http://test.aap"
+TEST_TOKEN = "test_token"  # noqa: S105
+TEST_TOKEN_123 = "test_token_123"  # noqa: S105
+TEST_USERNAME = "admin"
+TEST_PASSWORD = "secret123"  # noqa: S105
+
+
+def build_config(**kwargs: object) -> AAPJobTemplateExecutorConfig:
+    """Helper to build configs using snake_case keys while keeping mypy happy."""
+    return AAPJobTemplateExecutorConfig.model_validate(kwargs)
+
+
+def build_activity_config(**kwargs: object) -> dict[str, object]:
+    """Helper to build activity config dict from config kwargs."""
+    config = build_config(**kwargs)
+    return {"config": config.model_dump(by_alias=True)}
+
+
+def create_http_response(
+    status_code: int, json: dict[str, object] | None = None, text: str | None = None
+) -> httpx.Response:
+    """Helper to create mock HTTP responses."""
+    return httpx.Response(
+        status_code=status_code,
+        request=httpx.Request("POST", TEST_AAP_URL),
+        json=json,
+        text=text,
+    )
+
+
+def create_mock_settings(
+    base_url: str = "https://aap.example.com",
+    token: str | None = TEST_TOKEN,
+    username: str | None = None,
+    password: str | None = None,
+    poll_interval: float = 0.01,
+    timeout: int = 30,
+) -> MagicMock:
+    """Helper to create mock AAP settings."""
+    mock_settings = MagicMock()
+    mock_settings.aap_base_url = base_url
+
+    if token:
+        mock_settings.aap_token = MagicMock()
+        mock_settings.aap_token.get_secret_value.return_value = token
+        mock_settings.aap_username = None
+        mock_settings.aap_password = None
+    else:
+        mock_settings.aap_token = None
+        mock_settings.aap_username = username
+        if password:
+            mock_settings.aap_password = MagicMock()
+            mock_settings.aap_password.get_secret_value.return_value = password
+        else:
+            mock_settings.aap_password = None
+
+    mock_settings.aap_poll_interval_seconds = poll_interval
+    mock_settings.aap_timeout_seconds = timeout
+    return mock_settings
+
+
+@pytest.fixture
+def mock_aap_settings() -> MagicMock:
+    """Mock AAP settings for testing."""
+    return create_mock_settings()
+
+
+@pytest.fixture
+def mock_activity_context(mock_aap_settings: MagicMock) -> Generator[None, None, None]:
+    """Mock common activity context (settings, is_cancelled, heartbeat)."""
+    with (
+        patch(
+            "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+            return_value=mock_aap_settings,
+        ),
+        patch("temporalio.activity.is_cancelled", return_value=False),
+        patch("temporalio.activity.heartbeat"),
+    ):
+        yield
+
+
+class TestAAPJobTemplateExecution:
+    """Test AAP job template execution (basic flow)."""
+
+    @pytest.mark.asyncio
+    async def test_successful_job_execution(self, mock_activity_context: object) -> None:  # noqa: ARG002
+        """Test successful job template launch and completion."""
+        # Mock responses
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
+        status_response = create_http_response(
+            200, {"id": 123, "status": "successful", "artifacts": {"changed": 5, "ok": 10, "failed": 0}}
+        )
+        output_response = create_http_response(200, text="PLAY [Deploy App] ***\\nTASK [Deploy] ok\\n")
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            # First GET: status poll, Second GET: output fetch
+            mock_get.side_effect = [status_response, output_response]
+
+            activity_config = build_activity_config(
+                job_template_id=42,
+                inventory=123,
+                extra_vars={"version": "1.0.0"},
+            )
+
+            result = await execute_aap_job_template_activity(activity_config, {})
+
+            assert result["job_id"] == 123
+            assert result["status"] == "successful"
+            assert "PLAY" in result["output"]
+            assert result["artifacts"]["changed"] == 5
+            assert "elapsed_ms" in result
+
+    @pytest.mark.asyncio
+    async def test_failed_job_execution(self, mock_activity_context: object) -> None:  # noqa: ARG002
+        """Test job template execution failure raises error with output."""
+        launch_response = create_http_response(200, {"id": 456, "url": "/api/v2/jobs/456/"})
+        failed_status_response = create_http_response(
+            200, {"id": 456, "status": "failed", "artifacts": {"failed": 1, "ok": 5}}
+        )
+        output_response = create_http_response(200, text="ERROR: Task failed\\nFATAL: Playbook execution failed")
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            mock_get.side_effect = [failed_status_response, output_response]
+
+            activity_config = build_activity_config(job_template_id=99)
+
+            # Job failed, activity should raise error with output attached
+            with pytest.raises(AAPJobExecutionError) as exc_info:
+                await execute_aap_job_template_activity(activity_config, {})
+
+            # Verify error contains job details
+            error = exc_info.value
+            assert error.job_id == 456
+            assert error.status == "failed"
+            assert error.output is not None
+            assert "ERROR" in error.output
+            assert "FATAL: Playbook execution failed" in error.output
+
+    @pytest.mark.asyncio
+    async def test_expression_resolution_in_extra_vars(self, mock_activity_context: object) -> None:  # noqa: ARG002
+        """Test expression resolution in extra_vars."""
+        launch_response = create_http_response(200, {"id": 789, "url": "/api/v2/jobs/789/"})
+        status_response = create_http_response(200, {"id": 789, "status": "successful", "artifacts": {}})
+        output_response = create_http_response(200, text="")
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            mock_get.side_effect = [status_response, output_response]
+
+            activity_config = build_activity_config(
+                job_template_id=42,
+                extra_vars={
+                    "app_version": "${input.version}",
+                    "deploy_env": "${input.environment}",
+                },
+            )
+            inputs = {"version": "2.0.0", "environment": "staging"}
+
+            await execute_aap_job_template_activity(activity_config, inputs)
+
+            # Verify extra_vars were resolved and sent with correct snake_case key
+            call_body = mock_post.call_args.kwargs["json"]
+            assert call_body["extra_vars"]["app_version"] == "2.0.0"
+            assert call_body["extra_vars"]["deploy_env"] == "staging"
+
+    @pytest.mark.asyncio
+    async def test_expression_resolution_in_nested_lists_and_dicts(self, mock_activity_context: object) -> None:  # noqa: ARG002
+        """Test expression resolution in nested lists and dictionaries within extra_vars."""
+        launch_response = create_http_response(200, {"id": 890, "url": "/api/v2/jobs/890/"})
+        status_response = create_http_response(200, {"id": 890, "status": "successful", "artifacts": {}})
+        output_response = create_http_response(200, text="")
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            mock_get.side_effect = [status_response, output_response]
+
+            activity_config = build_activity_config(
+                job_template_id=42,
+                extra_vars={
+                    "hosts": [
+                        {
+                            "name": "server1",
+                            "ip": "${input.server1_ip}",
+                            "port": "${input.server1_port}",
+                        },
+                        {
+                            "name": "server2",
+                            "ip": "${input.server2_ip}",
+                            "port": "${input.server2_port}",
+                        },
+                    ],
+                    "config": {
+                        "timeout": "${input.timeout}",
+                        "retries": "${input.retries}",
+                    },
+                },
+            )
+            inputs = {
+                "server1_ip": "10.0.0.1",
+                "server1_port": 8080,
+                "server2_ip": "10.0.0.2",
+                "server2_port": 8081,
+                "timeout": 30,
+                "retries": 3,
+            }
+
+            await execute_aap_job_template_activity(activity_config, inputs)
+
+            # Verify nested structures were resolved correctly
+            call_body = mock_post.call_args.kwargs["json"]
+            assert call_body["extra_vars"]["hosts"][0]["ip"] == "10.0.0.1"
+            assert call_body["extra_vars"]["hosts"][0]["port"] == 8080
+            assert call_body["extra_vars"]["hosts"][1]["ip"] == "10.0.0.2"
+            assert call_body["extra_vars"]["hosts"][1]["port"] == 8081
+            assert call_body["extra_vars"]["config"]["timeout"] == 30
+            assert call_body["extra_vars"]["config"]["retries"] == 3
+
+
+class TestAAPJobTemplateHeartbeat:
+    """Test heartbeat functionality for long-running jobs."""
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    async def test_heartbeat_sent_during_polling(self, mock_is_cancelled: object, mock_aap_settings: MagicMock) -> None:  # noqa: ARG002
+        """Test activity sends heartbeats during polling loop."""
+        # Mock responses - multiple polling iterations (running → running → successful)
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
+        running_response_1 = create_http_response(200, {"id": 123, "status": "running"})
+        running_response_2 = create_http_response(200, {"id": 123, "status": "running"})
+        successful_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
+        output_response = create_http_response(200, text="")
+
+        mock_heartbeat = MagicMock()
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_aap_settings,
+            ),
+            patch("temporalio.activity.heartbeat", mock_heartbeat),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            # Poll sequence: running, running, successful, then output
+            mock_get.side_effect = [running_response_1, running_response_2, successful_response, output_response]
+
+            activity_config = build_activity_config(job_template_id=42)
+
+            result = await execute_aap_job_template_activity(activity_config, {})
+
+            assert result["status"] == "successful"
+
+            # Verify heartbeats were sent (at least 2 times during polling)
+            assert mock_heartbeat.call_count >= 2
+
+            # Verify heartbeat payload contains job_id and status
+            for call_obj in mock_heartbeat.call_args_list:
+                payload = call_obj[0][0]
+                assert payload["job_id"] == 123
+                assert payload["status"] == "running"
+
+
+class TestAAPJobTemplateCancellation:
+    """Test cancellation handling."""
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.heartbeat")
+    async def test_cancel_aap_job_when_activity_cancelled(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_aap_settings: MagicMock,
+    ) -> None:
+        """Test AAP job is cancelled when activity is cancelled."""
+        from temporalio.exceptions import CancelledError
+
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
+        running_response = create_http_response(200, {"id": 123, "status": "running"})
+        cancel_response = create_http_response(200, {})
+
+        # Mock activity.is_cancelled to return True after first poll
+        mock_is_cancelled = MagicMock(side_effect=[False, True])
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_aap_settings,
+            ),
+            patch("temporalio.activity.is_cancelled", mock_is_cancelled),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=running_response),
+        ):
+            # Launch returns success, cancel returns success
+            mock_post.side_effect = [launch_response, cancel_response]
+
+            activity_config = build_activity_config(job_template_id=42)
+
+            # Should raise CancelledError
+            with pytest.raises(CancelledError):
+                await execute_aap_job_template_activity(activity_config, {})
+
+            # Verify cancel endpoint was called
+            cancel_call = mock_post.call_args_list[1]
+            assert "/jobs/123/cancel/" in str(cancel_call)
+
+
+class TestAAPJobTemplateErrorHandling:
+    """Test error handling."""
+
+    @pytest.mark.asyncio
+    async def test_launch_failure_authentication_error(self, mock_aap_settings) -> None:
+        """Test job launch fails with authentication error."""
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_aap_settings,
+            ),
+            patch(
+                "httpx.AsyncClient.post",
+                new_callable=AsyncMock,
+                side_effect=httpx.HTTPStatusError(
+                    "401 Unauthorized",
+                    request=MagicMock(),
+                    response=create_http_response(401, text="Authentication failed"),
+                ),
+            ),
+        ):
+            activity_config = build_activity_config(job_template_id=42)
+
+            with pytest.raises(AAPJobExecutionError, match="Failed to launch"):
+                await execute_aap_job_template_activity(activity_config, {})
+
+    @pytest.mark.asyncio
+    async def test_launch_failure_template_not_found(self, mock_aap_settings) -> None:
+        """Test job launch fails with 404 template not found."""
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_aap_settings,
+            ),
+            patch(
+                "httpx.AsyncClient.post",
+                new_callable=AsyncMock,
+                side_effect=httpx.HTTPStatusError(
+                    "404 Not Found",
+                    request=MagicMock(),
+                    response=create_http_response(404, text="Template not found"),
+                ),
+            ),
+        ):
+            activity_config = build_activity_config(job_template_id=999)
+
+            with pytest.raises(AAPJobExecutionError, match="Failed to launch"):
+                await execute_aap_job_template_activity(activity_config, {})
+
+    @pytest.mark.asyncio
+    async def test_network_connection_error(self, mock_aap_settings) -> None:
+        """Test network connection failure."""
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_aap_settings,
+            ),
+            patch(
+                "httpx.AsyncClient.post",
+                new_callable=AsyncMock,
+                side_effect=httpx.ConnectError("Connection refused"),
+            ),
+        ):
+            activity_config = build_activity_config(job_template_id=42)
+
+            with pytest.raises(AAPJobExecutionError, match="Failed to connect to AAP"):
+                await execute_aap_job_template_activity(activity_config, {})
+
+    @pytest.mark.asyncio
+    async def test_invalid_config_missing_job_template_id(self) -> None:
+        """Test error with missing job_template_id."""
+        activity_config: dict[str, dict[str, object]] = {"config": {}}  # Missing job_template_id
+
+        with pytest.raises(ValidationError):
+            await execute_aap_job_template_activity(activity_config, {})
+
+
+class TestAAPJobTemplateTimeout:
+    """Test timeout handling for long-running jobs."""
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_job_timeout_during_polling(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+        mock_aap_settings: MagicMock,
+    ) -> None:
+        """Test job execution timeout is enforced during polling."""
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
+        running_response = create_http_response(200, {"id": 123, "status": "running"})
+
+        # Mock time.time() to simulate timeout after 3 polls
+        # Use a callable to avoid StopIteration
+        start_time = 1000.0
+        time_values = [start_time, start_time + 1, start_time + 2, start_time + 11]
+        time_counter = {"index": 0}
+
+        def mock_time() -> float:
+            idx = time_counter["index"]
+            # After exhausting predefined values, keep returning a time that exceeds timeout
+            if idx >= len(time_values):
+                return start_time + 20  # Well beyond timeout
+            value = time_values[idx]
+            time_counter["index"] += 1
+            return value
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_aap_settings,
+            ),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=running_response),
+            patch("time.time", side_effect=mock_time),
+        ):
+            # Configure timeout of 10 seconds
+            activity_config = build_activity_config(job_template_id=42, timeout=10)
+
+            # Should raise timeout error
+            with pytest.raises(AAPJobExecutionError, match="timed out after 10 seconds") as exc_info:
+                await execute_aap_job_template_activity(activity_config, {})
+
+            # Verify error contains job_id
+            error = exc_info.value
+            assert error.job_id == 123
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_job_completes_within_timeout(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+        mock_aap_settings: MagicMock,
+    ) -> None:
+        """Test job completes successfully when it finishes before timeout."""
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
+        running_response = create_http_response(200, {"id": 123, "status": "running"})
+        successful_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
+        output_response = create_http_response(200, text="")
+
+        # Mock time to show job completes within timeout
+        # Use a callable that increments time to avoid StopIteration
+        start_time = 1000.0
+        time_counter = {"value": start_time}
+
+        def mock_time() -> float:
+            current = time_counter["value"]
+            time_counter["value"] += 1.0  # Increment by 1 second each call
+            return current
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_aap_settings,
+            ),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+            patch("time.time", side_effect=mock_time),
+        ):
+            # Poll sequence: running, successful, then output
+            mock_get.side_effect = [running_response, successful_response, output_response]
+
+            # Configure timeout of 10 seconds (job completes in ~2 seconds)
+            activity_config = build_activity_config(job_template_id=42, timeout=10)
+
+            result = await execute_aap_job_template_activity(activity_config, {})
+
+            # Job should complete successfully
+            assert result["status"] == "successful"
+            assert result["job_id"] == 123
+
+    @pytest.mark.asyncio
+    async def test_timeout_config_field_validation(self) -> None:
+        """Test timeout field validation in config."""
+        # Valid timeout
+        config = build_config(job_template_id=42, timeout=3600)
+        assert config.timeout == 3600
+
+        # Custom timeout
+        config = build_config(job_template_id=42, timeout=7200)
+        assert config.timeout == 7200
+
+        # Timeout must be >= 1
+        with pytest.raises(ValidationError):
+            build_config(job_template_id=42, timeout=0)
+
+        # Timeout must be positive
+        with pytest.raises(ValidationError):
+            build_config(job_template_id=42, timeout=-100)
+
+
+class TestAAPJobTemplateAuthentication:
+    """Test authentication handling."""
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    async def test_token_authentication(self, mock_is_cancelled: object) -> None:  # noqa: ARG002
+        """Test AAP token authentication is used."""
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
+        status_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
+        output_response = create_http_response(200, text="")
+
+        # Mock settings with token auth
+        mock_settings = create_mock_settings(token=TEST_TOKEN_123)
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_settings,
+            ),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            mock_get.side_effect = [status_response, output_response]
+
+            activity_config = build_activity_config(job_template_id=42)
+
+            await execute_aap_job_template_activity(activity_config, {})
+
+            # Verify Authorization header with Bearer token
+            assert "headers" in mock_post.call_args.kwargs
+            assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer test_token_123"
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    async def test_basic_authentication(self, mock_is_cancelled: object) -> None:  # noqa: ARG002
+        """Test AAP basic authentication is used."""
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
+        status_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
+        output_response = create_http_response(200, text="")
+
+        # Mock settings with basic auth
+        mock_settings = create_mock_settings(token=None, username=TEST_USERNAME, password=TEST_PASSWORD)
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_settings,
+            ),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            mock_get.side_effect = [status_response, output_response]
+
+            activity_config = build_activity_config(job_template_id=42)
+
+            await execute_aap_job_template_activity(activity_config, {})
+
+            # Verify BasicAuth was used
+            assert "auth" in mock_post.call_args.kwargs
+            assert isinstance(mock_post.call_args.kwargs["auth"], httpx.BasicAuth)

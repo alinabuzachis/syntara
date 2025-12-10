@@ -16,10 +16,12 @@ from temporalio import workflow
 # - constants: Loads settings which triggers tempfile.gettempdir()
 # - agentic_activity: Has its own unsafe block for AgentOrchestratorClient
 # - api_activity: Uses httpx which triggers urllib warnings in sandbox
+# - aap_job_template_activity: Uses httpx which triggers urllib warnings in sandbox
 # Must import constants first so when models imports constants, it uses the cached module
 # See: https://github.com/temporalio/sdk-python#avoiding-the-sandbox
 with workflow.unsafe.imports_passed_through():
     from . import constants  # noqa: F401 - Ensures constants load outside sandbox
+    from .activities.aap_job_template_activity import execute_aap_job_template_activity
     from .activities.agentic_activity import execute_agentic_activity
     from .activities.api_activity import execute_api_request
 
@@ -29,6 +31,7 @@ from .activities.common import build_retry_policy, parse_timeout
 from .activities.script_activity import execute_bash_script, execute_python_script
 from .expression_resolver import ExpressionResolver
 from .models import (
+    AAPJobTemplateExecutorConfig,
     Activity,
     ActivityType,
     APIExecutorConfig,
@@ -41,6 +44,9 @@ from .models import (
     WhileLoopDefinition,
     WorkflowDefinition,
 )
+
+# Type alias for JSON-like dictionaries to avoid duplication
+JsonDict = dict[str, Any]
 
 
 @workflow.defn
@@ -58,10 +64,10 @@ class DynamicWorkflow:
     @workflow.run
     async def run(
         self,
-        workflow_def: dict[str, Any],
+        workflow_def: JsonDict,
         execution_id: str,
-        workflow_inputs: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+        workflow_inputs: JsonDict | None = None,
+    ) -> JsonDict:
         """Execute workflow from YAML definition.
 
         Args:
@@ -83,7 +89,7 @@ class DynamicWorkflow:
         self.expression_resolver = ExpressionResolver(self.workflow_definition)
 
         # Apply default values from input parameter definitions
-        resolved_inputs: dict[str, Any] = dict(workflow_inputs or {})
+        resolved_inputs: JsonDict = dict(workflow_inputs or {})
         if self.workflow_definition.inputs:
             for input_name, input_param in self.workflow_definition.inputs.items():
                 # Apply default value if input not provided and default is specified
@@ -91,7 +97,7 @@ class DynamicWorkflow:
                     resolved_inputs[input_name] = input_param.default
 
         # Initialize workflow state
-        workflow_state: dict[str, Any] = {
+        workflow_state: JsonDict = {
             "execution_id": execution_id,
             "inputs": resolved_inputs,
             "variables": self.workflow_definition.variables or {},
@@ -195,8 +201,8 @@ class DynamicWorkflow:
         self,
         activity: Activity,
         execution_id: str,
-        workflow_state: dict[str, Any],
-    ) -> dict[str, Any]:
+        workflow_state: JsonDict,
+    ) -> JsonDict:
         """Execute a workflow activity based on its type.
 
         Args:
@@ -229,10 +235,10 @@ class DynamicWorkflow:
     async def _execute_script_executor(
         self,
         activity: Activity,
-        task_inputs: dict[str, Any],
+        task_inputs: JsonDict,
         activity_timeout: timedelta,
         execution_id: str,
-    ) -> dict[str, Any]:
+    ) -> JsonDict:
         """Execute a script executor (bash or python).
 
         Args:
@@ -283,7 +289,7 @@ class DynamicWorkflow:
             if activity.task.outputs:
                 result = self._process_output_mappings(result, activity.task.outputs)
 
-            return cast("dict[str, Any]", result)
+            return cast("JsonDict", result)
 
         except Exception as e:
             workflow.logger.error(
@@ -295,10 +301,10 @@ class DynamicWorkflow:
     async def _execute_api_executor(
         self,
         activity: Activity,
-        task_inputs: dict[str, Any],
+        task_inputs: JsonDict,
         activity_timeout: timedelta,
         execution_id: str,
-    ) -> dict[str, Any]:
+    ) -> JsonDict:
         """Execute an API executor.
 
         Args:
@@ -336,7 +342,7 @@ class DynamicWorkflow:
             if activity.task.outputs:
                 result = self._process_output_mappings(result, activity.task.outputs)
 
-            return cast("dict[str, Any]", result)
+            return cast("JsonDict", result)
 
         except Exception as e:
             workflow.logger.error(
@@ -348,10 +354,10 @@ class DynamicWorkflow:
     async def _execute_agentic_executor(
         self,
         activity: Activity,
-        task_inputs: dict[str, Any],
+        task_inputs: JsonDict,
         activity_timeout: timedelta,
         execution_id: str,
-    ) -> dict[str, Any]:
+    ) -> JsonDict:
         """Execute an agentic executor.
 
         Args:
@@ -383,7 +389,7 @@ class DynamicWorkflow:
             if activity.task.outputs:
                 result = self._process_output_mappings(result, activity.task.outputs)
 
-            return cast("dict[str, Any]", result)
+            return cast("JsonDict", result)
 
         except Exception as e:
             workflow.logger.error(
@@ -392,12 +398,71 @@ class DynamicWorkflow:
             )
             raise
 
+    async def _execute_aap_job_template_executor(
+        self,
+        activity: Activity,
+        task_inputs: JsonDict,
+        activity_timeout: timedelta,
+        execution_id: str,
+    ) -> JsonDict:
+        """Execute an AAP job template executor.
+
+        Args:
+            activity: Task activity definition
+            task_inputs: Prepared task inputs
+            activity_timeout: Execution timeout
+            execution_id: Workflow execution ID
+
+        Returns:
+            AAP job template execution result
+
+        """
+        if not activity.task:
+            msg = f"Activity {activity.id} has no task definition"
+            raise ValueError(msg)
+
+        # Ensure config is an AAPJobTemplateExecutorConfig
+        if not isinstance(activity.task.config, AAPJobTemplateExecutorConfig):
+            msg = f"AAP executor requires AAPJobTemplateExecutorConfig, got {type(activity.task.config).__name__}"
+            raise TypeError(msg)
+
+        workflow.logger.info(
+            f"Executing AAP job template activity: {activity.id}",
+            extra={"activity_id": activity.id, "job_template_id": activity.task.config.job_template_id},
+        )
+
+        # Serialize config to dict to avoid Pydantic V1 deprecation warnings in Temporal
+        try:
+            result = await workflow.execute_activity(
+                execute_aap_job_template_activity,
+                args=[{"config": activity.task.config.model_dump(by_alias=True)}, task_inputs],
+                activity_id=activity.id,
+                start_to_close_timeout=activity_timeout,
+                heartbeat_timeout=timedelta(seconds=30),  # 6x default 5s poll interval
+                retry_policy=build_retry_policy(
+                    activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None
+                ),
+            )
+
+            # Process output mappings if defined
+            if activity.task.outputs:
+                result = self._process_output_mappings(result, activity.task.outputs)
+
+            return cast("JsonDict", result)
+
+        except Exception as e:
+            workflow.logger.error(
+                f"AAP job template task {activity.id} failed: {e}",
+                extra={"activity_id": activity.id, "execution_id": execution_id},
+            )
+            raise
+
     async def _execute_task_activity(
         self,
         activity: Activity,
         execution_id: str,
-        workflow_state: dict[str, Any],
-    ) -> dict[str, Any]:
+        workflow_state: JsonDict,
+    ) -> JsonDict:
         """Execute a task activity (script, API, connector, agentic).
 
         Args:
@@ -424,6 +489,8 @@ class DynamicWorkflow:
             return await self._execute_script_executor(activity, task_inputs, timeout, execution_id)
         if activity.task.executor == ExecutorType.AGENTIC:
             return await self._execute_agentic_executor(activity, task_inputs, timeout, execution_id)
+        if activity.task.executor == ExecutorType.AAP_JOB_TEMPLATE:
+            return await self._execute_aap_job_template_executor(activity, task_inputs, timeout, execution_id)
         # Otherwise, executor must be API (enforced by type system)
         return await self._execute_api_executor(activity, task_inputs, timeout, execution_id)
 
@@ -431,8 +498,8 @@ class DynamicWorkflow:
         self,
         activity: Activity,
         execution_id: str,
-        workflow_state: dict[str, Any],
-    ) -> dict[str, Any]:
+        workflow_state: JsonDict,
+    ) -> JsonDict:
         """Execute multiple activities in parallel.
 
         Args:
@@ -480,7 +547,7 @@ class DynamicWorkflow:
 
         return {"type": "parallel", "branches": {}, "deferred_to_converge": True}
 
-    def _check_if_next_is_converge(self, current_activity: Activity, workflow_state: dict[str, Any]) -> bool:
+    def _check_if_next_is_converge(self, current_activity: Activity, workflow_state: JsonDict) -> bool:
         """Check if the next activity in the workflow is a converge for this parallel's branches.
 
         Args:
@@ -526,8 +593,8 @@ class DynamicWorkflow:
         self,
         activity: Activity,
         execution_id: str,
-        workflow_state: dict[str, Any],
-    ) -> dict[str, Any]:
+        workflow_state: JsonDict,
+    ) -> JsonDict:
         """Execute multiple activities sequentially.
 
         Args:
@@ -560,8 +627,8 @@ class DynamicWorkflow:
         self,
         activity: Activity,
         execution_id: str,
-        workflow_state: dict[str, Any],
-    ) -> dict[str, Any]:
+        workflow_state: JsonDict,
+    ) -> JsonDict:
         """Execute conditional branching (if/then/else).
 
         Args:
@@ -611,8 +678,8 @@ class DynamicWorkflow:
         self,
         activity: Activity,
         execution_id: str,
-        workflow_state: dict[str, Any],
-    ) -> dict[str, Any]:
+        workflow_state: JsonDict,
+    ) -> JsonDict:
         """Execute loop activity (forEach, while, count).
 
         Args:
@@ -642,8 +709,8 @@ class DynamicWorkflow:
         self,
         loop_def: ForEachLoopDefinition,
         execution_id: str,
-        workflow_state: dict[str, Any],
-    ) -> dict[str, Any]:
+        workflow_state: JsonDict,
+    ) -> JsonDict:
         """Execute forEach loop over a collection.
 
         Args:
@@ -692,8 +759,8 @@ class DynamicWorkflow:
         self,
         loop_def: WhileLoopDefinition,
         execution_id: str,
-        workflow_state: dict[str, Any],
-    ) -> dict[str, Any]:
+        workflow_state: JsonDict,
+    ) -> JsonDict:
         """Execute while loop with condition.
 
         Args:
@@ -756,9 +823,9 @@ class DynamicWorkflow:
 
     async def _process_completed_tasks(
         self,
-        pending_tasks: dict[str, Any],
+        pending_tasks: JsonDict,
         done: set[Any],
-        workflow_state: dict[str, Any],
+        workflow_state: JsonDict,
     ) -> None:
         """Process completed tasks and update workflow state.
 
@@ -787,7 +854,7 @@ class DynamicWorkflow:
         converge_def: ConvergeDefinition,
         branches_to_execute: list[tuple[str, Activity, str]],
         timeout_seconds: float,
-        workflow_state: dict[str, Any],
+        workflow_state: JsonDict,
     ) -> None:
         """Execute converge branches with timeout using workflow.wait().
 
@@ -845,7 +912,7 @@ class DynamicWorkflow:
     async def _execute_converge_without_timeout(
         self,
         branches_to_execute: list[tuple[str, Activity, str]],
-        workflow_state: dict[str, Any],
+        workflow_state: JsonDict,
     ) -> None:
         """Execute converge branches without timeout using asyncio.gather().
 
@@ -883,8 +950,8 @@ class DynamicWorkflow:
     async def _execute_converge_activity(
         self,
         activity: Activity,
-        workflow_state: dict[str, Any],
-    ) -> dict[str, Any]:
+        workflow_state: JsonDict,
+    ) -> JsonDict:
         """Execute converge activity (wait for multiple activities to complete).
 
         Args:
@@ -932,8 +999,8 @@ class DynamicWorkflow:
     def _prepare_task_inputs(
         self,
         activity: Activity,
-        workflow_state: dict[str, Any],
-    ) -> dict[str, Any]:
+        workflow_state: JsonDict,
+    ) -> JsonDict:
         """Prepare input parameters for task execution with expression resolution.
 
         Merges workflow-level inputs with task-specific inputs so that both
@@ -957,7 +1024,7 @@ class DynamicWorkflow:
 
         return resolved_inputs
 
-    def _traverse_path(self, data: dict[str, Any] | list[Any] | object, path: str) -> object:
+    def _traverse_path(self, data: JsonDict | list[Any] | object, path: str) -> object:
         """Traverse a JSONPath-like expression to extract value from data.
 
         Supports dict keys and array indices (e.g., "items.0.name").
@@ -1005,9 +1072,9 @@ class DynamicWorkflow:
 
     def _process_output_mappings(
         self,
-        result: dict[str, Any],
+        result: JsonDict,
         output_mappings: dict[str, str],
-    ) -> dict[str, Any]:
+    ) -> JsonDict:
         """Process output mappings to extract and transform activity results.
 
         Transforms raw activity output (e.g., {stdout, stderr, return_code})

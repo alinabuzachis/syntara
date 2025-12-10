@@ -1,0 +1,17 @@
+---
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: aap-hello-world
+  description: Simple AAP job template workflow that launches job template 7
+triggers:
+  - type: manual
+workflow:
+  activities:
+    - id: launch_job_template
+      type: task
+      task:
+        executor: aap_job_template
+        config:
+          jobTemplateId: 7
+          verbosity: 5

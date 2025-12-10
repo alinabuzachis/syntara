@@ -971,6 +971,45 @@ class WorkflowEngineSettings(BaseSettings):
         description="Base URL for Agent Orchestrator API",
     )
 
+    # AAP (Ansible Automation Platform) settings
+    # NOTE: These settings may be deprecated when AAP Tool integration is added.
+    aap_base_url: str | None = Field(
+        default=None,
+        description="AAP Controller base URL (e.g., https://aap.example.com)",
+    )
+
+    aap_username: str | None = Field(
+        default=None,
+        description="AAP username for basic authentication (optional if using token)",
+    )
+
+    aap_password: SecretStr | None = Field(
+        default=None,
+        description="AAP password for basic authentication (optional if using token)",
+    )
+
+    aap_token: SecretStr | None = Field(
+        default=None,
+        description="AAP API token for token authentication (preferred over username/password)",
+    )
+
+    aap_timeout_seconds: int = Field(
+        default=3600,
+        description="Default timeout for AAP job template activities in seconds (1 hour)",
+        ge=1,
+    )
+
+    aap_poll_interval_seconds: float = Field(
+        default=5.0,
+        description="AAP job status polling interval in seconds (AAP recommendation: 5 seconds)",
+        ge=1.0,
+    )
+
+    aap_verify_ssl: bool = Field(
+        default=True,
+        description="Verify SSL certificates for AAP connections (set to False for self-signed certs in dev/test)",
+    )
+
 
 # =============================================================================
 # Main Settings

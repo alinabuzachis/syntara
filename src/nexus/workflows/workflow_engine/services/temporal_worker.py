@@ -12,6 +12,9 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from nexus.core.config import get_settings
+from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
+    execute_aap_job_template_activity,
+)
 from nexus.workflows.workflow_engine.activities.agentic_activity import execute_agentic_activity
 from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
@@ -78,6 +81,7 @@ class TemporalWorkerService:
                 task_queue=self.task_queue,
                 workflows=[DynamicWorkflow],
                 activities=[
+                    execute_aap_job_template_activity,
                     execute_agentic_activity,
                     execute_api_request,
                     execute_bash_script,

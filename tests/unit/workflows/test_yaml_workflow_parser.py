@@ -1,10 +1,12 @@
 """Unit tests for YAML workflow parser."""
 
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 
 from nexus.workflows.workflow_engine.models import (
+    AAPJobTemplateExecutorConfig,
     ForEachLoopDefinition,
     ScriptExecutorConfig,
     WhileLoopDefinition,
@@ -713,5 +715,103 @@ workflow:
         language: powershell
         code: Write-Host "Hello"
 """
+        with pytest.raises(WorkflowParseError):
+            parse_workflow_yaml(yaml_str)
+
+
+class TestAAPExecutorValidation:
+    """Test AAP job template executor validation (T003)."""
+
+    @staticmethod
+    def _build_aap_workflow_yaml(config: dict[str, Any]) -> str:
+        """Helper to build AAP workflow YAML with given config.
+
+        Args:
+            config: AAP executor configuration dictionary
+
+        Returns:
+            YAML string for workflow with AAP executor
+
+        """
+        import yaml
+
+        workflow_dict = {
+            "schemaVersion": "1.0.0",
+            "version": 1,
+            "metadata": {
+                "name": "test-aap-workflow",
+                "description": "Test AAP job template executor",
+            },
+            "triggers": [{"type": "manual"}],
+            "workflow": {
+                "activities": [
+                    {
+                        "id": "run_job_template",
+                        "type": "task",
+                        "task": {
+                            "executor": "aap_job_template",
+                            "config": config,
+                        },
+                    }
+                ]
+            },
+        }
+        return yaml.dump(workflow_dict, sort_keys=False)
+
+    def test_aap_executor_valid_config(self) -> None:
+        """Test valid AAP executor configuration."""
+        config = {
+            "job_template_id": 42,
+            "inventory": 123,
+            "extra_vars": {"version": "1.0.0", "environment": "prod"},
+            "limit": "webservers",
+            "tags": "deploy,configure",
+            "skip_tags": "backup",
+            "verbosity": 2,
+        }
+        yaml_str = self._build_aap_workflow_yaml(config)
+        workflow_def = parse_workflow_yaml(yaml_str)
+
+        task = workflow_def.workflow.activities[0].task
+        assert task is not None
+        assert isinstance(task.config, AAPJobTemplateExecutorConfig)
+        assert task.executor.value == "aap_job_template"
+        assert task.config.job_template_id == 42
+        assert task.config.inventory == 123
+        assert task.config.extra_vars["version"] == "1.0.0"
+        assert task.config.limit == "webservers"
+        assert task.config.tags == "deploy,configure"
+        assert task.config.skip_tags == "backup"
+        assert task.config.verbosity == 2
+
+    def test_aap_executor_minimal_config(self) -> None:
+        """Test AAP executor with minimal required config."""
+        yaml_str = self._build_aap_workflow_yaml({"job_template_id": 123})
+        workflow_def = parse_workflow_yaml(yaml_str)
+
+        task = workflow_def.workflow.activities[0].task
+        assert task is not None
+        assert isinstance(task.config, AAPJobTemplateExecutorConfig)
+        assert task.config.job_template_id == 123
+        # Verify defaults
+        assert task.config.extra_vars == {}
+        assert task.config.verbosity == 0
+        assert task.config.skip_tags is None
+
+    def test_aap_executor_missing_job_template_id(self) -> None:
+        """Test AAP executor fails without job_template_id."""
+        yaml_str = self._build_aap_workflow_yaml({"inventory": 123})
+        with pytest.raises(WorkflowParseError, match=r"(job_template_id|jobTemplateId)"):
+            parse_workflow_yaml(yaml_str)
+
+    def test_aap_executor_invalid_job_template_id(self) -> None:
+        """Test AAP executor fails with invalid job_template_id."""
+        yaml_str = self._build_aap_workflow_yaml({"job_template_id": 0})
+        with pytest.raises(WorkflowParseError):
+            parse_workflow_yaml(yaml_str)
+
+    def test_aap_executor_invalid_verbosity(self) -> None:
+        """Test AAP executor fails with invalid verbosity level."""
+        yaml_str = self._build_aap_workflow_yaml({"job_template_id": 42, "verbosity": 10})
         with pytest.raises(WorkflowParseError):
             parse_workflow_yaml(yaml_str)
