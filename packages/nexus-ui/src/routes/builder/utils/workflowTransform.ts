@@ -232,13 +232,14 @@ export class WorkflowTransform {
         loopBodyActivities.push(activity)
         loopBodyIds.add(activityId)
 
-        // Find outgoing edges (but don't follow edges back to the loop's end handle)
+        // Find outgoing edges (but don't follow edges back to the loop)
         // Include both 'source' (regular nodes) and 'done' (loop nodes) handles
+        // Don't follow edges that connect back to the loop node itself (prevents infinite recursion)
         const outgoingEdges = edges.filter(
           (e) =>
             e.source === activityId &&
             (!e.sourceHandle || e.sourceHandle === 'source' || e.sourceHandle === 'done') &&
-            !(e.target === loopActivity.id && e.targetHandle === 'end')
+            e.target !== loopActivity.id
         )
 
         for (const edge of outgoingEdges) {
@@ -252,9 +253,10 @@ export class WorkflowTransform {
         // Remove loop body activities from top level
         result = result.filter((a) => !loopBodyIds.has(a.id))
 
-        // Filter out edges that connect back to the loop's end handle
+        // Filter out edges that connect back to the loop node
         // These edges define the loop boundary and shouldn't be followed when nesting the loop body
-        const loopBodyEdges = edges.filter((e) => !(e.target === loopActivity.id && e.targetHandle === 'end'))
+        // This prevents infinite recursion when processing nested loops
+        const loopBodyEdges = edges.filter((e) => e.target !== loopActivity.id)
 
         // Recursively process nested structures in loop body
         const processedLoopBody = this.nest(loopBodyActivities, loopBodyEdges, searchContext)

@@ -233,7 +233,10 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
           : undefined,
       type: data.logicType === 'loop' ? data.type : undefined,
       items: data.logicType === 'loop' && data.type === 'forEach' ? data.items : undefined,
-      maxIterations: data.logicType === 'loop' && data.type === 'while' ? data.maxIterations : undefined,
+      maxIterations:
+        data.logicType === 'loop' && data.type === 'while' && data.maxIterations && !Number.isNaN(data.maxIterations)
+          ? data.maxIterations
+          : undefined,
       indexVariable: data.logicType === 'loop' && data.type === 'forEach' ? data.indexVariable : undefined,
       itemVariable: data.logicType === 'loop' && data.type === 'forEach' ? data.itemVariable : undefined,
       timeout: data.logicType === 'converge' ? data.timeout : undefined,

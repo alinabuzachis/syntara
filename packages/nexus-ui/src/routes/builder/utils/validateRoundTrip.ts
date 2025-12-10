@@ -209,11 +209,11 @@ export function validateSavePath(activities: Activity[], edges: EdgeConnection[]
         }
       }
     }
-  } catch {
+  } catch (error) {
     throw new Error(
       'Failed to build nested structure from flat activities. ' +
         'This indicates a bug in buildNestedConditionStructure. ' +
-        'Check the console for details.'
+        `Original error: ${error instanceof Error ? error.message : String(error)}`
     )
   }
 }

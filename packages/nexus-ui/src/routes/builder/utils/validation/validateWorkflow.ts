@@ -4,13 +4,21 @@ import type { EdgeConnection } from '../workflowTransform'
 
 import { validateConditionConnections } from './rules/validateConditionConnections'
 import { validateConvergeInputs } from './rules/validateConvergeInputs'
+import { validateLoopNodes } from './rules/validateLoopNodes'
 import { validateNoDanglingNodes } from './rules/validateNoDanglingNodes'
+import { validateNoGenericNodes } from './rules/validateNoGenericNodes'
 import type { ValidationError, ValidationResult, ValidationRule } from './types'
 
 /**
  * Validation rules that produce errors (block save)
  */
-const ERROR_RULES: ValidationRule[] = [validateNoDanglingNodes, validateConditionConnections, validateConvergeInputs]
+const ERROR_RULES: ValidationRule[] = [
+  validateNoDanglingNodes,
+  validateConditionConnections,
+  validateConvergeInputs,
+  validateLoopNodes,
+  validateNoGenericNodes,
+]
 
 /**
  * Validation rules that produce warnings (don't block save)

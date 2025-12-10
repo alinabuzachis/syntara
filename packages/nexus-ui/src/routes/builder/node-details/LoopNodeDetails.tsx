@@ -55,7 +55,8 @@ export function LoopNodeDetails({ loopData, nodeId, onClose }: LoopNodeDetailsPr
           type: data.type! as 'forEach' | 'while',
           ...(data.items && { items: data.items }),
           ...(data.condition && { condition: data.condition }),
-          ...(data.maxIterations !== undefined && { maxIterations: data.maxIterations }),
+          ...(data.maxIterations !== undefined &&
+            !Number.isNaN(data.maxIterations) && { maxIterations: data.maxIterations }),
           ...(data.indexVariable && { indexVariable: data.indexVariable }),
           ...(data.itemVariable && { itemVariable: data.itemVariable }),
         },

@@ -897,11 +897,46 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
       setPendingEdge(null)
 
+      // Detect if this connection is closing a loop
+      // If the target is a loop node and the source is inside the loop body,
+      // change targetHandle from 'target' to 'end'
+      let targetHandle = connection.targetHandle ?? undefined
+      const targetNode = nodes.find((n) => n.id === connection.target)
+
+      if (targetNode?.type === FlowNodeType.LOOP && targetHandle === 'target') {
+        // Check if source node is inside the loop body
+        // A node is inside the loop body if there's a path from the loop's 'loop' handle to this node
+        const loopEdges = edges.filter((e) => e.source === connection.target && e.sourceHandle === 'loop')
+        const loopBodyNodeIds = new Set<string>()
+
+        // BFS to find all nodes reachable from the loop handle
+        const queue = loopEdges.map((e) => e.target)
+        const visited = new Set<string>()
+
+        while (queue.length > 0) {
+          const nodeId = queue.shift()!
+          if (visited.has(nodeId)) continue
+          visited.add(nodeId)
+          loopBodyNodeIds.add(nodeId)
+
+          // Find outgoing edges (but don't follow edges back to the loop's target handle)
+          const outgoing = edges.filter(
+            (e) => e.source === nodeId && !(e.target === connection.target && e.targetHandle === 'target')
+          )
+          queue.push(...outgoing.map((e) => e.target))
+        }
+
+        // If source is in the loop body, this is a loop-closing connection
+        if (loopBodyNodeIds.has(connection.source!)) {
+          targetHandle = 'end'
+        }
+      }
+
       const newEdge = EdgeFactory.createEdge({
         source: connection.source!,
         target: connection.target!,
         sourceHandle: connection.sourceHandle ?? undefined,
-        targetHandle: connection.targetHandle ?? undefined,
+        targetHandle,
         onAddNode: onAddNodeFromEdge,
       })
 
@@ -953,7 +988,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         })
       })
     },
-    [setEdges, setNodes, onAddNodeFromEdge]
+    [setEdges, setNodes, onAddNodeFromEdge, nodes, edges]
   )
 
   const onConnectStart = useCallback(

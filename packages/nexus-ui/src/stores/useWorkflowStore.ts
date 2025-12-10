@@ -1049,7 +1049,7 @@ export function createLoopActivity(
     }
 
     // Only include maxIterations if it has a valid value
-    if (config.maxIterations !== undefined && config.maxIterations !== null) {
+    if (config.maxIterations !== undefined && config.maxIterations !== null && !Number.isNaN(config.maxIterations)) {
       whileLoop.maxIterations = config.maxIterations
     }
 
@@ -1149,6 +1149,8 @@ export function createConnectorActivity(
  * Create a generic placeholder activity that can be replaced with any node type
  */
 export function createGenericActivity(id: string, name: string = 'New Node', customMessage?: string): TaskActivity {
+  // Generic placeholder node - minimal task structure without executor details
+  // The __isGeneric metadata flag marks this as a placeholder that should be replaced
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const activity: any = {
     type: 'task',
@@ -1158,12 +1160,9 @@ export function createGenericActivity(id: string, name: string = 'New Node', cus
       __isGeneric: true, // Flag to identify this as a placeholder node
       ...(customMessage ? { __customMessage: customMessage } : {}),
     },
+    // Minimal task config - no executor specified to avoid confusion
     task: {
-      executor: 'script', // Use script executor as placeholder
-      config: {
-        language: 'python',
-        code: '# Click to configure this node',
-      },
+      config: {},
     },
   }
 

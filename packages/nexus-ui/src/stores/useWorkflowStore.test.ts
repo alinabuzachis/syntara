@@ -3,7 +3,13 @@ import { describe, expect, it, beforeEach } from 'vitest'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
 
-import { useWorkflowStore, createManualTrigger, createConvergeActivity, createScriptActivity } from './useWorkflowStore'
+import {
+  useWorkflowStore,
+  createManualTrigger,
+  createConvergeActivity,
+  createScriptActivity,
+  createGenericActivity,
+} from './useWorkflowStore'
 
 type Activity = WorkflowAPI.components['schemas']['activity']
 type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
@@ -441,6 +447,62 @@ describe('useWorkflowStore', () => {
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
       expect(activities.map((a) => a.id)).toEqual(['A', 'B'])
+    })
+  })
+
+  describe('createGenericActivity', () => {
+    it('creates a minimal generic placeholder node', () => {
+      const activity = createGenericActivity('generic-1', 'Placeholder')
+
+      expect(activity).toMatchObject({
+        type: 'task',
+        id: 'generic-1',
+        name: 'Placeholder',
+        metadata: {
+          __isGeneric: true,
+        },
+        task: {
+          config: {},
+        },
+      })
+    })
+
+    it('creates generic node without executor details', () => {
+      const activity = createGenericActivity('generic-1', 'Test')
+
+      // Should not have executor property
+      expect(activity.task).not.toHaveProperty('executor')
+      // Config should be empty
+      expect(activity.task.config).toEqual({})
+    })
+
+    it('uses default name when not provided', () => {
+      const activity = createGenericActivity('generic-1')
+
+      expect(activity.name).toBe('New Node')
+    })
+
+    it('includes custom message in metadata when provided', () => {
+      const activity = createGenericActivity('generic-1', 'Test', 'Custom message here')
+
+      expect(activity.metadata).toMatchObject({
+        __isGeneric: true,
+        __customMessage: 'Custom message here',
+      })
+    })
+
+    it('does not include custom message when not provided', () => {
+      const activity = createGenericActivity('generic-1', 'Test')
+
+      expect(activity.metadata).toEqual({
+        __isGeneric: true,
+      })
+    })
+
+    it('always sets __isGeneric to true', () => {
+      const activity = createGenericActivity('generic-1', 'Test')
+
+      expect(activity.metadata?.__isGeneric).toBe(true)
     })
   })
 })

@@ -285,7 +285,13 @@ export function BuilderContent(props: BuilderContentProps) {
     }
 
     const edges = useWorkflowStore.getState().edges
-    const validationResult = validateWorkflow(currentWorkflow.workflow.activities, edges)
+
+    // Build the workflow definition first to get the nested structure
+    const workflowDef = getWorkflowDefinition()
+
+    // Validate the nested structure (after nesting loops and conditions)
+    // This ensures loop 'do' arrays are populated from edges before validation
+    const validationResult = validateWorkflow(workflowDef.workflow.activities, edges)
 
     if (!validationResult.valid) {
       // Build error message from validation errors
@@ -293,8 +299,6 @@ export function BuilderContent(props: BuilderContentProps) {
       showError(`Workflow validation failed:\n• ${errorMessages}`, 'Validation Failed')
       return
     }
-
-    const workflowDef = getWorkflowDefinition()
     const workflowData = {
       name: workflowName,
       description: workflowDescription,
