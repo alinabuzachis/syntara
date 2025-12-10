@@ -4,6 +4,8 @@ This module tests the individual service classes (RetrieverService,
 CompressorService, AssemblerService) to ensure proper stub behavior.
 """
 
+from unittest.mock import AsyncMock, Mock
+
 from nexus.agent_orchestrator.context_manager import (
     AssemblerService,
     CompressorService,
@@ -40,23 +42,26 @@ class TestCompressorService:
 
     def test_compressor_initialization(self) -> None:
         """Test CompressorService initializes correctly."""
-        service = CompressorService()
+        mock_llm = AsyncMock()
+        service = CompressorService(llm=mock_llm)
         assert service is not None
 
-    def test_compress_method_call(self) -> None:
-        """Test compress method executes and returns None."""
-        service = CompressorService()
-        test_docs = [{"id": "1", "text": "test document"}]
+    async def test_compress_method_call(self) -> None:
+        """Test compress method with valid string data."""
+        # Mock dependencies to avoid actual LLM calls
+        mock_token_calculator = Mock()
+        mock_token_calculator.count_tokens.return_value = 50
 
-        # Method should execute without raising exception
-        service.compress(test_docs, "test-correlation-789")
+        mock_llm = AsyncMock()
+        service = CompressorService(token_calculator=mock_token_calculator, llm=mock_llm)
+        test_docs = ["test document"]
 
-    def test_compress_with_none_docs(self) -> None:
-        """Test compress method with None documents."""
-        service = CompressorService()
-
-        # Method should execute without raising exception
-        service.compress(None, "none-docs-correlation")
+        # Method should execute and return string content
+        result = await service.compress(
+            data=test_docs, max_tokens=100, strategy="greedy", correlation_id="test-correlation-789"
+        )
+        assert isinstance(result, str)
+        assert len(result) > 0
 
 
 class TestAssemblerService:

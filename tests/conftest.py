@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -1300,3 +1300,25 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
             pass
         except OSError as e:
             logger.warning("Failed to clean up lock file %s: %s", lock_file, e)
+
+
+# ============================================================================
+# Mock Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def mock_token_calculator() -> Mock:
+    """Create a mock TokenCalculator for testing.
+
+    This fixture provides a Mock with spec matching TokenCalculator,
+    useful for testing compression and token validation logic without
+    actual tokenization overhead.
+
+    Returns:
+        Mock: A mock TokenCalculator instance.
+
+    """
+    from nexus.agent_orchestrator.token_manager.services import TokenCalculator
+
+    return Mock(spec=TokenCalculator)

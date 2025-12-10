@@ -863,6 +863,19 @@ class ContextManagerSettings(BaseSettings):
         ge=1,
     )
 
+    context_manager_compression_temperature: float = Field(
+        default=0.3,
+        description="LLM temperature for compression operations (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+    )
+
+    context_manager_compression_max_tokens: int = Field(
+        default=2000,
+        description="Maximum tokens for compression LLM responses",
+        ge=1,
+    )
+
 
 # =============================================================================
 # Workflow Engine Configuration

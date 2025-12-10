@@ -38,6 +38,26 @@ def _get_encoder(model_name: str = "gpt-4") -> tiktoken.Encoding:
     return tiktoken.encoding_for_model(model_name)
 
 
+@lru_cache(maxsize=1024)
+def _count_tokens_cached(text: str, model_name: str) -> int:
+    """Count tokens with caching for repeated text inputs.
+
+    This cached function avoids re-encoding identical text strings,
+    which is particularly beneficial when the same content is checked
+    multiple times during compression decisions.
+
+    Args:
+        text: The text string to tokenize
+        model_name: Tiktoken model name to use
+
+    Returns:
+        Number of tokens in the text
+
+    """
+    encoder = _get_encoder(model_name)
+    return len(encoder.encode(text))
+
+
 class TokenCalculator:
     """Calculator for counting tokens in text using OpenAI's tiktoken library.
 
@@ -54,7 +74,8 @@ class TokenCalculator:
         """Count the number of tokens in the given text.
 
         Uses OpenAI's tiktoken library with the specified model encoding to accurately
-        count tokens as they would be counted by GPT models.
+        count tokens as they would be counted by GPT models. Results are cached
+        via _count_tokens_cached to avoid re-encoding identical text.
 
         Args:
             text: The text string to tokenize
@@ -75,9 +96,7 @@ class TokenCalculator:
             return 0
 
         try:
-            encoder = _get_encoder(model_name)
-            tokens = encoder.encode(text)
-            return len(tokens)
+            return _count_tokens_cached(text, model_name)
         except Exception as e:
             logger.exception(
                 "Token calculation failed",

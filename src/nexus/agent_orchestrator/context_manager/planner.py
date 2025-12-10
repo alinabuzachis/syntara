@@ -71,7 +71,7 @@ class ContextManagerPlanner:
                 exc_info=True,
             )
 
-    async def plan_request(
+    async def plan_request(  # noqa: PLR0915
         self,
         correlation_id: str,
         session_id: str,
@@ -114,8 +114,9 @@ class ContextManagerPlanner:
         retrieval_start = time.time()
         try:
             retriever = RetrieverService()
-            retriever.retrieve(query, correlation_id)  # Returns None in MVP stub
-            retrieved_docs = None  # MVP: always None
+            # TODO: Use actual retrieved documents once RetrieverService is fully implemented  # noqa: TD002, TD003
+            retriever.retrieve(query, correlation_id)  # Stub method returns None
+            retrieved_docs = None  # MVP: stub returns None
             timing_data["retrieval_time_ms"] = int((time.time() - retrieval_start) * 1000)
             logger.info("Retrieval phase completed in %sms", timing_data["retrieval_time_ms"])
         except Exception:
@@ -131,8 +132,31 @@ class ContextManagerPlanner:
         compression_start = time.time()
         try:
             compressor = CompressorService()
-            compressor.compress(retrieved_docs, correlation_id)  # Returns None in MVP stub
-            compressed_sections = None  # MVP: always None
+            compressed_content = None
+
+            # Only compress if we have retrieved documents (currently stub returns None)
+            # NOTE: This block is currently unreachable because retriever stub returns None
+            # This will be reached once retriever service is implemented
+            if retrieved_docs is not None and len(retrieved_docs) > 0:  # type: ignore[unreachable]
+                # For now, use a default token budget from config
+                # In a real implementation, this might be passed from the request
+                max_tokens = self.settings.context_manager_max_total_tokens  # type: ignore[unreachable]
+
+                # Convert retrieved docs to simple string format
+                # This is a placeholder - actual implementation depends on retriever output format
+                document_strings = [str(doc) for doc in retrieved_docs]  # Convert doc to string representation
+
+                # Compress with goal derived from query using new interface
+                compressed_content = await compressor.compress(
+                    data=document_strings,
+                    max_tokens=max_tokens,
+                    strategy="greedy",
+                    goal=f"Answer query: {query}",
+                    correlation_id=correlation_id,
+                )
+
+            # Convert string result to expected dict format for assembler service
+            compressed_sections = {"content": compressed_content} if compressed_content else None
             timing_data["compression_time_ms"] = int((time.time() - compression_start) * 1000)
             logger.info("Compression phase completed in %sms", timing_data["compression_time_ms"])
         except Exception:
