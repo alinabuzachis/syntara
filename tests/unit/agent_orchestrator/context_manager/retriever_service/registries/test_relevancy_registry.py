@@ -2,8 +2,6 @@
 
 This module tests the functionality of RelevancyRegistry,
 ensuring proper registration, retrieval, and error handling for relevancy checkers.
-
-These tests follow TDD - they MUST FAIL initially since the registry classes don't exist yet.
 """
 
 import pytest

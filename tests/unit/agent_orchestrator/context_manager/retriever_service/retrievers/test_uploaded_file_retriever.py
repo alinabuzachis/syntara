@@ -2,8 +2,6 @@
 
 This module tests the integration between UploadedFileRetriever and FileManager,
 ensuring proper document retrieval from uploaded files.
-
-These tests follow TDD - they MUST FAIL initially since UploadedFileRetriever doesn't exist yet.
 """
 
 import tempfile
@@ -53,7 +51,7 @@ class TestUploadedFileRetrieverIntegration:
             retriever = UploadedFileRetriever()
 
             # Execute retrieval
-            documents = await retriever.retrieve_documents(invocation_context)
+            documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
 
             # Verify results
             assert len(documents) == 1
@@ -90,7 +88,7 @@ class TestUploadedFileRetrieverIntegration:
         invocation_context = {"file_metadata": [pending_file.model_dump(), converting_file.model_dump()]}
 
         retriever = UploadedFileRetriever()
-        documents = await retriever.retrieve_documents(invocation_context)
+        documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
 
         # Should return empty list since no files are converted
         assert documents == []
@@ -111,7 +109,7 @@ class TestUploadedFileRetrieverIntegration:
         invocation_context = {"file_metadata": [file_metadata.model_dump()]}
 
         retriever = UploadedFileRetriever()
-        documents = await retriever.retrieve_documents(invocation_context)
+        documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
 
         # Should return empty list since conversion path is missing
         assert documents == []
@@ -135,8 +133,8 @@ class TestUploadedFileRetrieverIntegration:
 
         # Should handle gracefully - either skip the file or raise DocumentRetrievalError
         # Implementation will determine exact behavior
-        await retriever.retrieve_documents(invocation_context)
-        # Could be empty list (graceful skip) or raise DocumentRetrievalError
+        async for _ in retriever.retrieve_documents(invocation_context):
+            pass  # May yield nothing or raise an exception
 
     @pytest.mark.asyncio
     async def test_empty_invocation_context(self) -> None:
@@ -144,11 +142,11 @@ class TestUploadedFileRetrieverIntegration:
         retriever = UploadedFileRetriever()
 
         # Empty context
-        documents = await retriever.retrieve_documents({})
+        documents = [doc async for doc in retriever.retrieve_documents({})]
         assert documents == []
 
         # Context with empty file_metadata
-        documents = await retriever.retrieve_documents({"file_metadata": []})
+        documents = [doc async for doc in retriever.retrieve_documents({"file_metadata": []})]
         assert documents == []
 
     @pytest.mark.asyncio
@@ -187,7 +185,7 @@ class TestUploadedFileRetrieverIntegration:
             invocation_context = {"file_metadata": [file_metadata_1.model_dump(), file_metadata_2.model_dump()]}
 
             retriever = UploadedFileRetriever()
-            documents = await retriever.retrieve_documents(invocation_context)
+            documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
 
             # Should return both documents
             assert len(documents) == 2
@@ -227,7 +225,7 @@ class TestUploadedFileRetrieverIntegration:
 
             # Create retriever - it should internally use FileManager
             retriever = UploadedFileRetriever()
-            documents = await retriever.retrieve_documents(invocation_context)
+            documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
 
             assert len(documents) == 1
             doc = documents[0]

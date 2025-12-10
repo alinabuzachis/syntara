@@ -6,6 +6,7 @@ implementations must follow for consistent integration with RetrieverService.
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from typing import Any
 
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
@@ -36,7 +37,7 @@ class DocumentRetriever(ABC):
     """
 
     @abstractmethod
-    async def retrieve_documents(self, invocation_context: dict[str, Any]) -> list[RelevantDocument]:
+    def retrieve_documents(self, invocation_context: dict[str, Any]) -> AsyncIterator[RelevantDocument]:
         """Retrieve documents from storage backend for the given invocation context.
 
         This method accesses the storage backend and returns documents as RelevantDocument
@@ -47,8 +48,8 @@ class DocumentRetriever(ABC):
                               and other relevant information for document retrieval
 
         Returns:
-            List of RelevantDocument objects retrieved from this storage backend.
-            Returns empty list if no documents are found or accessible.
+            AsyncIterator that yields RelevantDocument objects retrieved from this storage backend.
+            Yields nothing if no documents are found or accessible.
 
         Raises:
             DocumentRetrievalError: If retrieval fails due to storage backend issues
@@ -67,8 +68,9 @@ class DocumentRetriever(ABC):
 
         Example:
             ```python
-            async def retrieve_documents(self, invocation_context: dict[str, Any]) -> list[RelevantDocument]:
-                documents = []
+            async def retrieve_documents(
+                self, invocation_context: dict[str, Any]
+            ) -> AsyncIterator[RelevantDocument]:
                 file_metadata_list = invocation_context.get("file_metadata", [])
 
                 for file_metadata_dict in file_metadata_list:
@@ -88,9 +90,7 @@ class DocumentRetriever(ABC):
                             "backend_version": "1.0"
                         }
                     )
-                    documents.append(document)
-
-                return documents
+                    yield document
             ```
 
         """

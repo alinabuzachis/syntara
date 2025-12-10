@@ -67,7 +67,7 @@ class GenericAgent(BaseAgent):
         response = await self.llm.ainvoke(messages)
 
         # Extract content from response as a string
-        answer = response.text
+        answer = str(response.text)
 
         # Handle empty response
         if not answer or not answer.strip():

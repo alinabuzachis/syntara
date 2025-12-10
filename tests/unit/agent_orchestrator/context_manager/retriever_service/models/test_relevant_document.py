@@ -2,8 +2,6 @@
 
 This module tests the validation behavior and functionality of the RelevantDocument
 model, ensuring proper data validation and error handling.
-
-These tests follow TDD - they MUST FAIL initially since RelevantDocument doesn't exist yet.
 """
 
 from uuid import uuid4

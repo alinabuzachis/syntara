@@ -115,3 +115,5 @@ class RetrieverServiceDefaults:
 
     # General Retriever Configuration
     CONTEXT_WINDOW_SIZE = 2000
+    DEFAULT_RELEVANCY_SCORE = 0.5  # Default neutral score when relevancy checking fails
+    CONCURRENT_RELEVANCY_CHECK_LIMIT = 10  # Maximum concurrent relevancy checks

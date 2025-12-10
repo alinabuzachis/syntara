@@ -2,8 +2,6 @@
 
 This module tests the validation behavior and functionality of the RelevancyConfiguration
 model, ensuring proper data validation and error handling.
-
-These tests follow TDD - they MUST FAIL initially since RelevancyConfiguration doesn't exist yet.
 """
 
 import pytest

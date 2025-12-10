@@ -2,10 +2,9 @@
 
 This module tests the functionality of RetrieverRegistry,
 ensuring proper registration, retrieval, and error handling for document retrievers.
-
-These tests follow TDD - they MUST FAIL initially since the registry classes don't exist yet.
 """
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest
@@ -16,13 +15,20 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_
 from nexus.agent_orchestrator.context_manager.retriever_service.registries.retriever_registry import RetrieverRegistry
 
 
+async def _empty_async_iterator() -> AsyncIterator[RelevantDocument]:
+    """Return empty async iterator."""
+    _empty: list[RelevantDocument] = []
+    for d in _empty:
+        yield d
+
+
 # Mock implementations for testing
 class MockDocumentRetriever(DocumentRetriever):
     """Mock DocumentRetriever for testing."""
 
-    async def retrieve_documents(self, _invocation_context: dict[str, Any]) -> list[RelevantDocument]:
+    def retrieve_documents(self, _invocation_context: dict[str, Any]) -> AsyncIterator[RelevantDocument]:
         """Retrieve mock documents."""
-        return []
+        return _empty_async_iterator()
 
 
 class TestRetrieverRegistry:
@@ -73,8 +79,8 @@ class TestRetrieverRegistry:
         registry = RetrieverRegistry()
 
         class AnotherMockRetriever(DocumentRetriever):
-            async def retrieve_documents(self, _invocation_context: dict[str, Any]) -> list[RelevantDocument]:
-                return []
+            def retrieve_documents(self, _invocation_context: dict[str, Any]) -> AsyncIterator[RelevantDocument]:
+                return _empty_async_iterator()
 
         registry.register_retriever("mock1", MockDocumentRetriever)
         registry.register_retriever("mock2", AnotherMockRetriever)

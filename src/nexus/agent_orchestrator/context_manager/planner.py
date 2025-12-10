@@ -11,7 +11,7 @@ from collections.abc import AsyncGenerator, Callable
 from uuid import UUID
 
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
@@ -21,7 +21,7 @@ from nexus.core.config import get_settings
 from .assembler import AssemblerService
 from .compressor import CompressorService
 from .models import ContextPackage
-from .retriever import RetrieverService
+from .retriever_service.services import RetrieverService, get_retriever_service
 
 logger = logging.getLogger(__name__)
 
@@ -33,16 +33,24 @@ class ContextManagerPlanner:
     handles errors gracefully while maintaining correlation_id tracing.
     """
 
-    def __init__(self, session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] = get_db) -> None:
+    def __init__(
+        self,
+        session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] = get_db,
+        retriever_service_factory: Callable[
+            [Callable[[], AsyncGenerator[AsyncSession, None]]], RetrieverService
+        ] = get_retriever_service,
+    ) -> None:
         """Initialize the context manager planner.
 
         Args:
             session_factory: Session factory for cancellation checks. Defaults to get_db.
+            retriever_service_factory: Factory function for creating RetrieverService
 
         """
         self.settings = get_settings()
         self.session_factory = session_factory
         self.get_async_session_context = contextlib.asynccontextmanager(session_factory)
+        self.retriever_service_factory = retriever_service_factory
 
     async def _check_cancellation(self, invocation_id: UUID, phase: str) -> None:
         """Check if invocation has been cancelled.
@@ -112,17 +120,20 @@ class ContextManagerPlanner:
             await self._check_cancellation(invocation_id, "retrieval")
 
         retrieval_start = time.time()
+        retrieved_docs = []
         try:
-            retriever = RetrieverService()
-            # TODO: Use actual retrieved documents once RetrieverService is fully implemented  # noqa: TD002, TD003
-            retriever.retrieve(query, correlation_id)  # Stub method returns None
-            retrieved_docs = None  # MVP: stub returns None
+            retriever = self.retriever_service_factory(self.session_factory)
+            retrieved_docs = await retriever.retrieve_relevant_documents(invocation_id, query)
             timing_data["retrieval_time_ms"] = int((time.time() - retrieval_start) * 1000)
-            logger.info("Retrieval phase completed in %sms", timing_data["retrieval_time_ms"])
+            logger.info(
+                "Retrieval phase completed in %sms with %d documents",
+                timing_data["retrieval_time_ms"],
+                len(retrieved_docs),
+            )
         except Exception:
             timing_data["retrieval_time_ms"] = int((time.time() - retrieval_start) * 1000)
             logger.exception("Retrieval phase failed")
-            retrieved_docs = None
+            retrieved_docs = []
 
         # Phase 2: Compression
         # Check for cancellation before starting compression
@@ -137,10 +148,10 @@ class ContextManagerPlanner:
             # Only compress if we have retrieved documents (currently stub returns None)
             # NOTE: This block is currently unreachable because retriever stub returns None
             # This will be reached once retriever service is implemented
-            if retrieved_docs is not None and len(retrieved_docs) > 0:  # type: ignore[unreachable]
+            if retrieved_docs is not None and len(retrieved_docs) > 0:
                 # For now, use a default token budget from config
                 # In a real implementation, this might be passed from the request
-                max_tokens = self.settings.context_manager_max_total_tokens  # type: ignore[unreachable]
+                max_tokens = self.settings.context_manager_max_total_tokens
 
                 # Convert retrieved docs to simple string format
                 # This is a placeholder - actual implementation depends on retriever output format

@@ -2,8 +2,6 @@
 
 This module tests the integration between LLMRelevancyChecker and OpenRouter LLM,
 ensuring proper relevancy scoring with real LLM calls.
-
-These tests follow TDD - they MUST FAIL initially since LLMRelevancyChecker doesn't exist yet.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch

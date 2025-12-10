@@ -1,10 +1,12 @@
 """Unit tests for Context Manager Planner.
 
 This module tests the ContextManagerPlanner orchestration logic
-and ensures proper workflow execution and error handling.
+and ensures proper workflow execution and error handling with the
+new RetrieverService framework.
 """
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 import pytest
 
@@ -23,20 +25,21 @@ class TestContextManagerPlanner:
 
         assert planner.settings is not None
         assert hasattr(planner.settings, "context_manager_required_grounding_score")
-        assert planner.settings.context_manager_required_grounding_score == 0.7
+        assert planner.settings.context_manager_required_grounding_score == pytest.approx(0.7)
 
     @pytest.mark.asyncio
     async def test_plan_request_successful_workflow(self) -> None:
         """Test plan_request executes the full workflow successfully."""
-        planner = ContextManagerPlanner()
+        # Mock the new RetrieverService
+        mock_retrieve_service = AsyncMock()
+        mock_retrieve_service.retrieve_relevant_documents.return_value = []
 
         # For parallel execution, we need to directly verify behavior rather than log capture
         # since caplog has issues with pytest-xdist worker processes
         service_calls: list[str] = []
 
-        def mock_retrieve(query: str, correlation_id: str) -> None:
-            service_calls.append(f"retrieve:{correlation_id}:{query}")
-            # Stub returns None as per current implementation
+        def mock_retriever_factory(session_factory) -> AsyncMock:
+            return mock_retrieve_service
 
         def mock_compress(
             data: object,
@@ -51,10 +54,9 @@ class TestContextManagerPlanner:
         def mock_assemble(sections: object, correlation_id: str) -> None:
             service_calls.append(f"assemble:{correlation_id}")
 
+        planner = ContextManagerPlanner(retriever_service_factory=mock_retriever_factory)
+
         with (
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.RetrieverService.retrieve", side_effect=mock_retrieve
-            ),
             patch(
                 "nexus.agent_orchestrator.context_manager.planner.CompressorService.compress", side_effect=mock_compress
             ),
@@ -69,7 +71,7 @@ class TestContextManagerPlanner:
         # Verify return type and structure
         assert isinstance(result, ContextPackage)
         assert result.correlation_id == "test-run-123"
-        assert result.grounding_score == 0.0  # MVP default
+        assert result.grounding_score == pytest.approx(0.0)  # MVP default
         assert result.payload == {}  # MVP empty
         assert result.citations == []  # MVP empty
         assert result.id is not None  # UUID generated
@@ -88,10 +90,12 @@ class TestContextManagerPlanner:
         assert result.correlation_id == "test-run-123"
 
         # Verify all services were called through mock tracking
-        assert "retrieve:test-run-123:test query" in service_calls
         # Compression is skipped when retrieved_docs is None (current stub behavior)
         assert "compress:test-run-123" not in service_calls
         assert "assemble:test-run-123" in service_calls
+
+        # Verify RetrieverService.retrieve_relevant_documents was called
+        mock_retrieve_service.retrieve_relevant_documents.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_plan_request_with_different_parameters(self) -> None:
@@ -135,32 +139,40 @@ class TestContextManagerPlanner:
     @pytest.mark.asyncio
     async def test_plan_request_with_service_exceptions(self) -> None:
         """Test plan_request handles service exceptions gracefully."""
-        planner = ContextManagerPlanner()
-
         # Mock services to raise exceptions
+        mock_retrieve_service = AsyncMock()
+        mock_retrieve_service.retrieve_relevant_documents.side_effect = Exception("Retrieval failed")
+
+        def mock_retriever_factory(session_factory) -> AsyncMock:
+            return mock_retrieve_service
+
+        planner = ContextManagerPlanner(retriever_service_factory=mock_retriever_factory)
+
         with (
-            patch("nexus.agent_orchestrator.context_manager.planner.RetrieverService.retrieve") as mock_retrieve,
             patch("nexus.agent_orchestrator.context_manager.planner.CompressorService.compress") as mock_compress,
             patch("nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble") as mock_assemble,
         ):
-            mock_retrieve.side_effect = Exception("Retrieval failed")
             mock_compress.side_effect = Exception("Compression failed")
             mock_assemble.side_effect = Exception("Assembly failed")
 
             # Should not raise exception despite service failures
             result = await planner.plan_request(
-                correlation_id="error-test", session_id="test-session", query="error query"
+                correlation_id="error-test",
+                session_id="test-session",
+                query="error query",
+                invocation_id=UUID("12345678-1234-5678-1234-567812345678"),
             )
 
             # Verify planner still returns a result despite errors
             assert isinstance(result, ContextPackage)
             assert result.correlation_id == "error-test"
 
-            # Verify retriever and assembler were called (retrieval fails, so compression may not be called)
-            assert mock_retrieve.called
             # Compression is only called if retrieval succeeds and returns documents
             # In this test, retrieval fails, so compression is skipped - this is correct behavior
             assert mock_assemble.called
+
+            # Verify RetrieverService.retrieve_relevant_documents was called
+            mock_retrieve_service.retrieve_relevant_documents.assert_called_once()
 
             # Verify timing metadata still recorded
             assert "retrieval_time_ms" in result.package_metadata
@@ -182,7 +194,7 @@ class TestContextManagerPlanner:
 
         assert "required_grounding_score" in config_used
         assert "max_total_tokens" in config_used
-        assert config_used["required_grounding_score"] == 0.7
+        assert config_used["required_grounding_score"] == pytest.approx(0.7)
         assert config_used["max_total_tokens"] == 4000
 
     def test_context_package_model_validation(self) -> None:
@@ -198,7 +210,7 @@ class TestContextManagerPlanner:
 
         assert package.correlation_id == "validation-test"
         assert package.payload == {"test": "data"}
-        assert package.grounding_score == 0.5
+        assert package.grounding_score == pytest.approx(0.5)
         assert len(package.citations) == 1
         # Check the expected metadata
         assert "key" in package.package_metadata
@@ -209,10 +221,10 @@ class TestContextManagerPlanner:
         """Test ContextPackage grounding score validation bounds."""
         # Test valid grounding scores
         package1 = ContextPackage(correlation_id="test", grounding_score=0.0)
-        assert package1.grounding_score == 0.0
+        assert package1.grounding_score == pytest.approx(0.0)
 
         package2 = ContextPackage(correlation_id="test", grounding_score=1.0)
-        assert package2.grounding_score == 1.0
+        assert package2.grounding_score == pytest.approx(1.0)
 
         # Test invalid grounding scores (should be caught by pydantic validation)
         with pytest.raises(Exception, match=r"ensure this value is greater than or equal to|validation error"):

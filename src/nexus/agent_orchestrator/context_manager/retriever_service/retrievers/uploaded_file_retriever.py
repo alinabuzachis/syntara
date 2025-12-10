@@ -4,8 +4,9 @@ This module provides the UploadedFileRetriever implementation that retrieves
 documents from uploaded files using the existing FileManager infrastructure.
 """
 
+import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -25,9 +26,10 @@ class UploadedFileRetriever(DocumentRetriever):
 
     The retriever:
     - Extracts file_metadata from invocation context
+    - Processes files in parallel using async tasks
     - Uses FileManager to get appropriate retriever for each file
     - Loads converted document content from storage
-    - Creates RelevantDocument objects with proper metadata
+    - Yields RelevantDocument objects as they're processed
     - Handles errors gracefully and logs appropriate messages
 
     Integration with FileManager:
@@ -51,7 +53,9 @@ class UploadedFileRetriever(DocumentRetriever):
             ]
         }
 
-        documents = await retriever.retrieve_documents(invocation_context)
+        async for document in retriever.retrieve_documents(invocation_context):
+            # Process each document as it's retrieved
+            print(f"Retrieved: {document.file_metadata.filename}")
         ```
     """
 
@@ -65,67 +69,77 @@ class UploadedFileRetriever(DocumentRetriever):
         self.file_manager = file_manager_factory()
         logger.debug("Initialized UploadedFileRetriever with FileManager")
 
-    async def retrieve_documents(self, invocation_context: dict[str, Any]) -> list[RelevantDocument]:
-        """Retrieve documents from uploaded files in the invocation context.
+    def retrieve_documents(self, invocation_context: dict[str, Any]) -> AsyncIterator[RelevantDocument]:
+        """Stream documents from uploaded files in the invocation context.
 
         This method extracts file metadata from the invocation context and loads
         the content of converted files using the FileManager infrastructure.
+        Files are processed in parallel and yielded as soon as they're ready.
 
         Args:
             invocation_context: Context data from the invocation containing file_metadata
                               and other relevant information
 
         Returns:
-            List of RelevantDocument objects retrieved from uploaded files.
-            Returns empty list if no converted files are found or accessible.
+            AsyncIterator that yields RelevantDocument objects retrieved from uploaded files.
+            Yields nothing if no converted files are found or accessible.
 
         Raises:
             DocumentRetrievalError: If retrieval fails due to storage backend issues
 
         Implementation Steps:
             1. Extract file_metadata list from invocation context
-            2. Filter for converted files with valid conversion paths
-            3. For each converted file:
-               - Get appropriate storage retriever via FileManager
-               - Load converted document content
-               - Create RelevantDocument with metadata
-            4. Handle errors gracefully (log and continue with other files)
-            5. Return all successfully retrieved documents
+            2. Create concurrent tasks for each file
+            3. Process files in parallel using asyncio.as_completed
+            4. Yield documents as they become available
+            5. Handle errors gracefully (log and continue with other files)
 
         """
-        logger.debug("Starting document retrieval from uploaded files")
+        return self._retrieve_documents_impl(invocation_context)
+
+    async def _retrieve_documents_impl(self, invocation_context: dict[str, Any]) -> AsyncIterator[RelevantDocument]:
+        """Implement streaming document retrieval."""
+        logger.debug("Starting streaming document retrieval from uploaded files")
 
         # Extract file metadata from context
         file_metadata_list = invocation_context.get("file_metadata", [])
         if not file_metadata_list:
             logger.info("No file metadata found in invocation context")
-            return []
+            return
 
-        logger.info("Found %d files in invocation context", len(file_metadata_list))
+        logger.info("Found %d files in invocation context, processing in parallel", len(file_metadata_list))
 
-        documents: list[RelevantDocument] = []
+        # Create tasks for parallel processing
+        tasks = [
+            asyncio.create_task(self._process_single_file(file_metadata_dict))
+            for file_metadata_dict in file_metadata_list
+        ]
+
         processed_count = 0
         skipped_count = 0
         error_count = 0
 
-        for file_metadata_dict in file_metadata_list:
-            document, status = await self._process_single_file(file_metadata_dict)
-            if document:
-                documents.append(document)
-                processed_count += 1
-            elif status == "skipped":
-                skipped_count += 1
-            elif status == "error":
+        # Process files as they complete
+        for completed_task in asyncio.as_completed(tasks):
+            try:
+                document, status = await completed_task
+                if document:
+                    processed_count += 1
+                    yield document
+                elif status == "skipped":
+                    skipped_count += 1
+                elif status == "error":
+                    error_count += 1
+            except Exception:
+                logger.exception("Unexpected error in file processing task")
                 error_count += 1
 
         logger.info(
-            "Document retrieval completed: %d processed, %d skipped, %d errors",
+            "Streaming document retrieval completed: %d processed, %d skipped, %d errors",
             processed_count,
             skipped_count,
             error_count,
         )
-
-        return documents
 
     async def _process_single_file(self, file_metadata_dict: dict[str, Any]) -> tuple[RelevantDocument | None, str]:
         """Process a single file and return document and status.
