@@ -1,7 +1,6 @@
 """Unit tests for Context Manager service components.
 
-This module tests the individual service classes (RetrieverService,
-CompressorService, AssemblerService) to ensure proper stub behavior.
+This module tests the individual service classes (CompressorService, AssemblerService) to ensure proper stub behavior.
 """
 
 from unittest.mock import AsyncMock, Mock
@@ -9,32 +8,8 @@ from unittest.mock import AsyncMock, Mock
 from nexus.agent_orchestrator.context_manager import (
     AssemblerService,
     CompressorService,
-    RetrieverService,
 )
 from nexus.core.config import get_settings
-
-
-class TestRetrieverService:
-    """Test the RetrieverService stub implementation."""
-
-    def test_retriever_initialization(self) -> None:
-        """Test RetrieverService initializes correctly."""
-        service = RetrieverService()
-        assert service is not None
-
-    def test_retrieve_method_call(self) -> None:
-        """Test retrieve method executes and returns None."""
-        service = RetrieverService()
-
-        # Method should execute without raising exception
-        service.retrieve("test query", "test-correlation-456")
-
-    def test_retrieve_with_different_parameters(self) -> None:
-        """Test retrieve method with different parameter values."""
-        service = RetrieverService()
-
-        # Method should execute without raising exception
-        service.retrieve("different query", "different-correlation")
 
 
 class TestCompressorService:

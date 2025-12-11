@@ -57,7 +57,7 @@ This quickstart validates that the Context Manager MVP scaffolding successfully 
 **Steps**:
 1. Test retriever service in isolation:
    ```python
-   from nexus.agent_orchestrator.context_manager.retriever import RetrieverService
+   from nexus.agent_orchestrator.context_manager.retriever_service.services import RetrieverService
 
    retriever = RetrieverService()
    result = retriever.retrieve("test-run", "tenant", "query")
