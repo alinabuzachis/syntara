@@ -25,10 +25,6 @@ vi.mock('wouter', () => ({
   useParams: () => ({ provider_id: 'provider-1' }),
 }))
 
-vi.mock('../../../components/chat/ChatInput', () => ({
-  ChatInput: () => <div data-testid="chat-input">Chat Input</div>,
-}))
-
 // Create a QueryClient instance
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -179,12 +175,6 @@ describe('IntegrationTools Component', () => {
       expect(screen.getByText('First test tool')).toBeInTheDocument()
       expect(screen.getByText('Second test tool')).toBeInTheDocument()
       expect(screen.getByText('Third test tool with longer description')).toBeInTheDocument()
-    })
-
-    it('renders ChatInput component', () => {
-      render(<IntegrationTools />, { wrapper })
-
-      expect(screen.getByTestId('chat-input')).toBeInTheDocument()
     })
 
     it('displays correct item count', () => {

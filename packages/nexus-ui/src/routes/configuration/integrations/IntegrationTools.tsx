@@ -1,6 +1,21 @@
 import type { Tool } from '@ansible/nexus-contracts'
-import { Button, ConfirmDialog, EmptyStateNoData, Form, useAlerts } from '@ansible/nexus-ui-framework'
-import { RefreshCwIcon } from 'lucide-react'
+import { useAlerts } from '@ansible/nexus-ui-framework'
+import {
+  Button,
+  Card,
+  CardBody,
+  Content,
+  ContentVariants,
+  Flex,
+  FlexItem,
+  Form,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  SearchInput,
+  Title,
+} from '@patternfly/react-core'
 import { useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 
@@ -8,7 +23,6 @@ import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute.tsx'
 import { toolProvidersClient, toolsClient } from '../../../client'
-import { ChatInput } from '../../../components/chat/ChatInput'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { StringCell } from '../../../components/table/StringCell'
 import { Table } from '../../../components/table/Table'
@@ -93,12 +107,12 @@ export default function IntegrationTools() {
   return (
     <AppPage>
       <AppPageHeader title={`${provider?.name} tools`}>
-        <div className="grow" />
-        <input
-          className="search grow"
+        <SearchInput
           placeholder="Search tools..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(_event, value) => setSearch(value)}
+          onClear={() => setSearch('')}
+          style={{ width: '250px' }}
         />
         <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
           Refresh tools
@@ -112,8 +126,8 @@ export default function IntegrationTools() {
       </AppPageHeader>
       <Form
         id="tools-form"
-        onSubmit={() => {
-          //e.preventDefault()
+        onSubmit={(e) => {
+          e.preventDefault()
           void handleSubmit()
         }}
         className="flex grow flex-col overflow-hidden"
@@ -149,28 +163,62 @@ export default function IntegrationTools() {
             },
           ]}
           emptyState={
-            <EmptyStateNoData
-              title="No tools available"
-              description={`No tools found for "${provider?.name}". Click the button below to refresh and fetch the latest tools from this integration.`}
-              buttonText="Refresh tools"
-              icon={RefreshCwIcon}
-              addData={handleRefreshTools}
-            />
+            <Card isPlain className="glass" isFullHeight>
+              <CardBody>
+                <Flex
+                  alignItems={{ default: 'alignItemsCenter' }}
+                  gap={{ default: 'gap4xl' }}
+                  flexWrap={{ default: 'nowrap' }}
+                >
+                  <FlexItem>
+                    <img
+                      src="/src/assets/collage-circle-sparkles-window-server-dark-RH.png"
+                      alt="No tools available"
+                      style={{ maxWidth: '320px', height: 'auto', objectFit: 'contain' }}
+                    />
+                  </FlexItem>
+                  <FlexItem>
+                    <Flex
+                      direction={{ default: 'column' }}
+                      alignItems={{ default: 'alignItemsFlexStart' }}
+                      gap={{ default: 'gapMd' }}
+                    >
+                      <Title headingLevel="h2" size="lg">
+                        No tools available
+                      </Title>
+                      <Content component={ContentVariants.p}>
+                        No tools found for "{provider?.name}". Click the button below to refresh and fetch the latest
+                        tools from this integration.
+                      </Content>
+                      <Button variant="primary" onClick={handleRefreshTools}>
+                        Refresh tools
+                      </Button>
+                    </Flex>
+                  </FlexItem>
+                </Flex>
+              </CardBody>
+            </Card>
           }
           onSelectionChange={(selected) => {
             setEnabledTools(selected)
           }}
         />
       </Form>
-      <ChatInput />
-      <ConfirmDialog
-        open={refreshDialogOpen}
-        onOpenChange={setRefreshDialogOpen}
-        title="Refresh tools"
-        description={`Are you sure you want to refresh tools for "${provider?.name}"? This will fetch the latest tools from the integration.`}
-        confirmLabel="Refresh"
-        onConfirm={handleRefreshTools}
-      />
+      <Modal isOpen={refreshDialogOpen} onClose={() => setRefreshDialogOpen(false)} variant="small">
+        <ModalHeader title="Refresh tools" />
+        <ModalBody>
+          Are you sure you want to refresh tools for "{provider?.name}"? This will fetch the latest tools from the
+          integration.
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="primary" onClick={handleRefreshTools}>
+            Refresh
+          </Button>
+          <Button variant="link" onClick={() => setRefreshDialogOpen(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
     </AppPage>
   )
 }
