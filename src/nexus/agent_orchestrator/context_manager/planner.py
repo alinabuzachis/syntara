@@ -19,7 +19,7 @@ from nexus.api.db.session import get_db
 from nexus.core.config import get_settings
 
 from .assembler import AssemblerService
-from .compressor import CompressorService
+from .compressor import CompressorService, get_compressor_service
 from .models import ContextPackage
 from .retriever_service.services import RetrieverService, get_retriever_service
 
@@ -39,18 +39,21 @@ class ContextManagerPlanner:
         retriever_service_factory: Callable[
             [Callable[[], AsyncGenerator[AsyncSession, None]]], RetrieverService
         ] = get_retriever_service,
+        compressor_service_factory: Callable[[], CompressorService] = get_compressor_service,
     ) -> None:
         """Initialize the context manager planner.
 
         Args:
             session_factory: Session factory for cancellation checks. Defaults to get_db.
             retriever_service_factory: Factory function for creating RetrieverService
+            compressor_service_factory: Factory function for creating CompressorService
 
         """
         self.settings = get_settings()
         self.session_factory = session_factory
         self.get_async_session_context = contextlib.asynccontextmanager(session_factory)
         self.retriever_service_factory = retriever_service_factory
+        self.compressor_service_factory = compressor_service_factory
 
     async def _check_cancellation(self, invocation_id: UUID, phase: str) -> None:
         """Check if invocation has been cancelled.
@@ -142,7 +145,7 @@ class ContextManagerPlanner:
 
         compression_start = time.time()
         try:
-            compressor = CompressorService()
+            compressor = self.compressor_service_factory()
             compressed_content = None
 
             # Only compress if we have retrieved documents (currently stub returns None)

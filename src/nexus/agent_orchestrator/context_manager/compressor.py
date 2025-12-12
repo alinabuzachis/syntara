@@ -220,3 +220,19 @@ Goal: {goal_text}"""
             )
 
         return compressed_content
+
+
+# ===================================================
+# Generator for dependency injection
+# ---------------------------------------------------
+def get_compressor_service() -> CompressorService:
+    """Get CompressorService instance for dependency injection.
+
+    Returns:
+        CompressorService instance for dependency injection
+
+    """
+    return CompressorService()
+
+
+# ===================================================
