@@ -1,5 +1,6 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { ConfirmDialog, useAlerts, Input, Button } from '@ansible/nexus-ui-framework'
+import { useAlerts } from '@ansible/nexus-ui-framework'
+import { Button, Modal, ModalBody, ModalFooter, ModalHeader, SearchInput } from '@patternfly/react-core'
 import { PlayIcon, ListIcon, PencilAltIcon } from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
@@ -88,11 +89,12 @@ export default function Automations() {
   return (
     <AppPage>
       <AppPageHeader title="Automations">
-        <Input
-          className="search flex-1"
+        <SearchInput
           placeholder="Search automations..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(_event, value) => setSearch(value)}
+          onClear={() => setSearch('')}
+          style={{ width: '250px' }}
         />
         <Button variant="primary" onClick={() => setLocation('/automation-builder/new')}>
           Create Automation
@@ -150,24 +152,29 @@ export default function Automations() {
           },
         ]}
       />
-      <ConfirmDialog
-        open={confirmDialogOpen}
-        onOpenChange={setConfirmDialogOpen}
-        title={`Run ${selectedWorkflow?.name}?`}
-        description={
-          <>
-            You are about to manually run this automation. This action will start the automation immediately, bypassing
-            its normal trigger conditions.
-          </>
-        }
-        confirmLabel="Run now"
-        cancelLabel="Cancel"
-        onConfirm={() => {
-          if (selectedWorkflow) {
-            handleRunAutomation(selectedWorkflow)
-          }
-        }}
-      />
+      <Modal isOpen={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} variant="small">
+        <ModalHeader title={`Run ${selectedWorkflow?.name}?`} />
+        <ModalBody>
+          You are about to manually run this automation. This action will start the automation immediately, bypassing
+          its normal trigger conditions.
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="primary"
+            onClick={() => {
+              if (selectedWorkflow) {
+                handleRunAutomation(selectedWorkflow)
+              }
+              setConfirmDialogOpen(false)
+            }}
+          >
+            Run now
+          </Button>
+          <Button variant="link" onClick={() => setConfirmDialogOpen(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
     </AppPage>
   )
 }
