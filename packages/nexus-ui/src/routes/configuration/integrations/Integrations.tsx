@@ -37,7 +37,6 @@ import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { toolProvidersClient } from '../../../client'
-import { ChatInput } from '../../../components/chat/ChatInput'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { StringCell } from '../../../components/table/StringCell'
 import { Table, type IRowAction } from '../../../components/table/Table'
@@ -338,7 +337,6 @@ export default function Integrations() {
           </Gallery>
         </Card>
       )}
-      <ChatInput />
       <Modal isOpen={validateDialogOpen} onClose={() => setValidateDialogOpen(false)} variant="small">
         <ModalHeader title="Validate integration" />
         <ModalBody>Are you sure you want to validate the connection for "{providerToValidate?.name}"?</ModalBody>

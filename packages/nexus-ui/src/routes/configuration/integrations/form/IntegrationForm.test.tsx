@@ -19,10 +19,6 @@ vi.mock('wouter/use-browser-location', () => ({
   navigate: vi.fn(),
 }))
 
-vi.mock('../../../../components/chat/ChatInput', () => ({
-  ChatInput: () => <div data-testid="chat-input">Chat Input</div>,
-}))
-
 // Create a QueryClient instance
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -124,9 +120,6 @@ describe('IntegrationForm Component', () => {
       // Action buttons
       expect(screen.getByText('Add integration')).toBeInTheDocument()
       expect(screen.getByText('Cancel')).toBeInTheDocument()
-
-      // ChatInput component
-      expect(screen.getByTestId('chat-input')).toBeInTheDocument()
 
       // Grid layout
       const gridContainer = container.querySelector('.grid.grow')

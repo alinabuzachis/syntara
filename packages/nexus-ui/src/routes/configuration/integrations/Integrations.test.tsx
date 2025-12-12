@@ -20,10 +20,6 @@ vi.mock('wouter', () => ({
   useLocation: () => ['/configuration/integrations', vi.fn()],
 }))
 
-vi.mock('../../../components/chat/ChatInput', () => ({
-  ChatInput: () => <div data-testid="chat-input">Chat Input</div>,
-}))
-
 // Create a QueryClient instance
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -134,12 +130,6 @@ describe('Integrations Component', () => {
       expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
       expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
       expect(screen.getByText('Development Server')).toBeInTheDocument()
-    })
-
-    it('renders ChatInput component', () => {
-      render(<Integrations />, { wrapper })
-
-      expect(screen.getByTestId('chat-input')).toBeInTheDocument()
     })
   })
 

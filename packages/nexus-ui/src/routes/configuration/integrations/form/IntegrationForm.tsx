@@ -7,7 +7,6 @@ import { AppPage } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import { toolProvidersClient } from '../../../../client'
-import { ChatInput } from '../../../../components/chat/ChatInput'
 
 export function IntegrationForm() {
   const { mutate: createIntegration } = toolProvidersClient.useMutation('post', '/tool-providers')
@@ -71,7 +70,6 @@ export function IntegrationForm() {
           <FormInput<ToolProvider> label="API key" name="configuration.api_key" placeholder="Enter API key" />
         </Form>
       </Scrollable>
-      <ChatInput />
     </AppPage>
   )
 }
