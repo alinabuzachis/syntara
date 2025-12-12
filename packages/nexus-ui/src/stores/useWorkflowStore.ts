@@ -24,7 +24,7 @@ interface WorkflowStore {
   addActivity: (activity: Activity) => void
   removeActivity: (activityId: string) => void
   updateActivity: (activityId: string, updates: Partial<Activity>) => void
-  syncConvergeBranches: () => void
+  syncConvergeNodeBranches: () => void
   moveActivityBefore: (activityId: string, beforeActivityId: string) => void
   moveActivityAfter: (activityId: string, afterActivityId: string) => void
   reorderActivitiesFromEdges: () => void
@@ -189,83 +189,9 @@ function updateActivityInList(activities: Activity[], activityId: string, update
 }
 
 // ============================================================================
-// Helper functions for syncConvergeBranches
+// Helper functions for syncConvergeNodeBranches
 // ============================================================================
-
-/**
- * Remove a parallel container and restore its branches to the main activities array
- */
-function removeParallelAndRestoreBranches(
-  activities: Activity[],
-  parallelId: string,
-  convergeActivityId: string
-): Activity[] {
-  const parallelIndex = activities.findIndex((a) => a.id === parallelId)
-  if (parallelIndex === -1) return activities
-
-  const parallelActivity = activities[parallelIndex] as Extract<Activity, { type: 'parallel' }>
-  const parallelBranches = parallelActivity.branches || []
-
-  // Remove the parallel activity
-  const result = activities.filter((a) => a.id !== parallelId)
-
-  // Add back the activities that were in the parallel (before the converge)
-  if (parallelBranches.length > 0) {
-    const convergeIndex = result.findIndex((a) => a.id === convergeActivityId)
-    if (convergeIndex !== -1) {
-      result.splice(convergeIndex, 0, ...parallelBranches)
-    } else {
-      result.push(...parallelBranches)
-    }
-  }
-
-  return result
-}
-
-/**
- * Insert activities before a converge activity
- */
-function insertActivitiesBeforeConverge(
-  activities: Activity[],
-  activitiesToInsert: Activity[],
-  convergeActivityId: string
-): Activity[] {
-  if (activitiesToInsert.length === 0) return activities
-
-  const result = [...activities]
-  const convergeIndex = result.findIndex((a) => a.id === convergeActivityId)
-
-  if (convergeIndex !== -1) {
-    result.splice(convergeIndex, 0, ...activitiesToInsert)
-  } else {
-    result.push(...activitiesToInsert)
-  }
-
-  return result
-}
-
-/**
- * Update a converge activity's branches
- */
-function updateConvergeBranches(activities: Activity[], convergeActivity: Activity, branchIds: string[]): Activity[] {
-  const existing = convergeActivity as Extract<Activity, { type: 'converge' }>
-  const updatedConverge: Extract<Activity, { type: 'converge' }> = {
-    ...existing,
-    converge: {
-      ...existing.converge,
-      branches: branchIds,
-    },
-  }
-
-  const convergeIndex = activities.findIndex((a) => a.id === convergeActivity.id)
-  if (convergeIndex !== -1) {
-    const result = [...activities]
-    result[convergeIndex] = updatedConverge
-    return result
-  }
-
-  return activities
-}
+// (No helper functions needed - simplified implementation)
 
 // ============================================================================
 // Zustand Store
@@ -412,102 +338,29 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
     })
   },
 
-  syncConvergeBranches: () => {
+  syncConvergeNodeBranches: () => {
     set((state) => {
       if (!state.currentWorkflow) return state
 
-      // Process all converge activities and restructure the workflow
-      let activities = [...state.currentWorkflow.workflow.activities]
+      const activities = [...state.currentWorkflow.workflow.activities]
       const convergeActivities = activities.filter((a) => a.type === 'converge')
 
       for (const convergeActivity of convergeActivities) {
-        const parallelId = `parallel_for_${convergeActivity.id}`
-
         // Find all edges that target this converge activity
         const incomingEdges = state.edges.filter((edge) => edge.target === convergeActivity.id)
         const sourceActivityIds = incomingEdges.map((edge) => edge.source)
 
-        // Check if a parallel activity already exists for this converge
-        const existingParallelIndex = activities.findIndex((a) => a.id === parallelId)
-        const hasExistingParallel = existingParallelIndex !== -1
-
-        if (sourceActivityIds.length >= 2) {
-          // We need a parallel activity with 2+ branches
-          // BUT: Structural nodes (loop, condition) should NOT be moved into parallels
-          // Only regular task/action nodes should be parallelized
-
-          const sourceActivitiesAll = activities.filter((a) => sourceActivityIds.includes(a.id))
-          const structuralNodes = sourceActivitiesAll.filter((a) => a.type === 'loop' || a.type === 'condition')
-          const regularNodes = sourceActivitiesAll.filter((a) => a.type !== 'loop' && a.type !== 'condition')
-
-          // If all source nodes are structural (loops/conditions), don't create parallel
-          // The edges encode the parallelism, no container needed
-          if (structuralNodes.length === sourceActivityIds.length) {
-            // All structural nodes - just update converge to reference them directly
-            if (hasExistingParallel) {
-              activities = removeParallelAndRestoreBranches(activities, parallelId, convergeActivity.id)
-            }
-            activities = updateConvergeBranches(activities, convergeActivity, sourceActivityIds)
-          } else {
-            // Mix of structural and regular nodes, or all regular nodes
-            let sourceActivities: Activity[] = []
-            let orphanedActivities: Activity[] = []
-
-            if (hasExistingParallel) {
-              const existingParallel = activities[existingParallelIndex] as Extract<Activity, { type: 'parallel' }>
-
-              // Separate activities that still have edges vs those that lost them
-              orphanedActivities = existingParallel.branches.filter((a) => !sourceActivityIds.includes(a.id))
-              const activitiesFromParallel = existingParallel.branches.filter((a) => sourceActivityIds.includes(a.id))
-              const activitiesFromMain = regularNodes // Only regular nodes from main array
-              sourceActivities = [...activitiesFromParallel, ...activitiesFromMain]
-
-              // Remove existing parallel - we'll create a new one
-              activities = activities.filter((a) => a.id !== parallelId)
-            } else {
-              sourceActivities = regularNodes // Only wrap regular nodes
-            }
-
-            // Remove ONLY regular source activities from main array (they'll be in the parallel)
-            // Structural nodes stay in main array
-            const regularNodeIds = regularNodes.map((a) => a.id)
-            activities = activities.filter((a) => !regularNodeIds.includes(a.id))
-
-            // Restore orphaned activities back to main array
-            activities = insertActivitiesBeforeConverge(activities, orphanedActivities, convergeActivity.id)
-
-            // Create and insert the parallel activity
-            const parallelActivity: Extract<Activity, { type: 'parallel' }> = {
-              type: 'parallel',
-              id: parallelId,
-              name: `Parallel branches for ${convergeActivity.name}`,
-              branches: sourceActivities,
-            }
-            activities = insertActivitiesBeforeConverge(activities, [parallelActivity], convergeActivity.id)
-
-            // Update the converge to reference both the parallel and structural nodes
-            const branchIds = [
-              ...(sourceActivities.length > 0 ? [parallelId] : []),
-              ...structuralNodes.map((a) => a.id),
-            ]
-            activities = updateConvergeBranches(activities, convergeActivity, branchIds)
+        // Update converge.branches directly from incoming edges
+        const convergeIndex = activities.findIndex((a) => a.id === convergeActivity.id)
+        if (convergeIndex !== -1) {
+          const existing = convergeActivity as Extract<Activity, { type: 'converge' }>
+          activities[convergeIndex] = {
+            ...existing,
+            converge: {
+              ...existing.converge,
+              branches: sourceActivityIds,
+            },
           }
-        } else if (sourceActivityIds.length === 1) {
-          // Only one source - no parallel needed, reference activity directly
-          if (hasExistingParallel) {
-            activities = removeParallelAndRestoreBranches(activities, parallelId, convergeActivity.id)
-          }
-
-          // Update converge to reference the single source activity
-          activities = updateConvergeBranches(activities, convergeActivity, sourceActivityIds)
-        } else {
-          // No sources - remove parallel if it exists, clear converge branches
-          if (hasExistingParallel) {
-            activities = removeParallelAndRestoreBranches(activities, parallelId, convergeActivity.id)
-          }
-
-          // Clear converge branches
-          activities = updateConvergeBranches(activities, convergeActivity, [])
         }
       }
 

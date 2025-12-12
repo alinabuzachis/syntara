@@ -225,7 +225,7 @@ describe('useWorkflowStore - Edge Management', () => {
       })
 
       // Sync join branches (creates parallel container)
-      useWorkflowStore.getState().syncConvergeBranches()
+      useWorkflowStore.getState().syncConvergeNodeBranches()
 
       // Edges should be preserved
       const storedEdges = useWorkflowStore.getState().edges
@@ -569,7 +569,7 @@ describe('useWorkflowStore - Edge Management', () => {
       })
 
       // Sync join branches
-      useWorkflowStore.getState().syncConvergeBranches()
+      useWorkflowStore.getState().syncConvergeNodeBranches()
 
       // Edges should remain unchanged
       expect(useWorkflowStore.getState().edges).toEqual(edges)

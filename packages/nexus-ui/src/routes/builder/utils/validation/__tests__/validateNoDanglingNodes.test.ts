@@ -57,30 +57,20 @@ describe('validateNoDanglingNodes', () => {
     expect(result).toHaveLength(3)
   })
 
-  it('ignores auto-generated parallel containers', () => {
+  it('validates all activities equally (no special parallel handling)', () => {
+    // In the new architecture, parallel containers don't exist in the builder format
+    // All activities are flat, so both should be reported as dangling
     const activities: Activity[] = [
       { type: 'task', id: 'A', name: 'Task A', task: { executor: 'script', config: { language: 'python', code: '' } } },
-      {
-        type: 'parallel',
-        id: 'parallel_auto_A',
-        name: 'Parallel from A',
-        branches: [
-          {
-            type: 'task',
-            id: 'B',
-            name: 'Task B',
-            task: { executor: 'script', config: { language: 'python', code: '' } },
-          },
-        ],
-      },
+      { type: 'task', id: 'B', name: 'Task B', task: { executor: 'script', config: { language: 'python', code: '' } } },
     ]
 
     const edges: EdgeConnection[] = []
 
     const result = validateNoDanglingNodes(activities, edges)
-    // Should only report Task A as dangling, not the parallel_auto_ container
-    expect(result).toHaveLength(1)
-    expect(result[0].nodeId).toBe('A')
+    // Both tasks are dangling with no edges
+    expect(result).toHaveLength(2)
+    expect(result.map((r) => r.nodeId).sort()).toEqual(['A', 'B'])
   })
 
   it('handles complex graph with branches', () => {

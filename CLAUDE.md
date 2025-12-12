@@ -234,6 +234,21 @@ ALL workflows use a consistent flatten-on-load, nest-on-save pattern:
 
 **Note:** sequence/loop/parallel containers are lossy - after flatten→nest, they become flat tasks with edges. This is acceptable as the semantic meaning (execution order) is preserved.
 
+**WorkflowTransform Utility:**
+
+Central class for bidirectional workflow conversion:
+
+- Located in `packages/nexus-ui/src/routes/builder/utils/workflowTransform.ts`
+- `WorkflowTransform.flatten(nested)` - Converts API format → Builder format
+  - Traverses nested structures (condition.then/else, parallel.branches)
+  - Extracts all activities into flat array
+  - Generates edge connections representing structure
+- `WorkflowTransform.nest(flat)` - Converts Builder format → API format (partial)
+  - Currently only handles condition nodes via `buildNestedConditionStructure()`
+  - Other structures remain flat with edges (sequence/loop/parallel)
+- Symmetric design for easier debugging and validation
+- Handles special cases like parallel wrappers and loop handles
+
 **Edge Synchronization:**
 
 Critical hook: `useEdgeSynchronization` (`packages/nexus-ui/src/routes/builder/hooks/useEdgeSynchronization.ts`)

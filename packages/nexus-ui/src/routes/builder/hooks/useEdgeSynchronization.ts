@@ -14,12 +14,12 @@ interface UseEdgeSynchronizationOptions {
 /**
  * Custom hook that synchronizes edges with the workflow store.
  *
- * This hook prevents infinite loops when syncConvergeBranches() modifies the workflow,
+ * This hook prevents infinite loops when syncConvergeNodeBranches() modifies the workflow,
  * which triggers initialEdges recomputation, which would trigger this effect again.
  *
  * The re-entrance guard (isSyncingRef) is critical to prevent this cycle:
  * 1. User deletes node → edges change
- * 2. Effect runs → calls syncConvergeBranches()
+ * 2. Effect runs → calls syncConvergeNodeBranches()
  * 3. This function modifies workflow activities
  * 4. Workflow change → initialEdges recomputes in useMemo
  * 5. New initialEdges → edges state updates
@@ -69,8 +69,8 @@ export function useEdgeSynchronization({ edges, isInitialized, setStoredEdges }:
     // Set syncing flag to prevent re-entrance
     isSyncingRef.current = true
 
-    // Sync join activity branches after edges are updated
-    useWorkflowStore.getState().syncConvergeBranches()
+    // Sync converge node branches after edges are updated
+    useWorkflowStore.getState().syncConvergeNodeBranches()
     // Reorder activities to match edge topology
     useWorkflowStore.getState().reorderActivitiesFromEdges()
 

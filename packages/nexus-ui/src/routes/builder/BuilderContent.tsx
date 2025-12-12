@@ -25,6 +25,7 @@ import { loadWorkflow } from './utils/loadWorkflow'
 import { validateRoundTrip, validateSavePath } from './utils/validateRoundTrip'
 import { validateWorkflow } from './utils/validation'
 import type { EdgeType } from './utils/workflowToGraph'
+import { WorkflowTransform } from './utils/workflowTransform'
 import { WorkflowSidepanel } from './WorkflowSidepanel'
 
 // Type aliases from API contracts
@@ -158,33 +159,23 @@ export function BuilderContent(props: BuilderContentProps) {
           if (firstActivity.type === 'parallel') {
             const branches = firstActivity.branches || []
             branches.forEach((branch) => {
+              // CRITICAL: Use getFirstActivityId to handle sequence wrappers that will be flattened away
+              const targetId = WorkflowTransform.getFirstActivityId(branch)
               generatedEdges.push({
-                id: `trigger-${index}-${branch.id}`,
+                id: `trigger-${index}-${targetId}`,
                 source: `trigger-${index}`,
-                target: branch.id,
+                target: targetId,
                 sourceHandle: 'source',
                 targetHandle: 'target',
               })
             })
-          } else if (firstActivity.type === 'sequence') {
-            // Sequence will be flattened, so connect to first step
-            const steps = firstActivity.steps || []
-            if (steps.length > 0) {
-              const firstStep = steps[0]
-              generatedEdges.push({
-                id: `trigger-${index}-${firstStep.id}`,
-                source: `trigger-${index}`,
-                target: firstStep.id,
-                sourceHandle: 'source',
-                targetHandle: 'target',
-              })
-            }
           } else {
-            // Regular activity - connect directly
+            // Regular activity - use getFirstActivityId to handle sequences
+            const targetId = WorkflowTransform.getFirstActivityId(firstActivity)
             generatedEdges.push({
-              id: `trigger-${index}-${firstActivity.id}`,
+              id: `trigger-${index}-${targetId}`,
               source: `trigger-${index}`,
-              target: firstActivity.id,
+              target: targetId,
               sourceHandle: 'source',
               targetHandle: 'target',
             })
@@ -286,12 +277,9 @@ export function BuilderContent(props: BuilderContentProps) {
 
     const edges = useWorkflowStore.getState().edges
 
-    // Build the workflow definition first to get the nested structure
-    const workflowDef = getWorkflowDefinition()
-
-    // Validate the nested structure (after nesting loops and conditions)
-    // This ensures loop 'do' arrays are populated from edges before validation
-    const validationResult = validateWorkflow(workflowDef.workflow.activities, edges)
+    // Validate the FLAT structure before nesting
+    // This validates the builder format (flat activities + edges) before transformation
+    const validationResult = validateWorkflow(currentWorkflow.workflow.activities, edges)
 
     if (!validationResult.valid) {
       // Build error message from validation errors
@@ -299,6 +287,9 @@ export function BuilderContent(props: BuilderContentProps) {
       showError(`Workflow validation failed:\n• ${errorMessages}`, 'Validation Failed')
       return
     }
+
+    // Build the workflow definition (nesting loops, conditions, and parallels)
+    const workflowDef = getWorkflowDefinition()
     const workflowData = {
       name: workflowName,
       description: workflowDescription,

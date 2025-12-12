@@ -6,12 +6,10 @@ import type { ValidationError } from '../types'
 /**
  * Validates that all nodes are connected to the workflow graph.
  *
- * A node is considered "dangling" if it cannot be reached from any trigger node
- * by following edges through the graph.
+ * A node is considered "dangling" if it has no incoming or outgoing edges.
  *
- * Exceptions:
- * - Trigger nodes themselves (they are entry points)
- * - Auto-generated parallel containers (parallel_auto_*)
+ * Note: In the new architecture, parallel containers don't exist in the builder format,
+ * so all activities are validated equally.
  */
 export function validateNoDanglingNodes(activities: Activity[], edges: EdgeConnection[]): ValidationError[] {
   const errors: ValidationError[] = []
@@ -61,11 +59,6 @@ export function validateNoDanglingNodes(activities: Activity[], edges: EdgeConne
 
   // Check each activity
   for (const activity of activities) {
-    // Skip auto-generated parallel containers - they're ephemeral
-    if (activity.type === 'parallel' && activity.id.startsWith('parallel_auto_')) {
-      continue
-    }
-
     // A node is dangling if it has NO connections (neither incoming nor outgoing)
     const hasIncomingEdges = reverseAdjacencyMap.has(activity.id) && reverseAdjacencyMap.get(activity.id)!.size > 0
     const hasOutgoingEdges = adjacencyMap.has(activity.id) && adjacencyMap.get(activity.id)!.size > 0
