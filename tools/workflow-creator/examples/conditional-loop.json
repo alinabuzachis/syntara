@@ -1,0 +1,90 @@
+{
+  "name": "conditional-loop-demo",
+  "description": "Workflow demonstrating conditionals and loops",
+  "is_enabled": true,
+  "workflow_definition": {
+    "version": 1,
+    "schemaVersion": "1.0.0",
+    "metadata": {
+      "name": "conditional-loop-demo",
+      "description": "Demonstrates conditional and loop activities"
+    },
+    "triggers": [
+      {
+        "type": "manual",
+        "requiresApproval": false
+      }
+    ],
+    "workflow": {
+      "activities": [
+        {
+          "id": "check_condition",
+          "name": "Check Condition",
+          "type": "condition",
+          "condition": "true",
+          "then": [
+            {
+              "id": "condition_true_task",
+              "name": "Condition True",
+              "type": "task",
+              "task": {
+                "executor": "script",
+                "config": {
+                  "language": "python",
+                  "code": "print('Condition was true!')",
+                  "timeout_seconds": 60
+                }
+              },
+              "requiresApproval": false
+            }
+          ],
+          "else": [
+            {
+              "id": "condition_false_task",
+              "name": "Condition False",
+              "type": "task",
+              "task": {
+                "executor": "script",
+                "config": {
+                  "language": "python",
+                  "code": "print('Condition was false!')",
+                  "timeout_seconds": 60
+                }
+              },
+              "requiresApproval": false
+            }
+          ],
+          "requiresApproval": false
+        },
+        {
+          "id": "loop_example",
+          "name": "Loop Through Items",
+          "type": "loop",
+          "loop": {
+            "type": "forEach",
+            "items": "[1, 2, 3]",
+            "itemVariable": "item",
+            "indexVariable": "index",
+            "do": [
+              {
+                "id": "loop_task",
+                "name": "Process Item",
+                "type": "task",
+                "task": {
+                  "executor": "script",
+                  "config": {
+                    "language": "python",
+                    "code": "print(f'Processing item...')",
+                    "timeout_seconds": 60
+                  }
+                },
+                "requiresApproval": false
+              }
+            ]
+          },
+          "requiresApproval": false
+        }
+      ]
+    }
+  }
+}

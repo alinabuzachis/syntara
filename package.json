@@ -19,6 +19,7 @@
     "format:check": "prettier --check .",
     "sync-cursor-commands": "python3 tools/install_cursor_commands.py",
     "check-specs": "python3 tools/ci/check_path_sequence.py specs/ --strict",
+    "create-workflow": "python3 tools/workflow-creator/create_workflow.py",
     "gen": "npm run gen --prefix packages/nexus-contracts",
     "podman:build": "concurrently npm:podman:build:* -c auto",
     "podman:build:nexus-ui": "podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest -t ghcr.io/syntara-orchestration/syntara-ui:latest .",

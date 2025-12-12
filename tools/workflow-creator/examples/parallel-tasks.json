@@ -1,0 +1,101 @@
+{
+  "name": "parallel-tasks-demo",
+  "description": "Workflow with parallel task execution",
+  "is_enabled": true,
+  "workflow_definition": {
+    "version": 1,
+    "schemaVersion": "1.0.0",
+    "metadata": {
+      "name": "parallel-tasks-demo",
+      "description": "Demonstrates parallel execution of tasks"
+    },
+    "triggers": [
+      {
+        "type": "manual",
+        "requiresApproval": false
+      }
+    ],
+    "workflow": {
+      "activities": [
+        {
+          "id": "start_task",
+          "name": "Start",
+          "type": "task",
+          "task": {
+            "executor": "script",
+            "config": {
+              "language": "python",
+              "code": "print('Starting workflow...')",
+              "timeout_seconds": 60
+            }
+          },
+          "requiresApproval": false
+        },
+        {
+          "id": "parallel_execution",
+          "name": "Parallel Tasks",
+          "type": "parallel",
+          "branches": [
+            {
+              "id": "branch_a",
+              "name": "Task A",
+              "type": "task",
+              "task": {
+                "executor": "script",
+                "config": {
+                  "language": "python",
+                  "code": "import time\ntime.sleep(1)\nprint('Task A completed')",
+                  "timeout_seconds": 60
+                }
+              },
+              "requiresApproval": false
+            },
+            {
+              "id": "branch_b",
+              "name": "Task B",
+              "type": "task",
+              "task": {
+                "executor": "script",
+                "config": {
+                  "language": "python",
+                  "code": "import time\ntime.sleep(1)\nprint('Task B completed')",
+                  "timeout_seconds": 60
+                }
+              },
+              "requiresApproval": false
+            },
+            {
+              "id": "branch_c",
+              "name": "Task C",
+              "type": "task",
+              "task": {
+                "executor": "script",
+                "config": {
+                  "language": "python",
+                  "code": "import time\ntime.sleep(1)\nprint('Task C completed')",
+                  "timeout_seconds": 60
+                }
+              },
+              "requiresApproval": false
+            }
+          ],
+          "requiresApproval": false
+        },
+        {
+          "id": "end_task",
+          "name": "End",
+          "type": "task",
+          "task": {
+            "executor": "script",
+            "config": {
+              "language": "python",
+              "code": "print('All tasks completed!')",
+              "timeout_seconds": 60
+            }
+          },
+          "requiresApproval": false
+        }
+      ]
+    }
+  }
+}
