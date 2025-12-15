@@ -121,9 +121,9 @@ describe('IntegrationForm Component', () => {
       expect(screen.getByText('Add integration')).toBeInTheDocument()
       expect(screen.getByText('Cancel')).toBeInTheDocument()
 
-      // Grid layout
-      const gridContainer = container.querySelector('.grid.grow')
-      expect(gridContainer).toBeInTheDocument()
+      // Card layout (PF Card with glass class)
+      const cardContainer = container.querySelector('.pf-v6-c-card.glass')
+      expect(cardContainer).toBeInTheDocument()
     })
   })
 
@@ -131,21 +131,24 @@ describe('IntegrationForm Component', () => {
     it('renders integration type field with MCP Server option selected by default', () => {
       render(<IntegrationForm />, { wrapper })
 
-      const typeField = screen.getByRole('radiogroup', { name: /integration type/i })
+      // PF ToggleGroup uses role="group" with aria-label
+      const typeField = screen.getByRole('group', { name: /integration type selection/i })
       expect(typeField).toBeInTheDocument()
 
-      // Base UI Radio renders with data-checked attribute in test environment
-      const mcpOption = typeField.querySelector('[data-checked]')
+      // PF ToggleGroupItem uses aria-pressed="true" when selected
+      const mcpOption = screen.getByRole('button', { name: /mcp server/i })
       expect(mcpOption).toBeInTheDocument()
-      expect(mcpOption).toHaveTextContent('MCP Server')
+      expect(mcpOption).toHaveAttribute('aria-pressed', 'true')
     })
 
     it('renders server name field as required', () => {
-      render(<IntegrationForm />, { wrapper })
+      const { container } = render(<IntegrationForm />, { wrapper })
 
       const serverNameInput = screen.getByPlaceholderText('Enter server name / ID')
       expect(serverNameInput).toBeInTheDocument()
-      expect(serverNameInput).toHaveAttribute('required')
+      // PF FormGroup shows required indicator (*) in the label, not HTML required attribute
+      const requiredIndicator = container.querySelector('label[for="name"] .pf-v6-c-form__label-required')
+      expect(requiredIndicator).toBeInTheDocument()
     })
 
     it('renders description field', () => {
@@ -156,11 +159,13 @@ describe('IntegrationForm Component', () => {
     })
 
     it('renders API URL field as required', () => {
-      render(<IntegrationForm />, { wrapper })
+      const { container } = render(<IntegrationForm />, { wrapper })
 
       const apiUrlInput = screen.getByPlaceholderText('Enter API URL')
       expect(apiUrlInput).toBeInTheDocument()
-      expect(apiUrlInput).toHaveAttribute('required')
+      // PF FormGroup shows required indicator (*) in the label, not HTML required attribute
+      const requiredIndicator = container.querySelector('label[for="base-url"] .pf-v6-c-form__label-required')
+      expect(requiredIndicator).toBeInTheDocument()
     })
   })
 
@@ -312,7 +317,8 @@ describe('IntegrationForm Component', () => {
     it('has submit button properly linked to form', () => {
       render(<IntegrationForm />, { wrapper })
 
-      const addButton = screen.getByText('Add integration')
+      // Use getByRole to find the actual button element (not the inner span)
+      const addButton = screen.getByRole('button', { name: /add integration/i })
       expect(addButton).toHaveAttribute('form', 'integration-form')
       expect(addButton).toHaveAttribute('type', 'submit')
     })
