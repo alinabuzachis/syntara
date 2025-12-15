@@ -1,7 +1,7 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { useAlerts } from '@ansible/nexus-ui-framework'
 
-import { createManualTrigger, createScheduledTrigger, useWorkflowStore } from '../../../stores/useWorkflowStore'
+import { createManualTrigger, createScheduledTrigger, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import type { TriggerFormData } from '../node-forms/TriggerNodeForm'
 import { TriggerNodeForm } from '../node-forms/TriggerNodeForm'
 
@@ -18,7 +18,8 @@ interface TriggerNodeDetailsProps {
 
 export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNodeDetailsProps) {
   const { showError } = useAlerts()
-  const updateTrigger = useWorkflowStore((state) => state.updateTrigger)
+  // Use action accessor - component won't re-render when store state changes
+  const { updateTrigger } = useWorkflowStoreActions()
 
   // Extract initial data from trigger
   const getInitialData = (): TriggerFormData => {

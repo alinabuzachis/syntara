@@ -1,7 +1,7 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { useAlerts } from '@ansible/nexus-ui-framework'
 
-import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { LogicNodeForm } from '../node-forms/LogicNodeForm'
 
 type ConditionActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'condition' }
@@ -14,7 +14,8 @@ interface ConditionNodeDetailsProps {
 
 export function ConditionNodeDetails({ conditionData, nodeId, onClose }: ConditionNodeDetailsProps) {
   const { showError } = useAlerts()
-  const updateActivity = useWorkflowStore((state) => state.updateActivity)
+  // Use action accessor - component won't re-render when store state changes
+  const { updateActivity } = useWorkflowStoreActions()
 
   const initialData = {
     name: conditionData.name,

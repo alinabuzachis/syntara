@@ -191,17 +191,15 @@ NodeRegistry.getByCategory(cat) // Get nodes by category
 
 **Zustand State Management for Workflows:**
 
-- `useWorkflowStore` manages current workflow state
-- `workflowVersion` counter tracks workflow replacements (increments on setWorkflow)
-- Actions: `addTrigger`, `removeTrigger`, `addActivity`, `removeActivity`, `updateActivity`
-- **Edge Synchronization Actions**: `syncJoinBranches`, `reorderActivitiesFromEdges`
-- **Atomic Batch Operations**: `batchRemoveNodesAndEdges` for removing multiple nodes/edges atomically
-- Located at `packages/nexus-ui/src/stores/useWorkflowStore.ts`
-- **CRITICAL**: Use selective subscriptions to avoid unnecessary re-renders
-- **CRITICAL**: `BuilderFlow` must subscribe to BOTH `activitiesCount` AND `triggersCount` to detect node additions
-  - `activitiesCount` triggers memo recomputation when activities are added/removed
-  - `triggersCount` triggers memo recomputation when triggers are added/removed
-  - Without both subscriptions, newly added nodes won't appear on canvas
+> 📚 **See [docs/zustand-architecture.md](docs/zustand-architecture.md) for comprehensive documentation** on the Zustand store architecture, best practices, and usage patterns.
+
+Quick reference:
+
+- Store location: `packages/nexus-ui/src/stores/useWorkflowStore.ts`
+- Factory functions: `packages/nexus-ui/src/stores/workflowFactories.ts`
+- Use custom hooks (`useWorkflowVersion()`, `useActivities()`, etc.) for reading state
+- Use `useWorkflowStoreActions()` for dispatching actions without re-renders
+- Use atomic batch operations for coupled state changes
 
 **Workflow Structure - Unified Approach:**
 

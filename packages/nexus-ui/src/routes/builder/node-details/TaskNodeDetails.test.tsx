@@ -16,6 +16,23 @@ vi.spyOn(workflowStore, 'useWorkflowStore').mockImplementation((selector: unknow
   return selector ? selector(store) : store
 })
 
+vi.spyOn(workflowStore, 'useWorkflowStoreActions').mockImplementation(() => ({
+  updateActivity: mockUpdateActivity,
+  setWorkflow: vi.fn(),
+  setEdges: vi.fn(),
+  addTrigger: vi.fn(),
+  removeTrigger: vi.fn(),
+  updateTrigger: vi.fn(),
+  addActivity: vi.fn(),
+  removeActivity: vi.fn(),
+  syncConvergeNodeBranches: vi.fn(),
+  moveActivityBefore: vi.fn(),
+  moveActivityAfter: vi.fn(),
+  reorderActivitiesFromEdges: vi.fn(),
+  batchRemoveNodesAndEdges: vi.fn(),
+  batchAddActivitiesAndEdges: vi.fn(),
+}))
+
 vi.spyOn(workflowStore, 'createConnectorActivity').mockImplementation(mockCreateConnectorActivity)
 
 // Mock the alerts hook

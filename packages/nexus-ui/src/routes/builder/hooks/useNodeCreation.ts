@@ -6,7 +6,7 @@ import {
   createManualTrigger,
   createScheduledTrigger,
   createScriptActivity,
-  useWorkflowStore,
+  useWorkflowStoreActions,
 } from '../../../stores/useWorkflowStore'
 
 export interface TriggerFormData {
@@ -34,8 +34,8 @@ export interface ActionFormData {
 }
 
 export function useNodeCreation(onSuccess: () => void) {
-  const addTrigger = useWorkflowStore((state) => state.addTrigger)
-  const addActivity = useWorkflowStore((state) => state.addActivity)
+  // Use action accessor - component won't re-render when store state changes
+  const { addTrigger, addActivity } = useWorkflowStoreActions()
 
   const handleTriggerSubmit = useCallback(
     (data: TriggerFormData) => {

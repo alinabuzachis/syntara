@@ -17,6 +17,14 @@ interface WorkflowStore {
   workflowVersion: number // Incremented only when setWorkflow is called
   edges: EdgeConnection[]
   setWorkflow: (workflow: WorkflowDefinition | null) => void
+  /**
+   * Update the current workflow without incrementing workflowVersion.
+   *
+   * Use this for incremental updates to an already-loaded workflow (e.g. applying
+   * externally computed changes) where consumers should react to the changed
+   * workflow content, but the workflow "identity" has not changed.
+   */
+  updateWorkflow: (updater: (workflow: WorkflowDefinition) => WorkflowDefinition) => void
   setEdges: (edges: EdgeConnection[]) => void
   addTrigger: (trigger: Trigger) => void
   removeTrigger: (index: number) => void
@@ -207,6 +215,15 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
       currentWorkflow: workflow,
       workflowVersion: state.workflowVersion + 1,
     }))
+  },
+
+  updateWorkflow: (updater) => {
+    set((state) => {
+      if (!state.currentWorkflow) return state
+      return {
+        currentWorkflow: updater(state.currentWorkflow),
+      }
+    })
   },
 
   setEdges: (edges) => {
@@ -697,327 +714,170 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
   },
 }))
 
-// Helper functions to create triggers (return plain objects)
-export function createManualTrigger(requiresApproval?: boolean): WorkflowAPI.components['schemas']['manualTrigger'] {
+// ============================================================================
+// Typed Selectors - Use these for optimized component subscriptions
+// ============================================================================
+// These selectors help prevent unnecessary re-renders by subscribing to
+// specific pieces of state rather than the entire store.
+//
+// Best Practice: Use these selectors instead of inline selectors for:
+// 1. Better type inference
+// 2. Reusability across components
+// 3. Consistent state access patterns
+// ============================================================================
+
+/**
+ * Selector for the current workflow.
+ * Use when you need the entire workflow object.
+ */
+export const selectCurrentWorkflow = (state: WorkflowStore) => state.currentWorkflow
+
+/**
+ * Selector for workflow version.
+ * Use to detect when a completely new workflow has been loaded (via setWorkflow).
+ * Does NOT change when activities/triggers are modified.
+ */
+export const selectWorkflowVersion = (state: WorkflowStore) => state.workflowVersion
+
+/**
+ * Selector for edges array.
+ * Use when working with workflow connections.
+ */
+export const selectEdges = (state: WorkflowStore) => state.edges
+
+/**
+ * Selector for activities array.
+ * Use when you need to map over or filter activities.
+ */
+export const selectActivities = (state: WorkflowStore) => state.currentWorkflow?.workflow.activities
+
+/**
+ * Selector for triggers array.
+ * Use when you need to map over or filter triggers.
+ */
+export const selectTriggers = (state: WorkflowStore) => state.currentWorkflow?.triggers
+
+/**
+ * Selector for activities count.
+ * Use when you only need to know the number of activities (e.g., for conditional rendering).
+ */
+export const selectActivitiesCount = (state: WorkflowStore) => state.currentWorkflow?.workflow.activities.length ?? 0
+
+/**
+ * Selector for triggers count.
+ * Use when you only need to know the number of triggers (e.g., for conditional rendering).
+ */
+export const selectTriggersCount = (state: WorkflowStore) => state.currentWorkflow?.triggers?.length ?? 0
+
+/**
+ * Selector for workflow name.
+ * Use when you only need the workflow name (e.g., for display in header).
+ */
+export const selectWorkflowName = (state: WorkflowStore) => state.currentWorkflow?.name
+
+/**
+ * Selector to check if a workflow is loaded.
+ * Use for conditional rendering based on workflow presence.
+ */
+export const selectHasWorkflow = (state: WorkflowStore) => state.currentWorkflow !== null
+
+// ============================================================================
+// Action Accessors - Use these to access actions without subscribing to state
+// ============================================================================
+// Zustand best practice: When you only need to call actions (not read state),
+// use getState() to avoid unnecessary re-renders.
+//
+// Example:
+//   const { addActivity, removeActivity } = useWorkflowStoreActions()
+//   // Component won't re-render when workflow changes
+// ============================================================================
+
+/**
+ * Get all store actions without subscribing to state changes.
+ * Use this when you only need to dispatch actions from event handlers.
+ *
+ * @example
+ * const { addActivity, removeActivity } = useWorkflowStoreActions()
+ * const handleAdd = () => addActivity(newActivity)
+ */
+export const useWorkflowStoreActions = () => {
+  const state = useWorkflowStore.getState()
   return {
-    type: 'manual',
-    ...(requiresApproval !== undefined && { requiresApproval }),
+    setWorkflow: state.setWorkflow,
+    updateWorkflow: state.updateWorkflow,
+    setEdges: state.setEdges,
+    addTrigger: state.addTrigger,
+    removeTrigger: state.removeTrigger,
+    updateTrigger: state.updateTrigger,
+    addActivity: state.addActivity,
+    removeActivity: state.removeActivity,
+    updateActivity: state.updateActivity,
+    syncConvergeNodeBranches: state.syncConvergeNodeBranches,
+    moveActivityBefore: state.moveActivityBefore,
+    moveActivityAfter: state.moveActivityAfter,
+    reorderActivitiesFromEdges: state.reorderActivitiesFromEdges,
+    batchRemoveNodesAndEdges: state.batchRemoveNodesAndEdges,
+    batchAddActivitiesAndEdges: state.batchAddActivitiesAndEdges,
   }
-}
-
-export function createScheduledTrigger(
-  scheduleType: 'cron' | 'interval' | 'continuous',
-  config: {
-    cron?: string
-    timezone?: string
-    interval?: string
-  }
-): WorkflowAPI.components['schemas']['scheduledTrigger'] {
-  if (scheduleType === 'cron' && config.cron) {
-    return {
-      type: 'scheduled',
-      schedule: {
-        scheduleType: 'cron',
-        cron: config.cron,
-        ...(config.timezone && { timezone: config.timezone }),
-      },
-    }
-  } else if (scheduleType === 'interval' && config.interval) {
-    return {
-      type: 'scheduled',
-      schedule: {
-        scheduleType: 'interval',
-        interval: config.interval,
-      },
-    }
-  } else {
-    return {
-      type: 'scheduled',
-      schedule: {
-        scheduleType: 'continuous',
-        continuous: true,
-      },
-    }
-  }
-}
-
-export function createEventTrigger(
-  source: string,
-  eventType: string,
-  filter?: Record<string, unknown>
-): WorkflowAPI.components['schemas']['eventTrigger'] {
-  return {
-    type: 'event',
-    event: {
-      source,
-      eventType,
-      ...(filter && { filter }),
-    },
-  }
-}
-
-// Helper functions to create task activities
-export function createScriptActivity(
-  id: string,
-  name: string,
-  language: 'python' | 'javascript' | 'bash' | 'powershell',
-  code: string,
-  inputs?: string
-): TaskActivity {
-  const activity: TaskActivity = {
-    type: 'task',
-    id,
-    name,
-    task: {
-      executor: 'script',
-      config: {
-        language,
-        code,
-      },
-    },
-  }
-
-  if (inputs) {
-    try {
-      activity.task.inputs = JSON.parse(inputs)
-    } catch {
-      // If inputs is not valid JSON, skip it
-    }
-  }
-
-  return activity
-}
-
-export function createApiActivity(
-  id: string,
-  name: string,
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-  url: string,
-  headers?: string,
-  body?: string,
-  inputs?: string
-): TaskActivity {
-  const config: {
-    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-    url: string
-    headers?: { [key: string]: string }
-    body?: unknown
-  } = {
-    method,
-    url,
-  }
-
-  if (headers) {
-    try {
-      config.headers = JSON.parse(headers) as { [key: string]: string }
-    } catch {
-      // If headers is not valid JSON, skip it
-    }
-  }
-
-  if (body) {
-    try {
-      config.body = JSON.parse(body)
-    } catch {
-      // If body is not valid JSON, use as string
-      config.body = body
-    }
-  }
-
-  const activity: TaskActivity = {
-    type: 'task',
-    id,
-    name,
-    task: {
-      executor: 'api',
-      config,
-    },
-  }
-
-  if (inputs) {
-    try {
-      activity.task.inputs = JSON.parse(inputs)
-    } catch {
-      // If inputs is not valid JSON, skip it
-    }
-  }
-
-  return activity
-}
-
-// Helper functions to create condition and loop activities
-export function createConditionActivity(
-  id: string,
-  name: string,
-  condition: string
-): Extract<Activity, { type: 'condition' }> {
-  return {
-    type: 'condition',
-    id,
-    name,
-    condition,
-    then: [],
-    else: [],
-  }
-}
-
-export function createLoopActivity(
-  id: string,
-  name: string,
-  loopType: 'forEach' | 'while',
-  config: {
-    items?: string
-    condition?: string
-    maxIterations?: number
-    indexVariable?: string
-    itemVariable?: string
-  }
-): Extract<Activity, { type: 'loop' }> {
-  const baseActivity = {
-    type: 'loop' as const,
-    id,
-    name,
-    loop: {
-      type: loopType,
-      do: [],
-    },
-  }
-
-  if (loopType === 'forEach' && config.items) {
-    return {
-      ...baseActivity,
-      loop: {
-        ...baseActivity.loop,
-        type: 'forEach' as const,
-        items: config.items,
-        itemVariable: config.itemVariable,
-        indexVariable: config.indexVariable,
-      },
-    }
-  } else if (loopType === 'while' && config.condition) {
-    const whileLoop: Extract<Activity, { type: 'loop' }>['loop'] = {
-      ...baseActivity.loop,
-      type: 'while' as const,
-      condition: config.condition,
-    }
-
-    // Only include maxIterations if it has a valid value
-    if (config.maxIterations !== undefined && config.maxIterations !== null && !Number.isNaN(config.maxIterations)) {
-      whileLoop.maxIterations = config.maxIterations
-    }
-
-    return {
-      ...baseActivity,
-      loop: whileLoop,
-    }
-  }
-
-  // Fallback - should not happen if form validation works
-  // Default to forEach with empty items to satisfy type requirements
-  return {
-    ...baseActivity,
-    loop: {
-      type: 'forEach' as const,
-      items: '',
-      do: [],
-    },
-  }
-}
-
-export function createConvergeActivity(
-  id: string,
-  name: string,
-  config?: {
-    timeout?: string
-    onTimeout?: 'continue' | 'fail'
-    aggregateOutputs?: boolean
-  }
-): Extract<Activity, { type: 'converge' }> {
-  const convergeActivity: Extract<Activity, { type: 'converge' }> = {
-    type: 'converge',
-    id,
-    name,
-    converge: {
-      branches: [], // Will be populated based on incoming edges
-      strategy: 'all', // Only 'all' strategy is supported
-      timeout: config?.timeout,
-      onTimeout: config?.onTimeout,
-      aggregateOutputs: config?.aggregateOutputs,
-    },
-  }
-
-  return convergeActivity
-}
-
-export function createConnectorActivity(
-  id: string,
-  name: string,
-  connectorId: string,
-  operation: string,
-  parameters?: string
-): TaskActivity {
-  // Parse parameters if provided
-  let parsedParameters: { [key: string]: unknown } | undefined
-  if (parameters) {
-    try {
-      parsedParameters = JSON.parse(parameters)
-    } catch {
-      // If parameters is not valid JSON, skip it
-    }
-  }
-
-  // TODO: Backend ExecutorType enum is missing 'connector' even though JSON schema includes it
-  // Temporarily using 'agentic' executor with structured prompt until backend is updated
-  // See: src/nexus/workflows/workflow_engine/models/workflow_definition.py ExecutorType enum
-  const connectorPrompt = JSON.stringify({
-    __type: 'connector',
-    connectorId,
-    operation,
-    ...(parsedParameters && { parameters: parsedParameters }),
-  })
-
-  const activity: TaskActivity = {
-    type: 'task',
-    id,
-    name,
-    // Add metadata to indicate this is actually an AAP connector node
-    // This allows the UI to render it with the Ansible icon/label
-    metadata: {
-      __executorType: 'aap',
-      __connectorId: connectorId,
-    },
-    task: {
-      executor: 'agentic',
-      config: {
-        agent: '__connector_workaround__', // Required field for agentic executor
-        prompt: connectorPrompt,
-      },
-    },
-  }
-
-  return activity
 }
 
 /**
- * Create a generic placeholder activity that can be replaced with any node type
+ * Type for workflow store actions (useful for typing event handlers).
  */
-export function createGenericActivity(id: string, name: string = 'New Node', customMessage?: string): TaskActivity {
-  // Generic placeholder node - minimal task structure without executor details
-  // The __isGeneric metadata flag marks this as a placeholder that should be replaced
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activity: any = {
-    type: 'task',
-    id,
-    name,
-    metadata: {
-      __isGeneric: true, // Flag to identify this as a placeholder node
-      ...(customMessage ? { __customMessage: customMessage } : {}),
-    },
-    // Minimal task config - no executor specified to avoid confusion
-    task: {
-      config: {},
-    },
-  }
+export type WorkflowStoreActions = ReturnType<typeof useWorkflowStoreActions>
 
-  return activity as TaskActivity
-}
+// Re-export types for convenience
+export type { WorkflowStore, WorkflowDefinition, Trigger, Activity, TaskActivity }
+
+// ============================================================================
+// Custom Hooks - Recommended way to access store state
+// ============================================================================
+// These hooks provide controlled access to specific state slices.
+// Prefer using these over direct store access for better encapsulation.
+// ============================================================================
+
+/** Hook to get workflow version (changes only when setWorkflow is called) */
+export const useWorkflowVersion = () => useWorkflowStore(selectWorkflowVersion)
+
+/** Hook to get the current workflow */
+export const useCurrentWorkflow = () => useWorkflowStore(selectCurrentWorkflow)
+
+/** Hook to get edges */
+export const useEdges = () => useWorkflowStore(selectEdges)
+
+/** Hook to get activities */
+export const useActivities = () => useWorkflowStore(selectActivities)
+
+/** Hook to get triggers */
+export const useTriggers = () => useWorkflowStore(selectTriggers)
+
+/** Hook to get activities count */
+export const useActivitiesCount = () => useWorkflowStore(selectActivitiesCount)
+
+/** Hook to get triggers count */
+export const useTriggersCount = () => useWorkflowStore(selectTriggersCount)
+
+/** Hook to get workflow name */
+export const useWorkflowName = () => useWorkflowStore(selectWorkflowName)
+
+/** Hook to check if workflow is loaded */
+export const useHasWorkflow = () => useWorkflowStore(selectHasWorkflow)
+
+// ============================================================================
+// Factory Functions - Re-exported from workflowFactories.ts
+// ============================================================================
+// These functions are maintained in a separate file for better organization.
+// They are re-exported here for backward compatibility.
+// ============================================================================
+export {
+  createManualTrigger,
+  createScheduledTrigger,
+  createEventTrigger,
+  createScriptActivity,
+  createApiActivity,
+  createConditionActivity,
+  createLoopActivity,
+  createConvergeActivity,
+  createConnectorActivity,
+  createGenericActivity,
+} from './workflowFactories'

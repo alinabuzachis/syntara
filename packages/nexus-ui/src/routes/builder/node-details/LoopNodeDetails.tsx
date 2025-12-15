@@ -1,7 +1,7 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { useAlerts } from '@ansible/nexus-ui-framework'
 
-import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { LogicNodeForm } from '../node-forms/LogicNodeForm'
 
 type LoopActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'loop' }
@@ -14,7 +14,8 @@ interface LoopNodeDetailsProps {
 
 export function LoopNodeDetails({ loopData, nodeId, onClose }: LoopNodeDetailsProps) {
   const { showError } = useAlerts()
-  const updateActivity = useWorkflowStore((state) => state.updateActivity)
+  // Use action accessor - component won't re-render when store state changes
+  const { updateActivity } = useWorkflowStoreActions()
 
   // Handle potentially malformed loop data
   if (!loopData.loop) {

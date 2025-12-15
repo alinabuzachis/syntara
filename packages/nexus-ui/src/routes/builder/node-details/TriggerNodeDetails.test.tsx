@@ -13,6 +13,9 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
     }
     return selector ? selector(store) : store
   }),
+  useWorkflowStoreActions: vi.fn(() => ({
+    updateTrigger: mockUpdateTrigger,
+  })),
   createManualTrigger: vi.fn(() => ({
     type: 'manual',
     requiresApproval: false,

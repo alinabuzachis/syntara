@@ -13,6 +13,9 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
     }
     return selector ? selector(store) : store
   }),
+  useWorkflowStoreActions: vi.fn(() => ({
+    updateActivity: mockUpdateActivity,
+  })),
 }))
 
 // Mock the alerts hook

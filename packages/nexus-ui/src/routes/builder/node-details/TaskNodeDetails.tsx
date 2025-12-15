@@ -1,7 +1,7 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { useAlerts } from '@ansible/nexus-ui-framework'
 
-import { createConnectorActivity, useWorkflowStore } from '../../../stores/useWorkflowStore'
+import { createConnectorActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { AAPNodeForm } from '../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../node-forms/AAPNodeForm'
 import { ActionNodeForm } from '../node-forms/ActionNodeForm'
@@ -16,7 +16,8 @@ interface TaskNodeDetailsProps {
 
 export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsProps) {
   const { showError } = useAlerts()
-  const updateActivity = useWorkflowStore((state) => state.updateActivity)
+  // Use action accessor - component won't re-render when store state changes
+  const { updateActivity } = useWorkflowStoreActions()
   const executor = taskData.task.executor
   const isAAPNode = taskData.metadata?.__executorType === 'aap'
 

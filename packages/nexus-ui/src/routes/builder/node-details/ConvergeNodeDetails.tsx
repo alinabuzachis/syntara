@@ -1,7 +1,7 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { useAlerts } from '@ansible/nexus-ui-framework'
 
-import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { LogicNodeForm } from '../node-forms/LogicNodeForm'
 
 type ConvergeActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'converge' }
@@ -14,7 +14,8 @@ interface ConvergeNodeDetailsProps {
 
 export function ConvergeNodeDetails({ convergeData, nodeId, onClose }: ConvergeNodeDetailsProps) {
   const { showError } = useAlerts()
-  const updateActivity = useWorkflowStore((state) => state.updateActivity)
+  // Use action accessor - component won't re-render when store state changes
+  const { updateActivity } = useWorkflowStoreActions()
 
   const initialData = {
     name: convergeData.name,

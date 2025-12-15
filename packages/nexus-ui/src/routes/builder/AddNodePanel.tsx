@@ -2,7 +2,7 @@ import { SelectableCardList, SelectableCardWithForm, SidePanel } from '@ansible/
 import { PlusIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { useWorkflowStore, useWorkflowStoreActions } from '../../stores/useWorkflowStore'
 
 import { NodeRegistry } from './registry/NodeRegistry'
 
@@ -20,9 +20,8 @@ interface AddNodePanelProps {
 
 export function AddNodePanel(props: AddNodePanelProps) {
   const [selectedNodeType, setSelectedNodeType] = useState<string | null>(null)
-  const moveActivityAfter = useWorkflowStore((state) => state.moveActivityAfter)
-  const updateActivity = useWorkflowStore((state) => state.updateActivity)
-  const removeActivity = useWorkflowStore((state) => state.removeActivity)
+  // Use action accessor - component won't re-render when store state changes
+  const { moveActivityAfter, updateActivity, removeActivity } = useWorkflowStoreActions()
 
   // Get all registered node types
   // Filter out trigger nodes when adding via plus icon (sourceNodeId exists)

@@ -4,7 +4,7 @@ import type { Node } from '@xyflow/react'
 import { FileTextIcon } from 'lucide-react'
 
 import { FlowNodeType } from '../../constants'
-import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { useWorkflowStore, selectCurrentWorkflow } from '../../stores/useWorkflowStore'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
 import {
@@ -35,7 +35,8 @@ interface NodeDetailsPanelProps {
 
 export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   const { node, onClose } = props
-  const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow)
+  // Use typed selector for optimized subscription
+  const currentWorkflow = useWorkflowStore(selectCurrentWorkflow)
 
   const getNodeTitle = () => {
     if (node.type === FlowNodeType.TRIGGER) {

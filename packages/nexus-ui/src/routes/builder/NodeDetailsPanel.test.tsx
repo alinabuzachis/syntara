@@ -9,13 +9,34 @@ import { NodeDetailsPanel } from './NodeDetailsPanel'
 
 // Mock the workflow store
 const mockUpdateActivity = vi.fn()
+const mockUpdateTrigger = vi.fn()
+const mockCurrentWorkflow = {
+  name: 'Test Workflow',
+  triggers: [{ type: 'manual' }],
+  workflow: { activities: [] },
+}
 vi.mock('../../stores/useWorkflowStore', () => ({
   useWorkflowStore: vi.fn((selector) => {
     const store = {
       updateActivity: mockUpdateActivity,
+      currentWorkflow: mockCurrentWorkflow,
     }
     return selector ? selector(store) : store
   }),
+  useWorkflowStoreActions: vi.fn(() => ({
+    updateActivity: mockUpdateActivity,
+    updateTrigger: mockUpdateTrigger,
+  })),
+  selectCurrentWorkflow: (state: { currentWorkflow: unknown }) => state.currentWorkflow,
+  createConnectorActivity: vi.fn(),
+  createManualTrigger: vi.fn(() => ({ type: 'manual' })),
+  createScheduledTrigger: vi.fn((scheduleType: string, options?: { interval?: string }) => ({
+    type: 'scheduled',
+    schedule:
+      scheduleType === 'interval'
+        ? { scheduleType: 'interval', interval: options?.interval ?? '' }
+        : { scheduleType: 'continuous' },
+  })),
 }))
 
 // Mock the alerts hook

@@ -14,7 +14,15 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { FlowNodeType } from '../../constants'
-import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import {
+  useWorkflowStore,
+  useWorkflowStoreActions,
+  selectCurrentWorkflow,
+  selectWorkflowVersion,
+  selectEdges,
+  selectTriggersCount,
+  selectActivities,
+} from '../../stores/useWorkflowStore'
 import { CanvasControls } from '../automations/canvas/CanvasControls'
 import { edgeTypes } from '../automations/canvas/edges/EdgeType'
 import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
@@ -244,15 +252,16 @@ export function BuilderFlow(props: BuilderFlowProps) {
     onNodesDeleted,
   } = props
 
-  const workflowVersion = useWorkflowStore((state) => state.workflowVersion)
-  const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow)
-  const storedEdges = useWorkflowStore((state) => state.edges)
+  // Use typed selectors for optimized subscriptions
+  const workflowVersion = useWorkflowStore(selectWorkflowVersion)
+  const currentWorkflow = useWorkflowStore(selectCurrentWorkflow)
+  const storedEdges = useWorkflowStore(selectEdges)
   // Subscribe to triggers array to detect when triggers are added/removed/updated
-  const triggersCount = useWorkflowStore((state) => state.currentWorkflow?.triggers?.length ?? 0)
+  const triggersCount = useWorkflowStore(selectTriggersCount)
   // Subscribe to activities array directly to detect updates to individual activities
-  const activities = useWorkflowStore((state) => state.currentWorkflow?.workflow.activities)
-  const setStoredEdges = useWorkflowStore((state) => state.setEdges)
-  const batchRemoveNodesAndEdges = useWorkflowStore((state) => state.batchRemoveNodesAndEdges)
+  const activities = useWorkflowStore(selectActivities)
+  // Access actions without subscribing to state changes
+  const { setEdges: setStoredEdges, batchRemoveNodesAndEdges } = useWorkflowStoreActions()
   const reactFlowInstance = useReactFlow()
   const { fitView, getViewport, screenToFlowPosition, updateNode } = reactFlowInstance
   const containerRef = useRef<HTMLDivElement>(null)
