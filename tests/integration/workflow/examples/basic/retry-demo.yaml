@@ -53,11 +53,10 @@ workflow:
             # Advance seed by attempt number to get different values on each retry
             if [ -n "$INPUT_SEED" ]; then
               ATTEMPT=${INPUT_TEMPORAL_ATTEMPT:-1}
-              RANDOM=$(( INPUT_SEED + ATTEMPT - 1 ))
+              RANDOM_NUM=$(python3 -c "import random, os; seed = int(os.getenv('INPUT_SEED', 0)); attempt = int(os.getenv('INPUT_TEMPORAL_ATTEMPT', 1)); random.seed(seed + attempt - 1); print(random.randint(0, 99))")
+            else
+              RANDOM_NUM=$((RANDOM % 100))
             fi
-
-            # Generate random number between 0-100
-            RANDOM_NUM=$((RANDOM % 100))
             echo "Random roll: $RANDOM_NUM (need > $INPUT_FAILURE_RATE to succeed)"
 
             if [ "$RANDOM_NUM" -gt "$INPUT_FAILURE_RATE" ]; then
