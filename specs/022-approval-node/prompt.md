@@ -1,0 +1,1 @@
+Build functionality for getting human approval for steps in a nexus workflow. This will require implementation of an "approval node" in the short term that, when reached in a running workflow, should pause the workflow until human approval is given or denied. Use the contents of [Jira ticket AAP-58015](AAP-58015) for details about the requirements.
