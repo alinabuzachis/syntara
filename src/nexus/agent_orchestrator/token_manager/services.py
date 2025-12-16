@@ -35,6 +35,14 @@ def _get_encoder(model_name: str = "gpt-4") -> tiktoken.Encoding:
         tiktoken.Encoding instance for the specified model
 
     """
+    # Map non-OpenAI models to gpt-4 for token counting
+    # tiktoken only supports OpenAI models, so we use gpt-4 as a reasonable approximation
+    supported_models = ["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo", "gpt-4o"]
+
+    if model_name not in supported_models:
+        logger.debug("Model %s not supported by tiktoken, using 'gpt-4' for token counting", model_name)
+        model_name = "gpt-4"
+
     return tiktoken.encoding_for_model(model_name)
 
 
