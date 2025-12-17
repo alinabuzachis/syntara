@@ -1,0 +1,97 @@
+# Data Model: Agent Orchestrator Tool Manager Integration
+
+## Core Components
+
+### Tool Manager Client
+**Purpose**: HTTP client wrapper for Tool Manager REST API endpoints
+**Location**: `src/nexus/agent_orchestrator/tool_manager/client.py`
+
+**Fields**:
+- `base_url: str` - Tool Manager API base URL  
+- `timeout: float` - Request timeout in seconds
+- `session: httpx.AsyncClient` - HTTP session for connection pooling
+
+**Methods**:
+- `get_enabled_tool_providers() -> List[ToolProviderWithConfiguration]` - Fetch enabled tool providers
+- `get_enabled_tools() -> List[ToolWithParameters]` - Fetch enabled tools (filtered by enabled=true)
+- `update_tool_status(tool_id: str, status: ToolStatus, refresh_error: Optional[str])` - Update tool refresh_error field
+- `close()` - Cleanup resources
+
+**Relationships**:
+- Consumes Tool Manager REST API
+- Uses retry_with_backoff utility (reads system configuration automatically)
+- Returns ToolProviderWithConfiguration and ToolWithParameters from OpenAPI schemas
+- Injected into Agent Orchestrator
+
+## API Response Models (from OpenAPI)
+
+### ToolProviderWithConfiguration
+**Location**: Tool Manager OpenAPI schema `tool-providers.yaml`
+**Usage**: Response payload from `/tool-providers` endpoint
+**Contains**: Provider configuration, enabled status, validation status
+
+### ToolWithParameters  
+**Location**: Tool Manager OpenAPI schema `tools.yaml`
+**Usage**: Response payload from `/tools` endpoint
+**Contains**:
+- Tool metadata (id, name, description, namespaced_name)
+- Provider relationship (provider_id)
+- Enablement status (enabled field)
+- Tool parameters array (ToolParameter objects)
+- Status and refresh information
+
+### ToolParameter
+**Location**: Tool Manager OpenAPI schema `tools.yaml`
+**Usage**: Parameter definition within ToolWithParameters
+**Contains**: Parameter schema for tool execution (name, type, description, required, default_value)
+
+## Integration Flow
+
+### LangChain Tool Loading and Filtering
+1. **Tool Provider Discovery**: ToolManagerClient.get_enabled_tool_providers() → List[ToolProviderWithConfiguration]
+2. **LangChain Tool Loading**: For each enabled provider, use langchain to load ALL tools → List[BaseTool]
+3. **Tool Filtering**: Filter langchain BaseTools by ToolWithParameters.enabled status
+4. **StateGraph Registration**: Pass filtered BaseTools to LangGraph StateGraph
+5. **Error Reporting**: If tool execution fails, use ToolManagerClient.update_tool_status() with refresh_error
+
+### Data Flow Sequence
+```
+User Request → Agent Orchestrator → ToolManagerClient.get_enabled_tool_providers()
+              ↓
+ToolProviderWithConfiguration[] → LangChain.load_tools(provider) → BaseTool[]
+              ↓
+ToolManagerClient.get_enabled_tools() → ToolWithParameters[]
+              ↓
+Filter BaseTools by ToolWithParameters.enabled → Filtered BaseTool[]
+              ↓
+StateGraph(filtered_tools) → LangGraph execution → User Response
+              ↓
+Tool errors → ToolManagerClient.update_tool_status(refresh_error)
+```
+
+## Component Structure
+
+```
+src/nexus/agent_orchestrator/
+├── tool_manager/
+│   ├── __init__.py
+│   └── client.py          # Tool Manager HTTP Client
+└── orchestrator.py        # Main orchestrator with StateGraph integration
+```
+
+## Dependencies
+
+- **API Schemas**: ToolProviderWithConfiguration, ToolWithParameters from Tool Manager OpenAPI specs
+- **HTTP Client**: `httpx` for async API calls
+- **Retry Logic**: `retry_with_backoff` utility (existing, reads system configuration)
+- **LangChain**: For loading provider tools → BaseTool[]
+- **LangGraph**: StateGraph with filtered BaseTools
+- **Tool Status**: Update refresh_error field when tools fail
+
+## Key Design Decisions
+
+1. **No Custom Adapter**: Use langchain directly to load tools, then filter by enabled status
+2. **Reuse Existing Models**: Leverage ToolProviderWithConfiguration and ToolWithParameters from API schemas  
+3. **Simple Filtering**: Filter langchain BaseTools list based on ToolWithParameters.enabled field
+4. **Error Feedback Loop**: Report tool execution errors back to Tool Manager via refresh_error field
+5. **System Configuration**: retry_with_backoff handles retry configuration from system settings

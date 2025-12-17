@@ -1,9 +1,9 @@
 # Feature Specification: Agent Orchestrator Tool Manager Integration
 
-**Feature Branch**: `023-022-agentic-task`  
+**Feature Branch**: `020-agentic-task-execution`  
 **Created**: 2025-12-11  
 **Status**: Draft  
-**Input**: User description: "022-agentic-task-execution"
+**Input**: User description: "020-agentic-task-execution"
 
 ## User Scenarios & Testing
 
@@ -39,6 +39,7 @@ The Agent Orchestrator needs to access and utilize tools from the Tool Manager d
 - **FR-008**: System MUST log basic tool invocation events for troubleshooting (comprehensive metrics deferred to future iteration)
 - **FR-009**: System MUST support configuration for tool access, credentials, and retry logic for reliable operation
 - **FR-010**: System MUST validate that tools are still enabled before attempting execution
+- **FR-011**: System implementation does not need to address performance metrics, scale targets, or response time requirements (deferred to future iterations)
 
 ### Key Entities
 - **Tool Manager Client**: HTTP client wrapper for Tool Manager REST API endpoints, providing standardized request/response handling
@@ -58,6 +59,7 @@ The Agent Orchestrator needs to access and utilize tools from the Tool Manager d
 
 ### Session 2025-12-15
 - Q: Does the orchestrator choose which tools may be needed for specific prompts? → A: No - orchestrator retrieves all enabled tools for all prompts
+- Q: What are the expected performance and scale requirements for tool discovery and execution? → A: All performance metrics are a future concern and not part of this feature
 
 ### Clarification Taxonomy Resolution
 

@@ -1,6 +1,6 @@
-> /specify is running… 022-agentic-task-execution
+> /specify is running… 020-agentic-task-execution
 
-Read specs/022-agentic-task-execution/requirements.md
+Read specs/020-agentic-task-execution/requirements.md
 
 We need to integrate our Tool Manager with the Agent Orchestrator.
 
