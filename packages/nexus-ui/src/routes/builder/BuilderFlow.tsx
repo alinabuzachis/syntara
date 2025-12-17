@@ -1010,12 +1010,27 @@ export function BuilderFlow(props: BuilderFlowProps) {
         const handleId =
           pendingHandle && pendingHandle.nodeId === params.nodeId ? pendingHandle.handleId : params.handleId
 
+        // Prevent starting a new connection from the loop handle if it already has a connection
+        if (handleId === 'loop') {
+          const hasExistingLoopConnection = edges.some(
+            (edge) =>
+              edge.source === params.nodeId &&
+              edge.sourceHandle === 'loop' &&
+              edge.type !== 'buttonEdge' &&
+              !edge.id.startsWith('button-')
+          )
+          if (hasExistingLoopConnection) {
+            // Don't set connection state - this prevents the drag from starting
+            return
+          }
+        }
+
         connectionStateRef.current.sourceNodeId = params.nodeId
         connectionStateRef.current.sourceHandleId = handleId
         connectionStateRef.current.successful = false
       }
     },
-    []
+    [edges]
   )
 
   const onConnectEnd = useCallback(
@@ -1092,9 +1107,12 @@ export function BuilderFlow(props: BuilderFlowProps) {
     setEdges,
   })
 
-  const isValidConnection = useCallback((connection: EdgeType | Connection) => {
-    return validateConnection(connection)
-  }, [])
+  const isValidConnection = useCallback(
+    (connection: EdgeType | Connection) => {
+      return validateConnection(connection, edges)
+    },
+    [edges]
+  )
 
   // Keep all edges visible during connection (including all button edges)
   const edgesToRender = useMemo(() => {

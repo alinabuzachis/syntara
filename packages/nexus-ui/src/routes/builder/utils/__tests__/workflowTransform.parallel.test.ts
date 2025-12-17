@@ -1297,4 +1297,543 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // Condition branches should be connected via true/false handles
     expect(condEdge?.sourceHandle).toBe('true')
   })
+
+  it('flattens parallel with condition branch that converges', () => {
+    // Workflow: parallel(sequence(A, L, E), B, condition(C)) → J
+    // Where J converges E, B, and C (C is inside a condition node)
+    // This tests that getLastActivityId correctly drills into condition nodes
+    const nestedActivities: Activity[] = [
+      {
+        id: 'parallel_1',
+        name: 'Parallel',
+        type: 'parallel',
+        branches: [
+          {
+            id: 'sequence_1',
+            name: 'Branch 1',
+            type: 'sequence',
+            steps: [
+              {
+                id: 'A',
+                name: 'Task A',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+              {
+                id: 'L',
+                name: 'Loop L',
+                type: 'loop',
+                loop: {
+                  type: 'forEach',
+                  items: 'items',
+                  itemVariable: 'item',
+                  indexVariable: 'index',
+                  do: [
+                    {
+                      id: 'D',
+                      name: 'Task D',
+                      type: 'task',
+                      task: { executor: 'script', config: { language: 'python', code: '' } },
+                    },
+                  ],
+                },
+              },
+              {
+                id: 'E',
+                name: 'Task E',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+          },
+          {
+            id: 'B',
+            name: 'Task B',
+            type: 'task',
+            task: { executor: 'script', config: { language: 'python', code: '' } },
+          },
+          {
+            id: 'cond1',
+            name: 'Condition',
+            type: 'condition',
+            condition: 'a',
+            then: [
+              {
+                id: 'C',
+                name: 'Task C',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'J',
+        name: 'Join',
+        type: 'converge',
+        converge: {
+          branches: ['E', 'B', 'C'],
+          strategy: 'all',
+        },
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+    // All activities should be flattened
+    expect(activities.some((a) => a.id === 'A')).toBe(true)
+    expect(activities.some((a) => a.id === 'B')).toBe(true)
+    expect(activities.some((a) => a.id === 'C')).toBe(true)
+    expect(activities.some((a) => a.id === 'D')).toBe(true)
+    expect(activities.some((a) => a.id === 'E')).toBe(true)
+    expect(activities.some((a) => a.id === 'L')).toBe(true)
+    expect(activities.some((a) => a.id === 'cond1')).toBe(true)
+    expect(activities.some((a) => a.id === 'J')).toBe(true)
+
+    // CRITICAL: All 3 branches should connect to J
+    const edgesToJ = edges.filter((e) => e.target === 'J')
+    expect(edgesToJ).toHaveLength(3)
+    expect(edgesToJ.some((e) => e.source === 'E')).toBe(true)
+    expect(edgesToJ.some((e) => e.source === 'B')).toBe(true)
+    expect(edgesToJ.some((e) => e.source === 'C')).toBe(true) // C is inside condition, should still connect
+
+    // Condition should connect to C via true handle
+    const condToC = edges.find((e) => e.source === 'cond1' && e.target === 'C')
+    expect(condToC).toBeDefined()
+    expect(condToC?.sourceHandle).toBe('true')
+  })
+
+  it('flattens parallel with condition having both then and else branches converging', () => {
+    // Workflow: parallel(A, condition(then: B, else: C)) → J
+    // Where J converges A and B (only the then branch converges)
+    // This tests that getLastActivityId handles conditions and returns the last activity from then branch
+    const nestedActivities: Activity[] = [
+      {
+        id: 'parallel_1',
+        name: 'Parallel',
+        type: 'parallel',
+        branches: [
+          {
+            id: 'A',
+            name: 'Task A',
+            type: 'task',
+            task: { executor: 'script', config: { language: 'python', code: '' } },
+          },
+          {
+            id: 'cond1',
+            name: 'Condition',
+            type: 'condition',
+            condition: 'test',
+            then: [
+              {
+                id: 'B',
+                name: 'Task B',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+            else: [
+              {
+                id: 'C',
+                name: 'Task C',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'J',
+        name: 'Join',
+        type: 'converge',
+        converge: {
+          branches: ['A', 'B'], // Only A and B converge (then branch)
+          strategy: 'all',
+        },
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+    // All activities should be flattened
+    expect(activities.some((a) => a.id === 'A')).toBe(true)
+    expect(activities.some((a) => a.id === 'B')).toBe(true)
+    expect(activities.some((a) => a.id === 'C')).toBe(true)
+    expect(activities.some((a) => a.id === 'cond1')).toBe(true)
+    expect(activities.some((a) => a.id === 'J')).toBe(true)
+
+    // CRITICAL: Only A and B should connect to J (condition then branch)
+    const edgesToJ = edges.filter((e) => e.target === 'J')
+    expect(edgesToJ).toHaveLength(2)
+    expect(edgesToJ.some((e) => e.source === 'A')).toBe(true)
+    expect(edgesToJ.some((e) => e.source === 'B')).toBe(true) // From then branch
+
+    // Condition should connect to both B and C via different handles
+    const condToB = edges.find((e) => e.source === 'cond1' && e.target === 'B')
+    expect(condToB).toBeDefined()
+    expect(condToB?.sourceHandle).toBe('true')
+
+    const condToC = edges.find((e) => e.source === 'cond1' && e.target === 'C')
+    expect(condToC).toBeDefined()
+    expect(condToC?.sourceHandle).toBe('false')
+  })
+
+  it('flattens parallel with nested condition inside sequence', () => {
+    // Workflow: parallel(sequence(A, condition(B)), C) → J
+    // Where J converges B and C
+    // This tests nested condition within a sequence branch
+    const nestedActivities: Activity[] = [
+      {
+        id: 'parallel_1',
+        name: 'Parallel',
+        type: 'parallel',
+        branches: [
+          {
+            id: 'seq1',
+            name: 'Sequence 1',
+            type: 'sequence',
+            steps: [
+              {
+                id: 'A',
+                name: 'Task A',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+              {
+                id: 'cond1',
+                name: 'Condition',
+                type: 'condition',
+                condition: 'test',
+                then: [
+                  {
+                    id: 'B',
+                    name: 'Task B',
+                    type: 'task',
+                    task: { executor: 'script', config: { language: 'python', code: '' } },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'C',
+            name: 'Task C',
+            type: 'task',
+            task: { executor: 'script', config: { language: 'python', code: '' } },
+          },
+        ],
+      },
+      {
+        id: 'J',
+        name: 'Join',
+        type: 'converge',
+        converge: {
+          branches: ['B', 'C'],
+          strategy: 'all',
+        },
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+    // All activities should be flattened
+    expect(activities.some((a) => a.id === 'A')).toBe(true)
+    expect(activities.some((a) => a.id === 'B')).toBe(true)
+    expect(activities.some((a) => a.id === 'C')).toBe(true)
+    expect(activities.some((a) => a.id === 'cond1')).toBe(true)
+    expect(activities.some((a) => a.id === 'J')).toBe(true)
+
+    // Both B and C should connect to J
+    const edgesToJ = edges.filter((e) => e.target === 'J')
+    expect(edgesToJ).toHaveLength(2)
+    expect(edgesToJ.some((e) => e.source === 'B')).toBe(true) // B is inside sequence → condition
+    expect(edgesToJ.some((e) => e.source === 'C')).toBe(true)
+
+    // A should connect to condition
+    const aToC = edges.find((e) => e.source === 'A' && e.target === 'cond1')
+    expect(aToC).toBeDefined()
+
+    // Condition should connect to B
+    const condToB = edges.find((e) => e.source === 'cond1' && e.target === 'B')
+    expect(condToB).toBeDefined()
+    expect(condToB?.sourceHandle).toBe('true')
+  })
+
+  it('round-trip: parallel with condition branch preserves edges correctly', () => {
+    // Workflow: parallel(A, condition(then: B)) → J
+    // Test that flatten → nest preserves the condition structure and edge relationships
+    const originalNested: Activity[] = [
+      {
+        id: 'parallel_1',
+        name: 'Parallel',
+        type: 'parallel',
+        branches: [
+          {
+            id: 'A',
+            name: 'Task A',
+            type: 'task',
+            task: { executor: 'script', config: { language: 'python', code: '' } },
+          },
+          {
+            id: 'cond1',
+            name: 'Condition',
+            type: 'condition',
+            condition: 'test',
+            then: [
+              {
+                id: 'B',
+                name: 'Task B',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'J',
+        name: 'Join',
+        type: 'converge',
+        converge: {
+          branches: ['A', 'B'],
+          strategy: 'all',
+        },
+      },
+    ]
+
+    // Flatten
+    const { activities: flat, edges } = WorkflowTransform.flatten(originalNested)
+
+    // Should have 4 flat activities: A, cond1, B, J
+    expect(flat).toHaveLength(4)
+    expect(flat.map((a) => a.id).sort()).toEqual(['A', 'B', 'J', 'cond1'])
+
+    // Condition should have empty then/else after flattening
+    const flatCond = flat.find((a) => a.id === 'cond1') as Extract<Activity, { type: 'condition' }>
+    expect(flatCond.then).toHaveLength(0)
+    expect(flatCond.else).toHaveLength(0)
+
+    // Should have edges: A→J, B→J, cond1→B
+    const edgesToJ = edges.filter((e) => e.target === 'J')
+    expect(edgesToJ).toHaveLength(2)
+    expect(edgesToJ.some((e) => e.source === 'A')).toBe(true)
+    expect(edgesToJ.some((e) => e.source === 'B')).toBe(true)
+
+    const condToB = edges.find((e) => e.source === 'cond1' && e.target === 'B')
+    expect(condToB).toBeDefined()
+    expect(condToB?.sourceHandle).toBe('true')
+
+    // Nest back
+    const nested = WorkflowTransform.nest(flat, edges)
+
+    // The condition might be at top level or wrapped in a parallel container
+    // Find it recursively
+    function findCondition(activities: Activity[]): Extract<Activity, { type: 'condition' }> | undefined {
+      for (const activity of activities) {
+        if (activity.type === 'condition' && activity.id === 'cond1') {
+          return activity as Extract<Activity, { type: 'condition' }>
+        }
+        if (activity.type === 'parallel') {
+          const parallelActivity = activity as Extract<Activity, { type: 'parallel' }>
+          const found = findCondition(parallelActivity.branches || [])
+          if (found) return found
+        }
+      }
+      return undefined
+    }
+
+    const conditionNode = findCondition(nested)
+    expect(conditionNode).toBeDefined()
+    expect(conditionNode!.then).toHaveLength(1)
+    expect(conditionNode!.then![0].id).toBe('B')
+  })
+
+  it('flattens parallel with condition where ELSE branch converges (not then)', () => {
+    // Workflow: parallel(B, C, condition(then: D, else: A)) → J
+    // Where J converges B and A (from the else branch, NOT the then branch)
+    // This tests that getAllLastActivityIds correctly identifies ALL endpoints of a condition
+    const nestedActivities: Activity[] = [
+      {
+        id: 'parallel_1',
+        name: 'Parallel',
+        type: 'parallel',
+        branches: [
+          {
+            id: 'B',
+            name: 'Task B',
+            type: 'task',
+            task: { executor: 'script', config: { language: 'python', code: '' } },
+          },
+          {
+            id: 'C',
+            name: 'Task C',
+            type: 'task',
+            task: { executor: 'script', config: { language: 'python', code: '' } },
+          },
+          {
+            id: 'cond1',
+            name: 'Condition',
+            type: 'condition',
+            condition: 'test',
+            then: [
+              {
+                id: 'D',
+                name: 'Task D',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+            else: [
+              {
+                id: 'A',
+                name: 'Task A',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'J',
+        name: 'Join',
+        type: 'converge',
+        converge: {
+          branches: ['B', 'A'], // B and A converge (A is in else branch)
+          strategy: 'all',
+        },
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+    // All activities should be flattened
+    expect(activities.some((a) => a.id === 'A')).toBe(true)
+    expect(activities.some((a) => a.id === 'B')).toBe(true)
+    expect(activities.some((a) => a.id === 'C')).toBe(true)
+    expect(activities.some((a) => a.id === 'D')).toBe(true)
+    expect(activities.some((a) => a.id === 'cond1')).toBe(true)
+    expect(activities.some((a) => a.id === 'J')).toBe(true)
+
+    // CRITICAL: Both B and A should connect to J (A is in else branch)
+    const edgesToJ = edges.filter((e) => e.target === 'J')
+    expect(edgesToJ).toHaveLength(2)
+    expect(edgesToJ.some((e) => e.source === 'B')).toBe(true)
+    expect(edgesToJ.some((e) => e.source === 'A')).toBe(true) // A from else branch should connect
+
+    // Condition should connect to both D (then) and A (else)
+    const condToD = edges.find((e) => e.source === 'cond1' && e.target === 'D')
+    expect(condToD).toBeDefined()
+    expect(condToD?.sourceHandle).toBe('true')
+
+    const condToA = edges.find((e) => e.source === 'cond1' && e.target === 'A')
+    expect(condToA).toBeDefined()
+    expect(condToA?.sourceHandle).toBe('false')
+
+    // C should NOT connect to J (not in converge branches)
+    expect(edgesToJ.some((e) => e.source === 'C')).toBe(false)
+    // D should NOT connect to J (not in converge branches)
+    expect(edgesToJ.some((e) => e.source === 'D')).toBe(false)
+  })
+
+  it('flattens parallel with condition where BOTH branches converge to different points', () => {
+    // Workflow: parallel(B, condition(then: A1→A2, else: A3→A4)) → J
+    // Where J converges A2 (from then) and A4 (from else)
+    // This tests that getAllLastActivityIds returns BOTH endpoints when both branches converge
+    const nestedActivities: Activity[] = [
+      {
+        id: 'parallel_1',
+        name: 'Parallel',
+        type: 'parallel',
+        branches: [
+          {
+            id: 'B',
+            name: 'Task B',
+            type: 'task',
+            task: { executor: 'script', config: { language: 'python', code: '' } },
+          },
+          {
+            id: 'cond1',
+            name: 'Condition',
+            type: 'condition',
+            condition: 'test',
+            then: [
+              {
+                id: 'A1',
+                name: 'Task A1',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+              {
+                id: 'A2',
+                name: 'Task A2',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+            else: [
+              {
+                id: 'A3',
+                name: 'Task A3',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+              {
+                id: 'A4',
+                name: 'Task A4',
+                type: 'task',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'J',
+        name: 'Join',
+        type: 'converge',
+        converge: {
+          branches: ['B', 'A2', 'A4'], // B, A2 (from then), and A4 (from else) all converge
+          strategy: 'all',
+        },
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+    // All activities should be flattened
+    expect(activities.some((a) => a.id === 'A1')).toBe(true)
+    expect(activities.some((a) => a.id === 'A2')).toBe(true)
+    expect(activities.some((a) => a.id === 'A3')).toBe(true)
+    expect(activities.some((a) => a.id === 'A4')).toBe(true)
+    expect(activities.some((a) => a.id === 'B')).toBe(true)
+    expect(activities.some((a) => a.id === 'cond1')).toBe(true)
+    expect(activities.some((a) => a.id === 'J')).toBe(true)
+
+    // CRITICAL: B, A2 (then branch), and A4 (else branch) should ALL connect to J
+    const edgesToJ = edges.filter((e) => e.target === 'J')
+    expect(edgesToJ).toHaveLength(3)
+    expect(edgesToJ.some((e) => e.source === 'B')).toBe(true)
+    expect(edgesToJ.some((e) => e.source === 'A2')).toBe(true) // A2 from then branch
+    expect(edgesToJ.some((e) => e.source === 'A4')).toBe(true) // A4 from else branch
+
+    // Condition should connect to A1 (then) and A3 (else)
+    const condToA1 = edges.find((e) => e.source === 'cond1' && e.target === 'A1')
+    expect(condToA1).toBeDefined()
+    expect(condToA1?.sourceHandle).toBe('true')
+
+    const condToA3 = edges.find((e) => e.source === 'cond1' && e.target === 'A3')
+    expect(condToA3).toBeDefined()
+    expect(condToA3?.sourceHandle).toBe('false')
+
+    // Sequential edges within branches
+    expect(edges.some((e) => e.source === 'A1' && e.target === 'A2')).toBe(true)
+    expect(edges.some((e) => e.source === 'A3' && e.target === 'A4')).toBe(true)
+
+    // A1 and A3 should NOT connect to J (they're intermediate activities)
+    expect(edgesToJ.some((e) => e.source === 'A1')).toBe(false)
+    expect(edgesToJ.some((e) => e.source === 'A3')).toBe(false)
+  })
 })

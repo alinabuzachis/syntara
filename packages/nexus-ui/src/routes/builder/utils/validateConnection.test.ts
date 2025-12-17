@@ -166,4 +166,174 @@ describe('validateConnection', () => {
     expect(validateConnection(trueConnection)).toBe(false)
     expect(validateConnection(falseConnection)).toBe(false)
   })
+
+  // Loop handle validation
+  it('should allow first connection from loop handle', () => {
+    const connection: Connection = {
+      source: 'loop-1',
+      target: 'task-1',
+      sourceHandle: 'loop',
+      targetHandle: null,
+    }
+    const existingEdges = []
+    expect(validateConnection(connection, existingEdges)).toBe(true)
+  })
+
+  it('should prevent second connection from loop handle when one already exists', () => {
+    const newConnection: Connection = {
+      source: 'loop-1',
+      target: 'task-2',
+      sourceHandle: 'loop',
+      targetHandle: null,
+    }
+    const existingEdges = [
+      {
+        id: 'loop-1-loop-task-1',
+        source: 'loop-1',
+        target: 'task-1',
+        sourceHandle: 'loop',
+        targetHandle: 'target',
+        type: 'default',
+      },
+    ]
+    expect(validateConnection(newConnection, existingEdges)).toBe(false)
+  })
+
+  it('should allow reconnecting loop handle to different target', () => {
+    const existingEdgeId = 'loop-1-loop-task-1'
+    const reconnection: Connection & { id: string } = {
+      id: existingEdgeId,
+      source: 'loop-1',
+      target: 'task-2',
+      sourceHandle: 'loop',
+      targetHandle: null,
+    }
+    const existingEdges = [
+      {
+        id: existingEdgeId,
+        source: 'loop-1',
+        target: 'task-1',
+        sourceHandle: 'loop',
+        targetHandle: 'target',
+        type: 'default',
+      },
+    ]
+    expect(validateConnection(reconnection, existingEdges)).toBe(true)
+  })
+
+  it('should allow connection from done handle even when loop handle is connected', () => {
+    const doneConnection: Connection = {
+      source: 'loop-1',
+      target: 'task-2',
+      sourceHandle: 'done',
+      targetHandle: null,
+    }
+    const existingEdges = [
+      {
+        id: 'loop-1-loop-task-1',
+        source: 'loop-1',
+        target: 'task-1',
+        sourceHandle: 'loop',
+        targetHandle: 'target',
+        type: 'default',
+      },
+    ]
+    expect(validateConnection(doneConnection, existingEdges)).toBe(true)
+  })
+
+  it('should ignore button edges when checking loop handle connections', () => {
+    const newConnection: Connection = {
+      source: 'loop-1',
+      target: 'task-1',
+      sourceHandle: 'loop',
+      targetHandle: null,
+    }
+    const existingEdges = [
+      {
+        id: 'button-loop-1-loop',
+        source: 'loop-1',
+        target: 'placeholder-loop-1-loop',
+        sourceHandle: 'loop',
+        targetHandle: 'target',
+        type: 'buttonEdge',
+      },
+    ]
+    // Should allow connection even though there's a button edge, since button edges don't count
+    expect(validateConnection(newConnection, existingEdges)).toBe(true)
+  })
+
+  it('should prevent multiple outgoing edges from loop handle', () => {
+    // Scenario: Loop node already has one connection from its loop handle to task-1
+    // User tries to add a second connection from loop handle to task-2
+    const secondConnection: Connection = {
+      source: 'loop-1',
+      target: 'task-2',
+      sourceHandle: 'loop',
+      targetHandle: null,
+    }
+    const existingEdges = [
+      {
+        id: 'loop-1-loop-task-1',
+        source: 'loop-1',
+        target: 'task-1',
+        sourceHandle: 'loop',
+        targetHandle: 'target',
+        type: 'default',
+      },
+    ]
+    // Should prevent the second connection
+    expect(validateConnection(secondConnection, existingEdges)).toBe(false)
+  })
+
+  it('should allow multiple outgoing edges from done handle', () => {
+    // Scenario: Loop node can have multiple connections from its done handle
+    const firstDoneConnection: Connection = {
+      source: 'loop-1',
+      target: 'task-1',
+      sourceHandle: 'done',
+      targetHandle: null,
+    }
+    const secondDoneConnection: Connection = {
+      source: 'loop-1',
+      target: 'task-2',
+      sourceHandle: 'done',
+      targetHandle: null,
+    }
+    const existingEdges = [
+      {
+        id: 'loop-1-done-task-1',
+        source: 'loop-1',
+        target: 'task-1',
+        sourceHandle: 'done',
+        targetHandle: 'target',
+        type: 'default',
+      },
+    ]
+    // Should allow the second connection from done handle
+    expect(validateConnection(secondDoneConnection, existingEdges)).toBe(true)
+    // First connection should also be valid
+    expect(validateConnection(firstDoneConnection, existingEdges)).toBe(true)
+  })
+
+  it('should allow loop handle connection when done handle already has connections', () => {
+    // Scenario: Loop node has connections from done handle, user adds connection from loop handle
+    const loopConnection: Connection = {
+      source: 'loop-1',
+      target: 'task-2',
+      sourceHandle: 'loop',
+      targetHandle: null,
+    }
+    const existingEdges = [
+      {
+        id: 'loop-1-done-task-1',
+        source: 'loop-1',
+        target: 'task-1',
+        sourceHandle: 'done',
+        targetHandle: 'target',
+        type: 'default',
+      },
+    ]
+    // Should allow loop handle connection even when done handle has connections
+    expect(validateConnection(loopConnection, existingEdges)).toBe(true)
+  })
 })

@@ -83,17 +83,20 @@ export class WorkflowTransform {
           const convergeBranchSet = new Set(convergeBranches)
 
           for (const branch of branches) {
-            const lastActivityId = this.getLastActivityId(branch)
-            // Only create edge if this branch is supposed to converge
-            if (convergeBranchSet.has(lastActivityId)) {
-              const sourceActivity = this.findActivityById(branch, lastActivityId)
-              edges.push({
-                id: `${lastActivityId}-${next.id}`,
-                source: lastActivityId,
-                target: next.id,
-                sourceHandle: sourceActivity ? this.getSourceHandle(sourceActivity) : 'source',
-                targetHandle: 'target',
-              })
+            // For conditions with multiple branches (then/else), check if ANY of the endpoints are in converge set
+            const lastActivityIds = this.getAllLastActivityIds(branch)
+            // Only create edge if this branch endpoint is supposed to converge
+            for (const lastActivityId of lastActivityIds) {
+              if (convergeBranchSet.has(lastActivityId)) {
+                const sourceActivity = this.findActivityById(branch, lastActivityId)
+                edges.push({
+                  id: `${lastActivityId}-${next.id}`,
+                  source: lastActivityId,
+                  target: next.id,
+                  sourceHandle: sourceActivity ? this.getSourceHandle(sourceActivity) : 'source',
+                  targetHandle: 'target',
+                })
+              }
             }
           }
         } else {
@@ -207,6 +210,8 @@ export class WorkflowTransform {
   /**
    * Get the ID of the last real activity in a branch.
    * Sequences are flattened away, so we need to drill down to find the last actual activity.
+   * For conditions, we need to find the last activity in either the then or else branch.
+   * For loops, we return the loop node itself (it's the last activity via 'done' handle).
    */
   private static getLastActivityId(activity: Activity): string {
     if (activity.type === 'sequence') {
@@ -215,7 +220,66 @@ export class WorkflowTransform {
         return this.getLastActivityId(steps[steps.length - 1])
       }
     }
+
+    if (activity.type === 'condition') {
+      const condActivity = activity as Extract<Activity, { type: 'condition' }>
+      // For conditions, we need to find the last activity in the then branch
+      // (or else branch if then is empty). If both branches lead to the same converge point,
+      // we can use either one.
+      const thenActivities = condActivity.then || []
+      const elseActivities = condActivity.else || []
+
+      if (thenActivities.length > 0) {
+        return this.getLastActivityId(thenActivities[thenActivities.length - 1])
+      }
+
+      if (elseActivities.length > 0) {
+        return this.getLastActivityId(elseActivities[elseActivities.length - 1])
+      }
+    }
+
+    // For loops and other nodes, return the node's own ID
     return activity.id
+  }
+
+  /**
+   * Get all possible last activity IDs from a branch.
+   * For conditions with both then and else branches, both branches may converge to different points.
+   * This returns all potential endpoints.
+   */
+  private static getAllLastActivityIds(activity: Activity): string[] {
+    if (activity.type === 'sequence') {
+      const steps = activity.steps || []
+      if (steps.length > 0) {
+        return this.getAllLastActivityIds(steps[steps.length - 1])
+      }
+    }
+
+    if (activity.type === 'condition') {
+      const condActivity = activity as Extract<Activity, { type: 'condition' }>
+      const thenActivities = condActivity.then || []
+      const elseActivities = condActivity.else || []
+      const lastIds: string[] = []
+
+      // Get last IDs from both branches
+      if (thenActivities.length > 0) {
+        lastIds.push(...this.getAllLastActivityIds(thenActivities[thenActivities.length - 1]))
+      }
+
+      if (elseActivities.length > 0) {
+        lastIds.push(...this.getAllLastActivityIds(elseActivities[elseActivities.length - 1]))
+      }
+
+      // If condition has no branches, return the condition itself
+      if (lastIds.length === 0) {
+        return [activity.id]
+      }
+
+      return lastIds
+    }
+
+    // For loops and other nodes, return the node's own ID
+    return [activity.id]
   }
 
   /**
@@ -497,15 +561,19 @@ export class WorkflowTransform {
       const convergeBranchSet = new Set(convergeBranches)
 
       for (const branch of branches) {
-        const lastActivityId = this.getLastActivityId(branch)
-        if (convergeBranchSet.has(lastActivityId)) {
-          edges.push({
-            id: `${lastActivityId}-${nextId}`,
-            source: lastActivityId,
-            target: nextId,
-            sourceHandle: 'source',
-            targetHandle: 'target',
-          })
+        // For conditions with multiple branches, check if ANY of the endpoints are in converge set
+        const lastActivityIds = this.getAllLastActivityIds(branch)
+
+        for (const lastActivityId of lastActivityIds) {
+          if (convergeBranchSet.has(lastActivityId)) {
+            edges.push({
+              id: `${lastActivityId}-${nextId}`,
+              source: lastActivityId,
+              target: nextId,
+              sourceHandle: 'source',
+              targetHandle: 'target',
+            })
+          }
         }
       }
     } else {
@@ -755,6 +823,11 @@ export class WorkflowTransform {
         // Find outgoing edges from branch activities
         const outgoingEdges = edges.filter((e) => branchActivityIds.has(e.source) && !branchActivityIds.has(e.target))
 
+        // CRITICAL: Mark all branch activities as visited to prevent converge node duplication
+        // When collecting activities after a parallel, the converge node check needs to know
+        // that branch activities have been "visited" even though they're inside the parallel
+        branchActivityIds.forEach((id) => visited.add(id))
+
         // Collect activities following the parallel
         for (const edge of outgoingEdges) {
           const afterActivities = this.collectSequentialActivities(edge.target, edges, allActivities, visited)
@@ -788,6 +861,20 @@ export class WorkflowTransform {
     const activity = allActivities.find((a) => a.id === startId)
     if (!activity) return []
 
+    // CRITICAL: Don't collect converge nodes that have incoming edges from outside the current visited set
+    // This prevents converge nodes from being duplicated across parallel branch sequences
+    // For example, if branches E and B both have edges to converge node J, J should only be collected once,
+    // not included in each branch's sequence
+    if (activity.type === 'converge') {
+      const incomingEdges = edges.filter((e) => e.target === startId)
+      const hasUnvisitedIncoming = incomingEdges.some((e) => !visited.has(e.source))
+      if (hasUnvisitedIncoming) {
+        // This converge node has incoming edges from activities we haven't visited yet
+        // Don't collect it here - it will be placed after the parallel container
+        return []
+      }
+    }
+
     visited.add(startId)
     const result = [activity]
 
@@ -800,19 +887,8 @@ export class WorkflowTransform {
       return result
     }
 
-    // Follow outgoing edges, but skip edges to converge nodes
-    const outgoing = edges.filter((e) => {
-      if (e.source !== startId) return false
-
-      // Check if the target is a converge node
-      const targetActivity = allActivities.find((a) => a.id === e.target)
-      if (targetActivity?.type === 'converge') {
-        // Don't follow edges to converge nodes - they mark the end of parallel branches
-        return false
-      }
-
-      return true
-    })
+    // Follow outgoing edges
+    const outgoing = edges.filter((e) => e.source === startId)
 
     for (const edge of outgoing) {
       const nextActivities = this.collectSequentialActivities(edge.target, edges, allActivities, visited)
@@ -878,9 +954,9 @@ export class WorkflowTransform {
   }
 
   /**
-   * Find parallel group from external sources (e.g., triggers)
+   * Find external sources (edges from activities not in the current set)
    */
-  private static findParallelFromExternalSource(activities: Activity[], edges: EdgeConnection[]): ParallelGroup | null {
+  private static findExternalSources(activities: Activity[], edges: EdgeConnection[]): Set<string> {
     const activityIds = new Set(activities.map((a) => a.id))
     const externalSources = new Set<string>()
 
@@ -890,31 +966,196 @@ export class WorkflowTransform {
       }
     }
 
+    return externalSources
+  }
+
+  /**
+   * Find a partial convergence node for the given divergence targets
+   */
+  private static findPartialConvergeNode(
+    divergenceTargets: string[],
+    edges: EdgeConnection[],
+    activities: Activity[]
+  ): { convergencePoint: string; convergeNode: Activity } | null {
+    const convergeNodes = activities.filter((a) => a.type === 'converge')
+
+    for (const node of convergeNodes) {
+      const convergeBranches = (node as Extract<Activity, { type: 'converge' }>).converge?.branches || []
+
+      // Collect all downstream activity IDs from divergence targets
+      const downstreamIds = new Set<string>()
+      for (const targetId of divergenceTargets) {
+        const downstream = this.collectAllDownstream(targetId, edges, activities)
+        downstream.forEach((act) => downstreamIds.add(act.id))
+      }
+
+      // If at least 2 branches reach this converge node, use it
+      const branchesReachingConverge = convergeBranches.filter((branchId) => downstreamIds.has(branchId))
+      if (branchesReachingConverge.length >= 2) {
+        return { convergencePoint: node.id, convergeNode: node }
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Collect branches with partial convergence support
+   */
+  private static collectBranchesWithPartialConvergence(
+    divergenceTargets: string[],
+    convergencePoint: string | null,
+    convergeBranchSet: Set<string>,
+    edges: EdgeConnection[],
+    activities: Activity[]
+  ): Activity[][] {
+    return divergenceTargets.map((targetId) => {
+      if (!convergencePoint) {
+        return this.collectAllDownstream(targetId, edges, activities)
+      }
+
+      // Check if this branch reaches the converge point
+      const branchActivities = this.collectBranchActivities(targetId, convergencePoint, edges, activities)
+      const branchActivityIds = new Set(branchActivities.map((a) => a.id))
+      const reachesConvergePoint = Array.from(convergeBranchSet).some((branchId) => branchActivityIds.has(branchId))
+
+      if (!reachesConvergePoint) {
+        // This branch doesn't converge - collect all downstream but exclude the converge node
+        const allDownstream = this.collectBranchActivitiesNoStop(targetId, edges, activities)
+        return allDownstream.filter((a) => a.id !== convergencePoint)
+      }
+
+      return branchActivities
+    })
+  }
+
+  /**
+   * Check if source uses structural handles (true/false/loop)
+   */
+  private static hasStructuralHandles(sourceId: string, edges: EdgeConnection[]): boolean {
+    return edges.some(
+      (e) =>
+        e.source === sourceId && (e.sourceHandle === 'true' || e.sourceHandle === 'false' || e.sourceHandle === 'loop')
+    )
+  }
+
+  /**
+   * Get valid divergence targets from external source
+   */
+  private static getValidDivergenceTargets(
+    sourceId: string,
+    edges: EdgeConnection[],
+    activityIds: Set<string>
+  ): string[] | null {
+    const outgoingEdges = edges.filter((e) => e.source === sourceId)
+    if (outgoingEdges.length < 2) return null
+
+    const regularHandles = outgoingEdges.filter(
+      (e) => !e.sourceHandle || e.sourceHandle === 'source' || e.sourceHandle === 'done'
+    )
+    if (regularHandles.length < 2) return null
+
+    const validTargets = regularHandles.filter((e) => activityIds.has(e.target))
+    if (validTargets.length < 2) return null
+
+    return validTargets.map((e) => e.target)
+  }
+
+  /**
+   * Find convergence point supporting both full and partial convergence
+   */
+  private static findConvergencePointWithPartialSupport(
+    divergenceTargets: string[],
+    edges: EdgeConnection[],
+    activities: Activity[]
+  ): { convergencePoint: string | null; convergeNode: Activity | undefined } {
+    const convergencePoint = this.findConvergencePoint(divergenceTargets, edges, activities)
+
+    if (convergencePoint) {
+      return { convergencePoint, convergeNode: undefined }
+    }
+
+    // If no convergence point found via reachability, check for partial convergence
+    const partialConverge = this.findPartialConvergeNode(divergenceTargets, edges, activities)
+    if (partialConverge) {
+      return {
+        convergencePoint: partialConverge.convergencePoint,
+        convergeNode: partialConverge.convergeNode,
+      }
+    }
+
+    return { convergencePoint: null, convergeNode: undefined }
+  }
+
+  /**
+   * Determine final converge node for external source
+   */
+  private static determineFinalConvergeNode(
+    sourceId: string,
+    convergencePoint: string | null,
+    convergeNode: Activity | undefined,
+    edges: EdgeConnection[],
+    activities: Activity[]
+  ): Activity | undefined {
+    const hasStructuralHandle = this.hasStructuralHandles(sourceId, edges)
+
+    // Structural nodes (conditions/loops) should not include converge nodes at top level
+    if (hasStructuralHandle) {
+      return undefined
+    }
+
+    if (convergeNode) {
+      return convergeNode
+    }
+
+    if (convergencePoint) {
+      return activities.find((a) => a.id === convergencePoint)!
+    }
+
+    return undefined
+  }
+
+  /**
+   * Find parallel group from external sources (e.g., triggers)
+   */
+  private static findParallelFromExternalSource(activities: Activity[], edges: EdgeConnection[]): ParallelGroup | null {
+    const activityIds = new Set(activities.map((a) => a.id))
+    const externalSources = this.findExternalSources(activities, edges)
+
     for (const sourceId of externalSources) {
-      const outgoingEdges = edges.filter((e) => e.source === sourceId)
-      if (outgoingEdges.length < 2) continue
+      const divergenceTargets = this.getValidDivergenceTargets(sourceId, edges, activityIds)
+      if (!divergenceTargets) continue
 
-      const regularHandles = outgoingEdges.filter(
-        (e) => !e.sourceHandle || e.sourceHandle === 'source' || e.sourceHandle === 'done'
+      const { convergencePoint, convergeNode } = this.findConvergencePointWithPartialSupport(
+        divergenceTargets,
+        edges,
+        activities
       )
-      if (regularHandles.length < 2) continue
 
-      const validTargets = regularHandles.filter((e) => activityIds.has(e.target))
-      if (validTargets.length < 2) continue
+      const convergeBranchSet = convergeNode
+        ? new Set((convergeNode as Extract<Activity, { type: 'converge' }>).converge?.branches || [])
+        : new Set<string>()
 
-      const divergenceTargets = validTargets.map((e) => e.target)
-      const convergencePoint = this.findConvergencePoint(divergenceTargets, edges, activities)
+      const branches = this.collectBranchesWithPartialConvergence(
+        divergenceTargets,
+        convergencePoint,
+        convergeBranchSet,
+        edges,
+        activities
+      )
 
-      const branches = divergenceTargets.map((targetId) => {
-        return convergencePoint
-          ? this.collectBranchActivities(targetId, convergencePoint, edges, activities)
-          : this.collectAllDownstream(targetId, edges, activities)
-      })
+      const finalConvergeNode = this.determineFinalConvergeNode(
+        sourceId,
+        convergencePoint,
+        convergeNode,
+        edges,
+        activities
+      )
 
       return {
         divergenceSource: sourceId,
         divergenceTargets,
-        convergeNode: convergencePoint ? activities.find((a) => a.id === convergencePoint)! : undefined,
+        convergeNode: finalConvergeNode,
         branches,
       }
     }
