@@ -29,22 +29,21 @@ The Agent Orchestrator needs to access and utilize tools from the Tool Manager d
 ## Requirements
 
 ### Functional Requirements
-- **FR-001**: System MUST provide access to available tools for discovery and execution
-- **FR-002**: Agent Orchestrator MUST retrieve ALL available and enabled tools dynamically on every user request (no prompt-based filtering of tools)
-- **FR-003**: System MUST make tools accessible for agent execution
-- **FR-004**: Agent Orchestrator MUST support tool calling capabilities during agent invocations
-- **FR-005**: System MUST support passing input parameters from user prompts to tool execution
-- **FR-006**: System MUST handle tool execution results and return structured responses to users
-- **FR-007**: System MUST provide robust error handling for tool discovery failures, execution failures, and timeout scenarios, including updating failed tool status appropriately
-- **FR-008**: System MUST log basic tool invocation events for troubleshooting (comprehensive metrics deferred to future iteration)
-- **FR-009**: System MUST support configuration for tool access, credentials, and retry logic for reliable operation
-- **FR-010**: System MUST validate that tools are still enabled before attempting execution
-- **FR-011**: System implementation does not need to address performance metrics, scale targets, or response time requirements (deferred to future iterations)
+- **FR-001**: Agent Orchestrator MUST retrieve ALL available and enabled tools dynamically on every user request for discovery and execution (no prompt-based filtering of tools)
+- **FR-002**: System MUST make tools accessible for agent execution through LangGraph StateGraph integration
+- **FR-003**: Agent Orchestrator MUST support tool calling capabilities during agent invocations
+- **FR-004**: System MUST support passing input parameters from user prompts to tool execution
+- **FR-005**: System MUST handle tool execution results and return structured responses to users
+- **FR-006**: System MUST provide robust error handling for specific scenarios: (1) Tool Manager API unavailable - continue without tools and retry with exponential backoff, (2) Tool execution timeout after 30 seconds - cancel execution and report to Tool Manager, (3) Tool execution failure - capture error details and update tool status to ERROR with refresh_error field, (4) Tool disabled between discovery and execution - gracefully continue without tool and inform user
+- **FR-007**: System MUST log basic tool invocation events for troubleshooting: tool execution start (tool name, arguments), tool execution completion (duration, success/failure), tool execution errors (error details, stack trace), and tool status updates to Tool Manager (comprehensive metrics deferred to future iteration)
+- **FR-008**: System MUST support configuration for tool access, credentials, and retry logic for reliable operation
+- **FR-009**: System MUST validate that tools are still enabled before attempting execution
+- **FR-010**: System implementation does not need to address performance metrics, scale targets, or response time requirements (deferred to future iterations)
 
 ### Key Entities
 - **Tool Manager Client**: HTTP client wrapper for Tool Manager REST API endpoints, providing standardized request/response handling
 - **Tool Metadata**: Structured representation of tool definitions including name, description, parameters, and availability status  
-- **LangGraph BaseTools**: Tool adapters that convert Tool Manager metadata into executable LangGraph tools
+- **LangGraph BaseTools**: LangChain-generated executable tools created from Tool Manager metadata for LangGraph StateGraph execution
 - **Tool Execution Context**: Runtime context containing prompt information, user session, and tool selection criteria
 - **Tool Execution Result**: Structured response from tool execution including output data, status, and error information
 
