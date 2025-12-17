@@ -43,6 +43,76 @@ class JobStatus(StrEnum):
 TERMINAL_STATUSES = {status.lower() for status in JobStatus}
 
 
+async def _lookup_job_template_by_name(
+    client: httpx.AsyncClient,
+    job_template_name: str,
+    organization_name: str,
+    auth_headers: dict[str, str],
+    basic_auth: httpx.BasicAuth | None,
+    base_url: str,
+) -> int:
+    """Lookup job template ID by name and organization.
+
+    Args:
+        client: HTTP client
+        job_template_name: Name of job template
+        organization_name: Name of organization
+        auth_headers: Authentication headers
+        basic_auth: Basic authentication object
+        base_url: Base URL for AAP controller
+
+    Returns:
+        Job template ID
+
+    Raises:
+        AAPJobExecutionError: If template not found or multiple templates found
+
+    """
+    auth_param = basic_auth or httpx.USE_CLIENT_DEFAULT
+
+    # Query AAP API for job templates by name and organization
+    lookup_url = f"{base_url}/api/controller/v2/job_templates/"
+    params = {
+        "name": job_template_name,
+        "organization__name": organization_name,
+    }
+
+    try:
+        response = await client.get(lookup_url, params=params, headers=auth_headers, auth=auth_param)
+        response.raise_for_status()
+        data: dict[str, Any] = response.json()
+        results: list[dict[str, Any]] = data.get("results", [])
+
+        # Validate exactly one result
+        if len(results) == 0:
+            msg = f"Job template '{job_template_name}' not found in organization '{organization_name}'"
+            raise AAPJobExecutionError(msg, status=None)
+
+        if len(results) > 1:
+            msg = f"Multiple job templates named '{job_template_name}' found in organization '{organization_name}'"
+            raise AAPJobExecutionError(msg, status=None)
+
+        # Return the job template ID
+        job_template_id = int(results[0]["id"])
+        logger.info(
+            "Resolved job template '%s' in org '%s' to ID %s",
+            job_template_name,
+            organization_name,
+            job_template_id,
+        )
+        return job_template_id
+
+    except httpx.HTTPStatusError as e:
+        msg = (
+            f"Failed to lookup job template '{job_template_name}' in org '{organization_name}': "
+            f"HTTP {e.response.status_code}"
+        )
+        raise AAPJobExecutionError(msg, status=None) from e
+    except httpx.HTTPError as e:
+        msg = f"Failed to connect to AAP for template lookup: {e}"
+        raise AAPJobExecutionError(msg) from e
+
+
 class AAPJobExecutionError(ActivityExecutionError):
     """Raised when AAP job template execution fails."""
 
@@ -213,7 +283,23 @@ async def _launch_aap_job(
         AAPJobExecutionError: If launch fails
 
     """
-    launch_url = f"{base_url}/api/controller/v2/job_templates/{config.job_template_id}/launch/"
+    # Resolve job template ID - either use provided ID or lookup by name/org
+    if config.job_template_name:
+        # Lookup job template by name and organization
+        job_template_id = await _lookup_job_template_by_name(
+            client,
+            config.job_template_name,
+            # we ignore arg-type because Pydantic ensures this is not None if name is provided
+            config.organization_name,  # type: ignore[arg-type]
+            auth_headers,
+            basic_auth,
+            base_url,
+        )
+    else:
+        # Use numeric ID (validated to be non-None by model)
+        job_template_id = config.job_template_id  # type: ignore[assignment]
+
+    launch_url = f"{base_url}/api/controller/v2/job_templates/{job_template_id}/launch/"
 
     auth_param = basic_auth or httpx.USE_CLIENT_DEFAULT
 
@@ -222,10 +308,27 @@ async def _launch_aap_job(
         response.raise_for_status()
         launch_data: dict[str, Any] = response.json()
         job_id = int(launch_data["id"])
-        logger.info("Launched AAP job template %s, job ID: %s", config.job_template_id, job_id)
+
+        # Log based on reference type
+        if config.job_template_name:
+            logger.info(
+                "Launched job template '%s' in org '%s' (ID: %s), job ID: %s",
+                config.job_template_name,
+                config.organization_name,
+                job_template_id,
+                job_id,
+            )
+        else:
+            logger.info("Launched AAP job template %s, job ID: %s", job_template_id, job_id)
+
         return job_id
     except httpx.HTTPStatusError as e:
-        msg = f"Failed to launch job template {config.job_template_id}: HTTP {e.response.status_code}"
+        # Build reference info for error message
+        if config.job_template_name:
+            ref_info = f"'{config.job_template_name}' in org '{config.organization_name}'"
+        else:
+            ref_info = str(job_template_id)
+        msg = f"Failed to launch job template {ref_info}: HTTP {e.response.status_code}"
         raise AAPJobExecutionError(msg, status=None) from e
     except httpx.HTTPError as e:
         msg = f"Failed to connect to AAP: {e}"

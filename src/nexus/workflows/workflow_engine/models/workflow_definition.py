@@ -6,9 +6,9 @@ They are used for validation and type-safe access to workflow configuration.
 
 from enum import Enum
 from http import HTTPMethod
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from nexus.workflows.utils.activity_traversal import traverse_activities
 from nexus.workflows.workflow_engine import constants
@@ -221,8 +221,15 @@ class AAPJobTemplateExecutorConfig(BaseModel):
 
     Launches job templates in Ansible Automation Platform and polls for completion.
 
+    Job templates can be referenced either by numeric ID or by name with organization.
+    Exactly one reference method must be specified:
+    - job_template_id (numeric ID), OR
+    - job_template_name + organization_name
+
     Attributes:
-        job_template_id: AAP job template ID to launch (required)
+        job_template_id: AAP job template ID to launch (mutually exclusive with name-based)
+        job_template_name: AAP job template name (requires organization_name)
+        organization_name: AAP organization name (requires job_template_name)
         inventory: Override default inventory (name or ID)
         credentials: List of credential IDs to use
         extra_vars: Extra variables to pass to job
@@ -236,8 +243,8 @@ class AAPJobTemplateExecutorConfig(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    job_template_id: int = Field(
-        ...,
+    job_template_id: int | None = Field(
+        default=None,
         ge=1,
         description="AAP job template ID to launch",
         alias="jobTemplateId",
@@ -280,6 +287,47 @@ class AAPJobTemplateExecutorConfig(BaseModel):
         ge=1,
         description="Timeout for job execution in seconds (default from NEXUS_AAP_TIMEOUT_SECONDS)",
     )
+    job_template_name: str | None = Field(
+        default=None,
+        description="AAP job template name (used with organization_name)",
+        alias="jobTemplateName",
+    )
+    organization_name: str | None = Field(
+        default=None,
+        description="AAP organization name (used with job_template_name)",
+        alias="organizationName",
+    )
+
+    @model_validator(mode="after")
+    def validate_template_reference(self) -> Self:
+        """Validate EITHER job_template_id OR (job_template_name + organization_name)."""
+        # Strip whitespace from name fields
+        if self.job_template_name:
+            self.job_template_name = self.job_template_name.strip()
+        if self.organization_name:
+            self.organization_name = self.organization_name.strip()
+
+        has_id = self.job_template_id is not None
+        has_name = bool(self.job_template_name)
+        has_org = bool(self.organization_name)
+
+        if has_id and (has_name or has_org):
+            msg = "Cannot specify both job_template_id and job_template_name/organization_name"
+            raise ValueError(msg)
+
+        if has_name and not has_org:
+            msg = "organization_name is required when using job_template_name"
+            raise ValueError(msg)
+
+        if has_org and not has_name:
+            msg = "job_template_name is required when using organization_name"
+            raise ValueError(msg)
+
+        if not has_id and not has_name:
+            msg = "Must specify either job_template_id or (job_template_name + organization_name)"
+            raise ValueError(msg)
+
+        return self
 
 
 # Executor type enum

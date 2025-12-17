@@ -616,12 +616,20 @@
         },
         "config": {
           "type": "object",
-          "required": ["jobTemplateId"],
+          "description": "Configuration for AAP job template execution. Must specify either jobTemplateId OR both jobTemplateName and organizationName.",
           "properties": {
             "jobTemplateId": {
               "type": "integer",
-              "description": "AAP job template ID to launch",
+              "description": "AAP job template ID to launch (mutually exclusive with jobTemplateName/organizationName)",
               "minimum": 1
+            },
+            "jobTemplateName": {
+              "type": "string",
+              "description": "AAP job template name (requires organizationName, mutually exclusive with jobTemplateId)"
+            },
+            "organizationName": {
+              "type": "string",
+              "description": "AAP organization name (requires jobTemplateName, mutually exclusive with jobTemplateId)"
             },
             "inventory": {
               "type": "integer",
@@ -660,6 +668,23 @@
               "default": 0
             }
           },
+          "oneOf": [
+            {
+              "required": ["jobTemplateId"],
+              "not": {
+                "anyOf": [
+                  { "required": ["jobTemplateName"] },
+                  { "required": ["organizationName"] }
+                ]
+              }
+            },
+            {
+              "required": ["jobTemplateName", "organizationName"],
+              "not": {
+                "required": ["jobTemplateId"]
+              }
+            }
+          ],
           "additionalProperties": false
         }
       },

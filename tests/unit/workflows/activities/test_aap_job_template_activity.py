@@ -11,6 +11,7 @@ Tests AAP job template execution including:
 """
 
 from collections.abc import Generator
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -52,6 +53,27 @@ def create_http_response(
         json=json,
         text=text,
     )
+
+
+def create_successful_job_mocks(
+    job_id: int = 123,
+    output_text: str = "",
+) -> dict[str, httpx.Response]:
+    """Create standard mock responses for successful AAP job execution.
+
+    Args:
+        job_id: Job ID to use in responses
+        output_text: Output text for job stdout
+
+    Returns:
+        Dictionary with 'launch', 'status', 'output' response mocks
+
+    """
+    return {
+        "launch": create_http_response(200, {"id": job_id, "url": f"/api/v2/jobs/{job_id}/"}),
+        "status": create_http_response(200, {"id": job_id, "status": "successful", "artifacts": {}}),
+        "output": create_http_response(200, text=output_text),
+    }
 
 
 def create_mock_settings(
@@ -593,3 +615,268 @@ class TestAAPJobTemplateAuthentication:
             # Verify BasicAuth was used
             assert "auth" in mock_post.call_args.kwargs
             assert isinstance(mock_post.call_args.kwargs["auth"], httpx.BasicAuth)
+
+
+class TestAAPJobTemplateNameBasedReference:
+    """Test name-based job template references."""
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_successful_name_based_execution(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+    ) -> None:
+        """Test successful job execution using name-based reference."""
+        mocks = create_successful_job_mocks(job_id=123, output_text="PLAY [Deploy] ok")
+        mock_settings = create_mock_settings()
+
+        # Mock lookup response
+        lookup_response = create_http_response(200, {"count": 1, "results": [{"id": 42, "name": "Deploy App"}]})
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_settings,
+            ),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            # GET calls: lookup, status, output
+            mock_get.side_effect = [lookup_response, mocks["status"], mocks["output"]]
+
+            activity_config = build_activity_config(
+                job_template_name="Deploy App",
+                organization_name="Default",
+                extra_vars={"version": "1.0.0"},
+            )
+
+            result = await execute_aap_job_template_activity(activity_config, {})
+
+            assert result["job_id"] == 123
+            assert result["status"] == "successful"
+
+            # Verify lookup was called with correct params
+            lookup_call = mock_get.call_args_list[0]
+            assert "job_templates" in str(lookup_call.args[0])
+            assert lookup_call.kwargs["params"]["name"] == "Deploy App"
+            assert lookup_call.kwargs["params"]["organization__name"] == "Default"
+
+            # Verify POST was called with numeric ID (not named URL)
+            post_url = mock_post.call_args.args[0]
+            assert "/job_templates/42/launch/" in post_url
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_lookup_template_not_found(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+    ) -> None:
+        """Test error when template lookup returns no results."""
+        mock_settings = create_mock_settings()
+
+        # Mock lookup response with no results
+        lookup_response = create_http_response(200, {"count": 0, "results": []})
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_settings,
+            ),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=lookup_response),
+        ):
+            activity_config = build_activity_config(
+                job_template_name="Nonexistent Template",
+                organization_name="Default",
+            )
+
+            with pytest.raises(AAPJobExecutionError, match="not found"):
+                await execute_aap_job_template_activity(activity_config, {})
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_lookup_multiple_templates_found(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+    ) -> None:
+        """Test error when template lookup returns multiple results."""
+        mock_settings = create_mock_settings()
+
+        # Mock lookup response with multiple results
+        lookup_response = create_http_response(
+            200,
+            {
+                "count": 2,
+                "results": [
+                    {"id": 42, "name": "Deploy App"},
+                    {"id": 43, "name": "Deploy App"},
+                ],
+            },
+        )
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_settings,
+            ),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=lookup_response),
+        ):
+            activity_config = build_activity_config(
+                job_template_name="Deploy App",
+                organization_name="Default",
+            )
+
+            with pytest.raises(AAPJobExecutionError, match="Multiple job templates"):
+                await execute_aap_job_template_activity(activity_config, {})
+
+    @pytest.mark.parametrize(
+        ("config_kwargs", "should_pass", "error_match"),
+        [
+            # Valid cases - should pass
+            ({"job_template_id": 42}, True, None),
+            ({"job_template_name": "Deploy", "organization_name": "Default"}, True, None),
+            ({"job_template_name": "  Deploy  ", "organization_name": "  Default  "}, True, None),
+            # Invalid cases - should raise ValidationError
+            (
+                {"job_template_id": 42, "job_template_name": "Deploy", "organization_name": "Default"},
+                False,
+                "Cannot specify both",
+            ),
+            ({"job_template_name": "Deploy"}, False, "organization_name is required"),
+            ({"organization_name": "Default"}, False, "job_template_name is required"),
+            ({"extra_vars": {"foo": "bar"}}, False, "Must specify either"),
+            ({"job_template_name": "", "organization_name": "Default"}, False, "job_template_name is required"),
+            ({"job_template_name": "Deploy", "organization_name": ""}, False, "organization_name is required"),
+            (
+                {"job_template_name": "   ", "organization_name": "Default"},
+                False,
+                "job_template_name is required",
+            ),
+            (
+                {"job_template_name": "Deploy", "organization_name": "   "},
+                False,
+                "organization_name is required",
+            ),
+        ],
+        ids=[
+            "valid_id_only",
+            "valid_name_and_org",
+            "valid_name_and_org_with_whitespace",
+            "invalid_both_id_and_name",
+            "invalid_name_without_org",
+            "invalid_org_without_name",
+            "invalid_neither_id_nor_name",
+            "invalid_empty_template_name",
+            "invalid_empty_organization_name",
+            "invalid_whitespace_only_template_name",
+            "invalid_whitespace_only_organization_name",
+        ],
+    )
+    def test_config_validation_mutual_exclusivity(
+        self,
+        config_kwargs: dict[str, Any],
+        should_pass: bool,  # noqa: FBT001
+        error_match: str | None,
+    ) -> None:
+        """Test config validation enforces mutual exclusivity and whitespace stripping."""
+        if should_pass:
+            config = build_config(**config_kwargs)
+            assert config is not None
+            # Verify the expected field is set (and whitespace is stripped)
+            if "job_template_id" in config_kwargs:
+                assert config.job_template_id == config_kwargs["job_template_id"]
+            if "job_template_name" in config_kwargs:
+                expected_name = config_kwargs["job_template_name"].strip()
+                assert config.job_template_name == expected_name
+            if "organization_name" in config_kwargs:
+                expected_org = config_kwargs["organization_name"].strip()
+                assert config.organization_name == expected_org
+        else:
+            with pytest.raises(ValidationError, match=error_match):
+                build_config(**config_kwargs)
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_expression_resolution_with_name_based(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+    ) -> None:
+        """Test expression resolution works with name-based references."""
+        mocks = create_successful_job_mocks(job_id=888, output_text="")
+        mock_settings = create_mock_settings()
+
+        # Mock lookup response
+        lookup_response = create_http_response(200, {"count": 1, "results": [{"id": 55, "name": "Dynamic Template"}]})
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_settings,
+            ),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            # GET calls: lookup, status, output
+            mock_get.side_effect = [lookup_response, mocks["status"], mocks["output"]]
+
+            activity_config = build_activity_config(
+                job_template_name="${input.template_name}",
+                organization_name="${input.org_name}",
+            )
+            inputs = {
+                "template_name": "Dynamic Template",
+                "org_name": "Production",
+            }
+
+            result = await execute_aap_job_template_activity(activity_config, inputs)
+            assert result["job_id"] == 888
+
+            # Verify lookup was called with resolved names
+            lookup_call = mock_get.call_args_list[0]
+            assert lookup_call.kwargs["params"]["name"] == "Dynamic Template"
+            assert lookup_call.kwargs["params"]["organization__name"] == "Production"
+
+            # Verify POST was called with numeric ID
+            post_url = mock_post.call_args.args[0]
+            assert "/job_templates/55/launch/" in post_url
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_backwards_compatibility_id_based(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+    ) -> None:
+        """Test that ID-based references still work (backwards compatibility)."""
+        mocks = create_successful_job_mocks(job_id=999, output_text="")
+
+        mock_settings = create_mock_settings()
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_settings,
+            ),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            mock_get.side_effect = [mocks["status"], mocks["output"]]
+
+            # Use old ID-based config
+            activity_config = build_activity_config(job_template_id=42)
+
+            result = await execute_aap_job_template_activity(activity_config, {})
+            assert result["job_id"] == 999
+
+            # Verify POST was called with numeric ID in path (not named URL)
+            post_url = mock_post.call_args.args[0]
+            assert "/job_templates/42/launch/" in post_url
+            assert "++" not in post_url  # No named URL separator

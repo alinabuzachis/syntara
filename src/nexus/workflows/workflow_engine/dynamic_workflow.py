@@ -426,9 +426,17 @@ class DynamicWorkflow:
             msg = f"AAP executor requires AAPJobTemplateExecutorConfig, got {type(activity.task.config).__name__}"
             raise TypeError(msg)
 
+        # Build log context with whichever reference method is used
+        log_extra: dict[str, Any] = {"activity_id": activity.id}
+        if activity.task.config.job_template_id:
+            log_extra["job_template_id"] = activity.task.config.job_template_id
+        if activity.task.config.job_template_name:
+            log_extra["job_template_name"] = activity.task.config.job_template_name
+            log_extra["organization_name"] = activity.task.config.organization_name
+
         workflow.logger.info(
             f"Executing AAP job template activity: {activity.id}",
-            extra={"activity_id": activity.id, "job_template_id": activity.task.config.job_template_id},
+            extra=log_extra,
         )
 
         # Serialize config to dict to avoid Pydantic V1 deprecation warnings in Temporal
@@ -451,9 +459,11 @@ class DynamicWorkflow:
             return cast("JsonDict", result)
 
         except Exception as e:
+            # Reuse log context and add execution_id for error
+            log_extra["execution_id"] = execution_id
             workflow.logger.error(
                 f"AAP job template task {activity.id} failed: {e}",
-                extra={"activity_id": activity.id, "execution_id": execution_id},
+                extra=log_extra,
             )
             raise
 
