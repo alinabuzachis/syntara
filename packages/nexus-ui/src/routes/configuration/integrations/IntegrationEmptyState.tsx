@@ -2,6 +2,7 @@ import { CompassPanel, Flex, FlexItem, Button, Content, ContentVariants, Title }
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute.tsx'
+import noDataImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 
 export function IntegrationEmptyState() {
   return (
@@ -14,11 +15,7 @@ export function IntegrationEmptyState() {
         style={{ padding: 'var(--pf-t--global--spacer--2xl)', height: '100%' }}
       >
         <FlexItem>
-          <img
-            src="/src/assets/collage-circle-sparkles-window-server-dark-RH.png"
-            alt="No data"
-            style={{ maxWidth: '400px', height: 'auto', objectFit: 'contain' }}
-          />
+          <img src={noDataImage} alt="No data" style={{ maxWidth: '400px', height: 'auto', objectFit: 'contain' }} />
         </FlexItem>
         <FlexItem style={{ maxWidth: '620px' }}>
           <Flex

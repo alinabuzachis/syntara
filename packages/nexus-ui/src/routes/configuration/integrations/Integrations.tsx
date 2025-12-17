@@ -36,6 +36,7 @@ import { useLocation } from 'wouter'
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
+import noResultsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolProvidersClient } from '../../../client'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { StringCell } from '../../../components/table/StringCell'
@@ -298,7 +299,7 @@ export default function Integrations() {
                   >
                     <FlexItem>
                       <img
-                        src="/src/assets/collage-circle-sparkles-window-server-dark-RH.png"
+                        src={noResultsImage}
                         alt="No results"
                         style={{ maxWidth: '320px', height: 'auto', objectFit: 'contain' }}
                       />

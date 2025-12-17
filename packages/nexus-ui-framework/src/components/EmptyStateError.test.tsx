@@ -13,7 +13,7 @@ describe('EmptyStateError', () => {
       expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Something went wrong')
       expect(screen.getByText('Please refresh the page by using the button below.')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument()
-      expect(screen.getByRole('img')).toHaveAttribute('alt', 'Error')
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
     })
 
     it('reloads window when refresh button is clicked', async () => {
@@ -53,6 +53,20 @@ describe('EmptyStateError', () => {
       expect(screen.getByText('Custom Error')).toBeInTheDocument()
       expect(screen.getByText('Please refresh the page by using the button below.')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument()
+    })
+
+    it('renders with custom image when imageSrc is provided', () => {
+      render(<EmptyStateError imageSrc="/test-image.png" imageAlt="Custom error image" />)
+
+      const img = screen.getByRole('img')
+      expect(img).toHaveAttribute('src', '/test-image.png')
+      expect(img).toHaveAttribute('alt', 'Custom error image')
+    })
+
+    it('uses default alt text when imageSrc is provided without imageAlt', () => {
+      render(<EmptyStateError imageSrc="/test-image.png" />)
+
+      expect(screen.getByRole('img')).toHaveAttribute('alt', 'Error')
     })
   })
 })

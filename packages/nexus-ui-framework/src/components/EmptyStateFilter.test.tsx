@@ -15,7 +15,7 @@ describe('EmptyStateFilter', () => {
         screen.getByText('No results match the filter criteria. Try changing your filter settings.')
       ).toBeInTheDocument()
       expect(screen.queryByRole('button')).not.toBeInTheDocument()
-      expect(screen.getByRole('img')).toHaveAttribute('alt', 'No results')
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
     })
   })
 
@@ -61,6 +61,20 @@ describe('EmptyStateFilter', () => {
       expect(screen.getByText('No Matching Items')).toBeInTheDocument()
       expect(screen.getByText('Your search criteria did not match any items')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Clear Search' })).toBeInTheDocument()
+    })
+
+    it('renders with custom image when imageSrc is provided', () => {
+      render(<EmptyStateFilter imageSrc="/test-filter.png" imageAlt="Custom filter image" />)
+
+      const img = screen.getByRole('img')
+      expect(img).toHaveAttribute('src', '/test-filter.png')
+      expect(img).toHaveAttribute('alt', 'Custom filter image')
+    })
+
+    it('uses default alt text when imageSrc is provided without imageAlt', () => {
+      render(<EmptyStateFilter imageSrc="/test-filter.png" />)
+
+      expect(screen.getByRole('img')).toHaveAttribute('alt', 'No results')
     })
   })
 })

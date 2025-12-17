@@ -22,6 +22,7 @@ import { useLocation, useParams } from 'wouter'
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute.tsx'
+import noToolsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolProvidersClient, toolsClient } from '../../../client'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { StringCell } from '../../../components/table/StringCell'
@@ -172,7 +173,7 @@ export default function IntegrationTools() {
                 >
                   <FlexItem>
                     <img
-                      src="/src/assets/collage-circle-sparkles-window-server-dark-RH.png"
+                      src={noToolsImage}
                       alt="No tools available"
                       style={{ maxWidth: '320px', height: 'auto', objectFit: 'contain' }}
                     />

@@ -13,7 +13,7 @@ describe('EmptyStateNoData', () => {
       expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('No data available')
       expect(screen.getByText('There is no data to display at this time.')).toBeInTheDocument()
       expect(screen.queryByRole('button')).not.toBeInTheDocument()
-      expect(screen.getByRole('img')).toHaveAttribute('alt', 'No data')
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
     })
   })
 
@@ -59,6 +59,20 @@ describe('EmptyStateNoData', () => {
       expect(screen.getByText('Empty Database')).toBeInTheDocument()
       expect(screen.getByText('Start by adding your first record')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Add Record' })).toBeInTheDocument()
+    })
+
+    it('renders with custom image when imageSrc is provided', () => {
+      render(<EmptyStateNoData imageSrc="/test-nodata.png" imageAlt="Custom no data image" />)
+
+      const img = screen.getByRole('img')
+      expect(img).toHaveAttribute('src', '/test-nodata.png')
+      expect(img).toHaveAttribute('alt', 'Custom no data image')
+    })
+
+    it('uses default alt text when imageSrc is provided without imageAlt', () => {
+      render(<EmptyStateNoData imageSrc="/test-nodata.png" />)
+
+      expect(screen.getByRole('img')).toHaveAttribute('alt', 'No data')
     })
   })
 })
