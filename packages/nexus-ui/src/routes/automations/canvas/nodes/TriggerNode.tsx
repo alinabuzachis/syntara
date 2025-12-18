@@ -1,4 +1,5 @@
 import { KebabMenuTrigger, Menu, MenuItem, MenuItems } from '@ansible/nexus-ui-framework'
+import { FlexItem, Content, ContentVariants, Title, TitleSizes } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 import type { WorkflowAPI } from 'nexus-contracts'
 
@@ -48,39 +49,61 @@ export function TriggerNodeDetails(
   return (
     <>
       <NodeHeader>
-        <div className="ml-2">{props.icon && <NodeIcon>{props.icon}</NodeIcon>}</div>
-        <div className="flex-1" />
+        <FlexItem style={{ marginLeft: 'var(--pf-t--global--spacer--sm)' }}>
+          {props.icon && <NodeIcon>{props.icon}</NodeIcon>}
+        </FlexItem>
+        <FlexItem grow={{ default: 'grow' }} />
         {props.menuActions && props.menuActions.length > 0 && (
-          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Intentional for ReactFlow node interaction isolation
-          <div
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="nodrag nopan -mr-2"
-          >
-            <Menu>
-              <KebabMenuTrigger label="Node actions menu" />
-              <MenuItems>
-                {props.menuActions.map((action) => (
-                  <MenuItem
-                    key={action.id}
-                    onClick={() => {
-                      action.onClick()
-                    }}
-                    className={action.variant === 'danger' ? 'menu-item-danger' : ''}
-                  >
-                    {action.icon && <span className="mr-2">{action.icon}</span>}
-                    {action.label}
-                  </MenuItem>
-                ))}
-              </MenuItems>
-            </Menu>
-          </div>
+          <FlexItem>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation()
+                }
+              }}
+              className="nodrag nopan"
+              style={{ marginRight: 'calc(-1 * var(--pf-t--global--spacer--sm))' }}
+              role="button"
+              tabIndex={0}
+            >
+              <Menu>
+                <KebabMenuTrigger label="Node actions menu" />
+                <MenuItems>
+                  {props.menuActions.map((action) => (
+                    <MenuItem
+                      key={action.id}
+                      onClick={() => {
+                        action.onClick()
+                      }}
+                      className={action.variant === 'danger' ? 'menu-item-danger' : ''}
+                    >
+                      {action.icon && (
+                        <span style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>{action.icon}</span>
+                      )}
+                      {action.label}
+                    </MenuItem>
+                  ))}
+                </MenuItems>
+              </Menu>
+            </div>
+          </FlexItem>
         )}
       </NodeHeader>
       <NodeBody>
-        <div className="-mt-1 ml-2">
-          <div className="text-sm font-semibold">{nodeData.label}</div>
-          <div className="text-xs text-white/60">{'Manual trigger'}</div>
+        <div
+          style={{
+            marginTop: 'calc(-1 * var(--pf-t--global--spacer--xs))',
+            marginLeft: 'var(--pf-t--global--spacer--sm)',
+          }}
+        >
+          <Title headingLevel="h3" size={TitleSizes.sm}>
+            {nodeData.label}
+          </Title>
+          <Content component={ContentVariants.small} style={{ color: 'var(--pf-t--global--color--white--600)' }}>
+            Manual trigger
+          </Content>
         </div>
       </NodeBody>
     </>

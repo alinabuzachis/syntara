@@ -1,4 +1,4 @@
-import { PlayIcon } from 'lucide-react'
+import { PlayIcon } from '@patternfly/react-icons'
 
 import {
   createEventTrigger,

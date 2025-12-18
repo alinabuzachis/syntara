@@ -1,13 +1,12 @@
 import {
-  PlayIcon,
-  SplitIcon,
-  RepeatIcon,
-  MergeIcon,
   BrainIcon,
-  CurlyBracesIcon,
-  CloudCogIcon,
-  PlugIcon,
-} from 'lucide-react'
+  CodeBranchIcon,
+  CodeIcon,
+  PlayIcon,
+  PluggedIcon,
+  ServerIcon,
+  SyncIcon,
+} from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
 
 // @ts-expect-error - SVG import as React component
@@ -37,13 +36,13 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
     expandable: true,
   },
   condition: {
-    icon: SplitIcon,
+    icon: CodeBranchIcon,
     label: 'Condition',
     className: 'w-node rounded-4xl',
     expandable: true,
   },
   loop: {
-    icon: RepeatIcon,
+    icon: SyncIcon,
     label: 'Loop',
     className: 'w-node rounded-4xl',
     enableEnd: true,
@@ -55,7 +54,7 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
     expandable: false,
   },
   converge: {
-    icon: MergeIcon,
+    icon: CodeBranchIcon,
     label: 'Converge',
     className: 'w-node rounded-3xl',
     expandable: false,
@@ -64,9 +63,9 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
 
 // Task executor metadata - different tasks have different icons
 export const executorMetadata: Record<string, { icon: ComponentType<{ className?: string }>; label: string }> = {
-  script: { icon: CurlyBracesIcon, label: 'Script' },
+  script: { icon: CodeIcon, label: 'Script' },
   agentic: { icon: BrainIcon, label: 'Agentic' },
-  api: { icon: CloudCogIcon, label: 'REST Api' },
-  connector: { icon: PlugIcon, label: 'Connector' },
+  api: { icon: ServerIcon, label: 'REST Api' },
+  connector: { icon: PluggedIcon, label: 'Connector' },
   aap: { icon: AnsibleIcon, label: 'AAP Job' }, // Ansible Automation Platform
 }

@@ -1,8 +1,25 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { Button, ConfirmDialog, Switch, Tooltip, useAlerts } from '@ansible/nexus-ui-framework'
+import { useAlerts } from '@ansible/nexus-ui-framework'
+import {
+  Button,
+  CompassPanel,
+  Divider,
+  Flex,
+  FlexItem,
+  Icon,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  Stack,
+  StackItem,
+  Switch,
+  TextInput,
+  Tooltip,
+} from '@patternfly/react-core'
+import { PlayIcon, PlusIcon, CloseIcon, RhUiHistoryIcon, FileCodeIcon, SaveIcon } from '@patternfly/react-icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, type Node } from '@xyflow/react'
-import { ClockIcon, FileCode, PlayIcon, PlusIcon, SaveIcon, XIcon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'wouter'
 
@@ -365,12 +382,17 @@ export function BuilderContent(props: BuilderContentProps) {
     executeAutomation(
       { body: { workflow_id: workflow.id, input_data: {} } },
       {
-        onSuccess: () => showSuccess(`Successfully started automation "${workflowName}"`, 'Automation Started'),
-        onError: (error) =>
+        onSuccess: () => {
+          showSuccess(`Successfully started automation "${workflowName}"`, 'Automation Started')
+          setConfirmDialogOpen(false)
+        },
+        onError: (error) => {
           showError(
             `Failed to start automation "${workflowName}": ${error.message || 'Unknown error'}`,
             'Automation Failed'
-          ),
+          )
+          setConfirmDialogOpen(false)
+        },
       }
     )
   }, [workflow, workflowName, executeAutomation, showSuccess, showError])
@@ -470,15 +492,14 @@ export function BuilderContent(props: BuilderContentProps) {
   return (
     <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
       <AppPage>
-        <div className="relative flex grow gap-4 overflow-hidden">
-          <div className="relative flex min-w-0 grow flex-col gap-2 overflow-hidden transition-all duration-300">
+        <Stack hasGutter>
+          <StackItem>
             <AppPageHeader
               title={
-                <input
+                <TextInput
                   type="text"
                   value={workflowName}
-                  onChange={(e) => setWorkflowName(e.target.value)}
-                  className="-ml-2 rounded bg-transparent px-2 py-1 text-lg font-semibold outline-none focus:ring-2 focus:ring-blue-400/50"
+                  onChange={(_event, value) => setWorkflowName(value)}
                   placeholder="Workflow name"
                 />
               }
@@ -498,283 +519,376 @@ export function BuilderContent(props: BuilderContentProps) {
                   setTargetHandle(undefined)
                   setAddNodePanelOpen(true)
                 }}
-                className="text-sm whitespace-nowrap"
+                icon={
+                  <Icon isInline>
+                    <PlusIcon />
+                  </Icon>
+                }
+                iconPosition="start"
               >
-                <PlusIcon className="mr-1.5 size-3.5" />
                 Add Node
               </Button>
 
-              <div className="h-8 w-px bg-white/20" />
-
               {!isNew && workflow?.id && (
                 <>
-                  <Button variant="plain" onClick={() => setConfirmDialogOpen(true)} className="text-sm">
-                    <PlayIcon className="mr-1.5 size-3.5" />
+                  <Divider orientation={{ default: 'vertical' }} />
+                  <Button
+                    variant="plain"
+                    onClick={() => setConfirmDialogOpen(true)}
+                    icon={
+                      <Icon isInline>
+                        <PlayIcon />
+                      </Icon>
+                    }
+                    iconPosition="start"
+                  >
                     Run
                   </Button>
-                  <div className="h-8 w-px bg-white/20" />
                 </>
               )}
 
+              <Divider orientation={{ default: 'vertical' }} />
+
               <Tooltip content="Workflow details">
-                <Button variant="plain" onClick={handleToggleDetails}>
-                  <FileCode className="size-3.5" />
-                </Button>
+                <Button
+                  variant="plain"
+                  onClick={handleToggleDetails}
+                  icon={
+                    <Icon isInline>
+                      <FileCodeIcon />
+                    </Icon>
+                  }
+                  aria-label="Workflow details"
+                />
               </Tooltip>
 
               {!isNew && workflow?.id && (
                 <Tooltip content="Run history">
-                  <Button variant="plain" onClick={handleToggleHistory}>
-                    <ClockIcon className="size-3.5" />
-                  </Button>
+                  <Button
+                    variant="plain"
+                    onClick={handleToggleHistory}
+                    icon={
+                      <Icon isInline>
+                        <RhUiHistoryIcon />
+                      </Icon>
+                    }
+                    aria-label="Run history"
+                  />
                 </Tooltip>
               )}
 
-              <div className="h-8 w-px bg-white/20" />
+              <Divider orientation={{ default: 'vertical' }} />
 
-              <Button variant="plain" onClick={handleSaveWorkflow} disabled={isPending} className="text-sm">
-                <SaveIcon className="mr-1.5 size-3.5" />
+              <Button
+                variant="plain"
+                onClick={handleSaveWorkflow}
+                isDisabled={isPending}
+                icon={
+                  <Icon isInline>
+                    <SaveIcon />
+                  </Icon>
+                }
+                iconPosition="start"
+              >
                 {isPending ? 'Saving...' : 'Save'}
               </Button>
 
-              <Button variant="plain" onClick={handleCancel} className="text-sm">
-                <XIcon className="mr-1.5 size-3.5" />
+              <Button
+                variant="plain"
+                onClick={handleCancel}
+                icon={
+                  <Icon isInline>
+                    <CloseIcon />
+                  </Icon>
+                }
+                iconPosition="start"
+              >
                 Cancel
               </Button>
 
               {!isNew && (
                 <>
-                  <div className="h-8 w-px bg-white/20" />
+                  <Divider orientation={{ default: 'vertical' }} />
                   <Switch
-                    checked={isEnabled}
-                    handleChange={setIsEnabled}
-                    showLabels
-                    enabledLabel="Enabled"
-                    disabledLabel="Disabled"
+                    isChecked={isEnabled}
+                    onChange={(_event, checked) => setIsEnabled(checked)}
+                    label={isEnabled ? 'Enabled' : 'Disabled'}
                   />
                 </>
               )}
             </AppPageHeader>
-
-            <div className="relative flex min-w-0 grow gap-2 overflow-hidden">
-              <div className="relative isolate flex min-w-0 grow gap-2 overflow-hidden">
-                <div className="glass absolute inset-0 rounded-4xl border-2"></div>
-                <BuilderFlow
-                  workflowId={workflowId}
-                  panelOpen={addNodePanelOpen || !!selectedNode}
-                  activeEdgeButtonNodeId={addNodePanelOpen ? sourceNodeId : null}
-                  activeEdgeButtonHandle={addNodePanelOpen ? sourceHandle : null}
-                  activeEdgeId={addNodePanelOpen ? edgeIdToReplace : null}
-                  onNodeClick={handleNodeClick}
-                  onAddNodeFromEdge={handleAddNodeFromEdge}
-                  onNodesDeleted={handleNodesDeleted}
-                />
-              </div>
+          </StackItem>
+          <StackItem
+            isFilled
+            style={{
+              minHeight: 0,
+              overflow: 'hidden',
+            }}
+          >
+            <Flex
+              alignItems={{ default: 'alignItemsStretch' }}
+              flexWrap={{ default: 'nowrap' }}
+              gap={{ default: 'gapSm' }}
+              style={{
+                position: 'relative',
+                minWidth: 0,
+                height: '100%',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'row',
+              }}
+            >
+              <FlexItem
+                style={{
+                  position: 'relative',
+                  minWidth: 0,
+                  flexGrow: 1,
+                  height: '100%',
+                  overflow: 'hidden',
+                }}
+              >
+                <CompassPanel
+                  hasNoPadding
+                  style={{
+                    position: 'relative',
+                    minWidth: 0,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <BuilderFlow
+                    workflowId={workflowId}
+                    panelOpen={addNodePanelOpen || !!selectedNode}
+                    activeEdgeButtonNodeId={addNodePanelOpen ? sourceNodeId : null}
+                    activeEdgeButtonHandle={addNodePanelOpen ? sourceHandle : null}
+                    activeEdgeId={addNodePanelOpen ? edgeIdToReplace : null}
+                    onNodeClick={handleNodeClick}
+                    onAddNodeFromEdge={handleAddNodeFromEdge}
+                    onNodesDeleted={handleNodesDeleted}
+                  />
+                </CompassPanel>
+              </FlexItem>
 
               {addNodePanelOpen && (
-                <AddNodePanel
-                  onClose={() => {
-                    setAddNodePanelOpen(false)
-                    setSourceNodeId(null)
-                    setTargetNodeId(null)
-                    setEdgeIdToReplace(null)
-                    setSourceHandle(undefined)
-                    setTargetHandle(undefined)
-                    setReplacementNodeId(null)
-                  }}
-                  onNodeSelect={showSuccess}
-                  onNodeError={showError}
-                  sourceNodeId={sourceNodeId}
-                  replacementNodeId={replacementNodeId}
-                  onNodeReplaced={(nodeId) => {
-                    // Close add node panel first
-                    setAddNodePanelOpen(false)
-                    setReplacementNodeId(null)
-                    setSourceNodeId(null)
-                    setTargetNodeId(null)
-                    setEdgeIdToReplace(null)
-                    setSourceHandle(undefined)
-                    setTargetHandle(undefined)
+                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
+                  <AddNodePanel
+                    onClose={() => {
+                      setAddNodePanelOpen(false)
+                      setSourceNodeId(null)
+                      setTargetNodeId(null)
+                      setEdgeIdToReplace(null)
+                      setSourceHandle(undefined)
+                      setTargetHandle(undefined)
+                      setReplacementNodeId(null)
+                    }}
+                    onNodeSelect={showSuccess}
+                    onNodeError={showError}
+                    sourceNodeId={sourceNodeId}
+                    replacementNodeId={replacementNodeId}
+                    onNodeReplaced={(nodeId) => {
+                      // Close add node panel first
+                      setAddNodePanelOpen(false)
+                      setReplacementNodeId(null)
+                      setSourceNodeId(null)
+                      setTargetNodeId(null)
+                      setEdgeIdToReplace(null)
+                      setSourceHandle(undefined)
+                      setTargetHandle(undefined)
 
-                    // Wait for React Flow to update with the new node data after replacement
-                    // We need to poll because the update goes through: Zustand → BuilderFlow useMemo → useNodeUpdates → React Flow
-                    let attempts = 0
-                    const maxAttempts = 20
+                      // Wait for React Flow to update with the new node data after replacement
+                      // We need to poll because the update goes through: Zustand → BuilderFlow useMemo → useNodeUpdates → React Flow
+                      let attempts = 0
+                      const maxAttempts = 20
 
-                    const checkAndSelect = () => {
-                      const nodes = reactFlowInstance.getNodes() as NodeType[]
-                      const updatedNode = nodes.find((n) => n.id === nodeId)
+                      const checkAndSelect = () => {
+                        const nodes = reactFlowInstance.getNodes() as NodeType[]
+                        const updatedNode = nodes.find((n) => n.id === nodeId)
 
-                      // Check if node is no longer generic (has been updated with real data)
-                      // Both the metadata flag should be removed AND the node type should have changed
-                      const isStillGeneric =
-                        updatedNode &&
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        ((updatedNode.data as any).metadata?.__isGeneric === true || updatedNode.type === 'generic')
+                        // Check if node is no longer generic (has been updated with real data)
+                        // Both the metadata flag should be removed AND the node type should have changed
+                        const isStillGeneric =
+                          updatedNode &&
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          ((updatedNode.data as any).metadata?.__isGeneric === true || updatedNode.type === 'generic')
 
-                      if (updatedNode && !isStillGeneric) {
-                        // Node has been updated, select it to open the edit form
-                        setSelectedNode(updatedNode)
-                      } else if (attempts < maxAttempts) {
-                        attempts++
-                        setTimeout(checkAndSelect, 50)
+                        if (updatedNode && !isStillGeneric) {
+                          // Node has been updated, select it to open the edit form
+                          setSelectedNode(updatedNode)
+                        } else if (attempts < maxAttempts) {
+                          attempts++
+                          setTimeout(checkAndSelect, 50)
+                        }
                       }
-                    }
 
-                    checkAndSelect()
-                  }}
-                  onConnect={(sourceId, targetId) => {
-                    // Capture state values before they get cleared by panel close
-                    const capturedEdgeIdToReplace = edgeIdToReplace
-                    const capturedTargetNodeId = targetNodeId
-                    const capturedSourceHandle = sourceHandle
-                    const capturedTargetHandle = targetHandle
+                      checkAndSelect()
+                    }}
+                    onConnect={(sourceId, targetId) => {
+                      // Capture state values before they get cleared by panel close
+                      const capturedEdgeIdToReplace = edgeIdToReplace
+                      const capturedTargetNodeId = targetNodeId
+                      const capturedSourceHandle = sourceHandle
+                      const capturedTargetHandle = targetHandle
 
-                    // Wait for target node to be rendered and measured by React Flow
-                    let attempts = 0
-                    const maxAttempts = 40
+                      // Wait for target node to be rendered and measured by React Flow
+                      let attempts = 0
+                      const maxAttempts = 40
 
-                    const checkAndConnect = () => {
-                      const nodes = reactFlowInstance.getNodes()
-                      const targetNode = nodes.find((n) => n.id === targetId)
+                      const checkAndConnect = () => {
+                        const nodes = reactFlowInstance.getNodes()
+                        const targetNode = nodes.find((n) => n.id === targetId)
 
-                      if (targetNode?.measured) {
-                        // Create the new edge using EdgeFactory for consistency
-                        const newEdge = EdgeFactory.createEdge({
-                          source: sourceId,
-                          target: targetId,
-                          sourceHandle: capturedSourceHandle,
-                          targetHandle: 'target',
-                          onAddNode: handleAddNodeFromEdge,
-                        })
-
-                        // Use React Flow's addEdge helper (same as manual connection)
-                        reactFlowInstance.setEdges((eds) => {
-                          // Remove button edge from source node (handle condition nodes with handles)
-                          const filtered = EdgeFactory.removeButtonEdge(
-                            sourceId,
-                            eds as EdgeType[],
-                            capturedSourceHandle
-                          )
-                          // If inserting between nodes, remove old edge
-                          const withoutOldEdge = capturedEdgeIdToReplace
-                            ? filtered.filter((e) => e.id !== capturedEdgeIdToReplace)
-                            : filtered
-                          // Add the new edge
-                          return EdgeFactory.addEdge(newEdge, withoutOldEdge)
-                        })
-
-                        // If inserting between two nodes, create second edge and reorder
-                        if (capturedEdgeIdToReplace && capturedTargetNodeId) {
-                          const secondEdge = EdgeFactory.createEdge({
-                            source: targetId,
-                            target: capturedTargetNodeId,
-                            sourceHandle: 'source',
-                            targetHandle: capturedTargetHandle || 'target',
+                        if (targetNode?.measured) {
+                          // Create the new edge using EdgeFactory for consistency
+                          const newEdge = EdgeFactory.createEdge({
+                            source: sourceId,
+                            target: targetId,
+                            sourceHandle: capturedSourceHandle,
+                            targetHandle: 'target',
                             onAddNode: handleAddNodeFromEdge,
                           })
 
-                          reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(secondEdge, eds as EdgeType[]))
-
-                          // Reorder the new activity to be before the target activity
-                          useWorkflowStore.getState().moveActivityBefore(targetId, capturedTargetNodeId)
-                        }
-
-                        // SPECIAL CASE: If adding to loop handle, automatically create loop-back edge
-                        if (capturedSourceHandle === 'loop' && !capturedEdgeIdToReplace) {
-                          const loopBackEdge = EdgeFactory.createEdge({
-                            source: targetId,
-                            target: sourceId,
-                            sourceHandle: 'source',
-                            targetHandle: 'end',
-                            onAddNode: handleAddNodeFromEdge,
+                          // Use React Flow's addEdge helper (same as manual connection)
+                          reactFlowInstance.setEdges((eds) => {
+                            // Remove button edge from source node (handle condition nodes with handles)
+                            const filtered = EdgeFactory.removeButtonEdge(
+                              sourceId,
+                              eds as EdgeType[],
+                              capturedSourceHandle
+                            )
+                            // If inserting between nodes, remove old edge
+                            const withoutOldEdge = capturedEdgeIdToReplace
+                              ? filtered.filter((e) => e.id !== capturedEdgeIdToReplace)
+                              : filtered
+                            // Add the new edge
+                            return EdgeFactory.addEdge(newEdge, withoutOldEdge)
                           })
 
-                          reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(loopBackEdge, eds as EdgeType[]))
+                          // If inserting between two nodes, create second edge and reorder
+                          if (capturedEdgeIdToReplace && capturedTargetNodeId) {
+                            const secondEdge = EdgeFactory.createEdge({
+                              source: targetId,
+                              target: capturedTargetNodeId,
+                              sourceHandle: 'source',
+                              targetHandle: capturedTargetHandle || 'target',
+                              onAddNode: handleAddNodeFromEdge,
+                            })
+
+                            reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(secondEdge, eds as EdgeType[]))
+
+                            // Reorder the new activity to be before the target activity
+                            useWorkflowStore.getState().moveActivityBefore(targetId, capturedTargetNodeId)
+                          }
+
+                          // SPECIAL CASE: If adding to loop handle, automatically create loop-back edge
+                          if (capturedSourceHandle === 'loop' && !capturedEdgeIdToReplace) {
+                            const loopBackEdge = EdgeFactory.createEdge({
+                              source: targetId,
+                              target: sourceId,
+                              sourceHandle: 'source',
+                              targetHandle: 'end',
+                              onAddNode: handleAddNodeFromEdge,
+                            })
+
+                            reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(loopBackEdge, eds as EdgeType[]))
+                          }
+
+                          // Remove placeholder node and update source node class
+                          const isConditionHandle =
+                            capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
+                          const isLoopHandle = capturedSourceHandle && ['done', 'loop'].includes(capturedSourceHandle)
+                          const sourcePlaceholderId =
+                            isConditionHandle || isLoopHandle
+                              ? `placeholder-${sourceId}-${capturedSourceHandle}`
+                              : `placeholder-${sourceId}`
+
+                          reactFlowInstance.setNodes((nds) => {
+                            const filtered = nds.filter((n) => n.id !== sourcePlaceholderId)
+
+                            // For condition nodes and loop nodes, only remove the class if all handles are now connected
+                            const sourceNode = filtered.find((n) => n.id === sourceId)
+                            if (!sourceNode) return filtered
+
+                            const isConditionNode = sourceNode.type === FlowNodeType.CONDITION
+                            const isLoopNode = sourceNode.type === FlowNodeType.LOOP
+
+                            if (isConditionNode && hasConditionNodePlaceholders(filtered, sourceId)) {
+                              // Keep the class since there are still button edges
+                              return filtered
+                            }
+
+                            if (isLoopNode && hasLoopNodePlaceholders(filtered, sourceId)) {
+                              // Keep the class since there are still button edges
+                              return filtered
+                            }
+
+                            // Remove the has-button-edge class if no more button edges
+                            return removeButtonEdgeClass(filtered, sourceId)
+                          })
+                        } else if (attempts < maxAttempts) {
+                          attempts++
+                          setTimeout(checkAndConnect, 50)
                         }
-
-                        // Remove placeholder node and update source node class
-                        const isConditionHandle =
-                          capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
-                        const isLoopHandle = capturedSourceHandle && ['done', 'loop'].includes(capturedSourceHandle)
-                        const sourcePlaceholderId =
-                          isConditionHandle || isLoopHandle
-                            ? `placeholder-${sourceId}-${capturedSourceHandle}`
-                            : `placeholder-${sourceId}`
-
-                        reactFlowInstance.setNodes((nds) => {
-                          const filtered = nds.filter((n) => n.id !== sourcePlaceholderId)
-
-                          // For condition nodes and loop nodes, only remove the class if all handles are now connected
-                          const sourceNode = filtered.find((n) => n.id === sourceId)
-                          if (!sourceNode) return filtered
-
-                          const isConditionNode = sourceNode.type === FlowNodeType.CONDITION
-                          const isLoopNode = sourceNode.type === FlowNodeType.LOOP
-
-                          if (isConditionNode && hasConditionNodePlaceholders(filtered, sourceId)) {
-                            // Keep the class since there are still button edges
-                            return filtered
-                          }
-
-                          if (isLoopNode && hasLoopNodePlaceholders(filtered, sourceId)) {
-                            // Keep the class since there are still button edges
-                            return filtered
-                          }
-
-                          // Remove the has-button-edge class if no more button edges
-                          return removeButtonEdgeClass(filtered, sourceId)
-                        })
-                      } else if (attempts < maxAttempts) {
-                        attempts++
-                        setTimeout(checkAndConnect, 50)
                       }
-                    }
 
-                    checkAndConnect()
-                  }}
-                />
+                      checkAndConnect()
+                    }}
+                  />
+                </FlexItem>
               )}
 
               {historyCardOpen && !isNew && (
-                <AutomationHistoryCard
-                  executions={executionsQuery.data?.resources ?? []}
-                  onClose={() => setHistoryCardOpen(false)}
-                />
+                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
+                  <AutomationHistoryCard
+                    executions={executionsQuery.data?.resources ?? []}
+                    onClose={() => setHistoryCardOpen(false)}
+                  />
+                </FlexItem>
               )}
 
               {detailsOpen && workflow && (
-                <WorkflowSidepanel
-                  workflow={workflow}
-                  workflowName={workflowName}
-                  workflowDescription={workflowDescription}
-                  onNameChange={setWorkflowName}
-                  onDescriptionChange={setWorkflowDescription}
-                  onClose={() => setDetailsOpen(false)}
-                />
+                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
+                  <WorkflowSidepanel
+                    workflow={workflow}
+                    workflowName={workflowName}
+                    workflowDescription={workflowDescription}
+                    onNameChange={setWorkflowName}
+                    onDescriptionChange={setWorkflowDescription}
+                    onClose={() => setDetailsOpen(false)}
+                  />
+                </FlexItem>
               )}
 
               {selectedNode && (
-                <NodeDetailsPanel key={selectedNode.id} node={selectedNode} onClose={() => setSelectedNode(null)} />
+                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
+                  <NodeDetailsPanel key={selectedNode.id} node={selectedNode} onClose={() => setSelectedNode(null)} />
+                </FlexItem>
               )}
-            </div>
-          </div>
-        </div>
+            </Flex>
+          </StackItem>
+        </Stack>
 
-        <ConfirmDialog
-          open={confirmDialogOpen}
-          onOpenChange={setConfirmDialogOpen}
-          title={`Run ${workflowName}?`}
-          description={
-            <>
-              You are about to manually run this automation. This action will start the automation immediately,
-              bypassing its normal trigger conditions.
-            </>
-          }
-          confirmLabel="Run now"
-          cancelLabel="Cancel"
-          onConfirm={handleRunAutomation}
-        />
+        <Modal
+          isOpen={confirmDialogOpen}
+          onClose={() => setConfirmDialogOpen(false)}
+          variant="small"
+          aria-labelledby="run-workflow-modal-title"
+          aria-describedby="run-workflow-modal-description"
+        >
+          <ModalHeader title={`Run ${workflowName}?`} labelId="run-workflow-modal-title" />
+          <ModalBody id="run-workflow-modal-description">
+            You are about to manually run this automation. This action will start the automation immediately, bypassing
+            its normal trigger conditions.
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="link" onClick={() => setConfirmDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleRunAutomation}>
+              Run now
+            </Button>
+          </ModalFooter>
+        </Modal>
       </AppPage>
     </NodeExpandedAllContext.Provider>
   )

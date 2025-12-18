@@ -14,7 +14,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '@patternfly/react-core'
-import { ExclamationCircleIcon, ServerIcon } from '@patternfly/react-icons'
+import { RhUiErrorIcon, ServerIcon } from '@patternfly/react-icons'
 import { Controller, useForm } from 'react-hook-form'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -115,7 +115,7 @@ export function IntegrationForm() {
                   {fieldState.error && (
                     <FormHelperText>
                       <HelperText>
-                        <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
+                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
                           {fieldState.error.message}
                         </HelperTextItem>
                       </HelperText>
@@ -158,7 +158,7 @@ export function IntegrationForm() {
                   {fieldState.error && (
                     <FormHelperText>
                       <HelperText>
-                        <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
+                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
                           {fieldState.error.message}
                         </HelperTextItem>
                       </HelperText>

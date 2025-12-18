@@ -1,8 +1,26 @@
-import { SelectableCardList, SelectableCardWithForm, SidePanel } from '@ansible/nexus-ui-framework'
-import { PlusIcon } from 'lucide-react'
+import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import {
+  Button,
+  CompassPanel,
+  Content,
+  Flex,
+  FlexItem,
+  Icon,
+  PanelMain,
+  PanelMainBody,
+  Split,
+  SplitItem,
+  Stack,
+  StackItem,
+  Title,
+  TitleSizes,
+} from '@patternfly/react-core'
+import { PlusIcon, CloseIcon, RhUiArrowLeftIcon } from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
 
 import { useWorkflowStore, useWorkflowStoreActions } from '../../stores/useWorkflowStore'
+
+type Activity = WorkflowAPI.components['schemas']['activity']
 
 import { NodeRegistry } from './registry/NodeRegistry'
 
@@ -64,7 +82,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
                 if (newNodeId) {
                   // If node was actually created, use its data
                   const currentWorkflow = useWorkflowStore.getState().currentWorkflow
-                  const newActivity = currentWorkflow?.workflow.activities.find((a) => a.id === newNodeId)
+                  const newActivity = currentWorkflow?.workflow.activities.find((a: Activity) => a.id === newNodeId)
 
                   if (newActivity) {
                     // Remove the temporary new activity first
@@ -97,7 +115,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
                   // Just remove the __isGeneric flag to convert generic node to regular task node
                   const currentWorkflow = useWorkflowStore.getState().currentWorkflow
                   const genericActivity = currentWorkflow?.workflow.activities.find(
-                    (a) => a.id === props.replacementNodeId
+                    (a: Activity) => a.id === props.replacementNodeId
                   )
 
                   if (genericActivity) {
@@ -149,26 +167,167 @@ export function AddNodePanel(props: AddNodePanelProps) {
   }
 
   return (
-    <SidePanel onClose={props.onClose} title="Add Node" icon={PlusIcon} width="md">
-      <SelectableCardList>
-        {nodeTypes.map((nodeType) => {
-          const isSelected = selectedNodeType === nodeType.id
+    <CompassPanel
+      hasNoPadding
+      style={{
+        height: '100%',
+        maxHeight: '100%',
+        width: '20rem',
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <Stack>
+        <StackItem>
+          <Flex
+            alignItems={{ default: 'alignItemsCenter' }}
+            justifyContent={{ default: 'justifyContentSpaceBetween' }}
+            style={{ padding: 'var(--pf-t--global--spacer--md)' }}
+          >
+            <FlexItem>
+              <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+                <FlexItem>
+                  <Icon>
+                    <PlusIcon />
+                  </Icon>
+                </FlexItem>
+                <FlexItem>
+                  <Title headingLevel="h2" size={TitleSizes.lg}>
+                    Add Node
+                  </Title>
+                </FlexItem>
+              </Flex>
+            </FlexItem>
+            <FlexItem>
+              <Button variant="plain" onClick={props.onClose} aria-label="Close">
+                <Icon>
+                  <CloseIcon />
+                </Icon>
+              </Button>
+            </FlexItem>
+          </Flex>
+        </StackItem>
+        <StackItem
+          isFilled
+          style={{
+            overflowY: 'auto',
+            overflowX: 'visible',
+            paddingLeft: 'var(--pf-t--global--spacer--md)',
+            paddingRight: 'var(--pf-t--global--spacer--md)',
+            paddingBottom: 'var(--pf-t--global--spacer--md)',
+          }}
+        >
+          <Stack hasGutter>
+            {selectedNodeType
+              ? // When a form is selected, only show that form
+                (() => {
+                  const selectedNode = NodeRegistry.get(selectedNodeType)
+                  if (!selectedNode) return null
 
-          return (
-            <SelectableCardWithForm
-              key={nodeType.id}
-              icon={nodeType.icon}
-              label={nodeType.label}
-              description={nodeType.description}
-              isSelected={isSelected}
-              onClick={() => handleNodeClick(nodeType.id)}
-              title={nodeType.description}
-              form={renderForm()}
-              onClose={handleFormCancel}
-            />
-          )
-        })}
-      </SelectableCardList>
-    </SidePanel>
+                  return (
+                    <StackItem>
+                      <CompassPanel>
+                        <PanelMain>
+                          <PanelMainBody>
+                            <Stack hasGutter>
+                              <StackItem>
+                                <Flex gap={{ default: 'gapXs' }}>
+                                  <FlexItem>
+                                    <Button
+                                      variant="plain"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleFormCancel()
+                                      }}
+                                      aria-label="Back"
+                                    >
+                                      <Icon>
+                                        <RhUiArrowLeftIcon />
+                                      </Icon>
+                                    </Button>
+                                  </FlexItem>
+                                  <FlexItem grow={{ default: 'grow' }}>
+                                    <Title headingLevel="h3" size="md">
+                                      Configure {selectedNode.label}
+                                    </Title>
+                                  </FlexItem>
+                                </Flex>
+                              </StackItem>
+                              <StackItem>{renderForm()}</StackItem>
+                            </Stack>
+                          </PanelMainBody>
+                        </PanelMain>
+                      </CompassPanel>
+                    </StackItem>
+                  )
+                })()
+              : // When no form is selected, show all node type cards
+                nodeTypes.map((nodeType) => {
+                  const IconComponent = nodeType.icon
+                  const isCustomIcon = nodeType.id === 'aap'
+
+                  return (
+                    <StackItem key={nodeType.id}>
+                      <CompassPanel
+                        isScrollable={false}
+                        onClick={() => handleNodeClick(nodeType.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            handleNodeClick(nodeType.id)
+                          }
+                        }}
+                        style={{ cursor: 'pointer' }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={nodeType.label}
+                      >
+                        <PanelMain>
+                          <PanelMainBody>
+                            <Stack hasGutter>
+                              <StackItem>
+                                <Split hasGutter>
+                                  <SplitItem isFilled={false} style={{ width: '1.5rem', flexShrink: 0 }}>
+                                    {isCustomIcon ? (
+                                      <IconComponent
+                                        style={{
+                                          width: '1.5rem',
+                                          height: '1.5rem',
+                                          display: 'block',
+                                        }}
+                                      />
+                                    ) : (
+                                      <Icon>
+                                        <IconComponent />
+                                      </Icon>
+                                    )}
+                                  </SplitItem>
+                                  <SplitItem>
+                                    <Title headingLevel="h3" size="md">
+                                      {nodeType.label}
+                                    </Title>
+                                  </SplitItem>
+                                </Split>
+                              </StackItem>
+                              <StackItem>
+                                {nodeType.description && (
+                                  <Content>
+                                    <small>{nodeType.description}</small>
+                                  </Content>
+                                )}
+                              </StackItem>
+                            </Stack>
+                          </PanelMainBody>
+                        </PanelMain>
+                      </CompassPanel>
+                    </StackItem>
+                  )
+                })}
+          </Stack>
+        </StackItem>
+      </Stack>
+    </CompassPanel>
   )
 }

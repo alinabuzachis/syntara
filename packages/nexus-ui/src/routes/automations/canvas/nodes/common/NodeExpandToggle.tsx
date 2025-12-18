@@ -1,5 +1,5 @@
-import clsx from 'clsx'
-import { ChevronDownIcon } from 'lucide-react'
+import { Icon } from '@patternfly/react-core'
+import { AngleDownIcon } from '@patternfly/react-icons'
 import { useContext } from 'react'
 
 import { NodeExpandedContext } from './NodeExpandedContext'
@@ -10,9 +10,15 @@ export function NodeExpandToggle() {
   const setExpanded = expandedState ? expandedState[1] : () => {}
   if (!expandedState) return null
   return (
-    <ChevronDownIcon
+    <Icon
       onClick={() => setExpanded((expanded) => !expanded)}
-      className={clsx('transition-all ease-out', { 'rotate-180': expanded })}
-    />
+      style={{
+        transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+        transition: 'transform 0.2s ease-out',
+        cursor: 'pointer',
+      }}
+    >
+      <AngleDownIcon />
+    </Icon>
   )
 }

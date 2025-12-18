@@ -1,28 +1,66 @@
-import { Toolbar, ToolbarButton } from '@ansible/nexus-ui-framework'
-import { ClosedCaptionIcon, GalleryVerticalEndIcon, SquarePlusIcon, Volume2Icon } from 'lucide-react'
+import { Button, CompassPanel, Flex, FlexItem, Icon } from '@patternfly/react-core'
+import { ClosedCaptioningIcon, LayerGroupIcon, PlusSquareIcon, VolumeIcon } from '@patternfly/react-icons'
 
 export function AppLeftBar() {
   return (
-    <Toolbar orientation="vertical" className="glass grow-0 self-center rounded-full border py-1">
-      <ToolbarButton>
-        <SquarePlusIcon />
-      </ToolbarButton>
+    <CompassPanel>
+      <Flex direction={{ default: 'column' }} gap={{ default: 'gapNone' }}>
+        <FlexItem>
+          <Button
+            variant="plain"
+            aria-label="Add"
+            icon={
+              <Icon>
+                <PlusSquareIcon />
+              </Icon>
+            }
+          />
+        </FlexItem>
 
-      <ToolbarButton>
-        <GalleryVerticalEndIcon />
-      </ToolbarButton>
+        <FlexItem>
+          <Button
+            variant="plain"
+            aria-label="Layers"
+            icon={
+              <Icon>
+                <LayerGroupIcon />
+              </Icon>
+            }
+          />
+        </FlexItem>
 
-      <ToolbarButton>
-        <div className="ai-shadow flex h-6 w-6 items-center justify-center rounded-full" />
-      </ToolbarButton>
+        <FlexItem>
+          <Button
+            variant="plain"
+            aria-label="AI"
+            icon={<div className="ai-shadow flex h-6 w-6 items-center justify-center rounded-full" />}
+          />
+        </FlexItem>
 
-      <ToolbarButton>
-        <Volume2Icon />
-      </ToolbarButton>
+        <FlexItem>
+          <Button
+            variant="plain"
+            aria-label="Volume"
+            icon={
+              <Icon>
+                <VolumeIcon />
+              </Icon>
+            }
+          />
+        </FlexItem>
 
-      <ToolbarButton>
-        <ClosedCaptionIcon />
-      </ToolbarButton>
-    </Toolbar>
+        <FlexItem>
+          <Button
+            variant="plain"
+            aria-label="Closed Captioning"
+            icon={
+              <Icon>
+                <ClosedCaptioningIcon />
+              </Icon>
+            }
+          />
+        </FlexItem>
+      </Flex>
+    </CompassPanel>
   )
 }

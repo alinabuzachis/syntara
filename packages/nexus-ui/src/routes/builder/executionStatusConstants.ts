@@ -1,22 +1,29 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { CircleDashed, Loader2, Pause, CheckCircle2, XCircle, Ban } from 'lucide-react'
+import {
+  RhUiCheckIcon,
+  RhUiErrorIcon,
+  RhUiHourglassIcon,
+  RhUiPauseIcon,
+  RhUiWarningIcon,
+  RhUiSyncIcon,
+} from '@patternfly/react-icons'
 
 type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
 
 export const statusIcons: Record<ExecutionStatus, React.ComponentType<{ className?: string }>> = {
-  pending: CircleDashed,
-  running: Loader2,
-  paused: Pause,
-  completed: CheckCircle2,
-  failed: XCircle,
-  cancelled: Ban,
+  pending: RhUiHourglassIcon,
+  running: RhUiSyncIcon,
+  paused: RhUiPauseIcon,
+  completed: RhUiCheckIcon,
+  failed: RhUiErrorIcon,
+  cancelled: RhUiWarningIcon,
 }
 
 export const statusColors: Record<ExecutionStatus, string> = {
-  pending: 'text-gray-400',
-  running: 'text-blue-400',
-  paused: 'text-yellow-400',
-  completed: 'text-green-400',
-  failed: 'text-red-400',
-  cancelled: 'text-orange-400',
+  pending: 'var(--pf-t--global--color--nonstatus--gray--300)',
+  running: 'var(--pf-t--global--color--brand--default)',
+  paused: 'var(--pf-t--global--color--status--warning--default)',
+  completed: 'var(--pf-t--global--color--status--success--default)',
+  failed: 'var(--pf-t--global--color--status--danger--default)',
+  cancelled: 'var(--pf-t--global--color--status--warning--default)',
 }

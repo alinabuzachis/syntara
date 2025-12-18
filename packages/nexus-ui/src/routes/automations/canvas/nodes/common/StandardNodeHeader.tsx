@@ -1,10 +1,10 @@
 import { KebabMenuTrigger, Menu, MenuItem, MenuItems, MenuSeparator } from '@ansible/nexus-ui-framework'
+import { Content, Flex, FlexItem, Icon } from '@patternfly/react-core'
 
 import type { NodeMenuAction } from '../hooks/useNodeMenuActions'
 
 import { NodeExpandToggle } from './NodeExpandToggle'
 import { NodeHeader } from './NodeHeader'
-import { NodeIcon } from './NodeIcon'
 import { NodeTitle } from './NodeTitle'
 
 interface StandardNodeHeaderProps {
@@ -29,44 +29,73 @@ interface StandardNodeHeaderProps {
  */
 export function StandardNodeHeader(props: Readonly<StandardNodeHeaderProps>) {
   return (
-    <div className="relative">
+    <div style={{ position: 'relative' }}>
       <NodeHeader>
-        {props.icon && <NodeIcon>{props.icon}</NodeIcon>}
-        <div className="flex-1" />
-        <div className="flex items-center gap-2">
-          {props.expandable && <NodeExpandToggle />}
-          {props.menuActions && props.menuActions.length > 0 && (
-            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Intentional for ReactFlow node interaction isolation
-            <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} className="nodrag nopan">
-              <Menu>
-                <KebabMenuTrigger label="Node actions menu" />
-                <MenuItems>
-                  {props.menuActions.map((action) => {
-                    if (action.separator) {
-                      return <MenuSeparator key={action.id} />
+        {props.icon && (
+          <FlexItem style={{ marginLeft: 'var(--pf-t--global--spacer--sm)' }}>
+            <Icon>{props.icon}</Icon>
+          </FlexItem>
+        )}
+        <FlexItem style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+            {props.expandable && (
+              <FlexItem>
+                <NodeExpandToggle />
+              </FlexItem>
+            )}
+            {props.menuActions && props.menuActions.length > 0 && (
+              <FlexItem>
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.stopPropagation()
                     }
-                    return (
-                      <MenuItem
-                        key={action.id}
-                        onClick={() => {
-                          action.onClick()
-                        }}
-                        className={action.variant === 'danger' ? 'menu-item-danger' : ''}
-                      >
-                        {action.icon && <span className="mr-2">{action.icon}</span>}
-                        {action.label}
-                      </MenuItem>
-                    )
-                  })}
-                </MenuItems>
-              </Menu>
-            </div>
-          )}
-        </div>
+                  }}
+                  className="nodrag nopan"
+                  role="button"
+                  tabIndex={0}
+                >
+                  <Menu>
+                    <KebabMenuTrigger label="Node actions menu" />
+                    <MenuItems>
+                      {props.menuActions.map((action) => {
+                        if (action.separator) {
+                          return <MenuSeparator key={action.id} />
+                        }
+                        return (
+                          <MenuItem
+                            key={action.id}
+                            onClick={() => {
+                              action.onClick()
+                            }}
+                            className={action.variant === 'danger' ? 'menu-item-danger' : ''}
+                          >
+                            {action.icon && (
+                              <span style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>{action.icon}</span>
+                            )}
+                            {action.label}
+                          </MenuItem>
+                        )
+                      })}
+                    </MenuItems>
+                  </Menu>
+                </div>
+              </FlexItem>
+            )}
+          </Flex>
+        </FlexItem>
       </NodeHeader>
-      <div className="px-6 pt-2">
+      <Content
+        style={{
+          paddingLeft: 'var(--pf-t--global--spacer--sm)',
+          paddingRight: 'var(--pf-t--global--spacer--sm)',
+          paddingTop: 'var(--pf-t--global--spacer--xs)',
+        }}
+      >
         <NodeTitle title={props.title} subTitle={props.subtitle} />
-      </div>
+      </Content>
     </div>
   )
 }

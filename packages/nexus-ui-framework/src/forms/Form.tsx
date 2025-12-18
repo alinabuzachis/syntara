@@ -24,7 +24,7 @@ export function Form<TFieldValues extends FieldValues = FieldValues>(props: Form
       <form
         id={props.id}
         onSubmit={methods.handleSubmit(props.onSubmit)}
-        className={props?.className ? props.className : 'glass flex grow flex-col gap-4 rounded-4xl border p-8'}
+        className={props?.className ? props.className : 'flex grow flex-col'}
       >
         {typeof props.children === 'function' ? props.children(methods) : props.children}
       </form>

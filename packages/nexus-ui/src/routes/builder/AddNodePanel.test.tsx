@@ -198,8 +198,9 @@ describe('AddNodePanel Component', () => {
       await user.click(actionButton)
       expect(screen.getByTestId('mock-form')).toBeInTheDocument()
 
-      // Click again to hide form
-      await user.click(actionButton)
+      // Click back button to hide form
+      const backButton = screen.getByRole('button', { name: /back/i })
+      await user.click(backButton)
       expect(screen.queryByTestId('mock-form')).not.toBeInTheDocument()
     })
 
@@ -238,6 +239,10 @@ describe('AddNodePanel Component', () => {
       // Click first node type
       await user.click(screen.getByRole('button', { name: /action/i }))
       expect(screen.getByTestId('mock-form')).toBeInTheDocument()
+
+      // Click back button to return to node type list
+      const backButton = screen.getByRole('button', { name: /back/i })
+      await user.click(backButton)
 
       // Click second node type
       await user.click(screen.getByRole('button', { name: /trigger/i }))
@@ -424,12 +429,14 @@ describe('AddNodePanel Component', () => {
 
       const actionButton = screen.getByRole('button', { name: /action/i })
 
-      // Initially not selected
-      expect(actionButton.className).not.toContain('border-blue-400/70')
+      // Initially not selected (cards are visible, no form)
+      expect(actionButton).toBeInTheDocument()
+      expect(screen.queryByTestId('mock-form')).not.toBeInTheDocument()
 
-      // Click to select
+      // Click to select - cards should be hidden, form should show
       await user.click(actionButton)
-      expect(actionButton.className).toContain('border-blue-400/70')
+      expect(screen.queryByRole('button', { name: /action/i })).not.toBeInTheDocument() // Cards hidden
+      expect(screen.getByTestId('mock-form')).toBeInTheDocument() // Form shown
     })
   })
 })

@@ -1,3 +1,5 @@
+import { Button, Content, ContentVariants, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+
 import type { BaseNodeFormProps } from '../registry/NodeRegistry'
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -17,26 +19,26 @@ export function GenericNodeForm({ onSubmit, onCancel, submitButtonText }: BaseNo
   }
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-600">
-        A generic placeholder node will be added to the canvas. Click on it to configure the node type.
-      </p>
-      <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          {submitButtonText ?? 'Add Generic Node'}
-        </button>
-      </div>
-    </div>
+    <Stack hasGutter>
+      <StackItem>
+        <Content component={ContentVariants.p}>
+          A generic placeholder node will be added to the canvas. Click on it to configure the node type.
+        </Content>
+      </StackItem>
+      <StackItem>
+        <Flex justifyContent={{ default: 'justifyContentFlexEnd' }} gap={{ default: 'gapSm' }}>
+          <FlexItem>
+            <Button variant="secondary" onClick={onCancel}>
+              Cancel
+            </Button>
+          </FlexItem>
+          <FlexItem>
+            <Button variant="primary" onClick={handleSubmit}>
+              {submitButtonText ?? 'Add Generic Node'}
+            </Button>
+          </FlexItem>
+        </Flex>
+      </StackItem>
+    </Stack>
   )
 }

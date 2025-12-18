@@ -25,7 +25,11 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
     <NodeComponent className={metadata.className} nodeProps={props} disableSource>
       <ConditionNodeDetails
         conditionActivity={props.data}
-        icon={<Icon className="rotate-90" />}
+        icon={
+          <div style={{ transform: 'rotate(90deg)', display: 'inline-block' }}>
+            <Icon />
+          </div>
+        }
         menuActions={menuActions}
       >
         <BranchHandles>
@@ -47,21 +51,33 @@ export function ConditionNodeDetails(props: {
   const metadata = nodeMetadata.condition
   return (
     <>
-      <StandardNodeHeader
-        icon={props.icon}
-        title={props.conditionActivity.name ?? 'Untitled Condition'}
-        subtitle={metadata.label}
-        expandable
-        menuActions={props.menuActions}
-      />
-      <div className="flex justify-end overflow-hidden">
-        <NodeBody>
-          <Details>
-            {renderCondition(props.conditionActivity.condition)}
-            {renderOutputs(props.conditionActivity.outputs)}
-            {renderJson(props.conditionActivity, props.showJson, 'Full Definition')}
-          </Details>
-        </NodeBody>
+      <div style={{ overflow: 'visible', minWidth: 0 }}>
+        <StandardNodeHeader
+          icon={props.icon}
+          title={props.conditionActivity.name ?? 'Untitled Condition'}
+          subtitle={metadata.label}
+          expandable
+          menuActions={props.menuActions}
+        />
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+          overflowX: 'hidden',
+          overflowY: 'visible',
+        }}
+      >
+        <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+          <NodeBody>
+            <Details>
+              {renderCondition(props.conditionActivity.condition)}
+              {renderOutputs(props.conditionActivity.outputs)}
+              {renderJson(props.conditionActivity, props.showJson, 'Full Definition')}
+            </Details>
+          </NodeBody>
+        </div>
         {props.children}
       </div>
     </>

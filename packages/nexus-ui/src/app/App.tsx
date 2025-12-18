@@ -6,7 +6,6 @@ import { RedHatIcon } from '../components/icons/RedHatIcon'
 import { AppLeftBar } from './AppLeftBar'
 import { AppLogin } from './AppLogin'
 import { AppNavigation } from './AppNavigation'
-import { AppRightBar } from './AppRightBar'
 import { AppRouter } from './AppRouter'
 
 const queryClient = new QueryClient()
@@ -45,7 +44,6 @@ export default function App() {
               />
             }
             sidebarStart={<AppLeftBar />}
-            sidebarEnd={<AppRightBar />}
             main={
               <CompassContent>
                 <AppRouter />

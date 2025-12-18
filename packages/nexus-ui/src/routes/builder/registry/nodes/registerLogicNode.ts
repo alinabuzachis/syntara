@@ -1,4 +1,4 @@
-import { SplitIcon } from 'lucide-react'
+import { CodeBranchIcon } from '@patternfly/react-icons'
 
 import {
   createConditionActivity,
@@ -45,7 +45,7 @@ export default function registerLogicNode() {
       {
         id: 'logic',
         label: 'Logic',
-        icon: SplitIcon,
+        icon: CodeBranchIcon,
         category: 'logic',
         description: 'Add conditional logic and branching to workflows',
         keywords: ['if', 'else', 'condition', 'branch', 'switch', 'case', 'decision', 'converge', 'join'],

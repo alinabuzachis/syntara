@@ -1,5 +1,5 @@
-import type { LucideIcon } from 'lucide-react'
-import { BrainIcon, GitBranchIcon, PlayIcon, UserCheckIcon, ZapIcon } from 'lucide-react'
+import { BoltIcon, BrainIcon, CodeBranchIcon, PlayIcon, UserCheckIcon } from '@patternfly/react-icons'
+import type { ComponentType } from 'react'
 
 /**
  * Node category constants
@@ -28,7 +28,7 @@ export interface CategoryMetadata {
   /** Display label for the category */
   label: string
   /** Icon component for the category */
-  icon: LucideIcon
+  icon: ComponentType<{ className?: string }>
   /** Description of what this category contains */
   description: string
   /** Display order (lower = earlier) */
@@ -53,7 +53,7 @@ export const CATEGORY_METADATA: Record<NodeCategory, CategoryMetadata> = {
   action: {
     id: NodeCategories.ACTION,
     label: 'Actions',
-    icon: ZapIcon,
+    icon: BoltIcon,
     description: 'Execute tasks, run scripts, or make API calls',
     order: 2,
     color: 'purple',
@@ -61,7 +61,7 @@ export const CATEGORY_METADATA: Record<NodeCategory, CategoryMetadata> = {
   logic: {
     id: NodeCategories.LOGIC,
     label: 'Logic & Control',
-    icon: GitBranchIcon,
+    icon: CodeBranchIcon,
     description: 'Add conditional logic, branching, and flow control',
     order: 3,
     color: 'orange',
@@ -85,7 +85,7 @@ export const CATEGORY_METADATA: Record<NodeCategory, CategoryMetadata> = {
   other: {
     id: NodeCategories.OTHER,
     label: 'Other',
-    icon: ZapIcon,
+    icon: BoltIcon,
     description: 'Miscellaneous nodes',
     order: 99,
     color: 'gray',

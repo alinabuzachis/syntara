@@ -80,7 +80,7 @@ export function TaskActivityDetails(
   return (
     <>
       <StandardNodeHeader
-        icon={Icon ? <Icon className="size-6" /> : undefined}
+        icon={Icon ? <Icon /> : undefined}
         title={props.data.name}
         subtitle={taskExecutor}
         expandable

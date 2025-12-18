@@ -1,12 +1,22 @@
+import { Content, ContentVariants, FlexItem, Title, TitleSizes } from '@patternfly/react-core'
+
 export function NodeTitle(props: { title?: string; subTitle?: string }) {
   return (
-    <div className="grow">
+    <FlexItem grow={{ default: 'grow' }}>
       {props.title ? (
-        <h2 className="pr-2 text-base font-bold">{props.title}</h2>
+        <Title headingLevel="h2" size={TitleSizes.md} style={{ marginBottom: 'var(--pf-t--global--spacer--xs)' }}>
+          {props.title}
+        </Title>
       ) : (
-        <h2 className="pr-2 text-base font-bold">{props.subTitle}</h2>
+        <Title headingLevel="h2" size={TitleSizes.md} style={{ marginBottom: 'var(--pf-t--global--spacer--xs)' }}>
+          {props.subTitle}
+        </Title>
       )}
-      {props.title && props.subTitle && <div className="text-xs text-white/60">{props.subTitle}</div>}
-    </div>
+      {props.title && props.subTitle && (
+        <Content component={ContentVariants.small} style={{ marginBottom: 'var(--pf-t--global--spacer--sm)' }}>
+          {props.subTitle}
+        </Content>
+      )}
+    </FlexItem>
   )
 }

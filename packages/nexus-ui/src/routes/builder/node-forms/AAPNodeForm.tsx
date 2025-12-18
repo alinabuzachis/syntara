@@ -1,4 +1,6 @@
-import { Button, Card, Form, Input, NativeSelect, Textarea, useFormContext } from '@ansible/nexus-ui-framework'
+import { Form, Input, NativeSelect, Textarea, useFormContext } from '@ansible/nexus-ui-framework'
+import { Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Stack, StackItem } from '@patternfly/react-core'
+import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 
 export interface AAPFormData {
@@ -37,63 +39,64 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
   }
 
   return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="aap-name" className="text-xs font-medium text-gray-300">
-          Activity Name <span className="text-red-500">*</span>
-        </label>
-        <Input
-          {...register('name', { required: true })}
-          id="aap-name"
-          placeholder="Enter activity name"
-          className="text-xs"
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="aap-connectorId" className="text-xs font-medium text-gray-300">
-          Connector ID <span className="text-red-500">*</span>
-        </label>
-        <Input
-          {...register('connectorId', { required: true })}
-          id="aap-connectorId"
-          placeholder="ansible-automation-platform"
-          className="text-xs"
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="aap-operation" className="text-xs font-medium text-gray-300">
-          Operation
-        </label>
-        <NativeSelect {...register('operation')} id="aap-operation">
-          <option value="launch_job">Launch Job Template</option>
-          <option value="launch_workflow">Launch Workflow Template</option>
-          <option value="get_job_status">Get Job Status</option>
-          <option value="cancel_job">Cancel Job</option>
-        </NativeSelect>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="aap-parameters" className="text-xs font-medium text-gray-300">
-          Parameters (JSON)
-        </label>
-        <Textarea
-          {...register('parameters', {
-            validate: validateJSON,
-            onChange: (e) => validateJSON(e.target.value),
-          })}
-          id="aap-parameters"
-          placeholder='{"job_template_id": "123", "extra_vars": {}}'
-          rows={4}
-          className={`font-mono text-xs ${jsonError ? 'ring-2 ring-red-500/50' : ''}`}
-        />
-        {jsonError && <span className="text-xs text-red-400">{jsonError}</span>}
-        <p className="text-xs text-gray-400">
-          Optional: Provide parameters as a JSON object for the connector operation
-        </p>
-      </div>
-      <Button type="submit" variant="primary" className="w-full justify-center text-xs" disabled={!!jsonError}>
-        {submitButtonText ?? 'Add node'}
-      </Button>
-    </>
+    <Stack hasGutter>
+      <StackItem>
+        <FormGroup label="Activity Name" isRequired fieldId="aap-name">
+          <Input {...register('name', { required: true })} id="aap-name" placeholder="Enter activity name" />
+        </FormGroup>
+      </StackItem>
+      <StackItem>
+        <FormGroup label="Connector ID" isRequired fieldId="aap-connectorId">
+          <Input
+            {...register('connectorId', { required: true })}
+            id="aap-connectorId"
+            placeholder="ansible-automation-platform"
+          />
+        </FormGroup>
+      </StackItem>
+      <StackItem>
+        <FormGroup label="Operation" fieldId="aap-operation">
+          <NativeSelect {...register('operation')} id="aap-operation">
+            <option value="launch_job">Launch Job Template</option>
+            <option value="launch_workflow">Launch Workflow Template</option>
+            <option value="get_job_status">Get Job Status</option>
+            <option value="cancel_job">Cancel Job</option>
+          </NativeSelect>
+        </FormGroup>
+      </StackItem>
+      <StackItem>
+        <FormGroup label="Parameters (JSON)" fieldId="aap-parameters">
+          <Textarea
+            {...register('parameters', {
+              validate: validateJSON,
+              onChange: (e) => validateJSON(e.target.value),
+            })}
+            id="aap-parameters"
+            placeholder='{"job_template_id": "123", "extra_vars": {}}'
+            rows={4}
+            style={{ fontFamily: 'monospace' }}
+          />
+          <FormHelperText>
+            <HelperText>
+              {jsonError ? (
+                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                  {jsonError}
+                </HelperTextItem>
+              ) : (
+                <HelperTextItem>
+                  Optional: Provide parameters as a JSON object for the connector operation
+                </HelperTextItem>
+              )}
+            </HelperText>
+          </FormHelperText>
+        </FormGroup>
+      </StackItem>
+      <StackItem>
+        <Button type="submit" variant="primary" style={{ width: '100%' }} isDisabled={!!jsonError}>
+          {submitButtonText ?? 'Add node'}
+        </Button>
+      </StackItem>
+    </Stack>
   )
 }
 
@@ -111,15 +114,8 @@ export function AAPNodeForm(props: AAPNodeFormProps) {
   }
 
   return (
-    <Card variant="glass" padding="md" className="flex flex-col gap-3">
-      <Form<AAPFormData>
-        id="aap-node-form"
-        defaultValues={defaultValues}
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-3"
-      >
-        {() => <AAPFormFields submitButtonText={props.submitButtonText} />}
-      </Form>
-    </Card>
+    <Form<AAPFormData> id="aap-node-form" defaultValues={defaultValues} onSubmit={handleSubmit}>
+      {() => <AAPFormFields submitButtonText={props.submitButtonText} />}
+    </Form>
   )
 }

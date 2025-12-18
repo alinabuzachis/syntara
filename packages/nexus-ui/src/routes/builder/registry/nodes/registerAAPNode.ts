@@ -1,9 +1,10 @@
-// @ts-expect-error - SVG import as React component
-import AnsibleIcon from '../../../../assets/ansible-light.svg?react'
+import AnsibleIcon from '../../../../assets/ansible-automation-platform.svg?react'
 import { createConnectorActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import { AAPNodeForm } from '../../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../../node-forms/AAPNodeForm'
 import { NodeRegistry } from '../NodeRegistry'
+
+// @ts-expect-error - SVG import as React component
 
 /**
  * Register the AAP (Ansible Automation Platform) Job Execution node type

@@ -3,6 +3,8 @@ import Dagre from '@dagrejs/dagre'
 import {
   applyEdgeChanges,
   applyNodeChanges,
+  Background,
+  BackgroundVariant,
   ReactFlow,
   useReactFlow,
   type Connection,
@@ -1120,77 +1122,14 @@ export function BuilderFlow(props: BuilderFlowProps) {
   }, [edges])
 
   return (
-    <div ref={containerRef} className="size-full">
-      <style>{`
-        .builder-flow .react-flow__handle {
-          background: white !important;
-          border: 2px solid #6b7280 !important;
-        }
-        .builder-flow .react-flow__handle.source {
-          width: 8px !important;
-          height: 16px !important;
-          border-radius: 8px 0 0 8px !important;
-          border-right: none !important;
-          opacity: 0 !important; /* Hidden by default, only show when connected */
-          right: 2px !important;
-          z-index: 10 !important;
-        }
-        /* Show source handle when connected to a real edge (only for regular nodes, not loop/condition handles) */
-        .builder-flow .handle-source-connected .react-flow__handle.source {
-          opacity: 1 !important;
-        }
-        .builder-flow .has-button-edge .react-flow__handle.source {
-          /* Cover just the edge line, stops before button */
-          width: 30px !important;
-          height: 40px !important;
-          border-radius: 0 !important;
-          border: none !important;
-          opacity: 0 !important;
-          pointer-events: all !important;
-          right: -15px !important;
-          top: 50% !important;
-          transform: translateY(-50%) !important;
-        }
-        .builder-flow .react-flow__handle.target {
-          width: 4px !important;
-          height: 16px !important;
-          border-radius: 2px !important;
-          background: #9ca3af !important;
-          border: none !important;
-          opacity: 1 !important;
-          pointer-events: all !important;
-        }
-        .builder-flow .react-flow__handle.source:hover {
-          background: #f3f4f6 !important;
-          border-color: #374151 !important;
-        }
-        .builder-flow .react-flow__handle.target:hover {
-          background: #6b7280 !important;
-          border: none !important;
-        }
-        /* Apply glow to custom selected and hover arrow markers */
-        .builder-flow marker#selected-arrow-marker polyline,
-        .builder-flow marker#hover-arrow-marker polyline {
-          filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
-        }
-        /* Visual indicators for connected handles */
-        .builder-flow .handle-loop-connected .handle-loop-indicator,
-        .builder-flow .handle-done-connected .handle-done-indicator,
-        .builder-flow .handle-true-connected .handle-true-indicator,
-        .builder-flow .handle-false-connected .handle-false-indicator {
-          opacity: 1 !important;
-        }
-        /* Don't allow button edges to be selected */
-        .builder-flow .react-flow__edge[data-id*="button-"] {
-          pointer-events: none;
-        }
-        .builder-flow .react-flow__edge[data-id*="button-"] * {
-          pointer-events: auto;
-        }
-      `}</style>
+    <div
+      ref={containerRef}
+      style={{
+        width: '100%',
+        height: '100%',
+      }}
+    >
       <ReactFlow<NodeType, EdgeType>
-        className="builder-flow dark"
-        colorMode="dark"
         nodes={nodes}
         edges={edgesToRender}
         nodeTypes={builderNodeTypes}
@@ -1213,6 +1152,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         maxZoom={1}
         deleteKeyCode={['Delete', 'Backspace']}
       >
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         <CanvasControls onLayout={onLayout} />
       </ReactFlow>
     </div>

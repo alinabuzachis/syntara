@@ -1,7 +1,7 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { SidePanel } from '@ansible/nexus-ui-framework'
+import { Button, CompassPanel, Flex, FlexItem, Icon, Stack, StackItem, Title, TitleSizes } from '@patternfly/react-core'
+import { FileIcon, TimesIcon } from '@patternfly/react-icons'
 import type { Node } from '@xyflow/react'
-import { FileTextIcon } from 'lucide-react'
 
 import { FlowNodeType } from '../../constants'
 import { useWorkflowStore, selectCurrentWorkflow } from '../../stores/useWorkflowStore'
@@ -95,8 +95,51 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   }
 
   return (
-    <SidePanel onClose={onClose} title={getNodeTitle()} icon={FileTextIcon} width="lg">
-      {renderContent()}
-    </SidePanel>
+    <CompassPanel
+      style={{
+        height: '100%',
+        maxHeight: '100%',
+        width: '24rem',
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <Stack>
+        <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--lg)' }}>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
+            <FlexItem>
+              <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+                <Icon>
+                  <FileIcon />
+                </Icon>
+                <Title headingLevel="h2" size={TitleSizes.lg}>
+                  {getNodeTitle()}
+                </Title>
+              </Flex>
+            </FlexItem>
+            <FlexItem>
+              <Button variant="plain" onClick={onClose} aria-label="Close">
+                <Icon>
+                  <TimesIcon />
+                </Icon>
+              </Button>
+            </FlexItem>
+          </Flex>
+        </StackItem>
+        <StackItem
+          isFilled
+          style={{
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            paddingBottom: 'var(--pf-t--global--spacer--lg)',
+          }}
+        >
+          {renderContent()}
+        </StackItem>
+      </Stack>
+    </CompassPanel>
   )
 }

@@ -1,4 +1,5 @@
 import type { ConvergeActivity } from '@ansible/nexus-contracts'
+import { Flex } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Detail } from '../../../../components/details/Detail'
@@ -21,12 +22,16 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
   return (
     <NodeComponent className={metadata.className} nodeProps={props}>
       <StandardNodeHeader
-        icon={<Icon className="rotate-90" />}
+        icon={
+          <div style={{ transform: 'rotate(90deg)', display: 'inline-block' }}>
+            <Icon />
+          </div>
+        }
         title={props.data.name}
         subtitle={metadata.label}
         expandable
       />
-      <div className="justify-left flex overflow-hidden">
+      <Flex justifyContent={{ default: 'justifyContentFlexStart' }} style={{ overflow: 'hidden' }}>
         <NodeBody>
           <Details>
             <Detail label="Strategy">all</Detail>
@@ -35,7 +40,7 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
             <Detail label="Aggregate Outputs">{aggregateOutputs ? 'Yes' : 'No'}</Detail>
           </Details>
         </NodeBody>
-      </div>
+      </Flex>
     </NodeComponent>
   )
 }

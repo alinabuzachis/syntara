@@ -1,4 +1,5 @@
 import type { LoopActivity } from '@ansible/nexus-contracts'
+import { Flex } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
@@ -20,6 +21,7 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
   return (
     <NodeComponent
       className={metadata.className}
+      disableSource // Disable default source handle since we use BranchHandles instead
       enableEnd={metadata.enableEnd}
       enableStart={metadata.enableStart}
       nodeProps={props}
@@ -30,12 +32,12 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
         subtitle={metadata.label}
         menuActions={menuActions}
       />
-      <div className="flex justify-end">
+      <Flex justifyContent={{ default: 'justifyContentFlexEnd' }}>
         <BranchHandles>
           <BranchHandle id="done">Done</BranchHandle>
           <BranchHandle id="loop">Loop</BranchHandle>
         </BranchHandles>
-      </div>
+      </Flex>
     </NodeComponent>
   )
 }

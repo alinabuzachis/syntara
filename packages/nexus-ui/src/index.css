@@ -90,31 +90,6 @@
     width: 180px;
   }
 
-  .react-flow.dark {
-    background: transparent !important;
-    --xy-controls-button-background-color-default: transparent;
-    --xy-edge-stroke-default: #fff6;
-    --xy-edge-stroke-width-default: 2.5px;
-  }
-
-  .react-flow.dark .react-flow__viewport {
-    background: transparent !important;
-  }
-
-  .react-flow.dark .react-flow__renderer {
-    background: transparent !important;
-  }
-
-  .react-flow.dark .react-flow__pane {
-    background: transparent !important;
-  }
-
-  /* Remove border-2 border-white/20 from elements inside CompassContent for config integrations page, hopefully temp fix */
-  .pf-v6-c-compass__content [class*='border-2'][class*='border-white'] {
-    border: none !important;
-    border-width: 0 !important;
-  }
-
   dt {
     @apply mb-0.5 text-white/60;
     font-size: medium;
@@ -124,13 +99,4 @@
     @apply text-white not-last:mb-6;
     font-size: small;
   }
-}
-
-/* Add spacing to Compass layout */
-.pf-v6-c-compass__header {
-  padding: 2rem 2rem 2rem;
-}
-
-.pf-v6-c-compass__content {
-  padding-top: var(--pf-t--global--spacer--md, 1rem);
 }

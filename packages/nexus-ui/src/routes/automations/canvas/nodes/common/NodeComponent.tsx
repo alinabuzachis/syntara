@@ -1,8 +1,8 @@
+import { CompassPanel } from '@ansible/nexus-ui-framework'
 import { Handle, type NodeProps, Position } from '@xyflow/react'
-import clsx from 'clsx'
 import React, { useEffect, useState } from 'react'
 
-import { handleStyle } from './handleStyle'
+import { targetHandleStyle, sourceHandleStyle } from './handleStyle'
 import { NodeExpandedAllContext } from './NodeExpandedAllContext'
 import { NodeExpandedContext } from './NodeExpandedContext'
 
@@ -33,19 +33,22 @@ export function NodeComponent(props: {
       collapseAllEvent.removeEventListener('collapseAll', collapseListener)
     }
   }, [expandAllEvent, collapseAllEvent, expandedContext])
+  const isSelected = props.nodeProps.selected
+
   return (
     <NodeExpandedContext.Provider value={expandedContext}>
-      <div
-        className={clsx(
-          'glass card flex flex-col border-2 py-4',
-          {
-            'shadow-md shadow-black/50': !props.nodeProps.selected,
-            'selected shadow-xl shadow-black/50': props.nodeProps.selected,
-          },
-          props.className
-        )}
+      <CompassPanel
+        hasNoPadding
+        className={props.className}
         onClick={props.onClick}
-        onKeyDown={(e) => {
+        style={{
+          overflow: 'hidden', // Clip handles to create semicircle effect
+          cursor: props.onClick ? 'pointer' : undefined,
+          ...(isSelected && {
+            border: '2px solid var(--pf-t--global--color--brand--default)',
+          }),
+        }}
+        onKeyDown={(e: React.KeyboardEvent) => {
           if (props.onClick && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault()
             props.onClick(e as unknown as React.MouseEvent<HTMLDivElement, MouseEvent>)
@@ -60,7 +63,7 @@ export function NodeComponent(props: {
             type="target"
             id="target"
             position={props.reverseHandles ? Position.Right : Position.Left}
-            style={handleStyle}
+            style={targetHandleStyle}
           />
         )}
         {!props.disableSource && (
@@ -68,11 +71,11 @@ export function NodeComponent(props: {
             type="source"
             id="source"
             position={props.reverseHandles ? Position.Left : Position.Right}
-            style={handleStyle}
+            style={sourceHandleStyle}
           />
         )}
         {props.enableStart && (
-          <Handle type="source" id="start" position={Position.Right} style={{ ...handleStyle, top: '85%' }} />
+          <Handle type="source" id="start" position={Position.Right} style={{ ...sourceHandleStyle, top: '85%' }} />
         )}
         {props.enableEnd && (
           <Handle
@@ -80,14 +83,14 @@ export function NodeComponent(props: {
             id="end"
             position={Position.Left}
             style={{
-              ...handleStyle,
+              ...targetHandleStyle,
               top: '50%', // Same position as main target handle
               opacity: 0, // Invisible
               pointerEvents: 'none', // Non-interactive
             }}
           />
         )}
-      </div>
+      </CompassPanel>
     </NodeExpandedContext.Provider>
   )
 }

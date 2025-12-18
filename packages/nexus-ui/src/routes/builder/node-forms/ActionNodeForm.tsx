@@ -1,13 +1,6 @@
-import {
-  Button,
-  Card,
-  Form,
-  Input,
-  NativeSelect,
-  Textarea,
-  useFormContext,
-  useWatch,
-} from '@ansible/nexus-ui-framework'
+import { Form, Input, NativeSelect, Textarea, useFormContext, useWatch } from '@ansible/nexus-ui-framework'
+import { Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Stack, StackItem } from '@patternfly/react-core'
+import { RhUiErrorIcon } from '@patternfly/react-icons'
 
 // Type definitions (Priority 2)
 export type ExecutorType = 'script' | 'api'
@@ -57,146 +50,156 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
  * Form fields component that manually registers fields with react-hook-form
  */
 function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
-  const { register } = useFormContext<ActionFormData>()
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext<ActionFormData>()
   const executor = useWatch({ name: 'executor' })
 
   return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="action-executor" className="text-xs font-medium text-gray-300">
-          Action Type
-        </label>
-        <NativeSelect {...register('executor')} id="action-executor">
-          {EXECUTOR_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </NativeSelect>
-      </div>
+    <Stack
+      hasGutter
+      style={{
+        paddingLeft: 'var(--pf-t--global--spacer--xs)',
+        paddingRight: 'var(--pf-t--global--spacer--xs)',
+      }}
+    >
+      <StackItem>
+        <FormGroup label="Action Type" fieldId="action-executor">
+          <NativeSelect {...register('executor')} id="action-executor">
+            {EXECUTOR_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </FormGroup>
+      </StackItem>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="action-name" className="text-xs font-medium text-gray-300">
-          Name <span className="text-red-500">*</span>
-        </label>
-        <Input
-          {...register('name', { required: true })}
-          id="action-name"
-          placeholder="Enter activity name"
-          className="text-xs"
-        />
-      </div>
+      <StackItem>
+        <FormGroup label="Name" isRequired fieldId="action-name">
+          <Input
+            {...register('name', { required: 'Name is required' })}
+            id="action-name"
+            placeholder="Enter activity name"
+          />
+          {errors.name && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                  {errors.name.message}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      </StackItem>
 
       {executor === 'script' && (
         <>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="action-language" className="text-xs font-medium text-gray-300">
-              Language
-            </label>
-            <NativeSelect {...register('language')} id="action-language">
-              {SCRIPT_LANGUAGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="action-code" className="text-xs font-medium text-gray-300">
-              Code <span className="text-red-500">*</span>
-            </label>
-            <Textarea
-              {...register('code', { required: true })}
-              id="action-code"
-              placeholder="Enter your code..."
-              rows={5}
-              className="text-xs"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="action-parameters" className="text-xs font-medium text-gray-300">
-              Input parameters
-            </label>
-            <Textarea
-              {...register('parameters')}
-              id="action-parameters"
-              placeholder='{"key": "value"}'
-              rows={3}
-              className="text-xs"
-            />
-            <p className="text-xs text-gray-400">Optional: Define inputs for this task</p>
-          </div>
+          <StackItem>
+            <FormGroup label="Language" fieldId="action-language">
+              <NativeSelect {...register('language')} id="action-language">
+                {SCRIPT_LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </FormGroup>
+          </StackItem>
+          <StackItem>
+            <FormGroup label="Code" isRequired fieldId="action-code">
+              <Textarea
+                {...register('code', { required: 'Code is required' })}
+                id="action-code"
+                placeholder="Enter your code..."
+                rows={5}
+              />
+              {errors.code && (
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                      {errors.code.message}
+                    </HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              )}
+            </FormGroup>
+          </StackItem>
+          <StackItem>
+            <FormGroup
+              label="Input parameters"
+              fieldId="action-parameters"
+              helperText="Optional: Define inputs for this task"
+            >
+              <Textarea {...register('parameters')} id="action-parameters" placeholder='{"key": "value"}' rows={3} />
+            </FormGroup>
+          </StackItem>
         </>
       )}
 
       {executor === 'api' && (
         <>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="action-url" className="text-xs font-medium text-gray-300">
-              URL <span className="text-red-500">*</span>
-            </label>
-            <Input
-              {...register('url', { required: true })}
-              id="action-url"
-              type="url"
-              placeholder="https://api.example.com/endpoint"
-              className="text-xs"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="action-method" className="text-xs font-medium text-gray-300">
-              HTTP Method
-            </label>
-            <NativeSelect {...register('method')} id="action-method">
-              {HTTP_METHOD_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="action-authentication" className="text-xs font-medium text-gray-300">
-              Authentication
-            </label>
-            <Input
-              {...register('authentication')}
-              id="action-authentication"
-              placeholder="Bearer token or API key"
-              className="text-xs"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="action-headers" className="text-xs font-medium text-gray-300">
-              Headers
-            </label>
-            <Textarea
-              {...register('headers')}
-              id="action-headers"
-              placeholder='{"Content-Type": "application/json"}'
-              rows={2}
-              className="text-xs"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="action-body" className="text-xs font-medium text-gray-300">
-              Body
-            </label>
-            <Textarea
-              {...register('body')}
-              id="action-body"
-              placeholder='{"key": "value"}'
-              rows={3}
-              className="text-xs"
-            />
-          </div>
+          <StackItem>
+            <FormGroup label="URL" isRequired fieldId="action-url">
+              <Input
+                {...register('url', { required: 'URL is required' })}
+                id="action-url"
+                type="url"
+                placeholder="https://api.example.com/endpoint"
+              />
+              {errors.url && (
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                      {errors.url.message}
+                    </HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              )}
+            </FormGroup>
+          </StackItem>
+          <StackItem>
+            <FormGroup label="HTTP Method" fieldId="action-method">
+              <NativeSelect {...register('method')} id="action-method">
+                {HTTP_METHOD_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </FormGroup>
+          </StackItem>
+          <StackItem>
+            <FormGroup label="Authentication" fieldId="action-authentication">
+              <Input {...register('authentication')} id="action-authentication" placeholder="Bearer token or API key" />
+            </FormGroup>
+          </StackItem>
+          <StackItem>
+            <FormGroup label="Headers" fieldId="action-headers">
+              <Textarea
+                {...register('headers')}
+                id="action-headers"
+                placeholder='{"Content-Type": "application/json"}'
+                rows={2}
+              />
+            </FormGroup>
+          </StackItem>
+          <StackItem>
+            <FormGroup label="Body" fieldId="action-body">
+              <Textarea {...register('body')} id="action-body" placeholder='{"key": "value"}' rows={3} />
+            </FormGroup>
+          </StackItem>
         </>
       )}
 
-      <Button type="submit" variant="primary" className="w-full justify-center text-xs">
-        {submitButtonText ?? 'Add node'}
-      </Button>
-    </>
+      <StackItem>
+        <Button type="submit" variant="primary" style={{ width: '100%' }}>
+          {submitButtonText ?? 'Add node'}
+        </Button>
+      </StackItem>
+    </Stack>
   )
 }
 
@@ -227,15 +230,8 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
   }
 
   return (
-    <Card variant="glass" padding="md" className="flex flex-col gap-3">
-      <Form<ActionFormData>
-        id="action-node-form"
-        defaultValues={defaultValues}
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-3"
-      >
-        {() => <ActionFormFields submitButtonText={props.submitButtonText} />}
-      </Form>
-    </Card>
+    <Form<ActionFormData> id="action-node-form" defaultValues={defaultValues} onSubmit={handleSubmit}>
+      {() => <ActionFormFields submitButtonText={props.submitButtonText} />}
+    </Form>
   )
 }

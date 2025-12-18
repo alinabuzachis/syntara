@@ -1,4 +1,4 @@
-import { BrainIcon } from 'lucide-react'
+import { BrainIcon } from '@patternfly/react-icons'
 
 import { AIAgentNodeForm } from '../../node-forms/AIAgentNodeForm'
 import { createBasicNode } from '../helpers/nodeTemplates'

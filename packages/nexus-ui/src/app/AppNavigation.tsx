@@ -1,5 +1,4 @@
-import { CompassPanel } from '@ansible/nexus-ui-framework'
-import { Tab, TabContent, TabTitleText, Tabs, TabsComponent } from '@patternfly/react-core'
+import { CompassPanel, Tab, TabContent, TabTitleText, Tabs, TabsComponent } from '@patternfly/react-core'
 import { useRef } from 'react'
 import { useLocation } from 'wouter'
 
@@ -68,7 +67,7 @@ export function AppNavigation() {
 
   return (
     <>
-      <CompassPanel isPill hasNoPadding glass>
+      <CompassPanel isPill hasNoPadding>
         <Tabs
           activeKey={activeTopIndex >= 0 ? activeTopIndex : 0}
           isNav

@@ -8,7 +8,13 @@ export function NodeBody(props: { children: ReactNode; className?: string }) {
   const expanded = expandedState ? expandedState[0] : true
   return (
     <Collapsible collapsed={!expanded}>
-      <Scrollable className="px-6 pt-4">{props.children}</Scrollable>
+      <div
+        style={{
+          padding: 'var(--pf-t--global--spacer--sm)',
+        }}
+      >
+        <Scrollable className={props.className}>{props.children}</Scrollable>
+      </div>
     </Collapsible>
   )
 }
