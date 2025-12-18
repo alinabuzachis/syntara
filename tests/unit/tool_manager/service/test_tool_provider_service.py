@@ -182,9 +182,9 @@ async def test_update_provider_invalid_configuration(
     mock_provider_update = Mock(spec=ToolProviderCreate)
     mock_provider_update.name = "Updated Provider"
     mock_provider_update.description = "Updated description"
-    mock_provider_update.configuration = {"invalid": "config"}  # Missing provider_type
+    mock_provider_update.configuration = {"invalid": "config"}  # Missing provider_type, missing base_url
 
-    with pytest.raises(Exception, match=r"3 validation errors for ToolProvider"):
+    with pytest.raises(Exception, match=r"2 validation errors for ToolProvider"):
         await service.update_provider(test_tool_provider.id, mock_provider_update)
 
 

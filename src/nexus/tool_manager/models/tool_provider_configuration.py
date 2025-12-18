@@ -18,7 +18,7 @@ class MCPConfiguration(SQLModel):
 
     base_url: str = Field(description="Base URL for the MCP provider")
 
-    api_key: str = Field(description="API key for authentication")
+    api_key: str | None = Field(default=None, description="API key for authentication (optional)")
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",  # Reject unknown fields

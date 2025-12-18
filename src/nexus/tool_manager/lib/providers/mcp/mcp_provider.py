@@ -36,13 +36,13 @@ class MCPProvider(ToolProviderAdapter):
     The configuration is provided as an MCPConfiguration object which includes:
     - provider_type: Always "mcp"
     - base_url: URL of the MCP server
-    - api_key: Authentication key for the MCP server
+    - api_key: Authentication key for the MCP server (optional)
     """
 
     def __init__(
         self,
         base_url: str,
-        api_key: str,
+        api_key: str | None = None,
         provider_id: UUID | None = None,
         provider_name: str | None = "mcp-provider",
     ) -> None:
@@ -50,7 +50,7 @@ class MCPProvider(ToolProviderAdapter):
 
         Args:
             base_url: URL of the MCP server
-            api_key: Authentication key for the MCP server
+            api_key: Authentication key for the MCP server (optional)
             provider_id: Unique identifier for this provider instance (optional for factory)
             provider_name: Human-readable name for the provider (optional for factory)
 

@@ -461,10 +461,10 @@ components:
               format: uri
             api_key:
               type: string
+              nullable: true
           required:
             - provider_type
             - base_url
-            - api_key
 
     ToolProviderValidationResult:
       type: object

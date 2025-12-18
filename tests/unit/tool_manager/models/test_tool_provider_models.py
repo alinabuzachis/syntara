@@ -120,17 +120,17 @@ def test_tool_provider_configuration_validation(test_user: User) -> None:
     assert provider.configuration.base_url == "https://api.example.com"
     assert provider.configuration.api_key == "test-key"
 
-    # Missing provider_type should raise ValueError
+    # Missing base_url should raise ValueError
     with pytest.raises(Exception, match=r"1 validation error for ToolProvider"):
         ToolProvider(
             id=uuid4(),
             name="Test Provider",
-            configuration={"base_url": "https://api.example.com"},
+            configuration={"provider_type": "mcp"},  # Missing required base_url
             created_by=test_user.id,
         )
 
-    # Empty provider_type should raise ValidationError
-    with pytest.raises(Exception, match="3 validation errors for ToolProvider"):
+    # Empty provider_type and missing base_url should raise ValidationErrors
+    with pytest.raises(Exception, match="2 validation errors for ToolProvider"):
         ToolProvider(
             id=uuid4(),
             name="Test Provider",
@@ -138,8 +138,8 @@ def test_tool_provider_configuration_validation(test_user: User) -> None:
             created_by=test_user.id,
         )
 
-    # Whitespace-only provider_type should raise ValidationError
-    with pytest.raises(Exception, match=r"3 validation errors for ToolProvider"):
+    # Whitespace-only provider_type and missing base_url should raise ValidationError
+    with pytest.raises(Exception, match=r"2 validation errors for ToolProvider"):
         ToolProvider(
             id=uuid4(),
             name="Test Provider",
@@ -147,8 +147,8 @@ def test_tool_provider_configuration_validation(test_user: User) -> None:
             created_by=test_user.id,
         )
 
-    # Non-string provider_type should raise ValidationError
-    with pytest.raises(Exception, match=r"3 validation errors for ToolProvider"):
+    # Non-string provider_type and missing base_url should raise ValidationError
+    with pytest.raises(Exception, match=r"2 validation errors for ToolProvider"):
         ToolProvider(
             id=uuid4(),
             name="Test Provider",
@@ -174,6 +174,28 @@ def test_mcp_configuration_model() -> None:
     assert config.provider_type == "mcp"  # Default value
     assert config.base_url == "https://mcp.example.com"
     assert config.api_key == "test-api-key"
+
+
+def test_mcp_configuration_optional_api_key() -> None:
+    """Test MCPConfiguration model with optional api_key."""
+    # Test with explicit None
+    config_none = MCPConfiguration(
+        base_url="https://mcp.example.com",
+        api_key=None,
+    )
+
+    assert config_none.provider_type == "mcp"
+    assert config_none.base_url == "https://mcp.example.com"
+    assert config_none.api_key is None
+
+    # Test without api_key parameter (should default to None)
+    config_default = MCPConfiguration(
+        base_url="https://mcp.example.com",
+    )
+
+    assert config_default.provider_type == "mcp"
+    assert config_default.base_url == "https://mcp.example.com"
+    assert config_default.api_key is None
 
 
 def test_mcp_configuration_provider_type_validation() -> None:

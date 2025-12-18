@@ -46,6 +46,40 @@ class TestToolProvidersCreateContract:
         assert data["status"] == "validating"
 
     @pytest.mark.asyncio
+    async def test_create_provider_without_api_key_success_contract(
+        self, base_client_with_provider_factory: AsyncClient
+    ) -> None:
+        """Test successful provider creation without api_key (optional)."""
+        provider_data = {
+            "name": "no-api-key-test",
+            "description": "Test MCP provider without API key",
+            "configuration": {
+                "provider_type": "mcp",
+                "base_url": "http://localhost:8000/mcp",
+            },
+        }
+
+        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+
+        # Contract: Must return 201 Created
+        assert response.status_code == 201
+
+        # Contract: Must return created provider details
+        data = response.json()
+        assert "id" in data
+        assert data["name"] == provider_data["name"]
+        assert data["description"] == provider_data["description"]
+
+        # Configuration should not include api_key when not provided
+        expected_config = {
+            "provider_type": "mcp",
+            "base_url": "http://localhost:8000/mcp",
+            "api_key": None,
+        }
+        assert data["configuration"] == expected_config
+        assert data["status"] == "validating"
+
+    @pytest.mark.asyncio
     async def test_create_provider_duplicate_name_conflict_contract(
         self, base_client_with_provider_factory: AsyncClient
     ) -> None:

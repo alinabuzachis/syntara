@@ -71,6 +71,27 @@ class TestMCPProvider:
         assert provider.provider_name == provider_name
         assert provider.provider_id == provider_id
 
+    def test_mcp_provider_initialization_without_api_key(self) -> None:
+        """Test MCPProvider initialization without api_key (optional)."""
+        base_url = "http://localhost:8765/mcp"
+        provider_id = uuid4()
+        provider_name = "test-mcp"
+
+        provider = MCPProvider(
+            base_url=base_url,
+            api_key=None,
+            provider_id=provider_id,
+            provider_name=provider_name,
+        )
+
+        assert provider.configuration.provider_type == "mcp"
+        assert provider.configuration.base_url == base_url
+        assert provider.configuration.api_key is None
+        assert provider.provider_name == provider_name
+        assert provider.provider_id == provider_id
+        assert provider._client is None
+        assert provider._tools_cache == {}
+
     @pytest.mark.asyncio
     @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
     async def test_get_client_success(self, mock_client_class: Mock) -> None:
@@ -103,12 +124,32 @@ class TestMCPProvider:
     @pytest.mark.asyncio
     @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
     async def test_get_client_without_api_key(self, mock_client_class: Mock) -> None:
-        """Test MCP client initialization without API key."""
+        """Test MCP client initialization without API key (empty string)."""
         # Setup
         mock_client_instance = AsyncMock()
         mock_client_class.return_value = mock_client_instance
 
         provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="")
+
+        # Execute
+        client = await provider._get_client()
+
+        # Verify
+        assert client == mock_client_instance
+
+        # Verify client config doesn't include headers
+        call_args = mock_client_class.call_args[0][0]
+        assert "headers" not in call_args["mcp-provider"]
+
+    @pytest.mark.asyncio
+    @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
+    async def test_get_client_with_none_api_key(self, mock_client_class: Mock) -> None:
+        """Test MCP client initialization with None API key."""
+        # Setup
+        mock_client_instance = AsyncMock()
+        mock_client_class.return_value = mock_client_instance
+
+        provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key=None)
 
         # Execute
         client = await provider._get_client()
