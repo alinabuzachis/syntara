@@ -7,7 +7,7 @@ import * as workflowStore from '../../../stores/useWorkflowStore'
 import { TaskNodeDetails } from './TaskNodeDetails'
 
 const mockUpdateActivity = vi.fn()
-const mockCreateConnectorActivity = vi.fn()
+const mockCreateAAPJobTemplateActivity = vi.fn()
 
 vi.spyOn(workflowStore, 'useWorkflowStore').mockImplementation((selector: unknown) => {
   const store = {
@@ -33,7 +33,7 @@ vi.spyOn(workflowStore, 'useWorkflowStoreActions').mockImplementation(() => ({
   batchAddActivitiesAndEdges: vi.fn(),
 }))
 
-vi.spyOn(workflowStore, 'createConnectorActivity').mockImplementation(mockCreateConnectorActivity)
+vi.spyOn(workflowStore, 'createAAPJobTemplateActivity').mockImplementation(mockCreateAAPJobTemplateActivity)
 
 // Mock the alerts hook
 vi.mock('@ansible/nexus-ui-framework', async () => {
@@ -85,9 +85,14 @@ vi.mock('../node-forms/AAPNodeForm', () => ({
         onClick={() =>
           onSubmit({
             name: 'Updated AAP Task',
-            connectorId: 'new-connector',
-            operation: 'new-op',
-            parameters: '{}',
+            jobTemplateId: '456',
+            inventory: '789',
+            credentials: '10,20',
+            extraVars: '{"key": "value"}',
+            limit: 'servers',
+            tags: 'install',
+            skipTags: 'debug',
+            verbosity: '3',
           })
         }
         data-testid="aap-submit-button"
@@ -106,31 +111,19 @@ describe('TaskNodeDetails Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    // Setup mockCreateConnectorActivity to return proper activity structure
-    mockCreateConnectorActivity.mockImplementation(
-      (id, name, connectorId, operation, parameters, requiresApproval) => ({
-        type: 'task' as const,
-        id,
-        name,
-        ...(requiresApproval === true && { requiresApproval: true }),
-        metadata: {
-          __executorType: 'aap',
-          __connectorId: connectorId,
+    // Setup mockCreateAAPJobTemplateActivity to return proper activity structure
+    mockCreateAAPJobTemplateActivity.mockImplementation((id, name, jobTemplateId, config) => ({
+      type: 'task' as const,
+      id,
+      name,
+      task: {
+        executor: 'aap_job_template' as const,
+        config: {
+          jobTemplateId,
+          ...config,
         },
-        task: {
-          executor: 'agentic' as const,
-          config: {
-            agent: '__connector_workaround__',
-            prompt: JSON.stringify({
-              __type: 'connector',
-              connectorId,
-              operation,
-              ...(parameters && { parameters: JSON.parse(parameters) }),
-            }),
-          },
-        },
-      })
-    )
+      },
+    }))
   })
 
   it('renders ActionNodeForm for script task', () => {
@@ -171,17 +164,17 @@ describe('TaskNodeDetails Component', () => {
     expect(screen.getByTestId('action-node-form')).toBeInTheDocument()
   })
 
-  it('renders AAPNodeForm for connector task', () => {
+  it('renders AAPNodeForm for aap_job_template task', () => {
     const taskData = {
       type: 'task' as const,
       id: 'task-aap',
       name: 'AAP Task',
       task: {
-        executor: 'connector' as const,
+        executor: 'aap_job_template' as const,
         config: {
-          connectorId: 'ansible-1',
-          operation: 'launch_job',
-          parameters: { foo: 'bar' },
+          jobTemplateId: 123,
+          inventory: 456,
+          extraVars: { foo: 'bar' },
         },
       },
     }
@@ -236,10 +229,16 @@ describe('TaskNodeDetails Component', () => {
       id: 'task-aap',
       name: 'AAP Task',
       task: {
-        executor: 'connector' as const,
+        executor: 'aap_job_template' as const,
         config: {
-          connectorId: 'ansible-1',
-          operation: 'launch_job',
+          jobTemplateId: 123,
+          inventory: 456,
+          credentials: [1, 2, 3],
+          extraVars: { env: 'prod' },
+          limit: 'webservers',
+          tags: 'deploy',
+          skipTags: 'testing',
+          verbosity: 2,
         },
       },
     }
@@ -248,19 +247,22 @@ describe('TaskNodeDetails Component', () => {
 
     await user.click(screen.getByTestId('aap-submit-button'))
 
-    // AAP nodes are now stored as 'agentic' executor (backend workaround)
+    // AAP nodes use aap_job_template executor
     expect(mockUpdateActivity).toHaveBeenCalledWith(
       'task-aap',
       expect.objectContaining({
         name: 'Updated AAP Task',
-        metadata: expect.objectContaining({
-          __executorType: 'aap',
-        }),
         task: expect.objectContaining({
-          executor: 'agentic',
+          executor: 'aap_job_template',
           config: expect.objectContaining({
-            agent: '__connector_workaround__',
-            prompt: expect.stringContaining('new-connector'),
+            jobTemplateId: 456,
+            inventory: 789,
+            credentials: [10, 20],
+            extraVars: { key: 'value' },
+            limit: 'servers',
+            tags: 'install',
+            skipTags: 'debug',
+            verbosity: 3,
           }),
         }),
       })

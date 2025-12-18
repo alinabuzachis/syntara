@@ -11,30 +11,17 @@ describe('createConnectorActivity', () => {
       'launch_job'
     )
 
-    // Backend workaround: stored as 'agentic' executor with metadata
     expect(activity).toMatchObject({
       type: 'task',
       id: 'activity_123',
       name: 'Test Activity',
-      metadata: {
-        __executorType: 'aap',
-        __connectorId: 'ansible-automation-platform',
-      },
       task: {
-        executor: 'agentic',
+        executor: 'connector',
         config: {
-          agent: '__connector_workaround__',
-          prompt: expect.stringContaining('ansible-automation-platform'),
+          connectorId: 'ansible-automation-platform',
+          operation: 'launch_job',
         },
       },
-    })
-
-    // Verify the connector data is properly encoded in the prompt
-    const promptData = JSON.parse(activity.task.config.prompt)
-    expect(promptData).toEqual({
-      __type: 'connector',
-      connectorId: 'ansible-automation-platform',
-      operation: 'launch_job',
     })
   })
 
@@ -42,8 +29,7 @@ describe('createConnectorActivity', () => {
     const params = JSON.stringify({ job_template_id: '42', extra_vars: { env: 'prod' } })
     const activity = createConnectorActivity('id', 'name', 'connector', 'operation', params)
 
-    const promptData = JSON.parse(activity.task.config.prompt)
-    expect(promptData.parameters).toEqual({
+    expect(activity.task.config.parameters).toEqual({
       job_template_id: '42',
       extra_vars: { env: 'prod' },
     })
@@ -53,11 +39,8 @@ describe('createConnectorActivity', () => {
     const emptyActivity = createConnectorActivity('id', 'name', 'connector', 'op', '')
     const invalidActivity = createConnectorActivity('id', 'name', 'connector', 'op', '{bad json}')
 
-    const emptyPrompt = JSON.parse(emptyActivity.task.config.prompt)
-    const invalidPrompt = JSON.parse(invalidActivity.task.config.prompt)
-
-    expect(emptyPrompt).not.toHaveProperty('parameters')
-    expect(invalidPrompt).not.toHaveProperty('parameters')
+    expect(emptyActivity.task.config).not.toHaveProperty('parameters')
+    expect(invalidActivity.task.config).not.toHaveProperty('parameters')
   })
 
   it('supports all AAP operations', () => {
@@ -65,8 +48,7 @@ describe('createConnectorActivity', () => {
 
     operations.forEach((op) => {
       const activity = createConnectorActivity('id', 'name', 'ansible-automation-platform', op)
-      const promptData = JSON.parse(activity.task.config.prompt)
-      expect(promptData.operation).toBe(op)
+      expect(activity.task.config.operation).toBe(op)
     })
   })
 
@@ -83,27 +65,16 @@ describe('createConnectorActivity', () => {
       type: 'task',
       id: 'activity_deploy_prod',
       name: 'Deploy Production',
-      metadata: {
-        __executorType: 'aap',
-        __connectorId: 'ansible-automation-platform',
-      },
       task: {
-        executor: 'agentic',
+        executor: 'connector',
         config: {
-          agent: '__connector_workaround__',
+          connectorId: 'ansible-automation-platform',
+          operation: 'launch_job',
+          parameters: {
+            job_template_id: '42',
+            inventory: 'production',
+          },
         },
-      },
-    })
-
-    // Verify the connector data is properly encoded in the prompt
-    const promptData = JSON.parse(activity.task.config.prompt)
-    expect(promptData).toEqual({
-      __type: 'connector',
-      connectorId: 'ansible-automation-platform',
-      operation: 'launch_job',
-      parameters: {
-        job_template_id: '42',
-        inventory: 'production',
       },
     })
   })

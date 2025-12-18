@@ -878,6 +878,7 @@ export {
   createConditionActivity,
   createLoopActivity,
   createConvergeActivity,
+  createAAPJobTemplateActivity,
   createConnectorActivity,
   createGenericActivity,
 } from './workflowFactories'

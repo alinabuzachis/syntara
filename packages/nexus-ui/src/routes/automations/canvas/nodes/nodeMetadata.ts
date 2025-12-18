@@ -9,8 +9,7 @@ import {
 } from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
 
-// @ts-expect-error - SVG import as React component
-import AnsibleIcon from '../../../../assets/ansible-light.svg?react'
+import AnsibleIcon from '../../../../assets/ansible-automation-platform.svg?react'
 
 export interface NodeMetadata {
   icon?: ComponentType<{ className?: string }>
@@ -67,5 +66,5 @@ export const executorMetadata: Record<string, { icon: ComponentType<{ className?
   agentic: { icon: BrainIcon, label: 'Agentic' },
   api: { icon: ServerIcon, label: 'REST Api' },
   connector: { icon: PluggedIcon, label: 'Connector' },
-  aap: { icon: AnsibleIcon, label: 'AAP Job' }, // Ansible Automation Platform
+  aap_job_template: { icon: AnsibleIcon, label: 'AAP Job' },
 }

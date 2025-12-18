@@ -5,9 +5,14 @@ import { useState } from 'react'
 
 export interface AAPFormData {
   name: string
-  connectorId: string
-  operation: string
-  parameters: string
+  jobTemplateId: string // String in form, converted to number
+  inventory?: string // Optional, string in form, converted to number
+  credentials?: string // Optional, comma-separated credential IDs, converted to number[]
+  extraVars?: string // Optional JSON string
+  limit?: string // Optional, limit job to specific hosts
+  tags?: string // Optional, Ansible tags to run (comma-separated)
+  skipTags?: string // Optional, Ansible tags to skip (comma-separated)
+  verbosity?: string // Optional, string in form, converted to number (0-5)
 }
 
 interface AAPNodeFormProps {
@@ -46,33 +51,49 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Connector ID" isRequired fieldId="aap-connectorId">
+        <FormGroup label="Job Template ID" isRequired fieldId="aap-jobTemplateId">
           <Input
-            {...register('connectorId', { required: true })}
-            id="aap-connectorId"
-            placeholder="ansible-automation-platform"
+            {...register('jobTemplateId', { required: true })}
+            id="aap-jobTemplateId"
+            type="number"
+            placeholder="123"
           />
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>AAP job template ID to launch</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Operation" fieldId="aap-operation">
-          <NativeSelect {...register('operation')} id="aap-operation">
-            <option value="launch_job">Launch Job Template</option>
-            <option value="launch_workflow">Launch Workflow Template</option>
-            <option value="get_job_status">Get Job Status</option>
-            <option value="cancel_job">Cancel Job</option>
-          </NativeSelect>
+        <FormGroup label="Inventory ID" fieldId="aap-inventory">
+          <Input {...register('inventory')} id="aap-inventory" type="number" placeholder="456" />
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>Optional: Override default inventory</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Parameters (JSON)" fieldId="aap-parameters">
+        <FormGroup label="Credentials" fieldId="aap-credentials">
+          <Input {...register('credentials')} id="aap-credentials" placeholder="1,2,3" />
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>Optional: Comma-separated credential IDs</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        </FormGroup>
+      </StackItem>
+      <StackItem>
+        <FormGroup label="Extra Variables (JSON)" fieldId="aap-extraVars">
           <Textarea
-            {...register('parameters', {
+            {...register('extraVars', {
               validate: validateJSON,
               onChange: (e) => validateJSON(e.target.value),
             })}
-            id="aap-parameters"
-            placeholder='{"job_template_id": "123", "extra_vars": {}}'
+            id="aap-extraVars"
+            placeholder='{"version": "1.0", "environment": "prod"}'
             rows={4}
             style={{ fontFamily: 'monospace' }}
           />
@@ -83,10 +104,56 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
                   {jsonError}
                 </HelperTextItem>
               ) : (
-                <HelperTextItem>
-                  Optional: Provide parameters as a JSON object for the connector operation
-                </HelperTextItem>
+                <HelperTextItem>Optional: Extra variables to pass to the job (JSON object)</HelperTextItem>
               )}
+            </HelperText>
+          </FormHelperText>
+        </FormGroup>
+      </StackItem>
+      <StackItem>
+        <FormGroup label="Limit" fieldId="aap-limit">
+          <Input {...register('limit')} id="aap-limit" placeholder="webservers:dbservers" />
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>Optional: Limit job execution to specific hosts</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        </FormGroup>
+      </StackItem>
+      <StackItem>
+        <FormGroup label="Tags" fieldId="aap-tags">
+          <Input {...register('tags')} id="aap-tags" placeholder="install,configure" />
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>Optional: Ansible tags to run (comma-separated)</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        </FormGroup>
+      </StackItem>
+      <StackItem>
+        <FormGroup label="Skip Tags" fieldId="aap-skipTags">
+          <Input {...register('skipTags')} id="aap-skipTags" placeholder="testing,debug" />
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>Optional: Ansible tags to skip (comma-separated)</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        </FormGroup>
+      </StackItem>
+      <StackItem>
+        <FormGroup label="Verbosity" fieldId="aap-verbosity">
+          <NativeSelect {...register('verbosity')} id="aap-verbosity">
+            <option value="">Default (0)</option>
+            <option value="0">0 - Normal</option>
+            <option value="1">1 - Verbose</option>
+            <option value="2">2 - More Verbose</option>
+            <option value="3">3 - Debug</option>
+            <option value="4">4 - Connection Debug</option>
+            <option value="5">5 - WinRM Debug</option>
+          </NativeSelect>
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>Optional: Job verbosity level (0-5)</HelperTextItem>
             </HelperText>
           </FormHelperText>
         </FormGroup>
@@ -103,9 +170,14 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
 export function AAPNodeForm(props: AAPNodeFormProps) {
   const defaultValues: AAPFormData = {
     name: '',
-    connectorId: '',
-    operation: 'launch_job',
-    parameters: '',
+    jobTemplateId: '',
+    inventory: '',
+    credentials: '',
+    extraVars: '',
+    limit: '',
+    tags: '',
+    skipTags: '',
+    verbosity: '',
     ...props.initialData,
   }
 

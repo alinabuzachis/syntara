@@ -40,47 +40,27 @@ export function TaskActivityDetails(
     menuActions?: ReturnType<typeof useNodeMenuActions>
   }>
 ) {
-  // Check if this is an AAP/connector node disguised as agentic (workaround for backend)
-  const overrideExecutorType = props.data.metadata?.__executorType
-
-  // Parse connector data if it's the workaround format (agentic executor with connector data in prompt)
-  let connectorData: { connectorId?: string; operation?: string; parameters?: Record<string, unknown> } | null = null
-  let detectedExecutorType: string | undefined = overrideExecutorType
-
-  // If executor is agentic, check the prompt to detect connector/AAP nodes
-  // This handles both cases: when metadata exists and when it's missing after save/load
-  if (props.data.task.executor === 'agentic') {
-    try {
-      const parsed = JSON.parse(props.data.task.config.prompt || '{}')
-      if (parsed.__type === 'connector') {
-        connectorData = {
-          connectorId: parsed.connectorId,
-          operation: parsed.operation,
-          parameters: parsed.parameters,
-        }
-        // If metadata is missing, detect AAP nodes from connectorId
-        // Check if this is an AAP connector (ansible-automation-platform)
-        if (
-          !detectedExecutorType &&
-          (parsed.connectorId === 'ansible-automation-platform' || parsed.connectorId?.includes('ansible'))
-        ) {
-          detectedExecutorType = 'aap'
-        }
-      }
-    } catch {
-      // Fallthrough
-    }
-  }
-
-  const actualExecutor = detectedExecutorType || props.data.task.executor
-  const executorMeta = executorMetadata[actualExecutor] || executorMetadata[props.data.task.executor]
+  const executorMeta = executorMetadata[props.data.task.executor]
   const Icon = executorMeta?.icon
   const taskExecutor = executorMeta?.label || 'Task'
+  const isAAPTask = props.data.task.executor === 'aap_job_template'
 
   return (
     <>
       <StandardNodeHeader
-        icon={Icon ? <Icon /> : undefined}
+        icon={
+          Icon ? (
+            <div
+              style={
+                isAAPTask
+                  ? { width: '32px', height: '32px', marginLeft: '-8px', display: 'flex', alignItems: 'center' }
+                  : undefined
+              }
+            >
+              <Icon />
+            </div>
+          ) : undefined
+        }
         title={props.data.name}
         subtitle={taskExecutor}
         expandable
@@ -104,19 +84,18 @@ export function TaskActivityDetails(
               {renderObject('Body', props.data.task.config.body)}
             </>
           )}
+          {props.data.task.executor === 'aap_job_template' && (
+            <>
+              {renderText('Job Template ID', props.data.task.config.jobTemplateId?.toString())}
+              {renderText('Inventory ID', props.data.task.config.inventory?.toString())}
+              {renderObject('Extra Variables', props.data.task.config.extraVars)}
+            </>
+          )}
           {props.data.task.executor === 'connector' && (
             <>
               {renderText('Connector', props.data.task.config.connectorId)}
               {renderText('Operation', props.data.task.config.operation)}
               {renderObject('Parameters', props.data.task.config.parameters)}
-            </>
-          )}
-          {/* Render connector details for workaround format (agentic executor with connector data) */}
-          {detectedExecutorType && connectorData && (
-            <>
-              {renderText('Connector', connectorData.connectorId)}
-              {renderText('Operation', connectorData.operation)}
-              {renderObject('Parameters', connectorData.parameters)}
             </>
           )}
           {renderJson(props.data, props.showJson)}

@@ -329,7 +329,44 @@ export function createConvergeActivity(
 }
 
 /**
- * Create a connector activity (for external integrations like AAP).
+ * Create an AAP Job Template activity.
+ * @param id - Unique activity identifier
+ * @param name - Display name for the activity
+ * @param jobTemplateId - AAP job template ID to launch
+ * @param config - Optional configuration (inventory, credentials, extraVars, etc.)
+ */
+export function createAAPJobTemplateActivity(
+  id: string,
+  name: string,
+  jobTemplateId: number,
+  config?: {
+    inventory?: number
+    credentials?: number[]
+    extraVars?: Record<string, unknown>
+    limit?: string
+    tags?: string
+    skipTags?: string
+    verbosity?: number
+  }
+): TaskActivity {
+  const activity: TaskActivity = {
+    type: 'task',
+    id,
+    name,
+    task: {
+      executor: 'aap_job_template',
+      config: {
+        jobTemplateId,
+        ...config,
+      },
+    },
+  }
+
+  return activity
+}
+
+/**
+ * Create a connector activity (for external integrations).
  * @param id - Unique activity identifier
  * @param name - Display name for the activity
  * @param connectorId - ID of the connector to use
@@ -353,32 +390,16 @@ export function createConnectorActivity(
     }
   }
 
-  // WORKAROUND: Backend ExecutorType enum is missing 'connector' even though JSON schema includes it.
-  // Using 'agentic' executor with structured prompt to encode connector information.
-  // When backend adds 'connector' to ExecutorType, update this to use executor: 'connector' directly.
-  // Reference: src/nexus/workflows/workflow_engine/models/workflow_definition.py ExecutorType enum
-  const connectorPrompt = JSON.stringify({
-    __type: 'connector',
-    connectorId,
-    operation,
-    ...(parsedParameters && { parameters: parsedParameters }),
-  })
-
   const activity: TaskActivity = {
     type: 'task',
     id,
     name,
-    // Add metadata to indicate this is actually an AAP connector node
-    // This allows the UI to render it with the Ansible icon/label
-    metadata: {
-      __executorType: 'aap',
-      __connectorId: connectorId,
-    },
     task: {
-      executor: 'agentic',
+      executor: 'connector',
       config: {
-        agent: '__connector_workaround__', // Required field for agentic executor
-        prompt: connectorPrompt,
+        connectorId,
+        operation,
+        ...(parsedParameters && { parameters: parsedParameters }),
       },
     },
   }

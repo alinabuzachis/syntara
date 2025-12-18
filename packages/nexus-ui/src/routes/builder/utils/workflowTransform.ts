@@ -397,18 +397,18 @@ export class WorkflowTransform {
         const branches = (firstThen as Extract<Activity, { type: 'parallel' }>).branches || []
         for (const branch of branches) {
           edges.push({
-            id: `${activity.id}-true-${this.getActivityId(branch)}`,
+            id: `${activity.id}-true-${this.getFirstActivityId(branch)}`,
             source: activity.id,
-            target: this.getActivityId(branch),
+            target: this.getFirstActivityId(branch),
             sourceHandle: 'true',
             targetHandle: 'target',
           })
         }
       } else {
         edges.push({
-          id: `${activity.id}-true-${this.getActivityId(firstThen)}`,
+          id: `${activity.id}-true-${this.getFirstActivityId(firstThen)}`,
           source: activity.id,
-          target: this.getActivityId(firstThen),
+          target: this.getFirstActivityId(firstThen),
           sourceHandle: 'true',
           targetHandle: 'target',
         })
@@ -424,18 +424,18 @@ export class WorkflowTransform {
         const branches = (firstElse as Extract<Activity, { type: 'parallel' }>).branches || []
         for (const branch of branches) {
           edges.push({
-            id: `${activity.id}-false-${this.getActivityId(branch)}`,
+            id: `${activity.id}-false-${this.getFirstActivityId(branch)}`,
             source: activity.id,
-            target: this.getActivityId(branch),
+            target: this.getFirstActivityId(branch),
             sourceHandle: 'false',
             targetHandle: 'target',
           })
         }
       } else {
         edges.push({
-          id: `${activity.id}-false-${this.getActivityId(firstElse)}`,
+          id: `${activity.id}-false-${this.getFirstActivityId(firstElse)}`,
           source: activity.id,
-          target: this.getActivityId(firstElse),
+          target: this.getFirstActivityId(firstElse),
           sourceHandle: 'false',
           targetHandle: 'target',
         })

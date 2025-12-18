@@ -1836,4 +1836,143 @@ describe('WorkflowTransform - Parallel Detection', () => {
     expect(edgesToJ.some((e) => e.source === 'A1')).toBe(false)
     expect(edgesToJ.some((e) => e.source === 'A3')).toBe(false)
   })
+
+  it('handles condition leading to parallel with sequence branches', () => {
+    // Test the exact bug scenario: Condition → Parallel(Sequence(F, M), Activity N) → Converge J
+    // This tests the fix for using getFirstActivityId instead of getActivityId in flattenCondition
+    const nestedWorkflow: Activity[] = [
+      {
+        type: 'condition',
+        id: 'cond1',
+        name: 'Condition 1',
+        condition: '${check}',
+        then: [
+          {
+            type: 'task',
+            id: 'T1',
+            name: 'Then Task',
+            task: { executor: 'script', config: { language: 'python', code: '' } },
+          },
+        ],
+        else: [
+          {
+            type: 'parallel',
+            id: 'parallel-1',
+            branches: [
+              {
+                type: 'sequence',
+                id: 'seq-1',
+                steps: [
+                  {
+                    type: 'task',
+                    id: 'F',
+                    name: 'Task F',
+                    task: { executor: 'script', config: { language: 'python', code: '' } },
+                  },
+                  {
+                    type: 'task',
+                    id: 'M',
+                    name: 'Task M',
+                    task: { executor: 'script', config: { language: 'python', code: '' } },
+                  },
+                ],
+              },
+              {
+                type: 'task',
+                id: 'N',
+                name: 'Task N',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+          },
+          {
+            type: 'converge',
+            id: 'J',
+            name: 'Converge J',
+            converge: {
+              branches: ['M', 'N'], // References activities within sequence and parallel
+            },
+          },
+        ],
+      },
+    ]
+
+    // Flatten the workflow
+    const { activities: flatActivities, edges } = WorkflowTransform.flatten(nestedWorkflow)
+
+    // Verify all activities are flattened
+    expect(flatActivities).toHaveLength(6) // cond1, T1, F, M, N, J
+    expect(flatActivities.find((a) => a.id === 'cond1')).toBeDefined()
+    expect(flatActivities.find((a) => a.id === 'T1')).toBeDefined()
+    expect(flatActivities.find((a) => a.id === 'F')).toBeDefined()
+    expect(flatActivities.find((a) => a.id === 'M')).toBeDefined()
+    expect(flatActivities.find((a) => a.id === 'N')).toBeDefined()
+    expect(flatActivities.find((a) => a.id === 'J')).toBeDefined()
+
+    // Sequence should be flattened away
+    expect(flatActivities.find((a) => a.id === 'seq-1')).toBeUndefined()
+    expect(flatActivities.find((a) => a.id === 'parallel-1')).toBeUndefined()
+
+    // CRITICAL: Verify edges from condition to parallel branches
+    // Should point to F (first in sequence), not seq-1 (which gets flattened)
+    const condToF = edges.find((e) => e.source === 'cond1' && e.target === 'F')
+    expect(condToF).toBeDefined()
+    expect(condToF?.sourceHandle).toBe('false')
+
+    const condToN = edges.find((e) => e.source === 'cond1' && e.target === 'N')
+    expect(condToN).toBeDefined()
+    expect(condToN?.sourceHandle).toBe('false')
+
+    // Should NOT have edge to seq-1 (sequence container)
+    const condToSeq = edges.find((e) => e.source === 'cond1' && e.target === 'seq-1')
+    expect(condToSeq).toBeUndefined()
+
+    // Verify edge from condition to then branch
+    const condToT1 = edges.find((e) => e.source === 'cond1' && e.target === 'T1')
+    expect(condToT1).toBeDefined()
+    expect(condToT1?.sourceHandle).toBe('true')
+
+    // Verify sequential edge within sequence: F → M
+    const fToM = edges.find((e) => e.source === 'F' && e.target === 'M')
+    expect(fToM).toBeDefined()
+
+    // Verify edges to converge node from M and N
+    const mToJ = edges.find((e) => e.source === 'M' && e.target === 'J')
+    expect(mToJ).toBeDefined()
+
+    const nToJ = edges.find((e) => e.source === 'N' && e.target === 'J')
+    expect(nToJ).toBeDefined()
+
+    // Verify round-trip: flatten → nest → flatten preserves structure
+    const reNested = WorkflowTransform.nest(flatActivities, edges)
+    expect(reNested).toHaveLength(1) // Should have just the condition at top level
+
+    const condition = reNested[0] as Extract<Activity, { type: 'condition' }>
+    expect(condition.type).toBe('condition')
+    expect(condition.id).toBe('cond1')
+
+    // Then branch should have T1
+    expect(condition.then).toHaveLength(1)
+    expect(condition.then![0].id).toBe('T1')
+
+    // Else branch should have parallel and converge
+    expect(condition.else).toHaveLength(2)
+    const parallelInElse = condition.else![0]
+    expect(parallelInElse.type).toBe('parallel')
+
+    const convergeInElse = condition.else![1]
+    expect(convergeInElse.type).toBe('converge')
+    expect(convergeInElse.id).toBe('J')
+
+    // Re-flatten and verify edges are regenerated correctly
+    const { edges: reFlatEdges } = WorkflowTransform.flatten(reNested)
+
+    // Should regenerate edge from condition to F (not seq-1)
+    const reCondToF = reFlatEdges.find((e) => e.source === 'cond1' && e.target === 'F')
+    expect(reCondToF).toBeDefined()
+
+    // Should NOT have edge to non-existent seq-1
+    const reCondToSeq = reFlatEdges.find((e) => e.source === 'cond1' && e.target === 'seq-1')
+    expect(reCondToSeq).toBeUndefined()
+  })
 })

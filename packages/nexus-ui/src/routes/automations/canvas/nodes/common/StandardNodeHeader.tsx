@@ -1,5 +1,5 @@
 import { KebabMenuTrigger, Menu, MenuItem, MenuItems, MenuSeparator } from '@ansible/nexus-ui-framework'
-import { Content, Flex, FlexItem, Icon } from '@patternfly/react-core'
+import { Content, Flex, FlexItem } from '@patternfly/react-core'
 
 import type { NodeMenuAction } from '../hooks/useNodeMenuActions'
 
@@ -33,7 +33,7 @@ export function StandardNodeHeader(props: Readonly<StandardNodeHeaderProps>) {
       <NodeHeader>
         {props.icon && (
           <FlexItem style={{ marginLeft: 'var(--pf-t--global--spacer--sm)' }}>
-            <Icon>{props.icon}</Icon>
+            <div style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center' }}>{props.icon}</div>
           </FlexItem>
         )}
         <FlexItem style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>

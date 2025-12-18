@@ -4,6 +4,50 @@ import { buildNestedConditionStructure } from './buildNestedStructure'
 import { WorkflowTransform, type EdgeConnection } from './workflowTransform'
 
 /**
+ * Check if an activity is a legacy type (sequence/loop/user-created parallel)
+ */
+function isLegacyActivity(activity: Activity): boolean {
+  if (activity.type === 'sequence' || activity.type === 'loop') return true
+  // User-created parallel nodes (not auto-generated parallel_for_* wrappers)
+  return activity.type === 'parallel' && !activity.id.startsWith('parallel_for_')
+}
+
+/**
+ * Get nested activities from an activity based on its type
+ */
+function getNestedActivities(activity: Activity): Activity[][] {
+  switch (activity.type) {
+    case 'condition':
+      return [activity.then || [], activity.else || []]
+    case 'parallel':
+      return activity.branches ? [activity.branches] : []
+    case 'sequence':
+      return activity.steps ? [activity.steps] : []
+    case 'loop':
+      return activity.loop.do ? [activity.loop.do] : []
+    default:
+      return []
+  }
+}
+
+/**
+ * Recursively checks if a workflow contains sequence/loop/parallel activities.
+ * These activity types undergo lossy transformation and should skip round-trip validation.
+ */
+function hasLegacyActivityTypes(activities: Activity[]): boolean {
+  for (const activity of activities) {
+    if (isLegacyActivity(activity)) return true
+
+    // Recursively check nested structures
+    const nestedArrays = getNestedActivities(activity)
+    for (const nested of nestedArrays) {
+      if (hasLegacyActivityTypes(nested)) return true
+    }
+  }
+  return false
+}
+
+/**
  * Validates that a workflow maintains its structure during round-trip conversion.
  * This performs the following steps:
  * 1. Flatten the original nested structure
@@ -27,12 +71,7 @@ export function validateRoundTrip(original: Activity[], edges?: EdgeConnection[]
   // SKIP validation for workflows with sequence/loop/user-parallel activities
   // These activity types undergo lossy transformation (flatten removes container, nest doesn't rebuild it)
   // Only modern workflows with condition nodes are validated
-  const hasLegacyActivities = original.some((a) => {
-    if (a.type === 'sequence' || a.type === 'loop') return true
-    // User-created parallel nodes (not auto-generated parallel_for_* wrappers)
-    if (a.type === 'parallel' && !a.id.startsWith('parallel_for_')) return true
-    return false
-  })
+  const hasLegacyActivities = hasLegacyActivityTypes(original)
   if (hasLegacyActivities) {
     // eslint-disable-next-line no-console
     console.log('[validateRoundTrip] Skipping validation for workflow with sequence/loop/parallel activities')

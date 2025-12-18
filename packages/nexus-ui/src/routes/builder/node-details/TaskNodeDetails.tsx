@@ -1,10 +1,11 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { useAlerts } from '@ansible/nexus-ui-framework'
 
-import { createConnectorActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
+import { createAAPJobTemplateActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { AAPNodeForm } from '../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../node-forms/AAPNodeForm'
 import { ActionNodeForm } from '../node-forms/ActionNodeForm'
+import { buildAAPConfig, parsePositiveInt } from '../utils/aapHelpers'
 
 type TaskActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'task' }
 
@@ -19,58 +20,42 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
   const executor = taskData.task.executor
-  const isAAPNode = taskData.metadata?.__executorType === 'aap'
 
-  // Check if this is an AAP connector task (could be native format or workaround format)
-  if (executor === 'connector' || isAAPNode) {
-    let connectorId: string = ''
-    let operation: string = ''
-    let parameters: string | undefined
-
-    if (isAAPNode && executor === 'agentic') {
-      // Workaround format - parse from prompt
-      try {
-        const agenticConfig = taskData.task.config as { prompt?: string }
-        const parsed = JSON.parse(agenticConfig.prompt || '{}')
-        if (parsed.__type === 'connector') {
-          connectorId = parsed.connectorId
-          operation = parsed.operation
-          parameters = parsed.parameters ? JSON.stringify(parsed.parameters, null, 2) : undefined
-        }
-      } catch {
-        // Fallback to empty values
-      }
-    } else {
-      // Native connector format
-      const connectorConfig = taskData.task.config as {
-        connectorId: string
-        operation: string
-        parameters?: Record<string, unknown>
-      }
-      connectorId = connectorConfig.connectorId
-      operation = connectorConfig.operation
-      parameters = connectorConfig.parameters ? JSON.stringify(connectorConfig.parameters, null, 2) : undefined
+  // Check if this is an AAP job template task
+  if (executor === 'aap_job_template') {
+    const aapConfig = taskData.task.config as {
+      jobTemplateId: number
+      inventory?: number
+      credentials?: number[]
+      extraVars?: Record<string, unknown>
+      limit?: string
+      tags?: string
+      skipTags?: string
+      verbosity?: number
     }
 
     const aapInitialData: Partial<AAPFormData> = {
       name: taskData.name,
-      connectorId,
-      operation,
-      parameters,
-      requiresApproval: taskData.requiresApproval,
+      jobTemplateId: aapConfig.jobTemplateId?.toString() || '',
+      inventory: aapConfig.inventory?.toString() || '',
+      credentials: aapConfig.credentials?.join(',') || '',
+      extraVars: aapConfig.extraVars ? JSON.stringify(aapConfig.extraVars, null, 2) : '',
+      limit: aapConfig.limit || '',
+      tags: aapConfig.tags || '',
+      skipTags: aapConfig.skipTags || '',
+      verbosity: aapConfig.verbosity?.toString() || '',
     }
 
     const handleAAPSubmit = (data: AAPFormData) => {
       try {
-        // Create activity using the same format we use when adding new nodes
-        // This ensures consistency with the backend workaround
-        const updatedActivity = createConnectorActivity(
-          nodeId,
-          data.name,
-          data.connectorId,
-          data.operation,
-          data.parameters
-        )
+        // Parse jobTemplateId (required)
+        const jobTemplateId = parsePositiveInt(data.jobTemplateId)
+        if (!jobTemplateId) {
+          throw new Error('Job Template ID must be a valid positive integer')
+        }
+
+        const config = buildAAPConfig(data)
+        const updatedActivity = createAAPJobTemplateActivity(nodeId, data.name, jobTemplateId, config)
 
         updateActivity(nodeId, updatedActivity)
         onClose()
