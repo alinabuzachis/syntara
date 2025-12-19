@@ -21,6 +21,7 @@ import { AppPage } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
 import { toolProvidersClient } from '../../../../client'
+import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 
 export function IntegrationForm() {
   const { mutate: createIntegration } = toolProvidersClient.useMutation('post', '/tool-providers')
@@ -33,11 +34,12 @@ export function IntegrationForm() {
     '/tool-providers/{provider_id}/refresh-tools'
   )
 
-  const { control, handleSubmit } = useForm<ToolProvider>({
+  const { control, handleSubmit, setError } = useForm<ToolProvider>({
     defaultValues: {
       configuration: { provider_type: 'mcp' },
     },
   })
+  const handleError = useFormMutationErrorHandler<ToolProvider>(setError)
 
   const onSubmit = (toolProvider: ToolProvider) => {
     createIntegration(
@@ -48,15 +50,29 @@ export function IntegrationForm() {
           validateIntegration(
             { params: { path: { provider_id: providerId } } },
             {
-              onSettled: () => {
+              onError: handleError({
+                title: 'Integration created, but validation failed',
+                context: toolProvider.name ? `Integration "${toolProvider.name}"` : undefined,
+              }),
+              onSuccess: () => {
                 refreshTools(
                   { params: { path: { provider_id: providerId } } },
-                  { onSettled: () => navigate(AppRoute.Configuration.Integrations.Root) }
+                  {
+                    onError: handleError({
+                      title: 'Integration created, but refreshing tools failed',
+                      context: toolProvider.name ? `Integration "${toolProvider.name}"` : undefined,
+                    }),
+                    onSuccess: () => navigate(AppRoute.Configuration.Integrations.Root),
+                  }
                 )
               },
             }
           )
         },
+        onError: handleError({
+          title: 'Failed to add integration',
+          context: toolProvider.name ? `Integration "${toolProvider.name}"` : undefined,
+        }),
       }
     )
   }
@@ -169,17 +185,27 @@ export function IntegrationForm() {
             <Controller
               name="configuration.api_key"
               control={control}
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormGroup label="API key" fieldId="api-key">
                   <TextInput
                     id="api-key"
                     placeholder="Enter API key"
                     type="password"
+                    validated={fieldState.error ? 'error' : 'default'}
                     value={field.value ?? ''}
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     name={field.name}
                   />
+                  {fieldState.error && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                          {fieldState.error.message}
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
                 </FormGroup>
               )}
             />

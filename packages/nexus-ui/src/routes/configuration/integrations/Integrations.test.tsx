@@ -239,7 +239,8 @@ describe('Integrations Component', () => {
 
     it('displays error state', () => {
       const mockError = new Error('Failed to load integrations')
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValueOnce({
+      // NOTE: component may re-render due to AlertProvider updates; keep error stable across renders
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
         data: null,
         isPending: false,
         isError: true,
@@ -251,7 +252,8 @@ describe('Integrations Component', () => {
       // Check for error state
       const errorElement = screen.getByTestId('error-state')
       expect(errorElement).toBeInTheDocument()
-      expect(screen.getByText('Error loading integrations')).toBeInTheDocument()
+      // Title also appears in the global alert; scope to the error state container
+      expect(within(errorElement).getByText('Error loading integrations')).toBeInTheDocument()
     })
   })
 

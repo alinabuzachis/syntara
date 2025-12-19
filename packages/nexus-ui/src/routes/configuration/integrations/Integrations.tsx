@@ -43,6 +43,7 @@ import noResultsImage from '../../../assets/collage-circle-sparkles-window-serve
 import { toolProvidersClient } from '../../../client'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useFuse } from '../../../hooks/useFuse'
+import { getErrorMessage } from '../../../utils/apiErrors'
 
 import { IntegrationCard } from './IntegrationCard'
 import { IntegrationEmptyState } from './IntegrationEmptyState'
@@ -117,7 +118,7 @@ export default function Integrations() {
         onError: (error) => {
           showAlert({
             title: 'Validation failed',
-            description: `Failed to validate provider "${providerToValidate.name}": ${error.message}`,
+            description: `Failed to validate provider "${providerToValidate.name}": ${getErrorMessage(error)}`,
             variant: 'error',
             autoDismiss: true,
           })
@@ -148,7 +149,7 @@ export default function Integrations() {
         onError: (error) => {
           showAlert({
             title: 'Delete failed',
-            description: `Failed to delete integration "${providerToDelete.name}": ${error.message}`,
+            description: `Failed to delete integration "${providerToDelete.name}": ${getErrorMessage(error)}`,
             variant: 'error',
             autoDismiss: true,
           })

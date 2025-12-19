@@ -218,7 +218,8 @@ describe('Automations Component', () => {
 
     it('displays error state', () => {
       const mockError = new Error('Failed to load workflows')
-      vi.mocked(workflowClient.useQuery).mockReturnValueOnce({
+      // NOTE: component may re-render due to AlertProvider updates; keep error stable across renders
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
         data: null,
         isPending: false,
         isError: true,
@@ -230,7 +231,8 @@ describe('Automations Component', () => {
       // Check for error state
       const errorElement = screen.getByTestId('error-state')
       expect(errorElement).toBeInTheDocument()
-      expect(screen.getByText('Error loading workflows')).toBeInTheDocument()
+      // Title also appears in the global alert; scope to the error state container
+      expect(within(errorElement).getByText('Error loading workflows')).toBeInTheDocument()
     })
   })
 
@@ -429,7 +431,7 @@ describe('Automations Component', () => {
       await waitFor(() => {
         expect(screen.getByText('Automation Failed')).toBeInTheDocument()
         expect(
-          screen.getByText(/Failed to start automation "Important Project Workflow": Unknown error/)
+          screen.getByText(/Failed to start automation "Important Project Workflow": An unexpected error occurred/)
         ).toBeInTheDocument()
       })
     })

@@ -15,6 +15,7 @@ import { LinkCell } from '../../components/table/LinkCell'
 import { SwitchCell } from '../../components/table/SwitchCell.tsx'
 import { Table, type IRowAction } from '../../components/table/Table'
 import { useFuse } from '../../hooks/useFuse'
+import { getErrorMessage } from '../../utils/apiErrors'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
@@ -46,10 +47,7 @@ export default function Automations() {
           showSuccess(`Successfully started automation "${workflow.name}"`, 'Automation Started')
         },
         onError: (error) => {
-          showError(
-            `Failed to start automation "${workflow.name}": ${error.message || 'Unknown error'}`,
-            'Automation Failed'
-          )
+          showError(`Failed to start automation "${workflow.name}": ${getErrorMessage(error)}`, 'Automation Failed')
         },
       }
     )

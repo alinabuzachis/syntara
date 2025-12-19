@@ -23,6 +23,8 @@ export interface ApiError {
   data?: unknown
   // RFC 9457 / problem-details style errors
   title?: string
+  // openapi-fetch/openapi-react-query wraps errors with response object
+  response?: { status?: number; statusText?: string }
   cause?: { message?: string; error?: string; status?: number }
   status?: number
   statusCode?: number
@@ -52,6 +54,14 @@ export function getErrorStatus(error: unknown): number | undefined {
   }
   if (typeof err.statusCode === 'number') {
     return err.statusCode
+  }
+
+  // openapi-fetch/openapi-react-query stores status in response.status
+  if (err.response && typeof err.response === 'object') {
+    const response = err.response as { status?: number }
+    if (typeof response.status === 'number') {
+      return response.status
+    }
   }
 
   if (err.cause && typeof err.cause === 'object') {
@@ -313,6 +323,37 @@ function extractValidationDetailArray(error: unknown): unknown[] | undefined {
   }
 
   return undefined
+}
+
+/**
+ * Detects if an error is a validation error (422 with FastAPI detail array).
+ *
+ * Checks for:
+ * - HTTP status code 422
+ * - FastAPI validation error format (detail array) in various locations:
+ *   - error.detail (top level)
+ *   - error.cause.detail (openapi-fetch wrapper)
+ *   - error.data.detail (envelope wrapper)
+ *   - error.detail.detail (nested detail object)
+ *
+ * @param error - The error object to check
+ * @returns true if the error is a validation error
+ *
+ * @example
+ * if (isValidationError(error)) {
+ *   // Keep alert visible until user dismisses it
+ * }
+ */
+export function isValidationError(error: unknown): boolean {
+  // Check for 422 status code
+  if (getErrorStatus(error) === 422) {
+    return true
+  }
+
+  // Check for FastAPI validation error format (detail array)
+  // Reuse extractValidationDetailArray for consistency with getValidationFieldErrors
+  const detailArray = extractValidationDetailArray(error)
+  return detailArray !== undefined
 }
 
 /**

@@ -1,3 +1,4 @@
+import { AlertProvider } from '@ansible/nexus-ui-framework'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -32,7 +33,9 @@ const queryClient = new QueryClient({
 })
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  <QueryClientProvider client={queryClient}>
+    <AlertProvider>{children}</AlertProvider>
+  </QueryClientProvider>
 )
 
 describe('IntegrationForm Component', () => {
@@ -217,17 +220,17 @@ describe('IntegrationForm Component', () => {
         }
       })
 
-      // Setup validate mutation to call onSettled callback
+      // Setup validate mutation to call onSuccess callback
       mockValidateMutate.mockImplementation((variables, options) => {
-        if (options?.onSettled) {
-          options.onSettled()
+        if (options?.onSuccess) {
+          options.onSuccess()
         }
       })
 
       // Setup refresh mutation to call onSettled callback
       mockRefreshMutate.mockImplementation((variables, options) => {
-        if (options?.onSettled) {
-          options.onSettled()
+        if (options?.onSuccess) {
+          options.onSuccess()
         }
       })
 
@@ -249,12 +252,12 @@ describe('IntegrationForm Component', () => {
         // Verify validate was called with the provider ID
         expect(mockValidateMutate).toHaveBeenCalledWith(
           { params: { path: { provider_id: mockProviderId } } },
-          expect.objectContaining({ onSettled: expect.any(Function) })
+          expect.objectContaining({ onSuccess: expect.any(Function) })
         )
         // Verify refresh-tools was called with the provider ID
         expect(mockRefreshMutate).toHaveBeenCalledWith(
           { params: { path: { provider_id: mockProviderId } } },
-          expect.objectContaining({ onSettled: expect.any(Function) })
+          expect.objectContaining({ onSuccess: expect.any(Function) })
         )
       })
     })
@@ -272,14 +275,14 @@ describe('IntegrationForm Component', () => {
       })
 
       mockValidateMutate.mockImplementation((variables, options) => {
-        if (options?.onSettled) {
-          options.onSettled()
+        if (options?.onSuccess) {
+          options.onSuccess()
         }
       })
 
       mockRefreshMutate.mockImplementation((variables, options) => {
-        if (options?.onSettled) {
-          options.onSettled()
+        if (options?.onSuccess) {
+          options.onSuccess()
         }
       })
 

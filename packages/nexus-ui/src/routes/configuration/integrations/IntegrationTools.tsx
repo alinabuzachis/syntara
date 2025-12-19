@@ -28,6 +28,7 @@ import { useQueryState } from '../../../components/states/useQueryState'
 import { StringCell } from '../../../components/table/StringCell'
 import { Table } from '../../../components/table/Table'
 import { useFuse } from '../../../hooks/useFuse'
+import { getErrorMessage } from '../../../utils/apiErrors'
 
 export default function IntegrationTools() {
   const params = useParams()
@@ -73,7 +74,7 @@ export default function IntegrationTools() {
         onError: (error) => {
           showAlert({
             title: 'Refresh failed',
-            description: `Failed to refresh tools for "${provider.name}": ${error.message}`,
+            description: `Failed to refresh tools for "${provider.name}": ${getErrorMessage(error)}`,
             variant: 'error',
             autoDismiss: true,
           })

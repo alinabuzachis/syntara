@@ -1,6 +1,6 @@
 import { AlertProvider } from '@ansible/nexus-ui-framework'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
@@ -374,7 +374,8 @@ describe('IntegrationTools Component', () => {
 
     it('displays error state when provider fails to load', () => {
       const mockError = new Error('Failed to load provider')
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValueOnce({
+      // NOTE: component may re-render due to AlertProvider updates; keep error stable across renders
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
         data: null,
         isPending: false,
         isError: true,
@@ -386,7 +387,8 @@ describe('IntegrationTools Component', () => {
       // Check for error state
       const errorElement = screen.getByTestId('error-state')
       expect(errorElement).toBeInTheDocument()
-      expect(screen.getByText('Error loading tools')).toBeInTheDocument()
+      // Title also appears in the global alert; scope to the error state container
+      expect(within(errorElement).getByText('Error loading tools')).toBeInTheDocument()
     })
   })
 
