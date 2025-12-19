@@ -23,9 +23,6 @@ from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
-from nexus.agent_orchestrator.context_manager.file_manager.validators import (
-    ValidationError as FileValidationError,
-)
 from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.agent_orchestrator.models import (
     Invocation,
@@ -40,6 +37,9 @@ from nexus.agent_orchestrator.services import InvocationService
 from nexus.api.auth import get_current_user
 from nexus.api.db import get_db
 from nexus.core.models import User
+from nexus.files.validators import (
+    ValidationError as FileValidationError,
+)
 
 router = APIRouter(prefix="/invocations", tags=["Invocation"])
 logger = logging.getLogger(__name__)

@@ -12,13 +12,13 @@ from uuid import uuid4
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.document_retriever import DocumentRetriever
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.agent_orchestrator.context_manager.retriever_service.registries.relevancy_registry import RelevancyRegistry
 from nexus.agent_orchestrator.context_manager.retriever_service.registries.retriever_registry import RetrieverRegistry
 from nexus.agent_orchestrator.context_manager.retriever_service.services.retriever_service import RetrieverService
 from nexus.agent_orchestrator.models.invocation import Invocation
+from nexus.files import FileMetadata
 
 
 class MockRetrieverError(Exception):

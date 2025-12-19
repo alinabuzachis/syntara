@@ -4,7 +4,6 @@ from copy import deepcopy
 
 import pytest
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.retriever_service.checkers.keyword_relevancy_checker import (
     KeywordRelevancyChecker,
 )
@@ -15,6 +14,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy
     RelevancyConfiguration,
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
+from nexus.files import FileMetadata
 
 
 class TestKeywordRelevancyChecker:

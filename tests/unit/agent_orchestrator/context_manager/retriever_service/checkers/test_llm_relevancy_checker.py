@@ -9,7 +9,6 @@ from uuid import uuid4
 
 import pytest
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.retriever_service.checkers.llm_relevancy_checker import (
     LLMRelevancyChecker,
 )
@@ -18,6 +17,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.config.configura
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import RelevancyCheckError
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
+from nexus.files import FileMetadata
 
 
 @pytest.mark.integration

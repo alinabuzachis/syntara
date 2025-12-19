@@ -13,52 +13,56 @@ flowchart TB
         T001[T001: Verify prerequisites]
     end
 
+    subgraph Refactor[Phase 3.1b: FileManager Refactor]
+        T002[T002: Move FileManager to top-level]
+    end
+
     subgraph Tests[Phase 3.2: Tests First - TDD]
-        T002[T002: Unit test FileMetadata model]
-        T003[T003: Unit test files API]
-        T004[T004: Unit test client streaming]
-        T005[T005: Integration test file context]
+        T003[T003: Unit test FileMetadata model]
+        T004[T004: Unit test files API]
+        T005[T005: Unit test client streaming]
+        T006[T006: Integration test file context]
     end
 
     subgraph DataModel[Phase 3.3a: Data Model Layer]
-        T006[T006: FileMetadata SQLModel + migration]
+        T007[T007: FileMetadata SQLModel + migration]
     end
 
     subgraph FileStorage[Phase 3.3b: File Storage Layer]
-        T007[T007: storage.py file_id refactor]
-        T008[T008: FileManager manage DB records]
+        T008[T008: storage.py file_id refactor]
+        T009[T009: FileManager manage DB records]
     end
 
     subgraph Conversion[Phase 3.3c: Conversion Layer]
-        T009[T009: DocumentConversionTask update DB]
-        T010[T010: Invocations API + Service]
+        T010[T010: DocumentConversionTask update DB]
+        T011[T011: Invocations API + Service]
     end
 
     subgraph FilesAPI[Phase 3.3d: Files API]
-        T011[T011: POST /api/v1/files endpoint]
+        T012[T012: POST /api/v1/files endpoint]
     end
 
     subgraph Invocation[Phase 3.3e: Invocation Cleanup]
-        T012[T012: Update Invocation model docs]
+        T013[T013: Update Invocation model docs]
     end
 
     subgraph RetrieverSvc[Phase 3.3f: Retriever Service]
-        T013[T013: UploadedFileRetriever update]
+        T014[T014: UploadedFileRetriever update]
     end
 
     subgraph Client[Phase 3.3g: Client Layer]
-        T014[T014: stream_invocation method]
-        T015[T015: invoke_agent with file_ids]
+        T015[T015: stream_invocation method]
+        T016[T016: invoke_agent with file_ids]
     end
 
     subgraph Workflow[Phase 3.3h: Workflow Layer]
-        T016[T016: AgenticExecutorConfig file_ids]
-        T017[T017: agentic_activity update]
+        T017[T017: AgenticExecutorConfig file_ids]
+        T018[T018: agentic_activity update]
     end
 
     subgraph Polish[Phase 3.5: Polish]
-        T018[T018: Run all tests]
-        T019[T019: Validate quickstart]
+        T019[T019: Run all tests]
+        T020[T020: Validate quickstart]
     end
 
     subgraph Frontend[Phase 3.4: Frontend - Parallel]
@@ -71,38 +75,40 @@ flowchart TB
     end
 
     T001 --> T002
-    T001 --> T003
-    T001 --> T004
-    T001 --> T005
 
+    T002 --> T003
+    T002 --> T004
+    T002 --> T005
     T002 --> T006
-    T006 --> T007
-    T007 --> T008
 
+    T003 --> T007
+    T007 --> T008
     T008 --> T009
+
     T009 --> T010
     T010 --> T011
-
-    T003 --> T011
     T011 --> T012
-    T011 --> T013
 
-    T004 --> T014
-    T014 --> T015
+    T004 --> T012
+    T012 --> T013
+    T012 --> T014
 
-    T013 --> T015
+    T005 --> T015
+    T015 --> T016
 
-    T016 --> T017
-    T015 --> T017
+    T014 --> T016
 
-    T005 --> T018
-    T010 --> T018
-    T015 --> T018
     T017 --> T018
+    T016 --> T018
 
+    T006 --> T019
+    T011 --> T019
+    T016 --> T019
     T018 --> T019
 
-    T011 -.->|API contract| TFE01
+    T019 --> T020
+
+    T012 -.->|API contract| TFE01
     TFE01 --> TFE02
     TFE01 --> TFE03
     TFE02 --> TFE04
@@ -125,11 +131,68 @@ flowchart TB
 
 ---
 
+## Phase 3.1b: FileManager Refactor (Single Source of Truth)
+
+**CRITICAL: This refactor MUST be completed before any other implementation work. FileManager becomes the single source of truth for all file operations.**
+
+- [X] **T002** Refactor FileManager to top-level `src/nexus/files/` module
+  - **Current Location**: `src/nexus/agent_orchestrator/context_manager/file_manager/`
+  - **Target Location**: `src/nexus/files/`
+  - **Rationale**: FileManager should be a first-class, top-level component that is used by `agent_orchestrator`, `api`, and any other module needing file operations. Currently it's nested deep within `agent_orchestrator.context_manager`, making it appear as an implementation detail rather than a core service.
+  - **Actions**:
+    1. Create new directory structure:
+       ```
+       src/nexus/files/
+       ├── __init__.py           # Export FileManager, FileMetadata, get_file_manager
+       ├── file_manager.py       # FileManager class (from current __init__.py)
+       ├── models/
+       │   ├── __init__.py
+       │   └── file_metadata.py  # FileMetadata Pydantic model (later becomes SQLModel in T007)
+       ├── storage/
+       │   ├── __init__.py
+       │   └── storage.py        # save_file, delete_file functions
+       ├── validators/
+       │   ├── __init__.py
+       │   ├── count.py
+       │   ├── mime.py
+       │   └── size.py
+       ├── retrievers/
+       │   ├── __init__.py
+       │   ├── base.py
+       │   └── local.py
+       ├── utils.py
+       └── document_conversion/  # Entire subtree moved
+           ├── __init__.py
+           ├── registry/
+           ├── services/
+           ├── tasks/
+           └── converters/
+       ```
+    2. Move all files from `src/nexus/agent_orchestrator/context_manager/file_manager/` to `src/nexus/files/`
+    3. Update all internal imports within the moved files to use `nexus.files.*`
+    4. Update all external imports across the codebase:
+       - `src/nexus/api/v1/invocation.py` - update file_manager imports
+       - `src/nexus/agent_orchestrator/services/invocation_service.py` - update file_manager imports
+       - `src/nexus/agent_orchestrator/context_manager/retriever_service/retrievers/uploaded_file_retriever.py` - update imports
+       - Any other files importing from old location
+    5. Move corresponding tests:
+       - From: `tests/unit/file_manager/` → To: `tests/unit/files/`
+       - From: `tests/unit/agent_orchestrator/context_manager/file_manager/` → To: `tests/unit/files/`
+       - Update test imports accordingly
+    6. Delete old directory `src/nexus/agent_orchestrator/context_manager/file_manager/` (after verifying all moved)
+    7. Run `make lint && make typecheck && make test-all` to verify refactor is complete
+    8. Commit with message: "refactor: Move FileManager to top-level src/nexus/files/ module"
+  - **Depends on**: T001
+  - **Blocks**: T003, T004, T005, T006 (all tests and implementation depend on new structure)
+  - **Note**: This is a pure refactor - no behavioral changes. All existing functionality must continue to work.
+
+---
+
 ## Phase 3.2: Tests First (TDD)
 
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
 
-- [ ] **T002** [P] Unit test for FileMetadata SQLModel
+- [ ] **T003** [P] Unit test for FileMetadata SQLModel
   - **File**: `tests/unit/files/models/test_file_metadata.py` (NEW)
   - **Actions**:
     1. Create new test file for FileMetadata model tests
@@ -137,9 +200,10 @@ flowchart TB
     3. Add test `test_file_metadata_status_enum_values()`
     4. Add test `test_file_metadata_validates_required_fields()`
     5. Add test `test_file_metadata_inherits_base_resource_fields()` - id, created_at, updated_at
+  - **Depends on**: T002 (refactor must complete first)
   - **Expected**: Tests fail (model not implemented yet)
 
-- [ ] **T003** [P] Unit test for Files API endpoint
+- [ ] **T004** [P] Unit test for Files API endpoint
   - **File**: `tests/unit/api/v1/test_files.py` (NEW)
   - **Actions**:
     1. Create new test file for files endpoint tests
@@ -151,9 +215,10 @@ flowchart TB
     7. Add test `test_upload_creates_file_metadata_record()` - verify `FileMetadata` created in DB
     8. Add test `test_upload_triggers_document_conversion()` - verify `DocumentConversionTask` is scheduled
     9. Add test `test_file_status_updates_after_conversion()` - verify `FileMetadata.status` changes in DB
+  - **Depends on**: T002 (refactor must complete first)
   - **Expected**: Tests fail (functionality not implemented yet)
 
-- [ ] **T004** [P] Unit test for AgentOrchestratorClient WebSocket streaming
+- [ ] **T005** [P] Unit test for AgentOrchestratorClient WebSocket streaming
   - **File**: `tests/unit/workflows/clients/test_agent_orchestrator_client.py` (NEW or MODIFY)
   - **Actions**:
     1. Create/modify test file for client tests
@@ -162,9 +227,10 @@ flowchart TB
     4. Add test `test_stream_invocation_raises_on_error_event()`
     5. Add test `test_invoke_agent_with_file_ids()`
     6. Add test `test_invoke_agent_uses_websocket_for_completion()`
+  - **Depends on**: T002 (refactor must complete first)
   - **Expected**: Tests fail (functionality not implemented yet)
 
-- [ ] **T005** [P] Integration test for end-to-end file context flow
+- [ ] **T006** [P] Integration test for end-to-end file context flow
   - **File**: `tests/integration/workflow/test_agentic_activity_with_files.py` (NEW)
   - **Actions**:
     1. Create new test file in `tests/integration/workflow/`
@@ -173,6 +239,7 @@ flowchart TB
     4. Add test `test_agent_retrieves_file_metadata_from_db()`
     5. Add test `test_invoke_with_invalid_file_id_fails()`
     6. Add test `test_invoke_streams_response_via_websocket()`
+  - **Depends on**: T002 (refactor must complete first)
   - **Expected**: Tests fail (functionality not implemented yet)
 
 ---
@@ -189,11 +256,11 @@ flowchart TB
 
 ### Phase 3.3a: Data Model Layer (Sequential)
 
-- [ ] **T006** Create FileMetadata SQLModel table and Alembic migration
-  - **File**: `src/nexus/files/models/file_metadata.py` (NEW)
+- [ ] **T007** Create FileMetadata SQLModel table and Alembic migration
+  - **File**: `src/nexus/files/models/file_metadata.py` (MODIFY - convert Pydantic to SQLModel)
   - **Actions**:
-    1. Create new `src/nexus/files/` component with `models/` subdirectory
-    2. Create new model file `file_metadata.py`
+    1. The `src/nexus/files/` structure already exists from T002 refactor
+    2. Modify `file_metadata.py` to convert Pydantic model to SQLModel
     3. Define `FileStatus` enum: `PENDING_CONVERSION`, `CONVERTING`, `CONVERTED`, `CONVERSION_FAILED`
     4. Define `FileMetadata(BaseResource, table=True)` with fields:
        - `filename: str` (max 255)
@@ -204,28 +271,27 @@ flowchart TB
        - `status: FileStatus` (default: PENDING_CONVERSION)
        - `conversion_error: str | None` (error message if failed)
     5. Inherit `id`, `created_at`, `updated_at` from `BaseResource`
-    6. Add to `src/nexus/files/models/__init__.py` exports
+    6. Update `src/nexus/files/models/__init__.py` exports
     7. Run `alembic revision --autogenerate -m "add_file_metadata_table"`
     8. Review and apply migration with `alembic upgrade head`
-  - **Depends on**: T002 (tests must exist first)
+  - **Depends on**: T003 (tests must exist first)
   - **Note**: Converted content stored on filesystem (not DB) to protect against bloat. Only paths stored in DB.
 
 ### Phase 3.3b: File Storage Layer (Sequential)
 
-- [ ] **T007** Refactor `save_file()` to use `file_id` only
-  - **File**: `src/nexus/files/storage/storage.py` (NEW)
+- [ ] **T008** Refactor `save_file()` to use `file_id` only
+  - **File**: `src/nexus/files/storage/storage.py` (MODIFY - already exists from T002)
   - **Actions**:
-    1. Create new `src/nexus/files/storage/` subdirectory
-    2. Move/refactor storage logic from existing file_manager
-    3. Rename `invocation_id` parameter to `file_id`
-    4. Update path pattern to use `nexus-{file_id}-{sanitized_filename}`
-    5. Update logging to use `file_id`
-    6. Update all existing callers to pass `file_id`
-  - **Depends on**: T006
+    1. Storage module already exists at `src/nexus/files/storage/` from T002 refactor
+    2. Rename `invocation_id` parameter to `file_id`
+    3. Update path pattern to use `nexus-{file_id}-{sanitized_filename}`
+    4. Update logging to use `file_id`
+    5. Update all existing callers to pass `file_id`
+  - **Depends on**: T007
   - **Note**: Complete removal of `invocation_id` from file storage layer.
 
-- [ ] **T008** Refactor `FileManager` to manage FileMetadata DB records
-  - **File**: `src/nexus/files/services/file_manager.py` (NEW)
+- [ ] **T009** Refactor `FileManager` to manage FileMetadata DB records
+  - **File**: `src/nexus/files/file_manager.py` (MODIFY - already exists from T002)
   - **Actions**:
     1. Add `session: AsyncSession` parameter to `__init__()` for DB access
     2. Remove `invocation_id` parameter from `validate_and_save_files()` - use `file_id` only
@@ -246,7 +312,7 @@ flowchart TB
     5. Add method `get_files_metadata(file_ids: list[str], session: AsyncSession) -> list[FileMetadata]`
     6. Add method `update_file_status(file_id: str, status: FileStatus, session: AsyncSession, converted_content_path: str | None = None, conversion_error: str | None = None) -> FileMetadata`
     7. Update existing callers to not pass `invocation_id`
-  - **Depends on**: T007
+  - **Depends on**: T008
   - **Note**: FileManager now owns all FileMetadata CRUD operations. All components must access FileMetadata through FileManager methods (encapsulation).
 
 ### Phase 3.3c: Conversion Layer (Sequential)
@@ -255,7 +321,7 @@ flowchart TB
 - Standalone file uploads (`POST /api/v1/files`) only trigger conversion and update `FileMetadata.status` in DB
 - Invocations with `file_ids` (pre-converted) execute immediately
 
-- [ ] **T009** Update DocumentConversionTask/Service to use FileManager methods
+- [ ] **T010** Update DocumentConversionTask/Service to use FileManager methods
   - **Files**:
     - `src/nexus/files/document_conversion/tasks/document_conversion_task.py`
     - `src/nexus/files/document_conversion/services/document_conversion_service.py`
@@ -272,10 +338,10 @@ flowchart TB
     8. Remove `finally` block that calls invocation execution
     9. Remove `invocation_executor_factory` parameter and related code
     10. Update class docstring to clarify this task is **only** for document conversion
-  - **Depends on**: T008
+  - **Depends on**: T009
   - **Rationale**: Uses FileManager for all FileMetadata operations (encapsulation). Converted content stored on filesystem (not DB) to protect against bloat.
 
-- [ ] **T010** Update Invocations API and InvocationService to handle file_ids
+- [ ] **T011** Update Invocations API and InvocationService to handle file_ids
   - **Files**:
     - `src/nexus/api/v1/invocation.py`
     - `src/nexus/agent_orchestrator/services/invocation_service.py`
@@ -298,12 +364,12 @@ flowchart TB
        - **If both `file_ids` AND file uploads**: validate file_ids via FileManager, create FileMetadata for new uploads, convert new files, then execute with all files
        - **If no files**: execute immediately
     11. Fix the bug: move background task scheduling from `finally` to after successful commit
-  - **Depends on**: T009
+  - **Depends on**: T010
   - **Rationale**: `InvocationService` uses `FileManager` for all file operations (encapsulation). Both `file_ids` (pre-uploaded) and runtime file uploads result in `FileMetadata` stored in DB, not `context_data`.
 
 ### Phase 3.3d: Files API (Sequential)
 
-- [ ] **T011** Create POST /api/v1/files endpoint
+- [ ] **T012** Create POST /api/v1/files endpoint
   - **File**: `src/nexus/api/v1/files.py` (NEW)
   - **Actions**:
     1. Create new router file `files.py`
@@ -317,23 +383,23 @@ flowchart TB
     9. Register router in `src/nexus/api/v1/__init__.py`
     10. Handle errors with RFC 9457 format
     11. Update OpenAPI spec `src/nexus/schemas/agent_orchestrator/agent-orchestrator-api.yaml`
-  - **Depends on**: T010, T003 (tests must exist)
+  - **Depends on**: T011, T004 (tests must exist)
   - **Note**: Files are converted at upload time (design time). FileMetadata stored in DB.
 
 ### Phase 3.3e: Invocation Cleanup (Sequential)
 
-- [ ] **T012** Update Invocation model documentation
+- [ ] **T013** Update Invocation model documentation
   - **File**: `src/nexus/agent_orchestrator/models/invocation.py`
   - **Actions**:
     1. Update `context_data` field docstring to remove `file_metadata` reference
     2. Document that `context_data` may contain `file_ids` (list of UUIDs)
     3. Add comment: "FileMetadata is stored in the FileMetadata table, not here"
-  - **Depends on**: T011
+  - **Depends on**: T012
   - **Note**: Documentation-only change to reflect new architecture.
 
 ### Phase 3.3f: Retriever Service (Sequential)
 
-- [ ] **T013** Update `UploadedFileRetriever` to use `file_ids` via FileManager
+- [ ] **T014** Update `UploadedFileRetriever` to use `file_ids` via FileManager
   - **File**: `src/nexus/agent_orchestrator/context_manager/retriever_service/retrievers/uploaded_file_retriever.py`
   - **Note**: `UploadedFileRetriever` already exists and handles file retrieval from `context_data.file_metadata` (embedded Pydantic objects). Update to use `file_ids` instead and access `FileMetadata` via `FileManager`.
   - **Key design decision**: `context_data` contains only `file_ids` (UUIDs), not hydrated `FileMetadata` objects. The retriever uses `FileManager` to get full records (encapsulation). This keeps `Invocation.context_data` lean and makes `FileMetadata` table the single source of truth.
@@ -346,12 +412,12 @@ flowchart TB
     6. Read content from `converted_content_path` via `FileManager.get_retriever_for_file()`
     7. Return `RelevantDocument` objects with loaded content
     8. Update unit tests to reflect new flow
-  - **Depends on**: T011
+  - **Depends on**: T012
   - **Rationale**: Uses `FileManager.get_files_metadata()` for encapsulation (not direct DB query). Keeps file retrieval in `retriever_service` layer (existing architecture). `ContextManagerPlanner` does NOT need changes.
 
 ### Phase 3.3g: Client Layer (Sequential)
 
-- [ ] **T014** Add `stream_invocation()` method to AgentOrchestratorClient
+- [ ] **T015** Add `stream_invocation()` method to AgentOrchestratorClient
   - **File**: `src/nexus/workflows/clients/agent_orchestrator_client.py`
   - **Note**: WebSocket endpoint already exists at `/ws/agent_orchestrator/v1/invocations/{id}` (see `adaptor_streaming.py`). This task only adds client-side consumption.
   - **Actions**:
@@ -361,10 +427,10 @@ flowchart TB
     4. Call `on_event` callback for each event (if provided)
     5. Return final result dict
     6. Handle WebSocket errors and timeouts
-  - **Depends on**: T004 (tests must exist first)
+  - **Depends on**: T005 (tests must exist first)
   - **Rationale**: Fixes bug where `invoke_agent()` expects terminal status from POST but API returns `created`. New flow: POST → get invocation_id → stream_invocation() → return result.
 
-- [ ] **T015** Update `invoke_agent()` to accept `file_ids` and use streaming
+- [ ] **T016** Update `invoke_agent()` to accept `file_ids` and use streaming
   - **File**: `src/nexus/workflows/clients/agent_orchestrator_client.py`
   - **Actions**:
     1. Add `file_ids: list[str] | None = None` parameter
@@ -372,21 +438,21 @@ flowchart TB
     3. After POST returns 202, call `stream_invocation()` to wait for completion
     4. Remove synchronous completion validation (was blocking)
     5. Return result from `stream_invocation()`
-  - **Depends on**: T014, T013
+  - **Depends on**: T015, T014
 
 ### Phase 3.3h: Workflow Layer (Sequential)
 
-- [ ] **T016** [P] Add `file_ids` to AgenticExecutorConfig
+- [ ] **T017** [P] Add `file_ids` to AgenticExecutorConfig
   - **File**: `src/nexus/workflows/workflow_engine/models/workflow_definition.py`
   - **Actions**:
     1. Add field: `file_ids: list[str] = Field(default_factory=list, max_length=10, description="List of file IDs to include as context")`
     2. Add Pydantic validator to check each `file_id` is valid UUID format
     3. Update docstring to document the new field
     4. Note: `max_length=10` enforces the file count limit at design time
-  - **Can run in parallel with**: T014, T015 (different files)
+  - **Can run in parallel with**: T015, T016 (different files)
   - **Note**: File existence is validated at runtime by `UploadedFileRetriever` when retrieving documents
 
-- [ ] **T017** Update agentic activity to pass `file_ids` and add heartbeat
+- [ ] **T018** Update agentic activity to pass `file_ids` and add heartbeat
   - **File**: `src/nexus/workflows/workflow_engine/activities/agentic_activity.py`
   - **Actions**:
     1. Extract `file_ids` from `config` in `execute_agentic_activity()`
@@ -396,23 +462,23 @@ flowchart TB
        - Start heartbeat task before calling `invoke_agent()`
        - Cancel heartbeat task in `finally` block after invocation completes
     4. Pass `timeout_seconds=config.timeout` to `invoke_agent()`
-  - **Depends on**: T016, T015
+  - **Depends on**: T017, T016
   - **Rationale**: Heartbeat in activity layer keeps `AgentOrchestratorClient` as a general-purpose client without Temporal coupling.
 
 ---
 
 ## Phase 3.5: Polish
 
-- [ ] **T018** Run all tests and fix any failures
+- [ ] **T019** Run all tests and fix any failures
   - **File**: N/A (validation)
   - **Actions**:
     1. Run `make test-all` - all tests should pass
     2. Run `make lint` - no linting errors
     3. Run `make typecheck` - type checking passes
     4. Fix any issues discovered
-  - **Depends on**: T005, T010, T015, T017
+  - **Depends on**: T006, T011, T016, T018
 
-- [ ] **T019** Validate quickstart scenarios
+- [ ] **T020** Validate quickstart scenarios
   - **File**: `specs/023-agent-node/quickstart.md`
   - **Actions**:
     1. Start API with `make run-api`
@@ -420,13 +486,13 @@ flowchart TB
     3. Test Scenario 2: Invoke agent with file_ids - verify files retrieved from DB
     4. Test Scenario 3: Verify streaming response via WebSocket
     5. Document any issues found
-  - **Depends on**: T018
+  - **Depends on**: T019
 
 ---
 
 ## Phase 3.4: Frontend (Parallel Workstream)
 
-**IMPORTANT:** These tasks can run in parallel with backend tasks (Phase 3.3). They depend only on the Files API being defined (T011 for contract), not implemented.
+**IMPORTANT:** These tasks can run in parallel with backend tasks (Phase 3.3). They depend only on the Files API being defined (T012 for contract), not implemented.
 
 ### Phase 3.4a: Contracts & Types
 
@@ -558,11 +624,11 @@ flowchart TB
         TFE04 --> TFE06
     end
 
-    subgraph Backend[Backend - T011 provides API contract]
-        T011[T011: POST /api/v1/files endpoint]
+    subgraph Backend[Backend - T012 provides API contract]
+        T012[T012: POST /api/v1/files endpoint]
     end
 
-    T011 -.->|API contract| TFE01
+    T012 -.->|API contract| TFE01
 ```
 
 ---
@@ -571,43 +637,44 @@ flowchart TB
 
 | Task | Depends On | Blocks |
 |------|------------|--------|
-| T001 | - | T002, T003, T004, T005 |
-| T002 | T001 | T006 |
-| T003 | T001 | T011 |
-| T004 | T001 | T014 |
-| T005 | T001 | T018 |
-| T006 | T002 | T007 |
-| T007 | T006 | T008 |
+| T001 | - | T002 |
+| T002 | T001 | T003, T004, T005, T006 |
+| T003 | T002 | T007 |
+| T004 | T002 | T012 |
+| T005 | T002 | T015 |
+| T006 | T002 | T019 |
+| T007 | T003 | T008 |
 | T008 | T007 | T009 |
 | T009 | T008 | T010 |
-| T010 | T009 | T011, T018 |
-| T011 | T010, T003 | T012, T013 |
-| T012 | T011 | - |
-| T013 | T011 | T015 |
-| T014 | T004 | T015 |
-| T015 | T014, T013 | T017, T018 |
-| T016 | - | T017 |
-| T017 | T016, T015 | T018 |
-| T018 | T005, T010, T015, T017 | T019 |
-| T019 | T018 | - |
+| T010 | T009 | T011 |
+| T011 | T010 | T012, T019 |
+| T012 | T011, T004 | T013, T014 |
+| T013 | T012 | - |
+| T014 | T012 | T016 |
+| T015 | T005 | T016 |
+| T016 | T015, T014 | T018, T019 |
+| T017 | - | T018 |
+| T018 | T017, T016 | T019 |
+| T019 | T006, T011, T016, T018 | T020 |
+| T020 | T019 | - |
 
 ---
 
 ## Parallel Execution Examples
 
-### After T001 completes - Launch 4 test tasks in parallel:
+### After T002 completes - Launch 4 test tasks in parallel:
 ```
-Task: "Unit test for FileMetadata model in tests/unit/files/models/test_file_metadata.py"
-Task: "Unit test for Files API endpoint in tests/unit/api/v1/test_files.py"
-Task: "Unit test for AgentOrchestratorClient streaming in tests/unit/workflows/clients/test_agent_orchestrator_client.py"
-Task: "Integration test for file context flow in tests/integration/workflow/test_agentic_activity_with_files.py"
+Task: "Unit test for FileMetadata model in tests/unit/files/models/test_file_metadata.py" (T003)
+Task: "Unit test for Files API endpoint in tests/unit/api/v1/test_files.py" (T004)
+Task: "Unit test for AgentOrchestratorClient streaming in tests/unit/workflows/clients/test_agent_orchestrator_client.py" (T005)
+Task: "Integration test for file context flow in tests/integration/workflow/test_agentic_activity_with_files.py" (T006)
 ```
 
-### T016 can run in parallel with T014/T015 (different files):
+### T017 can run in parallel with T015/T016 (different files):
 ```
 # These can run concurrently:
-Task: "Add file_ids to AgenticExecutorConfig in src/nexus/workflows/workflow_engine/models/workflow_definition.py"
-Task: "Add stream_invocation() method in src/nexus/workflows/clients/agent_orchestrator_client.py"
+Task: "Add file_ids to AgenticExecutorConfig in src/nexus/workflows/workflow_engine/models/workflow_definition.py" (T017)
+Task: "Add stream_invocation() method in src/nexus/workflows/clients/agent_orchestrator_client.py" (T015)
 ```
 
 ---
@@ -622,13 +689,14 @@ Task: "Add stream_invocation() method in src/nexus/workflows/clients/agent_orche
 - [x] Each task specifies exact file path
 - [x] No task modifies same file as another [P] task
 - [x] Dependency diagram included (mermaid extension)
-- [x] **FileMetadata SQLModel table created (T006)**
-- [x] **Alembic migration included (T006)**
-- [x] **FileMetadata managed by FileManager, not stored in Invocation (T008)**
-- [x] **DocumentConversionTask uses FileManager.update_file_status() (T009)**
-- [x] **InvocationService uses FileManager.get_files_metadata() for validation (T010)**
-- [x] **UploadedFileRetriever uses FileManager.get_files_metadata() (T013)**
-- [x] **Invocation.context_data only holds file_ids, not file_metadata (T012)**
+- [x] **FileManager refactored to top-level src/nexus/files/ (T002)**
+- [x] **FileMetadata SQLModel table created (T007)**
+- [x] **Alembic migration included (T007)**
+- [x] **FileMetadata managed by FileManager, not stored in Invocation (T009)**
+- [x] **DocumentConversionTask uses FileManager.update_file_status() (T010)**
+- [x] **InvocationService uses FileManager.get_files_metadata() for validation (T011)**
+- [x] **UploadedFileRetriever uses FileManager.get_files_metadata() (T014)**
+- [x] **Invocation.context_data only holds file_ids, not file_metadata (T013)**
 - [x] **Encapsulation: All components access FileMetadata through FileManager methods**
 
 ### Frontend Tasks
@@ -652,5 +720,6 @@ Task: "Add stream_invocation() method in src/nexus/workflows/clients/agent_orche
 - **Architecture Decision**: `FileMetadata` is a SQLModel table, not JSONB in `Invocation.context_data`
 - **Key Principle**: All file operations use `file_id` only - no `invocation_id` in file layer
 - **Encapsulation Principle**: All components access `FileMetadata` through `FileManager` methods (`get_file_metadata`, `get_files_metadata`, `update_file_status`), not via direct database queries
-- **Total Backend Tasks**: 19 (T001-T019)
+- **FileManager as Single Source of Truth**: T002 establishes `src/nexus/files/` as the top-level module for all file operations before any feature work begins
+- **Total Backend Tasks**: 20 (T001-T020)
 - **Total Frontend Tasks**: 6 (T-FE01 to T-FE06)

@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
+from nexus.files import FileMetadata
 
 
 class RelevantDocument(BaseModel):

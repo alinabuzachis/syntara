@@ -10,11 +10,11 @@ from uuid import uuid4
 
 import pytest
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploaded_file_retriever import (
     UploadedFileRetriever,
 )
+from nexus.files import FileMetadata
 
 
 @pytest.mark.integration

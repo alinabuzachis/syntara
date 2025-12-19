@@ -13,7 +13,6 @@ from uuid import uuid4
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.retriever_service.checkers.keyword_relevancy_checker import (
     KeywordRelevancyChecker,
 )
@@ -30,6 +29,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploa
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.services.retriever_service import RetrieverService
 from nexus.agent_orchestrator.models import Invocation
+from nexus.files import FileMetadata
 
 
 class MockLLMError(Exception):

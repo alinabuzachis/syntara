@@ -9,18 +9,18 @@ from uuid import UUID, uuid4
 from fastapi import BackgroundTasks, UploadFile
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata, get_file_manager
-from nexus.agent_orchestrator.context_manager.file_manager import utils as file_utils
-from nexus.agent_orchestrator.context_manager.file_manager.document_conversion.tasks import (
-    DocumentConversionTask,
-    get_document_conversion_task,
-)
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
 from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA, CONTEXT_KEY_FILE_METADATA_CONVERSION
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
+from nexus.files import FileManager, FileMetadata, get_file_manager
+from nexus.files import utils as file_utils
+from nexus.files.document_conversion.tasks import (
+    DocumentConversionTask,
+    get_document_conversion_task,
+)
 
 logger = logging.getLogger(__name__)
 

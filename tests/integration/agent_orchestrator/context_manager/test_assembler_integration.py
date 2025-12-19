@@ -15,11 +15,11 @@ from nexus.agent_orchestrator.context_manager.assembler_service import (
     AssemblerService,
     ContextAssemblyError,
 )
-from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import (
     RelevantDocument,
 )
 from nexus.agent_orchestrator.token_manager.services import TokenValidationService
+from nexus.files import FileMetadata
 
 # ==================== Phase 3.6: Integration Tests ====================
 

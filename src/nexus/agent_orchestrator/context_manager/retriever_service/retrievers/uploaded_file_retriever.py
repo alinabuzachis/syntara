@@ -10,9 +10,9 @@ from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileManager, FileMetadata, get_file_manager
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.document_retriever import DocumentRetriever
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
+from nexus.files import FileManager, FileMetadata, get_file_manager
 
 logger = logging.getLogger(__name__)
 

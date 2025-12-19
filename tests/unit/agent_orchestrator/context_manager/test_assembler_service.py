@@ -14,10 +14,10 @@ from nexus.agent_orchestrator.context_manager.assembler_service import (
     AssemblerService,
     ContextAssemblyError,
 )
-from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import (
     RelevantDocument,
 )
+from nexus.files import FileMetadata
 
 # ==================== Phase 3.2: Unit Tests - Core Logic ====================
 

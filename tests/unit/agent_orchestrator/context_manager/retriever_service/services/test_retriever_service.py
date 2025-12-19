@@ -14,7 +14,6 @@ from uuid import uuid4
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import RetrieverServiceError
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.document_retriever import DocumentRetriever
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.relevancy_checker import RelevancyChecker
@@ -29,6 +28,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploa
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.services.retriever_service import RetrieverService
 from nexus.agent_orchestrator.models.invocation import Invocation
+from nexus.files import FileMetadata
 
 
 async def async_session_generator(session: AsyncSession) -> AsyncGenerator[AsyncSession, None]:

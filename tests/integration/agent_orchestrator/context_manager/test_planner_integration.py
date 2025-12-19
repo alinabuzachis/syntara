@@ -13,7 +13,6 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.context_manager.compressor import CompressorService
-from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
 from nexus.agent_orchestrator.context_manager.planner import ContextManagerPlanner
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import (
@@ -21,6 +20,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.services import RetrieverService
 from nexus.core.models import User
+from nexus.files import FileMetadata
 
 
 def create_test_document(

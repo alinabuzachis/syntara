@@ -9,8 +9,8 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from nexus.agent_orchestrator.context_manager.file_manager import FileMetadata
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
+from nexus.files import FileMetadata
 
 
 class TestRelevantDocumentValidation:
