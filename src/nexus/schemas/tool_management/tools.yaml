@@ -281,8 +281,14 @@ components:
       properties:
         enabled:
           type: boolean
-      required:
-        - enabled
+        status:
+          type: string
+          enum: [available, missing, error]
+          description: Current status of the tool
+        refresh_error:
+          type: string
+          nullable: true
+          description: Error message from last refresh attempt
 
     ToolBulkUpdate:
       type: object

@@ -49,6 +49,62 @@ class TestToolsUpdateContract:
         assert data["enabled"]
 
     @pytest.mark.asyncio
+    async def test_update_tool_status_success_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
+        """Test successful tool status update returns 200."""
+        # Set initial status
+        test_tool.status = ToolStatus.AVAILABLE
+
+        response = await base_client.patch(f"/api/v1/tools/{test_tool.id}", json={"status": "error"})
+
+        # Contract: Must return 200 OK for successful update
+        assert response.status_code == 200
+
+        # Contract: Must return updated tool details
+        data = response.json()
+        assert data["id"] == str(test_tool.id)
+        assert data["status"] == "error"
+
+    @pytest.mark.asyncio
+    async def test_update_tool_refresh_error_success_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
+        """Test successful tool refresh error update returns 200."""
+        # Set initial refresh error
+        test_tool.refresh_error = None
+
+        error_message = "Connection timeout while refreshing tool"
+        response = await base_client.patch(f"/api/v1/tools/{test_tool.id}", json={"refresh_error": error_message})
+
+        # Contract: Must return 200 OK for successful update
+        assert response.status_code == 200
+
+        # Contract: Must return updated tool details
+        data = response.json()
+        assert data["id"] == str(test_tool.id)
+        assert data["refresh_error"] == error_message
+
+    @pytest.mark.asyncio
+    async def test_update_tool_all_fields_success_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
+        """Test successful update of all tool fields returns 200."""
+        # Set initial values
+        test_tool.enabled = True
+        test_tool.status = ToolStatus.AVAILABLE
+        test_tool.refresh_error = None
+
+        error_message = "Tool provider unavailable"
+        response = await base_client.patch(
+            f"/api/v1/tools/{test_tool.id}", json={"enabled": False, "status": "error", "refresh_error": error_message}
+        )
+
+        # Contract: Must return 200 OK for successful update
+        assert response.status_code == 200
+
+        # Contract: Must return updated tool details
+        data = response.json()
+        assert data["id"] == str(test_tool.id)
+        assert not data["enabled"]
+        assert data["status"] == "error"
+        assert data["refresh_error"] == error_message
+
+    @pytest.mark.asyncio
     async def test_update_tool_not_found_contract(self, base_client: AsyncClient) -> None:
         """Test tool update with non-existent ID returns 404."""
         non_existent_id = uuid4()
@@ -70,18 +126,6 @@ class TestToolsUpdateContract:
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID
         assert response.status_code == 422
-
-    @pytest.mark.asyncio
-    async def test_update_tool_empty_body_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
-        """Test tool update with empty body returns 422."""
-        response = await base_client.patch(f"/api/v1/tools/{test_tool.id}", json={})
-
-        # Contract: Must return 422 for missing required fields
-        assert response.status_code == 422
-
-        # Contract: Must return validation error details
-        data = response.json()
-        assert "detail" in data
 
     @pytest.mark.asyncio
     async def test_update_tool_invalid_json_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:

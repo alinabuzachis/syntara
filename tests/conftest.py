@@ -1209,6 +1209,65 @@ async def test_tool_provider(test_db_session: AsyncSession, test_user: User) -> 
 
 
 @pytest_asyncio.fixture
+async def multiple_test_providers(test_db_session: AsyncSession, test_user: User) -> list[ToolProvider]:
+    """Create multiple test providers for pagination, filtering, and sorting tests."""
+    providers = [
+        ToolProvider(
+            name="Alpha Provider",
+            description="First provider for testing",
+            configuration={"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
+            enabled=True,
+            created_by=test_user.id,
+        ),
+        ToolProvider(
+            name="Beta Provider",
+            description="Second provider for testing",
+            configuration={"provider_type": "mcp", "base_url": "https://beta.example.com", "api_key": "beta-key"},
+            enabled=False,
+            created_by=test_user.id,
+        ),
+        ToolProvider(
+            name="Gamma Provider",
+            description="Third provider for testing",
+            configuration={"provider_type": "mcp", "base_url": "https://gamma.example.com", "api_key": "gamma-key"},
+            enabled=True,
+            created_by=test_user.id,
+        ),
+        ToolProvider(
+            name="Delta Provider",
+            description="Fourth provider for testing",
+            configuration={"provider_type": "mcp", "base_url": "https://delta.example.com", "api_key": "delta-key"},
+            enabled=True,
+            created_by=test_user.id,
+        ),
+        ToolProvider(
+            name="Echo Provider",
+            description="Fifth provider for testing",
+            configuration={"provider_type": "mcp", "base_url": "https://echo.example.com", "api_key": "echo-key"},
+            enabled=False,
+            created_by=test_user.id,
+        ),
+        ToolProvider(
+            name="Foxtrot Provider",
+            description="Sixth provider for testing",
+            configuration={"provider_type": "mcp", "base_url": "https://foxtrot.example.com", "api_key": "foxtrot-key"},
+            enabled=True,
+            created_by=test_user.id,
+        ),
+    ]
+
+    for provider in providers:
+        test_db_session.add(provider)
+
+    await test_db_session.commit()
+
+    for provider in providers:
+        await test_db_session.refresh(provider)
+
+    return providers
+
+
+@pytest_asyncio.fixture
 async def test_tool(test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User) -> "Tool":
     """Create a test Tool.
 

@@ -245,7 +245,9 @@ class ToolWithParameters(ToolBase):
 class ToolUpdate(SQLModel):
     """Model for updating tool configuration."""
 
-    enabled: bool = Field(description="Whether the tool is enabled")
+    enabled: bool | None = Field(default=None, description="Whether the tool is enabled")
+    status: ToolStatus | None = Field(default=None, description="Current status of the tool")
+    refresh_error: str | None = Field(default=None, description="Error message from last refresh attempt")
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",  # Reject unknown fields

@@ -189,7 +189,12 @@ async def update_tool(
     service = ToolService(db, current_user)
 
     try:
-        return await service.update_tool(tool_id, enabled=tool_update.enabled)
+        return await service.update_tool(
+            tool_id,
+            tool_update.status,
+            tool_update.refresh_error,
+            enabled=tool_update.enabled,
+        )
 
     except ToolNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e

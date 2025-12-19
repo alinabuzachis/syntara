@@ -114,6 +114,64 @@ async def test_update_tool_status_not_found(test_db_session: AsyncSession, test_
 
 
 @pytest.mark.asyncio
+async def test_update_tool_status_success(test_db_session: AsyncSession, test_tool: Tool, test_user: User) -> None:
+    """Test successful tool status update."""
+    service = ToolService(test_db_session, test_user)
+
+    # Set initial status
+    test_tool.status = ToolStatus.AVAILABLE
+    await test_db_session.commit()
+
+    updated_tool = await service.update_tool(test_tool.id, status=ToolStatus.ERROR)
+
+    assert updated_tool.status == ToolStatus.ERROR
+    assert updated_tool.updated_by == test_user.id
+    assert updated_tool.updated_at >= test_tool.updated_at
+
+
+@pytest.mark.asyncio
+async def test_update_tool_refresh_error_success(
+    test_db_session: AsyncSession, test_tool: Tool, test_user: User
+) -> None:
+    """Test successful tool refresh error update."""
+    service = ToolService(test_db_session, test_user)
+
+    # Set initial refresh error
+    test_tool.refresh_error = None
+    await test_db_session.commit()
+
+    error_message = "Connection timeout while refreshing tool"
+    updated_tool = await service.update_tool(test_tool.id, refresh_error=error_message)
+
+    assert updated_tool.refresh_error == error_message
+    assert updated_tool.updated_by == test_user.id
+    assert updated_tool.updated_at >= test_tool.updated_at
+
+
+@pytest.mark.asyncio
+async def test_update_tool_all_fields_success(test_db_session: AsyncSession, test_tool: Tool, test_user: User) -> None:
+    """Test successful update of all tool fields (enabled, status, refresh_error)."""
+    service = ToolService(test_db_session, test_user)
+
+    # Set initial values
+    test_tool.enabled = True
+    test_tool.status = ToolStatus.AVAILABLE
+    test_tool.refresh_error = None
+    await test_db_session.commit()
+
+    error_message = "Tool provider unavailable"
+    updated_tool = await service.update_tool(
+        test_tool.id, status=ToolStatus.ERROR, refresh_error=error_message, enabled=False
+    )
+
+    assert not updated_tool.enabled
+    assert updated_tool.status == ToolStatus.ERROR
+    assert updated_tool.refresh_error == error_message
+    assert updated_tool.updated_by == test_user.id
+    assert updated_tool.updated_at >= test_tool.updated_at
+
+
+@pytest.mark.asyncio
 async def test_bulk_update_tools_success(
     test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
 ) -> None:

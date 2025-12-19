@@ -4,81 +4,19 @@ Tests keyset pagination, bracket filter notation, and OpenAPI schema compliance.
 """
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.core.models import User
 from nexus.tool_manager.models import ToolProvider
-
-
-@pytest_asyncio.fixture
-async def multiple_test_providers(test_db_session: AsyncSession, test_user: User) -> list[ToolProvider]:
-    """Create multiple test providers for pagination, filtering, and sorting tests."""
-    providers = [
-        ToolProvider(
-            name="Alpha Provider",
-            description="First provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
-            enabled=True,
-            created_by=test_user.id,
-        ),
-        ToolProvider(
-            name="Beta Provider",
-            description="Second provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://beta.example.com", "api_key": "beta-key"},
-            enabled=False,
-            created_by=test_user.id,
-        ),
-        ToolProvider(
-            name="Gamma Provider",
-            description="Third provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://gamma.example.com", "api_key": "gamma-key"},
-            enabled=True,
-            created_by=test_user.id,
-        ),
-        ToolProvider(
-            name="Delta Provider",
-            description="Fourth provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://delta.example.com", "api_key": "delta-key"},
-            enabled=True,
-            created_by=test_user.id,
-        ),
-        ToolProvider(
-            name="Echo Provider",
-            description="Fifth provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://echo.example.com", "api_key": "echo-key"},
-            enabled=False,
-            created_by=test_user.id,
-        ),
-        ToolProvider(
-            name="Foxtrot Provider",
-            description="Sixth provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://foxtrot.example.com", "api_key": "foxtrot-key"},
-            enabled=True,
-            created_by=test_user.id,
-        ),
-    ]
-
-    for provider in providers:
-        test_db_session.add(provider)
-
-    await test_db_session.commit()
-
-    for provider in providers:
-        await test_db_session.refresh(provider)
-
-    return providers
 
 
 class TestToolProvidersListContract:
     """Contract tests for tool providers list endpoint."""
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_basic_success(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test basic GET /api/v1/tool-providers returns 200."""
         response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
@@ -145,10 +83,10 @@ class TestToolProvidersListContract:
             assert first_page_ids.isdisjoint(second_page_ids)
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_bracket_filters_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test bracket filter notation is accepted."""
         # Test filtering by enabled status
@@ -188,10 +126,10 @@ class TestToolProvidersListContract:
         assert alpha_data["resources"][0]["name"] == "Alpha Provider"
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_include_total_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test include_total parameter returns total count."""
         response = await base_client_with_provider_factory.get(
@@ -208,10 +146,10 @@ class TestToolProvidersListContract:
         assert data["total"] == 6  # Should match our test providers
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_response_schema_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test response matches OpenAPI specification schema."""
         response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
@@ -275,10 +213,10 @@ class TestToolProvidersListContract:
         assert isinstance(data["resources"], list)
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_cursor_format_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test cursor token format in response."""
         response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"limit": "1"})
@@ -299,10 +237,10 @@ class TestToolProvidersListContract:
         assert len(data["resources"]) == 1
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_sorting_by_name_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test sorting providers by name."""
         # Test ascending sort
@@ -327,10 +265,10 @@ class TestToolProvidersListContract:
         assert desc_names == sorted(names, reverse=True)
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_sorting_by_created_at_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test sorting providers by creation date."""
         response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"sort": "created_at"})
@@ -351,10 +289,10 @@ class TestToolProvidersListContract:
         assert desc_dates == sorted(created_dates, reverse=True)
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_combined_filter_and_sort_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test combining filters and sorting."""
         # Filter enabled providers and sort by name
@@ -374,10 +312,10 @@ class TestToolProvidersListContract:
         assert names == sorted(names)
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_combined_filter_and_sort_contract_disabled(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test combining filters and sorting."""
         # Filter enabled providers and sort by name
@@ -397,10 +335,10 @@ class TestToolProvidersListContract:
         assert names == sorted(names, reverse=True)
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_filter_by_multiple_criteria_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test filtering by multiple criteria."""
         # Filter enabled MCP providers
@@ -418,10 +356,10 @@ class TestToolProvidersListContract:
             assert provider["name"] in ["Alpha Provider", "Gamma Provider", "Delta Provider", "Foxtrot Provider"]
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_pagination_with_filters_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test pagination works correctly with filters."""
         # Get enabled providers with pagination
@@ -449,10 +387,10 @@ class TestToolProvidersListContract:
             assert provider["enabled"] is True
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_edge_cases_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test edge cases and boundary conditions."""
         # Test with limit = 0 (should return error)
@@ -476,10 +414,10 @@ class TestToolProvidersListContract:
         assert response.status_code in [200, 422]  # Either ignored or validation error
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_filter_no_results_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test filtering that returns no results."""
         # Filter for non-existent provider type
@@ -500,10 +438,10 @@ class TestToolProvidersListContract:
         assert data["prev"] is None
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_complex_configuration_filter_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test filtering by nested configuration properties."""
         # Filter MCP providers by base_url containing 'alpha'
@@ -519,10 +457,10 @@ class TestToolProvidersListContract:
         assert "first" in data["resources"][0]["description"].lower()
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_include_total_with_filters_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test include_total works correctly with filters."""
         # Get total for all providers
@@ -551,10 +489,10 @@ class TestToolProvidersListContract:
         assert len(paginated_data["resources"]) == 2  # Page size
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_filter_invalid_status_enum_contract(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test filtering with invalid ProviderStatus enum value returns 400."""
         # Filter with invalid status value
@@ -572,10 +510,10 @@ class TestToolProvidersListContract:
         assert "Valid values are:" in data["detail"]
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_configuration_eager_loading(
         self,
         base_client_with_provider_factory: AsyncClient,
-        multiple_test_providers: list[ToolProvider],  # noqa: ARG002
     ) -> None:
         """Test that configuration is correctly loaded and typed in list_providers endpoint.
 

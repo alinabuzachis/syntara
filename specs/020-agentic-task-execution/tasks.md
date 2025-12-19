@@ -94,18 +94,18 @@ flowchart TD
 
 ## Phase 3.1: Setup
 
-- [ ] T001 Create project structure for tool_manager package in src/nexus/agent_orchestrator/tool_manager/
-- [ ] T002 Initialize Python dependencies: httpx, retry_with_backoff integration
-- [ ] T003 [P] Configure linting and formatting tools for tool_manager package
+- [x] T001 Create project structure for tool_manager package in src/nexus/agent_orchestrator/tool_manager/
+- [x] T002 Initialize Python dependencies: httpx, retry_with_backoff integration
+- [x] T003 [P] Configure linting and formatting tools for tool_manager package
 
 ## Phase 3.2: AAP-55696: Tool Manager HTTP Client - Tests First (TDD) ⚠️ MUST COMPLETE BEFORE IMPLEMENTATION
 
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
 
-- [ ] T004 [P] Client initialization tests in tests/unit/agent_orchestrator/tool_manager/test_client_init.py
-- [ ] T005 [P] Tool provider discovery tests in tests/unit/agent_orchestrator/tool_manager/test_tool_discovery.py
-- [ ] T006 [P] Tool retrieval and filtering tests in tests/unit/agent_orchestrator/tool_manager/test_tool_retrieval.py
-- [ ] T007 [P] Error reporting and status update tests including refresh_error field updates for FR-006 in tests/unit/agent_orchestrator/tool_manager/test_error_reporting.py
+- [x] T004 [P] Client initialization tests in tests/unit/agent_orchestrator/tool_manager/test_client_init.py
+- [x] T005 [P] Tool provider discovery tests in tests/unit/agent_orchestrator/tool_manager/test_tool_discovery.py
+- [x] T006 [P] Tool retrieval and filtering tests in tests/unit/agent_orchestrator/tool_manager/test_tool_retrieval.py
+- [x] T007 [P] Error reporting and status update tests including refresh_error field updates for FR-006 in tests/unit/agent_orchestrator/tool_manager/test_error_reporting.py
 
 ## Phase 3.3: AAP-55696: Tool Manager HTTP Client Implementation (ONLY after tests are failing)
 
@@ -125,10 +125,10 @@ flowchart TD
 - All endpoints must follow path pattern: /api/v1/[component]/[resource]
 - Implement RFC 9457 Problem Details for error responses
 
-- [ ] T008 Tool Manager Client base class in src/nexus/agent_orchestrator/tool_manager/client.py
-- [ ] T009 [P] Tool provider discovery methods (get_enabled_tool_providers) in src/nexus/agent_orchestrator/tool_manager/client.py
-- [ ] T010 [P] Tool retrieval methods (get_enabled_tools) and error status update with refresh_error field for FR-006 in src/nexus/agent_orchestrator/tool_manager/client.py
-- [ ] T011 [P] Error reporting methods (update_tool_status) and HTTP session management with exponential backoff retry for Tool Manager API unavailability (FR-006) in src/nexus/agent_orchestrator/tool_manager/client.py
+- [x] T008 Tool Manager Client base class in src/nexus/agent_orchestrator/tool_manager/client.py
+- [x] T009 [P] Tool provider discovery methods (get_enabled_tool_providers) in src/nexus/agent_orchestrator/tool_manager/client.py
+- [x] T010 [P] Tool retrieval methods (get_enabled_tools) and error status update with refresh_error field for FR-006 in src/nexus/agent_orchestrator/tool_manager/client.py
+- [x] T011 [P] Error reporting methods (update_tool_status) and HTTP session management with exponential backoff retry for Tool Manager API unavailability (FR-006) in src/nexus/agent_orchestrator/tool_manager/client.py
 
 ## Phase 3.4: AAP-60416: Agent Orchestrator Integration - Tests First
 
