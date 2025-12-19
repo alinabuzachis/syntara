@@ -67,8 +67,48 @@ export class WorkflowTransform {
       const current = nestedActivities[i]
       const next = nestedActivities[i + 1]
 
-      // Skip condition nodes - they have explicit branch edges
+      // Handle condition nodes followed by converge nodes
       if (current.type === 'condition') {
+        // If the next node is a converge, create edges from branch endpoints to converge
+        if (next.type === 'converge') {
+          const convergeBranches = (next as Extract<Activity, { type: 'converge' }>).converge?.branches || []
+          const convergeBranchSet = new Set(convergeBranches)
+          const conditionActivity = current as Extract<Activity, { type: 'condition' }>
+
+          // Get last activity IDs from both then and else branches
+          const allBranchEndpoints: string[] = []
+
+          const thenActivities = conditionActivity.then || []
+          if (thenActivities.length > 0) {
+            const thenEndpoints = this.getAllLastActivityIds(thenActivities[thenActivities.length - 1])
+            allBranchEndpoints.push(...thenEndpoints)
+          }
+
+          const elseActivities = conditionActivity.else || []
+          if (elseActivities.length > 0) {
+            const elseEndpoints = this.getAllLastActivityIds(elseActivities[elseActivities.length - 1])
+            allBranchEndpoints.push(...elseEndpoints)
+          }
+
+          // Create edges from branch endpoints to converge node if they're in the converge set
+          for (const endpointId of allBranchEndpoints) {
+            if (convergeBranchSet.has(endpointId)) {
+              // Find the source activity to get the correct source handle
+              const sourceActivity =
+                this.searchInActivityList(thenActivities, endpointId) ||
+                this.searchInActivityList(elseActivities, endpointId)
+
+              edges.push({
+                id: `${endpointId}-${next.id}`,
+                source: endpointId,
+                target: next.id,
+                sourceHandle: sourceActivity ? this.getSourceHandle(sourceActivity) : 'source',
+                targetHandle: 'target',
+              })
+            }
+          }
+        }
+        // Skip regular sequential edge for conditions (they have explicit branch edges)
         continue
       }
 
@@ -180,7 +220,11 @@ export class WorkflowTransform {
     result = this.nestLoops(result, edges)
 
     // 3. Finally, nest conditions
-    result = this.nestConditions(result, edges)
+    const usedParallelIds = new Set<string>()
+    result = this.nestConditions(result, edges, result, usedParallelIds)
+
+    // Remove parallel containers that have been nested inside condition branches
+    result = result.filter((a) => !usedParallelIds.has(a.id))
 
     return result
   }
@@ -245,6 +289,7 @@ export class WorkflowTransform {
   /**
    * Get all possible last activity IDs from a branch.
    * For conditions with both then and else branches, both branches may converge to different points.
+   * For parallels, all branches may converge to the same or different points.
    * This returns all potential endpoints.
    */
   private static getAllLastActivityIds(activity: Activity): string[] {
@@ -253,6 +298,19 @@ export class WorkflowTransform {
       if (steps.length > 0) {
         return this.getAllLastActivityIds(steps[steps.length - 1])
       }
+    }
+
+    if (activity.type === 'parallel') {
+      const parallelActivity = activity as Extract<Activity, { type: 'parallel' }>
+      const branches = parallelActivity.branches || []
+      const lastIds: string[] = []
+
+      // Get last IDs from all parallel branches
+      for (const branch of branches) {
+        lastIds.push(...this.getAllLastActivityIds(branch))
+      }
+
+      return lastIds.length > 0 ? lastIds : [activity.id]
     }
 
     if (activity.type === 'condition') {
@@ -726,7 +784,12 @@ export class WorkflowTransform {
   /**
    * Nest condition nodes based on edges
    */
-  private static nestConditions(flatActivities: Activity[], edges: EdgeConnection[]): Activity[] {
+  private static nestConditions(
+    flatActivities: Activity[],
+    edges: EdgeConnection[],
+    rootActivities: Activity[] = flatActivities,
+    usedParallelIds?: Set<string>
+  ): Activity[] {
     let result = [...flatActivities]
     const conditionActivities = result.filter((a) => a.type === 'condition')
 
@@ -744,16 +807,17 @@ export class WorkflowTransform {
       const falseStartIds = falseEdges.map((e) => e.target)
 
       // Find all activities belonging to each branch
-      const thenActivities = this.findBranchActivities(trueStartIds, edges, result)
-      const elseActivities = this.findBranchActivities(falseStartIds, edges, result)
+      // CRITICAL: Use rootActivities to find parallel containers that might be at top level
+      const thenActivities = this.findBranchActivities(trueStartIds, edges, result, rootActivities, usedParallelIds)
+      const elseActivities = this.findBranchActivities(falseStartIds, edges, result, rootActivities, usedParallelIds)
 
       // Remove branch activities from top level
       const allBranchActivityIds = new Set([...thenActivities.map((a) => a.id), ...elseActivities.map((a) => a.id)])
       result = result.filter((a) => !allBranchActivityIds.has(a.id))
 
-      // Recursively process nested conditions
-      const processedThen = this.nestConditions(thenActivities, edges)
-      const processedElse = this.nestConditions(elseActivities, edges)
+      // Recursively process nested conditions (pass rootActivities and usedParallelIds through)
+      const processedThen = this.nestConditions(thenActivities, edges, rootActivities, usedParallelIds)
+      const processedElse = this.nestConditions(elseActivities, edges, rootActivities, usedParallelIds)
 
       // Update condition with nested branches
       const conditionIndex = result.findIndex((a) => a.id === conditionActivity.id)
@@ -775,11 +839,19 @@ export class WorkflowTransform {
    * Special handling: If multiple startIds exist but none of them are found in allActivities,
    * it likely means they've been wrapped in a parallel container. In this case, find and
    * return that parallel container instead.
+   *
+   * @param startIds - Activity IDs to start collecting from
+   * @param edges - All edges in the workflow
+   * @param allActivities - Activities in the current scope (may be nested)
+   * @param rootActivities - Top-level activities (used to find parallel containers)
+   * @param usedParallelIds - Set to track parallel IDs used from rootActivities
    */
   private static findBranchActivities(
     startIds: string[],
     edges: EdgeConnection[],
-    allActivities: Activity[]
+    allActivities: Activity[],
+    rootActivities: Activity[] = allActivities,
+    usedParallelIds?: Set<string>
   ): Activity[] {
     const result: Activity[] = []
     const visited = new Set<string>()
@@ -790,9 +862,10 @@ export class WorkflowTransform {
     // If multiple startIds but none exist in allActivities, they may be wrapped in a parallel container
     if (startIds.length >= 2 && foundStartIds.length === 0) {
       // Look for a parallel container whose branches contain these startIds
+      // CRITICAL: Check in rootActivities (top level) since parallel containers may be there
       // CRITICAL: Check if startIds are reachable from branch roots, not just exact ID matches
       // This handles cases where branches are wrapped in sequences (e.g., sequence(A3, D))
-      const parallelContainer = allActivities.find((a) => {
+      const parallelContainer = rootActivities.find((a) => {
         if (a.type !== 'parallel') return false
         const branches = a.branches || []
 
@@ -808,6 +881,11 @@ export class WorkflowTransform {
 
       if (parallelContainer) {
         result.push(parallelContainer)
+
+        // Track that this parallel was pulled from rootActivities and should be removed from top level
+        if (usedParallelIds && parallelContainer.id) {
+          usedParallelIds.add(parallelContainer.id)
+        }
 
         // CRITICAL: Continue collecting activities that follow the parallel container
         // For example, if pattern is: Condition → (A1 || A2) → J (converge)
@@ -1196,19 +1274,36 @@ export class WorkflowTransform {
       const validTargets = parallelHandles.filter((e) => activityIds.has(e.target))
       if (validTargets.length < 2) continue
 
-      const divergenceTargets = validTargets.map((e) => e.target)
-      const convergencePoint = this.findConvergencePoint(divergenceTargets, edges, activities)
+      // CRITICAL: Deduplicate target IDs - multiple edges can point to the same target
+      // (e.g., duplicate edges from UI). Use Array.from(new Set()) to get unique targets.
+      const divergenceTargets = Array.from(new Set(validTargets.map((e) => e.target)))
+
+      // After deduplication, check if we still have at least 2 unique targets
+      if (divergenceTargets.length < 2) continue
+
+      // CRITICAL: Check for converge nodes first (they explicitly define convergence points)
+      const partialConvergeResult = this.findPartialConvergeNode(divergenceTargets, edges, activities)
+      const convergencePoint =
+        partialConvergeResult?.convergencePoint || this.findConvergencePoint(divergenceTargets, edges, activities)
+      const convergeNode =
+        partialConvergeResult?.convergeNode ||
+        (convergencePoint ? activities.find((a) => a.id === convergencePoint) : undefined)
 
       const branches = divergenceTargets.map((targetId) => {
-        return convergencePoint
-          ? this.collectBranchActivities(targetId, convergencePoint, edges, activities)
-          : this.collectAllDownstream(targetId, edges, activities)
+        if (convergencePoint) {
+          return this.collectBranchActivities(targetId, convergencePoint, edges, activities)
+        } else {
+          // No convergence point - collect all downstream but exclude any converge nodes
+          const allDownstream = this.collectAllDownstream(targetId, edges, activities)
+          // Filter out converge nodes that might be downstream (they should be at parent level)
+          return allDownstream.filter((a) => a.type !== 'converge')
+        }
       })
 
       return {
         divergenceSource: activity.id,
         divergenceTargets,
-        convergeNode: convergencePoint ? activities.find((a) => a.id === convergencePoint)! : undefined,
+        convergeNode,
         branches,
       }
     }

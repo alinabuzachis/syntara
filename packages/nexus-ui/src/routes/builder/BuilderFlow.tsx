@@ -1,5 +1,4 @@
 import type { Activity } from '@ansible/nexus-contracts'
-import Dagre from '@dagrejs/dagre'
 import {
   applyEdgeChanges,
   applyNodeChanges,
@@ -7,15 +6,11 @@ import {
   BackgroundVariant,
   ReactFlow,
   useReactFlow,
-  type Connection,
   type EdgeChange,
   type NodeChange,
-  type OnConnect,
-  type OnNodesDelete,
 } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { FlowNodeType } from '../../constants'
 import {
   useWorkflowStore,
   useWorkflowStoreActions,
@@ -38,17 +33,18 @@ import { LoopBackEdge } from './edges/LoopBackEdge'
 import { LoopDoneEdge } from './edges/LoopDoneEdge'
 import { LoopOutgoingEdge } from './edges/LoopOutgoingEdge'
 import { useButtonEdgeMaintenance } from './hooks/useButtonEdgeMaintenance'
+import { useConnectionHandlers } from './hooks/useConnectionHandlers'
 import { useEdgeActiveState } from './hooks/useEdgeActiveState'
 import { useEdgeSynchronization } from './hooks/useEdgeSynchronization'
+import { useNodeDeletion } from './hooks/useNodeDeletion'
+import { useNodePositioning } from './hooks/useNodePositioning'
 import { useNodeUpdates } from './hooks/useNodeUpdates'
 import { usePendingEdgeManagement } from './hooks/usePendingEdgeManagement'
 import { useWorkflowInitialization } from './hooks/useWorkflowInitialization'
 import { PlaceholderNode } from './nodes/PlaceholderNode'
-import type { BuilderFlowProps, ConnectionState, PendingEdge } from './types'
+import type { BuilderFlowProps, PendingEdge } from './types'
 import { detectLoopBackNodes } from './utils/detectLoopBackNodes'
-import { EdgeFactory } from './utils/EdgeFactory'
-import { filterRealEdges, filterRealNodes } from './utils/filterHelpers'
-import { consumePendingDragHandle } from './utils/pendingDragHandle'
+import { getLayoutedElements } from './utils/layoutEngine'
 import { validateConnection } from './utils/validateConnection'
 import {
   extractTaskActivities,
@@ -74,172 +70,6 @@ const builderEdgeTypes = {
   loopOutgoing: LoopOutgoingEdge,
 }
 
-/**
- * Applies Dagre layout algorithm to position nodes in a hierarchical flow
- * with special handling for loop structures
- */
-const getLayoutedElements = (nodes: NodeType[], edges: EdgeType[], options: { direction: 'TB' | 'LR' }) => {
-  const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: options.direction, ranksep: 120 })
-
-  const realNodes = filterRealNodes(nodes)
-  const realEdges = filterRealEdges(edges)
-
-  // Identify loop structures - find nodes in loop bodies
-  const loopBodyNodes = new Set<string>()
-  const loopParents = new Map<string, string>() // Map: nodeId -> loopNodeId
-  const loopBodies = new Map<string, string[]>() // Map: loopNodeId -> array of body node IDs
-
-  realNodes.forEach((node) => {
-    if (node.type === 'loop') {
-      // Find all edges from this loop's 'loop' handle
-      const loopEdges = realEdges.filter((e) => e.source === node.id && e.sourceHandle === 'loop')
-      const bodyNodeIds: string[] = []
-
-      loopEdges.forEach((loopEdge) => {
-        // Traverse from loop edge to find all nodes that connect back to loop's end handle
-        const visited = new Set<string>()
-        const queue: string[] = [loopEdge.target]
-
-        while (queue.length > 0) {
-          const nodeId = queue.shift()!
-          if (visited.has(nodeId)) continue
-          visited.add(nodeId)
-
-          loopBodyNodes.add(nodeId)
-          loopParents.set(nodeId, node.id)
-          bodyNodeIds.push(nodeId)
-
-          // Find outgoing edges (but don't follow edges back to loop's end)
-          const outgoing = realEdges.filter(
-            (e) =>
-              e.source === nodeId && e.sourceHandle === 'source' && !(e.target === node.id && e.targetHandle === 'end')
-          )
-
-          outgoing.forEach((e) => {
-            if (!visited.has(e.target)) {
-              queue.push(e.target)
-            }
-          })
-        }
-      })
-
-      if (bodyNodeIds.length > 0) {
-        loopBodies.set(node.id, bodyNodeIds)
-      }
-    }
-  })
-
-  // For layout purposes, exclude loop-back edges (edges to loop's end handle)
-  // This prevents Dagre from trying to create a circular layout
-  const layoutEdges = realEdges.filter((edge) => edge.targetHandle !== 'end')
-
-  // Calculate the total width needed for loop nodes (including their body nodes)
-  const loopWidths = new Map<string, number>()
-  loopBodies.forEach((bodyNodeIds, loopId) => {
-    const loopNode = realNodes.find((n) => n.id === loopId)
-    const loopWidth = loopNode?.measured?.width ?? 0
-
-    // Calculate total width of loop body nodes
-    let totalBodyWidth = 0
-    bodyNodeIds.forEach((nodeId) => {
-      const bodyNode = realNodes.find((n) => n.id === nodeId)
-      totalBodyWidth += bodyNode?.measured?.width ?? 0
-    })
-
-    // Add spacing: initial gap + spacing between nodes
-    const horizontalSpacing = 50
-    const nodeSpacing = 40
-    const spacingWidth = horizontalSpacing + Math.max(0, bodyNodeIds.length - 1) * nodeSpacing
-
-    // Total width = loop width + spacing + body nodes width
-    const totalWidth = loopWidth + spacingWidth + totalBodyWidth
-    loopWidths.set(loopId, totalWidth)
-  })
-
-  layoutEdges.forEach((edge) => g.setEdge(edge.source, edge.target))
-  realNodes.forEach((node) => {
-    // Use extended width for loop nodes to account for their body nodes
-    const width = loopWidths.get(node.id) ?? node.measured?.width ?? 0
-    g.setNode(node.id, {
-      ...node,
-      width,
-      height: node.measured?.height ?? 0,
-    })
-  })
-
-  Dagre.layout(g)
-
-  // Calculate positions for loop body nodes (right and below the loop node)
-  const loopBodyPositions = new Map<string, { x: number; y: number }>()
-
-  loopBodies.forEach((bodyNodeIds, loopId) => {
-    const loopNode = realNodes.find((n) => n.id === loopId)
-    const loopPosition = g.node(loopId)
-    const loopWidth = loopNode?.measured?.width ?? 0
-
-    // Get all body nodes with their Dagre positions (maintain dagre order)
-    const bodyNodesWithPositions = bodyNodeIds
-      .map((nodeId) => {
-        const node = realNodes.find((n) => n.id === nodeId)
-        const position = g.node(nodeId)
-        return {
-          nodeId,
-          width: node?.measured?.width ?? 0,
-          height: node?.measured?.height ?? 0,
-          dagreX: position.x,
-        }
-      })
-      .sort((a, b) => a.dagreX - b.dagreX)
-
-    // Position nodes completely to the right of the loop node (same vertical center)
-    const horizontalSpacing = 50 // Space to the right of loop node (compact)
-    const nodeSpacing = 40 // Spacing between consecutive nodes (increased for readability)
-
-    // Start position: to the right of loop node, vertically centered with loop
-    let currentX = loopPosition.x + loopWidth / 2 + horizontalSpacing
-    const baseY = loopPosition.y // Same vertical position as loop node center
-
-    // Assign positions to each body node (flowing left to right)
-    bodyNodesWithPositions.forEach((bodyNode) => {
-      loopBodyPositions.set(bodyNode.nodeId, {
-        x: currentX,
-        y: baseY,
-      })
-      currentX += bodyNode.width + nodeSpacing
-    })
-  })
-
-  return {
-    nodes: nodes.map((node) => {
-      if (!node.id.startsWith('placeholder-')) {
-        const position = g.node(node.id)
-        let x = position.x - (node.measured?.width ?? 0) / 2
-        let y = position.y - (node.measured?.height ?? 0) / 2
-
-        // Use pre-calculated centered positions for loop body nodes
-        if (loopBodyNodes.has(node.id)) {
-          const centeredPos = loopBodyPositions.get(node.id)
-          if (centeredPos) {
-            x = centeredPos.x
-            y = centeredPos.y
-          }
-        }
-
-        // Add className for loop body nodes to match loop node width
-        const isLoopBodyNode = loopBodyNodes.has(node.id)
-        return {
-          ...node,
-          position: { x, y },
-          className: isLoopBodyNode ? 'min-w-[300px]' : node.className,
-        }
-      }
-      return node
-    }),
-    edges: edges.map((edge) => ({ ...edge, markerEnd })),
-  }
-}
-
 export function BuilderFlow(props: BuilderFlowProps) {
   // Destructure props to use in callbacks
   const {
@@ -263,7 +93,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   // Subscribe to activities array directly to detect updates to individual activities
   const activities = useWorkflowStore(selectActivities)
   // Access actions without subscribing to state changes
-  const { setEdges: setStoredEdges, batchRemoveNodesAndEdges } = useWorkflowStoreActions()
+  const { setEdges: setStoredEdges } = useWorkflowStoreActions()
   const reactFlowInstance = useReactFlow()
   const { fitView, getViewport, screenToFlowPosition, updateNode } = reactFlowInstance
   const containerRef = useRef<HTMLDivElement>(null)
@@ -641,251 +471,28 @@ export function BuilderFlow(props: BuilderFlowProps) {
     })
   }, [edges, isInitialized, setNodes])
 
-  const onNodesDelete: OnNodesDelete = useCallback(
-    (deletedNodes) => {
-      isDeletingRef.current = true
-      const deletedNodeIds = new Set(deletedNodes.map((n) => n.id))
-      const placeholderIdsToRemove = new Set(deletedNodes.map((n) => `placeholder-${n.id}`))
+  // Use custom hook for node deletion handling
+  const { onNodesDelete } = useNodeDeletion({
+    nodes,
+    edges: storedEdges,
+    setNodes,
+    setEdges,
+    isDeletingRef,
+    onAddNodeFromEdge,
+    onNodesDeleted,
+  })
 
-      const activityIds: string[] = []
-      const triggerIndices: number[] = []
-
-      deletedNodes.forEach((node) => {
-        if (node.type === FlowNodeType.TRIGGER) {
-          const triggerIndex = Number.parseInt(node.id.split('-')[1])
-          if (!Number.isNaN(triggerIndex)) {
-            triggerIndices.push(triggerIndex)
-          }
-        } else if (node.type !== FlowNodeType.PLACEHOLDER) {
-          activityIds.push(node.id)
-        }
-      })
-
-      const storedEdges = useWorkflowStore.getState().edges
-
-      // CRITICAL: Detect loop reconnection needs BEFORE filtering edges
-      // When the last activity in a loop is deleted, we need to reconnect the new last activity to the loop
-      const loopReconnections: Array<{ source: string; target: string; targetHandle: string; sourceHandle?: string }> =
-        []
-
-      deletedNodeIds.forEach((deletedNodeId) => {
-        // Find if this deleted node had an edge TO a loop's 'end' handle (was the last activity in a loop)
-        const loopBackEdge = storedEdges.find((edge) => edge.source === deletedNodeId && edge.targetHandle === 'end')
-
-        if (loopBackEdge) {
-          // Find the node that connects TO the deleted node (the new last activity)
-          const incomingEdge = storedEdges.find(
-            (edge) => edge.target === deletedNodeId && !deletedNodeIds.has(edge.source)
-          )
-
-          if (incomingEdge) {
-            // CRITICAL: Don't create a loop-back edge if the incoming edge is from the loop node itself
-            // This means the deleted node was the only activity in the loop, so no loop-back edge should exist
-            const isFromLoopNode = incomingEdge.source === loopBackEdge.target && incomingEdge.sourceHandle === 'loop'
-
-            if (!isFromLoopNode) {
-              // Get the new last node to determine the correct source handle
-              const newLastNode = nodes.find((n) => n.id === incomingEdge.source)
-              const sourceHandle = newLastNode?.type === FlowNodeType.LOOP ? 'done' : 'source'
-
-              // Create a new loop-back edge from the new last activity to the loop node
-              loopReconnections.push({
-                source: incomingEdge.source,
-                target: loopBackEdge.target,
-                targetHandle: 'end',
-                sourceHandle,
-              })
-            }
-          }
-        }
-      })
-
-      const filteredEdges = storedEdges.filter(
-        (edge) => !deletedNodeIds.has(edge.source) && !deletedNodeIds.has(edge.target)
-      )
-
-      // Add loop reconnection edges to the filtered edges
-      const edgesWithReconnections = [
-        ...filteredEdges,
-        ...loopReconnections.map((reconnection) => ({
-          id: `${reconnection.source}-${reconnection.target}-end`,
-          source: reconnection.source,
-          target: reconnection.target,
-          sourceHandle: reconnection.sourceHandle,
-          targetHandle: reconnection.targetHandle,
-        })),
-      ]
-
-      // ATOMIC UPDATE: Update workflow and edges in a single transaction to prevent race conditions
-      batchRemoveNodesAndEdges({
-        nodeIds: activityIds,
-        edges: edgesWithReconnections,
-        triggerIndices,
-      })
-
-      setNodes((currentNodes) => {
-        const filtered = currentNodes.filter(
-          (node) => !deletedNodeIds.has(node.id) && !placeholderIdsToRemove.has(node.id)
-        )
-        return filtered
-      })
-
-      // CRITICAL: Remove edges connected to deleted nodes to avoid validation errors
-      // and ensure ButtonEdges are recreated by useButtonEdgeMaintenance
-      // Also add loop reconnection edges
-      setEdges((currentEdges) => {
-        const filtered = currentEdges.filter(
-          (edge) =>
-            !deletedNodeIds.has(edge.source) &&
-            !deletedNodeIds.has(edge.target) &&
-            !placeholderIdsToRemove.has(edge.target)
-        )
-
-        // Add loop reconnection edges with proper edge types
-        const reconnectionEdges = loopReconnections.map((reconnection) =>
-          EdgeFactory.createEdge({
-            source: reconnection.source,
-            target: reconnection.target,
-            sourceHandle: reconnection.sourceHandle,
-            targetHandle: reconnection.targetHandle,
-            onAddNode: onAddNodeFromEdge,
-          })
-        )
-
-        return [...filtered, ...reconnectionEdges]
-      })
-
-      // Clear deletion flag after all updates complete
-      setTimeout(() => {
-        isDeletingRef.current = false
-      }, 100)
-
-      // Notify parent component about deleted nodes
-      if (onNodesDeleted) {
-        const deletedIds = Array.from(deletedNodeIds)
-        onNodesDeleted(deletedIds)
-      }
-    },
-    [batchRemoveNodesAndEdges, setEdges, setNodes, nodes, onAddNodeFromEdge, onNodesDeleted]
-  )
-
-  useEffect(() => {
-    if (newlyAddedNodeIdsRef.current.size > 0 && isInitialized) {
-      // Build a Map of loop body nodes for O(1) lookup instead of O(n) edges.some() calls
-      const loopBodyNodeMap = new Map<string, string>() // body node ID -> loop node ID
-      edges.forEach((e) => {
-        if (e.sourceHandle === 'loop') {
-          loopBodyNodeMap.set(e.target, e.source)
-        }
-      })
-
-      // For loop body nodes, they start with x: 340 (offset), so we check for that OR x: 0
-      // For all other nodes, they start with x: 0
-      const nodesToPosition = nodes.filter((node) => {
-        if (!newlyAddedNodeIdsRef.current.has(node.id) || !node.measured) return false
-
-        // Loop body nodes have an initial offset position (340, 0)
-        if (loopBodyNodeMap.has(node.id)) {
-          return node.position.x > 0 && node.position.y === 0
-        }
-
-        // All other nodes start at (0, 0)
-        return node.position.x === 0 && node.position.y === 0
-      })
-
-      if (nodesToPosition.length > 0) {
-        const hasLoopBodyNodes = nodesToPosition.some((n) => loopBodyNodeMap.has(n.id))
-
-        if (hasLoopBodyNodes) {
-          // Two-pass positioning for loop nodes - place on left side of viewport
-          const viewport = getViewport()
-          const padding = 50
-          const baseX = (-viewport.x + padding) / viewport.zoom
-          const baseY = (-viewport.y + padding) / viewport.zoom
-
-          setNodes((currentNodes) => {
-            const loopPositions = new Map<string, { x: number; y: number; width: number; height: number }>()
-            const positionedNodes = new Map<string, NodeType>()
-
-            // Single pass: position both loop nodes and body nodes
-            const updatedNodes = currentNodes.map((node) => {
-              // First: position loop nodes
-              if (
-                newlyAddedNodeIdsRef.current.has(node.id) &&
-                node.measured &&
-                node.position.x === 0 &&
-                node.position.y === 0 &&
-                node.type === 'loop'
-              ) {
-                const loopWidth = node.measured?.width ?? 240
-                const loopHeight = node.measured?.height ?? 0
-                loopPositions.set(node.id, { x: baseX, y: baseY, width: loopWidth, height: loopHeight })
-                newlyAddedNodeIdsRef.current.delete(node.id)
-                const updatedNode = { ...node, position: { x: baseX, y: baseY } }
-                positionedNodes.set(node.id, updatedNode)
-                return updatedNode
-              }
-
-              // Second: position body nodes if their loop was positioned
-              if (newlyAddedNodeIdsRef.current.has(node.id) && node.measured && loopBodyNodeMap.has(node.id)) {
-                const loopNodeId = loopBodyNodeMap.get(node.id)!
-                const loopPos = loopPositions.get(loopNodeId)
-
-                if (loopPos) {
-                  // Match getLayoutedElements behavior:
-                  // Body node's top-left Y is positioned at loop node's center Y
-                  const horizontalSpacing = 50
-                  const calculatedX = loopPos.x + loopPos.width + horizontalSpacing
-                  const calculatedY = loopPos.y + loopPos.height / 2
-
-                  newlyAddedNodeIdsRef.current.delete(node.id)
-                  const updatedNode = {
-                    ...node,
-                    position: { x: calculatedX, y: calculatedY },
-                  }
-                  positionedNodes.set(node.id, updatedNode)
-                  return updatedNode
-                }
-              }
-              return node
-            })
-
-            // Force ReactFlow to update the positioned nodes immediately
-            if (positionedNodes.size > 0) {
-              setTimeout(() => {
-                positionedNodes.forEach((node, nodeId) => {
-                  updateNode(nodeId, { position: node.position })
-                })
-              }, 100)
-            }
-
-            return updatedNodes
-          })
-        } else {
-          // Standard viewport-based positioning for non-loop nodes
-          const viewport = getViewport()
-          const viewportWidth = containerRef.current?.clientWidth ?? window.innerWidth
-          const padding = 50
-          const newNodeX = (-viewport.x + viewportWidth - 350 - padding) / viewport.zoom
-          const newNodeY = (-viewport.y + padding) / viewport.zoom
-
-          // Build a Set for O(1) lookup
-          const nodesToPositionSet = new Set(nodesToPosition.map((n) => n.id))
-
-          setNodes((currentNodes) =>
-            currentNodes.map((node) => {
-              if (nodesToPositionSet.has(node.id)) {
-                newlyAddedNodeIdsRef.current.delete(node.id)
-                return { ...node, position: { x: newNodeX, y: newNodeY } }
-              }
-              return node
-            })
-          )
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, isInitialized, getViewport, setNodes])
+  // Use custom hook for node positioning
+  useNodePositioning({
+    nodes,
+    edges,
+    isInitialized,
+    newlyAddedNodeIdsRef,
+    containerRef,
+    setNodes,
+    getViewport,
+    updateNode,
+  })
 
   useEffect(() => {
     if (isInitialized) {
@@ -896,176 +503,16 @@ export function BuilderFlow(props: BuilderFlowProps) {
     }
   }, [panelOpen, fitView, isInitialized])
 
-  const connectionStateRef = useRef<ConnectionState>({
-    sourceNodeId: null,
-    sourceHandleId: null,
-    successful: false,
+  // Use custom hook for connection handling
+  const { onConnect, onConnectStart, onConnectEnd } = useConnectionHandlers({
+    nodes,
+    edges,
+    onAddNodeFromEdge,
+    setNodes,
+    setEdges,
+    setPendingEdge,
+    screenToFlowPosition,
   })
-
-  const onConnect: OnConnect = useCallback(
-    (connection: Connection) => {
-      connectionStateRef.current.successful = true
-
-      setPendingEdge(null)
-
-      // Detect if this connection is closing a loop
-      // If the target is a loop node and the source is inside the loop body,
-      // change targetHandle from 'target' to 'end'
-      let targetHandle = connection.targetHandle ?? undefined
-      const targetNode = nodes.find((n) => n.id === connection.target)
-
-      if (targetNode?.type === FlowNodeType.LOOP && targetHandle === 'target') {
-        // Check if source node is inside the loop body
-        // A node is inside the loop body if there's a path from the loop's 'loop' handle to this node
-        const loopEdges = edges.filter((e) => e.source === connection.target && e.sourceHandle === 'loop')
-        const loopBodyNodeIds = new Set<string>()
-
-        // BFS to find all nodes reachable from the loop handle
-        const queue = loopEdges.map((e) => e.target)
-        const visited = new Set<string>()
-
-        while (queue.length > 0) {
-          const nodeId = queue.shift()!
-          if (visited.has(nodeId)) continue
-          visited.add(nodeId)
-          loopBodyNodeIds.add(nodeId)
-
-          // Find outgoing edges (but don't follow edges back to the loop's target handle)
-          const outgoing = edges.filter(
-            (e) => e.source === nodeId && !(e.target === connection.target && e.targetHandle === 'target')
-          )
-          queue.push(...outgoing.map((e) => e.target))
-        }
-
-        // If source is in the loop body, this is a loop-closing connection
-        if (loopBodyNodeIds.has(connection.source!)) {
-          targetHandle = 'end'
-        }
-      }
-
-      const newEdge = EdgeFactory.createEdge({
-        source: connection.source!,
-        target: connection.target!,
-        sourceHandle: connection.sourceHandle ?? undefined,
-        targetHandle,
-        onAddNode: onAddNodeFromEdge,
-      })
-
-      setEdges((eds) => {
-        // Pass sourceHandle to remove the correct button edge (important for condition nodes)
-        const updatedEdges = EdgeFactory.removeButtonEdge(
-          connection.source!,
-          eds as EdgeType[],
-          connection.sourceHandle ?? undefined
-        )
-        return EdgeFactory.addEdge(newEdge, updatedEdges)
-      })
-
-      // Determine the placeholder ID based on whether this is a condition node handle
-      const sourceHandle = connection.sourceHandle
-      const isConditionHandle = sourceHandle && ['true', 'false'].includes(sourceHandle)
-      const sourcePlaceholderId = isConditionHandle
-        ? `placeholder-${connection.source}-${sourceHandle}`
-        : `placeholder-${connection.source}`
-
-      setNodes((nds) => {
-        // Filter out the specific placeholder
-        const filtered = nds.filter((n) => n.id !== sourcePlaceholderId)
-
-        // Check if the source node still has any button edges (for condition nodes with multiple handles)
-        const sourceNode = filtered.find((n) => n.id === connection.source)
-        if (!sourceNode) return filtered
-
-        // For condition nodes, only remove the class if both handles are connected
-        const isConditionNode = sourceNode.type === FlowNodeType.CONDITION
-        if (isConditionNode) {
-          // Check if there are any remaining condition handle placeholders for this node
-          const hasRemainingPlaceholders = filtered.some(
-            (n) => n.id === `placeholder-${connection.source}-true` || n.id === `placeholder-${connection.source}-false`
-          )
-          if (hasRemainingPlaceholders) {
-            // Keep the class since there are still button edges
-            return filtered
-          }
-        }
-
-        // Remove the has-button-edge class if no more button edges
-        return filtered.map((n) => {
-          if (n.id === connection.source) {
-            const className = (n.className || '').replace('has-button-edge', '').trim()
-            return { ...n, className }
-          }
-          return n
-        })
-      })
-    },
-    [setEdges, setNodes, onAddNodeFromEdge, nodes, edges]
-  )
-
-  const onConnectStart = useCallback(
-    (_: unknown, params: { nodeId: string | null; handleId: string | null; handleType: string | null }) => {
-      if (params.nodeId && params.handleType === 'source') {
-        // Check if ButtonEdge set an intended handle ID (for condition node handles).
-        // React Flow's handle detection can pick the wrong handle when handles overlap,
-        // so we use the explicitly set handle ID if available.
-        const pendingHandle = consumePendingDragHandle()
-        const handleId =
-          pendingHandle && pendingHandle.nodeId === params.nodeId ? pendingHandle.handleId : params.handleId
-
-        // Prevent starting a new connection from the loop handle if it already has a connection
-        if (handleId === 'loop') {
-          const hasExistingLoopConnection = edges.some(
-            (edge) =>
-              edge.source === params.nodeId &&
-              edge.sourceHandle === 'loop' &&
-              edge.type !== 'buttonEdge' &&
-              !edge.id.startsWith('button-')
-          )
-          if (hasExistingLoopConnection) {
-            // Don't set connection state - this prevents the drag from starting
-            return
-          }
-        }
-
-        connectionStateRef.current.sourceNodeId = params.nodeId
-        connectionStateRef.current.sourceHandleId = handleId
-        connectionStateRef.current.successful = false
-      }
-    },
-    [edges]
-  )
-
-  const onConnectEnd = useCallback(
-    (event: MouseEvent | TouchEvent) => {
-      const { sourceNodeId, sourceHandleId, successful: wasSuccessful } = connectionStateRef.current
-      connectionStateRef.current.sourceNodeId = null
-      connectionStateRef.current.sourceHandleId = null
-      connectionStateRef.current.successful = false
-
-      if (!sourceNodeId || wasSuccessful) return
-
-      const target = event.target as HTMLElement
-      const isCanvas = target.classList.contains('react-flow__pane')
-
-      if (isCanvas) {
-        const mouseEvent = event as MouseEvent
-        const clientX = mouseEvent.clientX
-        const clientY = mouseEvent.clientY
-
-        const flowPosition = screenToFlowPosition({ x: clientX, y: clientY })
-
-        setPendingEdge({
-          sourceNodeId,
-          sourceHandle: sourceHandleId ?? undefined,
-          x: flowPosition.x,
-          y: flowPosition.y,
-        })
-
-        onAddNodeFromEdge?.(sourceNodeId, undefined, undefined, sourceHandleId ?? undefined)
-      }
-    },
-    [onAddNodeFromEdge, screenToFlowPosition]
-  )
 
   // Use custom hook to maintain button edges on nodes
   useButtonEdgeMaintenance({

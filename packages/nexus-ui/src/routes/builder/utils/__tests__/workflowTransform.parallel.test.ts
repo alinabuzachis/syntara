@@ -1975,4 +1975,374 @@ describe('WorkflowTransform - Parallel Detection', () => {
     const reCondToSeq = reFlatEdges.find((e) => e.source === 'cond1' && e.target === 'seq-1')
     expect(reCondToSeq).toBeUndefined()
   })
+
+  it('generates edges from nested parallel branches to top-level converge node', () => {
+    // Regression test for bug where edges from parallel branches (nested inside condition)
+    // to top-level converge node were missing when workflow was reloaded
+    // Structure: cond1 → parallel([loop1, D]) → converge J (at top level)
+    const workflow: Activity[] = [
+      {
+        type: 'condition',
+        id: 'cond1',
+        condition: 'some_condition',
+        then: [
+          {
+            type: 'parallel',
+            id: 'parallel_for_loop1_D',
+            branches: [
+              {
+                type: 'loop',
+                id: 'loop1',
+                loop: { max: 10 },
+                do: [],
+              },
+              {
+                type: 'task',
+                id: 'D',
+                task: {
+                  'agentic-connector': {
+                    input: {},
+                  },
+                },
+              },
+            ],
+          },
+        ],
+        else: [],
+      },
+      {
+        type: 'converge',
+        id: 'J',
+        converge: {
+          branches: ['loop1', 'D'],
+        },
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(workflow)
+
+    // Verify all expected activities are present
+    expect(activities.map((a) => a.id)).toEqual(['cond1', 'loop1', 'D', 'J'])
+
+    // CRITICAL: Verify edges from parallel branches to converge node exist
+    const loop1ToJ = edges.find((e) => e.source === 'loop1' && e.target === 'J')
+    expect(loop1ToJ).toBeDefined()
+    expect(loop1ToJ?.sourceHandle).toBe('done') // Loop uses 'done' handle
+
+    const DToJ = edges.find((e) => e.source === 'D' && e.target === 'J')
+    expect(DToJ).toBeDefined()
+    expect(DToJ?.sourceHandle).toBe('source')
+
+    // Verify edges from condition to parallel branches
+    const cond1ToLoop1 = edges.find((e) => e.source === 'cond1' && e.target === 'loop1')
+    expect(cond1ToLoop1).toBeDefined()
+    expect(cond1ToLoop1?.sourceHandle).toBe('true')
+
+    const cond1ToD = edges.find((e) => e.source === 'cond1' && e.target === 'D')
+    expect(cond1ToD).toBeDefined()
+    expect(cond1ToD?.sourceHandle).toBe('true')
+  })
+
+  it('does not duplicate converge node when nesting parallel branches from condition', () => {
+    // Regression test for bug where converge nodes appeared in multiple parallel branches
+    // when saving workflows with structure: cond → cond1 → parallel([loop1, D, E]) → converge J
+    //
+    // This test uses the exact structure from the user's workflow that triggered the bug:
+    // - Nested conditions (cond → Demo2 → cond1)
+    // - Parallel with 3 branches: loop (with body), task D, task E
+    // - Converge node J that references loop1 and D (partial convergence)
+    //
+    // Expected behavior: converge node should appear ONCE at top level after parallel,
+    // NOT duplicated inside each parallel branch
+
+    const nestedWorkflow: Activity[] = [
+      {
+        type: 'condition',
+        id: 'cond',
+        condition: 'a',
+        then: [
+          {
+            type: 'task',
+            id: 'Demo2',
+            name: 'Demo2',
+            task: {
+              executor: 'aap_job_template',
+              config: { jobTemplateId: 9 },
+            },
+          },
+          {
+            type: 'condition',
+            id: 'cond1',
+            condition: 'a',
+            then: [
+              {
+                type: 'parallel',
+                id: 'parallel_test',
+                name: 'Parallel execution',
+                branches: [
+                  {
+                    type: 'loop',
+                    id: 'loop1',
+                    name: 'loop1',
+                    loop: {
+                      type: 'forEach',
+                      items: 'a',
+                      itemVariable: 'item',
+                      indexVariable: 'index',
+                      do: [
+                        {
+                          type: 'task',
+                          id: 'D_in_loop',
+                          name: 'D',
+                          task: {
+                            executor: 'script',
+                            config: { language: 'python', code: 'd' },
+                          },
+                        },
+                      ],
+                    },
+                  },
+                  {
+                    type: 'task',
+                    id: 'D',
+                    name: 'D',
+                    task: {
+                      executor: 'script',
+                      config: { language: 'python', code: 'D' },
+                    },
+                  },
+                  {
+                    type: 'task',
+                    id: 'E',
+                    name: 'E',
+                    task: {
+                      executor: 'script',
+                      config: { language: 'python', code: 'e' },
+                    },
+                  },
+                ],
+              },
+            ],
+            else: [],
+          },
+        ],
+        else: [],
+      },
+      {
+        type: 'converge',
+        id: 'J',
+        name: 'J',
+        converge: {
+          branches: ['loop1', 'D'],
+          strategy: 'all',
+          onTimeout: 'fail',
+          aggregateOutputs: true,
+        },
+      },
+    ]
+
+    // Helper to find all occurrences of an activity ID in nested structure
+    function findAllOccurrences(activities: Activity[], targetId: string, path: string = 'root'): string[] {
+      const occurrences: string[] = []
+
+      activities.forEach((activity, index) => {
+        const currentPath = `${path}[${index}]`
+
+        if (activity.id === targetId) {
+          occurrences.push(currentPath)
+        }
+
+        // Check nested structures
+        if (activity.type === 'condition') {
+          const cond = activity as Extract<Activity, { type: 'condition' }>
+          if (cond.then) {
+            occurrences.push(...findAllOccurrences(cond.then, targetId, `${currentPath}.then`))
+          }
+          if (cond.else) {
+            occurrences.push(...findAllOccurrences(cond.else, targetId, `${currentPath}.else`))
+          }
+        } else if (activity.type === 'loop') {
+          const loop = activity as Extract<Activity, { type: 'loop' }>
+          if (loop.do) {
+            occurrences.push(...findAllOccurrences(loop.do, targetId, `${currentPath}.do`))
+          }
+        } else if (activity.type === 'parallel') {
+          const parallel = activity as Extract<Activity, { type: 'parallel' }>
+          if (parallel.branches) {
+            parallel.branches.forEach((branch, branchIndex) => {
+              if (typeof branch !== 'string') {
+                occurrences.push(...findAllOccurrences([branch], targetId, `${currentPath}.branches[${branchIndex}]`))
+              }
+            })
+          }
+        } else if (activity.type === 'sequence') {
+          const seq = activity as Extract<Activity, { type: 'sequence' }>
+          if (seq.steps) {
+            occurrences.push(...findAllOccurrences(seq.steps, targetId, `${currentPath}.steps`))
+          }
+        }
+      })
+
+      return occurrences
+    }
+
+    // Flatten to get edges
+    const { activities: flatActivities, edges } = WorkflowTransform.flatten(nestedWorkflow)
+
+    // Verify flattening extracted all activities correctly
+    expect(flatActivities.map((a) => a.id)).toContain('cond')
+    expect(flatActivities.map((a) => a.id)).toContain('Demo2')
+    expect(flatActivities.map((a) => a.id)).toContain('cond1')
+    expect(flatActivities.map((a) => a.id)).toContain('loop1')
+    expect(flatActivities.map((a) => a.id)).toContain('D_in_loop')
+    expect(flatActivities.map((a) => a.id)).toContain('D')
+    expect(flatActivities.map((a) => a.id)).toContain('E')
+    expect(flatActivities.map((a) => a.id)).toContain('J')
+
+    // Now nest it back
+    const reNested = WorkflowTransform.nest(flatActivities, edges)
+
+    // CRITICAL: Converge node J should appear ONLY ONCE
+    const jOccurrences = findAllOccurrences(reNested, 'J')
+    expect(jOccurrences).toHaveLength(1)
+
+    // Converge node should be at top level (after the condition)
+    expect(reNested).toHaveLength(2)
+    expect(reNested[0].id).toBe('cond')
+    expect(reNested[1].id).toBe('J')
+    expect(reNested[1].type).toBe('converge')
+
+    // Verify the parallel structure is correct
+    const cond = reNested[0] as Extract<Activity, { type: 'condition' }>
+    expect(cond.then).toHaveLength(2) // Demo2 and cond1
+
+    const cond1 = cond.then![1] as Extract<Activity, { type: 'condition' }>
+    expect(cond1.id).toBe('cond1')
+    expect(cond1.then).toHaveLength(1) // parallel
+
+    const parallel = cond1.then![0] as Extract<Activity, { type: 'parallel' }>
+    expect(parallel.type).toBe('parallel')
+    expect(parallel.branches).toHaveLength(3) // loop1, D, E
+
+    // Verify branches don't contain the converge node
+    const branch1 = parallel.branches![0] as Activity
+    const branch2 = parallel.branches![1] as Activity
+    const branch3 = parallel.branches![2] as Activity
+
+    expect(branch1.id).toBe('loop1')
+    expect(branch2.id).toBe('D')
+    expect(branch3.id).toBe('E')
+
+    // Verify the first branch is the loop node
+    expect(branch1.type).toBe('loop')
+    expect(branch1.id).toBe('loop1')
+
+    // Round-trip test: flatten again and verify edges are correct
+    const { edges: reFlatEdges } = WorkflowTransform.flatten(reNested)
+
+    // Verify edges to converge node exist
+    const loop1ToJ = reFlatEdges.find((e) => e.source === 'loop1' && e.target === 'J')
+    expect(loop1ToJ).toBeDefined()
+    expect(loop1ToJ?.sourceHandle).toBe('done') // Loop uses 'done' handle
+
+    const DToJ = reFlatEdges.find((e) => e.source === 'D' && e.target === 'J')
+    expect(DToJ).toBeDefined()
+    expect(DToJ?.sourceHandle).toBe('source')
+
+    // Verify edges from cond1 to parallel branches
+    const cond1ToLoop1 = reFlatEdges.find((e) => e.source === 'cond1' && e.target === 'loop1')
+    expect(cond1ToLoop1).toBeDefined()
+
+    const cond1ToD = reFlatEdges.find((e) => e.source === 'cond1' && e.target === 'D')
+    expect(cond1ToD).toBeDefined()
+
+    const cond1ToE = reFlatEdges.find((e) => e.source === 'cond1' && e.target === 'E')
+    expect(cond1ToE).toBeDefined()
+  })
+
+  it('handles duplicate edges gracefully during parallel detection', () => {
+    // Regression test for bug where duplicate edges from same source caused duplicate parallel branches
+    const flatActivities: Activity[] = [
+      {
+        type: 'loop',
+        id: 'L3',
+        name: 'L3',
+        loop: {
+          type: 'while',
+          condition: 'a',
+          do: [
+            {
+              type: 'task',
+              id: 'D4',
+              name: 'D4',
+              task: {
+                executor: 'script',
+                config: { language: 'python', code: 'D4' },
+              },
+            },
+          ],
+        },
+      },
+      {
+        type: 'task',
+        id: 'AD',
+        name: 'AD',
+        task: {
+          executor: 'script',
+          config: { language: 'python', code: 'a' },
+        },
+      },
+      {
+        type: 'task',
+        id: 'Demo2',
+        name: 'Demo2',
+        task: {
+          executor: 'aap_job_template',
+          config: { jobTemplateId: 9 },
+        },
+      },
+    ]
+
+    // CRITICAL: Two edges from L3 to AD (duplicate edge scenario)
+    // This can happen if edges are created twice from UI bugs or saved workflows
+    const edges: EdgeConnection[] = [
+      { id: 'L3-AD-1', source: 'L3', target: 'AD', sourceHandle: 'done', targetHandle: 'target' },
+      { id: 'L3-AD-2', source: 'L3', target: 'AD', sourceHandle: 'done', targetHandle: 'target' }, // DUPLICATE!
+      { id: 'AD-Demo2', source: 'AD', target: 'Demo2', sourceHandle: 'source', targetHandle: 'target' },
+    ]
+
+    // Before fix: Would create parallel with 2 identical branches [AD, Demo2]
+    // After fix: Should detect single divergence target and NOT create parallel
+    const nested = WorkflowTransform.nest(flatActivities, edges)
+
+    // Should have 3 activities at top level (no parallel wrapper needed)
+    expect(nested).toHaveLength(3)
+
+    // Verify no parallel container was created
+    const hasParallel = nested.some((a) => a.type === 'parallel')
+    expect(hasParallel).toBe(false)
+
+    // Verify structure is correct: L3 → AD → Demo2
+    expect(nested[0].id).toBe('L3')
+    expect(nested[0].type).toBe('loop')
+    expect(nested[1].id).toBe('AD')
+    expect(nested[2].id).toBe('Demo2')
+
+    // Round-trip test: flatten should produce deduplicated edges
+    const { activities: reflattened, edges: reflattenedEdges } = WorkflowTransform.flatten(nested)
+
+    // Should have 4 activities after flattening (L3, D4 from loop body, AD, Demo2)
+    expect(reflattened).toHaveLength(4)
+
+    // Verify loop was properly nested with its body
+    const loopActivity = nested.find((a) => a.id === 'L3') as Extract<Activity, { type: 'loop' }>
+    expect(loopActivity).toBeDefined()
+    expect(loopActivity.loop.do).toHaveLength(1)
+    expect(loopActivity.loop.do![0].id).toBe('D4')
+
+    // Edges from L3 to AD should be deduplicated (only one edge)
+    const l3ToAdEdges = reflattenedEdges.filter((e) => e.source === 'L3' && e.target === 'AD')
+    expect(l3ToAdEdges).toHaveLength(1)
+    expect(l3ToAdEdges[0].sourceHandle).toBe('done')
+  })
 })
