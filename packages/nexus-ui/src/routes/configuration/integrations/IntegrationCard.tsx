@@ -1,13 +1,13 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
 import {
-  Card,
-  CardBody,
-  CardHeader,
-  CardTitle,
+  CompassPanel,
   Dropdown,
   DropdownItem,
   DropdownList,
+  Flex,
+  FlexItem,
   MenuToggle,
+  Title,
 } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
 import { EllipsisVIcon } from '@patternfly/react-icons'
@@ -45,15 +45,15 @@ export function IntegrationCard(props: { integration: ToolProvider }) {
       </DropdownList>
     </Dropdown>
   )
-
   return (
-    <Card isPlain className="glass">
-      <CardHeader actions={{ actions: headerActions }}>
-        <CardTitle>{props.integration.name}</CardTitle>
-      </CardHeader>
-      <CardBody>
-        <div id="description">{props.integration.description}</div>
-      </CardBody>
-    </Card>
+    <CompassPanel style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
+      <Flex direction={{ default: 'column' }} gap={{ default: 'gapMd' }}>
+        <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
+          <Title headingLevel="h3">{props.integration.name}</Title>
+          <FlexItem>{headerActions}</FlexItem>
+        </Flex>
+        <div>{props.integration.description}</div>
+      </Flex>
+    </CompassPanel>
   )
 }

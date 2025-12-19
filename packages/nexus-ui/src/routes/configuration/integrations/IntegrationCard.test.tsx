@@ -39,7 +39,6 @@ describe('IntegrationCard Component', () => {
 
       const descriptionElement = screen.getByText('This is a test integration server for development purposes')
       expect(descriptionElement).toBeInTheDocument()
-      expect(descriptionElement).toHaveAttribute('id', 'description')
     })
 
     it('renders action menu button', () => {
@@ -129,14 +128,14 @@ describe('IntegrationCard Component', () => {
       const { container } = render(<IntegrationCard integration={mockIntegration} />)
 
       const card = container.firstChild as HTMLElement
-      expect(card).toHaveClass('pf-v6-c-card', 'glass')
+      expect(card).toHaveClass('pf-v6-c-compass__panel')
     })
 
     it('applies correct styling to description', () => {
       render(<IntegrationCard integration={mockIntegration} />)
 
       const description = screen.getByText('This is a test integration server for development purposes')
-      expect(description).toHaveAttribute('id', 'description')
+      expect(description).toBeInTheDocument()
     })
   })
 })

@@ -93,7 +93,7 @@ export function AppNavigation() {
         </Tabs>
       </CompassPanel>
       {shouldShowSubtabs && visibleChildren.length > 0 && (
-        <CompassPanel isPill hasNoPadding glass>
+        <CompassPanel isPill hasNoPadding>
           <TabContent id="subtabs" ref={subTabsRef}>
             <Tabs
               activeKey={

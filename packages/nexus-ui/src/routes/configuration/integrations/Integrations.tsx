@@ -2,8 +2,7 @@ import type { ToolProvider } from '@ansible/nexus-contracts'
 import { useAlerts } from '@ansible/nexus-ui-framework'
 import {
   Button,
-  Card,
-  CardBody,
+  CompassPanel,
   Content,
   ContentVariants,
   Dropdown,
@@ -23,6 +22,8 @@ import {
 } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
 import {
+  AngleLeftIcon,
+  AngleRightIcon,
   CheckCircleIcon,
   EllipsisVIcon,
   EyeIcon,
@@ -30,7 +31,9 @@ import {
   TrashIcon,
   TimesCircleIcon,
 } from '@patternfly/react-icons'
-import { useMemo, useState } from 'react'
+import { Table, Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
+import type { IAction } from '@patternfly/react-table'
+import { useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../../app/AppPage'
@@ -39,8 +42,6 @@ import { AppRoute } from '../../../app/AppRoute'
 import noResultsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolProvidersClient } from '../../../client'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { StringCell } from '../../../components/table/StringCell'
-import { Table, type IRowAction } from '../../../components/table/Table'
 import { useFuse } from '../../../hooks/useFuse'
 
 import { IntegrationCard } from './IntegrationCard'
@@ -160,35 +161,43 @@ export default function Integrations() {
     )
   }
 
-  const rowActions = useMemo<IRowAction<ToolProvider>[]>(
-    () => [
-      {
-        label: 'View and enable/disable tools',
-        icon: EyeIcon,
-        onClick: (provider: ToolProvider) => {
-          navigate(`/configuration/integrations/${provider.id}/tools`)
-        },
+  // Row actions for PF ActionsColumn
+  const getRowActions = (provider: ToolProvider): IAction[] => [
+    {
+      title: (
+        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+          <EyeIcon />
+          <span>View and enable/disable tools</span>
+        </Flex>
+      ),
+      onClick: () => navigate(`/configuration/integrations/${provider.id}/tools`),
+    },
+    {
+      title: (
+        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+          <CheckCircleIcon />
+          <span>Validate connection</span>
+        </Flex>
+      ),
+      onClick: () => {
+        setProviderToValidate(provider)
+        setValidateDialogOpen(true)
       },
-      {
-        label: 'Validate connection',
-        icon: CheckCircleIcon,
-        onClick: (provider: ToolProvider) => {
-          setProviderToValidate(provider)
-          setValidateDialogOpen(true)
-        },
+    },
+    { isSeparator: true },
+    {
+      title: (
+        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+          <TrashIcon />
+          <span>Uninstall</span>
+        </Flex>
+      ),
+      onClick: () => {
+        setProviderToDelete(provider)
+        setDeleteDialogOpen(true)
       },
-      {
-        label: 'Uninstall',
-        icon: TrashIcon,
-        variant: 'destructive' as const,
-        onClick: (provider: ToolProvider) => {
-          setProviderToDelete(provider)
-          setDeleteDialogOpen(true)
-        },
-      },
-    ],
-    [navigate]
-  )
+    },
+  ]
 
   const [view, setView] = useState<'table' | 'cards'>('table')
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false)
@@ -252,91 +261,138 @@ export default function Integrations() {
         </AppPageHeader>
       )}
       {view !== 'cards' ? (
-        <Table
-          items={results}
-          rowActions={rowActions}
-          keyFn={(item) => item.id}
-          itemLabel="integration"
-          itemLabelPlural="integrations"
-          pagination={{
-            next: query.data?.next,
-            prev: query.data?.prev,
-            total: query.data?.total,
-          }}
-          onPageChange={(newCursor) => {
-            setCursor(newCursor)
-          }}
-          columns={[
-            {
-              id: 'name',
-              label: 'Name',
-              render: (item) => <StringCell>{item.name}</StringCell>,
-            },
-            {
-              id: 'status',
-              label: 'Status',
-              render: (item) => <StatusLabel status={item.status} />,
-            },
-            {
-              id: 'configuration',
-              label: 'Integration type',
-              render: (item) => <StringCell>{item.configuration.provider_type}</StringCell>,
-            },
-            {
-              id: 'tool_count',
-              label: 'Tools',
-              render: (item) => <StringCell>{item.tool_count}</StringCell>,
-            },
-          ]}
-          emptyState={
-            search ? (
-              <Card isPlain className="glass" isFullHeight>
-                <CardBody>
+        results.length === 0 ? (
+          search ? (
+            <CompassPanel isFullHeight>
+              <Flex
+                alignItems={{ default: 'alignItemsCenter' }}
+                gap={{ default: 'gap4xl' }}
+                flexWrap={{ default: 'nowrap' }}
+                style={{ padding: 'var(--pf-t--global--spacer--2xl)' }}
+              >
+                <FlexItem>
+                  <img
+                    src={noResultsImage}
+                    alt="No results"
+                    style={{ maxWidth: '320px', height: 'auto', objectFit: 'contain' }}
+                  />
+                </FlexItem>
+                <FlexItem>
                   <Flex
-                    alignItems={{ default: 'alignItemsCenter' }}
-                    gap={{ default: 'gap4xl' }}
-                    flexWrap={{ default: 'nowrap' }}
+                    direction={{ default: 'column' }}
+                    alignItems={{ default: 'alignItemsFlexStart' }}
+                    gap={{ default: 'gapMd' }}
                   >
-                    <FlexItem>
-                      <img
-                        src={noResultsImage}
-                        alt="No results"
-                        style={{ maxWidth: '320px', height: 'auto', objectFit: 'contain' }}
-                      />
-                    </FlexItem>
-                    <FlexItem>
-                      <Flex
-                        direction={{ default: 'column' }}
-                        alignItems={{ default: 'alignItemsFlexStart' }}
-                        gap={{ default: 'gapMd' }}
-                      >
-                        <Title headingLevel="h2" size="lg">
-                          No results found
-                        </Title>
-                        <Content component={ContentVariants.p}>
-                          No results match the filter criteria. Try changing your filter settings.
-                        </Content>
-                        <Button variant="primary" onClick={() => setSearch('')}>
-                          Clear all filters
-                        </Button>
-                      </Flex>
-                    </FlexItem>
+                    <Title headingLevel="h2" size="lg">
+                      No results found
+                    </Title>
+                    <Content component={ContentVariants.p}>
+                      No results match the filter criteria. Try changing your filter settings.
+                    </Content>
+                    <Button variant="primary" onClick={() => setSearch('')}>
+                      Clear all filters
+                    </Button>
                   </Flex>
-                </CardBody>
-              </Card>
-            ) : (
-              <IntegrationEmptyState />
-            )
-          }
-        />
+                </FlexItem>
+              </Flex>
+            </CompassPanel>
+          ) : (
+            <IntegrationEmptyState />
+          )
+        ) : (
+          <CompassPanel hasNoPadding isFullHeight>
+            <Flex direction={{ default: 'column' }} style={{ height: '100%' }}>
+              {/* Table */}
+              <FlexItem grow={{ default: 'grow' }}>
+                <Table
+                  aria-label="Integrations table"
+                  isPlain
+                  isStickyHeader
+                  style={
+                    {
+                      '--pf-t--global--border--color--default': 'rgba(196, 181, 253, 0.2)',
+                    } as React.CSSProperties
+                  }
+                >
+                  <Thead>
+                    <Tr>
+                      <Th style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)' }}>Name</Th>
+                      <Th>Status</Th>
+                      <Th>Integration type</Th>
+                      <Th>Tools</Th>
+                      <Th screenReaderText="Actions" />
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {results.map((provider) => (
+                      <Tr key={provider.id}>
+                        <Td dataLabel="Name" style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)' }}>
+                          {provider.name}
+                        </Td>
+                        <Td dataLabel="Status">
+                          <StatusLabel status={provider.status ?? 'unknown'} />
+                        </Td>
+                        <Td dataLabel="Integration type">
+                          {(provider.configuration as { provider_type?: string }).provider_type}
+                        </Td>
+                        <Td dataLabel="Tools">{(provider as { tool_count?: number }).tool_count}</Td>
+                        <Td isActionCell>
+                          <ActionsColumn items={getRowActions(provider)} />
+                        </Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </FlexItem>
+              {/* Footer with count and pagination */}
+              <FlexItem>
+                <Flex
+                  justifyContent={{ default: 'justifyContentSpaceBetween' }}
+                  alignItems={{ default: 'alignItemsCenter' }}
+                  style={{
+                    padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)',
+                    borderTop: '1px solid rgba(196, 181, 253, 0.2)',
+                  }}
+                >
+                  <FlexItem>
+                    {results.length} {results.length === 1 ? 'integration' : 'integrations'}
+                    {query.data?.total && query.data.total > results.length && (
+                      <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                    )}
+                  </FlexItem>
+                  {(query.data?.prev || query.data?.next) && (
+                    <Flex gap={{ default: 'gapSm' }}>
+                      <Button
+                        variant="plain"
+                        isDisabled={!query.data?.prev}
+                        onClick={() => setCursor(query.data?.prev ?? null)}
+                        aria-label="Previous page"
+                      >
+                        <AngleLeftIcon /> Previous
+                      </Button>
+                      <Button
+                        variant="plain"
+                        isDisabled={!query.data?.next}
+                        onClick={() => setCursor(query.data?.next ?? null)}
+                        aria-label="Next page"
+                      >
+                        Next <AngleRightIcon />
+                      </Button>
+                    </Flex>
+                  )}
+                </Flex>
+              </FlexItem>
+            </Flex>
+          </CompassPanel>
+        )
       ) : (
-        <Card isPlain>
+        <CompassPanel>
           <Gallery hasGutter minWidths={{ default: '500px' }} style={{ padding: 'var(--pf-t--global--spacer--2xl)' }}>
             {results.map((integration) => (
               <IntegrationCard key={integration.id} integration={integration} />
             ))}
           </Gallery>
-        </Card>
+        </CompassPanel>
       )}
       <Modal isOpen={validateDialogOpen} onClose={() => setValidateDialogOpen(false)} variant="small">
         <ModalHeader title="Validate integration" />

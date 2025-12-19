@@ -121,9 +121,9 @@ describe('IntegrationForm Component', () => {
       expect(screen.getByText('Add integration')).toBeInTheDocument()
       expect(screen.getByText('Cancel')).toBeInTheDocument()
 
-      // Card layout (PF Card with glass class)
-      const cardContainer = container.querySelector('.pf-v6-c-card.glass')
-      expect(cardContainer).toBeInTheDocument()
+      // CompassPanel layout (PF glass styling)
+      const compassPanel = container.querySelector('.pf-v6-c-compass__panel')
+      expect(compassPanel).toBeInTheDocument()
     })
   })
 

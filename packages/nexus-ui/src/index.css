@@ -100,3 +100,7 @@
     font-size: small;
   }
 }
+
+.pf-v6-svg {
+  display: revert;
+}

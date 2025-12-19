@@ -308,8 +308,8 @@ describe('Integrations Component', () => {
     it('provides row action menu for each integration', () => {
       render(<Integrations />, { wrapper })
 
-      // Table should have row action menus
-      const table = screen.getByRole('table')
+      // Table should have row action menus (PF Table uses role="grid")
+      const table = screen.getByRole('grid', { name: 'Integrations table' })
       expect(table).toBeInTheDocument()
 
       // Each row should have actions available

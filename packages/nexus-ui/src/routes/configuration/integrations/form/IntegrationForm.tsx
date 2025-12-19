@@ -1,8 +1,7 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
 import {
   Button,
-  Card,
-  CardBody,
+  CompassPanel,
   Flex,
   FlexItem,
   Form,
@@ -73,8 +72,8 @@ export function IntegrationForm() {
           Cancel
         </Button>
       </AppPageHeader>
-      <Card isPlain className="glass" isFullHeight>
-        <CardBody style={{ maxWidth: '600px' }}>
+      <CompassPanel isFullHeight style={{ padding: 'var(--pf-t--global--spacer--xl)' }}>
+        <div style={{ maxWidth: '600px' }}>
           <Form id="integration-form" onSubmit={handleSubmit(onSubmit)}>
             <FormGroup label="Integration type" fieldId="provider-type" isRequired>
               <Controller
@@ -185,8 +184,8 @@ export function IntegrationForm() {
               )}
             />
           </Form>
-        </CardBody>
-      </Card>
+        </div>
+      </CompassPanel>
     </AppPage>
   )
 }
