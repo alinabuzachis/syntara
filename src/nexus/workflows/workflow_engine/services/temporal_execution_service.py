@@ -140,7 +140,7 @@ class TemporalExecutionService:
             )
 
             # Convert Pydantic model to dict for Temporal
-            workflow_def_dict = workflow_def.model_dump(mode="json", by_alias=True)
+            workflow_def_dict = workflow_def.model_dump(mode="json", by_alias=True, warnings=False)
 
             # Start Temporal workflow
             handle = await self.temporal_client.start_workflow(

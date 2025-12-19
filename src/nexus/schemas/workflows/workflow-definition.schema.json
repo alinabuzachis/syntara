@@ -52,10 +52,10 @@
           "minLength": 1
         },
         "timeout": {
-          "type": "string",
-          "description": "Maximum workflow execution time (ISO 8601 duration) - applies to entire workflow",
-          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
-          "examples": ["PT1H", "P1D", "PT30M"]
+          "type": "integer",
+          "description": "Maximum workflow execution time in seconds - applies to entire workflow",
+          "minimum": 1,
+          "examples": [3600, 86400, 1800]
         }
       },
       "additionalProperties": false
@@ -225,9 +225,9 @@
           "$ref": "#/definitions/retryPolicy"
         },
         "timeout": {
-          "type": "string",
-          "description": "Activity timeout (ISO 8601 duration)",
-          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$"
+          "type": "integer",
+          "description": "Activity timeout in seconds",
+          "minimum": 1
         },
         "outputs": {
           "type": "object",
@@ -813,10 +813,10 @@
           "minLength": 1
         },
         "timeout": {
-          "type": "string",
-          "description": "Time to wait for approval (ISO 8601 duration)",
-          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
-          "examples": ["PT1H", "P1D"]
+          "type": "integer",
+          "description": "Time to wait for approval in seconds",
+          "minimum": 1,
+          "examples": [3600, 86400]
         },
         "onTimeout": {
           "type": "string",
@@ -872,17 +872,17 @@
           "default": "exponential"
         },
         "initialInterval": {
-          "type": "string",
-          "description": "Initial retry interval (ISO 8601 duration)",
-          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
-          "default": "PT1S",
-          "examples": ["PT1S", "PT5S", "PT10S"]
+          "type": "integer",
+          "description": "Initial retry interval in seconds",
+          "minimum": 1,
+          "default": 1,
+          "examples": [1, 5, 10]
         },
         "maxInterval": {
-          "type": "string",
-          "description": "Maximum retry interval (ISO 8601 duration)",
-          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
-          "examples": ["PT1M", "PT5M"]
+          "type": "integer",
+          "description": "Maximum retry interval in seconds",
+          "minimum": 1,
+          "examples": [60, 300]
         },
         "multiplier": {
           "type": "number",
@@ -924,10 +924,10 @@
           "default": "all"
         },
         "timeout": {
-          "type": "string",
-          "description": "Maximum time to wait for converge condition (ISO 8601 duration)",
-          "pattern": "^(?:P\\d+W|P(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?!$)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?)$",
-          "examples": ["PT5M", "PT30M", "PT1H"]
+          "type": "integer",
+          "description": "Maximum time to wait for converge condition in seconds",
+          "minimum": 1,
+          "examples": [300, 1800, 3600]
         },
         "onTimeout": {
           "type": "string",

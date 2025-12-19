@@ -2,8 +2,15 @@
 
 from collections.abc import Awaitable, Callable
 from typing import Any
+from uuid import uuid4
 
 import pytest
+from temporalio.client import Client
+from temporalio.testing import WorkflowEnvironment
+from temporalio.worker import Worker
+
+from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 
 
 class TestWhileLoops:
@@ -80,3 +87,71 @@ class TestWhileLoops:
         assert loop_output["type"] == "while"
         assert "iterations" in loop_output
         assert "results" in loop_output
+
+    @pytest.mark.asyncio
+    async def test_while_loop_max_iterations_template(
+        self,
+        temporal_env: WorkflowEnvironment,  # noqa: ARG002
+        temporal_client: Client,
+        temporal_worker: Worker,  # noqa: ARG002
+    ) -> None:
+        """Test while loop maxIterations template expression resolution.
+
+        This test verifies:
+        - While loop maxIterations can be specified as template expression
+        - Template is resolved to actual value before loop execution
+        - Loop respects the resolved max iterations limit
+        """
+        workflow_yaml = """
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: while-loop-max-template-test
+  description: Test while loop with template max iterations
+triggers:
+  - type: manual
+inputs:
+  max_loops:
+    type: integer
+    description: Maximum loop iterations
+workflow:
+  activities:
+    - id: while_with_template_max
+      type: loop
+      loop:
+        type: while
+        condition: "true"
+        maxIterations: ${input.max_loops}
+        do:
+          - id: iteration_task
+            type: task
+            task:
+              executor: script
+              config:
+                language: bash
+                code: echo "Iteration"
+"""
+        workflow_def = parse_workflow_yaml(workflow_yaml)
+
+        # Run workflow with input-specified max iterations
+        handle = await temporal_client.start_workflow(
+            DynamicWorkflow.run,
+            args=[
+                workflow_def.model_dump(mode="json", by_alias=True),
+                "test-while-template",
+                {"max_loops": 5},
+            ],
+            id=f"test-while-template-{uuid4()}",
+            task_queue="test-workflow-queue",
+        )
+
+        result = await handle.result()
+
+        # Verify workflow completed successfully
+        assert result["status"] == "completed"
+        assert "while_with_template_max" in result["activity_outputs"]
+
+        # Verify loop ran exactly max_loops times (5)
+        loop_output = result["activity_outputs"]["while_with_template_max"]
+        assert loop_output["type"] == "while"
+        assert loop_output["iterations"] == 5

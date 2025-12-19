@@ -616,6 +616,42 @@ class TestAAPJobTemplateAuthentication:
             assert "auth" in mock_post.call_args.kwargs
             assert isinstance(mock_post.call_args.kwargs["auth"], httpx.BasicAuth)
 
+    @pytest.mark.asyncio
+    async def test_aap_activity_resolves_config_templates(self) -> None:
+        """Test AAP activity resolves ${input.job_template_id} and ${input.verbosity} in config."""
+        mock_settings = create_mock_settings()
+
+        launch_response = create_http_response(201, {"id": 123, "url": "/api/v2/jobs/123/"})
+        status_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
+        output_response = create_http_response(200, text="SUCCESS")
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
+                return_value=mock_settings,
+            ),
+            patch("temporalio.activity.is_cancelled", return_value=False),
+            patch("temporalio.activity.heartbeat"),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            mock_get.side_effect = [status_response, output_response]
+
+            activity_config = {
+                "config": {
+                    "jobTemplateId": "${input.job_template_id}",
+                    "verbosity": "${input.verbosity}",
+                }
+            }
+            inputs = {"job_template_id": 42, "verbosity": 2}
+
+            result = await execute_aap_job_template_activity(activity_config, inputs)
+
+            assert result["status"] == "successful"
+            # Verify resolved values were used
+            post_body = mock_post.call_args.kwargs["json"]
+            assert post_body["verbosity"] == 2
+
 
 class TestAAPJobTemplateNameBasedReference:
     """Test name-based job template references."""

@@ -430,9 +430,9 @@ class TestDurationErrors:
             "workflow": {
                 "activities": [
                     {
-                        "id": "task_with_unsupported_timeout",
+                        "id": "task_with_invalid_timeout",
                         "type": "task",
-                        "timeout": "PT5D",  # Days not supported
+                        "timeout": 0,  # Must be >= 1
                         "task": {
                             "executor": "script",
                             "config": {"language": "bash", "code": "echo test"},

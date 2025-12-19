@@ -47,7 +47,7 @@ workflow:
           currencies: $.body.0.currencies
           timezones: $.body.0.timezones
           flag: $.body.0.flags.png
-      timeout: PT30S
+      timeout: 30
 
     # Fetch neighboring countries
     - id: fetch_neighbors
@@ -62,7 +62,7 @@ workflow:
             Accept: application/json
         outputs:
           borders: $.body.0.borders
-      timeout: PT30S
+      timeout: 30
 
     # Analyze country data
     - id: analyze_country
@@ -155,4 +155,4 @@ workflow:
           analysis: $.output
           summary: $.output.summary
           population: $.output.demographics.population
-      timeout: PT1M
+      timeout: 60

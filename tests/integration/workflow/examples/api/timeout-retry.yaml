@@ -13,7 +13,7 @@ workflow:
   activities:
     - id: slow_endpoint
       type: task
-      timeout: PT2S
+      timeout: 2
       task:
         executor: api
         config:
@@ -22,6 +22,6 @@ workflow:
       retryPolicy:
         maxAttempts: 3
         backoff: exponential
-        initialInterval: PT1S
-        maxInterval: PT10S
+        initialInterval: 1
+        maxInterval: 10
         multiplier: 2.0

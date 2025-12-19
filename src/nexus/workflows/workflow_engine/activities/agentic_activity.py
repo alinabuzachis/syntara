@@ -13,8 +13,8 @@ from uuid import uuid4
 from pydantic import ValidationError
 from temporalio import activity, workflow
 
+from nexus.workflows.utils.template_resolution import resolve_config_templates
 from nexus.workflows.workflow_engine import constants
-from nexus.workflows.workflow_engine.expression_resolver import ExpressionResolver
 from nexus.workflows.workflow_engine.models import AgenticExecutorConfig
 
 # See - https://github.com/temporalio/sdk-python?tab=readme-ov-file#avoiding-the-sandbox for more detail
@@ -115,11 +115,12 @@ def _validate_resolved_prompt(prompt: str) -> None:
         raise AgenticActivityError(msg)
 
 
-def _extract_config(activity_config: dict[str, Any]) -> AgenticExecutorConfig:
+def _extract_config(activity_config: dict[str, Any], input_data: dict[str, Any]) -> AgenticExecutorConfig:
     """Extract and validate required configuration from activity config.
 
     Args:
         activity_config: Activity configuration from workflow YAML
+        input_data: Input parameters for expression resolution
 
     Returns:
         Validated AgenticExecutorConfig
@@ -130,9 +131,15 @@ def _extract_config(activity_config: dict[str, Any]) -> AgenticExecutorConfig:
     """
     config_dict = activity_config.get("config", {})
 
+    # Setup workflow state for expression resolution
+    workflow_state = {"inputs": input_data}
+
+    # Resolve template expressions in config (e.g., ${input.custom_timeout} -> 60)
+    resolved_config = resolve_config_templates(config_dict, workflow_state)
+
     try:
         # Parse and validate using Pydantic model
-        config = AgenticExecutorConfig(**config_dict)
+        config = AgenticExecutorConfig(**resolved_config)
     except ValidationError as e:
         msg = f"Invalid agentic activity configuration: {e}"
         raise AgenticActivityError(msg) from e
@@ -186,17 +193,11 @@ async def execute_agentic_activity(
     # Validate input data for security (prevent injection, DoS, etc.)
     _validate_input_data(input_data)
 
-    # Extract and validate configuration
-    config = _extract_config(activity_config)
+    # Extract and validate configuration (resolves template expressions)
+    config = _extract_config(activity_config, input_data)
 
-    # Resolve prompt template using ExpressionResolver
-    # The resolver expects workflow_state with "inputs" key
-    workflow_state = {"inputs": input_data}
-    resolver = ExpressionResolver(workflow_definition=None)
-    resolved_prompt = str(resolver.resolve_expression(config.prompt, workflow_state))
-
-    # Validate resolved prompt for security (prevent oversized prompts, null bytes, etc.)
-    _validate_resolved_prompt(resolved_prompt)
+    # Prompt is already resolved in _extract_config, just validate it
+    _validate_resolved_prompt(config.prompt)
 
     # Get workflow info for audit trail (if running in Temporal context)
     try:
@@ -222,7 +223,7 @@ async def execute_agentic_activity(
         try:
             # Invoke agent and get completed result
             result = await agent_client.invoke_agent(
-                prompt=resolved_prompt,
+                prompt=config.prompt,
                 user_id=user_id,
                 agent=config.agent,
                 model=config.model,

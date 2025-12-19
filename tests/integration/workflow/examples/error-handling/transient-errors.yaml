@@ -29,8 +29,8 @@ workflow:
         maxAttempts: 5
         backoff: exponential
         multiplier: 2
-        initialInterval: PT1S
-        maxInterval: PT10S
+        initialInterval: 1
+        maxInterval: 10
       task:
         executor: script
         config:

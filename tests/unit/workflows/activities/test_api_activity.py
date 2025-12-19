@@ -515,3 +515,20 @@ class TestAPIEdgeCases:
         assert "elapsed_ms" in result
         assert isinstance(result["elapsed_ms"], int | float)
         assert result["elapsed_ms"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_api_activity_resolves_timeout_template(self) -> None:
+        """Test API activity resolves ${input.timeout} in config."""
+        config = {
+            "method": "GET",
+            "url": "https://api.example.com/test",
+            "timeout": "${input.api_timeout}",
+        }
+        inputs = {"api_timeout": 30}
+
+        mock_response = httpx.Response(status_code=200, headers={}, json={"result": "ok"})
+
+        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
+            result = await execute_api_request(config, inputs)
+
+            assert result["status_code"] == 200

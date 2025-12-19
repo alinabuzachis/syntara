@@ -3,18 +3,18 @@ schemaVersion: 1.0.0
 version: 1
 
 metadata:
-  name: error-unsupported-duration
-  description: Test error with unsupported duration unit
+  name: error-invalid-timeout
+  description: Test error with invalid timeout value
 
 triggers:
   - type: manual
 
 workflow:
   activities:
-    - id: task_with_unsupported_timeout
-      name: Task With Unsupported Duration Unit
+    - id: task_with_invalid_timeout
+      name: Task With Invalid Timeout Value
       type: task
-      timeout: PT5D # Days not supported - should raise ValueError
+      timeout: -1 # Negative timeout - should raise ValidationError
       task:
         executor: script
         config:

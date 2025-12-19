@@ -980,3 +980,13 @@ print("stderr message", file=sys.stderr)
 
         assert result["return_code"] == 0
         assert result["stdout"] == ""
+
+    @pytest.mark.asyncio
+    async def test_script_activity_resolves_timeout_template(self) -> None:
+        """Test script activity resolves ${input.timeout} in config."""
+        config = {"language": "bash", "code": "echo 'test'", "timeout": "${input.custom_timeout}"}
+        inputs = {"custom_timeout": 120}
+
+        result = await execute_bash_script(config, inputs)
+
+        assert result["return_code"] == 0

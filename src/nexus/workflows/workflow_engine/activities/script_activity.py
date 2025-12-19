@@ -14,6 +14,7 @@ from typing import Any
 
 from temporalio import activity
 
+from nexus.workflows.utils.template_resolution import resolve_config_templates
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models import ScriptExecutorConfig
 
@@ -313,8 +314,15 @@ async def execute_bash_script(config: dict[str, Any], inputs: dict[str, Any]) ->
         Hello, Alice
 
     """
+    # Setup workflow state for expression resolution
+    workflow_state = {"inputs": inputs}
+
+    # Resolve template expressions in config (e.g., ${input.custom_timeout} -> 60)
+    # Exclude 'code' field as it contains script code with its own variable syntax (bash vars, etc.)
+    resolved_config = resolve_config_templates(config, workflow_state, exclude_fields={"code"})
+
     # Validate config using Pydantic V2's model_validate (no deprecation warnings)
-    script_config = ScriptExecutorConfig.model_validate(config)
+    script_config = ScriptExecutorConfig.model_validate(resolved_config)
 
     # Inject Temporal activity attempt number for retry-aware scripts
     # This allows scripts to use $TEMPORAL_ATTEMPT to advance random seeds
@@ -331,7 +339,7 @@ async def execute_bash_script(config: dict[str, Any], inputs: dict[str, Any]) ->
         full_command,
         enhanced_inputs,
         script_config.environment,
-        timeout_seconds=float(script_config.timeout_seconds),
+        timeout_seconds=float(script_config.timeout),
     )
 
 
@@ -394,8 +402,15 @@ async def execute_python_script(config: dict[str, Any], inputs: dict[str, Any]) 
         secret123
 
     """
+    # Setup workflow state for expression resolution
+    workflow_state = {"inputs": inputs}
+
+    # Resolve template expressions in config (e.g., ${input.custom_timeout} -> 60)
+    # Exclude 'code' field as it contains script code with its own variable syntax (bash vars, etc.)
+    resolved_config = resolve_config_templates(config, workflow_state, exclude_fields={"code"})
+
     # Validate config using Pydantic V2's model_validate (no deprecation warnings)
-    script_config = ScriptExecutorConfig.model_validate(config)
+    script_config = ScriptExecutorConfig.model_validate(resolved_config)
 
     # Use common script execution logic
     # Use sys.executable to ensure we use the same Python interpreter that's running the workflow
@@ -404,7 +419,7 @@ async def execute_python_script(config: dict[str, Any], inputs: dict[str, Any]) 
         full_command,
         inputs,
         script_config.environment,
-        timeout_seconds=float(script_config.timeout_seconds),
+        timeout_seconds=float(script_config.timeout),
     )
 
     # Try to parse stdout as JSON for structured output

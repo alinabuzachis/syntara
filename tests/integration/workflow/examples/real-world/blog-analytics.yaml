@@ -42,7 +42,7 @@ workflow:
           username: $.body.username
           email: $.body.email
           company: $.body.company.name
-      timeout: PT30S
+      timeout: 30
 
     # Step 2: Fetch user's posts
     - id: fetch_posts
@@ -59,7 +59,7 @@ workflow:
             userId: ${input.user_id}
         outputs:
           posts: $.body
-      timeout: PT30S
+      timeout: 30
 
     # Step 3: Fetch user's todos
     - id: fetch_todos
@@ -76,7 +76,7 @@ workflow:
             userId: ${input.user_id}
         outputs:
           todos: $.body
-      timeout: PT30S
+      timeout: 30
 
     # Step 4: Analyze user activity in parallel
     - id: analyze_posts
@@ -126,7 +126,7 @@ workflow:
         outputs:
           postAnalysis: $.output
           totalPosts: $.output.total_posts
-      timeout: PT1M
+      timeout: 60
 
     # Step 5: Analyze todos
     - id: analyze_todos
@@ -161,7 +161,7 @@ workflow:
         outputs:
           todoAnalysis: $.output
           completionRate: $.output.completion_rate
-      timeout: PT1M
+      timeout: 60
 
     # Step 6: Generate comprehensive report
     - id: generate_report
@@ -224,4 +224,4 @@ workflow:
           report: $.output
           summary: $.output.summary
           activityLevel: $.output.activity_level
-      timeout: PT1M
+      timeout: 60

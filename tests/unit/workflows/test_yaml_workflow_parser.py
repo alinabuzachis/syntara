@@ -447,7 +447,7 @@ workflow:
   activities:
   - id: task_with_timeout
     type: task
-    timeout: PT5M
+    timeout: 300
     task:
       executor: script
       config:
@@ -457,7 +457,7 @@ workflow:
         workflow_def = parse_workflow_yaml(yaml_str)
 
         activity = workflow_def.workflow.activities[0]
-        assert activity.timeout == "PT5M"
+        assert activity.timeout == 300  # 5 minutes = 300 seconds
 
     def test_parse_activity_with_retry_policy(self) -> None:
         """Test parsing activity with retry policy."""
@@ -475,8 +475,8 @@ workflow:
     type: task
     retryPolicy:
       maxAttempts: 3
-      initialInterval: PT1S
-      maxInterval: PT10S
+      initialInterval: 1
+      maxInterval: 10
       backoff: exponential
       retryableErrors:
       - TimeoutError
@@ -492,7 +492,8 @@ workflow:
         activity = workflow_def.workflow.activities[0]
         assert activity.retry_policy is not None
         assert activity.retry_policy.max_attempts == 3
-        assert activity.retry_policy.initial_interval == "PT1S"
+        assert activity.retry_policy.initial_interval == 1  # 1 second
+        assert activity.retry_policy.max_interval == 10  # 10 seconds
         assert activity.retry_policy.backoff == "exponential"
         assert activity.retry_policy.retryable_errors is not None
         assert "TimeoutError" in activity.retry_policy.retryable_errors
@@ -516,7 +517,7 @@ workflow:
       - admin
       - manager
       prompt: "Approve this deployment?"
-      timeout: PT1H
+      timeout: 3600
       onTimeout: reject
     task:
       executor: script
@@ -530,7 +531,7 @@ workflow:
         assert activity.approval is not None
         assert "admin" in activity.approval.approvers
         assert activity.approval.prompt == "Approve this deployment?"
-        assert activity.approval.timeout == "PT1H"
+        assert activity.approval.timeout == 3600  # 1 hour = 3600 seconds
         assert activity.approval.on_timeout == "reject"
 
     def test_parse_while_loop(self) -> None:

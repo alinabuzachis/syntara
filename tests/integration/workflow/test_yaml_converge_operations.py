@@ -7,11 +7,15 @@ and aggregates their outputs.
 from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from typing import Any
+from uuid import uuid4
 
 import pytest
 from temporalio.client import Client, WorkflowFailureError
+from temporalio.testing import WorkflowEnvironment
+from temporalio.worker import Worker
 
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 
 
 class TestConvergeOperations:
@@ -305,3 +309,85 @@ class TestConvergeTimeout:
                 assert expected_post_converge in result["activity_outputs"]
                 post_output = result["activity_outputs"][expected_post_converge]
                 assert "Post-converge task executed after timeout" in post_output["stdout"]
+
+    @pytest.mark.asyncio
+    async def test_converge_timeout_template_resolution(
+        self,
+        temporal_env: WorkflowEnvironment,  # noqa: ARG002
+        temporal_client: Client,
+        temporal_worker: Worker,  # noqa: ARG002
+    ) -> None:
+        """Test converge timeout template expression resolution.
+
+        This test verifies:
+        - Converge timeout can be specified as template expression
+        - Template is resolved to actual value before use
+        - Workflow executes successfully with resolved timeout
+        """
+        workflow_yaml = """
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: converge-timeout-template-test
+  description: Test converge timeout with template expression
+triggers:
+  - type: manual
+inputs:
+  converge_timeout:
+    type: integer
+    description: Converge timeout in seconds
+workflow:
+  activities:
+    - id: parallel_tasks
+      type: parallel
+      branches:
+        - id: task1
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Task 1"
+        - id: task2
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Task 2"
+    - id: converge_with_template_timeout
+      type: converge
+      converge:
+        branches:
+          - task1
+          - task2
+        strategy: all
+        timeout: ${input.converge_timeout}
+        onTimeout: continue
+"""
+        workflow_def = parse_workflow_yaml(workflow_yaml)
+
+        # Run workflow with input-specified timeout
+        handle = await temporal_client.start_workflow(
+            DynamicWorkflow.run,
+            args=[
+                workflow_def.model_dump(mode="json", by_alias=True),
+                "test-converge-template",
+                {"converge_timeout": 30},
+            ],
+            id=f"test-converge-template-{uuid4()}",
+            task_queue="test-workflow-queue",
+        )
+
+        result = await handle.result()
+
+        # Verify workflow completed successfully
+        assert result["status"] == "completed"
+        assert "converge_with_template_timeout" in result["activity_outputs"]
+
+        # Verify converge executed with resolved timeout
+        converge_output = result["activity_outputs"]["converge_with_template_timeout"]
+        assert converge_output["type"] == "converge"
+        assert converge_output["strategy"] == "all"
+        assert "task1" in converge_output["results"]
+        assert "task2" in converge_output["results"]

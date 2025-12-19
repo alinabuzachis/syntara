@@ -1,6 +1,6 @@
 """Unit tests for DynamicWorkflow-specific helper methods.
 
-These tests cover duration parsing, output mappings, and retry policy building.
+These tests cover output mappings and retry policy building.
 Expression resolution logic is tested in test_expression_resolver.py.
 """
 
@@ -8,9 +8,7 @@ Expression resolution logic is tested in test_expression_resolver.py.
 # PLR2004: Test assertions use literal values which is standard practice in unit tests
 # FBT001: Test parameters include boolean values for parameterized tests
 
-import pytest
-
-from nexus.workflows.workflow_engine.activities.common import build_retry_policy, parse_timeout
+from nexus.workflows.workflow_engine.activities.common import build_retry_policy
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models import (
     Activity,
@@ -22,38 +20,6 @@ from nexus.workflows.workflow_engine.models import (
     ScriptLanguage,
     TaskDefinition,
 )
-
-
-class TestDurationParsing:
-    """Test ISO 8601 duration parsing edge cases."""
-
-    @pytest.mark.parametrize(
-        ("duration", "error_match"),
-        [
-            ("5M", "Invalid ISO 8601 duration"),  # Missing PT prefix
-            ("PT5D", "Invalid ISO 8601 duration"),  # Days not supported
-        ],
-    )
-    def test_parse_duration_invalid(self, duration: str, error_match: str) -> None:
-        """Test parsing invalid duration formats raises ValueError."""
-        with pytest.raises(ValueError, match=error_match):
-            parse_timeout(duration)
-
-    @pytest.mark.parametrize(
-        ("duration", "expected_seconds"),
-        [
-            ("PT30S", 30),  # Seconds
-            ("PT5M", 300),  # Minutes
-            ("PT2H", 7200),  # Hours
-            ("PT1H30M", 5400),  # Combined hours and minutes
-            ("PT1H30M15S", 5415),  # All components
-            ("PT90S", 90),  # 90 seconds
-        ],
-    )
-    def test_parse_duration_valid(self, duration: str, expected_seconds: float) -> None:
-        """Test parsing valid duration formats."""
-        result = parse_timeout(duration)
-        assert result.total_seconds() == expected_seconds
 
 
 class TestOutputMappings:
@@ -122,7 +88,7 @@ class TestRetryPolicy:
                 executor=ExecutorType.SCRIPT,
                 config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test"),
             ),
-            retryPolicy=RetryPolicy(maxAttempts=3, initialInterval="PT1S"),
+            retryPolicy=RetryPolicy(maxAttempts=3, initialInterval=1),
         )
 
         policy = build_retry_policy(activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None)
@@ -138,7 +104,7 @@ class TestRetryPolicy:
                 executor=ExecutorType.SCRIPT,
                 config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test"),
             ),
-            retryPolicy=RetryPolicy(maxAttempts=5, initialInterval="PT1S", maxInterval="PT30S"),
+            retryPolicy=RetryPolicy(maxAttempts=5, initialInterval=1, maxInterval=30),
         )
 
         policy = build_retry_policy(activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None)
@@ -155,7 +121,7 @@ class TestRetryPolicy:
                 config=ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo test"),
             ),
             retryPolicy=RetryPolicy(
-                maxAttempts=5, initialInterval="PT1S", backoff=BackoffStrategy.EXPONENTIAL, multiplier=2.0
+                maxAttempts=5, initialInterval=1, backoff=BackoffStrategy.EXPONENTIAL, multiplier=2.0
             ),
         )
 

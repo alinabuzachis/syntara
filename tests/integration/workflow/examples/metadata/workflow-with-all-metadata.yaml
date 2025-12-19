@@ -10,7 +10,7 @@ metadata:
     - metadata
     - comprehensive
   owner: qa-team
-  timeout: PT30S
+  timeout: 30
 
 triggers:
   - type: manual
@@ -28,7 +28,7 @@ workflow:
             echo "Workflow with complete metadata"
             echo "Tags: test, metadata, comprehensive"
             echo "Owner: qa-team"
-            echo "Timeout: PT30S (30 seconds)"
+            echo "Timeout: 30 seconds"
             echo '{"validated": true}'
         outputs:
           result: $.stdout

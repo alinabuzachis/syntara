@@ -31,4 +31,4 @@ workflow:
       retryPolicy:
         maxAttempts: 2
         backoff: fixed
-        initialInterval: PT1S
+        initialInterval: 1

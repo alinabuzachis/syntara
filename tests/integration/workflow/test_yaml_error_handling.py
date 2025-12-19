@@ -213,7 +213,7 @@ workflow:
     retryPolicy:
       maxAttempts: 3
       backoff: exponential
-      initialInterval: PT1S
+      initialInterval: 1
     task:
       executor: script
       config:

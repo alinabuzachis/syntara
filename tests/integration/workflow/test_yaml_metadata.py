@@ -67,7 +67,7 @@ class TestWorkflowMetadata:
         assert workflow_def.metadata.description == "Workflow demonstrating all metadata fields"
         assert workflow_def.metadata.tags == ["test", "metadata", "comprehensive"]
         assert workflow_def.metadata.owner == "qa-team"
-        assert workflow_def.metadata.timeout == "PT30S"
+        assert workflow_def.metadata.timeout == 30  # 30 seconds
 
     @pytest.mark.asyncio
     async def test_metadata_tags_uniqueness(
@@ -124,7 +124,7 @@ version: 1
 metadata:
   name: timeout-test
   description: Test workflow-level timeout
-  timeout: PT2S
+  timeout: 2
 
 triggers:
 - type: manual
@@ -269,7 +269,7 @@ workflow:
 """
         workflow_def = parse_workflow_yaml(yaml_content)
 
-        assert workflow_def.metadata.timeout is None or workflow_def.metadata.timeout == ""
+        assert workflow_def.metadata.timeout is None
 
 
 class TestMetadataValidation:
@@ -309,21 +309,21 @@ workflow:
             parse_workflow_yaml(yaml_content)
 
     @pytest.mark.asyncio
-    async def test_timeout_accepts_iso8601_format(
+    async def test_timeout_accepts_integer_seconds(
         self,
         temporal_env: WorkflowEnvironment,  # noqa: ARG002
         temporal_client: Client,  # noqa: ARG002
         temporal_worker: Worker,  # noqa: ARG002
     ) -> None:
-        """Test that timeout accepts ISO 8601 duration format."""
+        """Test that timeout accepts integer seconds."""
         yaml_content = """
 schemaVersion: 1.0.0
 version: 1
 
 metadata:
-  name: iso-timeout-test
-  description: Test ISO 8601 timeout
-  timeout: PT1H30M
+  name: timeout-seconds-test
+  description: Test timeout in seconds
+  timeout: 5400
 
 triggers:
 - type: manual
@@ -338,9 +338,9 @@ workflow:
         language: bash
         code: echo "test"
 """
-        # Should parse successfully with ISO 8601 format
+        # Should parse successfully with timeout in seconds
         workflow_def = parse_workflow_yaml(yaml_content)
-        assert workflow_def.metadata.timeout == "PT1H30M"
+        assert workflow_def.metadata.timeout == 5400  # 1 hour 30 minutes = 5400 seconds
 
     @pytest.mark.asyncio
     async def test_duplicate_activity_ids_rejected(

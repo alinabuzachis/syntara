@@ -5,7 +5,7 @@ version: 1
 metadata:
   name: timeout-workflow
   description: Workflow with workflow-level timeout that should enforce time limit
-  timeout: PT5S
+  timeout: 5
   owner: platform-team
 
 triggers:

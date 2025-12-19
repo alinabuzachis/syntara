@@ -43,6 +43,6 @@ workflow:
           - fast_task
           - slow_task
         strategy: all
-        timeout: PT1S
+        timeout: 1
         onTimeout: fail
         aggregateOutputs: true

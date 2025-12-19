@@ -1,0 +1,194 @@
+---
+# Test Playbook for AAP Job Template Activity
+# This playbook demonstrates various AAP parameters that can be controlled
+# through the Nexus AAP job template executor:
+# - tags (skip_tags, tags)
+# - limit (host targeting)
+# - verbosity (logging detail)
+# - extra_vars (dynamic variables)
+# - inventory (specified in workflow)
+# - credentials (specified in workflow)
+
+- name: AAP Parameter Testing Playbook
+  hosts: all
+  gather_facts: true
+
+  vars:
+    # Default values - can be overridden via extra_vars from workflow
+    app_name: "test-app"
+    app_version: "1.0.0"
+    deployment_env: "development" # Renamed from 'environment' (reserved in Ansible)
+    operation: "status"
+    custom_message: "Hello from Nexus Workflow!"
+
+  tasks:
+    # Task 1: Basic information (always runs)
+    - name: Display playbook execution info
+      ansible.builtin.debug:
+        msg:
+          - "=== AAP Job Template Test Execution ==="
+          - "Application: {{ app_name }}"
+          - "Version: {{ app_version }}"
+          - "Environment: {{ deployment_env }}"
+          - "Operation: {{ operation }}"
+          - "Custom Message: {{ custom_message }}"
+          - "Target Host: {{ inventory_hostname }}"
+          - "Ansible Version: {{ ansible_version.full }}"
+      tags:
+        - always
+        - info
+
+    # Task 2: System information (tagged: system)
+    - name: Gather system information
+      ansible.builtin.debug:
+        msg:
+          - "OS Family: {{ ansible_os_family }}"
+          - "Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Architecture: {{ ansible_architecture }}"
+          - "Hostname: {{ ansible_hostname }}"
+          - "FQDN: {{ ansible_fqdn }}"
+      tags:
+        - system
+        - info
+
+    # Task 3: Check disk space (tagged: disk, monitoring)
+    - name: Check disk usage
+      ansible.builtin.shell: df -h /
+      register: disk_usage
+      changed_when: false
+      tags:
+        - disk
+        - monitoring
+
+    - name: Display disk usage
+      ansible.builtin.debug:
+        msg: "{{ disk_usage.stdout_lines }}"
+      tags:
+        - disk
+        - monitoring
+
+    # Task 4: Deployment simulation (tagged: deploy)
+    - name: Simulate application deployment
+      ansible.builtin.debug:
+        msg:
+          - ">>> Deploying {{ app_name }} version {{ app_version }}"
+          - ">>> Target environment: {{ deployment_env }}"
+          - ">>> Operation: {{ operation }}"
+          - ">>> Deployment would create files in: /opt/{{ app_name }}/{{ app_version }}"
+      when: operation == "deploy"
+      tags:
+        - deploy
+
+    # Task 5: Configuration check (tagged: config)
+    - name: Check configuration status
+      ansible.builtin.debug:
+        msg:
+          - ">>> Checking configuration for {{ app_name }}"
+          - ">>> Environment: {{ deployment_env }}"
+          - ">>> Config file: /etc/{{ app_name }}/{{ deployment_env }}.conf"
+      when: operation in ["config", "status"]
+      tags:
+        - config
+
+    # Task 6: Backup simulation (tagged: backup)
+    - name: Simulate backup operation
+      ansible.builtin.debug:
+        msg:
+          - ">>> Creating backup of {{ app_name }}"
+          - ">>> Backup location: /backup/{{ app_name }}-{{ app_version }}-{{ ansible_date_time.iso8601_basic_short }}"
+      when: operation == "backup"
+      tags:
+        - backup
+
+    # Task 7: Health check (tagged: healthcheck, monitoring)
+    - name: Perform health check
+      ansible.builtin.debug:
+        msg:
+          - ">>> Health check for {{ app_name }}"
+          - ">>> Status: HEALTHY"
+          - ">>> Uptime: {{ ansible_uptime_seconds | default(0) }} seconds"
+      tags:
+        - healthcheck
+        - monitoring
+
+    # Task 8: Custom message display (tagged: custom)
+    - name: Display custom message
+      ansible.builtin.debug:
+        msg: "{{ custom_message }}"
+      tags:
+        - custom
+
+    # Task 9: Credential verification (tagged: credentials)
+    - name: Display credential information
+      ansible.builtin.debug:
+        msg:
+          - ">>> Credential Check"
+          - "Running as user: {{ ansible_user_id }}"
+          - "On host: {{ inventory_hostname }}"
+          - "Connection: {{ ansible_connection }}"
+      tags:
+        - credentials
+
+    # Task 10: Intentional failure test (tagged: fail_test)
+    # This task will fail when explicitly triggered via --tags fail_test
+    # It's useful for testing error handling and retry logic in workflows
+    - name: Test failure scenario
+      ansible.builtin.fail:
+        msg: |
+          >>> INTENTIONAL FAILURE <<<
+          This task is designed to fail for testing purposes.
+          Use --tags fail_test to trigger this failure.
+          This is useful for testing:
+            - Workflow error handling
+            - Retry policies
+            - Failure notifications
+      when: true
+      tags:
+        - fail_test
+        - never # 'never' tag ensures this won't run unless explicitly requested
+
+    # Task 11: Summary (always runs)
+    - name: Execution summary
+      ansible.builtin.debug:
+        msg:
+          - "=== Execution Complete ==="
+          - "Playbook executed successfully on {{ inventory_hostname }}"
+          - "Task tags available:"
+          - "  - always, info: Basic information"
+          - "  - system: System details"
+          - "  - monitoring: disk, healthcheck"
+          - "  - deploy, config, backup: Operations"
+          - "  - credentials: Shows which credential/user is being used"
+          - "  - fail_test: Intentional failure (use with --tags fail_test)"
+          - "Use --tags or --skip-tags to control task execution"
+      tags:
+        - always
+
+# Example usage scenarios:
+#
+# 1. Run all tasks:
+#    ansible-playbook test-aap-parameters.yml
+#
+# 2. Run only system info tasks:
+#    ansible-playbook test-aap-parameters.yml --tags system
+#
+# 3. Run monitoring tasks only:
+#    ansible-playbook test-aap-parameters.yml --tags monitoring
+#
+# 4. Skip deployment tasks:
+#    ansible-playbook test-aap-parameters.yml --skip-tags deploy
+#
+# 5. Run on specific hosts:
+#    ansible-playbook test-aap-parameters.yml --limit webservers
+#
+# 6. With extra variables:
+#    ansible-playbook test-aap-parameters.yml -e "app_name=myapp app_version=2.0.0 deployment_env=production"
+#
+# 7. Increase verbosity:
+#    ansible-playbook test-aap-parameters.yml -vvv
+#
+# 8. Test failure handling (runs the fail_test task):
+#    ansible-playbook test-aap-parameters.yml --tags fail_test
+#
+# 9. Test failure with other tasks:
+#    ansible-playbook test-aap-parameters.yml --tags "info,fail_test"

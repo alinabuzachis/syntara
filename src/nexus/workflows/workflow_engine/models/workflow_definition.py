@@ -4,14 +4,59 @@ These models represent the structure of workflow definitions parsed from YAML.
 They are used for validation and type-safe access to workflow configuration.
 """
 
+import re
 from enum import Enum
 from http import HTTPMethod
 from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
+from pydantic.functional_validators import ModelWrapValidatorHandler
 
 from nexus.workflows.utils.activity_traversal import traverse_activities
 from nexus.workflows.workflow_engine import constants
+
+# Template expression pattern - matches ${...} expressions
+TEMPLATE_PATTERN = re.compile(r"\$\{[^}]+\}")
+
+
+class TemplateAwareBaseModel(BaseModel):
+    """Base model that allows template expressions in any field.
+
+    Template expressions like ${input.field} or ${workflow.vars.count} bypass
+    type validation and constraints, allowing them to be stored as strings and
+    evaluated at runtime during workflow execution.
+
+    Non-template values are validated normally with full type checking and
+    Field constraints (ge, le, min_length, etc.).
+    """
+
+    model_config = ConfigDict(validate_assignment=True)
+
+    @field_validator("*", mode="wrap")
+    @classmethod
+    def allow_template_strings(
+        cls,
+        value: Any,  # noqa: ANN401
+        handler: ModelWrapValidatorHandler[Any],
+        info: ValidationInfo,  # noqa: ARG003
+    ) -> Any:  # noqa: ANN401
+        """Allow template expressions to bypass validation for any field.
+
+        Args:
+            value: The input value to validate
+            handler: The default validation handler
+            info: Validation context information
+
+        Returns:
+            Template string as-is, or validated value from handler
+
+        """
+        # Template expression - return directly, bypass all validators
+        if isinstance(value, str) and TEMPLATE_PATTERN.search(value):
+            return value
+
+        # For non-template values, run normal validation (type coercion + constraints)
+        return handler(value)
 
 
 # Enums for type-safe string constants
@@ -56,7 +101,7 @@ class TimeoutAction(str, Enum):
     REJECT = "reject"
 
 
-class RetryPolicy(BaseModel):
+class RetryPolicy(TemplateAwareBaseModel):
     """Retry policy configuration for activities."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -68,19 +113,15 @@ class RetryPolicy(BaseModel):
         default=BackoffStrategy.EXPONENTIAL, description="Backoff strategy: fixed, exponential, linear"
     )
     multiplier: float | None = Field(default=2.0, ge=1.0, le=10.0, description="Multiplier for exponential backoff")
-    initial_interval: str = Field(
-        default="PT1S", description="Initial interval in ISO 8601 duration format", alias="initialInterval"
-    )
-    max_interval: str | None = Field(
-        default=None, description="Maximum interval in ISO 8601 duration format", alias="maxInterval"
-    )
+    initial_interval: int = Field(default=1, ge=1, description="Initial interval in seconds", alias="initialInterval")
+    max_interval: int | None = Field(default=None, ge=1, description="Maximum interval in seconds", alias="maxInterval")
     retryable_errors: list[str] | None = Field(
         default=None, description="List of error types or codes that should trigger retry", alias="retryableErrors"
     )
 
 
 # Loop definitions
-class ForEachLoopDefinition(BaseModel):
+class ForEachLoopDefinition(TemplateAwareBaseModel):
     """ForEach loop configuration."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -92,7 +133,7 @@ class ForEachLoopDefinition(BaseModel):
     do: list["Activity"] = Field(description="Activities to execute in each iteration", min_length=1)
 
 
-class WhileLoopDefinition(BaseModel):
+class WhileLoopDefinition(TemplateAwareBaseModel):
     """While loop configuration."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -129,21 +170,21 @@ class AuthenticationType(str, Enum):
     OAUTH2 = "oauth2"
 
 
-class ScriptExecutorConfig(BaseModel):
+class ScriptExecutorConfig(TemplateAwareBaseModel):
     """Configuration for script executor.
 
     Attributes:
         language: Script language (bash or python)
         code: Script code to execute
         environment: Optional environment variables for script execution
-        timeout_seconds: Timeout for script execution in seconds (default from NEXUS_SCRIPT_TIMEOUT_MINUTES)
+        timeout: Timeout for script execution in seconds (default from NEXUS_SCRIPT_TIMEOUT_SECONDS)
 
     """
 
     language: ScriptLanguage
     code: str = Field(min_length=1, description="Script code to execute")
     environment: dict[str, str] = Field(default_factory=dict, description="Environment variables for script execution")
-    timeout_seconds: int = Field(
+    timeout: int = Field(
         default=constants.DEFAULT_SCRIPT_TIMEOUT_SECONDS,
         ge=1,
         le=3600,
@@ -151,7 +192,7 @@ class ScriptExecutorConfig(BaseModel):
     )
 
 
-class Authentication(BaseModel):
+class Authentication(TemplateAwareBaseModel):
     """Authentication configuration for API requests.
 
     Attributes:
@@ -167,7 +208,7 @@ class Authentication(BaseModel):
     )
 
 
-class APIExecutorConfig(BaseModel):
+class APIExecutorConfig(TemplateAwareBaseModel):
     """Configuration for API executor.
 
     Attributes:
@@ -189,10 +230,10 @@ class APIExecutorConfig(BaseModel):
     body: dict[str, Any] | str | None = None
     query_params: dict[str, Any] = Field(default_factory=dict, alias="queryParams")
     authentication: Authentication | None = Field(default=None, description="Authentication configuration")
-    timeout: int | None = Field(default=None, description="Optional timeout in seconds")
+    timeout: int | None = Field(default=None, ge=1, description="Optional timeout in seconds")
 
 
-class AgenticExecutorConfig(BaseModel):
+class AgenticExecutorConfig(TemplateAwareBaseModel):
     """Configuration for agentic executor.
 
     Attributes:
@@ -216,7 +257,7 @@ class AgenticExecutorConfig(BaseModel):
     )
 
 
-class AAPJobTemplateExecutorConfig(BaseModel):
+class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
     """Configuration for AAP Job Template executor.
 
     Launches job templates in Ansible Automation Platform and polls for completion.
@@ -302,10 +343,11 @@ class AAPJobTemplateExecutorConfig(BaseModel):
     def validate_template_reference(self) -> Self:
         """Validate EITHER job_template_id OR (job_template_name + organization_name)."""
         # Strip whitespace from name fields
+        # Use object.__setattr__ to avoid triggering validate_assignment recursion
         if self.job_template_name:
-            self.job_template_name = self.job_template_name.strip()
+            object.__setattr__(self, "job_template_name", self.job_template_name.strip())
         if self.organization_name:
-            self.organization_name = self.organization_name.strip()
+            object.__setattr__(self, "organization_name", self.organization_name.strip())
 
         has_id = self.job_template_id is not None
         has_name = bool(self.job_template_name)
@@ -345,7 +387,7 @@ ExecutorConfig = ScriptExecutorConfig | APIExecutorConfig | AgenticExecutorConfi
 
 
 # Task definitions
-class TaskDefinition(BaseModel):
+class TaskDefinition(TemplateAwareBaseModel):
     """Definition for an executable task."""
 
     executor: ExecutorType = Field(description="Task executor type")
@@ -356,21 +398,21 @@ class TaskDefinition(BaseModel):
     )
 
 
-class ApprovalDefinition(BaseModel):
+class ApprovalDefinition(TemplateAwareBaseModel):
     """Human approval configuration."""
 
     model_config = ConfigDict(populate_by_name=True)
 
     approvers: list[str] = Field(description="List of users or roles who can approve", min_length=1)
     prompt: str = Field(description="Approval prompt/question to display", min_length=1)
-    timeout: str | None = Field(default=None, description="Time to wait for approval (ISO 8601 duration)")
+    timeout: int | None = Field(default=None, ge=1, description="Time to wait for approval in seconds")
     on_timeout: TimeoutAction = Field(
         default=TimeoutAction.FAIL, description="Action to take if approval times out", alias="onTimeout"
     )
     metadata: dict[str, Any] | None = Field(default=None, description="Additional context to display to approvers")
 
 
-class ConvergeDefinition(BaseModel):
+class ConvergeDefinition(TemplateAwareBaseModel):
     """Converge pattern configuration - waits for specific activities to complete."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -379,7 +421,9 @@ class ConvergeDefinition(BaseModel):
     strategy: ConvergeStrategy = Field(
         default=ConvergeStrategy.ALL, description="Converge strategy (only 'all' is supported)"
     )
-    timeout: str | None = Field(default=None, description="Maximum time to wait for converge condition")
+    timeout: int | None = Field(
+        default=None, ge=1, description="Maximum time to wait for converge condition in seconds"
+    )
     on_timeout: TimeoutAction = Field(
         default=TimeoutAction.FAIL, description="Action to take if timeout is reached", alias="onTimeout"
     )
@@ -391,7 +435,7 @@ class ConvergeDefinition(BaseModel):
 
 
 # Activity definition (supports multiple types)
-class Activity(BaseModel):
+class Activity(TemplateAwareBaseModel):
     """Workflow activity definition.
 
     Activity types:
@@ -417,7 +461,7 @@ class Activity(BaseModel):
     retry_policy: RetryPolicy | None = Field(
         default=None, description="Retry policy for this activity", alias="retryPolicy"
     )
-    timeout: str | None = Field(default=None, description="Activity timeout (ISO 8601 duration)")
+    timeout: int | None = Field(default=None, ge=1, description="Activity timeout in seconds")
     outputs: dict[str, dict[str, Any]] | None = Field(
         default=None, description="Output schema definition for this activity"
     )
@@ -507,7 +551,7 @@ class Activity(BaseModel):
         return v
 
 
-class WorkflowSpec(BaseModel):
+class WorkflowSpec(TemplateAwareBaseModel):
     """Workflow specification containing activities."""
 
     activities: list[Activity] = Field(description="List of workflow activities", min_length=1)
@@ -539,7 +583,7 @@ class WorkflowSpec(BaseModel):
         return activities
 
 
-class InputParameter(BaseModel):
+class InputParameter(TemplateAwareBaseModel):
     """Workflow input parameter definition."""
 
     type: Literal["string", "number", "integer", "boolean", "object", "array"] = Field(
@@ -554,7 +598,7 @@ class InputParameter(BaseModel):
     maximum: float | None = Field(default=None, description="Maximum value for numeric parameters")
 
 
-class ManualTrigger(BaseModel):
+class ManualTrigger(TemplateAwareBaseModel):
     """Manual trigger - user initiates workflow execution."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -568,19 +612,19 @@ class ManualTrigger(BaseModel):
 Trigger = ManualTrigger
 
 
-class Metadata(BaseModel):
+class Metadata(TemplateAwareBaseModel):
     """Workflow metadata."""
 
     name: str = Field(description="Workflow name", pattern=r"^[a-zA-Z0-9_-]+$", min_length=1, max_length=255)
     description: str = Field(description="Workflow description", min_length=1, max_length=1000)
     tags: list[str] | None = Field(default=None, description="Workflow tags for categorization")
     owner: str | None = Field(default=None, description="User or team responsible for the workflow")
-    timeout: str | None = Field(
-        default=None, description="Maximum workflow execution time (ISO 8601 duration) - applies to entire workflow"
+    timeout: int | None = Field(
+        default=None, ge=1, description="Maximum workflow execution time in seconds - applies to entire workflow"
     )
 
 
-class WorkflowDefinition(BaseModel):
+class WorkflowDefinition(TemplateAwareBaseModel):
     """Complete workflow definition parsed from YAML.
 
     This is the root model representing a complete workflow configuration.

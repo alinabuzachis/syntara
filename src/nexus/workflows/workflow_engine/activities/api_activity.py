@@ -12,6 +12,7 @@ from typing import Any, cast
 import httpx
 from temporalio import activity
 
+from nexus.workflows.utils.template_resolution import resolve_config_templates
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.expression_resolver import ExpressionResolver
 from nexus.workflows.workflow_engine.models import APIExecutorConfig, Authentication, AuthenticationType
@@ -91,8 +92,16 @@ async def execute_api_request(config: dict[str, Any], inputs: dict[str, Any]) ->
         200
 
     """
+    # Setup workflow state for expression resolution
+    # Include both inputs and secrets (secrets are passed as part of inputs for now)
+    workflow_state = {"inputs": inputs, "secrets": inputs.get("secrets", {})}
+
+    # Resolve template expressions in config BEFORE validation (e.g., ${input.timeout} -> 30)
+    # Exclude 'authentication' as credentials must remain as ${secrets.xxx} pattern for validation
+    resolved_config = resolve_config_templates(config, workflow_state, exclude_fields={"authentication"})
+
     # Validate config using Pydantic V2's model_validate (no deprecation warnings)
-    api_config = APIExecutorConfig.model_validate(config)
+    api_config = APIExecutorConfig.model_validate(resolved_config)
 
     method = api_config.method.value
     url = api_config.url

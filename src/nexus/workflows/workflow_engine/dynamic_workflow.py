@@ -25,7 +25,7 @@ with workflow.unsafe.imports_passed_through():
     from .activities.agentic_activity import execute_agentic_activity
     from .activities.api_activity import execute_api_request
 
-from .activities.common import build_retry_policy, parse_timeout
+from .activities.common import build_retry_policy
 
 # Import script activities (use asyncio.subprocess, no sandbox issues)
 from .activities.script_activity import execute_bash_script, execute_python_script
@@ -39,6 +39,7 @@ from .models import (
     ExecutorType,
     ForEachLoopDefinition,
     LoopType,
+    RetryPolicy,
     ScriptExecutorConfig,
     TimeoutAction,
     WhileLoopDefinition,
@@ -277,11 +278,11 @@ class DynamicWorkflow:
         try:
             result = await workflow.execute_activity(
                 script_executor,
-                args=[script_config.model_dump(by_alias=True), task_inputs],
+                args=[script_config.model_dump(by_alias=True, warnings=False), task_inputs],
                 activity_id=activity.id,
                 start_to_close_timeout=activity_timeout,
                 retry_policy=build_retry_policy(
-                    activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None
+                    activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
                 ),
             )
 
@@ -330,11 +331,11 @@ class DynamicWorkflow:
         try:
             result = await workflow.execute_activity(
                 execute_api_request,
-                args=[activity.task.config.model_dump(by_alias=True), task_inputs],
+                args=[activity.task.config.model_dump(by_alias=True, warnings=False), task_inputs],
                 activity_id=activity.id,
                 start_to_close_timeout=activity_timeout,
                 retry_policy=build_retry_policy(
-                    activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None
+                    activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
                 ),
             )
 
@@ -377,11 +378,11 @@ class DynamicWorkflow:
         try:
             result = await workflow.execute_activity(
                 execute_agentic_activity,
-                args=[activity.task.model_dump(), task_inputs],
+                args=[activity.task.model_dump(warnings=False), task_inputs],
                 activity_id=activity.id,
                 start_to_close_timeout=activity_timeout,
                 retry_policy=build_retry_policy(
-                    activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None
+                    activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
                 ),
             )
 
@@ -443,12 +444,12 @@ class DynamicWorkflow:
         try:
             result = await workflow.execute_activity(
                 execute_aap_job_template_activity,
-                args=[{"config": activity.task.config.model_dump(by_alias=True)}, task_inputs],
+                args=[{"config": activity.task.config.model_dump(by_alias=True, warnings=False)}, task_inputs],
                 activity_id=activity.id,
                 start_to_close_timeout=activity_timeout,
                 heartbeat_timeout=timedelta(seconds=30),  # 6x default 5s poll interval
                 retry_policy=build_retry_policy(
-                    activity.retry_policy.model_dump(by_alias=True) if activity.retry_policy else None
+                    activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
                 ),
             )
 
@@ -466,6 +467,35 @@ class DynamicWorkflow:
                 extra=log_extra,
             )
             raise
+
+    def _resolve_retry_policy_templates(self, retry_policy: RetryPolicy, workflow_state: JsonDict) -> None:
+        """Resolve template expressions in retry policy fields.
+
+        Args:
+            retry_policy: Retry policy to resolve
+            workflow_state: Current workflow state
+
+        """
+        if retry_policy.max_attempts:
+            resolved = self.expression_resolver.resolve_expression(retry_policy.max_attempts, workflow_state)
+            retry_policy.max_attempts = (
+                int(cast("int", resolved)) if resolved is not None else retry_policy.max_attempts
+            )
+        if retry_policy.initial_interval:
+            resolved = self.expression_resolver.resolve_expression(retry_policy.initial_interval, workflow_state)
+            retry_policy.initial_interval = (
+                int(cast("int", resolved)) if resolved is not None else retry_policy.initial_interval
+            )
+        if retry_policy.max_interval:
+            resolved = self.expression_resolver.resolve_expression(retry_policy.max_interval, workflow_state)
+            retry_policy.max_interval = (
+                int(cast("int", resolved)) if resolved is not None else retry_policy.max_interval
+            )
+        if retry_policy.multiplier:
+            resolved = self.expression_resolver.resolve_expression(retry_policy.multiplier, workflow_state)
+            retry_policy.multiplier = (
+                float(cast("float", resolved)) if resolved is not None else retry_policy.multiplier
+            )
 
     async def _execute_task_activity(
         self,
@@ -491,8 +521,15 @@ class DynamicWorkflow:
         # Prepare task inputs
         task_inputs = self._prepare_task_inputs(activity, workflow_state)
 
-        # Configure timeout
-        timeout = parse_timeout(activity.timeout) if activity.timeout else timedelta(minutes=5)
+        # Configure timeout (resolve template expressions if present)
+        if activity.timeout:
+            resolved = self.expression_resolver.resolve_expression(activity.timeout, workflow_state)
+            activity.timeout = int(cast("int", resolved)) if resolved is not None else None
+        timeout = timedelta(seconds=activity.timeout) if activity.timeout else timedelta(minutes=5)
+
+        # Resolve retry policy fields if present
+        if activity.retry_policy:
+            self._resolve_retry_policy_templates(activity.retry_policy, workflow_state)
 
         # Execute based on executor type
         if activity.task.executor == ExecutorType.SCRIPT:
@@ -784,6 +821,11 @@ class DynamicWorkflow:
         """
         iteration_count = 0
         iteration_results = []
+
+        # Resolve template expression in max_iterations if present
+        if loop_def.max_iterations:
+            resolved = self.expression_resolver.resolve_expression(loop_def.max_iterations, workflow_state)
+            loop_def.max_iterations = int(cast("int", resolved)) if resolved is not None else loop_def.max_iterations
         max_iterations = loop_def.max_iterations
 
         workflow.logger.info(
@@ -828,7 +870,7 @@ class DynamicWorkflow:
 
         """
         if converge_def.on_timeout == TimeoutAction.FAIL:
-            msg = f"Converge activity {activity.id} timed out after {converge_def.timeout}"
+            msg = f"Converge activity {activity.id} timed out after {converge_def.timeout} seconds"
             raise TimeoutError(msg)
 
     async def _process_completed_tasks(
@@ -916,7 +958,7 @@ class DynamicWorkflow:
                 task.cancel()
             # Raise error only if configured to fail
             if converge_def.on_timeout == TimeoutAction.FAIL:
-                msg = f"Converge activity {activity.id} timed out after {converge_def.timeout}"
+                msg = f"Converge activity {activity.id} timed out after {converge_def.timeout} seconds"
                 raise TimeoutError(msg)
 
     async def _execute_converge_without_timeout(
@@ -980,7 +1022,11 @@ class DynamicWorkflow:
             raise ValueError(msg)
 
         converge_def = activity.converge
-        timeout_seconds = parse_timeout(converge_def.timeout).total_seconds() if converge_def.timeout else None
+        # Resolve template expression in timeout if present
+        if converge_def.timeout:
+            resolved = self.expression_resolver.resolve_expression(converge_def.timeout, workflow_state)
+            converge_def.timeout = int(cast("int", resolved)) if resolved is not None else None
+        timeout_seconds = converge_def.timeout
 
         # Collect pending branches that need to be executed
         branches_to_execute = []

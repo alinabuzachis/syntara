@@ -14,11 +14,11 @@ workflow:
     - id: task_with_both
       name: Task With Timeout and Retry
       type: task
-      timeout: PT5S
+      timeout: 5
       retryPolicy:
         maxAttempts: 2
         backoff: fixed
-        initialInterval: PT1S
+        initialInterval: 1
       task:
         executor: script
         config:

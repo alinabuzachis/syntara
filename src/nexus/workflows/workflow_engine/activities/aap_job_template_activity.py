@@ -19,7 +19,7 @@ from temporalio import activity
 from temporalio.exceptions import CancelledError
 
 from nexus.core.config import Settings, get_settings
-from nexus.workflows.workflow_engine.expression_resolver import ExpressionResolver
+from nexus.workflows.utils.template_resolution import resolve_config_templates
 from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
 
 from .common import ActivityExecutionError
@@ -175,58 +175,6 @@ def _get_aap_basic_auth(settings: Settings) -> httpx.BasicAuth | None:
     if settings.aap_username and settings.aap_password and not settings.aap_token:
         return httpx.BasicAuth(settings.aap_username, settings.aap_password.get_secret_value())
     return None
-
-
-def _resolve_value(
-    value: Any,  # noqa: ANN401
-    resolver: ExpressionResolver,
-    workflow_state: dict[str, Any],
-) -> Any:  # noqa: ANN401
-    """Recursively resolve a value (dict, list, or primitive).
-
-    Args:
-        value: Value to resolve
-        resolver: Expression resolver
-        workflow_state: Workflow state for expression resolution
-
-    Returns:
-        Resolved value
-
-    """
-    if isinstance(value, dict):
-        # Recursively resolve dictionaries
-        return {k: _resolve_value(v, resolver, workflow_state) for k, v in value.items()}
-    if isinstance(value, list):
-        # Recursively resolve lists
-        return [_resolve_value(item, resolver, workflow_state) for item in value]
-    # Resolve template expressions or return primitive values
-    return resolver.resolve_expression(value, workflow_state)
-
-
-def _resolve_config_templates(
-    config_dict: dict[str, Any],
-    resolver: ExpressionResolver,
-    workflow_state: dict[str, Any],
-) -> dict[str, Any]:
-    """Resolve template expressions in config before validation.
-
-    This handles fields like jobTemplateId and verbosity that need to be
-    resolved from template strings (e.g., ${input.job_template_id}) to
-    actual values before Pydantic validation.
-
-    Also handles nested dictionaries and lists recursively, including
-    lists of dictionaries within extraVars.
-
-    Args:
-        config_dict: Raw config dictionary with potential templates
-        resolver: Expression resolver
-        workflow_state: Workflow state for expression resolution
-
-    Returns:
-        Config dictionary with resolved template expressions
-
-    """
-    return {key: _resolve_value(value, resolver, workflow_state) for key, value in config_dict.items()}
 
 
 def _build_launch_body(config: AAPJobTemplateExecutorConfig) -> dict[str, Any]:
@@ -585,13 +533,12 @@ async def execute_aap_job_template_activity(
     """
     logger.info("Starting AAP job template activity")
 
-    # Setup expression resolution FIRST (needed to resolve templates before validation)
-    workflow_state = {"inputs": input_data, "secrets": input_data.get("secrets", {})}
-    resolver = ExpressionResolver(workflow_definition=None)
+    # Setup workflow state for expression resolution
+    workflow_state = {"inputs": input_data}
 
     # Resolve template expressions in config (e.g., ${input.job_template_id} -> 42)
     raw_config = activity_config.get("config", {})
-    resolved_config = _resolve_config_templates(raw_config, resolver, workflow_state)
+    resolved_config = resolve_config_templates(raw_config, workflow_state)
 
     # Validate config with resolved values (spec 016 pattern)
     config = AAPJobTemplateExecutorConfig.model_validate(resolved_config)

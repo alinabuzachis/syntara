@@ -41,7 +41,7 @@ async def test_activity_timeout(
     workflow_def = parse_workflow_yaml(workflow_yaml)
 
     activity = workflow_def.workflow.activities[0]
-    assert activity.timeout == "PT2S"  # ISO 8601 duration: 2 seconds
+    assert activity.timeout == 2  # 2 seconds
 
     # Run workflow through Temporal - task sleeps for 10s but timeout is 2s
     handle = await temporal_client.start_workflow(
@@ -205,7 +205,7 @@ async def test_timeout_with_retry(
     activity = workflow_def.workflow.activities[0]
 
     # Verify both policies parsed
-    assert activity.timeout == "PT5S"
+    assert activity.timeout == 5  # 5 seconds
     assert activity.retry_policy is not None
     assert activity.retry_policy.max_attempts == 2
 
@@ -360,7 +360,7 @@ async def test_linear_backoff_retry(
     assert activity.retry_policy is not None
     assert activity.retry_policy.backoff == "linear"
     assert activity.retry_policy.max_attempts == 3
-    assert activity.retry_policy.initial_interval == "PT1S"
+    assert activity.retry_policy.initial_interval == 1  # 1 second
 
     # Run workflow with a unique workflow ID to avoid attempt file conflicts
     workflow_id = f"test-linear-backoff-{uuid4()}"
@@ -383,3 +383,128 @@ async def test_linear_backoff_retry(
 
     # Verify the task succeeded on attempt 3
     assert "Success on attempt 3" in task_output["stdout"]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_activity_timeout_template_resolution(
+    temporal_env: WorkflowEnvironment,
+    temporal_client: Client,
+    temporal_worker: Worker,
+) -> None:
+    """Test activity timeout template expression resolution.
+
+    This test verifies:
+    - Activity timeout can be specified as template expression (${input.custom_timeout})
+    - Template is resolved to actual value before use
+    - Workflow executes successfully with resolved timeout
+    """
+    workflow_yaml = """
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: timeout-template-test
+  description: Test activity timeout with template expression
+triggers:
+  - type: manual
+inputs:
+  custom_timeout:
+    type: integer
+    description: Custom timeout in seconds
+workflow:
+  activities:
+    - id: task_with_timeout_template
+      type: task
+      timeout: ${input.custom_timeout}
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Task with template timeout"
+            sleep 1
+"""
+    workflow_def = parse_workflow_yaml(workflow_yaml)
+
+    # Run workflow with input-specified timeout
+    handle = await temporal_client.start_workflow(
+        DynamicWorkflow.run,
+        args=[workflow_def.model_dump(mode="json", by_alias=True), "test-timeout-template", {"custom_timeout": 10}],
+        id=f"test-timeout-template-{uuid4()}",
+        task_queue="test-workflow-queue",
+    )
+
+    result = await handle.result()
+
+    # Verify workflow completed successfully
+    assert result["status"] == "completed"
+    assert "task_with_timeout_template" in result["activity_outputs"]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_retry_policy_template_resolution(
+    temporal_env: WorkflowEnvironment,
+    temporal_client: Client,
+    temporal_worker: Worker,
+) -> None:
+    """Test retry policy template expression resolution.
+
+    This test verifies:
+    - Retry policy fields (maxAttempts, initialInterval, etc.) can use template expressions
+    - Templates are resolved to actual values before use
+    - Workflow executes with resolved retry configuration
+    """
+    workflow_yaml = """
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: retry-template-test
+  description: Test retry policy with template expressions
+triggers:
+  - type: manual
+inputs:
+  max_attempts:
+    type: integer
+    description: Maximum retry attempts
+  initial_interval:
+    type: integer
+    description: Initial retry interval in seconds
+  multiplier:
+    type: number
+    description: Backoff multiplier
+workflow:
+  activities:
+    - id: task_with_retry_template
+      type: task
+      retryPolicy:
+        maxAttempts: ${input.max_attempts}
+        initialInterval: ${input.initial_interval}
+        backoff: exponential
+        multiplier: ${input.multiplier}
+      task:
+        executor: script
+        config:
+          language: bash
+          code: |
+            echo "Task with template retry policy"
+"""
+    workflow_def = parse_workflow_yaml(workflow_yaml)
+
+    # Run workflow with input-specified retry policy
+    handle = await temporal_client.start_workflow(
+        DynamicWorkflow.run,
+        args=[
+            workflow_def.model_dump(mode="json", by_alias=True),
+            "test-retry-template",
+            {"max_attempts": 3, "initial_interval": 1, "multiplier": 2.0},
+        ],
+        id=f"test-retry-template-{uuid4()}",
+        task_queue="test-workflow-queue",
+    )
+
+    result = await handle.result()
+
+    # Verify workflow completed successfully
+    assert result["status"] == "completed"
+    assert "task_with_retry_template" in result["activity_outputs"]

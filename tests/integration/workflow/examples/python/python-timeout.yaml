@@ -13,7 +13,7 @@ workflow:
   activities:
     - id: slow_script
       type: task
-      timeout: PT1S
+      timeout: 1
       task:
         executor: script
         config:
