@@ -430,6 +430,9 @@ def mock_openrouter_llm() -> Generator[MagicMock, None, None]:
     The mock LLM supports async invocation (ainvoke) and returns a properly structured
     AIMessage response that matches what the GenericAgent expects.
 
+    Also mocks CompressorService to avoid requiring OpenRouter API key during
+    planner integration (which now creates CompressorService via factory).
+
     Yields:
         MagicMock representing the LLM instance with async support
 
@@ -442,7 +445,13 @@ def mock_openrouter_llm() -> Generator[MagicMock, None, None]:
             response_metadata={"model": "mock-model", "finish_reason": "stop"},
         )
     )
+
+    # Mock CompressorService for planner integration
+    mock_compressor = AsyncMock()
+    mock_compressor.compress = AsyncMock(return_value="Compressed content for testing")
+
     # Patch in all locations where get_openrouter_llm is imported
+    # AND patch CompressorService.__init__ to avoid OpenRouter API key requirement
     with (
         patch(
             "nexus.api.v1.invocation.get_openrouter_llm",
@@ -451,6 +460,10 @@ def mock_openrouter_llm() -> Generator[MagicMock, None, None]:
         patch(
             "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
             return_value=mock_llm,
+        ),
+        patch(
+            "nexus.agent_orchestrator.context_manager.compressor.CompressorService",
+            return_value=mock_compressor,
         ),
     ):
         yield mock_llm

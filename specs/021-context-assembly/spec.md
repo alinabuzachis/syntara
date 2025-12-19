@@ -113,9 +113,9 @@ As a context manager planner orchestrating context workflow, after the retrieval
 
 ### Acceptance Scenarios
 1. **Given** RelevantDocuments from the retrieval phase, **When** TokenService tracks their token usage and no TokenLimitExceededError is raised, **Then** documents pass through without compression and are merged into a valid ContextPackage JSON structure conforming to the defined schema
-2. **Given** RelevantDocuments being tracked by TokenService, **When** TokenLimitExceededError is raised and compression_loop > 0, **Then** the compression service is invoked with progressively aggressive strategies to reduce content to fit within the token limit
+2. **Given** RelevantDocuments being tracked by TokenService, **When** TokenLimitExceededError is raised and compression_loop > 0, **Then** the compression service is invoked with retry attempts to reduce content to fit within the token limit
 3. **Given** compressed content from CompressorService, **When** TokenService checks the compressed token count and it fits within budget, **Then** the assembly proceeds successfully
-4. **Given** compressed content that still exceeds token limit, **When** compression retries remain (compression_loop not exhausted), **Then** the system retries with a more aggressive compression strategy
+4. **Given** compressed content that still exceeds token limit, **When** compression retries remain (compression_loop not exhausted), **Then** the system retries compression (relying on LLM non-determinism to potentially produce smaller output)
 5. **Given** compressed content that still exceeds token limit, **When** all compression retries are exhausted (compression_loop count reached), **Then** the request is rejected with ContextAssemblyError indicating compression was insufficient
 6. **Given** RelevantDocuments with file_metadata, **When** assembling the context package, **Then** citations are extracted from FileMetadata.file_id attributes and included in the package for unambiguous traceability
 7. **Given** content from RelevantDocuments (compressed or uncompressed), **When** computing grounding metrics, **Then** a grounding score (0.0-1.0) is calculated representing coverage and factual accuracy
@@ -180,16 +180,15 @@ flowchart TD
 - **FR-003**: System MUST invoke CompressorService when TokenService raises TokenLimitExceededError to reduce content size
 - **FR-004**: System MUST use original RelevantDocument content when TokenService does not raise TokenLimitExceededError without invoking compression
 - **FR-005**: System MUST use TokenService to verify compressed content token count after compression completes
-- **FR-006**: System MUST implement compression retry loop that attempts progressively more aggressive compression strategies when TokenLimitExceededError persists after compression
+- **FR-006**: System MUST implement compression retry loop that retries compression when TokenLimitExceededError persists after compression, up to the compression_loop limit
 - **FR-007**: System MUST track retry attempts using a counter that increments with each compression retry up to the compression_loop limit
-- **FR-008**: System MUST select increasingly aggressive compression strategies with each retry (e.g., summarize → extract key points → aggressive truncation)
 - **FR-009**: System MUST reject the request and raise ContextAssemblyError when TokenLimitExceededError persists after all compression_loop retries are exhausted
 - **FR-010**: System MUST skip compression retries entirely when compression_loop is set to 0 and fail immediately on first TokenLimitExceededError after compression
 - **FR-011**: System MUST validate ContextPackage structure against schema with required fields: id, correlation_id, payload, grounding_score, citations, package_metadata
 - **FR-012**: System MUST merge document content (compressed or original) from RelevantDocuments into payload dictionary
 - **FR-013**: System MUST extract file_id values from RelevantDocument.file_metadata.file_id attributes for complete source traceability and unambiguous file identification
 - **FR-014**: System MUST compute grounding score (0.0-1.0 range) as the arithmetic mean of all RelevantDocument relevancy_score values when combining multiple documents into a single ContextPackage
-- **FR-015**: System MUST populate package_metadata with timing information, token counts (original and final), session_id, compression status, compression retry count, and configuration used
+- **FR-015**: System MUST populate package_metadata with timing information, token counts (original and final), compression status, compression retry count, and configuration used
 - **FR-016**: System MUST handle null or empty RelevantDocuments gracefully by returning valid ContextPackage with default values
 - **FR-017**: System MUST use correlation_id for distributed tracing throughout assembly process and include in package metadata
 - **FR-018**: System MUST generate unique package ID for each assembled ContextPackage for tracking purposes
@@ -207,7 +206,7 @@ flowchart TD
 ### Success Criteria
 - 100% of RelevantDocuments that pass TokenService validation without TokenLimitExceededError proceed without compression
 - 100% of RelevantDocuments triggering TokenLimitExceededError invoke compression successfully with retry loop mechanism
-- Compression retry loop successfully attempts progressively aggressive strategies up to compression_loop limit
+- Compression retry loop successfully retries compression up to compression_loop limit
 - 100% of requests where compressed content still exceeds limits after all retries are rejected with ContextAssemblyError
 - All assembled packages include citations extracted from RelevantDocument.file_metadata.file_id attributes
 - file_id provides unambiguous citation identification even when filenames repeat
@@ -225,12 +224,11 @@ flowchart TD
 - **TokenService**: Service for tracking token usage and raising TokenLimitExceededError when limits are exceeded
 - **TokenLimitExceededError**: Exception raised by TokenService when content exceeds token budget
 - **ContextAssemblyError**: Exception raised when request must be rejected due to token limits even after all compression_loop retries are exhausted
-- **compression_loop**: Integer parameter controlling maximum number of compression retry attempts with progressively aggressive strategies (0 = no retries)
-- **Compression Strategy Progression**: Ordered sequence of compression approaches from conservative to aggressive applied across retry attempts
+- **compression_loop**: Integer parameter controlling maximum number of compression retry attempts (0 = no retries, relies on LLM non-determinism for variation between attempts)
 - **Payload**: Dictionary structure containing organized document content from RelevantDocuments
 - **Citations**: List of file_id strings extracted from RelevantDocument.file_metadata.file_id attributes for unambiguous source traceability (avoids ambiguity when filenames repeat)
 - **Grounding Score**: Float value (0.0-1.0) computed as the simple average (arithmetic mean) of individual RelevantDocument relevancy_score values when combining multiple documents
-- **Package Metadata**: Dictionary containing timing_data, original_token_count, final_token_count, compression_applied boolean, compression_retry_count, session_id, and config_used
+- **Package Metadata**: Dictionary containing timing_data, original_token_count, final_token_count, compression_applied boolean, compression_retry_count, and config_used
 - **Token Budget**: Maximum allowable tokens (max_tokens parameter) for final assembled context output
 
 ### Assumptions
@@ -243,14 +241,14 @@ flowchart TD
 - Citations are extracted from RelevantDocument.file_metadata.file_id for unambiguous source attribution (file_id is unique, filename may repeat)
 - TokenService is available and raises TokenLimitExceededError when content exceeds limits
 - CompressorService is available for compression when TokenLimitExceededError is raised
-- CompressorService supports multiple compression strategies/levels for progressive compression attempts
+- CompressorService supports compression with single "greedy" strategy (retry loop relies on LLM non-determinism)
 - ContextPackage Pydantic schema is defined in models.py as an in-memory model (not persisted to database)
 - ContextPackage does NOT inherit from BaseResource as it is ephemeral and not stored in database
 - ContextManagerPlanner orchestrates the assembly phase after retrieval and provides compression_loop parameter
 - Grounding score is computed as simple average (arithmetic mean) of all RelevantDocument relevancy_score values
 - Token budget is configured via settings (context_manager_max_total_tokens) and passed to assembler
 - compression_loop count is provided by caller (ContextManagerPlanner or configuration)
-- Each retry attempt uses progressively more aggressive compression strategy
+- Each retry attempt re-invokes compression (same strategy, LLM non-determinism provides variation)
 - Citations are file_id strings extracted from RelevantDocument.file_metadata.file_id (compression does not generate new file_ids)
 - TokenService failures and post-compression limit violations result in clear exceptions
 - ContextAssemblyError is a defined exception type for assembly failures when all retries are exhausted

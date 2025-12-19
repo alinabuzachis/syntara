@@ -15,10 +15,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
+from nexus.agent_orchestrator.token_manager import TokenValidationService
+from nexus.api.auth import get_current_user
 from nexus.api.db.session import get_db
 from nexus.core.config import get_settings
 
-from .assembler import AssemblerService
+from .assembler_service import AssemblerService
 from .compressor import CompressorService, get_compressor_service
 from .models import ContextPackage
 from .retriever_service.services import RetrieverService, get_retriever_service
@@ -82,7 +84,7 @@ class ContextManagerPlanner:
                 exc_info=True,
             )
 
-    async def plan_request(  # noqa: PLR0915
+    async def plan_request(
         self,
         correlation_id: str,
         session_id: str,
@@ -93,8 +95,7 @@ class ContextManagerPlanner:
 
         Orchestrates the full context management workflow:
         1. Retrieval: Find relevant documents
-        2. Compression: Reduce content to fit token budget
-        3. Assembly: Create final context package
+        2. Assembly: Create final context package (with internal compression retry loop)
 
         Args:
             correlation_id: Correlation identifier for distributed tracing
@@ -138,86 +139,46 @@ class ContextManagerPlanner:
             logger.exception("Retrieval phase failed")
             retrieved_docs = []
 
-        # Phase 2: Compression
-        # Check for cancellation before starting compression
-        if invocation_id:
-            await self._check_cancellation(invocation_id, "compression")
-
-        compression_start = time.time()
-        try:
-            compressor = self.compressor_service_factory()
-            compressed_content = None
-
-            # Only compress if we have retrieved documents (currently stub returns None)
-            # NOTE: This block is currently unreachable because retriever stub returns None
-            # This will be reached once retriever service is implemented
-            if retrieved_docs is not None and len(retrieved_docs) > 0:
-                # For now, use a default token budget from config
-                # In a real implementation, this might be passed from the request
-                max_tokens = self.settings.context_manager_max_total_tokens
-
-                # Convert retrieved docs to simple string format
-                # This is a placeholder - actual implementation depends on retriever output format
-                document_strings = [str(doc) for doc in retrieved_docs]  # Convert doc to string representation
-
-                # Compress with goal derived from query using new interface
-                compressed_content = await compressor.compress(
-                    data=document_strings,
-                    max_tokens=max_tokens,
-                    strategy="greedy",
-                    goal=f"Answer query: {query}",
-                    correlation_id=correlation_id,
-                )
-
-            # Convert string result to expected dict format for assembler service
-            compressed_sections = {"content": compressed_content} if compressed_content else None
-            timing_data["compression_time_ms"] = int((time.time() - compression_start) * 1000)
-            logger.info("Compression phase completed in %sms", timing_data["compression_time_ms"])
-        except Exception:
-            timing_data["compression_time_ms"] = int((time.time() - compression_start) * 1000)
-            logger.exception("Compression phase failed")
-            compressed_sections = None
-
-        # Phase 3: Assembly
+        # Phase 2: Assembly
         # Check for cancellation before starting assembly
         if invocation_id:
             await self._check_cancellation(invocation_id, "assembly")
 
         assembly_start = time.time()
-        try:
-            assembler = AssemblerService()
-            assembler.assemble(compressed_sections, correlation_id)
-            timing_data["assembly_time_ms"] = int((time.time() - assembly_start) * 1000)
-            logger.info("Assembly phase completed in %sms", timing_data["assembly_time_ms"])
-        except Exception:
-            timing_data["assembly_time_ms"] = int((time.time() - assembly_start) * 1000)
-            logger.exception("Assembly phase failed")
+
+        # Get configuration parameters
+        max_tokens = self.settings.context_manager_max_total_tokens
+        compression_loop = getattr(self.settings, "context_manager_compression_loop", 3)
+
+        # Get database session and current user for token validation
+        async with self.get_async_session_context() as session:
+            user = await get_current_user(session)
+
+            # Create assembler with injected dependencies
+            token_service = TokenValidationService()
+            compressor_service = self.compressor_service_factory()
+            assembler = AssemblerService(
+                token_service=token_service,
+                compressor_service=compressor_service,
+            )
+
+            # Assemble context package (with internal compression retry loop)
+            context_package = await assembler.assemble(
+                documents=retrieved_docs,
+                correlation_id=correlation_id,
+                max_tokens=max_tokens,
+                compression_loop=compression_loop,
+                invocation_id=invocation_id,
+                user_id=user.id,
+                session=session,
+            )
+
+        timing_data["assembly_time_ms"] = int((time.time() - assembly_start) * 1000)
+        logger.info("Assembly phase completed in %sms", timing_data["assembly_time_ms"])
 
         # Calculate total execution time
         total_time_ms = int((time.time() - start_time) * 1000)
         timing_data["total_time_ms"] = total_time_ms
-
-        # Create metadata
-        package_metadata = {
-            "session_id": session_id,
-            "sections": [],  # Empty for MVP
-            "token_count": 0,  # Zero for MVP
-            **timing_data,
-            "query": query,
-            "config_used": {
-                "required_grounding_score": self.settings.context_manager_required_grounding_score,
-                "max_total_tokens": self.settings.context_manager_max_total_tokens,
-            },
-        }
-
-        # Create the final ContextPackage
-        context_package = ContextPackage(
-            correlation_id=correlation_id,
-            payload={},  # Empty payload for MVP
-            grounding_score=0.0,  # Default score for MVP
-            citations=[],  # Empty citations for MVP
-            package_metadata=package_metadata,
-        )
 
         logger.info("Context planning completed for correlation_id: %s in %sms", correlation_id, total_time_ms)
         logger.debug("Context Package ID: %s, Grounding Score: %s", context_package.id, context_package.grounding_score)

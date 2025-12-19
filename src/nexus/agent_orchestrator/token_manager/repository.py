@@ -15,6 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.token_manager.exceptions import UserTokenConfigNotFoundError
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
+from nexus.core.models import User
 
 
 class TokenUsageRepository:
@@ -31,6 +32,9 @@ class TokenUsageRepository:
     async def get_user_config(self, user_id: UUID, session: AsyncSession) -> UserTokenConfig:
         """Get token configuration for a user.
 
+        For development, if no configuration exists and this is the dev-user,
+        a default configuration is created automatically.
+
         Args:
             user_id: The user's UUID
             session: Async database session
@@ -40,6 +44,7 @@ class TokenUsageRepository:
 
         Raises:
             UserTokenConfigNotFoundError: If no configuration exists for the user
+                (except for dev-user, which gets a default config created)
 
         """
         statement = select(UserTokenConfig).where(UserTokenConfig.user_id == user_id)
@@ -47,6 +52,25 @@ class TokenUsageRepository:
         config = result.one_or_none()
 
         if config is None:
+            # Check if this is the dev-user - if so, create a default config
+            user_statement = select(User).where(User.id == user_id)
+            user_result = await session.exec(user_statement)
+            user = user_result.one_or_none()
+
+            if user and user.username == "dev-user":
+                # Create default config for dev-user
+                config = UserTokenConfig(
+                    user_id=user_id,
+                    token_limit=1000000,  # Generous limit for development
+                    window_duration_seconds=3600,
+                    model_name="gpt-4",
+                )
+                session.add(config)
+                await session.commit()
+                await session.refresh(config)
+                return config
+
+            # Not dev-user and no config exists
             raise UserTokenConfigNotFoundError(user_id)
 
         return config

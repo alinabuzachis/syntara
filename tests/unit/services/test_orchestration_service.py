@@ -79,7 +79,7 @@ class TestOrchestrationServiceStreamingExecution:
             correlation_id="test-correlation",
             payload={"docs": "Relevant documentation"},
             grounding_score=0.8,
-            citations=[{"source": "doc1.md"}],
+            citations=["file-id-doc1"],
         )
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 

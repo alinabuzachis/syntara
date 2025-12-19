@@ -265,13 +265,13 @@ graph TD
 
 **CRITICAL: These tests for retry logic MUST be written and MUST FAIL before implementation**
 
-- [ ] **T011** [P] Unit test: Compression retry loop with strategy progression
+- [ ] **T011** [P] Unit test: Compression retry loop
   - Test file: `tests/unit/agent_orchestrator/context_manager/test_assembler_service.py`
   - Test: `test_compression_retry_loop_progressive_strategies`
   - Input: Documents requiring multiple compression attempts, compression_loop=3
-  - Mock: CompressorService returns different compression levels
-  - Expected: retry_count increments, more aggressive strategy each time
-  - Verify: Strategy level increases with each retry (level 0 → 1 → 2)
+  - Mock: CompressorService returns compressed content strings
+  - Expected: retry_count increments with each attempt
+  - Verify: Compression retried up to compression_loop times
   - Dependencies: T004
 
 - [ ] **T012** [P] Unit test: compression_loop=0 behavior
@@ -290,15 +290,7 @@ graph TD
   - Verify: Error message includes retry count and correlation_id
   - Dependencies: T004
 
-- [ ] **T014** [P] Unit test: Retry strategy progression validation
-  - Test file: `tests/unit/agent_orchestrator/context_manager/test_assembler_service.py`
-  - Test: `test_retry_strategy_becomes_more_aggressive`
-  - Mock: CompressorService to track strategy level parameter
-  - Expected: Each retry uses strategy_level > previous retry
-  - Verify: strategy_level increments: 0, 1, 2, 3... up to compression_loop
-  - Dependencies: T004
-
-- [ ] **T015** [P] Unit test: Package metadata compression_retry_count
+- [ ] **T014** [P] Unit test: Package metadata compression_retry_count
   - Test file: `tests/unit/agent_orchestrator/context_manager/test_assembler_service.py`
   - Test: `test_package_metadata_includes_retry_count`
   - Input: Documents requiring 2 compression retries
@@ -306,7 +298,7 @@ graph TD
   - Test: `test_no_compression_retry_count_zero` → compression_retry_count = 0
   - Dependencies: T004, T005
 
-## Phase 3.4: Core Implementation (ONLY after tests T006-T015 are failing)
+## Phase 3.4: Core Implementation (ONLY after tests T006-T014 are failing)
 
 **Architecture Reminders**:
 - Apply DRY principle - extract reusable functions/classes
@@ -317,7 +309,7 @@ graph TD
 - **Use Pydantic BaseModel for ContextPackage** - in-memory only, no database persistence
 - **Import existing models** - DO NOT recreate RelevantDocument or FileMetadata
 
-- [ ] **T016** Implement _compute_grounding_score method
+- [ ] **T015** Implement _compute_grounding_score method
   - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
   - Method: `_compute_grounding_score(documents: list[RelevantDocument]) -> float`
   - Logic: Simple arithmetic mean of relevancy_score values
@@ -325,7 +317,7 @@ graph TD
   - Make tests T006, T009 pass
   - Dependencies: T006, T009
 
-- [ ] **T017** Implement _extract_citations method from FileMetadata.file_id
+- [ ] **T016** Implement _extract_citations method from FileMetadata.file_id
   - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
   - Method: `_extract_citations(documents: list[RelevantDocument]) -> list[str]`
   - Logic: Extract file_id from file_metadata.file_id attribute
@@ -335,7 +327,7 @@ graph TD
   - **IMPORTANT**: Primary source is FileMetadata.file_id (unique identifier), not filename
   - **NOTE**: Compression does not generate new file_ids
 
-- [ ] **T018** Implement _build_payload method for document content
+- [ ] **T017** Implement _build_payload method for document content
   - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
   - Method: `_build_payload(documents: list[RelevantDocument], compression_applied: bool) -> dict[str, Any]`
   - Logic: Organize document content from RelevantDocuments
@@ -343,54 +335,49 @@ graph TD
   - Dependencies: T008, T010
   - **IMPORTANT**: NO System/User Prompt handling - document assembly only
 
-- [ ] **T019** Implement _compress_with_retry loop method
+- [ ] **T018** Implement _compress_with_retry loop method
   - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
   - Method: `_compress_with_retry(documents, max_tokens, compression_loop, correlation_id) -> tuple[Any, int]`
   - Logic:
     - Initialize retry_count = 0
     - Loop while retry_count < compression_loop
-    - Call CompressorService with strategy_level = retry_count
+    - Call CompressorService.compress() with strategy="greedy"
     - Validate tokens after each attempt
-    - Increment retry_count and increase strategy aggression
+    - Increment retry_count on failure
     - Raise ContextAssemblyError when all retries exhausted
   - Return: (compressed_content, retry_count)
-  - Make tests T011, T012, T013, T014 pass
-  - Dependencies: T011, T012, T013, T014
+  - Note: Retries use same strategy, relying on LLM non-determinism
+  - Make tests T011, T012, T013 pass
+  - Dependencies: T011, T012, T013
 
 ## Phase 3.5: Assembly Logic Implementation (Sequential - Same File)
 
-- [ ] **T020** Implement token validation with retry support
+- [ ] **T019** Implement token validation with retry support
   - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
   - Logic: Use TokenService.track_usage() for validation
   - Catch: TokenLimitExceededError to trigger compression retry
   - Dependencies: T019
 
-- [ ] **T021** Implement compression decision logic
+- [ ] **T020** Implement compression decision logic
   - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
   - Logic: If TokenLimitExceededError raised, invoke _compress_with_retry
   - Handle: compression_loop parameter to control retry attempts
   - Dependencies: T019, T020
 
-- [ ] **T022** Implement retry counter tracking
+- [ ] **T021** Implement retry counter tracking
   - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
   - Logic: Track actual number of retry attempts made
   - Store: retry_count for package_metadata and error reporting
   - Dependencies: T019
 
-- [ ] **T023** Implement strategy progression logic
-  - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
-  - Logic: Pass strategy_level = retry_count to CompressorService
-  - Ensure: Each retry uses more aggressive strategy than previous
-  - Dependencies: T019, T022
-
-- [ ] **T024** Implement error handling with retry_count
+- [ ] **T022** Implement error handling with retry_count
   - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
   - Logic: Raise ContextAssemblyError when all retries exhausted
   - Include: retry_count, correlation_id in exception
   - Handle: compression_loop=0 special case (immediate failure)
-  - Dependencies: T019, T022
+  - Dependencies: T018, T021
 
-- [ ] **T025** Implement main assemble method
+- [ ] **T023** Implement main assemble method
   - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
   - Signature: `async def assemble(documents, correlation_id, max_tokens, compression_loop, invocation_id) -> ContextPackage`
   - Orchestrate:
@@ -401,53 +388,53 @@ graph TD
     5. Extract citations with _extract_citations
     6. Build payload with _build_payload
     7. Build ContextPackage with package_metadata including compression_retry_count
-  - Dependencies: T016, T017, T018, T019, T020, T021, T022, T023, T024
+  - Dependencies: T015, T016, T017, T018, T019, T020, T021, T022
 
 ## Phase 3.6: Integration Tests ⚠️ After Implementation Complete
 
-- [ ] **T026** [P] Integration test: Within budget no compression flow
+- [ ] **T025** [P] Integration test: Within budget no compression flow
   - Test file: `tests/integration/agent_orchestrator/context_manager/test_assembler_integration.py`
   - Test: `test_assembly_within_budget_no_compression`
   - Setup: RelevantDocuments with total tokens < max_tokens
   - Verify: CompressorService NOT called, compression_applied=False, compression_retry_count=0
   - Dependencies: T025
 
-- [ ] **T027** [P] Integration test: Compression trigger with retry
+- [ ] **T026** [P] Integration test: Compression trigger with retry
   - Test file: `tests/integration/agent_orchestrator/context_manager/test_assembler_integration.py`
   - Test: `test_compression_triggered_with_retry_loop`
   - Setup: RelevantDocuments exceeding budget, compression_loop=3
   - Verify: CompressorService called with progressive strategies
   - Dependencies: T025
 
-- [ ] **T028** [P] Integration test: Successful retry after first failure
+- [ ] **T027** [P] Integration test: Successful retry after first failure
   - Test file: `tests/integration/agent_orchestrator/context_manager/test_assembler_integration.py`
   - Test: `test_successful_retry_after_first_failure`
   - Setup: First compression fails, second succeeds
   - Verify: compression_retry_count=1, compression_applied=True
   - Dependencies: T025
 
-- [ ] **T029** [P] Integration test: Multiple retry attempts
+- [ ] **T028** [P] Integration test: Multiple retry attempts
   - Test file: `tests/integration/agent_orchestrator/context_manager/test_assembler_integration.py`
   - Test: `test_multiple_compression_retries`
   - Setup: First two compressions fail, third succeeds, compression_loop=3
   - Verify: compression_retry_count=2, increasingly aggressive strategies used
   - Dependencies: T025
 
-- [ ] **T030** [P] Integration test: Exhausted retries rejection
+- [ ] **T029** [P] Integration test: Exhausted retries rejection
   - Test file: `tests/integration/agent_orchestrator/context_manager/test_assembler_integration.py`
   - Test: `test_all_retries_exhausted_raises_error`
   - Setup: All compression attempts fail, compression_loop=3
   - Verify: ContextAssemblyError raised with retry_count=3
   - Dependencies: T025
 
-- [ ] **T031** [P] Integration test: compression_loop=0 immediate failure
+- [ ] **T030** [P] Integration test: compression_loop=0 immediate failure
   - Test file: `tests/integration/agent_orchestrator/context_manager/test_assembler_integration.py`
   - Test: `test_compression_loop_zero_immediate_failure`
   - Setup: Documents exceed budget, compression_loop=0
   - Verify: ContextAssemblyError raised immediately, retry_count=0
   - Dependencies: T025
 
-- [ ] **T032** [P] Integration test: End-to-end with citations from FileMetadata
+- [ ] **T031** [P] Integration test: End-to-end with citations from FileMetadata
   - Test file: `tests/integration/agent_orchestrator/context_manager/test_assembler_integration.py`
   - Test: `test_end_to_end_assembly_with_citations`
   - Setup: Full workflow with RelevantDocuments containing file_metadata
@@ -456,23 +443,39 @@ graph TD
 
 ## Phase 3.7: Planner Integration
 
-- [ ] **T033** Add correlation_id logging with retry tracking
+- [ ] **T032** Add correlation_id logging with retry tracking
   - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
   - Add: Structured logging with correlation_id in all methods
   - Log: Retry attempts, strategy levels, token counts
   - Pattern: `logger.info("Compression retry attempt %d/%d", retry_count, compression_loop, extra={"correlation_id": correlation_id})`
   - Dependencies: T025, T026, T027, T028, T029, T030, T031, T032
 
-- [ ] **T034** Update ContextManagerPlanner signature
-  - File: `src/nexus/agent_orchestrator/context_manager/planner.py`
-  - Update: Add compression_loop parameter to planner's assemble invocation
-  - Read: Configuration or pass from caller
+- [x] **T033** Delete old assembler.py stub
+  - File: `src/nexus/agent_orchestrator/context_manager/assembler.py`
+  - Action: Delete old stub implementation that conflicts with new assembler_service/ directory
+  - Reason: New implementation uses assembler_service/ directory structure with proper separation
   - Dependencies: T025
+  - **COMPLETED**: Old stub file successfully deleted (verified: file does not exist)
+
+- [x] **T034** Update ContextManagerPlanner integration
+  - File: `src/nexus/agent_orchestrator/context_manager/planner.py`
+  - Update imports: Change from `.assembler` to `.assembler_service`
+  - Add import: `from .token_validation import TokenValidationService`
+  - Update docstring: Change from 3-phase to 2-phase workflow (retrieve → assemble)
+  - Remove: Phase 2 compression block (lines 141-179) - now handled by AssemblerService
+  - Update assembly phase:
+    - Get max_tokens and compression_loop from settings
+    - Inject TokenValidationService and CompressorService into AssemblerService
+    - Call `await assembler.assemble(documents=retrieved_docs, correlation_id, max_tokens, compression_loop)`
+    - Return ContextPackage directly from assembler
+  - Dependencies: T025, T033
+  - **COMPLETED**: All integration updates verified in planner.py (imports, docstring, assembly phase implementation)
 
 - [ ] **T035** Verify planner integration with compression_loop
   - Test file: `tests/integration/agent_orchestrator/context_manager/test_planner_integration.py`
   - Test: `test_planner_invokes_assembler_with_compression_loop`
   - Verify: Planner passes compression_loop parameter correctly
+  - Verify: AssemblerService receives injected dependencies
   - Dependencies: T034
 
 ## Phase 3.8: Polish
@@ -481,7 +484,7 @@ graph TD
   - Command: `pytest tests/unit/agent_orchestrator/context_manager/test_assembler_service.py -v`
   - Command: `pytest tests/integration/agent_orchestrator/context_manager/test_assembler_integration.py -v`
   - Verify: All unit and integration tests pass
-  - Dependencies: T033, T035
+  - Dependencies: T034, T035
 
 - [ ] **T037** [P] Verify code coverage >90%
   - Command: `pytest --cov=src/nexus/agent_orchestrator/context_manager/assembler_service tests/ --cov-report=term-missing`
@@ -492,7 +495,7 @@ graph TD
   - File: `specs/020-context-assembly/quickstart.md`
   - Run all test scenarios from quickstart guide
   - Verify: All acceptance scenarios pass
-  - Dependencies: T036
+  - Dependencies: T037
 
 - [ ] **T039** Update package_metadata with retry_count
   - File: `src/nexus/agent_orchestrator/context_manager/assembler_service/service.py`
@@ -505,7 +508,7 @@ graph TD
   - Clean: Remove debug statements, unused imports
   - Document: Add inline comments for complex retry logic
   - Verify: No RelevantDocument or FileMetadata model recreation
-  - Dependencies: T036, T037, T038, T039
+  - Dependencies: T037, T038, T039
 
 ## Dependencies Summary
 
@@ -514,15 +517,17 @@ graph TD
 - T002, T003 block citation/grounding tests (models must exist)
 - T004 blocks all unit tests (exception class needed)
 - T005 blocks T006 (ContextPackage model must be verified)
-- All unit tests (T006-T015) block corresponding implementations (T016-T019)
-- T025 blocks all integration tests (T026-T032)
-- T033-T035 block final polish (T036-T040)
+- All unit tests (T006-T014) block corresponding implementations (T015-T018)
+- T023 blocks all integration tests (T024-T031)
+- T025 blocks T033 (implementation needed before deleting old stub)
+- T033 blocks T034 (old stub must be deleted before planner integration)
+- T034-T035 block final polish (T036-T040)
 
 **Parallel Opportunities**:
 - T002, T003 can run together (different verification tasks)
 - T006-T010 can run together (different test files/methods)
-- T011-T015 can run together (different test files/methods)
-- T026-T032 can run together (different test methods)
+- T011-T014 can run together (different test files/methods)
+- T024-T031 can run together (different test methods)
 - T036, T037, T038 can run together (different validation tasks)
 
 ## Parallel Execution Examples
@@ -603,6 +608,8 @@ Task 7: "Integration test end-to-end with citations from FileMetadata in tests/i
 7. **Package Metadata**: Added compression_retry_count tracking (T015, T039)
 8. **Error Handling**: Updated ContextAssemblyError to include retry_count attribute
 
-**Total Tasks**: 40 (up from 29 in original)
-**Parallel Tasks**: 20 (marked with [P])
-**Sequential Tasks**: 20 (implementation and integration)
+**Total Tasks**: 40 (T001-T040)
+- Added T033: Delete old assembler.py stub
+- Added T034: Update ContextManagerPlanner integration
+**Parallel Tasks**: 19 (marked with [P])
+**Sequential Tasks**: 21 (implementation and integration)

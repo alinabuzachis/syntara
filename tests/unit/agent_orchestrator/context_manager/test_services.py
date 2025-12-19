@@ -3,7 +3,10 @@
 This module tests the individual service classes (CompressorService, AssemblerService) to ensure proper stub behavior.
 """
 
+import math
 from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from nexus.agent_orchestrator.context_manager import (
     AssemblerService,
@@ -40,27 +43,62 @@ class TestCompressorService:
 
 
 class TestAssemblerService:
-    """Test the AssemblerService stub implementation."""
+    """Test the AssemblerService implementation."""
 
     def test_assembler_initialization(self) -> None:
-        """Test AssemblerService initializes correctly."""
-        service = AssemblerService()
+        """Test AssemblerService initializes correctly with dependencies."""
+        token_service = Mock()
+        compressor_service = AsyncMock()
+        service = AssemblerService(
+            token_service=token_service,
+            compressor_service=compressor_service,
+        )
         assert service is not None
+        assert service.token_service is token_service
+        assert service.compressor_service is compressor_service
 
-    def test_assemble_method_call(self) -> None:
-        """Test assemble method executes and returns None."""
-        service = AssemblerService()
-        test_sections = {"section1": "content1", "section2": "content2"}
+    @pytest.mark.asyncio
+    async def test_assemble_method_with_empty_documents(self) -> None:
+        """Test assemble method with empty documents returns valid ContextPackage."""
+        token_service = Mock()
+        compressor_service = AsyncMock()
+        service = AssemblerService(
+            token_service=token_service,
+            compressor_service=compressor_service,
+        )
+
+        # Method should execute and return ContextPackage
+        result = await service.assemble(
+            documents=[],
+            correlation_id="test-correlation-101",
+            max_tokens=1000,
+            compression_loop=0,
+        )
+
+        assert result is not None
+        assert result.correlation_id == "test-correlation-101"
+        assert math.isclose(result.grounding_score, 0.0)
+
+    @pytest.mark.asyncio
+    async def test_assemble_with_null_documents(self) -> None:
+        """Test assemble method with None documents."""
+        token_service = Mock()
+        compressor_service = AsyncMock()
+        service = AssemblerService(
+            token_service=token_service,
+            compressor_service=compressor_service,
+        )
 
         # Method should execute without raising exception
-        service.assemble(test_sections, "test-correlation-101")
+        result = await service.assemble(
+            documents=None,
+            correlation_id="null-docs-correlation",
+            max_tokens=1000,
+            compression_loop=0,
+        )
 
-    def test_assemble_with_empty_sections(self) -> None:
-        """Test assemble method with empty sections dict."""
-        service = AssemblerService()
-
-        # Method should execute without raising exception
-        service.assemble({}, "empty-sections-correlation")
+        assert result is not None
+        assert math.isclose(result.grounding_score, 0.0)
 
 
 class TestContextManagerSettings:
@@ -81,8 +119,8 @@ class TestContextManagerSettings:
         settings = get_settings()
 
         # Verify specific default values
-        assert settings.context_manager_required_grounding_score == 0.7
-        assert settings.context_manager_minimum_grounding_score == 0.5
+        assert math.isclose(settings.context_manager_required_grounding_score, 0.7)
+        assert math.isclose(settings.context_manager_minimum_grounding_score, 0.5)
         assert settings.context_manager_max_total_tokens == 4000
         assert settings.context_manager_max_context_tokens == 3000
         assert settings.context_manager_default_k == 10

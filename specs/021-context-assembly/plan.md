@@ -22,11 +22,11 @@
 
 ## Summary
 
-The AssemblerService is an internal service component within the Context Manager (located in `assembler_service/service.py`) that receives RelevantDocuments from the existing retriever model, manages token budget through TokenService, implements a compression retry loop with progressively aggressive strategies (controlled by compression_loop parameter), and merges document content into structured ContextPackage objects for LLM workflow consumption. The service extracts citations from FileMetadata.file_id attributes for unambiguous source identification (avoiding filename ambiguity), computes grounding scores as simple averages of relevancy scores, and handles comprehensive error scenarios including exhausted compression retries.
+The AssemblerService is an internal service component within the Context Manager (located in `assembler_service/service.py`) that receives RelevantDocuments from the existing retriever model, manages token budget through TokenService, implements a compression retry loop (controlled by compression_loop parameter, relies on LLM non-determinism for variation), and merges document content into structured ContextPackage objects for LLM workflow consumption. The service extracts citations from FileMetadata.file_id attributes for unambiguous source identification (avoiding filename ambiguity), computes grounding scores as simple averages of relevancy scores, and handles comprehensive error scenarios including exhausted compression retries.
 
 **Scope**: AssemblerService focuses solely on assembling RelevantDocuments into ContextPackage - System Prompts and User Prompts are handled elsewhere in the workflow.
 
-**Technical Approach**: Implement as internal Python service in separate `assembler_service/` directory following existing context_manager patterns, using existing RelevantDocument and FileMetadata models, implementing compression retry loop with strategy progression, extracting citations from FileMetadata.file_id (unique identifier preventing ambiguity when filenames repeat), and using Pydantic BaseModel for ContextPackage (in-memory only, no database persistence).
+**Technical Approach**: Implement as internal Python service in separate `assembler_service/` directory following existing context_manager patterns, using existing RelevantDocument and FileMetadata models, implementing compression retry loop (same "greedy" strategy, LLM non-determinism provides variation), extracting citations from FileMetadata.file_id (unique identifier preventing ambiguity when filenames repeat), and using Pydantic BaseModel for ContextPackage (in-memory only, no database persistence).
 
 ## Technical Context
 
@@ -226,15 +226,15 @@ From spec.md Acceptance Scenarios (Updated 2025-12-12):
 
 2. **Test**: Documents exceeding budget trigger compression with retry loop
    - Input: RelevantDocuments with total tokens > max_tokens, compression_loop > 0
-   - Assert: CompressorService invoked with progressively aggressive strategies
+   - Assert: CompressorService invoked multiple times (retry loop)
 
 3. **Test**: Compressed content within budget proceeds successfully
    - Input: Documents → compression → tokens < max_tokens
    - Assert: Valid ContextPackage with compression_applied=true, compression_retry_count in metadata
 
-4. **Test**: Compression retry loop with strategy progression
-   - Input: Documents → compression fails → retry with more aggressive strategy
-   - Assert: retry_count increments, more aggressive strategy used
+4. **Test**: Compression retry loop increments retry_count
+   - Input: Documents → compression fails → retry
+   - Assert: retry_count increments with each retry attempt
 
 5. **Test**: All compression retries exhausted raises error
    - Input: Documents → compression retries (compression_loop times) → tokens still > max_tokens
@@ -461,6 +461,55 @@ No violations identified. All constitutional requirements are met:
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
 | N/A | N/A | N/A |
+
+## Planner Integration
+
+**ContextManagerPlanner Updates (2025-12-17)**:
+
+The planner orchestrator has been updated to integrate with the new AssemblerService implementation:
+
+**Changes Made**:
+1. **Import Updates**:
+   - Changed from `from .assembler import AssemblerService` to `from .assembler_service import AssemblerService`
+   - Added `from .token_validation import TokenValidationService` for dependency injection
+
+2. **Workflow Simplification**:
+   - Updated docstring from 3-phase to 2-phase workflow:
+     - Phase 1: Retrieval (find relevant documents)
+     - Phase 2: Assembly (create final context package with internal compression retry loop)
+   - Removed Phase 2 compression block (lines 141-179) - now handled internally by AssemblerService
+
+3. **Assembly Phase Update**:
+   - Get `max_tokens` from `settings.context_manager_max_total_tokens`
+   - Get `compression_loop` from `settings.context_manager_compression_loop` (default: 3)
+   - Inject dependencies:
+     - `TokenValidationService()` for token budget validation
+     - `CompressorService()` via factory for compression operations
+   - Call assembler with new signature:
+     ```python
+     context_package = await assembler.assemble(
+         documents=retrieved_docs,
+         correlation_id=correlation_id,
+         max_tokens=max_tokens,
+         compression_loop=compression_loop,
+     )
+     ```
+   - Return `ContextPackage` directly from assembler (no longer building new package in planner)
+
+4. **Old Stub Removal**:
+   - Deleted `src/nexus/agent_orchestrator/context_manager/assembler.py` stub
+   - Old stub signature: `def assemble(sections, correlation_id) -> None`
+   - New service signature: `async def assemble(documents, correlation_id, max_tokens, compression_loop) -> ContextPackage`
+
+**Rationale**:
+- AssemblerService now owns the complete assembly workflow including compression retry loop
+- Planner's responsibility reduced to orchestrating retrieval and assembly phases
+- Dependency injection allows proper testing and separation of concerns
+- Configuration parameters (max_tokens, compression_loop) controlled via settings
+
+**Testing**:
+- Task T035: Verify planner passes compression_loop parameter correctly
+- Task T035: Verify AssemblerService receives injected dependencies properly
 
 ## Progress Tracking
 

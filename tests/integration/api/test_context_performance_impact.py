@@ -72,7 +72,7 @@ class TestContextPerformanceImpact:
             },
             grounding_score=0.8,
             package_metadata={"correlation_id": "perf-test-123"},
-            citations=[{"source": f"doc{i}"} for i in range(10)],
+            citations=[f"file-id-doc{i}" for i in range(10)],
         )
 
         with patch.object(ContextManagerPlanner, "plan_request", return_value=mock_context_package):

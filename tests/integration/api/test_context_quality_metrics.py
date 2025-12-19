@@ -76,7 +76,7 @@ class TestContextQualityMetrics:
             },
             grounding_score=0.85,  # High quality context
             package_metadata={"test_metadata": "test-trace-123"},
-            citations=[{"source": "doc1", "relevance": 0.9}, {"source": "doc2", "relevance": 0.8}],
+            citations=["file-id-doc1", "file-id-doc2"],
         )
 
         with patch.object(ContextManagerPlanner, "plan_request", return_value=mock_context_package):
@@ -188,10 +188,7 @@ class TestContextQualityMetrics:
                 "context_status": "populated",
                 "processing_time": 0.250,
             },
-            citations=[
-                {"source": "doc1.md", "relevance": 0.8, "snippet": "relevant text"},
-                {"source": "api_spec.yaml", "relevance": 0.7, "snippet": "API documentation"},
-            ],
+            citations=["file-id-doc1", "file-id-api-spec"],
         )
 
         with patch.object(ContextManagerPlanner, "plan_request", return_value=mock_context_package):
@@ -240,6 +237,8 @@ class TestContextQualityMetrics:
                     citations = context_enhancement["citations"]
                     assert isinstance(citations, list)
                     assert len(citations) == 2
+                    # Citations are now file_id strings
+                    assert all(isinstance(c, str) for c in citations)
 
     @pytest.mark.asyncio
     async def test_empty_vs_populated_context_distinction(
@@ -296,7 +295,7 @@ class TestContextQualityMetrics:
             payload={"docs": "relevant content"},
             grounding_score=0.6,
             package_metadata={"context_status": "populated"},
-            citations=[{"source": "test.md"}],
+            citations=["file-id-test"],
         )
 
         with patch.object(ContextManagerPlanner, "plan_request", return_value=mock_populated_context):

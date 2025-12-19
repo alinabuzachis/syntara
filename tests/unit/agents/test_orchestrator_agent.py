@@ -26,7 +26,7 @@ class TestOrchestratorAgentContextIntegration:
             correlation_id="test-correlation",
             payload={"relevant_docs": "Documentation about deployment tools"},
             grounding_score=0.85,
-            citations=[{"source": "doc1.md"}, {"source": "doc2.md"}],
+            citations=["file-id-doc1", "file-id-doc2"],
         )
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
