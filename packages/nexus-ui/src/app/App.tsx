@@ -1,6 +1,7 @@
-import { AlertProvider } from '@ansible/nexus-ui-framework'
 import { Compass, CompassContent } from '@patternfly/react-core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
+import { AlertProvider } from '../components/alerts'
 
 import { AppDockedNav } from './AppDockedNav'
 import { AppLogin } from './AppLogin'

@@ -40,16 +40,12 @@ vi.mock('../../stores/useWorkflowStore', () => ({
 }))
 
 // Mock the alerts hook
-vi.mock('@ansible/nexus-ui-framework', async () => {
-  const actual = await vi.importActual('@ansible/nexus-ui-framework')
-  return {
-    ...actual,
-    useAlerts: vi.fn(() => ({
-      showSuccess: vi.fn(),
-      showError: vi.fn(),
-    })),
-  }
-})
+vi.mock('../../components/alerts', () => ({
+  useAlerts: vi.fn(() => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+  })),
+}))
 
 // Mock the form components
 vi.mock('./node-forms/ActionNodeForm', () => ({
@@ -109,7 +105,7 @@ describe('NodeDetailsPanel Component', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    const { useAlerts } = await import('@ansible/nexus-ui-framework')
+    const { useAlerts } = await import('../../components/alerts')
     vi.mocked(useAlerts).mockReturnValue({
       showSuccess: mockShowSuccess,
       showError: mockShowError,

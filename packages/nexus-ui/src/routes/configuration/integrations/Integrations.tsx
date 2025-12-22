@@ -1,5 +1,4 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
-import { useAlerts } from '@ansible/nexus-ui-framework'
 import {
   Button,
   CompassPanel,
@@ -41,6 +40,7 @@ import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import noResultsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolProvidersClient } from '../../../client'
+import { useAlerts } from '../../../components/alerts'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useFuse } from '../../../hooks/useFuse'
 import { getErrorMessage } from '../../../utils/apiErrors'

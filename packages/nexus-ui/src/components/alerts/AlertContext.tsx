@@ -1,0 +1,38 @@
+import { createContext, useContext } from 'react'
+
+export type AlertVariant = 'success' | 'danger' | 'warning' | 'info' | 'custom'
+
+export interface AlertConfig {
+  id?: string
+  variant?: AlertVariant | 'error' // Accept 'error' and map to 'danger'
+  title: string
+  description?: string
+  autoDismiss?: boolean
+  timeout?: number // milliseconds, defaults to 8000 if autoDismiss is true
+}
+
+export interface AlertContextType {
+  showAlert: (config: AlertConfig) => void
+  showSuccess: (title: string, description?: string) => void
+  showError: (title: string, description?: string) => void
+  showWarning: (title: string, description?: string) => void
+  showInfo: (title: string, description?: string) => void
+  dismissAlert: (id: string) => void
+  clearAllAlerts: () => void
+}
+
+const noopAlertContext: AlertContextType = {
+  showAlert: () => {},
+  showSuccess: () => {},
+  showError: () => {},
+  showWarning: () => {},
+  showInfo: () => {},
+  dismissAlert: () => {},
+  clearAllAlerts: () => {},
+}
+
+export const AlertContext = createContext<AlertContextType>(noopAlertContext)
+
+export function useAlerts() {
+  return useContext(AlertContext)
+}

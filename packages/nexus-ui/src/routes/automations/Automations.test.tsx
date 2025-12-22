@@ -1,10 +1,10 @@
-import { AlertProvider } from '@ansible/nexus-ui-framework'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { workflowClient } from '../../client'
+import { AlertProvider } from '../../components/alerts'
 
 import Automations from './Automations'
 

@@ -1,5 +1,4 @@
 import type { Tool } from '@ansible/nexus-contracts'
-import { useAlerts } from '@ansible/nexus-ui-framework'
 import {
   Button,
   Card,
@@ -24,6 +23,7 @@ import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute.tsx'
 import noToolsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolProvidersClient, toolsClient } from '../../../client'
+import { useAlerts } from '../../../components/alerts'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { StringCell } from '../../../components/table/StringCell'
 import { Table } from '../../../components/table/Table'

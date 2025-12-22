@@ -1,5 +1,4 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { useAlerts } from '@ansible/nexus-ui-framework'
 import {
   Button,
   CompassPanel,
@@ -27,6 +26,7 @@ import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
 import { workflowClient } from '../../client'
+import { useAlerts } from '../../components/alerts'
 import { FlowNodeType } from '../../constants'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import { NodeExpandedAllContext } from '../automations/canvas/nodes/common/NodeExpandedAllContext'

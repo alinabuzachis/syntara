@@ -1,6 +1,6 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { useAlerts } from '@ansible/nexus-ui-framework'
 
+import { useAlerts } from '../../../components/alerts'
 import { createManualTrigger, createScheduledTrigger, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import type { TriggerFormData } from '../node-forms/TriggerNodeForm'
 import { TriggerNodeForm } from '../node-forms/TriggerNodeForm'

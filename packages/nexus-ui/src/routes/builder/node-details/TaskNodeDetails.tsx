@@ -1,16 +1,15 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { useAlerts } from '@ansible/nexus-ui-framework'
+import type { TaskActivity } from '@ansible/nexus-contracts'
 
+import { useAlerts } from '../../../components/alerts'
 import { createAAPJobTemplateActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { AAPNodeForm } from '../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../node-forms/AAPNodeForm'
 import { ActionNodeForm } from '../node-forms/ActionNodeForm'
+import type { ActionFormData } from '../node-forms/ActionNodeForm'
 import { buildAAPConfig, parsePositiveInt } from '../utils/aapHelpers'
 
-type TaskActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'task' }
-
 interface TaskNodeDetailsProps {
-  taskData: TaskActivity
+  taskData: TaskActivity & { task: { executor: string; config: unknown } }
   nodeId: string
   onClose: () => void
 }
@@ -19,11 +18,11 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
   const { showError } = useAlerts()
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
-  const executor = taskData.task.executor
+  const executor = taskData.task.executor as string
 
   // Check if this is an AAP job template task
   if (executor === 'aap_job_template') {
-    const aapConfig = taskData.task.config as {
+    const aapConfig = taskData.task.config as unknown as {
       jobTemplateId: number
       inventory?: number
       credentials?: number[]
@@ -78,35 +77,49 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
     return null
   }
 
-  const initialData = {
+  // Store requiresApproval separately since ActionFormData doesn't include it
+  const requiresApproval = taskData.requiresApproval
+
+  const initialData: Partial<ActionFormData> = {
     name: taskData.name,
-    executor: executor,
-    language: executor === 'script' ? taskData.task.config.language : undefined,
-    code: executor === 'script' ? taskData.task.config.code : undefined,
-    method: executor === 'api' ? taskData.task.config.method : undefined,
-    url: executor === 'api' ? taskData.task.config.url : undefined,
+    executor: executor as 'script' | 'api',
+    language:
+      executor === 'script'
+        ? ((taskData.task.config as { language?: string }).language as 'python' | 'bash' | undefined)
+        : undefined,
+    code: executor === 'script' ? (taskData.task.config as { code?: string }).code : undefined,
+    method:
+      executor === 'api'
+        ? ((taskData.task.config as { method?: string }).method as
+            | 'GET'
+            | 'POST'
+            | 'PUT'
+            | 'PATCH'
+            | 'DELETE'
+            | undefined)
+        : undefined,
+    url: executor === 'api' ? (taskData.task.config as { url?: string }).url : undefined,
     headers:
-      executor === 'api' && taskData.task.config.headers
-        ? JSON.stringify(taskData.task.config.headers, null, 2)
+      executor === 'api' && (taskData.task.config as { headers?: unknown }).headers
+        ? JSON.stringify((taskData.task.config as { headers: unknown }).headers, null, 2)
         : undefined,
     body:
-      executor === 'api' && taskData.task.config.body
-        ? typeof taskData.task.config.body === 'string'
-          ? taskData.task.config.body
-          : JSON.stringify(taskData.task.config.body, null, 2)
+      executor === 'api' && (taskData.task.config as { body?: unknown }).body
+        ? typeof (taskData.task.config as { body: unknown }).body === 'string'
+          ? (taskData.task.config as { body: string }).body
+          : JSON.stringify((taskData.task.config as { body: unknown }).body, null, 2)
         : undefined,
     parameters: taskData.task.inputs ? JSON.stringify(taskData.task.inputs, null, 2) : undefined,
-    requiresApproval: taskData.requiresApproval,
   }
 
-  const handleSubmit = (data: typeof initialData) => {
+  const handleSubmit = (data: ActionFormData) => {
     try {
-      const updatedActivity: TaskActivity = {
+      const updatedActivity = {
         ...taskData,
         name: data.name,
-        requiresApproval: data.requiresApproval || undefined,
+        requiresApproval: requiresApproval || undefined,
         task: {
-          executor: data.executor as 'script' | 'api',
+          executor: data.executor,
           config:
             data.executor === 'script'
               ? {
@@ -129,7 +142,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
                 },
           ...(data.parameters && { inputs: JSON.parse(data.parameters) }),
         },
-      }
+      } as TaskActivity
 
       updateActivity(nodeId, updatedActivity)
       onClose()

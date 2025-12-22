@@ -1,4 +1,4 @@
-import { useAlerts } from '@ansible/nexus-ui-framework'
+import { useAlerts } from './alerts'
 
 /**
  * Demo component to showcase Alert functionality
