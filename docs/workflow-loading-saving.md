@@ -140,6 +140,27 @@ The `WorkflowTransform.flatten()` method:
 1. **Traverses nested structures** recursively
 2. **Extracts all activities** to a flat array
 3. **Generates edges** representing the nesting relationships
+4. **Handles converge nodes in complex workflows** (Dec 2025 improvement)
+
+#### Converge Node Handling (Dec 2025)
+
+The flatten method now includes sophisticated converge node handling to support complex workflows where the backend may reorder activities or nest branch activities separately from converge nodes.
+
+**Three-Pass Algorithm:**
+
+1. **First Pass**: Find all converge nodes and determine what should come after them
+   - Handles backend reordering (e.g., `[C, M, J]` instead of `[C, J, M]`)
+   - Creates edges from converge nodes to their following activities
+   - Looks backward if converge is last in array to find non-branch activities
+
+2. **Second Pass**: Create sequential edges and handle parallel branches
+   - For parallel nodes followed by converge nodes: creates edges only from branches listed in `converge.branches`
+   - Supports **partial convergence** (not all branches need to converge)
+   - Uses `getAllLastActivityIds()` to handle condition nodes within parallel branches
+
+3. **Third Pass**: Handle converge nodes referencing nested activities
+   - Creates edges from branch activities to converge nodes even when not adjacent in array
+   - Example: `[C(containing A,B), M, J]` where `J.converge.branches=['A','B']` → creates A→J, B→J edges
 
 #### For Condition Nodes:
 
@@ -471,7 +492,7 @@ Activities in parallel execution are identified by:
 **Cause**: Conditions flattened during load, need manual save
 **Solution**: This is expected - save to re-nest conditions
 
-### Issue: Missing edge from condition branch to converge node (FIXED)
+### Issue: Missing edge from condition branch to converge node (FIXED - Dec 2025)
 
 **Cause**: When a parallel branch contains a condition node (e.g., `parallel → [A, B, condition(C)] → J`), the edge from C to J was not being created during flattening. This happened because `getLastActivityId()` only handled sequence nodes, not condition nodes.
 
@@ -484,26 +505,42 @@ Activities in parallel execution are identified by:
 
 **Root Cause**: When processing the parallel's third branch (the condition node), `getLastActivityId(condition)` returned the condition's ID instead of drilling down to find C. This caused the converge check `convergeBranchSet.has(conditionId)` to fail.
 
-**Solution**: Extended `getLastActivityId()` (lines 213-240) to recursively traverse condition nodes:
+**Solution**: Extended `getLastActivityId()` to `getAllLastActivityIds()` which recursively traverses condition nodes and returns ALL possible endpoints (from both then and else branches):
 
 ```typescript
-if (activity.type === 'condition') {
-  const thenActivities = activity.then || []
-  const elseActivities = activity.else || []
+private static getAllLastActivityIds(activity: Activity): string[] {
+  if (activity.type === 'condition') {
+    const thenActivities = activity.then || []
+    const elseActivities = activity.else || []
+    const lastIds: string[] = []
 
-  if (thenActivities.length > 0) {
-    return this.getLastActivityId(thenActivities[thenActivities.length - 1])
+    if (thenActivities.length > 0) {
+      lastIds.push(...this.getAllLastActivityIds(thenActivities[thenActivities.length - 1]))
+    }
+
+    if (elseActivities.length > 0) {
+      lastIds.push(...this.getAllLastActivityIds(elseActivities[elseActivities.length - 1]))
+    }
+
+    return lastIds.length > 0 ? lastIds : [activity.id]
   }
 
-  if (elseActivities.length > 0) {
-    return this.getLastActivityId(elseActivities[elseActivities.length - 1])
+  // Handle sequences recursively
+  if (activity.type === 'sequence') {
+    const sequence = activity as Extract<Activity, { type: 'sequence' }>
+    if (sequence.activities && sequence.activities.length > 0) {
+      const lastActivity = sequence.activities[sequence.activities.length - 1]
+      return this.getAllLastActivityIds(lastActivity)
+    }
   }
+
+  return [activity.id]
 }
 ```
 
-Now `getLastActivityId(condition(C))` correctly returns C's ID, allowing the edge C→J to be created.
+Now `getAllLastActivityIds(condition(C))` correctly returns C's ID (and any other branch endpoints), allowing the edges to converge nodes to be created correctly.
 
-### Issue: Duplicate converge node error with partial convergence (FIXED)
+### Issue: Duplicate converge node error with partial convergence (FIXED - Dec 2025)
 
 **Cause**: When parallel branches diverge from an external source (like a trigger) with partial convergence (only some branches converge at a join node), the converge node was being duplicated in the branch sequences during nesting. For example:
 
@@ -512,16 +549,20 @@ Now `getLastActivityId(condition(C))` correctly returns C's ID, allowing the edg
 
 **Root Cause**: `findParallelFromExternalSource` was using `findConvergencePoint` which returns `null` for partial convergence (not ALL branches converge). Without a convergence point, it used `collectAllDownstream` which included the converge node in each branch's activities.
 
-**Solution**: Fixed in `workflowTransform.ts` with three changes:
+**Solution**: Fixed in `workflowTransform.ts` with multiple improvements:
 
-1. **Enhanced converge node detection** (lines 919-939): When `findConvergencePoint` returns `null`, check for converge nodes that list at least 2 of the divergence targets in their `converge.branches` array. This supports partial convergence.
+1. **Enhanced converge node detection using `findPartialConvergeNode()`**: When `findConvergencePoint` returns `null`, check for converge nodes that list at least 2 of the divergence targets in their `converge.branches` array. This supports partial convergence.
 
-2. **Prevent duplicate collection** (lines 791-803, 758-761):
+2. **Prevent duplicate collection in `collectSequentialActivities()`**:
    - When collecting activities sequentially, check if converge nodes have incoming edges from unvisited sources and skip them if so
-   - When collecting activities after a parallel container, mark all branch activities as visited before collecting downstream activities
-   - This ensures converge nodes are collected only once, after the parallel container
+   - Uses a `visited` set to track which activities have already been processed
+   - This ensures converge nodes are collected only once
 
-3. **Distinguish structural nodes** (lines 973, 980): Only return converge nodes for truly external sources (triggers). For condition/loop nodes detected by structural handles (true/false/loop), let `findBranchActivities` collect the converge node into the branch.
+3. **Mark branch activities as visited in `collectBranchActivities()`**:
+   - When collecting activities after a parallel container, mark all branch activities as visited before collecting downstream activities
+   - This prevents converge nodes from being duplicated when processing subsequent branches
+
+4. **Distinguish structural nodes**: Only return converge nodes for truly external sources (triggers). For condition/loop nodes detected by structural handles (true/false/loop), let `findBranchActivities` collect the converge node into the branch.
 
 **Example scenario**:
 
@@ -530,6 +571,36 @@ Now `getLastActivityId(condition(C))` correctly returns C's ID, allowing the edg
 - C does not converge at J (edge was deleted)
 - **Before fix**: J appeared in both sequence(A,L,E,J) and sequence(B,J) → duplicate error
 - **After fix**: J collected only once and placed after the parallel container in top-level result
+
+### Issue: Converge node ordering and backend reordering (FIXED - Dec 2025)
+
+**Cause**: The backend may return activities in unexpected orders, such as `[C(nested activities), M, J(converge)]` where the converge node appears last but M should actually come after J in the workflow.
+
+**Example**:
+
+- Backend returns: `[C(containing A, L, E nested), M, J(converge)]`
+- J's converge branches: `[E, B]` (E is nested inside C)
+- Expected flow: C (with A→L→E) → J → M
+- Bug: Without special handling, M might be connected incorrectly
+
+**Solution**: Three-pass flatten algorithm handles this:
+
+1. **First Pass - Converge to Next Activity**: Determines what comes after each converge node
+   - If converge is NOT last in array → connect to next activity
+   - If converge IS last in array → look backward for an activity NOT in the converge's branches
+   - Example: For `[C, M, J]`, recognizes M is not in J's branches, so J → M edge is correct
+
+2. **Second Pass - Sequential Edges**: Skips creating edges FROM or TO converge nodes (handled separately)
+
+3. **Third Pass - Branches to Converge**: Creates edges from branch activities to converge nodes
+   - Searches ALL flattened activities to find branch activities (even if nested in C)
+   - Creates edges like E→J and B→J even though E is nested inside C and J is last in array
+
+**Benefits**:
+
+- Handles any backend activity ordering
+- Correctly connects nested branch activities to converge nodes
+- Preserves intended workflow semantics regardless of API structure
 
 ## Future Improvements
 
