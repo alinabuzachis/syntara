@@ -215,7 +215,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
 
   it('round-trip transformation preserves workflow structure', () => {
     // Test the complete nest → flatten round-trip to ensure edges are correctly regenerated
-    // This matches the user's exact workflow: trigger → A → (L || P1) where L contains D and C
+    // This matches the user's exact workflow: trigger → A → (L || P1) where L contains D → C → D1
     const flatActivities: Activity[] = [
       { type: 'task', id: 'trigger', name: 'Manual', task: { executor: 'manual', config: {} } },
       { type: 'task', id: 'A', name: 'Task A', task: { executor: 'script', config: { language: 'python', code: '' } } },
@@ -236,6 +236,12 @@ describe('WorkflowTransform - Parallel Detection', () => {
       },
       {
         type: 'task',
+        id: 'D1',
+        name: 'Task D1',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
+      {
+        type: 'task',
         id: 'P1',
         name: 'Task P1',
         task: { executor: 'script', config: { language: 'python', code: '' } },
@@ -247,10 +253,11 @@ describe('WorkflowTransform - Parallel Detection', () => {
       // A diverges to L and P1 (parallel branches)
       { id: 'A-L', source: 'A', target: 'L', sourceHandle: 'source', targetHandle: 'target' },
       { id: 'A-P1', source: 'A', target: 'P1', sourceHandle: 'source', targetHandle: 'target' },
-      // L loop body
+      // L loop body: D → C → D1 → L (back-edge)
       { id: 'L-D', source: 'L', target: 'D', sourceHandle: 'loop', targetHandle: 'target' },
       { id: 'D-C', source: 'D', target: 'C', sourceHandle: 'source', targetHandle: 'target' },
-      { id: 'C-L', source: 'C', target: 'L', sourceHandle: 'false', targetHandle: 'end' },
+      { id: 'C-D1', source: 'C', target: 'D1', sourceHandle: 'true', targetHandle: 'target' },
+      { id: 'D1-L', source: 'D1', target: 'L', sourceHandle: 'source', targetHandle: 'end' },
     ]
 
     // Step 1: Nest the flat structure (simulates save operation)
@@ -260,11 +267,11 @@ describe('WorkflowTransform - Parallel Detection', () => {
     const { activities: reloadedActivities, edges: reloadedEdges } = WorkflowTransform.flatten(nestedActivities)
 
     // Verify we got back all the activities
-    expect(reloadedActivities).toHaveLength(6)
-    expect(reloadedActivities.map((a) => a.id).sort()).toEqual(['A', 'C', 'D', 'L', 'P1', 'trigger'])
+    expect(reloadedActivities).toHaveLength(7)
+    expect(reloadedActivities.map((a) => a.id).sort()).toEqual(['A', 'C', 'D', 'D1', 'L', 'P1', 'trigger'])
 
     // Verify we got back all the edges
-    expect(reloadedEdges).toHaveLength(6)
+    expect(reloadedEdges).toHaveLength(7)
 
     // Find edges by their source/target/handle properties (not by ID, since IDs may vary)
     const findEdge = (source: string, target: string, sourceHandle: string) =>
@@ -306,8 +313,15 @@ describe('WorkflowTransform - Parallel Detection', () => {
       targetHandle: 'target',
     })
 
-    expect(findEdge('C', 'L', 'source')).toMatchObject({
+    expect(findEdge('C', 'D1', 'true')).toMatchObject({
       source: 'C',
+      target: 'D1',
+      sourceHandle: 'true',
+      targetHandle: 'target',
+    })
+
+    expect(findEdge('D1', 'L', 'source')).toMatchObject({
+      source: 'D1',
       target: 'L',
       sourceHandle: 'source',
       targetHandle: 'end',

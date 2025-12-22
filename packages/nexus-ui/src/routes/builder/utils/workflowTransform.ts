@@ -584,16 +584,25 @@ export class WorkflowTransform {
     // Generate sequential edges within loop body
     this.generateSequentialEdges(doActivities, edges)
 
-    // Edge from last activity back to loop (back-edge uses 'end' handle)
+    // Edge from last activity/activities back to loop (back-edge uses 'end' handle)
+    // CRITICAL: Use getAllLastActivityIds to handle conditions/parallels correctly
     if (doActivities.length > 0) {
       const lastDo = doActivities[doActivities.length - 1]
-      edges.push({
-        id: `${this.getActivityId(lastDo)}-${activity.id}`,
-        source: this.getActivityId(lastDo),
-        target: activity.id,
-        sourceHandle: this.getSourceHandle(lastDo),
-        targetHandle: 'end',
-      })
+      const lastActivityIds = this.getAllLastActivityIds(lastDo)
+
+      for (const lastActivityId of lastActivityIds) {
+        // Search for the source activity in the nested structure (before flattening)
+        const sourceActivity = this.searchInActivityList(doActivities, lastActivityId)
+        const sourceHandle = sourceActivity ? this.getSourceHandle(sourceActivity) : 'source'
+
+        edges.push({
+          id: `${lastActivityId}-${activity.id}`,
+          source: lastActivityId,
+          target: activity.id,
+          sourceHandle,
+          targetHandle: 'end',
+        })
+      }
     }
 
     // Recursively process loop body

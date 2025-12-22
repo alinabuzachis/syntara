@@ -239,4 +239,121 @@ describe('WorkflowTransform - Loop Nesting', () => {
     expect(condNode.else).toHaveLength(1)
     expect(condNode.else![0].id).toBe('C')
   })
+
+  it('round-trip: loop with condition containing then branch that loops back', () => {
+    // Regression test for bug where edge from activity inside condition's then branch
+    // was using wrong source handle when looping back
+    // Structure: Loop L contains [D, C] where C.then: [D1], and D1 loops back to L
+    const nestedActivities: Activity[] = [
+      {
+        type: 'loop',
+        id: 'L',
+        name: 'Loop L',
+        loop: {
+          type: 'while',
+          condition: 'true',
+          do: [
+            {
+              type: 'task',
+              id: 'D',
+              name: 'Task D',
+              task: { executor: 'script', config: { language: 'python', code: 'print("D")' } },
+            },
+            {
+              type: 'condition',
+              id: 'C',
+              name: 'Condition C',
+              condition: 'x > 0',
+              then: [
+                {
+                  type: 'task',
+                  id: 'D1',
+                  name: 'Task D1',
+                  task: { executor: 'script', config: { language: 'python', code: 'print("D1")' } },
+                },
+              ],
+              else: [],
+            },
+          ],
+        },
+      },
+    ]
+
+    // Step 1: Flatten the nested structure
+    const { activities: flatActivities, edges: flatEdges } = WorkflowTransform.flatten(nestedActivities)
+
+    // Verify flat structure
+    expect(flatActivities).toHaveLength(4)
+    expect(flatActivities.map((a) => a.id).sort()).toEqual(['C', 'D', 'D1', 'L'])
+
+    // Verify edges
+    expect(flatEdges).toHaveLength(4)
+
+    const findEdge = (source: string, target: string, sourceHandle: string) =>
+      flatEdges.find((e) => e.source === source && e.target === target && e.sourceHandle === sourceHandle)
+
+    // CRITICAL: Verify the back-edge from D1 to L uses D1's 'source' handle, NOT C's 'false' handle
+    expect(findEdge('L', 'D', 'loop')).toMatchObject({
+      source: 'L',
+      target: 'D',
+      sourceHandle: 'loop',
+      targetHandle: 'target',
+    })
+
+    expect(findEdge('D', 'C', 'source')).toMatchObject({
+      source: 'D',
+      target: 'C',
+      sourceHandle: 'source',
+      targetHandle: 'target',
+    })
+
+    expect(findEdge('C', 'D1', 'true')).toMatchObject({
+      source: 'C',
+      target: 'D1',
+      sourceHandle: 'true',
+      targetHandle: 'target',
+    })
+
+    expect(findEdge('D1', 'L', 'source')).toMatchObject({
+      source: 'D1',
+      target: 'L',
+      sourceHandle: 'source', // D1 is a task, uses 'source' handle
+      targetHandle: 'end',
+    })
+
+    // Step 2: Nest the flat structure back
+    const reNested = WorkflowTransform.nest(flatActivities, flatEdges)
+
+    // Verify structure is preserved
+    expect(reNested).toHaveLength(1)
+    const loopNode = reNested[0] as Extract<Activity, { type: 'loop' }>
+    expect(loopNode.type).toBe('loop')
+    expect(loopNode.loop.do).toHaveLength(2)
+
+    // Verify D is first activity in loop body
+    expect(loopNode.loop.do[0].id).toBe('D')
+
+    // Verify C is second activity with D1 in then branch
+    const condNode = loopNode.loop.do[1] as Extract<Activity, { type: 'condition' }>
+    expect(condNode.type).toBe('condition')
+    expect(condNode.then).toHaveLength(1)
+    expect(condNode.then![0].id).toBe('D1')
+    expect(condNode.else).toBeUndefined() // Empty else branch should be undefined or empty
+
+    // Step 3: Flatten again to verify round-trip
+    const { activities: reFlatActivities, edges: reFlatEdges } = WorkflowTransform.flatten(reNested)
+
+    // Should match original flat structure
+    expect(reFlatActivities).toHaveLength(4)
+    expect(reFlatActivities.map((a) => a.id).sort()).toEqual(['C', 'D', 'D1', 'L'])
+
+    // Verify edges are preserved correctly
+    expect(reFlatEdges).toHaveLength(4)
+    expect(findEdge('D1', 'L', 'source')).toMatchObject({
+      source: 'D1',
+      target: 'L',
+      sourceHandle: 'source', // Must remain 'source', not 'false'
+      targetHandle: 'end',
+    })
+  })
 })
