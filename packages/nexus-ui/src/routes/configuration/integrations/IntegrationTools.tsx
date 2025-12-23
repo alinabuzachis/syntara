@@ -1,21 +1,20 @@
 import type { Tool } from '@ansible/nexus-contracts'
 import {
   Button,
-  Card,
-  CardBody,
-  Content,
-  ContentVariants,
-  Flex,
-  FlexItem,
-  Form,
+  CompassPanel,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
   Modal,
   ModalBody,
   ModalFooter,
   ModalHeader,
   SearchInput,
-  Title,
+  StackItem,
 } from '@patternfly/react-core'
-import { useState } from 'react'
+import { Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 
 import { AppPage } from '../../../app/AppPage'
@@ -24,9 +23,10 @@ import { AppRoute } from '../../../app/AppRoute.tsx'
 import noToolsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolProvidersClient, toolsClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
+import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
+import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { StringCell } from '../../../components/table/StringCell'
-import { Table } from '../../../components/table/Table'
+import { ScrollableTableContainer, type TableFooterProps } from '../../../components/table/ScrollableTableContainer'
 import { useFuse } from '../../../hooks/useFuse'
 import { getErrorMessage } from '../../../utils/apiErrors'
 
@@ -84,25 +84,90 @@ export default function IntegrationTools() {
   }
 
   const handleSubmit = async () => {
-    const enableTools = enabledTools?.map((tool) => tool.id)
-    const disableTools = results?.filter((tool) => !enabledTools.includes(tool))?.map((tool) => tool.id)
-    if (enableTools && enableTools?.length > 0) {
+    // Get all tools on current page that should be enabled (in enabledToolIds)
+    // Note: We submit all tools that should be enabled, not just changed ones, to match previous behavior
+    const enableTools = results.filter((tool) => enabledToolIds.has(tool.id)).map((tool) => tool.id)
+    // Get all tools on current page that should be disabled (not in enabledToolIds)
+    const disableTools = results.filter((tool) => !enabledToolIds.has(tool.id)).map((tool) => tool.id)
+
+    // Submit changes for current page
+    if (enableTools && enableTools.length > 0) {
       updateTools(
         { body: { tool_ids: enableTools, enabled: true } },
         { onSuccess: () => navigate(AppRoute.Configuration.Integrations.Root) }
       )
     }
-    if (disableTools && disableTools?.length > 0) {
+    if (disableTools && disableTools.length > 0) {
       updateTools(
         { body: { tool_ids: disableTools, enabled: false } },
         { onSuccess: () => navigate(AppRoute.Configuration.Integrations.Root) }
       )
     }
-    navigate(AppRoute.Configuration.Integrations.Root)
+
+    // If no tools on current page, just navigate
+    if ((!enableTools || enableTools.length === 0) && (!disableTools || disableTools.length === 0)) {
+      navigate(AppRoute.Configuration.Integrations.Root)
+    }
   }
   const { search, setSearch, items: results } = useFuse(query.data?.resources ?? [], [{ name: 'namespaced_name' }])
-  const [enabledTools, setEnabledTools] = useState<Tool[]>([])
+  const previousResultsRef = useRef(results)
+  // Track enabled tool IDs across all pages
+  const [enabledToolIds, setEnabledToolIds] = useState<Set<string>>(() => {
+    const initialEnabled = new Set<string>()
+    results.filter((tool) => tool.enabled).forEach((tool) => initialEnabled.add(tool.id))
+    return initialEnabled
+  })
   const [refreshDialogOpen, setRefreshDialogOpen] = useState(false)
+
+  // Sync enabledToolIds when results change (e.g., page navigation, refresh)
+  // This initializes enabledToolIds with tools that are enabled from the API
+  // and preserves user selections when navigating between pages
+  useEffect(() => {
+    // Only update if results actually changed
+    if (previousResultsRef.current !== results) {
+      previousResultsRef.current = results
+      // Use queueMicrotask to avoid calling setState synchronously within an effect
+      queueMicrotask(() => {
+        setEnabledToolIds((prev) => {
+          const updated = new Set(prev)
+          // Add tools that are enabled on the current page (from API)
+          results.filter((tool) => tool.enabled).forEach((tool) => updated.add(tool.id))
+          // Note: We preserve selections for tools not on the current page
+          // This allows tracking enabled tools across all pages
+          return updated
+        })
+      })
+    }
+  }, [results])
+
+  // Get enabled tools for the current page
+  const enabledTools = results.filter((tool) => enabledToolIds.has(tool.id))
+  const selectedToolIds = new Set(enabledTools.map((tool) => tool.id))
+  const allSelected = results.length > 0 && selectedToolIds.size === results.length
+
+  const handleSelectAll = (checked: boolean) => {
+    setEnabledToolIds((prev) => {
+      const updated = new Set(prev)
+      if (checked) {
+        results.forEach((tool) => updated.add(tool.id))
+      } else {
+        results.forEach((tool) => updated.delete(tool.id))
+      }
+      return updated
+    })
+  }
+
+  const handleSelectTool = (tool: Tool, checked: boolean) => {
+    setEnabledToolIds((prev) => {
+      const updated = new Set(prev)
+      if (checked) {
+        updated.add(tool.id)
+      } else {
+        updated.delete(tool.id)
+      }
+      return updated
+    })
+  }
 
   if (integrationQueryStatus) return integrationQueryStatus
 
@@ -119,93 +184,103 @@ export default function IntegrationTools() {
         <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
           Refresh tools
         </Button>
-        <Button type="submit" form="tools-form">
-          Save
-        </Button>
+        <Button onClick={() => void handleSubmit()}>Save</Button>
         <Button variant="secondary" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
           Cancel
         </Button>
       </AppPageHeader>
-      <Form
-        id="tools-form"
-        onSubmit={(e) => {
-          e.preventDefault()
-          void handleSubmit()
-        }}
-        className="flex grow flex-col overflow-hidden"
-      >
-        <Table
-          items={results}
-          showSelect
-          isSelected={(item) => item.enabled}
-          keyFn={(item) => item.id}
-          itemLabel="tool"
-          itemLabelPlural="tools"
-          selectedLabel="enabled"
-          pagination={{
-            next: query.data?.next,
-            prev: query.data?.prev,
-            total: query.data?.total,
-          }}
-          onPageChange={(newCursor) => {
-            setCursor(newCursor)
-          }}
-          columns={[
+      {results.length === 0 ? (
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            {search ? (
+              <EmptyStateFilter clearAllFilters={() => setSearch('')} imageSrc={noToolsImage} imageAlt="No results" />
+            ) : (
+              <EmptyStateNoData
+                title="No tools available"
+                description={`No tools found for "${provider?.name}". Click the button below to refresh and fetch the latest tools from this integration.`}
+                buttonText="Refresh tools"
+                addData={handleRefreshTools}
+                imageSrc={noToolsImage}
+                imageAlt="No tools available"
+              />
+            )}
+          </CompassPanel>
+        </StackItem>
+      ) : (
+        <ScrollableTableContainer
+          aria-label="Tools table"
+          footer={
             {
-              id: 'name',
-              label: 'Name',
-              render: (item) => (
-                <div>
-                  <StringCell>
-                    <div>{item.namespaced_name}</div>
-                    <div className="text-xs font-thin">{item.description}</div>
-                  </StringCell>
-                </div>
+              content: (
+                <>
+                  {selectedToolIds.size > 0 ? (
+                    <>
+                      {selectedToolIds.size} of {results.length} {results.length === 1 ? 'tool' : 'tools'} enabled
+                      {query.data?.total && query.data.total > results.length && (
+                        <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {results.length} {results.length === 1 ? 'tool' : 'tools'}
+                      {query.data?.total && query.data.total > results.length && (
+                        <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                      )}
+                    </>
+                  )}
+                </>
               ),
-            },
-          ]}
-          emptyState={
-            <Card isPlain className="glass" isFullHeight>
-              <CardBody>
-                <Flex
-                  alignItems={{ default: 'alignItemsCenter' }}
-                  gap={{ default: 'gap4xl' }}
-                  flexWrap={{ default: 'nowrap' }}
-                >
-                  <FlexItem>
-                    <img
-                      src={noToolsImage}
-                      alt="No tools available"
-                      style={{ maxWidth: '320px', height: 'auto', objectFit: 'contain' }}
-                    />
-                  </FlexItem>
-                  <FlexItem>
-                    <Flex
-                      direction={{ default: 'column' }}
-                      alignItems={{ default: 'alignItemsFlexStart' }}
-                      gap={{ default: 'gapMd' }}
-                    >
-                      <Title headingLevel="h2" size="lg">
-                        No tools available
-                      </Title>
-                      <Content component={ContentVariants.p}>
-                        No tools found for "{provider?.name}". Click the button below to refresh and fetch the latest
-                        tools from this integration.
-                      </Content>
-                      <Button variant="primary" onClick={handleRefreshTools}>
-                        Refresh tools
-                      </Button>
-                    </Flex>
-                  </FlexItem>
-                </Flex>
-              </CardBody>
-            </Card>
+              prev: query.data?.prev ?? null,
+              next: query.data?.next ?? null,
+              onPrev: () => {
+                if (query.data?.prev !== undefined) {
+                  setCursor(query.data.prev)
+                }
+              },
+              onNext: () => {
+                if (query.data?.next !== undefined) {
+                  setCursor(query.data.next)
+                }
+              },
+            } satisfies TableFooterProps
           }
-          onSelectionChange={(selected) => {
-            setEnabledTools(selected)
-          }}
-        />
-      </Form>
+        >
+          <Thead>
+            <Tr>
+              <Th
+                select={{
+                  onSelect: (_event, isSelecting) => handleSelectAll(isSelecting),
+                  isSelected: allSelected,
+                  isHeaderSelectDisabled: results.length === 0,
+                }}
+                screenReaderText="Select all tools"
+              />
+              <Th>{`${enabledToolIds.size} ${enabledToolIds.size === 1 ? 'tool' : 'tools'} enabled`}</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {results.map((tool, index) => (
+              <Tr key={tool.id}>
+                <Td
+                  select={{
+                    rowIndex: index,
+                    onSelect: (_event, isSelecting) => handleSelectTool(tool, isSelecting),
+                    isSelected: selectedToolIds.has(tool.id),
+                  }}
+                />
+                <Td dataLabel="Name">
+                  <DescriptionList>
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>{tool.namespaced_name}</DescriptionListTerm>
+                      <DescriptionListDescription>{tool.description}</DescriptionListDescription>
+                    </DescriptionListGroup>
+                  </DescriptionList>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </ScrollableTableContainer>
+      )}
       <Modal isOpen={refreshDialogOpen} onClose={() => setRefreshDialogOpen(false)} variant="small">
         <ModalHeader title="Refresh tools" />
         <ModalBody>

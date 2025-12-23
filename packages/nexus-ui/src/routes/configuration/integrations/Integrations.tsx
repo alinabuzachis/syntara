@@ -2,14 +2,10 @@ import type { ToolProvider } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
-  Content,
-  ContentVariants,
   Dropdown,
   DropdownGroup,
   DropdownItem,
   DropdownList,
-  Flex,
-  FlexItem,
   Gallery,
   MenuToggle,
   Modal,
@@ -17,13 +13,10 @@ import {
   ModalFooter,
   ModalHeader,
   SearchInput,
-  Stack,
   StackItem,
 } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
 import {
-  AngleLeftIcon,
-  AngleRightIcon,
   CheckCircleIcon,
   EllipsisVIcon,
   EyeIcon,
@@ -31,7 +24,7 @@ import {
   TrashIcon,
   TimesCircleIcon,
 } from '@patternfly/react-icons'
-import { Table, Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
+import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useState } from 'react'
 import { useLocation } from 'wouter'
@@ -45,6 +38,7 @@ import { useAlerts } from '../../../components/alerts'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { IconLabel } from '../../../components/IconLabel'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useFuse } from '../../../hooks/useFuse'
 import { getErrorMessage } from '../../../utils/apiErrors'
 
@@ -266,101 +260,50 @@ export default function Integrations() {
             </StackItem>
           )
         ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-            <CompassPanel hasNoPadding isFullHeight isScrollable>
-              <Stack style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', width: '100%' }}>
-                <StackItem
-                  isFilled
-                  style={{ minHeight: 0, maxHeight: '100%', overflow: 'auto', width: '100%', position: 'relative' }}
-                >
-                  <Table
-                    aria-label="Integrations table"
-                    isPlain
-                    isStickyHeader
-                    style={
-                      {
-                        '--pf-t--global--border--color--default': 'rgba(196, 181, 253, 0.2)',
-                        width: '100%',
-                      } as React.CSSProperties
-                    }
-                  >
-                    <Thead>
-                      <Tr>
-                        <Th style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)' }}>Name</Th>
-                        <Th>Status</Th>
-                        <Th>Integration type</Th>
-                        <Th>Tools</Th>
-                        <Th screenReaderText="Actions" />
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {results.map((provider) => (
-                        <Tr key={provider.id}>
-                          <Td dataLabel="Name" style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)' }}>
-                            {provider.name}
-                          </Td>
-                          <Td dataLabel="Status">
-                            <StatusLabel status={provider.status ?? 'unknown'} />
-                          </Td>
-                          <Td dataLabel="Integration type">
-                            {(provider.configuration as { provider_type?: string }).provider_type}
-                          </Td>
-                          <Td dataLabel="Tools">{(provider as { tool_count?: number }).tool_count}</Td>
-                          <Td isActionCell>
-                            <ActionsColumn items={getRowActions(provider)} />
-                          </Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
-                </StackItem>
-                <StackItem
-                  style={{
-                    flex: '0 0 auto',
-                    width: '100%',
-                    borderTop: '1px solid rgba(196, 181, 253, 0.2)',
-                  }}
-                >
-                  <Flex
-                    justifyContent={{ default: 'justifyContentSpaceBetween' }}
-                    alignItems={{ default: 'alignItemsCenter' }}
-                    style={{
-                      padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)',
-                    }}
-                  >
-                    <FlexItem>
-                      <Content component={ContentVariants.p}>
-                        {results.length} {results.length === 1 ? 'integration' : 'integrations'}
-                        {query.data?.total && query.data.total > results.length && (
-                          <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                        )}
-                      </Content>
-                    </FlexItem>
-                    {(query.data?.prev || query.data?.next) && (
-                      <Flex gap={{ default: 'gapSm' }}>
-                        <Button
-                          variant="plain"
-                          isDisabled={!query.data?.prev}
-                          onClick={() => setCursor(query.data?.prev ?? null)}
-                          aria-label="Previous page"
-                        >
-                          <AngleLeftIcon /> Previous
-                        </Button>
-                        <Button
-                          variant="plain"
-                          isDisabled={!query.data?.next}
-                          onClick={() => setCursor(query.data?.next ?? null)}
-                          aria-label="Next page"
-                        >
-                          Next <AngleRightIcon />
-                        </Button>
-                      </Flex>
-                    )}
-                  </Flex>
-                </StackItem>
-              </Stack>
-            </CompassPanel>
-          </StackItem>
+          <ScrollableTableContainer
+            aria-label="Integrations table"
+            footer={{
+              content: (
+                <>
+                  {results.length} {results.length === 1 ? 'integration' : 'integrations'}
+                  {query.data?.total && query.data.total > results.length && (
+                    <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                  )}
+                </>
+              ),
+              prev: query.data?.prev ?? null,
+              next: query.data?.next ?? null,
+              onPrev: () => setCursor(query.data?.prev ?? null),
+              onNext: () => setCursor(query.data?.next ?? null),
+            }}
+          >
+            <Thead>
+              <Tr>
+                <Th>Name</Th>
+                <Th>Status</Th>
+                <Th>Integration type</Th>
+                <Th>Tools</Th>
+                <Th screenReaderText="Actions" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {results.map((provider) => (
+                <Tr key={provider.id}>
+                  <Td dataLabel="Name">{provider.name}</Td>
+                  <Td dataLabel="Status">
+                    <StatusLabel status={provider.status ?? 'unknown'} />
+                  </Td>
+                  <Td dataLabel="Integration type">
+                    {(provider.configuration as { provider_type?: string }).provider_type}
+                  </Td>
+                  <Td dataLabel="Tools">{(provider as { tool_count?: number }).tool_count}</Td>
+                  <Td isActionCell>
+                    <ActionsColumn items={getRowActions(provider)} />
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </ScrollableTableContainer>
         )
       ) : (
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>

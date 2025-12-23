@@ -1,8 +1,17 @@
 import { http, HttpResponse } from 'msw'
-import type { ToolProvider, ToolProvidersResponse, WorkflowsResponse, Tool, ToolsResponse } from '../client'
+import type * as ToolsAPI from '@ansible/nexus-contracts/src/tools.js'
+import type { ToolProvider, WorkflowsResponse, Tool } from '@ansible/nexus-contracts'
 import { providers } from './resources/providers'
 import { workflows } from './resources/workflows'
 import { tools } from './resources/tools'
+
+// Define response types based on API contract
+type ToolsResponse = ToolsAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
+type ToolProvidersResponse = {
+  resources: ToolProvider[]
+  limit: number
+  has_more: boolean
+}
 
 const randomCharacters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const randomCharactersLowercase = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -66,25 +75,49 @@ export const handlers = [
   }),
 
   http.get('/api/v1/tools', ({ request }) => {
-    let body: ToolsResponse = {
-      resources: tools,
-      limit: 20,
-      has_more: false,
-    }
     const url = new URL(request.url)
     const provider_id = url.searchParams.get('provider_id')
+    const cursor = url.searchParams.get('cursor')
+    const limitParam = url.searchParams.get('limit')
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const limit = limitParam ? parseInt(limitParam, 10) : 50
 
-    if (provider_id) {
-      const providerTools = tools?.filter((t) => t.provider_id === provider_id)
-      if (!providerTools) {
-        return HttpResponse.json({ error: 'Provider tools not found' }, { status: 404 })
-      }
-      body = {
-        resources: providerTools,
-        limit: 20,
-        has_more: false,
+    // Filter by provider_id if provided
+    let filteredTools = provider_id ? tools.filter((t) => t.provider_id === provider_id) : tools
+
+    // Calculate total if requested
+    const total = includeTotal ? filteredTools.length : null
+
+    // Parse cursor to get starting index (simple cursor implementation)
+    let startIndex = 0
+    if (cursor) {
+      try {
+        const cursorData = JSON.parse(Buffer.from(cursor, 'base64').toString())
+        startIndex = cursorData.index || 0
+      } catch {
+        // Invalid cursor, start from beginning
+        startIndex = 0
       }
     }
+
+    // Get paginated results
+    const paginatedTools = filteredTools.slice(startIndex, startIndex + limit)
+    const hasNext = startIndex + limit < filteredTools.length
+    const hasPrev = startIndex > 0
+
+    // Generate cursors
+    const nextCursor = hasNext ? Buffer.from(JSON.stringify({ index: startIndex + limit })).toString('base64') : null
+    const prevCursor = hasPrev
+      ? Buffer.from(JSON.stringify({ index: Math.max(0, startIndex - limit) })).toString('base64')
+      : null
+
+    const body: ToolsResponse = {
+      resources: paginatedTools,
+      next: nextCursor,
+      prev: prevCursor,
+      total,
+    }
+
     return HttpResponse.json(body)
   }),
 
