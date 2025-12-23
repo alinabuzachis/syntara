@@ -17,7 +17,8 @@ import {
   ModalFooter,
   ModalHeader,
   SearchInput,
-  Title,
+  Stack,
+  StackItem,
 } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
 import {
@@ -41,6 +42,8 @@ import { AppRoute } from '../../../app/AppRoute'
 import noResultsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolProvidersClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
+import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
+import { IconLabel } from '../../../components/IconLabel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useFuse } from '../../../hooks/useFuse'
 import { getErrorMessage } from '../../../utils/apiErrors'
@@ -69,10 +72,9 @@ function StatusLabel({ status }: { status: string }) {
   const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1)
 
   return (
-    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }} style={{ color }}>
-      <Icon />
-      <span>{capitalizedStatus}</span>
-    </Flex>
+    <IconLabel icon={<Icon />} color={color}>
+      {capitalizedStatus}
+    </IconLabel>
   )
 }
 
@@ -88,7 +90,7 @@ export default function Integrations() {
       },
     },
   })
-  const { search, setSearch, items: results } = useFuse(query.data?.resources ?? [], [{ name: 'name' }])
+  const { search, setSearch, items: results } = useFuse<ToolProvider>(query.data?.resources ?? [], [{ name: 'name' }])
   const { showAlert } = useAlerts()
 
   const [validateDialogOpen, setValidateDialogOpen] = useState(false)
@@ -115,7 +117,7 @@ export default function Integrations() {
           })
           void query.refetch()
         },
-        onError: (error) => {
+        onError: (error: unknown) => {
           showAlert({
             title: 'Validation failed',
             description: `Failed to validate provider "${providerToValidate.name}": ${getErrorMessage(error)}`,
@@ -146,7 +148,7 @@ export default function Integrations() {
           })
           void query.refetch()
         },
-        onError: (error) => {
+        onError: (error: unknown) => {
           showAlert({
             title: 'Delete failed',
             description: `Failed to delete integration "${providerToDelete.name}": ${getErrorMessage(error)}`,
@@ -165,21 +167,11 @@ export default function Integrations() {
   // Row actions for PF ActionsColumn
   const getRowActions = (provider: ToolProvider): IAction[] => [
     {
-      title: (
-        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-          <EyeIcon />
-          <span>View and enable/disable tools</span>
-        </Flex>
-      ),
+      title: <IconLabel icon={<EyeIcon />}>View and enable/disable tools</IconLabel>,
       onClick: () => navigate(`/configuration/integrations/${provider.id}/tools`),
     },
     {
-      title: (
-        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-          <CheckCircleIcon />
-          <span>Validate connection</span>
-        </Flex>
-      ),
+      title: <IconLabel icon={<CheckCircleIcon />}>Validate connection</IconLabel>,
       onClick: () => {
         setProviderToValidate(provider)
         setValidateDialogOpen(true)
@@ -187,12 +179,7 @@ export default function Integrations() {
     },
     { isSeparator: true },
     {
-      title: (
-        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-          <TrashIcon />
-          <span>Uninstall</span>
-        </Flex>
-      ),
+      title: <IconLabel icon={<TrashIcon />}>Uninstall</IconLabel>,
       onClick: () => {
         setProviderToDelete(provider)
         setDeleteDialogOpen(true)
@@ -264,136 +251,127 @@ export default function Integrations() {
       {view !== 'cards' ? (
         results.length === 0 ? (
           search ? (
-            <CompassPanel isFullHeight>
-              <Flex
-                alignItems={{ default: 'alignItemsCenter' }}
-                gap={{ default: 'gap4xl' }}
-                flexWrap={{ default: 'nowrap' }}
-                style={{ padding: 'var(--pf-t--global--spacer--2xl)' }}
-              >
-                <FlexItem>
-                  <img
-                    src={noResultsImage}
-                    alt="No results"
-                    style={{ maxWidth: '320px', height: 'auto', objectFit: 'contain' }}
-                  />
-                </FlexItem>
-                <FlexItem>
-                  <Flex
-                    direction={{ default: 'column' }}
-                    alignItems={{ default: 'alignItemsFlexStart' }}
-                    gap={{ default: 'gapMd' }}
-                  >
-                    <Title headingLevel="h2" size="lg">
-                      No results found
-                    </Title>
-                    <Content component={ContentVariants.p}>
-                      No results match the filter criteria. Try changing your filter settings.
-                    </Content>
-                    <Button variant="primary" onClick={() => setSearch('')}>
-                      Clear all filters
-                    </Button>
-                  </Flex>
-                </FlexItem>
-              </Flex>
-            </CompassPanel>
+            <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+              <CompassPanel isFullHeight>
+                <EmptyStateFilter
+                  clearAllFilters={() => setSearch('')}
+                  imageSrc={noResultsImage}
+                  imageAlt="No results"
+                />
+              </CompassPanel>
+            </StackItem>
           ) : (
-            <IntegrationEmptyState />
+            <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+              <IntegrationEmptyState />
+            </StackItem>
           )
         ) : (
-          <CompassPanel hasNoPadding isFullHeight>
-            <Flex direction={{ default: 'column' }} style={{ height: '100%' }}>
-              {/* Table */}
-              <FlexItem grow={{ default: 'grow' }}>
-                <Table
-                  aria-label="Integrations table"
-                  isPlain
-                  isStickyHeader
-                  style={
-                    {
-                      '--pf-t--global--border--color--default': 'rgba(196, 181, 253, 0.2)',
-                    } as React.CSSProperties
-                  }
+          <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+            <CompassPanel hasNoPadding isFullHeight isScrollable>
+              <Stack style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', width: '100%' }}>
+                <StackItem
+                  isFilled
+                  style={{ minHeight: 0, maxHeight: '100%', overflow: 'auto', width: '100%', position: 'relative' }}
                 >
-                  <Thead>
-                    <Tr>
-                      <Th style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)' }}>Name</Th>
-                      <Th>Status</Th>
-                      <Th>Integration type</Th>
-                      <Th>Tools</Th>
-                      <Th screenReaderText="Actions" />
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {results.map((provider) => (
-                      <Tr key={provider.id}>
-                        <Td dataLabel="Name" style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)' }}>
-                          {provider.name}
-                        </Td>
-                        <Td dataLabel="Status">
-                          <StatusLabel status={provider.status ?? 'unknown'} />
-                        </Td>
-                        <Td dataLabel="Integration type">
-                          {(provider.configuration as { provider_type?: string }).provider_type}
-                        </Td>
-                        <Td dataLabel="Tools">{(provider as { tool_count?: number }).tool_count}</Td>
-                        <Td isActionCell>
-                          <ActionsColumn items={getRowActions(provider)} />
-                        </Td>
+                  <Table
+                    aria-label="Integrations table"
+                    isPlain
+                    isStickyHeader
+                    style={
+                      {
+                        '--pf-t--global--border--color--default': 'rgba(196, 181, 253, 0.2)',
+                        width: '100%',
+                      } as React.CSSProperties
+                    }
+                  >
+                    <Thead>
+                      <Tr>
+                        <Th style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)' }}>Name</Th>
+                        <Th>Status</Th>
+                        <Th>Integration type</Th>
+                        <Th>Tools</Th>
+                        <Th screenReaderText="Actions" />
                       </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
-              </FlexItem>
-              {/* Footer with count and pagination */}
-              <FlexItem>
-                <Flex
-                  justifyContent={{ default: 'justifyContentSpaceBetween' }}
-                  alignItems={{ default: 'alignItemsCenter' }}
+                    </Thead>
+                    <Tbody>
+                      {results.map((provider) => (
+                        <Tr key={provider.id}>
+                          <Td dataLabel="Name" style={{ paddingLeft: 'var(--pf-t--global--spacer--lg)' }}>
+                            {provider.name}
+                          </Td>
+                          <Td dataLabel="Status">
+                            <StatusLabel status={provider.status ?? 'unknown'} />
+                          </Td>
+                          <Td dataLabel="Integration type">
+                            {(provider.configuration as { provider_type?: string }).provider_type}
+                          </Td>
+                          <Td dataLabel="Tools">{(provider as { tool_count?: number }).tool_count}</Td>
+                          <Td isActionCell>
+                            <ActionsColumn items={getRowActions(provider)} />
+                          </Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
+                </StackItem>
+                <StackItem
                   style={{
-                    padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)',
+                    flex: '0 0 auto',
+                    width: '100%',
                     borderTop: '1px solid rgba(196, 181, 253, 0.2)',
                   }}
                 >
-                  <FlexItem>
-                    {results.length} {results.length === 1 ? 'integration' : 'integrations'}
-                    {query.data?.total && query.data.total > results.length && (
-                      <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                  <Flex
+                    justifyContent={{ default: 'justifyContentSpaceBetween' }}
+                    alignItems={{ default: 'alignItemsCenter' }}
+                    style={{
+                      padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)',
+                    }}
+                  >
+                    <FlexItem>
+                      <Content component={ContentVariants.p}>
+                        {results.length} {results.length === 1 ? 'integration' : 'integrations'}
+                        {query.data?.total && query.data.total > results.length && (
+                          <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                        )}
+                      </Content>
+                    </FlexItem>
+                    {(query.data?.prev || query.data?.next) && (
+                      <Flex gap={{ default: 'gapSm' }}>
+                        <Button
+                          variant="plain"
+                          isDisabled={!query.data?.prev}
+                          onClick={() => setCursor(query.data?.prev ?? null)}
+                          aria-label="Previous page"
+                        >
+                          <AngleLeftIcon /> Previous
+                        </Button>
+                        <Button
+                          variant="plain"
+                          isDisabled={!query.data?.next}
+                          onClick={() => setCursor(query.data?.next ?? null)}
+                          aria-label="Next page"
+                        >
+                          Next <AngleRightIcon />
+                        </Button>
+                      </Flex>
                     )}
-                  </FlexItem>
-                  {(query.data?.prev || query.data?.next) && (
-                    <Flex gap={{ default: 'gapSm' }}>
-                      <Button
-                        variant="plain"
-                        isDisabled={!query.data?.prev}
-                        onClick={() => setCursor(query.data?.prev ?? null)}
-                        aria-label="Previous page"
-                      >
-                        <AngleLeftIcon /> Previous
-                      </Button>
-                      <Button
-                        variant="plain"
-                        isDisabled={!query.data?.next}
-                        onClick={() => setCursor(query.data?.next ?? null)}
-                        aria-label="Next page"
-                      >
-                        Next <AngleRightIcon />
-                      </Button>
-                    </Flex>
-                  )}
-                </Flex>
-              </FlexItem>
-            </Flex>
-          </CompassPanel>
+                  </Flex>
+                </StackItem>
+              </Stack>
+            </CompassPanel>
+          </StackItem>
         )
       ) : (
-        <CompassPanel>
-          <Gallery hasGutter minWidths={{ default: '500px' }} style={{ padding: 'var(--pf-t--global--spacer--2xl)' }}>
-            {results.map((integration) => (
-              <IntegrationCard key={integration.id} integration={integration} />
-            ))}
-          </Gallery>
-        </CompassPanel>
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel>
+            <Gallery hasGutter minWidths={{ default: '500px' }} style={{ padding: 'var(--pf-t--global--spacer--2xl)' }}>
+              {results.map((integration) => (
+                <IntegrationCard key={integration.id} integration={integration} />
+              ))}
+            </Gallery>
+          </CompassPanel>
+        </StackItem>
       )}
       <Modal isOpen={validateDialogOpen} onClose={() => setValidateDialogOpen(false)} variant="small">
         <ModalHeader title="Validate integration" />

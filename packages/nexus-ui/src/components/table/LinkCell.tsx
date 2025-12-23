@@ -1,9 +1,12 @@
-import { Link } from 'wouter'
+import { Button } from '@patternfly/react-core'
+import { useLocation } from 'wouter'
 
 export function LinkCell(props: { href: string; children: React.ReactNode }) {
+  const [, setLocation] = useLocation()
+
   return (
-    <Link href={props.href} className="py-3 text-blue-400 no-underline">
+    <Button variant="link" isInline onClick={() => setLocation(props.href)} style={{ textDecoration: 'none' }}>
       {props.children}
-    </Link>
+    </Button>
   )
 }

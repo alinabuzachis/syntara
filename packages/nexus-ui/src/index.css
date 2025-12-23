@@ -104,3 +104,8 @@
 .pf-v6-svg {
   display: revert;
 }
+
+/* Sticky header background color, fix for `isPlain` showing table rows through it without blur */
+table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
+  background: var(--pf-t--global--background--color--glass--default);
+}

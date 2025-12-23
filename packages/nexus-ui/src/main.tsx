@@ -1,9 +1,10 @@
 import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import './index.css'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { registerAllNodes } from './routes/builder/registry/nodes'
+
+import './index.css'
 
 // Register all workflow node types before app initialization
 registerAllNodes()

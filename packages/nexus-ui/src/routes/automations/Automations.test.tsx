@@ -47,8 +47,9 @@ describe('Automations Component', () => {
       id: '1',
       name: 'Important Project Workflow',
       description: 'Complex workflow for critical project',
-      createdAt: '2023-01-01T00:00:00Z',
-      updatedAt: '2023-01-02T00:00:00Z',
+      created_at: '2023-01-01T00:00:00Z',
+      updated_at: '2023-01-02T00:00:00Z',
+      is_enabled: true,
       labels: {
         type: 'critical',
         status: 'active',
@@ -58,8 +59,9 @@ describe('Automations Component', () => {
       id: '2',
       name: 'Secondary Team Workflow',
       description: 'Routine workflow for secondary tasks',
-      createdAt: '2023-02-01T00:00:00Z',
-      updatedAt: '2023-02-02T00:00:00Z',
+      created_at: '2023-02-01T00:00:00Z',
+      updated_at: '2023-02-02T00:00:00Z',
+      is_enabled: false,
       labels: {
         type: 'routine',
         status: 'maintenance',
@@ -70,10 +72,16 @@ describe('Automations Component', () => {
   beforeEach(() => {
     // Reset mocks before each test
     vi.mocked(workflowClient.useQuery).mockReturnValue({
-      data: { resources: mockWorkflows },
+      data: {
+        resources: mockWorkflows,
+        next: null,
+        prev: null,
+        total: mockWorkflows.length,
+      },
       isPending: false,
       isError: false,
       error: null,
+      refetch: vi.fn(),
     })
 
     // Mock mutation for execute automation
@@ -112,8 +120,13 @@ describe('Automations Component', () => {
       expect(searchInput).toBeInTheDocument()
     })
 
-    it('renders workflows in the table', () => {
+    it('renders workflows in the table', async () => {
       render(<Automations />, { wrapper })
+
+      // Wait for table to render (PF Table uses role="grid")
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
 
       // Check workflow names are rendered
       expect(screen.getByText('Important Project Workflow')).toBeInTheDocument()
@@ -136,8 +149,13 @@ describe('Automations Component', () => {
       expect(searchInput.value).toBe(searchTerm)
     })
 
-    it('filters workflows with fuzzy search, prioritizing most relevant', () => {
+    it('filters workflows with fuzzy search, prioritizing most relevant', async () => {
       render(<Automations />, { wrapper })
+
+      // Wait for table to render (PF Table uses role="grid")
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
 
       // Find the search input
       const searchInput = screen.getByPlaceholderText('Search automations...') as HTMLInputElement
@@ -145,23 +163,31 @@ describe('Automations Component', () => {
       // Simulate searching for "project"
       fireEvent.change(searchInput, { target: { value: 'project' } })
 
-      // Get all table rows
-      const table = screen.getByRole('table')
-      const rows = within(table).getAllByRole('row')
+      // Wait for filtered results
+      await waitFor(() => {
+        // Get all table rows (PF Table uses role="grid")
+        const table = screen.getByRole('grid', { name: 'Automations table' })
+        const rows = within(table).getAllByRole('row')
 
-      // Verify row count (header + at least 1 data row)
-      expect(rows.length).toBeGreaterThanOrEqual(2)
+        // Verify row count (header + at least 1 data row)
+        expect(rows.length).toBeGreaterThanOrEqual(2)
 
-      // The most relevant row (containing "project") should be the first data row
-      const firstDataRow = rows[1]
-      expect(within(firstDataRow).getByText('Important Project Workflow')).toBeInTheDocument()
+        // The most relevant row (containing "project") should be the first data row
+        const firstDataRow = rows[1]
+        expect(within(firstDataRow).getByText('Important Project Workflow')).toBeInTheDocument()
 
-      // Verify the other workflow is not visible
-      expect(screen.queryByText('Secondary Team Workflow')).not.toBeInTheDocument()
+        // Verify the other workflow is not visible
+        expect(screen.queryByText('Secondary Team Workflow')).not.toBeInTheDocument()
+      })
     })
 
-    it('supports partial matches in fuzzy search', () => {
+    it('supports partial matches in fuzzy search', async () => {
       render(<Automations />, { wrapper })
+
+      // Wait for table to render (PF Table uses role="grid")
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
 
       // Find the search input
       const searchInput = screen.getByPlaceholderText('Search automations...') as HTMLInputElement
@@ -169,19 +195,27 @@ describe('Automations Component', () => {
       // Simulate searching for "team"
       fireEvent.change(searchInput, { target: { value: 'team' } })
 
-      // Get all table rows
-      const table = screen.getByRole('table')
-      const rows = within(table).getAllByRole('row')
+      // Wait for filtered results
+      await waitFor(() => {
+        // Get all table rows (PF Table uses role="grid")
+        const table = screen.getByRole('grid', { name: 'Automations table' })
+        const rows = within(table).getAllByRole('row')
 
-      // Verify row count (header + at least 1 data row)
-      expect(rows.length).toBeGreaterThanOrEqual(2)
+        // Verify row count (header + at least 1 data row)
+        expect(rows.length).toBeGreaterThanOrEqual(2)
 
-      // The row with "team" should be visible
-      expect(screen.getByText('Secondary Team Workflow')).toBeInTheDocument()
+        // The row with "team" should be visible
+        expect(screen.getByText('Secondary Team Workflow')).toBeInTheDocument()
+      })
     })
 
-    it('shows all workflows when search is empty', () => {
+    it('shows all workflows when search is empty', async () => {
       render(<Automations />, { wrapper })
+
+      // Wait for table to render (PF Table uses role="grid")
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
 
       // Find the search input
       const searchInput = screen.getByPlaceholderText('Search automations...') as HTMLInputElement
@@ -189,14 +223,17 @@ describe('Automations Component', () => {
       // Clear the search input
       fireEvent.change(searchInput, { target: { value: '' } })
 
-      // Get all table rows
-      const table = screen.getByRole('table')
-      const rows = within(table).getAllByRole('row')
+      // Wait for results
+      await waitFor(() => {
+        // Get all table rows (PF Table uses role="grid")
+        const table = screen.getByRole('grid', { name: 'Automations table' })
+        const rows = within(table).getAllByRole('row')
 
-      // Verify all rows are shown (header + 2 data rows)
-      expect(rows.length).toBeGreaterThanOrEqual(3)
-      expect(within(rows[1]).getByText('Important Project Workflow')).toBeInTheDocument()
-      expect(within(rows[2]).getByText('Secondary Team Workflow')).toBeInTheDocument()
+        // Verify all rows are shown (header + 2 data rows)
+        expect(rows.length).toBeGreaterThanOrEqual(3)
+        expect(within(rows[1]).getByText('Important Project Workflow')).toBeInTheDocument()
+        expect(within(rows[2]).getByText('Secondary Team Workflow')).toBeInTheDocument()
+      })
     })
   })
 
@@ -237,12 +274,15 @@ describe('Automations Component', () => {
   })
 
   describe('Table Columns', () => {
-    it('renders name column with links', () => {
+    it('renders name column with clickable links that navigate', () => {
       render(<Automations />, { wrapper })
 
-      const workflow1Link = screen.getByText('Important Project Workflow')
-      expect(workflow1Link).toBeInTheDocument()
-      expect(workflow1Link.closest('a')).toHaveAttribute('href', '/automation-builder/1')
+      const workflowNode = screen.getByText('Important Project Workflow')
+      expect(workflowNode).toBeInTheDocument()
+
+      // Click the link button and verify navigation
+      fireEvent.click(workflowNode)
+      expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/1')
     })
 
     it('renders labels column', () => {
@@ -288,13 +328,20 @@ describe('Automations Component', () => {
 
       render(<Automations />, { wrapper })
 
+      // Wait for table to render (PF Table uses role="grid")
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('table')
+      const table = screen.getByRole('grid', { name: 'Automations table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
-      // Find and click the menu trigger button (the ... button)
-      const menuTrigger = within(firstDataRow).getByRole('button')
+      // Find and click the menu trigger button (the actions menu button)
+      // Actions column is always the last column, so the actions button is the last button in the row
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
       // Wait for menu to open and click the "Run automation" menu item
@@ -351,13 +398,20 @@ describe('Automations Component', () => {
 
       render(<Automations />, { wrapper })
 
+      // Wait for table to render (PF Table uses role="grid")
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('table')
+      const table = screen.getByRole('grid', { name: 'Automations table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
-      // Find and click the menu trigger button
-      const menuTrigger = within(firstDataRow).getByRole('button')
+      // Find and click the menu trigger button (the actions menu button)
+      // Actions column is always the last column, so the actions button is the last button in the row
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
       // Wait for menu to open and click the "Run automation" menu item
@@ -410,13 +464,20 @@ describe('Automations Component', () => {
 
       render(<Automations />, { wrapper })
 
+      // Wait for table to render (PF Table uses role="grid")
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('table')
+      const table = screen.getByRole('grid', { name: 'Automations table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
-      // Find and click the menu trigger button
-      const menuTrigger = within(firstDataRow).getByRole('button')
+      // Find and click the menu trigger button (the actions menu button)
+      // Actions column is always the last column, so the actions button is the last button in the row
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
       // Wait for menu to open and click the "Run automation" menu item
@@ -439,13 +500,20 @@ describe('Automations Component', () => {
     it('shows confirmation dialog when running automation', async () => {
       render(<Automations />, { wrapper })
 
+      // Wait for table to render (PF Table uses role="grid")
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('table')
+      const table = screen.getByRole('grid', { name: 'Automations table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
-      // Find and click the menu trigger button
-      const menuTrigger = within(firstDataRow).getByRole('button')
+      // Find and click the menu trigger button (the actions menu button)
+      // Actions column is always the last column, so the actions button is the last button in the row
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
       // Wait for menu to open and click the "Run automation" menu item
@@ -490,13 +558,20 @@ describe('Automations Component', () => {
 
       render(<Automations />, { wrapper })
 
+      // Wait for table to render (PF Table uses role="grid")
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('table')
+      const table = screen.getByRole('grid', { name: 'Automations table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
-      // Find and click the menu trigger button
-      const menuTrigger = within(firstDataRow).getByRole('button')
+      // Find and click the menu trigger button (the actions menu button)
+      // Actions column is always the last column, so the actions button is the last button in the row
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
       // Wait for menu to open and click the "Run automation" menu item
@@ -523,13 +598,20 @@ describe('Automations Component', () => {
 
       render(<Automations />, { wrapper })
 
+      // Wait for table to render (PF Table uses role="grid")
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('table')
+      const table = screen.getByRole('grid', { name: 'Automations table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
-      // Find and click the menu trigger button
-      const menuTrigger = within(firstDataRow).getByRole('button')
+      // Find and click the menu trigger button (the actions menu button)
+      // Actions column is always the last column, so the actions button is the last button in the row
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
       // Wait for menu to open and click the "View run history" menu item

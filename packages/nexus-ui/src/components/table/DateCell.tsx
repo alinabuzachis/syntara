@@ -1,12 +1,13 @@
+import { Content, ContentVariants } from '@patternfly/react-core'
+
 export function DateCell(props: { dateString?: string | null }) {
   if (!props.dateString) {
-    return <span>Unknown</span>
+    return <Content component={ContentVariants.p}>Unknown</Content>
   }
   const date = new Date(props.dateString)
   return (
-    <div className="py-3">
-      <span className="whitespace-nowrap">{date.toLocaleDateString()}</span>{' '}
-      <span className="whitespace-nowrap text-white/60">{date.toLocaleTimeString()}</span>
-    </div>
+    <Content component={ContentVariants.p} style={{ whiteSpace: 'nowrap' }}>
+      {date.toLocaleDateString()} <span style={{ opacity: 0.6 }}>{date.toLocaleTimeString()}</span>
+    </Content>
   )
 }
