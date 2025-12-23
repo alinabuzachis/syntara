@@ -31,6 +31,7 @@ interface UseEdgeSynchronizationOptions {
 export function useEdgeSynchronization({ edges, isInitialized, setStoredEdges }: UseEdgeSynchronizationOptions) {
   const lastEdgesSignatureRef = useRef<string>('')
   const isSyncingRef = useRef(false)
+  const isFirstSyncRef = useRef(true)
 
   useEffect(() => {
     if (!isInitialized) return
@@ -56,6 +57,15 @@ export function useEdgeSynchronization({ edges, isInitialized, setStoredEdges }:
     // Create signature for comparison
     const currentSignature = JSON.stringify(edgeConnections)
     const hasEdgesChanged = currentSignature !== lastEdgesSignatureRef.current
+
+    // On first sync after initialization, just record the signature without updating store
+    // The edges are already in the store from loadWorkflowWithEdges, so updating would
+    // incorrectly set isDirty to true
+    if (isFirstSyncRef.current) {
+      isFirstSyncRef.current = false
+      lastEdgesSignatureRef.current = currentSignature
+      return
+    }
 
     // Only proceed if edges actually changed
     if (!hasEdgesChanged) return

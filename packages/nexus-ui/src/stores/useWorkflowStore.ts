@@ -5,10 +5,7 @@ import type { EdgeConnection } from '../routes/builder/types/edge'
 
 // Type aliases from API contracts
 type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
-type Trigger =
-  | WorkflowAPI.components['schemas']['manualTrigger']
-  | WorkflowAPI.components['schemas']['scheduledTrigger']
-  | WorkflowAPI.components['schemas']['eventTrigger']
+type Trigger = WorkflowAPI.components['schemas']['manualTrigger']
 type Activity = WorkflowAPI.components['schemas']['activity']
 type TaskActivity = Extract<Activity, { type: 'task' }>
 
@@ -16,7 +13,12 @@ interface WorkflowStore {
   currentWorkflow: WorkflowDefinition | null
   workflowVersion: number // Incremented only when setWorkflow is called
   edges: EdgeConnection[]
+  isDirty: boolean // Tracks whether changes have been made since last save/load
   setWorkflow: (workflow: WorkflowDefinition | null) => void
+  // Atomic operation to load workflow and edges together - prevents race conditions
+  loadWorkflowWithEdges: (workflow: WorkflowDefinition, edges: EdgeConnection[]) => void
+  markClean: () => void // Called after successful save
+  markDirty: () => void // Called when metadata changes
   /**
    * Update the current workflow without incrementing workflowVersion.
    *
@@ -209,12 +211,33 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
   currentWorkflow: null,
   workflowVersion: 0,
   edges: [],
+  isDirty: false,
 
   setWorkflow: (workflow) => {
     set((state) => ({
       currentWorkflow: workflow,
       workflowVersion: state.workflowVersion + 1,
+      isDirty: false, // Reset dirty flag when loading a new workflow
     }))
+  },
+
+  // Atomic operation to set both workflow and edges in a single update
+  // This prevents race conditions where BuilderFlow renders with workflow but no edges
+  loadWorkflowWithEdges: (workflow, edges) => {
+    set((state) => ({
+      currentWorkflow: workflow,
+      workflowVersion: state.workflowVersion + 1,
+      edges,
+      isDirty: false,
+    }))
+  },
+
+  markClean: () => {
+    set({ isDirty: false })
+  },
+
+  markDirty: () => {
+    set({ isDirty: true })
   },
 
   updateWorkflow: (updater) => {
@@ -222,12 +245,13 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
       if (!state.currentWorkflow) return state
       return {
         currentWorkflow: updater(state.currentWorkflow),
+        isDirty: true,
       }
     })
   },
 
   setEdges: (edges) => {
-    set({ edges })
+    set({ edges, isDirty: true })
   },
 
   addTrigger: (trigger) => {
@@ -240,6 +264,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
           ...state.currentWorkflow,
           triggers: [...triggers, trigger],
         },
+        isDirty: true,
       }
     })
   },
@@ -255,6 +280,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
           ...state.currentWorkflow,
           triggers,
         },
+        isDirty: true,
       }
     })
   },
@@ -270,6 +296,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
           ...state.currentWorkflow,
           triggers,
         },
+        isDirty: true,
       }
     })
   },
@@ -286,6 +313,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
             activities: [...state.currentWorkflow.workflow.activities, activity],
           },
         },
+        isDirty: true,
       }
     })
   },
@@ -335,6 +363,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
             activities,
           },
         },
+        isDirty: true,
       }
     })
   },
@@ -351,6 +380,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
             activities: updateActivityInList(state.currentWorkflow.workflow.activities, activityId, updates),
           },
         },
+        isDirty: true,
       }
     })
   },
@@ -389,6 +419,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
             activities,
           },
         },
+        isDirty: true,
       }
     })
   },
@@ -424,6 +455,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
             activities,
           },
         },
+        isDirty: true,
       }
     })
   },
@@ -459,6 +491,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
             activities,
           },
         },
+        isDirty: true,
       }
     })
   },
@@ -611,6 +644,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
             activities: reorderedActivities,
           },
         },
+        isDirty: true,
       }
     })
   },
@@ -679,6 +713,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
           },
         },
         edges,
+        isDirty: true,
       }
     })
   },
@@ -709,6 +744,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
           },
         },
         edges,
+        isDirty: true,
       }
     })
   },
@@ -770,10 +806,16 @@ export const selectActivitiesCount = (state: WorkflowStore) => state.currentWork
 export const selectTriggersCount = (state: WorkflowStore) => state.currentWorkflow?.triggers?.length ?? 0
 
 /**
+ * Selector for isDirty flag.
+ * Use to check if there are unsaved changes.
+ */
+export const selectIsDirty = (state: WorkflowStore) => state.isDirty
+
+/**
  * Selector for workflow name.
  * Use when you only need the workflow name (e.g., for display in header).
  */
-export const selectWorkflowName = (state: WorkflowStore) => state.currentWorkflow?.name
+export const selectWorkflowName = (state: WorkflowStore) => state.currentWorkflow?.metadata?.name
 
 /**
  * Selector to check if a workflow is loaded.
@@ -804,8 +846,11 @@ export const useWorkflowStoreActions = () => {
   const state = useWorkflowStore.getState()
   return {
     setWorkflow: state.setWorkflow,
+    loadWorkflowWithEdges: state.loadWorkflowWithEdges,
     updateWorkflow: state.updateWorkflow,
     setEdges: state.setEdges,
+    markClean: state.markClean,
+    markDirty: state.markDirty,
     addTrigger: state.addTrigger,
     removeTrigger: state.removeTrigger,
     updateTrigger: state.updateTrigger,
@@ -856,6 +901,9 @@ export const useActivitiesCount = () => useWorkflowStore(selectActivitiesCount)
 
 /** Hook to get triggers count */
 export const useTriggersCount = () => useWorkflowStore(selectTriggersCount)
+
+/** Hook to check if there are unsaved changes */
+export const useIsDirty = () => useWorkflowStore(selectIsDirty)
 
 /** Hook to get workflow name */
 export const useWorkflowName = () => useWorkflowStore(selectWorkflowName)

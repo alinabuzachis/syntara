@@ -6,6 +6,7 @@ import { AlertProvider } from '../components/alerts'
 import { AppDockedNav } from './AppDockedNav'
 import { AppLogin } from './AppLogin'
 import { AppRouter } from './AppRouter'
+import { UnsavedChangesProvider } from './UnsavedChangesProvider'
 
 const queryClient = new QueryClient()
 
@@ -13,18 +14,20 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AlertProvider>
-        <AppLogin>
-          <Compass
-            backgroundSrcDark="/src/assets/background.jpg"
-            backgroundSrcLight="/src/assets/background.jpg"
-            dock={<AppDockedNav />}
-            main={
-              <CompassContent>
-                <AppRouter />
-              </CompassContent>
-            }
-          />
-        </AppLogin>
+        <UnsavedChangesProvider>
+          <AppLogin>
+            <Compass
+              backgroundSrcDark="/src/assets/background.jpg"
+              backgroundSrcLight="/src/assets/background.jpg"
+              dock={<AppDockedNav />}
+              main={
+                <CompassContent>
+                  <AppRouter />
+                </CompassContent>
+              }
+            />
+          </AppLogin>
+        </UnsavedChangesProvider>
       </AlertProvider>
     </QueryClientProvider>
   )

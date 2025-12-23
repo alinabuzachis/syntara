@@ -39,6 +39,7 @@ import avatarImg from '../assets/avatar.svg'
 import { RedHatIcon } from '../components/icons/RedHatIcon'
 
 import { navigationItems } from './navigationItems'
+import { useUnsavedChanges } from './useUnsavedChanges'
 
 // Map navigation paths to their icons
 const navIconMap: Record<string, React.ComponentType> = {
@@ -50,7 +51,8 @@ const navIconMap: Record<string, React.ComponentType> = {
 }
 
 export function AppDockedNav() {
-  const [location, setLocation] = useLocation()
+  const [location] = useLocation()
+  const { requestNavigation } = useUnsavedChanges()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
 
   // Filter out hidden navigation items and Support (accessed via Help button)
@@ -84,12 +86,12 @@ export function AppDockedNav() {
       if (item.children?.length) {
         const firstEnabledChild = item.children.find((child) => !!child.element)
         if (firstEnabledChild) {
-          setLocation(firstEnabledChild.path)
+          requestNavigation(firstEnabledChild.path)
         } else if (item.path) {
-          setLocation(item.path)
+          requestNavigation(item.path)
         }
       } else if (item.path) {
-        setLocation(item.path)
+        requestNavigation(item.path)
       }
     }
   }
@@ -100,12 +102,12 @@ export function AppDockedNav() {
       if (supportItem.children?.length) {
         const firstEnabledChild = supportItem.children.find((child) => !!child.element)
         if (firstEnabledChild) {
-          setLocation(firstEnabledChild.path)
+          requestNavigation(firstEnabledChild.path)
         } else {
-          setLocation(supportItem.path)
+          requestNavigation(supportItem.path)
         }
       } else {
-        setLocation(supportItem.path)
+        requestNavigation(supportItem.path)
       }
     }
   }

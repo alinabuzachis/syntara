@@ -1,13 +1,14 @@
 import { useEffect, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 
-import type { EdgeType, NodeType } from '../utils/workflowToGraph'
+import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { EdgeType } from '../utils/workflowToGraph'
 
 interface UseNodePositioningParams {
   nodes: NodeType[]
   edges: EdgeType[]
   isInitialized: boolean
   newlyAddedNodeIdsRef: MutableRefObject<Set<string>>
-  containerRef: RefObject<HTMLDivElement>
+  containerRef: RefObject<HTMLDivElement | null>
   setNodes: Dispatch<SetStateAction<NodeType[]>>
   getViewport: () => { x: number; y: number; zoom: number }
   updateNode: (nodeId: string, updates: { position: { x: number; y: number } }) => void

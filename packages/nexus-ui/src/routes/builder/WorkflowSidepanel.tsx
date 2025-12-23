@@ -16,10 +16,10 @@ import { CodeBlock } from '../../components/details/CodeBlock'
 import { Detail } from '../../components/details/Detail'
 import { Details } from '../../components/details/Details'
 
-type Workflow = WorkflowAPI.components['schemas']['Workflow']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
 
 interface WorkflowSidepanelProps {
-  workflow: Workflow
+  workflow: WorkflowWithVersion
   workflowName: string
   workflowDescription: string
   onNameChange: (name: string) => void
@@ -75,6 +75,7 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
         <Details>
           <Detail label="Workflow Name">
             <TextInput
+              id="workflow-sidepanel-name"
               type="text"
               value={props.workflowName}
               onChange={(_event, value) => props.onNameChange(value)}

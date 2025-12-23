@@ -17,7 +17,7 @@ import {
   Tooltip,
 } from '@patternfly/react-core'
 import { PlayIcon, PlusIcon, CloseIcon, RhUiHistoryIcon, FileCodeIcon, SaveIcon } from '@patternfly/react-icons'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, type Query } from '@tanstack/react-query'
 import { useReactFlow, type Node } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'wouter'
@@ -25,6 +25,7 @@ import { useLocation } from 'wouter'
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
+import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { FlowNodeType } from '../../constants'
@@ -77,13 +78,28 @@ function removeButtonEdgeClass(nodes: Node[], sourceId: string): Node[] {
   })
 }
 
+// Predicate to check if a query is a workflow-related GET query (for cache invalidation)
+function isWorkflowQuery(query: Query): boolean {
+  return (
+    query.queryKey[0] === 'get' && typeof query.queryKey[1] === 'string' && query.queryKey[1].startsWith('/workflows')
+  )
+}
+
 export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId } = props
-  const [, navigate] = useLocation()
+  const [, setLocation] = useLocation()
   const { showSuccess, showError } = useAlerts()
   const queryClient = useQueryClient()
   const reactFlowInstance = useReactFlow()
-  const { setWorkflow, currentWorkflow, setEdges: setStoredEdges } = useWorkflowStore()
+  const {
+    setWorkflow,
+    loadWorkflowWithEdges,
+    currentWorkflow,
+    setEdges: setStoredEdges,
+    markClean,
+    markDirty,
+  } = useWorkflowStore()
+  const { registerSaveHandler, unregisterSaveHandler, requestNavigation } = useUnsavedChanges()
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -121,12 +137,14 @@ export function BuilderContent(props: BuilderContentProps) {
   const hasLoadedRef = useRef(false)
 
   // Clear workflow store when workflowId changes to ensure fresh state
-  // CRITICAL: workflowId is in dependency array to clear store when switching between workflows
-  // CRITICAL: Clear synchronously to ensure BuilderFlow's useMemo sees empty edges immediately
+  const prevWorkflowIdRef = useRef(workflowId)
   useEffect(() => {
-    setWorkflow(null)
-    setStoredEdges([])
-    hasLoadedRef.current = false
+    if (prevWorkflowIdRef.current !== workflowId) {
+      setWorkflow(null)
+      setStoredEdges([])
+      hasLoadedRef.current = false
+      prevWorkflowIdRef.current = workflowId
+    }
   }, [workflowId, setWorkflow, setStoredEdges])
 
   useEffect(() => {
@@ -143,11 +161,12 @@ export function BuilderContent(props: BuilderContentProps) {
         },
       }
       queueMicrotask(() => {
-        setWorkflow(newWorkflow)
+        // Use atomic operation for consistency
+        loadWorkflowWithEdges(newWorkflow, [])
         setWorkflowName('New Workflow')
         setWorkflowDescription('New Workflow')
         setIsEnabled(false)
-        setStoredEdges([])
+        // No need for markClean - loadWorkflowWithEdges sets isDirty: false
       })
     } else if (
       workflow &&
@@ -213,16 +232,17 @@ export function BuilderContent(props: BuilderContentProps) {
       }
 
       queueMicrotask(() => {
-        setWorkflow(flattenedWorkflow)
+        // Use atomic operation to set both workflow and edges together
+        // This prevents race conditions where BuilderFlow renders with workflow but no edges
+        // Note: loadWorkflowWithEdges already sets isDirty to false
+        loadWorkflowWithEdges(flattenedWorkflow, generatedEdges)
         setWorkflowName(workflow.name)
         setWorkflowDescription(workflow.description ?? workflow.name ?? 'New Workflow')
         setIsEnabled(workflow.is_enabled ?? false)
-        // Set the generated edges so they're available for rendering and save
-        setStoredEdges(generatedEdges)
         hasLoadedRef.current = true
       })
     }
-  }, [isNew, workflow, workflowId, setWorkflow, setStoredEdges])
+  }, [isNew, workflow, workflowId, loadWorkflowWithEdges])
 
   // Sync state when workflow data changes (e.g., after refetch)
   useEffect(() => {
@@ -285,80 +305,85 @@ export function BuilderContent(props: BuilderContentProps) {
     }
   }, [currentWorkflow, workflowName, workflowDescription])
 
-  const handleSaveWorkflow = useCallback(() => {
-    // Validate workflow before saving
-    if (!currentWorkflow) {
-      showError('No workflow to save', 'Validation Failed')
-      return
-    }
-
-    const edges = useWorkflowStore.getState().edges
-
-    // Validate the FLAT structure before nesting
-    // This validates the builder format (flat activities + edges) before transformation
-    const validationResult = validateWorkflow(currentWorkflow.workflow.activities, edges)
-
-    if (!validationResult.valid) {
-      // Build error message from validation errors
-      const errorMessages = validationResult.errors.map((error) => error.message).join('\n• ')
-      showError(`Workflow validation failed:\n• ${errorMessages}`, 'Validation Failed')
-      return
-    }
-
-    // Build the workflow definition (nesting loops, conditions, and parallels)
-    const workflowDef = getWorkflowDefinition()
-    const workflowData = {
-      name: workflowName,
-      description: workflowDescription,
-      is_enabled: isEnabled,
-      labels: workflow?.labels ?? {},
-      workflow_definition: workflowDef,
-    }
-
-    const onSaveSuccess = (successMessage: string, workflowIdToNavigate?: string) => {
-      showSuccess(successMessage, 'Workflow Saved')
-      // Invalidate workflow queries to ensure fresh data on next load
-      // Use predicate to match openapi-react-query's key structure: [method, path, params]
-      void queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey[0] === 'get' &&
-          typeof query.queryKey[1] === 'string' &&
-          query.queryKey[1].startsWith('/workflows'),
-      })
-      if (workflowIdToNavigate) {
-        // Navigate to the edit route with the workflow ID
-        navigate(`/automation-builder/${workflowIdToNavigate}`)
+  const handleSaveWorkflow = useCallback((): Promise<boolean> => {
+    return new Promise((resolve) => {
+      // Validate workflow before saving
+      if (!currentWorkflow) {
+        showError('No workflow to save', 'Validation Failed')
+        resolve(false)
+        return
       }
-    }
 
-    const onSaveError = (error: unknown, action: string) => {
-      const errorMessage =
-        error && typeof error === 'object' && 'detail' in error ? String(error.detail) : 'Unknown error'
-      showError(`Failed to ${action} workflow: ${errorMessage}`, `${action} Failed`)
-    }
+      const edges = useWorkflowStore.getState().edges
 
-    if (workflowId && !isNew) {
-      updateWorkflow(
-        {
-          params: { path: { workflowId } },
-          body: workflowData as WorkflowInput,
-        },
-        {
-          onSuccess: () => onSaveSuccess('Workflow updated successfully', workflowId),
-          onError: (error) => onSaveError(error, 'update'),
+      // Validate the FLAT structure before nesting
+      const validationResult = validateWorkflow(currentWorkflow.workflow.activities, edges)
+
+      if (!validationResult.valid) {
+        const errorMessages = validationResult.errors.map((error) => error.message).join('\n• ')
+        showError(`Workflow validation failed:\n• ${errorMessages}`, 'Validation Failed')
+        resolve(false)
+        return
+      }
+
+      // Build the workflow definition (nesting loops, conditions, and parallels)
+      const workflowDef = getWorkflowDefinition()
+      const workflowData = {
+        name: workflowName,
+        description: workflowDescription,
+        is_enabled: isEnabled,
+        labels: workflow?.labels ?? {},
+        workflow_definition: workflowDef,
+      }
+
+      const onSaveSuccess = async (successMessage: string, workflowIdToNavigate?: string) => {
+        showSuccess(successMessage, 'Workflow Saved')
+        // Mark workflow as clean (no unsaved changes)
+        markClean()
+        // Invalidate workflow queries to ensure fresh data on next load
+        // IMPORTANT: await this to ensure cache is invalidated before navigation
+        await queryClient.invalidateQueries({ predicate: isWorkflowQuery })
+
+        // Navigate to edit route with the workflow ID (for new workflows)
+        if (workflowIdToNavigate && isNew) {
+          setLocation(`/automation-builder/${workflowIdToNavigate}`)
         }
-      )
-    } else {
-      createWorkflow(
-        { body: workflowData as WorkflowInput },
-        {
-          onSuccess: (data) => {
-            onSaveSuccess('Workflow created successfully', data.id)
+
+        resolve(true)
+      }
+
+      const onSaveError = (error: unknown, action: string) => {
+        const errorMessage =
+          error && typeof error === 'object' && 'detail' in error ? String(error.detail) : 'Unknown error'
+        showError(`Failed to ${action} workflow: ${errorMessage}`, `${action} Failed`)
+        resolve(false)
+      }
+
+      if (workflowId && !isNew) {
+        updateWorkflow(
+          {
+            params: { path: { workflowId } },
+            body: workflowData as WorkflowInput,
           },
-          onError: (error) => onSaveError(error, 'create'),
-        }
-      )
-    }
+          {
+            onSuccess: async () => {
+              await onSaveSuccess('Workflow updated successfully', workflowId)
+            },
+            onError: (error) => onSaveError(error, 'update'),
+          }
+        )
+      } else {
+        createWorkflow(
+          { body: workflowData as WorkflowInput },
+          {
+            onSuccess: async (data) => {
+              await onSaveSuccess('Workflow created successfully', data.id)
+            },
+            onError: (error) => onSaveError(error, 'create'),
+          }
+        )
+      }
+    })
   }, [
     currentWorkflow,
     workflowName,
@@ -372,9 +397,16 @@ export function BuilderContent(props: BuilderContentProps) {
     createWorkflow,
     showSuccess,
     showError,
-    navigate,
+    setLocation,
     queryClient,
+    markClean,
   ])
+
+  // Register save handler with the unsaved changes context
+  useEffect(() => {
+    registerSaveHandler(handleSaveWorkflow)
+    return () => unregisterSaveHandler()
+  }, [handleSaveWorkflow, registerSaveHandler, unregisterSaveHandler])
 
   const handleRunAutomation = useCallback(() => {
     if (!workflow?.id) return
@@ -424,10 +456,9 @@ export function BuilderContent(props: BuilderContentProps) {
   }, [historyCardOpen, executionsQuery])
 
   const handleCancel = useCallback(() => {
-    setWorkflow(null)
-    setStoredEdges([])
-    navigate(AppRoute.Automations.Root)
-  }, [setWorkflow, setStoredEdges, navigate])
+    // Use the unsaved changes context to handle navigation with confirmation
+    requestNavigation(AppRoute.Automations.Root)
+  }, [requestNavigation])
 
   const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node<NodeType['data']>) => {
     // Check if this is a generic placeholder node
@@ -489,6 +520,20 @@ export function BuilderContent(props: BuilderContentProps) {
     })
   }, [])
 
+  // Handle browser navigation (beforeunload) - warn when closing tab with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (useWorkflowStore.getState().isDirty) {
+        event.preventDefault()
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [])
+
   return (
     <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
       <AppPage>
@@ -497,9 +542,13 @@ export function BuilderContent(props: BuilderContentProps) {
             <AppPageHeader
               title={
                 <TextInput
+                  id="workflow-name-input"
                   type="text"
                   value={workflowName}
-                  onChange={(_event, value) => setWorkflowName(value)}
+                  onChange={(_event, value) => {
+                    setWorkflowName(value)
+                    markDirty()
+                  }}
                   placeholder="Workflow name"
                 />
               }
@@ -611,7 +660,10 @@ export function BuilderContent(props: BuilderContentProps) {
                   <Divider orientation={{ default: 'vertical' }} />
                   <Switch
                     isChecked={isEnabled}
-                    onChange={(_event, checked) => setIsEnabled(checked)}
+                    onChange={(_event, checked) => {
+                      setIsEnabled(checked)
+                      markDirty()
+                    }}
                     label={isEnabled ? 'Enabled' : 'Disabled'}
                   />
                 </>
@@ -852,8 +904,14 @@ export function BuilderContent(props: BuilderContentProps) {
                     workflow={workflow}
                     workflowName={workflowName}
                     workflowDescription={workflowDescription}
-                    onNameChange={setWorkflowName}
-                    onDescriptionChange={setWorkflowDescription}
+                    onNameChange={(name) => {
+                      setWorkflowName(name)
+                      markDirty()
+                    }}
+                    onDescriptionChange={(desc) => {
+                      setWorkflowDescription(desc)
+                      markDirty()
+                    }}
                     onClose={() => setDetailsOpen(false)}
                   />
                 </FlexItem>

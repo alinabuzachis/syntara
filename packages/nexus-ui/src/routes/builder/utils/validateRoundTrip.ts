@@ -73,8 +73,6 @@ export function validateRoundTrip(original: Activity[], edges?: EdgeConnection[]
   // Only modern workflows with condition nodes are validated
   const hasLegacyActivities = hasLegacyActivityTypes(original)
   if (hasLegacyActivities) {
-    // eslint-disable-next-line no-console
-    console.log('[validateRoundTrip] Skipping validation for workflow with sequence/loop/parallel activities')
     return
   }
 

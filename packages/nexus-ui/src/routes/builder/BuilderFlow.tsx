@@ -6,6 +6,7 @@ import {
   BackgroundVariant,
   ReactFlow,
   useReactFlow,
+  type Connection,
   type EdgeChange,
   type NodeChange,
 } from '@xyflow/react'
@@ -271,6 +272,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   // Solution: Initialize once on mount, then manage state independently
   const isInitializedRef = useRef(false)
   const lastWorkflowIdRef = useRef<string | null>(workflowId)
+  const lastWorkflowVersionRef = useRef<number>(workflowVersion)
   const [nodes, setNodes] = useState<NodeType[]>([])
 
   const [edges, setEdges] = useState<EdgeType[]>([])
@@ -278,11 +280,12 @@ export function BuilderFlow(props: BuilderFlowProps) {
   // Track when we're in the middle of a deletion operation to prevent re-initialization
   const isDeletingRef = useRef(false)
 
-  // Reset initialization flag when workflow ID changes OR when workflow is cleared from store
-  // This handles both navigation to different workflows AND BuilderContent's cleanup effect
+  // Reset initialization flag when workflow ID changes, version changes, OR when workflow is cleared
+  // This handles navigation to different workflows, fresh data loading, AND BuilderContent's cleanup
   useEffect(() => {
     const currentWorkflow = useWorkflowStore.getState().currentWorkflow
     const workflowIdChanged = workflowId !== lastWorkflowIdRef.current
+    const workflowVersionChanged = workflowVersion !== lastWorkflowVersionRef.current
     const workflowCleared = !currentWorkflow && isInitializedRef.current
 
     if (workflowIdChanged) {
@@ -295,9 +298,14 @@ export function BuilderFlow(props: BuilderFlowProps) {
       setNodes([])
       setEdges([])
 
-      // CRITICAL: Update lastWorkflowIdRef AFTER clearing state
-      // This ensures initialization effect sees the ID transition and can detect stale data
+      // CRITICAL: Update refs AFTER clearing state
       lastWorkflowIdRef.current = workflowId
+      lastWorkflowVersionRef.current = workflowVersion
+    } else if (workflowVersionChanged) {
+      // Workflow version changed (fresh data loaded) - need to re-initialize
+      // This handles the case where cached data was used initially, then fresh data arrives
+      isInitializedRef.current = false
+      lastWorkflowVersionRef.current = workflowVersion
     } else if (workflowCleared) {
       // Workflow was cleared from store (by BuilderContent cleanup) but ID didn't change
       // Reset initialization so we re-initialize when workflow loads again
@@ -317,6 +325,14 @@ export function BuilderFlow(props: BuilderFlowProps) {
     const currentWorkflow = useWorkflowStore.getState().currentWorkflow
     const hasWorkflow = !!currentWorkflow
     const isCorrectWorkflow = lastWorkflowIdRef.current === workflowId
+
+    // CRITICAL: If workflow has activities, it should have edges
+    // Wait for edges to be loaded before initializing
+    const hasActivities = (currentWorkflow?.workflow?.activities?.length ?? 0) > 0
+    if (hasWorkflow && hasActivities && initialEdges.length === 0) {
+      // Workflow has activities but no edges yet - wait for edges to load
+      return
+    }
 
     // CRITICAL: Validate that edges actually belong to this workflow
     // Check if edge references match activity IDs in the workflow
@@ -374,7 +390,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const onLayout = useCallback(() => {
     const layouted = getLayoutedElements(nodes, edges, { direction: 'LR' })
     setNodes([...layouted.nodes])
-    setEdges([...layouted.edges])
+    setEdges([...layouted.edges] as EdgeType[])
     void fitView({ maxZoom: 1 })
   }, [nodes, edges, setNodes, setEdges, fitView])
 

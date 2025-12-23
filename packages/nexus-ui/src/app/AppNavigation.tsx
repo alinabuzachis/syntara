@@ -3,9 +3,11 @@ import { useRef } from 'react'
 import { useLocation } from 'wouter'
 
 import { navigationItems } from './navigationItems'
+import { useUnsavedChanges } from './useUnsavedChanges'
 
 export function AppNavigation() {
-  const [location, setLocation] = useLocation()
+  const [location] = useLocation()
+  const { requestNavigation } = useUnsavedChanges()
   const subTabsRef = useRef<HTMLDivElement>(null)
   const visibleItems = navigationItems.filter((item) => !item.hidden)
 
@@ -39,13 +41,13 @@ export function AppNavigation() {
         // Find first enabled child (one with an element)
         const firstEnabledChild = item.children.find((child) => !!child.element)
         if (firstEnabledChild) {
-          setLocation(firstEnabledChild.path)
+          requestNavigation(firstEnabledChild.path)
         } else if (item.path) {
           // If no enabled children, navigate to parent path
-          setLocation(item.path)
+          requestNavigation(item.path)
         }
       } else if (item.path) {
-        setLocation(item.path)
+        requestNavigation(item.path)
       }
     }
   }
@@ -56,7 +58,7 @@ export function AppNavigation() {
     const item = visibleChildren[idx]
     // Only navigate if item exists and is enabled (has an element)
     if (item && item.element) {
-      setLocation(item.path)
+      requestNavigation(item.path)
     }
   }
 
