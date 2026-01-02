@@ -136,7 +136,7 @@ export function AppDockedNav() {
       <MastheadMain>
         <MastheadBrand>
           <MastheadLogo component="a">
-            <RedHatIcon className="!h-[24px] !w-[24px]" />
+            <RedHatIcon style={{ height: '24px', width: '24px' }} />
           </MastheadLogo>
         </MastheadBrand>
       </MastheadMain>

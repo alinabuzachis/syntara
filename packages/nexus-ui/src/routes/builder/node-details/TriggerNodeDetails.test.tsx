@@ -31,16 +31,12 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
 
 // Mock the alerts hook
 const mockShowError = vi.fn()
-vi.mock('@ansible/nexus-ui-framework', async () => {
-  const actual = await vi.importActual('@ansible/nexus-ui-framework')
-  return {
-    ...actual,
-    useAlerts: vi.fn(() => ({
-      showSuccess: vi.fn(),
-      showError: mockShowError,
-    })),
-  }
-})
+vi.mock('../../../components/alerts', () => ({
+  useAlerts: vi.fn(() => ({
+    showSuccess: vi.fn(),
+    showError: mockShowError,
+  })),
+}))
 
 // Mock TriggerNodeForm
 vi.mock('../node-forms/TriggerNodeForm', () => ({

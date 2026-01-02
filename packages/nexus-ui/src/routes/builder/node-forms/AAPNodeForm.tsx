@@ -1,7 +1,22 @@
-import { Form, Input, NativeSelect, Textarea, useFormContext } from '@ansible/nexus-ui-framework'
-import { Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Stack, StackItem } from '@patternfly/react-core'
+import {
+  Form,
+  FormGroup,
+  FormHelperText,
+  FormSelect,
+  FormSelectOption,
+  HelperText,
+  HelperTextItem,
+  Stack,
+  StackItem,
+  TextArea,
+  TextInput,
+} from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
+import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
+
+import { ActivityNameField } from './shared/ActivityNameField'
+import { FormSubmitButton } from './shared/FormSubmitButton'
 
 export interface AAPFormData {
   name: string
@@ -23,19 +38,20 @@ interface AAPNodeFormProps {
 }
 
 function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
-  const { register } = useFormContext<AAPFormData>()
+  const { register, control } = useFormContext<AAPFormData>()
   const [jsonError, setJsonError] = useState<string | null>(null)
 
   // Validate JSON on change
-  const validateJSON = (value: string) => {
-    if (value.trim()) {
+  const validateJSON = (value: string | undefined): boolean | string => {
+    const strValue = value ?? ''
+    if (strValue.trim()) {
       try {
-        JSON.parse(value)
+        JSON.parse(strValue)
         setJsonError(null)
         return true
       } catch {
         setJsonError('Invalid JSON format')
-        return false
+        return 'Invalid JSON format'
       }
     } else {
       setJsonError(null)
@@ -45,14 +61,10 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
 
   return (
     <Stack hasGutter>
-      <StackItem>
-        <FormGroup label="Activity Name" isRequired fieldId="aap-name">
-          <Input {...register('name', { required: true })} id="aap-name" placeholder="Enter activity name" />
-        </FormGroup>
-      </StackItem>
+      <ActivityNameField register={register} fieldId="aap-name" />
       <StackItem>
         <FormGroup label="Job Template ID" isRequired fieldId="aap-jobTemplateId">
-          <Input
+          <TextInput
             {...register('jobTemplateId', { required: true })}
             id="aap-jobTemplateId"
             type="number"
@@ -67,7 +79,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
       </StackItem>
       <StackItem>
         <FormGroup label="Inventory ID" fieldId="aap-inventory">
-          <Input {...register('inventory')} id="aap-inventory" type="number" placeholder="456" />
+          <TextInput {...register('inventory')} id="aap-inventory" type="number" placeholder="456" />
           <FormHelperText>
             <HelperText>
               <HelperTextItem>Optional: Override default inventory</HelperTextItem>
@@ -77,7 +89,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
       </StackItem>
       <StackItem>
         <FormGroup label="Credentials" fieldId="aap-credentials">
-          <Input {...register('credentials')} id="aap-credentials" placeholder="1,2,3" />
+          <TextInput {...register('credentials')} id="aap-credentials" placeholder="1,2,3" type="text" />
           <FormHelperText>
             <HelperText>
               <HelperTextItem>Optional: Comma-separated credential IDs</HelperTextItem>
@@ -87,11 +99,14 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
       </StackItem>
       <StackItem>
         <FormGroup label="Extra Variables (JSON)" fieldId="aap-extraVars">
-          <Textarea
+          <TextArea
             {...register('extraVars', {
               validate: validateJSON,
-              onChange: (e) => validateJSON(e.target.value),
             })}
+            onChange={(e) => {
+              const value = (e.target as HTMLTextAreaElement).value
+              validateJSON(value)
+            }}
             id="aap-extraVars"
             placeholder='{"version": "1.0", "environment": "prod"}'
             rows={4}
@@ -112,7 +127,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
       </StackItem>
       <StackItem>
         <FormGroup label="Limit" fieldId="aap-limit">
-          <Input {...register('limit')} id="aap-limit" placeholder="webservers:dbservers" />
+          <TextInput {...register('limit')} id="aap-limit" placeholder="webservers:dbservers" type="text" />
           <FormHelperText>
             <HelperText>
               <HelperTextItem>Optional: Limit job execution to specific hosts</HelperTextItem>
@@ -122,7 +137,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
       </StackItem>
       <StackItem>
         <FormGroup label="Tags" fieldId="aap-tags">
-          <Input {...register('tags')} id="aap-tags" placeholder="install,configure" />
+          <TextInput {...register('tags')} id="aap-tags" placeholder="install,configure" type="text" />
           <FormHelperText>
             <HelperText>
               <HelperTextItem>Optional: Ansible tags to run (comma-separated)</HelperTextItem>
@@ -132,7 +147,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
       </StackItem>
       <StackItem>
         <FormGroup label="Skip Tags" fieldId="aap-skipTags">
-          <Input {...register('skipTags')} id="aap-skipTags" placeholder="testing,debug" />
+          <TextInput {...register('skipTags')} id="aap-skipTags" placeholder="testing,debug" type="text" />
           <FormHelperText>
             <HelperText>
               <HelperTextItem>Optional: Ansible tags to skip (comma-separated)</HelperTextItem>
@@ -142,15 +157,26 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
       </StackItem>
       <StackItem>
         <FormGroup label="Verbosity" fieldId="aap-verbosity">
-          <NativeSelect {...register('verbosity')} id="aap-verbosity">
-            <option value="">Default (0)</option>
-            <option value="0">0 - Normal</option>
-            <option value="1">1 - Verbose</option>
-            <option value="2">2 - More Verbose</option>
-            <option value="3">3 - Debug</option>
-            <option value="4">4 - Connection Debug</option>
-            <option value="5">5 - WinRM Debug</option>
-          </NativeSelect>
+          <Controller
+            control={control}
+            name="verbosity"
+            render={({ field }) => (
+              <FormSelect
+                id="aap-verbosity"
+                value={field.value || ''}
+                onChange={(_event, value) => field.onChange(value)}
+                aria-label="Verbosity"
+              >
+                <FormSelectOption value="" label="Default (0)" />
+                <FormSelectOption value="0" label="0 - Normal" />
+                <FormSelectOption value="1" label="1 - Verbose" />
+                <FormSelectOption value="2" label="2 - More Verbose" />
+                <FormSelectOption value="3" label="3 - Debug" />
+                <FormSelectOption value="4" label="4 - Connection Debug" />
+                <FormSelectOption value="5" label="5 - WinRM Debug" />
+              </FormSelect>
+            )}
+          />
           <FormHelperText>
             <HelperText>
               <HelperTextItem>Optional: Job verbosity level (0-5)</HelperTextItem>
@@ -158,11 +184,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
           </FormHelperText>
         </FormGroup>
       </StackItem>
-      <StackItem>
-        <Button type="submit" variant="primary" style={{ width: '100%' }} isDisabled={!!jsonError}>
-          {submitButtonText ?? 'Add node'}
-        </Button>
-      </StackItem>
+      <FormSubmitButton submitButtonText={submitButtonText} isDisabled={!!jsonError} />
     </Stack>
   )
 }
@@ -181,13 +203,19 @@ export function AAPNodeForm(props: AAPNodeFormProps) {
     ...props.initialData,
   }
 
+  const methods = useForm<AAPFormData>({
+    defaultValues,
+  })
+
   const handleSubmit = (data: AAPFormData) => {
     props.onSubmit(data)
   }
 
   return (
-    <Form<AAPFormData> id="aap-node-form" defaultValues={defaultValues} onSubmit={handleSubmit}>
-      {() => <AAPFormFields submitButtonText={props.submitButtonText} />}
-    </Form>
+    <FormProvider {...methods}>
+      <Form id="aap-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+        <AAPFormFields submitButtonText={props.submitButtonText} />
+      </Form>
+    </FormProvider>
   )
 }

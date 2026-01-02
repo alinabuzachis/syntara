@@ -1,5 +1,17 @@
-import { Form, Input, NativeSelect, Textarea, useFormContext } from '@ansible/nexus-ui-framework'
-import { Button, FormGroup, Stack, StackItem } from '@patternfly/react-core'
+import {
+  Form,
+  FormGroup,
+  FormSelect,
+  FormSelectOption,
+  Stack,
+  StackItem,
+  TextArea,
+  TextInput,
+} from '@patternfly/react-core'
+import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
+
+import { ActivityNameField } from './shared/ActivityNameField'
+import { FormSubmitButton } from './shared/FormSubmitButton'
 
 interface AIAgentFormData {
   name: string
@@ -16,38 +28,51 @@ interface AIAgentNodeFormProps {
 }
 
 function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) {
-  const { register } = useFormContext<AIAgentFormData>()
+  const { register, control } = useFormContext<AIAgentFormData>()
   return (
     <Stack hasGutter>
-      <StackItem>
-        <FormGroup label="Activity Name" isRequired fieldId="agent-name">
-          <Input {...register('name', { required: true })} id="agent-name" placeholder="Enter activity name" />
-        </FormGroup>
-      </StackItem>
+      <ActivityNameField register={register} fieldId="agent-name" />
       <StackItem>
         <FormGroup label="Agent / MCP Server" isRequired fieldId="agent-agent">
-          <Input {...register('agent', { required: true })} id="agent-agent" placeholder="mcp://agent-server" />
+          <TextInput
+            {...register('agent', { required: true })}
+            id="agent-agent"
+            placeholder="mcp://agent-server"
+            type="text"
+          />
         </FormGroup>
       </StackItem>
       <StackItem>
         <FormGroup label="Tools (comma-separated)" fieldId="agent-tools">
-          <Input {...register('tools')} id="agent-tools" placeholder="tool1, tool2, tool3" />
+          <TextInput {...register('tools')} id="agent-tools" placeholder="tool1, tool2, tool3" type="text" />
         </FormGroup>
       </StackItem>
       <StackItem>
         <FormGroup label="Model" fieldId="agent-model">
-          <NativeSelect {...register('model')} id="agent-model">
-            <option value="claude-3-opus">Claude 3 Opus</option>
-            <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-            <option value="gpt-4">GPT-4</option>
-            <option value="gpt-4-turbo">GPT-4 Turbo</option>
-            <option value="gemini-pro">Gemini Pro</option>
-          </NativeSelect>
+          <Controller
+            control={control}
+            name="model"
+            defaultValue="claude-3-sonnet"
+            render={({ field }) => (
+              <FormSelect
+                id="agent-model"
+                aria-label="Model"
+                value={field.value}
+                onChange={(_event, value) => field.onChange(value)}
+              >
+                <FormSelectOption value="claude-3-opus" label="Claude 3 Opus" />
+                <FormSelectOption value="claude-3-sonnet" label="Claude 3 Sonnet" />
+                <FormSelectOption value="gpt-4" label="GPT-4" />
+                <FormSelectOption value="gpt-4-turbo" label="GPT-4 Turbo" />
+                <FormSelectOption value="gemini-pro" label="Gemini Pro" />
+              </FormSelect>
+            )}
+          />
         </FormGroup>
       </StackItem>
       <StackItem>
         <FormGroup label="Prompt" fieldId="agent-prompt">
-          <Textarea
+          <TextArea
             {...register('prompt')}
             id="agent-prompt"
             placeholder="Natural language instructions for the agent..."
@@ -55,11 +80,7 @@ function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) 
           />
         </FormGroup>
       </StackItem>
-      <StackItem>
-        <Button type="submit" variant="primary" style={{ width: '100%' }}>
-          {submitButtonText ?? 'Add node'}
-        </Button>
-      </StackItem>
+      <FormSubmitButton submitButtonText={submitButtonText} />
     </Stack>
   )
 }
@@ -77,9 +98,15 @@ export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
     props.onSubmit(data)
   }
 
+  const methods = useForm<AIAgentFormData>({
+    defaultValues,
+  })
+
   return (
-    <Form<AIAgentFormData> id="ai-agent-node-form" defaultValues={defaultValues} onSubmit={handleSubmit}>
-      {() => <AIAgentFormFields submitButtonText={props.submitButtonText} />}
-    </Form>
+    <FormProvider {...methods}>
+      <Form id="ai-agent-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+        <AIAgentFormFields submitButtonText={props.submitButtonText} />
+      </Form>
+    </FormProvider>
   )
 }

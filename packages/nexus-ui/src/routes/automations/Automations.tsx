@@ -90,7 +90,16 @@ export default function Automations() {
   ]
 
   const queryState = useQueryState(workflowsQuery, 'Error loading workflows')
-  if (queryState) return queryState
+  if (queryState) {
+    return (
+      <AppPage>
+        <AppPageHeader title="Automations" />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
 
   return (
     <AppPage>

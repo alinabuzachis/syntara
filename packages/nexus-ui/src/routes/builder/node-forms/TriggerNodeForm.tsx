@@ -1,12 +1,9 @@
-import {
-  Controller,
-  DateRangeCadencePicker,
-  Form,
-  NativeSelect,
-  useFormContext,
-  useWatch,
-} from '@ansible/nexus-ui-framework'
-import { Button, FormGroup, Stack, StackItem } from '@patternfly/react-core'
+import { Form, FormGroup, FormSelect, FormSelectOption, Stack, StackItem } from '@patternfly/react-core'
+import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
+
+import { DateRangeCadencePicker } from '../../../components/forms/DateRangeCadencePicker'
+
+import { FormSubmitButton } from './shared/FormSubmitButton'
 
 export interface TriggerFormData {
   triggerType: string
@@ -22,7 +19,7 @@ interface TriggerNodeFormProps {
 }
 
 function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) {
-  const { register, control } = useFormContext<TriggerFormData>()
+  const { control } = useFormContext<TriggerFormData>()
   const triggerType = useWatch({ control, name: 'triggerType' })
   const scheduleType = useWatch({ control, name: 'scheduleType' })
 
@@ -30,10 +27,21 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
     <Stack hasGutter>
       <StackItem>
         <FormGroup label="Trigger Type" fieldId="trigger-type">
-          <NativeSelect {...register('triggerType')} id="trigger-type">
-            <option value="manual">Manual</option>
-            <option value="scheduled">Scheduled</option>
-          </NativeSelect>
+          <Controller
+            control={control}
+            name="triggerType"
+            render={({ field }) => (
+              <FormSelect
+                id="trigger-type"
+                aria-label="Trigger Type"
+                value={field.value}
+                onChange={(_event, value) => field.onChange(value)}
+              >
+                <FormSelectOption value="manual" label="Manual" />
+                <FormSelectOption value="scheduled" label="Scheduled" />
+              </FormSelect>
+            )}
+          />
         </FormGroup>
       </StackItem>
 
@@ -41,34 +49,41 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
         <>
           <StackItem>
             <FormGroup label="Schedule Type" fieldId="schedule-type">
-              <NativeSelect {...register('scheduleType')} id="schedule-type">
-                <option value="interval">Interval</option>
-                <option value="continuous">Continuous</option>
-              </NativeSelect>
+              <Controller
+                control={control}
+                name="scheduleType"
+                render={({ field }) => (
+                  <FormSelect
+                    id="schedule-type"
+                    aria-label="Schedule Type"
+                    value={field.value}
+                    onChange={(_event, value) => field.onChange(value)}
+                  >
+                    <FormSelectOption value="interval" label="Interval" />
+                    <FormSelectOption value="continuous" label="Continuous" />
+                  </FormSelect>
+                )}
+              />
             </FormGroup>
           </StackItem>
 
           {scheduleType === 'interval' && (
             <StackItem>
-              <FormGroup label="Interval" fieldId="trigger-interval" isRequired>
-                <Controller
-                  control={control}
-                  name="interval"
-                  render={({ field }) => (
-                    <DateRangeCadencePicker value={field.value || ''} onChange={field.onChange} required showTime />
-                  )}
-                />
-              </FormGroup>
+              {/* <FormGroup label="Interval" fieldId="trigger-interval" isRequired> */}
+              <Controller
+                control={control}
+                name="interval"
+                render={({ field }) => (
+                  <DateRangeCadencePicker value={field.value || ''} onChange={field.onChange} required showTime />
+                )}
+              />
+              {/* </FormGroup> */}
             </StackItem>
           )}
         </>
       )}
 
-      <StackItem>
-        <Button type="submit" variant="primary" style={{ width: '100%' }}>
-          {submitButtonText ?? 'Add node'}
-        </Button>
-      </StackItem>
+      <FormSubmitButton submitButtonText={submitButtonText} />
     </Stack>
   )
 }
@@ -81,6 +96,10 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
     ...props.initialData,
   }
 
+  const methods = useForm<TriggerFormData>({
+    defaultValues,
+  })
+
   const handleSubmit = (data: TriggerFormData) => {
     const cleanedData: TriggerFormData = {
       triggerType: data.triggerType,
@@ -91,8 +110,10 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
   }
 
   return (
-    <Form<TriggerFormData> id="trigger-node-form" defaultValues={defaultValues} onSubmit={handleSubmit}>
-      {() => <TriggerFormFields submitButtonText={props.submitButtonText} />}
-    </Form>
+    <FormProvider {...methods}>
+      <Form id="trigger-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+        <TriggerFormFields submitButtonText={props.submitButtonText} />
+      </Form>
+    </FormProvider>
   )
 }

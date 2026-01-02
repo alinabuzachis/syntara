@@ -1,9 +1,19 @@
-import { Scrollable } from '@ansible/nexus-ui-framework'
+import {
+  CompassPanel,
+  Content,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
+  SearchInput,
+  StackItem,
+} from '@patternfly/react-core'
 import Fuse from 'fuse.js'
 import { useState } from 'react'
 
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
+import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 
 import { useGlossaryTerms } from './useGlossaryTerms'
 
@@ -22,23 +32,38 @@ export default function Glossary() {
   return (
     <AppPage>
       <AppPageHeader title="Glossary">
-        <input
-          className="search grow"
-          placeholder="Search..."
+        <SearchInput
+          placeholder="Search glossary..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(_event, value) => setSearch(value)}
+          onClear={() => setSearch('')}
+          style={{ width: '250px' }}
         />
       </AppPageHeader>
-      <Scrollable className="glass grow rounded-4xl border">
-        <dl className="grid gap-6 px-8 py-8">
-          {results.map((result) => (
-            <div key={result.term} className="detail">
-              <dt className="font-bold text-white">{result.term}</dt>
-              <dd>{result.definition}</dd>
-            </div>
-          ))}
-        </dl>
-      </Scrollable>
+      {results.length === 0 ? (
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            <EmptyStateFilter clearAllFilters={() => setSearch('')} />
+          </CompassPanel>
+        </StackItem>
+      ) : (
+        <StackItem isFilled>
+          <CompassPanel isFullHeight isScrollable>
+            <DescriptionList>
+              {results.map((result) => (
+                <DescriptionListGroup key={result.term}>
+                  <DescriptionListTerm>
+                    <Content>{result.term}</Content>
+                  </DescriptionListTerm>
+                  <DescriptionListDescription>
+                    <Content>{result.definition}</Content>
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+              ))}
+            </DescriptionList>
+          </CompassPanel>
+        </StackItem>
+      )}
     </AppPage>
   )
 }

@@ -169,7 +169,16 @@ export default function IntegrationTools() {
     })
   }
 
-  if (integrationQueryStatus) return integrationQueryStatus
+  if (integrationQueryStatus) {
+    return (
+      <AppPage>
+        <AppPageHeader title={provider?.name ? `${provider.name} tools` : 'Tools'} />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>{integrationQueryStatus}</CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
 
   return (
     <AppPage>

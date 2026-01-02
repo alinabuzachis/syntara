@@ -25,37 +25,31 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
   trigger: {
     icon: PlayIcon,
     label: 'Trigger',
-    className: 'w-node-trigger rounded-l-full min-h-[80px]',
     disableTarget: true,
     expandable: false,
   },
   task: {
     label: 'Task',
-    className: 'w-node rounded-3xl',
     expandable: true,
   },
   condition: {
     icon: CodeBranchIcon,
     label: 'Condition',
-    className: 'w-node rounded-4xl',
     expandable: true,
   },
   loop: {
     icon: SyncIcon,
     label: 'Loop',
-    className: 'w-node rounded-4xl',
     enableEnd: true,
     expandable: false,
   },
   parallel: {
     label: 'Parallel',
-    className: 'w-node rounded-4xl',
     expandable: false,
   },
   converge: {
     icon: CodeBranchIcon,
     label: 'Converge',
-    className: 'w-node rounded-3xl',
     expandable: false,
   },
 }

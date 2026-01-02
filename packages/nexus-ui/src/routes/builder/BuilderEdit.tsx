@@ -1,7 +1,10 @@
+import { CompassPanel, StackItem } from '@patternfly/react-core'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useParams } from 'wouter'
 
+import { AppPage } from '../../app/AppPage'
+import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
@@ -30,13 +33,31 @@ export default function BuilderEdit() {
   const { error, isLoading } = workflowQuery
 
   if (error) {
-    return <ErrorState title="Error loading workflow" message={error} />
+    return (
+      <AppPage>
+        <AppPageHeader title="Error loading workflow" />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            <ErrorState title="Error loading workflow" message={error} />
+          </CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
   }
 
   // Use isLoading instead of isPending to distinguish initial load from refetch
   // isLoading = true only on first fetch, isPending = true on both initial and refetch
   if (isLoading) {
-    return <LoadingState />
+    return (
+      <AppPage>
+        <AppPageHeader title="Loading workflow" />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            <LoadingState />
+          </CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
   }
 
   return (

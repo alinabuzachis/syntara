@@ -1,6 +1,6 @@
-import { useAlerts } from '@ansible/nexus-ui-framework'
 import { useCallback } from 'react'
 
+import { useAlerts } from '../components/alerts'
 import { getErrorMessage, getErrorTitle, isServiceUnavailableError, isValidationError } from '../utils/apiErrors'
 
 export interface MutationErrorHandlerOptions {
@@ -24,7 +24,7 @@ export interface MutationErrorHandlerOptions {
  * - Automatic 503 detection with warning alert (not error)
  * - Consistent error message extraction from various formats
  * - Custom 503 handler support for component-specific behavior
- * - Integration with useAlerts from framework
+ * - Integration with useAlerts from components/alerts
  *
  * @returns A function that creates an error handler for mutation onError callbacks
  *
@@ -75,15 +75,15 @@ export function useMutationErrorHandler() {
         if (isServiceUnavailableError(error)) {
           // 503 errors get a warning (amber) instead of error (red)
           // because they're typically configuration issues, not user errors
-          showAlert({ variant: 'warning', title: errorTitle, message: fullMessage, autoDismiss })
+          showAlert({ variant: 'warning', title: errorTitle, description: fullMessage, autoDismiss })
 
           // Call custom 503 handler if provided
           if (on503) {
             on503()
           }
         } else {
-          // Regular errors
-          showAlert({ variant: 'error', title: errorTitle, message: fullMessage, autoDismiss })
+          // Regular errors (map 'error' to 'danger' for PatternFly)
+          showAlert({ variant: 'danger', title: errorTitle, description: fullMessage, autoDismiss })
         }
       }
     },

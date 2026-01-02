@@ -13,6 +13,16 @@
  * 3. Import and call the registration function in nodes/index.ts
  */
 
+import {
+  Button,
+  CompassPanel,
+  Content,
+  ContentVariants,
+  Stack,
+  StackItem,
+  Title,
+  TitleSizes,
+} from '@patternfly/react-core'
 import { BellIcon } from 'lucide-react'
 
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore'
@@ -32,21 +42,29 @@ function NotificationNodeForm({ onSubmit, onCancel }: BaseNodeFormProps<Notifica
   // Form implementation here
   // This is just a placeholder
   return (
-    <div className="glass flex flex-col gap-3 rounded-lg border p-4">
-      <h3 className="text-sm font-semibold">Configure Notification</h3>
-      <button
-        onClick={() =>
-          onSubmit({
-            name: 'Test',
-            channel: 'email',
-            recipients: 'test@example.com',
-            message: 'Test message',
-          })
-        }
-      >
-        Add
-      </button>
-    </div>
+    <CompassPanel>
+      <Stack hasGutter>
+        <StackItem>
+          <Title headingLevel="h3" size={TitleSizes.md}>
+            Configure Notification
+          </Title>
+        </StackItem>
+        <StackItem>
+          <Button
+            onClick={() =>
+              onSubmit({
+                name: 'Test',
+                channel: 'email',
+                recipients: 'test@example.com',
+                message: 'Test message',
+              })
+            }
+          >
+            Add
+          </Button>
+        </StackItem>
+      </Stack>
+    </CompassPanel>
   )
 }
 

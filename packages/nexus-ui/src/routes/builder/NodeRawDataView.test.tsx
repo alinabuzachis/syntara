@@ -75,7 +75,7 @@ describe('NodeRawDataView Component', () => {
     render(<NodeRawDataView node={node} />)
 
     const nodeTypeDiv = screen.getByText('trigger')
-    expect(nodeTypeDiv).toHaveClass('capitalize')
+    expect(nodeTypeDiv).toBeInTheDocument()
   })
 
   it('uses monospace font for node ID', () => {
@@ -88,8 +88,10 @@ describe('NodeRawDataView Component', () => {
 
     render(<NodeRawDataView node={node} />)
 
-    const nodeIdDiv = screen.getByText('monospace-test')
-    expect(nodeIdDiv).toHaveClass('font-mono')
+    // PatternFly CodeBlock uses monospace by default
+    const nodeIdCode = screen.getByText('monospace-test')
+    expect(nodeIdCode).toBeInTheDocument()
+    expect(nodeIdCode.tagName).toBe('CODE')
   })
 
   it('handles empty node data', () => {
@@ -152,12 +154,8 @@ describe('NodeRawDataView Component', () => {
 
     const { container } = render(<NodeRawDataView node={node} />)
 
-    // Check main container has correct classes
-    const mainDiv = container.firstChild as HTMLElement
-    expect(mainDiv).toHaveClass('flex', 'flex-col', 'gap-4')
-
-    // Check that divs have bg-white/5 class
-    const bgDivs = container.querySelectorAll('.bg-white\\/5')
-    expect(bgDivs.length).toBeGreaterThan(0)
+    // PatternFly DescriptionList component is used
+    const descriptionList = container.querySelector('.pf-v6-c-description-list')
+    expect(descriptionList).toBeInTheDocument()
   })
 })

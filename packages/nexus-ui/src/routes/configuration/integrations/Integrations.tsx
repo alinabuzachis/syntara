@@ -185,7 +185,16 @@ export default function Integrations() {
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false)
 
   const queryState = useQueryState(query, 'Error loading integrations')
-  if (queryState) return queryState
+  if (queryState) {
+    return (
+      <AppPage>
+        <AppPageHeader title="Integrations" />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
 
   return (
     <AppPage>

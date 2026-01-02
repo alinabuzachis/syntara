@@ -40,7 +40,7 @@ export function LoopOutgoingEdge(props: LoopOutgoingEdgeProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isEdgeHovered, setIsEdgeHovered] = useState(false)
   const [isAddButtonHovered, setIsAddButtonHovered] = useState(false)
-  const hoverTimeoutRef = React.useRef<number | null>(null)
+  const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Switch to a custom marker ID when selected, hovered, or active
   const effectiveMarkerEnd = selected
@@ -168,7 +168,7 @@ export function LoopOutgoingEdge(props: LoopOutgoingEdgeProps) {
             }}
             className="nodrag nopan"
           >
-            <div className="rounded border border-gray-600 bg-gray-800 px-2 py-1 text-xs text-gray-200">{label}</div>
+            {label}
           </div>
         </EdgeLabelRenderer>
       )}
@@ -179,8 +179,9 @@ export function LoopOutgoingEdge(props: LoopOutgoingEdgeProps) {
               position: 'absolute',
               transform: `translate(-50%, -120%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',
+              display: 'flex',
             }}
-            className="nodrag nopan flex gap-1"
+            className="nodrag nopan"
             onMouseEnter={() => {
               if (hoverTimeoutRef.current) {
                 clearTimeout(hoverTimeoutRef.current)
@@ -198,9 +199,25 @@ export function LoopOutgoingEdge(props: LoopOutgoingEdgeProps) {
           >
             <button
               onClick={handleAddNode}
-              onMouseEnter={() => setIsAddButtonHovered(true)}
-              onMouseLeave={() => setIsAddButtonHovered(false)}
-              className={`flex cursor-pointer items-center justify-center rounded bg-transparent p-1 transition-colors ${data?.isActive ? 'text-white' : 'text-gray-400 hover:text-white'}`}
+              style={{
+                cursor: 'pointer',
+                padding: 'var(--pf-t--global--spacer--xs)',
+                color: data?.isActive
+                  ? 'var(--pf-t--global--color--text--primary)'
+                  : 'var(--pf-t--global--color--text--muted)',
+              }}
+              onMouseEnter={(e) => {
+                setIsAddButtonHovered(true)
+                if (!data?.isActive) {
+                  e.currentTarget.style.color = 'var(--pf-t--global--color--text--primary)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                setIsAddButtonHovered(false)
+                if (!data?.isActive) {
+                  e.currentTarget.style.color = 'var(--pf-t--global--color--text--muted)'
+                }
+              }}
               title="Add node"
             >
               <svg
@@ -222,10 +239,20 @@ export function LoopOutgoingEdge(props: LoopOutgoingEdgeProps) {
             </button>
             <button
               onClick={handleDelete}
-              className="flex cursor-pointer items-center justify-center rounded bg-transparent p-1 text-gray-400 transition-colors hover:text-white"
+              style={{
+                cursor: 'pointer',
+                padding: 'var(--pf-t--global--spacer--xs)',
+                color: 'var(--pf-t--global--color--text--muted)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--pf-t--global--color--text--primary)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--pf-t--global--color--text--muted)'
+              }}
               title="Delete edge"
             >
-              <Trash2 className="size-3.5" style={{ pointerEvents: 'none' }} />
+              <Trash2 style={{ width: '0.875rem', height: '0.875rem', pointerEvents: 'none' }} />
             </button>
           </div>
         </EdgeLabelRenderer>

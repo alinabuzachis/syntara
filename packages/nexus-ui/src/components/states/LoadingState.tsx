@@ -1,11 +1,16 @@
-import { LoaderCircleIcon } from 'lucide-react'
+import { Flex, FlexItem, Spinner } from '@patternfly/react-core'
 
 export function LoadingState() {
   return (
-    <div data-testid="loading-state" className="flex h-full w-full items-center justify-center">
-      <div className="glass rounded-full p-2">
-        <LoaderCircleIcon className="h-16 w-16 animate-spin" />
-      </div>
-    </div>
+    <Flex
+      data-testid="loading-state"
+      alignItems={{ default: 'alignItemsCenter' }}
+      justifyContent={{ default: 'justifyContentCenter' }}
+      style={{ height: '100%', minHeight: '200px' }}
+    >
+      <FlexItem>
+        <Spinner size="xl" aria-label="Loading" />
+      </FlexItem>
+    </Flex>
   )
 }

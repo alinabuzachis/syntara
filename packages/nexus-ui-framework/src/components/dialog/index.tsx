@@ -1,7 +1,0 @@
-export * from './Dialog'
-export * from './DialogBackdrop'
-export * from './DialogClose'
-export * from './DialogDescription'
-export * from './DialogPopup'
-export * from './DialogTitle'
-export * from './DialogTrigger'

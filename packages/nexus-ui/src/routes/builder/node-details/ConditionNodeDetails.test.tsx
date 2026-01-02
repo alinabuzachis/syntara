@@ -19,16 +19,12 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
 }))
 
 // Mock the alerts hook
-vi.mock('@ansible/nexus-ui-framework', async () => {
-  const actual = await vi.importActual('@ansible/nexus-ui-framework')
-  return {
-    ...actual,
-    useAlerts: vi.fn(() => ({
-      showSuccess: vi.fn(),
-      showError: vi.fn(),
-    })),
-  }
-})
+vi.mock('../../../components/alerts', () => ({
+  useAlerts: vi.fn(() => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+  })),
+}))
 
 // Mock LogicNodeForm
 vi.mock('../node-forms/LogicNodeForm', () => ({

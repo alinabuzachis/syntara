@@ -226,9 +226,9 @@ mutate(data, {
 
 ### EmptyStateServiceUnavailable Component
 
-**Location:** `packages/nexus-ui-framework/src/components/EmptyStateServiceUnavailable.tsx`
+**Location:** `packages/nexus-ui/src/components/states/EmptyStateServiceUnavailable.tsx`
 
-A reusable component for displaying 503 Service Unavailable errors.
+A reusable component for displaying 503 Service Unavailable errors. Uses PatternFly's `EmptyState` component with an error icon.
 
 #### Props
 
@@ -241,7 +241,7 @@ A reusable component for displaying 503 Service Unavailable errors.
 #### Usage
 
 ```tsx
-import { EmptyStateServiceUnavailable } from '@ansible/nexus-ui-framework'
+import { EmptyStateServiceUnavailable } from './components/states/EmptyStateServiceUnavailable'
 
 // Basic usage with defaults
 <EmptyStateServiceUnavailable />

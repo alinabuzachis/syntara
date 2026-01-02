@@ -1,0 +1,344 @@
+import {
+  Flex,
+  FlexItem,
+  FormGroup,
+  FormHelperText,
+  FormSelect,
+  FormSelectOption,
+  Stack,
+  StackItem,
+  TextInput,
+} from '@patternfly/react-core'
+import { useEffect, useRef, useState } from 'react'
+
+import { parseRepeatingInterval as parseRepeatingIntervalUtil } from '../../utils/triggerFormatting'
+
+export interface DateRangeCadencePickerProps {
+  /** The current ISO 8601 repeating interval string (e.g., "R/2024-01-01T10:00:00Z/P1D" or "R/2024-01-01T10:00:00Z/P1D/2024-12-31T23:59:59Z") */
+  value?: string
+  /** Callback when the interval changes, receives the ISO 8601 repeating interval string */
+  onChange?: (interval: string) => void
+  /** Whether to show time inputs (default: true) */
+  showTime?: boolean
+  /** Optional label to display above the component */
+  label?: string
+  /** Whether the field is required (shows asterisk) */
+  required?: boolean
+  /** Additional CSS classes */
+  className?: string
+  /** Whether the field has an error state */
+  error?: boolean
+}
+
+type CadenceValue = 'none' | 'daily' | 'weekly' | 'monthly' | 'annually'
+
+/**
+ * Convert CadenceValue to ISO 8601 duration string
+ */
+function cadenceToDuration(cadence: CadenceValue): string {
+  switch (cadence) {
+    case 'daily':
+      return 'P1D'
+    case 'weekly':
+      return 'P7D'
+    case 'monthly':
+      return 'P1M'
+    case 'annually':
+      return 'P1Y'
+    case 'none':
+    default:
+      return ''
+  }
+}
+
+/**
+ * Convert ISO 8601 duration string to CadenceValue
+ */
+function durationToCadence(duration: string): CadenceValue {
+  if (!duration) return 'none'
+
+  // Normalize the duration string
+  const normalized = duration.toUpperCase().trim()
+
+  switch (normalized) {
+    case 'P1D':
+      return 'daily'
+    case 'P7D':
+    case 'P1W':
+      return 'weekly'
+    case 'P1M':
+      return 'monthly'
+    case 'P1Y':
+      return 'annually'
+    default:
+      return 'none'
+  }
+}
+
+// Use shared parseRepeatingInterval utility
+const parseRepeatingInterval = parseRepeatingIntervalUtil
+
+/**
+ * Format a date string to date input format (YYYY-MM-DD)
+ */
+function toDateOnly(isoString: string): string {
+  if (!isoString) return ''
+
+  try {
+    const date = new Date(isoString)
+    if (Number.isNaN(date.getTime())) return ''
+
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+
+    return `${year}-${month}-${day}`
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Extract time from ISO string
+ */
+function extractTime(isoString: string): { hour: number; minute: number; period: 'AM' | 'PM' } {
+  if (!isoString) return { hour: 12, minute: 0, period: 'AM' }
+
+  try {
+    const date = new Date(isoString)
+    if (Number.isNaN(date.getTime())) return { hour: 12, minute: 0, period: 'AM' }
+
+    const hours24 = date.getHours()
+    const minutes = date.getMinutes()
+
+    // Convert to 12-hour format
+    let hour = hours24 % 12
+    if (hour === 0) hour = 12
+    const period: 'AM' | 'PM' = hours24 >= 12 ? 'PM' : 'AM'
+
+    return { hour, minute: minutes, period }
+  } catch {
+    return { hour: 12, minute: 0, period: 'AM' }
+  }
+}
+
+/**
+ * Convert date and time components to ISO 8601 string
+ */
+function toISOString(dateValue: string, hour: number, minute: number, period: 'AM' | 'PM'): string {
+  if (!dateValue) return ''
+
+  try {
+    // Convert 12-hour to 24-hour format
+    let hours24 = hour
+    if (period === 'PM' && hour !== 12) {
+      hours24 = hour + 12
+    } else if (period === 'AM' && hour === 12) {
+      hours24 = 0
+    }
+
+    // Parse the date string (YYYY-MM-DD)
+    const [year, month, day] = dateValue.split('-').map(Number)
+    if (!year || !month || !day) return ''
+
+    const date = new Date(Date.UTC(year, month - 1, day, hours24, minute, 0, 0))
+    if (Number.isNaN(date.getTime())) return ''
+
+    return date.toISOString()
+  } catch {
+    return ''
+  }
+}
+
+const cadenceOptions: { value: CadenceValue; label: string }[] = [
+  { value: 'none', label: 'Does not repeat' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'annually', label: 'Annually' },
+]
+
+/**
+ * Date Range Cadence Picker Component
+ *
+ * Provides inputs for creating a repeating schedule with start date, trigger time, cadence, and optional end date.
+ * Outputs an ISO 8601 repeating interval string.
+ *
+ * @example
+ * ```tsx
+ * <DateRangeCadencePicker
+ *   value="R/2024-01-01T10:00:00Z/P1D/2024-12-31T23:59:59Z"
+ *   onChange={(interval) => console.log(interval)}
+ *   showTime
+ * />
+ * ```
+ */
+export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
+  const { value = '', onChange, showTime = true, required = false, className = '', error = false } = props
+
+  const parsed = parseRepeatingInterval(value)
+  const time = extractTime(parsed.start)
+
+  const [startDate, setStartDate] = useState(toDateOnly(parsed.start))
+  const [cadence, setCadence] = useState<CadenceValue>(durationToCadence(parsed.cadence))
+  const [triggerHour, setTriggerHour] = useState(time.hour)
+  const [triggerMinute, setTriggerMinute] = useState(time.minute)
+  const [triggerPeriod, setTriggerPeriod] = useState<'AM' | 'PM'>(time.period)
+  const [endDate, setEndDate] = useState(parsed.end ? toDateOnly(parsed.end) : '')
+
+  // Track previous value and last emitted value to detect external changes
+  const prevValueRef = useRef(value)
+  const lastEmittedRef = useRef<string | undefined>(undefined)
+
+  // Update local state when value prop changes from external source
+  useEffect(() => {
+    // Only update if value changed and it's not what we just emitted
+    if (value !== prevValueRef.current && value !== lastEmittedRef.current) {
+      const parsed = parseRepeatingInterval(value)
+      const time = extractTime(parsed.start)
+
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Controlled component pattern requires syncing external value changes
+      setStartDate(toDateOnly(parsed.start))
+      setCadence(durationToCadence(parsed.cadence))
+      setTriggerHour(time.hour)
+      setTriggerMinute(time.minute)
+      setTriggerPeriod(time.period)
+      setEndDate(parsed.end ? toDateOnly(parsed.end) : '')
+    }
+    prevValueRef.current = value
+  }, [value])
+
+  // Emit the ISO 8601 repeating interval string when values change
+  useEffect(() => {
+    const duration = cadenceToDuration(cadence)
+
+    // If cadence is 'none', emit empty string
+    if (!duration || !startDate) {
+      onChange?.('')
+      return
+    }
+
+    const start = toISOString(startDate, triggerHour, triggerMinute, triggerPeriod)
+
+    if (!start) {
+      onChange?.('')
+      return
+    }
+
+    let interval = `R/${start}/${duration}`
+
+    if (endDate) {
+      const end = toISOString(endDate, triggerHour, triggerMinute, triggerPeriod)
+      if (end) {
+        interval += `/${end}`
+      }
+    }
+
+    if (interval !== value) {
+      lastEmittedRef.current = interval
+      onChange?.(interval)
+    }
+  }, [startDate, cadence, triggerHour, triggerMinute, triggerPeriod, endDate, onChange, value])
+
+  return (
+    <Stack hasGutter className={className}>
+      {/* Start Date */}
+      <StackItem>
+        <FormGroup label="Start Date" fieldId="cadence-start" isRequired={required}>
+          <TextInput
+            id="cadence-start"
+            type="date"
+            value={startDate}
+            onChange={(_event, value) => setStartDate(value)}
+            aria-label="Start Date"
+          />
+        </FormGroup>
+      </StackItem>
+
+      {/* Cadence */}
+      <StackItem>
+        <FormGroup label="Cadence" fieldId="cadence-select" isRequired={required}>
+          <FormSelect
+            id="cadence-select"
+            value={cadence}
+            onChange={(_event, value) => setCadence(value as CadenceValue)}
+            aria-label="Cadence"
+            validated={error ? 'error' : 'default'}
+          >
+            {cadenceOptions.map((option) => (
+              <FormSelectOption key={option.value} value={option.value} label={option.label} />
+            ))}
+          </FormSelect>
+        </FormGroup>
+      </StackItem>
+
+      {/* Trigger Time */}
+      {showTime && (
+        <StackItem>
+          <FormGroup label="Trigger Time" fieldId="trigger-time" isRequired={required}>
+            <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapXs' }}>
+              <FlexItem>
+                <TextInput
+                  type="number"
+                  value={String(triggerHour)}
+                  onChange={(_event, value) => {
+                    const val = Number.parseInt(value) || 1
+                    setTriggerHour(Math.max(1, Math.min(12, val)))
+                  }}
+                  min={1}
+                  max={12}
+                  style={{ width: '60px', textAlign: 'center' }}
+                  aria-label="Hour"
+                />
+              </FlexItem>
+              <FlexItem>
+                <span style={{ color: 'var(--pf-t--global--color--text--secondary)' }}>:</span>
+              </FlexItem>
+              <FlexItem>
+                <TextInput
+                  type="number"
+                  value={String(triggerMinute).padStart(2, '0')}
+                  onChange={(_event, value) => {
+                    const val = Number.parseInt(value) || 0
+                    setTriggerMinute(Math.max(0, Math.min(59, val)))
+                  }}
+                  min={0}
+                  max={59}
+                  style={{ width: '70px', textAlign: 'center' }}
+                  aria-label="Minute"
+                />
+              </FlexItem>
+              <FlexItem>
+                <FormSelect
+                  value={triggerPeriod}
+                  onChange={(_event, value) => setTriggerPeriod(value as 'AM' | 'PM')}
+                  aria-label="Period"
+                  validated={error ? 'error' : 'default'}
+                  style={{ width: '80px' }}
+                >
+                  <FormSelectOption value="AM" label="AM" />
+                  <FormSelectOption value="PM" label="PM" />
+                </FormSelect>
+              </FlexItem>
+            </Flex>
+          </FormGroup>
+        </StackItem>
+      )}
+
+      {/* End Date (Optional) */}
+      <StackItem>
+        <FormGroup label="End Date" fieldId="cadence-end">
+          <TextInput
+            id="cadence-end"
+            type="date"
+            value={endDate}
+            onChange={(_event, value) => setEndDate(value)}
+            placeholder="Never ends"
+            aria-label="End Date"
+          />
+          {!endDate && <FormHelperText>(Never ends)</FormHelperText>}
+        </FormGroup>
+      </StackItem>
+    </Stack>
+  )
+}

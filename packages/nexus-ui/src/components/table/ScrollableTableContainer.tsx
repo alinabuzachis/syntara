@@ -54,6 +54,8 @@ export function ScrollableTableContainer({ children, footer, 'aria-label': ariaL
               style={
                 {
                   '--pf-t--global--border--color--default': 'rgba(196, 181, 253, 0.2)',
+                  tableLayout: 'fixed',
+                  width: '100%',
                 } as React.CSSProperties
               }
             >

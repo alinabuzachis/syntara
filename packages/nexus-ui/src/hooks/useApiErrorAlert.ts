@@ -1,6 +1,6 @@
-import { useAlerts } from '@ansible/nexus-ui-framework'
 import { useEffect, useRef } from 'react'
 
+import { useAlerts } from '../components/alerts'
 import { getErrorMessage, getErrorStatus, getErrorTitle, isServiceUnavailableError } from '../utils/apiErrors'
 
 export interface UseApiErrorAlertOptions {
@@ -44,11 +44,11 @@ export function useApiErrorAlert(error: unknown, options: UseApiErrorAlertOption
 
     if (isServiceUnavailableError(error)) {
       if (!suppress503) {
-        showWarning(fullMessage, errorTitle)
+        showWarning(errorTitle, fullMessage)
       }
       return
     }
 
-    showError(fullMessage, errorTitle)
+    showError(errorTitle, fullMessage)
   }, [error, title, context, suppress503, showError, showWarning])
 }

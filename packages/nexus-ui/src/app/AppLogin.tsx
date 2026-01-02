@@ -1,3 +1,4 @@
+import { CompassPanel, Stack, StackItem, Title, TitleSizes } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 
 export function AppLogin(props: { children?: ReactNode }) {
@@ -6,9 +7,15 @@ export function AppLogin(props: { children?: ReactNode }) {
     return (
       <>
         {props.children}
-        <div className="fixed inset-0 z-10 flex flex-col items-center justify-center bg-black/50 backdrop-blur-lg">
-          Please log in to continue.
-        </div>
+        <CompassPanel>
+          <Stack hasGutter>
+            <StackItem>
+              <Title headingLevel="h1" size={TitleSizes['2xl']}>
+                Please log in to continue
+              </Title>
+            </StackItem>
+          </Stack>
+        </CompassPanel>
       </>
     )
   }

@@ -3,11 +3,7 @@ import { Handle, Position } from '@xyflow/react'
 
 export function BranchHandles(props: { children: React.ReactNode }) {
   return (
-    <Flex
-      direction={{ default: 'column' }}
-      gap={{ default: 'gapSm' }}
-      style={{ alignSelf: 'flex-end', paddingBottom: 'var(--pf-t--global--spacer--sm)' }}
-    >
+    <Flex direction={{ default: 'column' }} gap={{ default: 'gapSm' }}>
       {props.children}
     </Flex>
   )
@@ -19,8 +15,6 @@ export function BranchHandle(props: { children: React.ReactNode; id: string; isC
       style={{
         position: 'relative',
         padding: 'var(--pf-t--global--spacer--xs) var(--pf-t--global--spacer--md)',
-        paddingRight: 0,
-        fontSize: 'var(--pf-t--global--FontSize--sm)',
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
         borderTop: '2px solid rgba(255, 255, 255, 0.2)',
         borderBottom: '2px solid rgba(255, 255, 255, 0.2)',

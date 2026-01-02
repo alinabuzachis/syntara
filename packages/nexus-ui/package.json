@@ -17,14 +17,11 @@
     "eslint": "eslint ."
   },
   "dependencies": {
-    "@ansible/nexus-ui-framework": "file:../nexus-ui-framework",
     "@dagrejs/dagre": "^1.1.5",
     "@patternfly/react-core": "^6.5.0-prerelease.25",
     "@patternfly/react-table": "^6.5.0-prerelease.25",
-    "@tailwindcss/vite": "^4.1.16",
     "@tanstack/react-query": "^5.90.5",
     "@xyflow/react": "^12.9.0",
-    "clsx": "^2.1.1",
     "fuse.js": "^7.1.0",
     "lucide-react": "^0.548.0",
     "msw": "^2.11.6",
@@ -33,7 +30,7 @@
     "openapi-react-query": "^0.5.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwindcss": "^4.1.16",
+    "react-hook-form": "^7.65.0",
     "wouter": "^3.7.1",
     "zustand": "^5.0.8"
   },
@@ -60,7 +57,6 @@
     "globals": "^16.4.0",
     "jsdom": "^27.1.0",
     "prettier": "^3.6.2",
-    "prettier-plugin-tailwindcss": "^0.7.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.2",
     "vite": "^7.1.12",

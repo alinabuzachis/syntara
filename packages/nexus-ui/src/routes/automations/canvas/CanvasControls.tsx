@@ -1,5 +1,4 @@
-import { CompassPanel } from '@ansible/nexus-ui-framework'
-import { Button, Flex, FlexItem, Icon } from '@patternfly/react-core'
+import { Button, CompassPanel, Flex, FlexItem, Icon } from '@patternfly/react-core'
 import {
   RhUiOptimizeIcon,
   RhUiCaretDownIcon,
@@ -61,8 +60,8 @@ export function CanvasControls(props: { onLayout: () => void }) {
           <FlexItem>
             <Button
               variant="plain"
-              onClick={() => expandAllEvent.dispatchEvent(new Event('expandAll'))}
-              aria-label="Expand all"
+              onClick={() => collapseAllEvent.dispatchEvent(new Event('collapseAll'))}
+              aria-label="Collapse all"
               icon={
                 <Icon isInline>
                   <RhUiCaretUpIcon />
@@ -73,8 +72,8 @@ export function CanvasControls(props: { onLayout: () => void }) {
           <FlexItem>
             <Button
               variant="plain"
-              onClick={() => collapseAllEvent.dispatchEvent(new Event('collapseAll'))}
-              aria-label="Collapse all"
+              onClick={() => expandAllEvent.dispatchEvent(new Event('expandAll'))}
+              aria-label="Expand all"
               icon={
                 <Icon isInline>
                   <RhUiCaretDownIcon />

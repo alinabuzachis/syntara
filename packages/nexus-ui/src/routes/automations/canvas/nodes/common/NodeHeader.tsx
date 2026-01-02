@@ -2,14 +2,16 @@ import { Flex } from '@patternfly/react-core'
 
 export function NodeHeader(props: { children: React.ReactNode }) {
   return (
-    <Flex
-      alignItems={{ default: 'alignItemsCenter' }}
-      justifyContent={{ default: 'justifyContentSpaceBetween' }}
+    <div
       style={{
-        padding: 'var(--pf-t--global--spacer--sm)',
+        paddingTop: 'var(--pf-t--global--spacer--md)',
+        paddingLeft: 'var(--pf-t--global--spacer--md)',
+        paddingRight: 'var(--pf-t--global--spacer--md)',
       }}
     >
-      {props.children}
-    </Flex>
+      <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
+        {props.children}
+      </Flex>
+    </div>
   )
 }

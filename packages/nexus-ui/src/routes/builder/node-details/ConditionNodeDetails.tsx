@@ -1,10 +1,8 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ConditionActivity } from '@ansible/nexus-contracts'
 
 import { useAlerts } from '../../../components/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { LogicNodeForm } from '../node-forms/LogicNodeForm'
-
-type ConditionActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'condition' }
 
 interface ConditionNodeDetailsProps {
   conditionData: ConditionActivity

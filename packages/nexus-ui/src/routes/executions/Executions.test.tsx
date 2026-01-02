@@ -34,8 +34,8 @@ describe('Executions Component', () => {
       started_by: 'user-1',
       started_at: '2025-01-01T10:00:00Z',
       completed_at: '2025-01-01T10:30:00Z',
-      created_at: '2025-01-01T09:55:00Z',
-      updated_at: '2025-01-01T10:30:00Z',
+      createdAt: '2025-01-01T09:55:00Z',
+      updatedAt: '2025-01-01T10:30:00Z',
       labels: {},
     },
     {
@@ -46,8 +46,8 @@ describe('Executions Component', () => {
       started_by: 'user-2',
       started_at: '2025-01-01T11:00:00Z',
       completed_at: null,
-      created_at: '2025-01-01T10:55:00Z',
-      updated_at: '2025-01-01T11:00:00Z',
+      createdAt: '2025-01-01T10:55:00Z',
+      updatedAt: '2025-01-01T11:00:00Z',
       labels: {},
     },
     {
@@ -58,8 +58,8 @@ describe('Executions Component', () => {
       started_by: 'user-3',
       started_at: '2025-01-01T12:00:00Z',
       completed_at: '2025-01-01T12:05:00Z',
-      created_at: '2025-01-01T11:55:00Z',
-      updated_at: '2025-01-01T12:05:00Z',
+      createdAt: '2025-01-01T11:55:00Z',
+      updatedAt: '2025-01-01T12:05:00Z',
       error_details: 'Task failed',
       labels: {},
     },
@@ -73,7 +73,7 @@ describe('Executions Component', () => {
   const mockExecutionsQuery = (
     data: WorkflowAPI.components['schemas']['Execution'][],
     isPending = false,
-    error = null
+    error: unknown = null
   ) => {
     vi.mocked(workflowClient.useQuery).mockReturnValue({
       data: { resources: data },
@@ -96,10 +96,9 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    // Check for truncated IDs
-    expect(screen.getByText('123e4567...')).toBeInTheDocument()
-    expect(screen.getByText('223e4567...')).toBeInTheDocument()
-    expect(screen.getByText('323e4567...')).toBeInTheDocument()
+    expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
+    expect(screen.getByText('223e4567-e89b-12d3-a456-426614174001')).toBeInTheDocument()
+    expect(screen.getByText('323e4567-e89b-12d3-a456-426614174002')).toBeInTheDocument()
   })
 
   it('displays execution statuses with correct badges', () => {
@@ -145,9 +144,9 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    // Check for truncated workflow IDs - "workflow-1" becomes "workflow-..."
-    const workflowLinks = screen.getAllByText(/workflow.../)
-    expect(workflowLinks.length).toBeGreaterThan(0)
+    expect(screen.getByText('workflow-1')).toBeInTheDocument()
+    expect(screen.getByText('workflow-2')).toBeInTheDocument()
+    expect(screen.getByText('workflow-3')).toBeInTheDocument()
   })
 
   it('shows placeholder for null timestamps', () => {
@@ -160,8 +159,8 @@ describe('Executions Component', () => {
         started_by: 'user-1',
         started_at: null,
         completed_at: null,
-        created_at: '2025-01-01T09:00:00Z',
-        updated_at: '2025-01-01T09:00:00Z',
+        createdAt: '2025-01-01T09:00:00Z',
+        updatedAt: '2025-01-01T09:00:00Z',
         labels: {},
       },
     ])
@@ -177,9 +176,9 @@ describe('Executions Component', () => {
     vi.mocked(useSearch).mockReturnValue('?workflow_id=workflow-1')
 
     let callIndex = 0
-    vi.mocked(workflowClient.useQuery).mockImplementation(((endpoint: string, path: string) => {
+    vi.mocked(workflowClient.useQuery).mockImplementation((() => {
       callIndex++
-      if (path === '/executions' || callIndex === 1) {
+      if (callIndex === 1) {
         // First call is for executions
         return {
           data: { resources: mockExecutions.filter((e) => e.workflow_id === 'workflow-1') },

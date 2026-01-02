@@ -1,6 +1,9 @@
-import { EmptyStateServiceUnavailable } from '@ansible/nexus-ui-framework'
+import { EmptyState, EmptyStateBody } from '@patternfly/react-core'
+import { ExclamationCircleIcon } from '@patternfly/react-icons'
 
 import { getErrorMessage, isServiceUnavailableError } from '../../utils/apiErrors'
+
+import { EmptyStateServiceUnavailable } from './EmptyStateServiceUnavailable'
 
 export function ErrorState(props: { title?: string; message: unknown }) {
   // Check for 503 Service Unavailable errors and show special empty state
@@ -8,12 +11,12 @@ export function ErrorState(props: { title?: string; message: unknown }) {
     return <EmptyStateServiceUnavailable description={getErrorMessage(props.message)} />
   }
 
+  const title = props.title ?? 'Error'
+  const message = getErrorMessage(props.message)
+
   return (
-    <div data-testid="error-state" className="flex h-full w-full items-center justify-center">
-      <div className="glass rounded-2xl border px-6 py-4">
-        {props.title && <div className="mb-2 text-lg font-bold">{props.title}</div>}
-        <div className="text-red-400">{getErrorMessage(props.message)}</div>
-      </div>
-    </div>
+    <EmptyState data-testid="error-state" headingLevel="h2" titleText={title} icon={ExclamationCircleIcon} isFullHeight>
+      <EmptyStateBody>{message}</EmptyStateBody>
+    </EmptyState>
   )
 }

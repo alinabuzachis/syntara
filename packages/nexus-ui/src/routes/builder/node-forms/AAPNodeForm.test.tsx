@@ -4,17 +4,6 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { AAPNodeForm } from './AAPNodeForm'
 
-// Mock components from nexus-ui-framework
-vi.mock('@ansible/nexus-ui-framework', async () => {
-  const actual = await vi.importActual('@ansible/nexus-ui-framework')
-  return {
-    ...actual,
-    Button: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
-      <button {...props}>{children}</button>
-    ),
-  }
-})
-
 describe('AAPNodeForm', () => {
   const mockOnSubmit = vi.fn()
   const mockOnCancel = vi.fn()

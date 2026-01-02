@@ -1,9 +1,11 @@
 import { http, HttpResponse } from 'msw'
 import type * as ToolsAPI from '@ansible/nexus-contracts/src/tools.js'
-import type { ToolProvider, WorkflowsResponse, Tool } from '@ansible/nexus-contracts'
+import type * as WorkflowAPI from '@ansible/nexus-contracts/src/workflow-api.js'
+import type { ToolProvider, WorkflowsResponse, Tool, Execution } from '@ansible/nexus-contracts'
 import { providers } from './resources/providers'
 import { workflows } from './resources/workflows'
 import { tools } from './resources/tools'
+import { executions } from './resources/executions'
 
 // Define response types based on API contract
 type ToolsResponse = ToolsAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
@@ -12,6 +14,7 @@ type ToolProvidersResponse = {
   limit: number
   has_more: boolean
 }
+type ExecutionsResponse = WorkflowAPI.paths['/executions']['get']['responses']['200']['content']['application/json']
 
 const randomCharacters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const randomCharactersLowercase = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -145,6 +148,60 @@ export const handlers = [
     const workflowId = request.params.workflowId
     const body = workflows.find((w) => w.id === workflowId)
     if (!body) return HttpResponse.json({ error: 'Workflow not found' }, { status: 404 })
+    return HttpResponse.json(body)
+  }),
+
+  http.get('/api/v1/executions', ({ request }) => {
+    const url = new URL(request.url)
+    const workflow_id = url.searchParams.get('workflow_id')
+    const cursor = url.searchParams.get('cursor')
+    const limitParam = url.searchParams.get('limit')
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const limit = limitParam ? parseInt(limitParam, 10) : 50
+
+    // Filter by workflow_id if provided
+    let filteredExecutions = workflow_id ? executions.filter((e) => e.workflow_id === workflow_id) : executions
+
+    // Calculate total if requested
+    const total = includeTotal ? filteredExecutions.length : null
+
+    // Parse cursor to get starting index (simple cursor implementation)
+    let startIndex = 0
+    if (cursor) {
+      try {
+        const cursorData = JSON.parse(Buffer.from(cursor, 'base64').toString())
+        startIndex = cursorData.index || 0
+      } catch {
+        // Invalid cursor, start from beginning
+        startIndex = 0
+      }
+    }
+
+    // Get paginated results
+    const paginatedExecutions = filteredExecutions.slice(startIndex, startIndex + limit)
+    const hasNext = startIndex + limit < filteredExecutions.length
+    const hasPrev = startIndex > 0
+
+    // Generate cursors
+    const nextCursor = hasNext ? Buffer.from(JSON.stringify({ index: startIndex + limit })).toString('base64') : null
+    const prevCursor = hasPrev
+      ? Buffer.from(JSON.stringify({ index: Math.max(0, startIndex - limit) })).toString('base64')
+      : null
+
+    const body: ExecutionsResponse = {
+      resources: paginatedExecutions,
+      next: nextCursor,
+      prev: prevCursor,
+      total,
+    }
+
+    return HttpResponse.json(body)
+  }),
+
+  http.get('/api/v1/executions/:executionId', (request) => {
+    const executionId = request.params.executionId
+    const body = executions.find((e) => e.id === executionId)
+    if (!body) return HttpResponse.json({ error: 'Execution not found' }, { status: 404 })
     return HttpResponse.json(body)
   }),
 ]

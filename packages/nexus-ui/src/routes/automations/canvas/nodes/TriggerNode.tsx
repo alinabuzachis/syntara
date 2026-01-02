@@ -1,12 +1,13 @@
-import { KebabMenuTrigger, Menu, MenuItem, MenuItems } from '@ansible/nexus-ui-framework'
 import { FlexItem, Content, ContentVariants, Title, TitleSizes } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 import type { WorkflowAPI } from 'nexus-contracts'
 
+import { parseTriggerLabel } from '../../../../utils/triggerFormatting'
+
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { NodeHeader } from './common/NodeHeader'
-import { NodeIcon } from './common/NodeIcon'
+import { NodeMenu } from './common/NodeMenu'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { nodeMetadata } from './nodeMetadata'
 
@@ -45,65 +46,26 @@ export function TriggerNodeDetails(
   }>
 ) {
   const nodeData = props.node
+  const { type, details } = parseTriggerLabel(nodeData.label)
 
   return (
     <>
       <NodeHeader>
-        <FlexItem style={{ marginLeft: 'var(--pf-t--global--spacer--sm)' }}>
-          {props.icon && <NodeIcon>{props.icon}</NodeIcon>}
-        </FlexItem>
+        <FlexItem>{props.icon}</FlexItem>
         <FlexItem grow={{ default: 'grow' }} />
         {props.menuActions && props.menuActions.length > 0 && (
           <FlexItem>
-            <div
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.stopPropagation()
-                }
-              }}
-              className="nodrag nopan"
-              style={{ marginRight: 'calc(-1 * var(--pf-t--global--spacer--sm))' }}
-              role="button"
-              tabIndex={0}
-            >
-              <Menu>
-                <KebabMenuTrigger label="Node actions menu" />
-                <MenuItems>
-                  {props.menuActions.map((action) => (
-                    <MenuItem
-                      key={action.id}
-                      onClick={() => {
-                        action.onClick()
-                      }}
-                      className={action.variant === 'danger' ? 'menu-item-danger' : ''}
-                    >
-                      {action.icon && (
-                        <span style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>{action.icon}</span>
-                      )}
-                      {action.label}
-                    </MenuItem>
-                  ))}
-                </MenuItems>
-              </Menu>
-            </div>
+            <NodeMenu menuActions={props.menuActions} />
           </FlexItem>
         )}
       </NodeHeader>
       <NodeBody>
-        <div
-          style={{
-            marginTop: 'calc(-1 * var(--pf-t--global--spacer--xs))',
-            marginLeft: 'var(--pf-t--global--spacer--sm)',
-          }}
-        >
-          <Title headingLevel="h3" size={TitleSizes.sm}>
-            {nodeData.label}
+        <div>
+          <Title headingLevel="h3" size={TitleSizes.md}>
+            {type}
           </Title>
-          <Content component={ContentVariants.small} style={{ color: 'var(--pf-t--global--color--white--600)' }}>
-            Manual trigger
-          </Content>
+          {details && <Content component={ContentVariants.small}>{details}</Content>}
+          {type === 'Manual' && !details && <Content component={ContentVariants.small}>Manual trigger</Content>}
         </div>
       </NodeBody>
     </>

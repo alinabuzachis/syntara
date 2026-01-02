@@ -36,16 +36,12 @@ vi.spyOn(workflowStore, 'useWorkflowStoreActions').mockImplementation(() => ({
 vi.spyOn(workflowStore, 'createAAPJobTemplateActivity').mockImplementation(mockCreateAAPJobTemplateActivity)
 
 // Mock the alerts hook
-vi.mock('@ansible/nexus-ui-framework', async () => {
-  const actual = await vi.importActual('@ansible/nexus-ui-framework')
-  return {
-    ...actual,
-    useAlerts: vi.fn(() => ({
-      showSuccess: vi.fn(),
-      showError: vi.fn(),
-    })),
-  }
-})
+vi.mock('../../../components/alerts', () => ({
+  useAlerts: vi.fn(() => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+  })),
+}))
 
 // Mock ActionNodeForm
 vi.mock('../node-forms/ActionNodeForm', () => ({

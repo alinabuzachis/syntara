@@ -10,7 +10,6 @@ RUN printf "demo:$(openssl passwd -apr1 coffee)\n" > /app/.htpasswd
 COPY package.json package-lock.json ./
 COPY packages/nexus-contracts/package.json ./packages/nexus-contracts/
 COPY packages/nexus-ui/package.json ./packages/nexus-ui/
-COPY packages/nexus-ui-framework/package.json ./packages/nexus-ui-framework/
 RUN npm ci
 COPY . .
 # Rebuild workspace packages to ensure symlinks are valid after source copy

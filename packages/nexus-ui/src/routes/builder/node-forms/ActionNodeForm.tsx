@@ -1,6 +1,20 @@
-import { Form, Input, NativeSelect, Textarea, useFormContext, useWatch } from '@ansible/nexus-ui-framework'
-import { Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Stack, StackItem } from '@patternfly/react-core'
+import {
+  Form,
+  FormGroup,
+  FormHelperText,
+  FormSelect,
+  FormSelectOption,
+  HelperText,
+  HelperTextItem,
+  Stack,
+  StackItem,
+  TextArea,
+  TextInput,
+} from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
+import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
+
+import { FormSubmitButton } from './shared/FormSubmitButton'
 
 // Type definitions (Priority 2)
 export type ExecutorType = 'script' | 'api'
@@ -52,9 +66,10 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
 function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
   const {
     register,
+    control,
     formState: { errors },
   } = useFormContext<ActionFormData>()
-  const executor = useWatch({ name: 'executor' })
+  const executor = useWatch({ control, name: 'executor' })
 
   return (
     <Stack
@@ -66,22 +81,32 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
     >
       <StackItem>
         <FormGroup label="Action Type" fieldId="action-executor">
-          <NativeSelect {...register('executor')} id="action-executor">
-            {EXECUTOR_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </NativeSelect>
+          <Controller
+            control={control}
+            name="executor"
+            render={({ field }) => (
+              <FormSelect
+                id="action-executor"
+                aria-label="Action Type"
+                value={field.value}
+                onChange={(_event, value) => field.onChange(value)}
+              >
+                {EXECUTOR_OPTIONS.map((option) => (
+                  <FormSelectOption key={option.value} value={option.value} label={option.label} />
+                ))}
+              </FormSelect>
+            )}
+          />
         </FormGroup>
       </StackItem>
 
       <StackItem>
         <FormGroup label="Name" isRequired fieldId="action-name">
-          <Input
+          <TextInput
             {...register('name', { required: 'Name is required' })}
             id="action-name"
             placeholder="Enter activity name"
+            type="text"
           />
           {errors.name && (
             <FormHelperText>
@@ -99,18 +124,27 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
         <>
           <StackItem>
             <FormGroup label="Language" fieldId="action-language">
-              <NativeSelect {...register('language')} id="action-language">
-                {SCRIPT_LANGUAGE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </NativeSelect>
+              <Controller
+                control={control}
+                name="language"
+                render={({ field }) => (
+                  <FormSelect
+                    id="action-language"
+                    aria-label="Language"
+                    value={field.value}
+                    onChange={(_event, value) => field.onChange(value)}
+                  >
+                    {SCRIPT_LANGUAGE_OPTIONS.map((option) => (
+                      <FormSelectOption key={option.value} value={option.value} label={option.label} />
+                    ))}
+                  </FormSelect>
+                )}
+              />
             </FormGroup>
           </StackItem>
           <StackItem>
             <FormGroup label="Code" isRequired fieldId="action-code">
-              <Textarea
+              <TextArea
                 {...register('code', { required: 'Code is required' })}
                 id="action-code"
                 placeholder="Enter your code..."
@@ -128,12 +162,13 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
             </FormGroup>
           </StackItem>
           <StackItem>
-            <FormGroup
-              label="Input parameters"
-              fieldId="action-parameters"
-              helperText="Optional: Define inputs for this task"
-            >
-              <Textarea {...register('parameters')} id="action-parameters" placeholder='{"key": "value"}' rows={3} />
+            <FormGroup label="Input parameters" fieldId="action-parameters">
+              <TextArea {...register('parameters')} id="action-parameters" placeholder='{"key": "value"}' rows={3} />
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem>Optional: Define inputs for this task</HelperTextItem>
+                </HelperText>
+              </FormHelperText>
             </FormGroup>
           </StackItem>
         </>
@@ -143,7 +178,7 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
         <>
           <StackItem>
             <FormGroup label="URL" isRequired fieldId="action-url">
-              <Input
+              <TextInput
                 {...register('url', { required: 'URL is required' })}
                 id="action-url"
                 type="url"
@@ -162,23 +197,37 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
           </StackItem>
           <StackItem>
             <FormGroup label="HTTP Method" fieldId="action-method">
-              <NativeSelect {...register('method')} id="action-method">
-                {HTTP_METHOD_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </NativeSelect>
+              <Controller
+                control={control}
+                name="method"
+                render={({ field }) => (
+                  <FormSelect
+                    id="action-method"
+                    aria-label="HTTP Method"
+                    value={field.value}
+                    onChange={(_event, value) => field.onChange(value)}
+                  >
+                    {HTTP_METHOD_OPTIONS.map((option) => (
+                      <FormSelectOption key={option.value} value={option.value} label={option.label} />
+                    ))}
+                  </FormSelect>
+                )}
+              />
             </FormGroup>
           </StackItem>
           <StackItem>
             <FormGroup label="Authentication" fieldId="action-authentication">
-              <Input {...register('authentication')} id="action-authentication" placeholder="Bearer token or API key" />
+              <TextInput
+                {...register('authentication')}
+                id="action-authentication"
+                placeholder="Bearer token or API key"
+                type="text"
+              />
             </FormGroup>
           </StackItem>
           <StackItem>
             <FormGroup label="Headers" fieldId="action-headers">
-              <Textarea
+              <TextArea
                 {...register('headers')}
                 id="action-headers"
                 placeholder='{"Content-Type": "application/json"}'
@@ -188,17 +237,13 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
           </StackItem>
           <StackItem>
             <FormGroup label="Body" fieldId="action-body">
-              <Textarea {...register('body')} id="action-body" placeholder='{"key": "value"}' rows={3} />
+              <TextArea {...register('body')} id="action-body" placeholder='{"key": "value"}' rows={3} />
             </FormGroup>
           </StackItem>
         </>
       )}
 
-      <StackItem>
-        <Button type="submit" variant="primary" style={{ width: '100%' }}>
-          {submitButtonText ?? 'Add node'}
-        </Button>
-      </StackItem>
+      <FormSubmitButton submitButtonText={submitButtonText} />
     </Stack>
   )
 }
@@ -229,9 +274,15 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
     props.onSubmit(cleanedData)
   }
 
+  const methods = useForm<ActionFormData>({
+    defaultValues,
+  })
+
   return (
-    <Form<ActionFormData> id="action-node-form" defaultValues={defaultValues} onSubmit={handleSubmit}>
-      {() => <ActionFormFields submitButtonText={props.submitButtonText} />}
-    </Form>
+    <FormProvider {...methods}>
+      <Form id="action-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+        <ActionFormFields submitButtonText={props.submitButtonText} />
+      </Form>
+    </FormProvider>
   )
 }

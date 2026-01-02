@@ -1,5 +1,20 @@
-import { Form, Input, NativeSelect, Textarea, useFormContext } from '@ansible/nexus-ui-framework'
-import { Button, FormGroup, Stack, StackItem } from '@patternfly/react-core'
+import {
+  Form,
+  FormGroup,
+  FormHelperText,
+  FormSelect,
+  FormSelectOption,
+  HelperText,
+  HelperTextItem,
+  Stack,
+  StackItem,
+  TextArea,
+  TextInput,
+} from '@patternfly/react-core'
+import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
+
+import { ActivityNameField } from './shared/ActivityNameField'
+import { FormSubmitButton } from './shared/FormSubmitButton'
 
 interface ApprovalFormData {
   name: string
@@ -16,26 +31,23 @@ interface ApprovalNodeFormProps {
 }
 
 function ApprovalFormFields({ submitButtonText }: { submitButtonText?: string }) {
-  const { register } = useFormContext<ApprovalFormData>()
+  const { register, control } = useFormContext<ApprovalFormData>()
   return (
     <Stack hasGutter>
-      <StackItem>
-        <FormGroup label="Activity Name" isRequired fieldId="approval-name">
-          <Input {...register('name', { required: true })} id="approval-name" placeholder="Enter activity name" />
-        </FormGroup>
-      </StackItem>
+      <ActivityNameField register={register} fieldId="approval-name" />
       <StackItem>
         <FormGroup label="Approvers (comma-separated)" isRequired fieldId="approval-approvers">
-          <Input
+          <TextInput
             {...register('approvers', { required: true })}
             id="approval-approvers"
             placeholder="user1@example.com, user2@example.com"
+            type="text"
           />
         </FormGroup>
       </StackItem>
       <StackItem>
         <FormGroup label="Approval Prompt" isRequired fieldId="approval-prompt">
-          <Textarea
+          <TextArea
             {...register('prompt', { required: true })}
             id="approval-prompt"
             placeholder="Please approve this deployment to production"
@@ -44,28 +56,36 @@ function ApprovalFormFields({ submitButtonText }: { submitButtonText?: string })
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup
-          label="Timeout (ISO 8601)"
-          fieldId="approval-timeout"
-          helperText="Examples: PT1H (1 hour), PT30M (30 min), P1D (1 day)"
-        >
-          <Input {...register('timeout')} id="approval-timeout" placeholder="P1D" />
+        <FormGroup label="Timeout (ISO 8601)" fieldId="approval-timeout">
+          <TextInput {...register('timeout')} id="approval-timeout" placeholder="P1D" type="text" />
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>Examples: PT1H (1 hour), PT30M (30 min), P1D (1 day)</HelperTextItem>
+            </HelperText>
+          </FormHelperText>
         </FormGroup>
       </StackItem>
       <StackItem>
         <FormGroup label="On Timeout" fieldId="approval-onTimeout">
-          <NativeSelect {...register('onTimeout')} id="approval-onTimeout">
-            <option value="fail">Fail</option>
-            <option value="approve">Auto-Approve</option>
-            <option value="reject">Auto-Reject</option>
-          </NativeSelect>
+          <Controller
+            control={control}
+            name="onTimeout"
+            render={({ field }) => (
+              <FormSelect
+                id="approval-onTimeout"
+                aria-label="On Timeout"
+                value={field.value}
+                onChange={(_event, value) => field.onChange(value)}
+              >
+                <FormSelectOption value="fail" label="Fail" />
+                <FormSelectOption value="approve" label="Auto-Approve" />
+                <FormSelectOption value="reject" label="Auto-Reject" />
+              </FormSelect>
+            )}
+          />
         </FormGroup>
       </StackItem>
-      <StackItem>
-        <Button type="submit" variant="primary" style={{ width: '100%' }}>
-          {submitButtonText ?? 'Add node'}
-        </Button>
-      </StackItem>
+      <FormSubmitButton submitButtonText={submitButtonText} />
     </Stack>
   )
 }
@@ -79,9 +99,15 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
     onTimeout: 'fail',
   }
 
+  const methods = useForm<ApprovalFormData>({
+    defaultValues,
+  })
+
   return (
-    <Form<ApprovalFormData> id="approval-node-form" defaultValues={defaultValues} onSubmit={props.onSubmit}>
-      {() => <ApprovalFormFields submitButtonText={props.submitButtonText} />}
-    </Form>
+    <FormProvider {...methods}>
+      <Form id="approval-node-form" onSubmit={methods.handleSubmit(props.onSubmit)}>
+        <ApprovalFormFields submitButtonText={props.submitButtonText} />
+      </Form>
+    </FormProvider>
   )
 }

@@ -1,73 +1,66 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { CircleDashed, Loader2, Pause, CheckCircle2, XCircle, Ban } from 'lucide-react'
-import { useMemo } from 'react'
+import { CompassPanel, SearchInput, StackItem } from '@patternfly/react-core'
+import { Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
+import { useMemo, useState } from 'react'
 import { useSearch } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
+import { EmptyStateFilter } from '../../components/EmptyStateFilter'
+import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
-import { Table } from '../../components/table/Table'
+import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useFuse } from '../../hooks/useFuse'
-
-type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
-
-const statusIcons: Record<ExecutionStatus, React.ComponentType<{ className?: string }>> = {
-  pending: CircleDashed,
-  running: Loader2,
-  paused: Pause,
-  completed: CheckCircle2,
-  failed: XCircle,
-  cancelled: Ban,
-}
-
-const statusColors: Record<ExecutionStatus, string> = {
-  pending: 'text-gray-400',
-  running: 'text-blue-400',
-  paused: 'text-yellow-400',
-  completed: 'text-green-400',
-  failed: 'text-red-400',
-  cancelled: 'text-orange-400',
-}
-
-function StatusLabel({ status }: { status: ExecutionStatus }) {
-  const Icon = statusIcons[status]
-  const colorClass = statusColors[status]
-  const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1)
-
-  return (
-    <div className={`flex items-center gap-1.5 ${colorClass}`}>
-      <Icon className="size-4" />
-      <span>{capitalizedStatus}</span>
-    </div>
-  )
-}
+import { StatusLabel } from '../builder/ExecutionStatus'
 
 export default function Executions() {
   const searchParams = useSearch()
   const urlParams = useMemo(() => new URLSearchParams(searchParams), [searchParams])
   const workflowIdFilter = urlParams.get('workflow_id')
+  const [cursor, setCursor] = useState<string | null>(null)
 
   const executionsQuery = workflowClient.useQuery('get', '/executions', {
     params: {
-      query: workflowIdFilter ? { workflow_id: workflowIdFilter } : {},
+      query: {
+        ...(workflowIdFilter ? { workflow_id: workflowIdFilter } : {}),
+        cursor: cursor ?? undefined,
+        limit: 20,
+        include_total: true,
+      },
     },
   })
   const executions = executionsQuery.data?.resources ?? []
 
-  const workflowQuery = workflowClient.useQuery('get', '/workflows/{workflow_id}', {
-    params: {
-      path: { workflow_id: workflowIdFilter! },
+  const workflowQuery = workflowClient.useQuery(
+    'get',
+    '/workflows/{workflowId}',
+    {
+      params: {
+        path: { workflowId: workflowIdFilter! },
+      },
     },
-    enabled: !!workflowIdFilter,
-  })
+    {
+      enabled: !!workflowIdFilter,
+    }
+  )
 
   const { search, setSearch, items: filteredExecutions } = useFuse(executions, [{ name: 'workflow_id' }])
 
   const queryState = useQueryState(executionsQuery, 'Error loading executions')
-  if (queryState) return queryState
+  if (queryState) {
+    return (
+      <AppPage>
+        <AppPageHeader
+          title={workflowIdFilter && workflowQuery.data ? `Run history for ${workflowQuery.data.name}` : 'Run history'}
+        />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
 
   const pageTitle =
     workflowIdFilter && workflowQuery.data ? `Run history for ${workflowQuery.data.name}` : 'Run history'
@@ -75,59 +68,85 @@ export default function Executions() {
   return (
     <AppPage>
       <AppPageHeader title={pageTitle}>
-        <input
-          className="search grow"
+        <SearchInput
           placeholder="Search executions..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(_event, value) => setSearch(value)}
+          onClear={() => setSearch('')}
+          style={{ width: '250px' }}
         />
       </AppPageHeader>
-      <Table
-        items={filteredExecutions}
-        keyFn={(item) => item.id}
-        columns={[
-          {
-            id: 'id',
-            label: 'Execution ID',
-            width: '250px',
-            render: (execution) => (
-              <LinkCell href={`/automations/${execution.workflow_id}?showHistory=true`}>
-                <code className="text-sm">{execution.id?.slice(0, 8)}...</code>
-              </LinkCell>
+      {filteredExecutions.length === 0 ? (
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            {search ? (
+              <EmptyStateFilter clearAllFilters={() => setSearch('')} />
+            ) : (
+              <EmptyStateNoData
+                title="No executions found"
+                description={workflowIdFilter ? 'No execution history for this workflow.' : 'No executions found.'}
+              />
+            )}
+          </CompassPanel>
+        </StackItem>
+      ) : (
+        <ScrollableTableContainer
+          aria-label="Executions table"
+          footer={{
+            content: (
+              <>
+                {filteredExecutions.length} {filteredExecutions.length === 1 ? 'execution' : 'executions'}
+                {executionsQuery.data?.total && executionsQuery.data.total > filteredExecutions.length && (
+                  <span style={{ opacity: 0.6 }}> (of {executionsQuery.data.total} total)</span>
+                )}
+              </>
             ),
-          },
-          {
-            id: 'workflow_id',
-            label: 'Workflow',
-            render: (execution) => (
-              <LinkCell href={`/automations/${execution.workflow_id}`}>
-                {execution.workflow_id?.slice(0, 8)}...
-              </LinkCell>
-            ),
-          },
-          {
-            id: 'status',
-            label: 'Status',
-            width: '150px',
-            render: (execution) => <StatusLabel status={execution.status!} />,
-          },
-          {
-            id: 'created_at',
-            label: 'Created At',
-            render: (execution) => <DateCell dateString={execution.created_at} />,
-          },
-          {
-            id: 'completed_at',
-            label: 'Completed At',
-            render: (execution) =>
-              execution.completed_at ? (
-                <DateCell dateString={execution.completed_at} />
-              ) : (
-                <span className="text-gray-400">—</span>
-              ),
-          },
-        ]}
-      />
+            prev: executionsQuery.data?.prev ?? null,
+            next: executionsQuery.data?.next ?? null,
+            onPrev: () => setCursor(executionsQuery.data?.prev ?? null),
+            onNext: () => setCursor(executionsQuery.data?.next ?? null),
+          }}
+        >
+          <Thead>
+            <Tr>
+              <Th modifier="nowrap" style={{ minWidth: '250px', width: '250px' }}>
+                Execution ID
+              </Th>
+              <Th modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
+                Workflow
+              </Th>
+              <Th>Status</Th>
+              <Th>Created At</Th>
+              <Th>Completed At</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {filteredExecutions.map((execution) => (
+              <Tr key={execution.id}>
+                <Td dataLabel="Execution ID" modifier="nowrap" style={{ minWidth: '250px', width: '250px' }}>
+                  <LinkCell href={`/automations/${execution.workflow_id}?showHistory=true`}>
+                    <code style={{ fontSize: 'var(--pf-t--global--font-size--sm)' }}>{execution.id}</code>
+                  </LinkCell>
+                </Td>
+                <Td dataLabel="Workflow" modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
+                  <LinkCell href={`/automations/${execution.workflow_id}`}>{execution.workflow_id}</LinkCell>
+                </Td>
+                <Td dataLabel="Status">{execution.status && <StatusLabel status={execution.status} />}</Td>
+                <Td dataLabel="Created At">
+                  <DateCell dateString={execution.createdAt} />
+                </Td>
+                <Td dataLabel="Completed At">
+                  {execution.completed_at ? (
+                    <DateCell dateString={execution.completed_at} />
+                  ) : (
+                    <span style={{ color: 'var(--pf-t--global--color--text--secondary)' }}>—</span>
+                  )}
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </ScrollableTableContainer>
+      )}
     </AppPage>
   )
 }

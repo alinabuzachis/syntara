@@ -1,5 +1,22 @@
-import { Form, Input, NativeSelect, Textarea, useFormContext, useWatch } from '@ansible/nexus-ui-framework'
-import { Alert, AlertVariant, Button, FormGroup, Stack, StackItem } from '@patternfly/react-core'
+import {
+  Alert,
+  AlertVariant,
+  Form,
+  FormGroup,
+  FormHelperText,
+  FormSelect,
+  FormSelectOption,
+  HelperText,
+  HelperTextItem,
+  Stack,
+  StackItem,
+  TextArea,
+  TextInput,
+} from '@patternfly/react-core'
+import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
+
+import { ActivityNameField } from './shared/ActivityNameField'
+import { FormSubmitButton } from './shared/FormSubmitButton'
 
 interface LogicFormData {
   name: string
@@ -23,31 +40,38 @@ interface LogicNodeFormProps {
 }
 
 function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
-  const { register } = useFormContext<LogicFormData>()
-  const logicType = useWatch({ name: 'logicType' })
-  const type = useWatch({ name: 'type' })
+  const { register, control } = useFormContext<LogicFormData>()
+  const logicType = useWatch({ control, name: 'logicType' })
+  const type = useWatch({ control, name: 'type' })
 
   return (
     <Stack hasGutter>
-      <StackItem>
-        <FormGroup label="Activity Name" isRequired fieldId="logic-name">
-          <Input {...register('name', { required: true })} id="logic-name" placeholder="Enter activity name" />
-        </FormGroup>
-      </StackItem>
+      <ActivityNameField register={register} fieldId="logic-name" />
       <StackItem>
         <FormGroup label="Logic Type" fieldId="logic-logicType">
-          <NativeSelect {...register('logicType')} id="logic-logicType">
-            <option value="condition">Condition (If/Else)</option>
-            <option value="loop">Loop</option>
-            <option value="converge">Converge (Join)</option>
-          </NativeSelect>
+          <Controller
+            control={control}
+            name="logicType"
+            render={({ field }) => (
+              <FormSelect
+                id="logic-logicType"
+                aria-label="Logic Type"
+                value={field.value}
+                onChange={(_event, value) => field.onChange(value)}
+              >
+                <FormSelectOption value="condition" label="Condition (If/Else)" />
+                <FormSelectOption value="loop" label="Loop" />
+                <FormSelectOption value="converge" label="Converge (Join)" />
+              </FormSelect>
+            )}
+          />
         </FormGroup>
       </StackItem>
 
       {logicType === 'condition' && (
         <StackItem>
           <FormGroup label="Condition Expression" isRequired fieldId="logic-condition">
-            <Textarea
+            <TextArea
               {...register('condition', { required: true })}
               id="logic-condition"
               placeholder="${output.status == 'success'}"
@@ -62,10 +86,21 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
         <>
           <StackItem>
             <FormGroup label="Type" fieldId="logic-type">
-              <NativeSelect {...register('type')} id="logic-type">
-                <option value="forEach">For Each</option>
-                <option value="while">While</option>
-              </NativeSelect>
+              <Controller
+                control={control}
+                name="type"
+                render={({ field }) => (
+                  <FormSelect
+                    id="logic-type"
+                    aria-label="Type"
+                    value={field.value}
+                    onChange={(_event, value) => field.onChange(value)}
+                  >
+                    <FormSelectOption value="forEach" label="For Each" />
+                    <FormSelectOption value="while" label="While" />
+                  </FormSelect>
+                )}
+              />
             </FormGroup>
           </StackItem>
 
@@ -73,33 +108,36 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
             <>
               <StackItem>
                 <FormGroup label="Items Expression" isRequired fieldId="logic-items">
-                  <Input
+                  <TextInput
                     {...register('items', { required: true })}
                     id="logic-items"
                     placeholder="${input.item_list}"
                     style={{ fontFamily: 'monospace' }}
+                    type="text"
                   />
                 </FormGroup>
               </StackItem>
 
               <StackItem>
                 <FormGroup label="Item Variable" fieldId="logic-itemVariable">
-                  <Input
+                  <TextInput
                     {...register('itemVariable')}
                     id="logic-itemVariable"
                     placeholder="item"
                     style={{ fontFamily: 'monospace' }}
+                    type="text"
                   />
                 </FormGroup>
               </StackItem>
 
               <StackItem>
                 <FormGroup label="Index Variable" fieldId="logic-indexVariable">
-                  <Input
+                  <TextInput
                     {...register('indexVariable')}
                     id="logic-indexVariable"
                     placeholder="index"
                     style={{ fontFamily: 'monospace' }}
+                    type="text"
                   />
                 </FormGroup>
               </StackItem>
@@ -110,7 +148,7 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
             <>
               <StackItem>
                 <FormGroup label="Condition Expression" isRequired fieldId="logic-condition-while">
-                  <Textarea
+                  <TextArea
                     {...register('condition', { required: true })}
                     id="logic-condition-while"
                     placeholder="${counter < 10}"
@@ -121,18 +159,19 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
               </StackItem>
 
               <StackItem>
-                <FormGroup
-                  label="Max Iterations"
-                  fieldId="logic-maxIterations"
-                  helperText="Maximum iterations to prevent infinite loops (default: 1000)"
-                >
-                  <Input
+                <FormGroup label="Max Iterations" fieldId="logic-maxIterations">
+                  <TextInput
                     {...register('maxIterations', { valueAsNumber: true })}
                     id="logic-maxIterations"
                     type="number"
                     min={1}
                     placeholder="1000 (default)"
                   />
+                  <FormHelperText>
+                    <HelperText>
+                      <HelperTextItem>Maximum iterations to prevent infinite loops (default: 1000)</HelperTextItem>
+                    </HelperText>
+                  </FormHelperText>
                 </FormGroup>
               </StackItem>
             </>
@@ -143,35 +182,59 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
       {logicType === 'converge' && (
         <>
           <StackItem>
-            <FormGroup
-              label="Timeout (ISO 8601 Duration)"
-              fieldId="logic-timeout"
-              helperText="Maximum time to wait for all branches (e.g., PT5M, PT1H, P1D)"
-            >
-              <Input
+            <FormGroup label="Timeout (ISO 8601 Duration)" fieldId="logic-timeout">
+              <TextInput
                 {...register('timeout')}
                 id="logic-timeout"
                 placeholder="PT5M (5 minutes)"
                 style={{ fontFamily: 'monospace' }}
+                type="text"
               />
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem>Maximum time to wait for all branches (e.g., PT5M, PT1H, P1D)</HelperTextItem>
+                </HelperText>
+              </FormHelperText>
             </FormGroup>
           </StackItem>
 
           <StackItem>
             <FormGroup label="On Timeout" fieldId="logic-onTimeout">
-              <NativeSelect {...register('onTimeout')} id="logic-onTimeout">
-                <option value="fail">Fail - Stop workflow</option>
-                <option value="continue">Continue - Proceed anyway</option>
-              </NativeSelect>
+              <Controller
+                control={control}
+                name="onTimeout"
+                render={({ field }) => (
+                  <FormSelect
+                    id="logic-onTimeout"
+                    aria-label="On Timeout"
+                    value={field.value}
+                    onChange={(_event, value) => field.onChange(value)}
+                  >
+                    <FormSelectOption value="fail" label="Fail - Stop workflow" />
+                    <FormSelectOption value="continue" label="Continue - Proceed anyway" />
+                  </FormSelect>
+                )}
+              />
             </FormGroup>
           </StackItem>
 
           <StackItem>
             <FormGroup label="Aggregate Outputs" fieldId="logic-aggregateOutputs">
-              <NativeSelect {...register('aggregateOutputs')} id="logic-aggregateOutputs">
-                <option value="true">Yes - Collect outputs from all branches</option>
-                <option value="false">No - Don't aggregate outputs</option>
-              </NativeSelect>
+              <Controller
+                control={control}
+                name="aggregateOutputs"
+                render={({ field }) => (
+                  <FormSelect
+                    id="logic-aggregateOutputs"
+                    aria-label="Aggregate Outputs"
+                    value={String(field.value ?? true)}
+                    onChange={(_event, value) => field.onChange(value === 'true')}
+                  >
+                    <FormSelectOption value="true" label="Yes - Collect outputs from all branches" />
+                    <FormSelectOption value="false" label="No - Don't aggregate outputs" />
+                  </FormSelect>
+                )}
+              />
             </FormGroup>
           </StackItem>
 
@@ -184,11 +247,7 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
         </>
       )}
 
-      <StackItem>
-        <Button type="submit" variant="primary" style={{ width: '100%' }}>
-          {submitButtonText ?? 'Add node'}
-        </Button>
-      </StackItem>
+      <FormSubmitButton submitButtonText={submitButtonText} />
     </Stack>
   )
 }
@@ -228,9 +287,15 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
     props.onSubmit(cleanedData)
   }
 
+  const methods = useForm<LogicFormData>({
+    defaultValues,
+  })
+
   return (
-    <Form<LogicFormData> id="logic-node-form" defaultValues={defaultValues} onSubmit={handleSubmit}>
-      {() => <LogicFormFields submitButtonText={props.submitButtonText} />}
-    </Form>
+    <FormProvider {...methods}>
+      <Form id="logic-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+        <LogicFormFields submitButtonText={props.submitButtonText} />
+      </Form>
+    </FormProvider>
   )
 }

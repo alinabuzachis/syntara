@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ConditionActivity, ConvergeActivity, LoopActivity, TaskActivity } from '@ansible/nexus-contracts'
 import { Button, CompassPanel, Flex, FlexItem, Icon, Stack, StackItem, Title, TitleSizes } from '@patternfly/react-core'
 import { FileIcon, TimesIcon } from '@patternfly/react-icons'
 import type { Node } from '@xyflow/react'
@@ -21,12 +21,6 @@ import { NodeRawDataView } from './NodeRawDataView'
  * calls onClose() after successfully updating the node. This ensures the side panel
  * closes automatically after modifications.
  */
-
-// Type aliases
-type TaskActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'task' }
-type ConditionActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'condition' }
-type LoopActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'loop' }
-type ConvergeActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'converge' }
 
 interface NodeDetailsPanelProps {
   node: Node<NodeType['data']>

@@ -176,7 +176,6 @@ export function ButtonEdge(props: ButtonEdgeProps) {
         rx={4}
         onClick={handleClick}
         onMouseDown={handleMouseDown}
-        className="hover:fill-gray-700/20"
         style={{ cursor: 'pointer', pointerEvents: 'all', zIndex: 100 }}
       />
     </>

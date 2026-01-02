@@ -11,7 +11,17 @@ export function NodeExpandToggle() {
   if (!expandedState) return null
   return (
     <Icon
-      onClick={() => setExpanded((expanded) => !expanded)}
+      onClick={(e) => {
+        e.stopPropagation()
+        setExpanded((expanded) => !expanded)
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.stopPropagation()
+        }
+      }}
+      className="nodrag nopan"
       style={{
         transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
         transition: 'transform 0.2s ease-out',

@@ -5,31 +5,27 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { TriggerNodeForm } from './TriggerNodeForm'
 
 // Mock DateRangeCadencePicker
-vi.mock('@ansible/nexus-ui-framework', async () => {
-  const actual = await vi.importActual('@ansible/nexus-ui-framework')
-  return {
-    ...actual,
-    DateRangeCadencePicker: ({
-      value,
-      onChange,
-    }: {
-      value: string
-      onChange: (value: string) => void
-      required?: boolean
-      showTime?: boolean
-    }) => (
-      <div data-testid="date-range-cadence-picker">
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          data-testid="interval-input"
-          placeholder="Enter interval"
-        />
-      </div>
-    ),
-  }
-})
+vi.mock('../../../components/forms/DateRangeCadencePicker', () => ({
+  DateRangeCadencePicker: ({
+    value,
+    onChange,
+  }: {
+    value: string
+    onChange: (value: string) => void
+    required?: boolean
+    showTime?: boolean
+  }) => (
+    <div data-testid="date-range-cadence-picker">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        data-testid="interval-input"
+        placeholder="Enter interval"
+      />
+    </div>
+  ),
+}))
 
 describe('TriggerNodeForm Component', () => {
   const mockOnSubmit = vi.fn()

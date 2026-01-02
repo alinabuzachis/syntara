@@ -1,8 +1,15 @@
 import { lazy } from 'react'
 
-import type { INavigationItem } from '../components/nav/NavItem'
-
 import { AppRoute } from './AppRoute'
+
+export type INavigationItem = {
+  label: string
+  path: string
+  element?: React.ReactNode
+  children?: INavigationItem[]
+  hidden?: boolean // Hide from navigation but keep for routing
+  matchPattern?: string // Optional pattern to match for active state (e.g., "/automation-builder/:workflowId")
+}
 
 const Automations = lazy(() => import('../routes/automations/Automations'))
 const BuilderNew = lazy(() => import('../routes/builder/BuilderNew'))

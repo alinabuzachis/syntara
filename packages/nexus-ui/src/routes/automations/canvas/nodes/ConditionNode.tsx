@@ -1,4 +1,5 @@
 import type { ConditionActivity } from '@ansible/nexus-contracts'
+import { Flex, FlexItem } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
@@ -51,25 +52,19 @@ export function ConditionNodeDetails(props: {
   const metadata = nodeMetadata.condition
   return (
     <>
-      <div style={{ overflow: 'visible', minWidth: 0 }}>
-        <StandardNodeHeader
-          icon={props.icon}
-          title={props.conditionActivity.name ?? 'Untitled Condition'}
-          subtitle={metadata.label}
-          expandable
-          menuActions={props.menuActions}
-        />
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'row',
-          justifyContent: 'flex-end',
-          overflowX: 'hidden',
-          overflowY: 'visible',
-        }}
+      <StandardNodeHeader
+        icon={props.icon}
+        title={props.conditionActivity.name ?? 'Untitled Condition'}
+        subtitle={metadata.label}
+        expandable
+        menuActions={props.menuActions}
+      />
+      <Flex
+        justifyContent={{ default: 'justifyContentFlexEnd' }}
+        gap={{ default: 'gapNone' }}
+        style={{ overflowX: 'hidden', overflowY: 'visible' }}
       >
-        <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+        <FlexItem grow={{ default: 'grow' }} style={{ minWidth: 0 }}>
           <NodeBody>
             <Details>
               {renderCondition(props.conditionActivity.condition)}
@@ -77,9 +72,9 @@ export function ConditionNodeDetails(props: {
               {renderJson(props.conditionActivity, props.showJson, 'Full Definition')}
             </Details>
           </NodeBody>
-        </div>
+        </FlexItem>
         {props.children}
-      </div>
+      </Flex>
     </>
   )
 }

@@ -1,6 +1,7 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
+import { Content, ContentVariants, Flex, FlexItem } from '@patternfly/react-core'
+import { RhUiSettingsIcon } from '@patternfly/react-icons'
 import { type Node, type NodeProps } from '@xyflow/react'
-import { ReplaceIcon } from 'lucide-react'
 
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
@@ -27,20 +28,18 @@ export function GenericNodeComponent(props: NodeProps<GenericNode>) {
   const reverseHandles = (props.data as any).metadata?.__reverseHandles as boolean | undefined
 
   return (
-    <NodeComponent
-      className="w-node cursor-pointer rounded-2xl border-2 border-dashed border-gray-400 bg-gray-50 hover:border-blue-500 hover:bg-blue-50"
-      nodeProps={props}
-      reverseHandles={reverseHandles}
-    >
+    <NodeComponent nodeProps={props} reverseHandles={reverseHandles} hasDashedBorder>
       <StandardNodeHeader
-        icon={<ReplaceIcon className="size-6 scale-x-[-1] text-gray-500" />}
+        icon={<RhUiSettingsIcon />}
         title={showTitle ? 'Click to configure' : undefined}
         expandable={false}
       />
       <NodeBody>
-        <div className="flex items-center justify-center py-4">
-          <p className="text-base font-bold text-gray-500">{displayMessage}</p>
-        </div>
+        <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentCenter' }}>
+          <FlexItem>
+            <Content component={ContentVariants.h4}>{displayMessage}</Content>
+          </FlexItem>
+        </Flex>
       </NodeBody>
     </NodeComponent>
   )

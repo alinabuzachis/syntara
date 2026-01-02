@@ -1,8 +1,7 @@
-import { EmptyStateServiceUnavailable } from '@ansible/nexus-ui-framework'
-
 import { useApiErrorAlert } from '../../hooks/useApiErrorAlert'
 import { getErrorMessage, isServiceUnavailableError } from '../../utils/apiErrors'
 
+import { EmptyStateServiceUnavailable } from './EmptyStateServiceUnavailable'
 import { ErrorState } from './ErrorState'
 import { LoadingState } from './LoadingState'
 
