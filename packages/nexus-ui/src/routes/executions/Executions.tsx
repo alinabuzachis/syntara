@@ -124,12 +124,12 @@ export default function Executions() {
             {filteredExecutions.map((execution) => (
               <Tr key={execution.id}>
                 <Td dataLabel="Execution ID" modifier="nowrap" style={{ minWidth: '250px', width: '250px' }}>
-                  <LinkCell href={`/automations/${execution.workflow_id}?showHistory=true`}>
+                  <LinkCell href={`/automation-builder/${execution.workflow_id}?showHistory=true`}>
                     <code style={{ fontSize: 'var(--pf-t--global--font-size--sm)' }}>{execution.id}</code>
                   </LinkCell>
                 </Td>
                 <Td dataLabel="Workflow" modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
-                  <LinkCell href={`/automations/${execution.workflow_id}`}>{execution.workflow_id}</LinkCell>
+                  <LinkCell href={`/automation-builder/${execution.workflow_id}`}>{execution.workflow_id}</LinkCell>
                 </Td>
                 <Td dataLabel="Status">{execution.status && <StatusLabel status={execution.status} />}</Td>
                 <Td dataLabel="Created At">

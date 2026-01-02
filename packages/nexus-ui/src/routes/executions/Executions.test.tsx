@@ -1,7 +1,8 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { useSearch } from 'wouter'
+import { useLocation, useSearch } from 'wouter'
 
 import { workflowClient } from '../../client'
 
@@ -19,7 +20,7 @@ vi.mock('wouter', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>
   return {
     ...actual,
-    useLocation: () => ['/executions', vi.fn()],
+    useLocation: vi.fn(() => ['/executions', vi.fn()]),
     useSearch: vi.fn(() => ''),
   }
 })
@@ -198,5 +199,81 @@ describe('Executions Component', () => {
     render(<Executions />)
 
     expect(screen.getByText('Run history for My Test Workflow')).toBeInTheDocument()
+  })
+
+  it('execution ID links navigate to workflow builder with showHistory=true', async () => {
+    mockExecutionsQuery(mockExecutions)
+    const mockSetLocation = vi.fn()
+    vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
+    const user = userEvent.setup()
+
+    render(<Executions />)
+
+    // Find and click the button for the first execution ID
+    const executionIdButton = screen.getByText('123e4567-e89b-12d3-a456-426614174000').closest('button')
+    expect(executionIdButton).toBeInTheDocument()
+
+    await user.click(executionIdButton!)
+    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1?showHistory=true')
+  })
+
+  it('workflow ID links navigate to workflow builder', async () => {
+    mockExecutionsQuery(mockExecutions)
+    const mockSetLocation = vi.fn()
+    vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
+    const user = userEvent.setup()
+
+    render(<Executions />)
+
+    // Find and click the button for the first workflow ID
+    const workflowButton = screen.getByText('workflow-1').closest('button')
+    expect(workflowButton).toBeInTheDocument()
+
+    await user.click(workflowButton!)
+    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1')
+  })
+
+  it('all execution IDs navigate to their respective workflows with showHistory=true', async () => {
+    mockExecutionsQuery(mockExecutions)
+    const mockSetLocation = vi.fn()
+    vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
+    const user = userEvent.setup()
+
+    render(<Executions />)
+
+    // Verify all execution ID links navigate to the correct workflow builder routes
+    const execution1Button = screen.getByText('123e4567-e89b-12d3-a456-426614174000').closest('button')
+    await user.click(execution1Button!)
+    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1?showHistory=true')
+
+    const execution2Button = screen.getByText('223e4567-e89b-12d3-a456-426614174001').closest('button')
+    await user.click(execution2Button!)
+    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-2?showHistory=true')
+
+    const execution3Button = screen.getByText('323e4567-e89b-12d3-a456-426614174002').closest('button')
+    await user.click(execution3Button!)
+    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-3?showHistory=true')
+  })
+
+  it('all workflow IDs navigate to their respective workflow builders', async () => {
+    mockExecutionsQuery(mockExecutions)
+    const mockSetLocation = vi.fn()
+    vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
+    const user = userEvent.setup()
+
+    render(<Executions />)
+
+    // Verify all workflow ID links navigate to the correct workflow builder routes
+    const workflow1Button = screen.getByText('workflow-1').closest('button')
+    await user.click(workflow1Button!)
+    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1')
+
+    const workflow2Button = screen.getByText('workflow-2').closest('button')
+    await user.click(workflow2Button!)
+    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-2')
+
+    const workflow3Button = screen.getByText('workflow-3').closest('button')
+    await user.click(workflow3Button!)
+    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-3')
   })
 })
