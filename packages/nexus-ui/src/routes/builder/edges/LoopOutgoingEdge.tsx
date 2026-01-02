@@ -50,6 +50,7 @@ export function LoopOutgoingEdge(props: LoopOutgoingEdgeProps) {
       : markerEnd
 
   // Use smooth step path for loop outgoing routing with rounded corners
+  // Increase offset to provide more spacing between loop handle and first node in loop body
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,

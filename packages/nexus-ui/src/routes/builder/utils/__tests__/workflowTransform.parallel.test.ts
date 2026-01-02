@@ -2359,4 +2359,246 @@ describe('WorkflowTransform - Parallel Detection', () => {
     expect(l3ToAdEdges).toHaveLength(1)
     expect(l3ToAdEdges[0].sourceHandle).toBe('done')
   })
+
+  it('flattens parallel inside sequence correctly - creates edges to branch first activities', () => {
+    // Regression test for NewYearDemo1 workflow where parallel_inner is nested in sequence_1
+    // Before fix: created invalid edge AAP1 → parallel_inner (parallel container)
+    // After fix: creates edges AAP1 → C and AAP1 → AAP2 (parallel branches)
+    const nestedActivities: Activity[] = [
+      {
+        type: 'task',
+        id: 'A',
+        name: 'A',
+        task: { executor: 'script', config: { code: 'a', language: 'python', environment: {} } },
+      },
+      {
+        type: 'parallel',
+        id: 'parallel_outer',
+        name: 'Parallel execution',
+        branches: [
+          {
+            type: 'sequence',
+            id: 'sequence_1',
+            name: 'Branch sequence',
+            steps: [
+              {
+                type: 'task',
+                id: 'AAP1',
+                name: 'AAP1',
+                task: { executor: 'aap_job_template', config: { jobTemplateId: 1, timeout: 3600 } },
+              },
+              {
+                type: 'parallel',
+                id: 'parallel_inner',
+                name: 'Parallel execution',
+                branches: [
+                  {
+                    type: 'condition',
+                    id: 'C',
+                    name: 'C',
+                    condition: 'm',
+                    then: [
+                      {
+                        type: 'task',
+                        id: 'B',
+                        name: 'B',
+                        task: { executor: 'script', config: { code: 'm', language: 'python', environment: {} } },
+                      },
+                    ],
+                    else: [],
+                  },
+                  {
+                    type: 'task',
+                    id: 'AAP2',
+                    name: 'AAP2',
+                    task: { executor: 'aap_job_template', config: { jobTemplateId: 22, timeout: 3600 } },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+    // Should have flattened to: A, AAP1, C, B, AAP2
+    expect(activities).toHaveLength(5)
+    expect(activities.map((a) => a.id)).toEqual(expect.arrayContaining(['A', 'AAP1', 'C', 'B', 'AAP2']))
+
+    // CRITICAL: Should NOT have edge to parallel_inner (it's a container, not an activity)
+    const invalidEdge = edges.find((e) => e.target === 'parallel_inner' || e.source === 'parallel_inner')
+    expect(invalidEdge).toBeUndefined()
+
+    // CRITICAL: Should have edges from AAP1 to both branches of parallel_inner
+    const aap1Edges = edges.filter((e) => e.source === 'AAP1')
+    expect(aap1Edges).toHaveLength(2)
+    expect(aap1Edges.map((e) => e.target)).toEqual(expect.arrayContaining(['C', 'AAP2']))
+
+    // Should have edge from A to AAP1
+    const aToAap1 = edges.find((e) => e.source === 'A' && e.target === 'AAP1')
+    expect(aToAap1).toBeDefined()
+
+    // C should have edge to B (condition then branch)
+    const cToB = edges.find((e) => e.source === 'C' && e.target === 'B' && e.sourceHandle === 'true')
+    expect(cToB).toBeDefined()
+  })
+
+  it('flattens complex nested workflow with parallels, sequences, conditions, and loops', () => {
+    // Comprehensive test for NewYearDemo1-style workflow
+    // Tests parallel containing sequences, which contain nested parallels with conditions and loops
+    const nestedActivities: Activity[] = [
+      {
+        type: 'task',
+        id: 'A',
+        name: 'A',
+        task: { executor: 'script', config: { code: 'a', language: 'python', environment: {} } },
+      },
+      {
+        type: 'parallel',
+        id: 'parallel_outer',
+        name: 'Outer parallel',
+        branches: [
+          {
+            type: 'sequence',
+            id: 'seq1',
+            name: 'Sequence 1',
+            steps: [
+              {
+                type: 'task',
+                id: 'AAP1',
+                name: 'AAP1',
+                task: { executor: 'aap_job_template', config: { jobTemplateId: 1, timeout: 3600 } },
+              },
+              {
+                type: 'parallel',
+                id: 'parallel_inner',
+                name: 'Inner parallel',
+                branches: [
+                  {
+                    type: 'condition',
+                    id: 'C',
+                    name: 'Condition C',
+                    condition: 'm',
+                    then: [
+                      {
+                        type: 'task',
+                        id: 'B',
+                        name: 'B',
+                        task: { executor: 'script', config: { code: 'm', language: 'python', environment: {} } },
+                      },
+                      {
+                        type: 'task',
+                        id: 'F',
+                        name: 'F',
+                        task: { executor: 'script', config: { code: 'c', language: 'python', environment: {} } },
+                      },
+                    ],
+                    else: [
+                      {
+                        type: 'task',
+                        id: 'B1',
+                        name: 'B1',
+                        task: { executor: 'script', config: { code: 'z', language: 'python', environment: {} } },
+                      },
+                    ],
+                  },
+                  {
+                    type: 'task',
+                    id: 'AAP2',
+                    name: 'AAP2',
+                    task: { executor: 'aap_job_template', config: { jobTemplateId: 22, timeout: 3600 } },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: 'sequence',
+            id: 'seq2',
+            name: 'Sequence 2',
+            steps: [
+              {
+                type: 'task',
+                id: 'E',
+                name: 'E',
+                task: { executor: 'script', config: { code: 'm', language: 'python', environment: {} } },
+              },
+              {
+                type: 'loop',
+                id: 'L',
+                name: 'Loop L',
+                loop: {
+                  type: 'forEach',
+                  items: 'm',
+                  itemVariable: 'item',
+                  indexVariable: 'index',
+                  do: [
+                    {
+                      type: 'task',
+                      id: 'D',
+                      name: 'D',
+                      task: { executor: 'script', config: { code: 'b', language: 'python', environment: {} } },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+    // Verify all activities are flattened
+    expect(activities).toHaveLength(10)
+    expect(activities.map((a) => a.id).sort()).toEqual(['A', 'AAP1', 'AAP2', 'B', 'B1', 'C', 'D', 'E', 'F', 'L'].sort())
+
+    // CRITICAL: Verify no invalid edges to container nodes
+    const containerIds = ['parallel_outer', 'parallel_inner', 'seq1', 'seq2']
+    containerIds.forEach((containerId) => {
+      const invalidEdges = edges.filter((e) => e.source === containerId || e.target === containerId)
+      expect(invalidEdges).toHaveLength(0)
+    })
+
+    // Verify edges from A to parallel_outer branches (AAP1 and E)
+    const aEdges = edges.filter((e) => e.source === 'A')
+    expect(aEdges).toHaveLength(2)
+    expect(aEdges.map((e) => e.target).sort()).toEqual(['AAP1', 'E'].sort())
+
+    // Verify edges from AAP1 to parallel_inner branches (C and AAP2)
+    const aap1Edges = edges.filter((e) => e.source === 'AAP1')
+    expect(aap1Edges).toHaveLength(2)
+    expect(aap1Edges.map((e) => e.target).sort()).toEqual(['AAP2', 'C'].sort())
+
+    // Verify condition C edges
+    const cTrueEdge = edges.find((e) => e.source === 'C' && e.sourceHandle === 'true')
+    expect(cTrueEdge?.target).toBe('B')
+    const cFalseEdge = edges.find((e) => e.source === 'C' && e.sourceHandle === 'false')
+    expect(cFalseEdge?.target).toBe('B1')
+
+    // Verify sequential edge in condition then branch
+    const bToF = edges.find((e) => e.source === 'B' && e.target === 'F')
+    expect(bToF).toBeDefined()
+
+    // Verify edges in sequence 2 (E to L)
+    const eToL = edges.find((e) => e.source === 'E' && e.target === 'L')
+    expect(eToL).toBeDefined()
+
+    // Verify loop edges
+    const loopEdge = edges.find((e) => e.source === 'L' && e.sourceHandle === 'loop')
+    expect(loopEdge?.target).toBe('D')
+    const backEdge = edges.find((e) => e.source === 'D' && e.targetHandle === 'end')
+    expect(backEdge?.target).toBe('L')
+
+    // Verify single entry point (A) and multiple endpoints
+    const entryPoints = activities.filter((a) => !edges.some((e) => e.target === a.id))
+    expect(entryPoints).toHaveLength(1)
+    expect(entryPoints[0].id).toBe('A')
+
+    const exitPoints = activities.filter((a) => a.type !== 'loop' && !edges.some((e) => e.source === a.id))
+    expect(exitPoints.length).toBeGreaterThan(0) // F, B1, AAP2 are endpoints
+  })
 })

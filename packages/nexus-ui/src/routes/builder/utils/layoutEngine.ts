@@ -51,7 +51,7 @@ function calculateLoopBodyPositions(
       .sort((a, b) => a.dagreX - b.dagreX)
 
     // Position nodes completely to the right of the loop node (same vertical center)
-    const horizontalSpacing = 50 // Space to the right of loop node (compact)
+    const horizontalSpacing = 80 // Space to the right of loop node (increased for visual clarity)
     const nodeSpacing = 40 // Spacing between consecutive nodes (increased for readability)
 
     // Start position: to the right of loop node, vertically centered with loop
@@ -69,36 +69,6 @@ function calculateLoopBodyPositions(
   })
 
   return loopBodyPositions
-}
-
-/**
- * Calculate total widths for loop nodes including their body nodes
- */
-function calculateLoopWidths(loopBodies: Map<string, string[]>, realNodes: NodeType[]): Map<string, number> {
-  const loopWidths = new Map<string, number>()
-
-  loopBodies.forEach((bodyNodeIds, loopId) => {
-    const loopNode = realNodes.find((n) => n.id === loopId)
-    const loopWidth = loopNode?.measured?.width ?? 0
-
-    // Calculate total width of loop body nodes
-    let totalBodyWidth = 0
-    bodyNodeIds.forEach((nodeId) => {
-      const bodyNode = realNodes.find((n) => n.id === nodeId)
-      totalBodyWidth += bodyNode?.measured?.width ?? 0
-    })
-
-    // Add spacing: initial gap + spacing between nodes
-    const horizontalSpacing = 50
-    const nodeSpacing = 40
-    const spacingWidth = horizontalSpacing + Math.max(0, bodyNodeIds.length - 1) * nodeSpacing
-
-    // Total width = loop width + spacing + body nodes width
-    const totalWidth = loopWidth + spacingWidth + totalBodyWidth
-    loopWidths.set(loopId, totalWidth)
-  })
-
-  return loopWidths
 }
 
 /**
@@ -170,13 +140,12 @@ export function getLayoutedElements(nodes: NodeType[], edges: EdgeType[], option
   // This prevents Dagre from trying to create a circular layout
   const layoutEdges = realEdges.filter((edge) => edge.targetHandle !== 'end')
 
-  // Calculate the total width needed for loop nodes (including their body nodes)
-  const loopWidths = calculateLoopWidths(loopBodies, realNodes)
-
   layoutEdges.forEach((edge) => g.setEdge(edge.source, edge.target))
   realNodes.forEach((node) => {
-    // Use extended width for loop nodes to account for their body nodes
-    const width = loopWidths.get(node.id) ?? node.measured?.width ?? 0
+    // Use actual node width for Dagre layout
+    // Loop body nodes are positioned manually, so we don't need to account for them in Dagre's width calculation
+    // This ensures consistent edge spacing between all nodes
+    const width = node.measured?.width ?? 0
     g.setNode(node.id, {
       ...node,
       width,

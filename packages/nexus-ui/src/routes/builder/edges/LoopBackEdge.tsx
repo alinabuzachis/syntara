@@ -39,15 +39,20 @@ export function LoopBackEdge(props: LoopBackEdgeProps) {
   const targetNode = getNodes().find((n) => n.id === target)
   const sourceNode = getNodes().find((n) => n.id === source)
 
-  // Calculate the maximum bottom position of nodes between source and target
+  // Calculate the maximum bottom position of the source node and any nodes between source and target
   // This ensures the edge goes below all loop body nodes
   let maxBottomY = sourceY
 
   if (targetNode && sourceNode) {
+    // CRITICAL: Always include the source node itself (the last node in the loop body)
+    const sourceBottom = sourceNode.position.y + (sourceNode.measured?.height ?? 0)
+    maxBottomY = Math.max(maxBottomY, sourceBottom)
+
+    // Also check for any other nodes between target and source
     const allNodes = getNodes()
-    // Find nodes that are in the loop body (between source X and target X, same Y level)
     const loopBodyNodes = allNodes.filter((node) => {
       if (!node.position || !node.measured?.height) return false
+      if (node.id === source || node.id === target) return false // Already handled
       const nodeY = node.position.y + node.measured.height / 2
       const nodeX = node.position.x
       // Nodes at similar Y level to target/source and between them horizontally
@@ -65,20 +70,28 @@ export function LoopBackEdge(props: LoopBackEdgeProps) {
     })
   }
 
-  // Add padding below the lowest node (very compact)
-  const verticalOffset = maxBottomY - sourceY + 20
+  // Add padding below the lowest node for clear visual separation
+  // Use moderate padding to avoid excessive whitespace
+  const verticalOffset = Math.max(40, maxBottomY - sourceY + 20)
 
-  // Calculate the path:
+  // Calculate the path with rounded corners for better visual flow:
   // 1. Go right from source
   // 2. Drop down below the nodes
   // 3. Route horizontally back to target X
   // 4. Come up to target
+  const cornerRadius = 8
+  const horizontalOffset = 15
+
   const edgePath = `
     M ${sourceX},${sourceY}
-    L ${sourceX + 10},${sourceY}
-    L ${sourceX + 10},${sourceY + verticalOffset}
-    L ${targetX - 10},${sourceY + verticalOffset}
-    L ${targetX - 10},${targetY}
+    L ${sourceX + horizontalOffset - cornerRadius},${sourceY}
+    Q ${sourceX + horizontalOffset},${sourceY} ${sourceX + horizontalOffset},${sourceY + cornerRadius}
+    L ${sourceX + horizontalOffset},${sourceY + verticalOffset - cornerRadius}
+    Q ${sourceX + horizontalOffset},${sourceY + verticalOffset} ${sourceX + horizontalOffset - cornerRadius},${sourceY + verticalOffset}
+    L ${targetX - horizontalOffset + cornerRadius},${sourceY + verticalOffset}
+    Q ${targetX - horizontalOffset},${sourceY + verticalOffset} ${targetX - horizontalOffset},${sourceY + verticalOffset - cornerRadius}
+    L ${targetX - horizontalOffset},${targetY + cornerRadius}
+    Q ${targetX - horizontalOffset},${targetY} ${targetX - horizontalOffset + cornerRadius},${targetY}
     L ${targetX},${targetY}
   `
 

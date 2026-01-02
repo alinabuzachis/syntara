@@ -788,6 +788,23 @@ export class WorkflowTransform {
         continue
       }
 
+      // If next is parallel, create edges from current to each branch
+      if (next.type === 'parallel') {
+        const branches = (next as Extract<Activity, { type: 'parallel' }>).branches || []
+        for (const branch of branches) {
+          // Use getFirstActivityId to handle sequence wrappers that will be flattened away
+          const targetId = this.getFirstActivityId(branch)
+          edges.push({
+            id: `${this.getActivityId(current)}-${targetId}`,
+            source: this.getActivityId(current),
+            target: targetId,
+            sourceHandle: this.getSourceHandle(current),
+            targetHandle: 'target',
+          })
+        }
+        continue
+      }
+
       // Regular sequential edge
       edges.push({
         id: `${this.getActivityId(current)}-${this.getActivityId(next)}`,
