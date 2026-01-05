@@ -31,7 +31,7 @@
 - Phase 3-4: Implementation execution (manual or via tools)
 
 ## Summary
-Implement Agent Orchestrator integration with Tool Manager to enable LangGraph StateGraph-based tool execution during agent invocation. The system will dynamically discover available tools via Tool Manager REST API, convert metadata to LangGraph BaseTools, and provide robust error handling for tool execution failures. This enables the Agent Orchestrator to reliably access and utilize tools for the agent invocation through a structured client library approach.
+Integrate Tool Manager with Agent Orchestrator to enable dynamic tool discovery and execution through LangGraph StateGraph. The orchestrator will retrieve enabled ToolProviders (with MCP server URLs from MCPConfiguration) and enabled Tools via REST API, use LangChain's native MCP client to connect to ToolProvider MCP servers to retrieve BaseTools, filter BaseTools by enabled Tool status, and provide filtered tools to LangGraph StateGraph for LLM-based tool selection and execution during agent invocations.
 
 ## Implementation Plan Architecture
 
@@ -46,8 +46,9 @@ flowchart TD
     subgraph "System Architecture"
         TM[Tool Manager REST API]
         CLIENT[Tool Manager Client]
+        MCP_SERVERS[ToolProvider MCP Servers]
+        LMCP[LangChain MCP Client]
         AO[Agent Orchestrator]
-        LC[LangChain Tool Loading]
         LG[LangGraph StateGraph]
     end
 
@@ -66,8 +67,11 @@ flowchart TD
     %% System Flow
     TM --> CLIENT
     CLIENT --> AO
-    AO --> LC
-    LC --> LG
+    AO --> LMCP
+    LMCP --> MCP_SERVERS
+    MCP_SERVERS --> LMCP
+    LMCP --> AO
+    AO --> LG
     AO --> CLIENT
 
     %% Plan Flow
@@ -83,16 +87,19 @@ flowchart TD
 
     %% Data Flow Labels
     TM -.->|"ToolProviderWithConfiguration<br/>ToolWithParameters"| CLIENT
-    CLIENT -.->|"Tool Discovery"| AO
-    LC -.->|"BaseTool[]"| LG
-    AO -.->|"Filter by enabled"| LC
+    CLIENT -.->|"ToolWithParameters + MCP URLs"| AO
+    AO -.->|"Connect to MCP URLs"| LMCP
+    LMCP -.->|"MCP Protocol"| MCP_SERVERS
+    MCP_SERVERS -.->|"BaseTool[]"| LMCP
+    LMCP -.->|"BaseTool[] (filtered)"| AO
+    AO -.->|"Filtered BaseTools"| LG
     AO -.->|"Error Reporting"| CLIENT
     CLIENT -.->|"refresh_error"| TM
 ```
 
 ## Technical Context
 **Language/Version**: Python 3.12
-**Primary Dependencies**: FastAPI, SQLModel (for unified data models), httpx (for Tool Manager client), LangGraph (for tool execution), retry_with_backoff utility (existing)
+**Primary Dependencies**: FastAPI, SQLModel (for unified data models), httpx (for Tool Manager client), LangChain MCP client libraries, LangGraph (for tool execution), retry_with_backoff utility (existing)
 **Storage**: N/A (stateless client integration)
 **Testing**: pytest
 **Target Platform**: Linux server
@@ -255,15 +262,17 @@ ios/ or android/
 - Client configuration and error handling tasks
 
 **Section 2 - AAP-60416: Agent Orchestrator Integration**  
-- Tool discovery integration tasks
+- Tool discovery integration tasks via ToolManagerClient
+- LangChain native MCP client integration tasks to connect to ToolProvider MCP servers
+- Tool filtering by enabled status tasks (filter BaseTools by Tool.enabled field)
 - Client library integration into orchestrator tasks
 - Runtime tool enablement checking tasks
 - Error scenario handling tasks
 
 **Section 3 - AAP-60417: Tool Calling Support**
-- LangChain tool loading tasks
-- Tool filtering by enabled status tasks
-- LangGraph StateGraph integration tasks
+- LangGraph StateGraph integration with filtered BaseTools from AAP-60416
+- ToolNode configuration and error handling within StateGraph
+- Tool execution monitoring and status reporting
 - End-to-end tool execution workflow tasks
 
 **Ordering Strategy**:

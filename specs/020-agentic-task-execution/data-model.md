@@ -47,20 +47,24 @@
 
 ## Integration Flow
 
-### LangChain Tool Loading and Filtering
-1. **Tool Provider Discovery**: ToolManagerClient.get_enabled_tool_providers() → List[ToolProviderWithConfiguration]
-2. **LangChain Tool Loading**: For each enabled provider, use langchain to load ALL tools → List[BaseTool]
-3. **Tool Filtering**: Filter langchain BaseTools by ToolWithParameters.enabled status
-4. **StateGraph Registration**: Pass filtered BaseTools to LangGraph StateGraph
-5. **Error Reporting**: If tool execution fails, use ToolManagerClient.update_tool_status() with refresh_error
+### LangChain MCP Client Integration and Tool Loading
+1. **Tool Provider Discovery**: ToolManagerClient.get_enabled_tool_providers() → List[ToolProviderWithConfiguration] (includes MCP server URLs)
+2. **Tool Metadata Retrieval**: ToolManagerClient.get_enabled_tools() → List[ToolWithParameters] (for filtering enablement)
+3. **MCP Client Connection**: LangChain MCP Client connects directly to ToolProvider MCP server URLs from MCPConfiguration
+4. **Tool Retrieval**: LangChain MCP Client retrieves all tools from ToolProvider MCP servers → List[BaseTool]
+5. **Tool Filtering**: Filter LangChain BaseTools by corresponding ToolWithParameters.enabled status
+6. **StateGraph Registration**: Pass filtered BaseTools to LangGraph StateGraph
+7. **Error Reporting**: If tool execution fails, use ToolManagerClient.update_tool_status() with refresh_error
 
 ### Data Flow Sequence
 ```
 User Request → Agent Orchestrator → ToolManagerClient.get_enabled_tool_providers()
               ↓
-ToolProviderWithConfiguration[] → LangChain.load_tools(provider) → BaseTool[]
+ToolProviderWithConfiguration[] (with MCP URLs) → ToolManagerClient.get_enabled_tools()
               ↓
-ToolManagerClient.get_enabled_tools() → ToolWithParameters[]
+ToolWithParameters[] (enablement status) → LangChain MCP Client.connect(MCP_URLs)
+              ↓
+LangChain MCP Client.get_tools() → BaseTool[] (from ToolProvider MCP servers)
               ↓
 Filter BaseTools by ToolWithParameters.enabled → Filtered BaseTool[]
               ↓
@@ -84,13 +88,13 @@ src/nexus/agent_orchestrator/
 - **API Schemas**: ToolProviderWithConfiguration, ToolWithParameters from Tool Manager OpenAPI specs
 - **HTTP Client**: `httpx` for async API calls
 - **Retry Logic**: `retry_with_backoff` utility (existing, reads system configuration)
-- **LangChain**: For loading provider tools → BaseTool[]
+- **LangChain MCP Client**: For connecting to ToolProvider MCP servers → BaseTool[]
 - **LangGraph**: StateGraph with filtered BaseTools
 - **Tool Status**: Update refresh_error field when tools fail
 
 ## Key Design Decisions
 
-1. **No Custom Adapter**: Use langchain directly to load tools, then filter by enabled status
+1. **No Custom Bridge/Adapter**: Use LangChain native MCP client to connect to existing ToolProvider MCP servers, then filter by enabled status
 2. **Reuse Existing Models**: Leverage ToolProviderWithConfiguration and ToolWithParameters from API schemas  
 3. **Simple Filtering**: Filter langchain BaseTools list based on ToolWithParameters.enabled field
 4. **Error Feedback Loop**: Report tool execution errors back to Tool Manager via refresh_error field

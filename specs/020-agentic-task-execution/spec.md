@@ -21,29 +21,28 @@ The Agent Orchestrator needs to access and utilize tools from the Tool Manager d
 4. **Given** no suitable tools are available for a user's request, **When** LangGraph StateGraph processes the prompt, **Then** it should respond using its general capabilities without tool calling
 
 ### Edge Cases
-- What happens when the Tool Manager API is unavailable during orchestration?
-- How does the system handle tools that become disabled between discovery and LangGraph StateGraph execution?
-- What occurs when tool execution times out or returns invalid responses during LangGraph StateGraph processing?
-- How does LangGraph StateGraph behave when multiple tools could potentially fulfill the same request?
+- **EC-001**: WHEN Tool Manager API is unavailable during orchestration, THEN system MUST retry with exponential backoff for up to 30 seconds then, if still unavailable, continue without tools and log the unavailability
+- **EC-002**: WHEN tools become unavailable between discovery and LangGraph StateGraph execution, THEN system MUST detect the unavailable state, gracefully continue without the tool, and inform user with specific messaging
+- **EC-003**: WHEN tool execution times out (>30s) or returns invalid responses during LangGraph StateGraph processing, THEN system MUST cancel execution, update tool status to ERROR, and return structured error response to user
+- **EC-004**: WHEN multiple tools could potentially fulfill the same request, THEN LangGraph StateGraph MUST use LLM-based decision making to select appropriate tool without system intervention beyond enabled status filtering
 
 ## Requirements
 
 ### Functional Requirements
-- **FR-001**: Agent Orchestrator MUST retrieve ALL available and enabled tools dynamically on every user request for discovery and execution (no prompt-based filtering of tools)
-- **FR-002**: System MUST make tools accessible for agent execution through LangGraph StateGraph integration
+- **FR-001**: Agent Orchestrator MUST dynamically retrieve ALL enabled tools on every user request (enabled=true AND status=AVAILABLE), validating enabled status before discovery and execution (no prompt-based filtering of tools)
+- **FR-002**: System MUST make enabled tools accessible for agent execution through LangGraph StateGraph integration
 - **FR-003**: Agent Orchestrator MUST support tool calling capabilities during agent invocations
 - **FR-004**: System MUST support passing input parameters from user prompts to tool execution
-- **FR-005**: System MUST handle tool execution results and return structured responses to users
-- **FR-006**: System MUST provide robust error handling for specific scenarios: (1) Tool Manager API unavailable - continue without tools and retry with exponential backoff, (2) Tool execution timeout after 30 seconds - cancel execution and report to Tool Manager, (3) Tool execution failure - capture error details and update tool status to ERROR with refresh_error field, (4) Tool disabled between discovery and execution - gracefully continue without tool and inform user
-- **FR-007**: System MUST log basic tool invocation events for troubleshooting: tool execution start (tool name, arguments), tool execution completion (duration, success/failure), tool execution errors (error details, stack trace), and tool status updates to Tool Manager (comprehensive metrics deferred to future iteration)
-- **FR-008**: System MUST support configuration for tool access, credentials, and retry logic for reliable operation
-- **FR-009**: System MUST validate that tools are still enabled before attempting execution
-- **FR-010**: System implementation does not need to address performance metrics, scale targets, or response time requirements (deferred to future iterations)
+- **FR-005**: System MUST handle tool execution results, return structured responses to users with defined schema (status: success|error|timeout, data: execution results, metadata: tool_id|duration|timestamp, error: structured error details), and log tool invocation events including: execution start (tool name, arguments), completion (duration, success/failure), errors (details, stack trace), and status updates to Tool Manager
+- **FR-006**: System MUST provide robust error handling for specific scenarios: (1) Tool Manager API unavailable - retry with exponential backoff up to 30 seconds and if still unavailable continue without tools, (2) Tool execution timeout or failure - capture error details and update tool status to ERROR with refresh_error field containing structured error message (error_code, description, timestamp, context), (4) Tool unavailable between discovery and execution - gracefully continue without tool and inform user
+- **FR-007**: System MUST support configuration for tool access, credentials, retry logic, and timeout values for reliable operation
+- **FR-008**: System implementation does not need to address performance metrics, scale targets, or response time requirements (deferred to future iterations)
+- **FR-009**: When tool execution fails during agent invocation, system MUST implement retry-then-disable workflow: (1) Retry tool execution up to 3 times with exponential backoff, (2) On persistent failure set enabled=False and status=MISSING (if tool removed from MCP server) or ERROR (if execution/network failure), (3) Update refresh_error field with structured failure details including error type, timestamp, and context, (4) Continue agent workflow gracefully without the failed tool and inform user of tool unavailability
 
 ### Key Entities
-- **Tool Manager Client**: HTTP client wrapper for Tool Manager REST API endpoints, providing standardized request/response handling
+- **ToolManagerClient**: HTTP client wrapper for Tool Manager REST API endpoints, providing standardized request/response handling
 - **Tool Metadata**: Structured representation of tool definitions including name, description, parameters, and availability status  
-- **LangGraph BaseTools**: LangChain-generated executable tools created from Tool Manager metadata for LangGraph StateGraph execution
+- **LangGraph BaseTools**: LangChain-generated executable tools created from ToolProvider MCP servers using LangChain's native MCP client support for LangGraph StateGraph execution
 - **Tool Execution Context**: Runtime context containing prompt information, user session, and tool selection criteria
 - **Tool Execution Result**: Structured response from tool execution including output data, status, and error information
 
@@ -51,14 +50,17 @@ The Agent Orchestrator needs to access and utilize tools from the Tool Manager d
 
 ### Session 2025-12-11
 - Q: When tool filtering occurs (enabled vs disabled tools), should this happen once during Agent Orchestrator initialization or dynamically on every user request? → A: Every request - always query for current enabled status
-- Q: What should happen when a tool that was available during discovery becomes disabled or unavailable by the time LangGraph attempts to execute it? → A: Fail gracefully - continue without tool, inform user, and update tool's status to ERROR with refresh_error field via Tool Manager client
+- Q: What should happen when a tool that was available during discovery becomes disabled or unavailable by the time LangGraph attempts to execute it? → A: Fail gracefully - continue without tool, inform user, and update tool's status to ERROR with refresh_error field via ToolManagerClient
 - Q: When multiple tools could potentially fulfill the same user request, how should LangGraph/Agent Orchestrator determine which tool to use? → A: Tool selection is handled by LangGraph's LLM-based decision making, not by our system - we only filter by enabled status
-- Q: What timeout values should be used for Tool Manager client API calls to prevent blocking orchestration workflows? → A: Use retry_with_backoff utility
+- Q: What timeout values should be used for ToolManagerClient API calls to prevent blocking orchestration workflows? → A: Use retry_with_backoff utility
 - Q: Since LangGraph handles tool execution, should the Agent Orchestrator capture and log tool invocation metrics for monitoring purposes? → A: Out of scope for this iteration - future need for comprehensive metrics
 
 ### Session 2025-12-15
 - Q: Does the orchestrator choose which tools may be needed for specific prompts? → A: No - orchestrator retrieves all enabled tools for all prompts
 - Q: What are the expected performance and scale requirements for tool discovery and execution? → A: All performance metrics are a future concern and not part of this feature
+
+### Session 2025-12-19
+- Q: The current tasks assume custom tool adaptation, but your vision uses LangChain's native MCP support. This requires clarification on the Tool Manager's interface: → A: ToolProviders already have MCP server URLs in their MCPConfiguration - LangChain MCP client connects directly to existing ToolProvider MCP servers
 
 ### Clarification Taxonomy Resolution
 
@@ -106,20 +108,26 @@ graph TD
 sequenceDiagram
     participant User
     participant AgentOrchestrator as Agent Orchestrator
-    participant TMClient as Tool Manager Client
+    participant TMClient as ToolManagerClient
     participant TMAPI as Tool Manager REST API
+    participant MCPServers as ToolProvider MCP Servers
+    participant LangChainMCP as LangChain MCP Client
     participant LangGraph as LangGraph StateGraph
     participant ToolExecution as Tool Execution
 
     User->>AgentOrchestrator: Submit any prompt
     AgentOrchestrator->>TMClient: Query ALL available tools
     TMClient->>TMAPI: GET /tool-providers (enabled=true)
-    TMAPI-->>TMClient: List of tool providers
+    TMAPI-->>TMClient: List of ToolProviders with MCP URLs
     TMClient->>TMAPI: GET /tools (enabled=true)
-    TMAPI-->>TMClient: List of available tools
-    TMClient-->>AgentOrchestrator: Tool metadata collection
+    TMAPI-->>TMClient: List of available Tools with enabled status
+    TMClient-->>AgentOrchestrator: Tool metadata + MCP server URLs
 
-    AgentOrchestrator->>AgentOrchestrator: Convert metadata to LangGraph BaseTools
+    AgentOrchestrator->>LangChainMCP: Connect to ToolProvider MCP servers
+    LangChainMCP->>MCPServers: get_tools() via MCP protocol
+    MCPServers-->>LangChainMCP: MCP tool definitions
+    LangChainMCP-->>AgentOrchestrator: LangGraph BaseTools (filtered by enabled status)
+
     AgentOrchestrator->>LangGraph: Initialize StateGraph with tools and prompt
 
     LangGraph->>LangGraph: Tool selection based on prompt
@@ -136,6 +144,7 @@ sequenceDiagram
     AgentOrchestrator-->>User: Structured response with tool results
 
     Note over TMClient,TMAPI: Error handling for API failures
+    Note over LangChainMCP,MCPServers: Direct MCP connection to existing servers
     Note over ToolExecution: Timeout and validation handling
 ```
 

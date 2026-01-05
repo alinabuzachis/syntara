@@ -41,30 +41,39 @@ flowchart TD
             T016[T016 Tool discovery service]
             T017[T017 Tool filtering logic]
             T018[T018 Error propagation]
+            T019[T019 Tool sync validation & status update]
         end
     end
 
     subgraph "AAP-60417: Tool Calling Support"
         subgraph "Execution Tests"
-            T019[T019 LangChain tool loading tests]
-            T020[T020 StateGraph integration tests]
-            T021[T021 End-to-end workflow tests]
+            T021[T021 LangChain tool loading tests]
+            T022[T022 StateGraph integration tests]
+            T023[T023 End-to-end workflow tests]
         end
 
         subgraph "Execution Implementation"
-            T022[T022 LangChain tool adapters]
-            T023[T023 Custom error handler function]
-            T024[T024 Tool execution logging wrappers]
-            T025[T025 ToolNode integration in orchestration_service]
-            T026[T026 Tool monitoring in orchestration_service]
+            T024[T024 LangChain tool adapters]
+            T025[T025 Tool execution failure handler]
+            T026[T026 Custom error handler function]
+            T027[T027 Tool execution logging wrappers]
+            T028[T028 ToolNode integration in orchestration_service]
+            T029[T029 Tool monitoring in orchestration_service]
         end
     end
 
+    subgraph "Edge Case Testing"
+        T030[T030 Edge case tests for Tool Manager API unavailability]
+        T031[T031 Edge case tests for tools unavailable between discovery and execution]
+        T032[T032 Edge case tests for tool execution timeout and invalid responses]
+        T033[T033 Edge case tests for multiple tool selection scenarios]
+    end
+
     subgraph "Integration & Polish"
-        T027[T027 Cross-component integration]
-        T028[T028 Performance optimization]
-        T029[T029 Documentation updates]
-        T030[T030 Manual testing execution]
+        T034[T034 Cross-component integration]
+        T035[T035 Performance optimization]
+        T036[T036 Documentation updates]
+        T037[T037 Manual testing execution]
     end
 
     %% Dependencies
@@ -74,18 +83,19 @@ flowchart TD
     T008 --> T009 & T010 & T011
     T009 & T010 & T011 --> T012 & T013 & T014
     T012 & T013 & T014 --> T015
-    T015 --> T016 & T017 & T018
-    T016 & T017 & T018 --> T019 & T020 & T021
-    T019 & T020 & T021 --> T022
-    T022 --> T023 & T024
-    T023 & T024 --> T025
-    T025 --> T026
-    T023 & T024 & T025 & T026 --> T027
-    T027 --> T028 & T029 & T030
+    T015 --> T016 & T017 & T018 & T019
+    T016 & T017 & T018 & T019 --> T021 & T022 & T023
+    T021 & T022 & T023 --> T024
+    T024 --> T025 & T026 & T027
+    T024 & T025 & T026 & T027 --> T028
+    T028 --> T029
+    T029 --> T030 & T031 & T032 & T033
+    T030 & T031 & T032 & T033 --> T034
+    T034 --> T035 & T036 & T037
 
     %% Parallel execution indicators
     classDef parallel fill:#e1f5fe
-    class T004,T005,T006,T007,T009,T010,T011,T012,T013,T014,T016,T017,T018,T019,T020,T021,T023,T024,T028,T029 parallel
+    class T004,T005,T006,T007,T009,T010,T011,T012,T013,T014,T016,T017,T018,T019,T021,T022,T023,T025,T026,T027,T030,T031,T032,T033,T035,T036 parallel
 ```
 
 ## Format: `[ID] [P?] Description`
@@ -133,57 +143,67 @@ flowchart TD
 ## Phase 3.4: AAP-60416: Agent Orchestrator Integration - Tests First
 
 - [ ] T012 [P] Orchestrator Tool Manager client integration tests in tests/integration/agent_orchestrator/test_tool_manager_integration.py
-- [ ] T013 [P] Tool filtering and enablement tests in tests/integration/agent_orchestrator/test_tool_filtering.py
-- [ ] T014 [P] Client error handling and propagation tests in tests/integration/agent_orchestrator/test_error_handling.py
+- [ ] T013 [P] LangChain MCP client integration tests for connecting to ToolProvider MCP servers in tests/integration/agent_orchestrator/test_mcp_integration.py
+- [ ] T014 [P] Tool filtering by enabled status tests (filter BaseTools by Tool.enabled field) in tests/integration/agent_orchestrator/test_tool_filtering.py
+- [ ] T015 [P] Client error handling and propagation tests in tests/integration/agent_orchestrator/test_error_handling.py
 
 ## Phase 3.5: AAP-60416: Agent Orchestrator Integration Implementation
 
-- [ ] T015 Tool Manager client dependency injection in src/nexus/agent_orchestrator/orchestrator.py
-- [ ] T016 [P] Tool discovery service integration in src/nexus/agent_orchestrator/tool_manager/discovery.py
-- [ ] T017 [P] Tool filtering by enabled status logic in src/nexus/agent_orchestrator/tool_manager/filtering.py
-- [ ] T018 [P] Error propagation and handling middleware in src/nexus/agent_orchestrator/tool_manager/error_handler.py
-- [ ] T018b [P] Tool enablement validation middleware - check tools remain enabled between discovery and execution, gracefully handle disabled tools in src/nexus/agent_orchestrator/tool_manager/enablement_validator.py
+- [ ] T016 Tool Manager client dependency injection in src/nexus/agent_orchestrator/orchestrator.py
+- [ ] T017 [P] LangChain MCP client integration to connect to ToolProvider MCP servers from MCPConfiguration URLs in src/nexus/agent_orchestrator/tool_manager/mcp_client.py
+- [ ] T018 [P] Tool filtering by enabled status logic (filter BaseTools by Tool.enabled field) in src/nexus/agent_orchestrator/tool_manager/filtering.py
+- [ ] T019 [P] Error propagation and handling middleware in src/nexus/agent_orchestrator/tool_manager/error_handler.py
+- [ ] T020 [P] Tool synchronization validation and status update logic - compare Tool Manager registered tools with MCP server actual tools, validate tool signatures (parameter count, names, types, required/optional), and update Tool Manager status using precedence: MISSING (tool absent from MCP server) > ERROR (signature mismatch/execution failure) > other errors. Include specific refresh_error messages for each error type in src/nexus/agent_orchestrator/tool_manager/tool_sync_validator.py
 
 ## Phase 3.6: AAP-60417: Tool Calling Support - Tests First
 
-- [ ] T019 [P] LangChain tool loading integration tests in tests/integration/agent_orchestrator/test_langchain_integration.py
-- [ ] T020 [P] StateGraph tool registration tests in tests/integration/agent_orchestrator/test_stategraph_integration.py
-- [ ] T021 [P] End-to-end tool execution workflow tests in tests/integration/agent_orchestrator/test_tool_execution_workflow.py
+- [ ] T021 [P] LangChain tool loading integration tests in tests/integration/agent_orchestrator/test_langchain_integration.py
+- [ ] T022 [P] StateGraph tool registration tests in tests/integration/agent_orchestrator/test_stategraph_integration.py
+- [ ] T023 [P] End-to-end tool execution workflow tests in tests/integration/agent_orchestrator/test_tool_execution_workflow.py
 
 ## Phase 3.7: AAP-60417: Tool Calling Support Implementation
 
-- [ ] T022 LangChain tool loading and BaseTool conversion in src/nexus/agent_orchestrator/tool_manager/langchain_adapter.py
-- [ ] T023 [P] Custom error handler function for tool execution monitoring with 30-second timeout enforcement in src/nexus/agent_orchestrator/tool_manager/tool_error_handler.py
-- [ ] T024 [P] Tool execution logging wrapper functions (wrap_tool_call/awrap_tool_call) with timeout tracking for FR-007 in src/nexus/agent_orchestrator/tool_manager/tool_execution_logging.py
-- [ ] T025 Add ToolNode to existing StateGraph with tool discovery and error handler integration, using logging wrappers from tool_manager module in src/nexus/agent_orchestrator/services/orchestration_service.py
-- [ ] T026 Integrate tool execution monitoring with existing streaming infrastructure in src/nexus/agent_orchestrator/services/orchestration_service.py
+- [ ] T024 LangChain tool loading and BaseTool conversion in src/nexus/agent_orchestrator/tool_manager/langchain_adapter.py
+- [ ] T025 [P] Tool execution failure retry and auto-disable logic implementing FR-009 retry-then-disable workflow (3 retries with exponential backoff, set enabled=False and status=MISSING/ERROR on persistent failure) in src/nexus/agent_orchestrator/tool_manager/execution_failure_handler.py
+- [ ] T026 [P] Custom error handler function for tool execution monitoring with 30-second timeout enforcement in src/nexus/agent_orchestrator/tool_manager/tool_error_handler.py
+- [ ] T027 [P] Tool execution logging wrapper functions (wrap_tool_call/awrap_tool_call) with timeout tracking for FR-007 in src/nexus/agent_orchestrator/tool_manager/tool_execution_logging.py
+- [ ] T028 Add ToolNode to existing StateGraph with tool discovery and error handler integration, using logging wrappers from tool_manager module in src/nexus/agent_orchestrator/services/orchestration_service.py
+- [ ] T029 Integrate tool execution monitoring with existing streaming infrastructure in src/nexus/agent_orchestrator/services/orchestration_service.py
 
-## Phase 3.8: Integration & Polish
+## Phase 3.8: Edge Case Testing
 
-- [ ] T027 Cross-component integration and dependency wiring in src/nexus/agent_orchestrator/__init__.py
-- [ ] T028 [P] Performance optimization and connection pooling in src/nexus/agent_orchestrator/tool_manager/client.py
-- [ ] T029 [P] Update documentation: docs/api.md and README.md with Tool Manager integration
-- [ ] T030 Execute manual testing scenarios from quickstart.md
+- [ ] T030 [P] Edge case tests for Tool Manager API unavailability scenarios (EC-001) in tests/integration/agent_orchestrator/test_edge_cases.py
+- [ ] T031 [P] Edge case tests for tools unavailable between discovery and execution (EC-002) in tests/integration/agent_orchestrator/test_edge_cases.py
+- [ ] T032 [P] Edge case tests for tool execution timeout and invalid responses (EC-003) in tests/integration/agent_orchestrator/test_edge_cases.py
+- [ ] T033 [P] Edge case tests for multiple tool selection scenarios (EC-004) in tests/integration/agent_orchestrator/test_edge_cases.py
+
+## Phase 3.9: Integration & Polish
+
+- [ ] T034 Cross-component integration and dependency wiring in src/nexus/agent_orchestrator/__init__.py
+- [ ] T035 [P] Performance optimization and connection pooling in src/nexus/agent_orchestrator/tool_manager/client.py
+- [ ] T036 [P] Update documentation: docs/api.md and README.md with Tool Manager integration
+- [ ] T037 Execute manual testing scenarios from quickstart.md
 
 ## Dependencies
 
 **Cross-JIRA Dependencies**:
 - Tests (T004-T007) before AAP-55696 implementation (T008-T011)
-- AAP-55696 completion (T011) before AAP-60416 tests (T012-T014)
-- AAP-60416 completion (T018) before AAP-60417 tests (T019-T021)
-- All core implementation before integration (T026)
+- AAP-55696 completion (T011) before AAP-60416 tests (T012-T015)
+- AAP-60416 completion (T020) before AAP-60417 tests (T021-T023)
+- All core implementation before edge case testing (T030-T033)
 
 **Within-JIRA Dependencies**:
 - T008 blocks T009, T010, T011 (client base before methods)
-- T015 blocks T016, T017, T018, T018b (injection before usage)
-- T022 blocks T023, T024 (adapter before integration)
-- T023, T024 block T025 (error handler and logging before ToolNode integration)
-- T025 blocks T026 (ToolNode before monitoring integration)
-- T025 and T026 modify same file (orchestration_service.py) - must be sequential
+- T016 blocks T017, T018, T019, T020 (injection before usage)
+- T023 blocks T024, T025, T026, T027 (tests before adapter integration)
+- T024, T025, T026, T027 block T028 (adapters and handlers before ToolNode integration)
+- T028 blocks T029 (ToolNode before monitoring integration)
+- T028 and T029 modify same file (orchestration_service.py) - must be sequential
 
 **Integration Dependencies**:
-- T026 blocks T027 (tool monitoring before cross-component integration)
-- T027 blocks T028, T029, T030 (integration before optimization)
+- T029 blocks T030-T033 (tool monitoring before edge case testing)
+- T030-T033 block T034 (edge case testing before cross-component integration)
+- T034 blocks T035, T036, T037 (integration before optimization and documentation)
 
 ## Parallel Execution Examples
 
@@ -202,12 +222,12 @@ Task: "Tool retrieval methods (get_enabled_tools) in src/nexus/agent_orchestrato
 Task: "Error reporting methods (update_tool_status) and HTTP session management in src/nexus/agent_orchestrator/tool_manager/client.py"
 ```
 
-### AAP-60417 Implementation Phase (T023-T026):
+### AAP-60417 Implementation Phase (T024-T027):
 ```
+Task: "Tool execution failure retry and auto-disable logic in src/nexus/agent_orchestrator/tool_manager/execution_failure_handler.py"
 Task: "Custom error handler function for tool execution monitoring in src/nexus/agent_orchestrator/tool_manager/tool_error_handler.py"
-Task: "Tool execution logging wrapper functions (wrap_tool_call/awrap_tool_call) for FR-008 in src/nexus/agent_orchestrator/tool_manager/tool_execution_logging.py"
+Task: "Tool execution logging wrapper functions (wrap_tool_call/awrap_tool_call) for FR-007 in src/nexus/agent_orchestrator/tool_manager/tool_execution_logging.py"
 Task: "Add ToolNode to existing StateGraph with tool discovery and error handler integration, using logging wrappers from tool_manager module in src/nexus/agent_orchestrator/services/orchestration_service.py"
-Task: "Integrate tool execution monitoring with existing streaming infrastructure in src/nexus/agent_orchestrator/services/orchestration_service.py"
 ```
 
 ## Notes
@@ -251,14 +271,16 @@ Task: "Integrate tool execution monitoring with existing streaming infrastructur
 - ✅ Configuration for API endpoints and credentials
 
 ### AAP-60416: Agent Orchestrator Integration
-**Tasks**: T012-T018 (7 tasks)
+**Tasks**: T012-T020 (9 tasks)
 - ✅ Orchestrator uses client for tool discovery during invocations
+- ✅ LangChain MCP client integration with ToolProvider MCP servers
 - ✅ Runtime identification of enabled tools per request
+- ✅ Tool synchronization validation and missing/changed tool handling
 - ✅ Error handling for missing providers/disabled tools
 - ✅ API configuration support
 
 ### AAP-60417: Tool Calling Support
-**Tasks**: T019-T025 (7 tasks)
+**Tasks**: T021-T029 (9 tasks)
 - ✅ LangGraph configured with filtered tools from LangChain
 - ✅ End-to-end tool calling workflow within invocations
 - ✅ Input arguments from prompt context

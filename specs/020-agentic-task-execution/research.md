@@ -25,17 +25,17 @@
 
 ## LangGraph Integration Patterns
 
-### Decision: Direct LangChain tool loading with no adapters
+### Decision: LangChain Native MCP Client with ToolProvider MCP Servers
 **Rationale**:
-- LangChain loads tools directly from ToolProvider metadata
-- This produces BaseTool instances that LangGraph can use directly
-- No conversion or adaptation needed - LangChain handles the BaseTool creation
-- Maintains clean separation: LangChain for tool loading, LangGraph for execution
+- ToolProviders already have MCP server URLs in their MCPConfiguration
+- LangChain's native MCP client can directly connect to these existing MCP servers
+- LangChain automatically converts MCP tools to LangGraph BaseTools
+- No bridge needed - direct connection: Tool Manager Client → LangChain MCP Client → ToolProvider MCP Servers
 
 **Alternatives considered**:
-- Custom adapter pattern: Unnecessary complexity, LangChain already produces BaseTool instances
-- Direct Tool Manager API calls within LangGraph: Tight coupling, violates separation of concerns
-- Custom tool execution framework: Unnecessary complexity, LangGraph is proven
+- Custom MCP bridge/adapter: Unnecessary complexity when ToolProviders already have MCP servers
+- Custom tool adapter pattern: Would bypass LangChain's native MCP integration
+- Direct REST to LangGraph integration: Would miss benefits of LangChain's MCP tooling
 
 ### Decision: Dynamic tool discovery per request
 **Rationale**:
@@ -120,3 +120,23 @@
 **Alternatives considered**:
 - Global configuration: Harder to test, violates dependency injection principle
 - Environment variables only: Less flexible for different deployment contexts
+
+## Tool Filtering Strategy
+
+### Decision: Filter BaseTools by Tool.enabled field after MCP retrieval
+**Rationale**:
+- ToolManagerClient provides Tool.enabled metadata for filtering decisions
+- LangChain MCP client retrieves all BaseTools from ToolProvider MCP servers
+- Filter BaseTools list based on corresponding Tool.enabled field from REST API
+- Maintains clean separation: MCP for tool retrieval, REST API for enablement status
+
+**Implementation approach**:
+- Tool Manager Client fetches ToolProviders (with MCP URLs) and Tools (with enabled status)
+- LangChain MCP Client connects to ToolProvider MCP server URLs to get all BaseTools
+- Filter BaseTools array by matching against Tool.enabled field from REST API response
+- Provide filtered BaseTools list to LangGraph StateGraph
+
+**Alternatives considered**:
+- Filter at MCP server level: ToolProvider MCP servers don't have Tool Manager enablement context
+- Custom BaseTools creation: Would bypass LangChain's proven MCP tool conversion
+- Runtime filtering in StateGraph: Better to filter before StateGraph initialization
