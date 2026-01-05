@@ -32,7 +32,10 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
         subtitle={metadata.label}
         menuActions={menuActions}
       />
-      <Flex justifyContent={{ default: 'justifyContentFlexEnd' }}>
+      <Flex
+        justifyContent={{ default: 'justifyContentFlexEnd' }}
+        style={{ paddingBottom: 'var(--pf-t--global--spacer--md)' }}
+      >
         <BranchHandles>
           <BranchHandle id="done">Done</BranchHandle>
           <BranchHandle id="loop">Loop</BranchHandle>

@@ -1,6 +1,10 @@
-import { BaseEdge, EdgeLabelRenderer, useReactFlow, type EdgeProps } from '@xyflow/react'
+import { BaseEdge, EdgeLabelRenderer, useReactFlow, type EdgeProps, Position } from '@xyflow/react'
 import { Trash2 } from 'lucide-react'
-import React, { useEffect, useState } from 'react'
+import React from 'react'
+
+import { getEffectiveMarkerEnd } from './edgeMarkers'
+import { adjustSourceCoordinates } from './edgeUtils'
+import { useEdgeHover, useEdgeSourceHandle } from './useEdgeHover'
 
 interface LoopBackEdgeProps extends EdgeProps {
   data?: {
@@ -20,19 +24,19 @@ export function LoopBackEdge(props: LoopBackEdgeProps) {
   const reactFlowInstance = useReactFlow()
   const { setEdges, getNodes } = reactFlowInstance
 
-  const fullEdge = reactFlowInstance.getEdge(id)
-  const actualSourceHandle = fullEdge?.sourceHandle
-  const [isHovered, setIsHovered] = useState(false)
-  const [isEdgeHovered, setIsEdgeHovered] = useState(false)
-  const [isAddButtonHovered, setIsAddButtonHovered] = useState(false)
-  const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const actualSourceHandle = useEdgeSourceHandle(id)
+  const {
+    isHovered,
+    isEdgeHovered,
+    isAddButtonHovered,
+    setIsAddButtonHovered,
+    handleEdgeMouseEnter,
+    handleEdgeMouseLeave,
+    handleButtonMouseEnter,
+    handleButtonMouseLeave,
+  } = useEdgeHover()
 
-  // Switch to a custom marker ID when selected, hovered, or active
-  const effectiveMarkerEnd = selected
-    ? "url('#selected-arrow-marker')"
-    : isEdgeHovered || data?.isActive
-      ? "url('#hover-arrow-marker')"
-      : markerEnd
+  const effectiveMarkerEnd = getEffectiveMarkerEnd(selected, isEdgeHovered, data?.isActive, markerEnd)
 
   // Calculate vertical offset dynamically based on nodes in the loop body
   // Find the loop node (target of this edge)
@@ -44,7 +48,7 @@ export function LoopBackEdge(props: LoopBackEdgeProps) {
   let maxBottomY = sourceY
 
   if (targetNode && sourceNode) {
-    // CRITICAL: Always include the source node itself (the last node in the loop body)
+    // Always include the source node itself (the last node in the loop body)
     const sourceBottom = sourceNode.position.y + (sourceNode.measured?.height ?? 0)
     maxBottomY = Math.max(maxBottomY, sourceBottom)
 
@@ -70,9 +74,12 @@ export function LoopBackEdge(props: LoopBackEdgeProps) {
     })
   }
 
+  const { x: adjustedSourceX, y: adjustedSourceY } = adjustSourceCoordinates(sourceX, sourceY, Position.Right)
+
   // Add padding below the lowest node for clear visual separation
   // Use moderate padding to avoid excessive whitespace
-  const verticalOffset = Math.max(40, maxBottomY - sourceY + 20)
+  // Calculate vertical offset using adjusted sourceY to maintain correct spacing
+  const verticalOffset = Math.max(40, maxBottomY - adjustedSourceY + 20)
 
   // Calculate the path with rounded corners for better visual flow:
   // 1. Go right from source
@@ -83,30 +90,22 @@ export function LoopBackEdge(props: LoopBackEdgeProps) {
   const horizontalOffset = 15
 
   const edgePath = `
-    M ${sourceX},${sourceY}
-    L ${sourceX + horizontalOffset - cornerRadius},${sourceY}
-    Q ${sourceX + horizontalOffset},${sourceY} ${sourceX + horizontalOffset},${sourceY + cornerRadius}
-    L ${sourceX + horizontalOffset},${sourceY + verticalOffset - cornerRadius}
-    Q ${sourceX + horizontalOffset},${sourceY + verticalOffset} ${sourceX + horizontalOffset - cornerRadius},${sourceY + verticalOffset}
-    L ${targetX - horizontalOffset + cornerRadius},${sourceY + verticalOffset}
-    Q ${targetX - horizontalOffset},${sourceY + verticalOffset} ${targetX - horizontalOffset},${sourceY + verticalOffset - cornerRadius}
+    M ${adjustedSourceX},${adjustedSourceY}
+    L ${adjustedSourceX + horizontalOffset - cornerRadius},${adjustedSourceY}
+    Q ${adjustedSourceX + horizontalOffset},${adjustedSourceY} ${adjustedSourceX + horizontalOffset},${adjustedSourceY + cornerRadius}
+    L ${adjustedSourceX + horizontalOffset},${adjustedSourceY + verticalOffset - cornerRadius}
+    Q ${adjustedSourceX + horizontalOffset},${adjustedSourceY + verticalOffset} ${adjustedSourceX + horizontalOffset - cornerRadius},${adjustedSourceY + verticalOffset}
+    L ${targetX - horizontalOffset + cornerRadius},${adjustedSourceY + verticalOffset}
+    Q ${targetX - horizontalOffset},${adjustedSourceY + verticalOffset} ${targetX - horizontalOffset},${adjustedSourceY + verticalOffset - cornerRadius}
     L ${targetX - horizontalOffset},${targetY + cornerRadius}
     Q ${targetX - horizontalOffset},${targetY} ${targetX - horizontalOffset + cornerRadius},${targetY}
     L ${targetX},${targetY}
   `
 
   // Position label in the middle of the horizontal bottom segment
-  const labelX = (sourceX + targetX) / 2
-  const labelY = sourceY + verticalOffset
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current)
-      }
-    }
-  }, [])
+  // Use adjusted coordinates for consistency with the edge path
+  const labelX = (adjustedSourceX + targetX) / 2
+  const labelY = adjustedSourceY + verticalOffset
 
   const handleDelete = (event: React.MouseEvent) => {
     event.stopPropagation()
@@ -120,45 +119,6 @@ export function LoopBackEdge(props: LoopBackEdgeProps) {
 
   return (
     <>
-      {/* Define custom markers for selected and hover states */}
-      <defs>
-        <marker
-          id="selected-arrow-marker"
-          markerWidth="12"
-          markerHeight="12"
-          viewBox="-10 -10 20 20"
-          orient="auto"
-          refX="0"
-          refY="0"
-        >
-          <polyline
-            stroke="#e5e7eb"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1"
-            fill="#e5e7eb"
-            points="-5,-4 0,0 -5,4 -5,-4"
-          />
-        </marker>
-        <marker
-          id="hover-arrow-marker"
-          markerWidth="12"
-          markerHeight="12"
-          viewBox="-10 -10 20 20"
-          orient="auto"
-          refX="0"
-          refY="0"
-        >
-          <polyline
-            stroke="#e5e7eb"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1"
-            fill="#e5e7eb"
-            points="-5,-4 0,0 -5,4 -5,-4"
-          />
-        </marker>
-      </defs>
       {/* Visible edge with bezier curve routing */}
       <BaseEdge
         path={edgePath}
@@ -179,20 +139,8 @@ export function LoopBackEdge(props: LoopBackEdgeProps) {
           fill="none"
           stroke="transparent"
           strokeWidth={20}
-          onMouseEnter={() => {
-            if (hoverTimeoutRef.current) {
-              clearTimeout(hoverTimeoutRef.current)
-              hoverTimeoutRef.current = null
-            }
-            setIsHovered(true)
-            setIsEdgeHovered(true)
-          }}
-          onMouseLeave={() => {
-            setIsEdgeHovered(false)
-            hoverTimeoutRef.current = setTimeout(() => {
-              setIsHovered(false)
-            }, 200)
-          }}
+          onMouseEnter={handleEdgeMouseEnter}
+          onMouseLeave={handleEdgeMouseLeave}
           style={{ pointerEvents: 'stroke' }}
         />
       )}
@@ -219,22 +167,11 @@ export function LoopBackEdge(props: LoopBackEdgeProps) {
               transform: `translate(-50%, -120%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',
               display: 'flex',
+              zIndex: 1000,
             }}
             className="nodrag nopan"
-            onMouseEnter={() => {
-              if (hoverTimeoutRef.current) {
-                clearTimeout(hoverTimeoutRef.current)
-                hoverTimeoutRef.current = null
-              }
-              setIsHovered(true)
-              setIsEdgeHovered(true)
-            }}
-            onMouseLeave={() => {
-              setIsEdgeHovered(false)
-              hoverTimeoutRef.current = setTimeout(() => {
-                setIsHovered(false)
-              }, 200)
-            }}
+            onMouseEnter={handleButtonMouseEnter}
+            onMouseLeave={handleButtonMouseLeave}
           >
             <button
               onClick={handleAddNode}

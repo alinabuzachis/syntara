@@ -1,6 +1,10 @@
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useReactFlow, type EdgeProps } from '@xyflow/react'
 import { Trash2 } from 'lucide-react'
-import React, { useEffect, useState } from 'react'
+import React from 'react'
+
+import { getEffectiveMarkerEnd } from './edgeMarkers'
+import { adjustEdgeCoordinates } from './edgeUtils'
+import { useEdgeHover, useEdgeSourceHandle } from './useEdgeHover'
 
 interface LoopOutgoingEdgeProps extends EdgeProps {
   data?: {
@@ -35,40 +39,38 @@ export function LoopOutgoingEdge(props: LoopOutgoingEdgeProps) {
   const reactFlowInstance = useReactFlow()
   const { setEdges } = reactFlowInstance
 
-  const fullEdge = reactFlowInstance.getEdge(id)
-  const actualSourceHandle = fullEdge?.sourceHandle
-  const [isHovered, setIsHovered] = useState(false)
-  const [isEdgeHovered, setIsEdgeHovered] = useState(false)
-  const [isAddButtonHovered, setIsAddButtonHovered] = useState(false)
-  const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const actualSourceHandle = useEdgeSourceHandle(id)
+  const {
+    isHovered,
+    isEdgeHovered,
+    isAddButtonHovered,
+    setIsAddButtonHovered,
+    handleEdgeMouseEnter,
+    handleEdgeMouseLeave,
+    handleButtonMouseEnter,
+    handleButtonMouseLeave,
+  } = useEdgeHover()
 
-  // Switch to a custom marker ID when selected, hovered, or active
-  const effectiveMarkerEnd = selected
-    ? "url('#selected-arrow-marker')"
-    : isEdgeHovered || data?.isActive
-      ? "url('#hover-arrow-marker')"
-      : markerEnd
+  const effectiveMarkerEnd = getEffectiveMarkerEnd(selected, isEdgeHovered, data?.isActive, markerEnd)
+
+  const {
+    sourceX: adjustedSourceX,
+    sourceY: adjustedSourceY,
+    targetX: adjustedTargetX,
+    targetY: adjustedTargetY,
+  } = adjustEdgeCoordinates(sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition)
 
   // Use smooth step path for loop outgoing routing with rounded corners
   // Increase offset to provide more spacing between loop handle and first node in loop body
   const [edgePath, labelX, labelY] = getSmoothStepPath({
-    sourceX,
-    sourceY,
+    sourceX: adjustedSourceX,
+    sourceY: adjustedSourceY,
     sourcePosition,
-    targetX,
-    targetY,
+    targetX: adjustedTargetX,
+    targetY: adjustedTargetY,
     targetPosition,
     borderRadius: 8,
   })
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current)
-      }
-    }
-  }, [])
 
   const handleDelete = (event: React.MouseEvent) => {
     event.stopPropagation()
@@ -82,45 +84,6 @@ export function LoopOutgoingEdge(props: LoopOutgoingEdgeProps) {
 
   return (
     <>
-      {/* Define custom markers for selected and hover states */}
-      <defs>
-        <marker
-          id="selected-arrow-marker"
-          markerWidth="12"
-          markerHeight="12"
-          viewBox="-10 -10 20 20"
-          orient="auto"
-          refX="0"
-          refY="0"
-        >
-          <polyline
-            stroke="#e5e7eb"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1"
-            fill="#e5e7eb"
-            points="-5,-4 0,0 -5,4 -5,-4"
-          />
-        </marker>
-        <marker
-          id="hover-arrow-marker"
-          markerWidth="12"
-          markerHeight="12"
-          viewBox="-10 -10 20 20"
-          orient="auto"
-          refX="0"
-          refY="0"
-        >
-          <polyline
-            stroke="#e5e7eb"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1"
-            fill="#e5e7eb"
-            points="-5,-4 0,0 -5,4 -5,-4"
-          />
-        </marker>
-      </defs>
       {/* Visible edge with bezier curve routing */}
       <BaseEdge
         path={edgePath}
@@ -141,20 +104,8 @@ export function LoopOutgoingEdge(props: LoopOutgoingEdgeProps) {
           fill="none"
           stroke="transparent"
           strokeWidth={20}
-          onMouseEnter={() => {
-            if (hoverTimeoutRef.current) {
-              clearTimeout(hoverTimeoutRef.current)
-              hoverTimeoutRef.current = null
-            }
-            setIsHovered(true)
-            setIsEdgeHovered(true)
-          }}
-          onMouseLeave={() => {
-            setIsEdgeHovered(false)
-            hoverTimeoutRef.current = setTimeout(() => {
-              setIsHovered(false)
-            }, 200)
-          }}
+          onMouseEnter={handleEdgeMouseEnter}
+          onMouseLeave={handleEdgeMouseLeave}
           style={{ pointerEvents: 'stroke' }}
         />
       )}
@@ -181,22 +132,11 @@ export function LoopOutgoingEdge(props: LoopOutgoingEdgeProps) {
               transform: `translate(-50%, -120%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',
               display: 'flex',
+              zIndex: 1000,
             }}
             className="nodrag nopan"
-            onMouseEnter={() => {
-              if (hoverTimeoutRef.current) {
-                clearTimeout(hoverTimeoutRef.current)
-                hoverTimeoutRef.current = null
-              }
-              setIsHovered(true)
-              setIsEdgeHovered(true)
-            }}
-            onMouseLeave={() => {
-              setIsEdgeHovered(false)
-              hoverTimeoutRef.current = setTimeout(() => {
-                setIsHovered(false)
-              }, 200)
-            }}
+            onMouseEnter={handleButtonMouseEnter}
+            onMouseLeave={handleButtonMouseLeave}
           >
             <button
               onClick={handleAddNode}

@@ -3,6 +3,8 @@ import { useState } from 'react'
 
 import { setPendingDragHandle } from '../utils/pendingDragHandle'
 
+import { adjustSourceCoordinates } from './edgeUtils'
+
 interface ButtonEdgeProps extends EdgeProps {
   data?: {
     onButtonClick?: () => void
@@ -26,32 +28,35 @@ export function ButtonEdge(props: ButtonEdgeProps) {
 
   // Create a short stub edge extending from the source node
   const stubLength = 50
-  let targetX = sourceX
-  let targetY = sourceY
 
-  // Determine target position based on source position
+  // Adjust source coordinates to account for handle position at visual edge
+  const { x: adjustedSourceX, y: adjustedSourceY } = adjustSourceCoordinates(sourceX, sourceY, sourcePosition)
+
+  // Calculate target position based on adjusted source and direction
+  let targetX = adjustedSourceX
+  let targetY = adjustedSourceY
   switch (sourcePosition) {
     case Position.Right:
-      targetX = sourceX + stubLength
+      targetX = adjustedSourceX + stubLength
       break
     case Position.Left:
-      targetX = sourceX - stubLength
+      targetX = adjustedSourceX - stubLength
       break
     case Position.Bottom:
-      targetY = sourceY + stubLength
+      targetY = adjustedSourceY + stubLength
       break
     case Position.Top:
-      targetY = sourceY - stubLength
+      targetY = adjustedSourceY - stubLength
       break
     default:
       // Default to right
-      targetX = sourceX + stubLength
+      targetX = adjustedSourceX + stubLength
   }
 
-  // Create a simple straight line path
-  const edgePath = `M ${sourceX},${sourceY} L ${targetX},${targetY}`
+  // Create a simple straight line path starting from adjusted source position
+  const edgePath = `M ${adjustedSourceX},${adjustedSourceY} L ${targetX},${targetY}`
 
-  // Button position at the end of the stub
+  // Button position at the end of the stub (calculated from adjusted source)
   const buttonX = targetX
   const buttonY = targetY
 

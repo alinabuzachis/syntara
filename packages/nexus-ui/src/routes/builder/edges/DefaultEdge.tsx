@@ -1,6 +1,10 @@
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, useReactFlow, type EdgeProps } from '@xyflow/react'
 import { Trash2 } from 'lucide-react'
-import React, { useEffect, useState } from 'react'
+import React from 'react'
+
+import { getEffectiveMarkerEnd } from './edgeMarkers'
+import { adjustEdgeCoordinates } from './edgeUtils'
+import { useEdgeHover, useEdgeSourceHandle } from './useEdgeHover'
 
 interface DefaultEdgeProps extends EdgeProps {
   data?: {
@@ -34,39 +38,36 @@ export function DefaultEdge(props: DefaultEdgeProps) {
   const reactFlowInstance = useReactFlow()
   const { setEdges } = reactFlowInstance
 
-  // CRITICAL FIX: React Flow doesn't always pass sourceHandle as a prop to edge components
-  // Instead, we need to get it from the edge object itself
-  const fullEdge = reactFlowInstance.getEdge(id)
-  const actualSourceHandle = fullEdge?.sourceHandle
-  const [isHovered, setIsHovered] = useState(false)
-  const [isEdgeHovered, setIsEdgeHovered] = useState(false)
-  const [isAddButtonHovered, setIsAddButtonHovered] = useState(false)
-  const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const actualSourceHandle = useEdgeSourceHandle(id)
+  const {
+    isHovered,
+    isEdgeHovered,
+    isAddButtonHovered,
+    setIsAddButtonHovered,
+    handleEdgeMouseEnter,
+    handleEdgeMouseLeave,
+    handleButtonMouseEnter,
+    handleButtonMouseLeave,
+  } = useEdgeHover()
 
-  // Switch to a custom marker ID when selected, hovered, or active
-  const effectiveMarkerEnd = selected
-    ? "url('#selected-arrow-marker')"
-    : isEdgeHovered || data?.isActive
-      ? "url('#hover-arrow-marker')"
-      : markerEnd
+  const effectiveMarkerEnd = getEffectiveMarkerEnd(selected, isEdgeHovered, data?.isActive, markerEnd)
+
+  // Adjust coordinates to account for handle position at visual edge
+  const {
+    sourceX: adjustedSourceX,
+    sourceY: adjustedSourceY,
+    targetX: adjustedTargetX,
+    targetY: adjustedTargetY,
+  } = adjustEdgeCoordinates(sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition)
 
   const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX,
-    sourceY,
+    sourceX: adjustedSourceX,
+    sourceY: adjustedSourceY,
     sourcePosition,
-    targetX,
-    targetY,
+    targetX: adjustedTargetX,
+    targetY: adjustedTargetY,
     targetPosition,
   })
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current)
-      }
-    }
-  }, [])
 
   const handleDelete = (event: React.MouseEvent) => {
     event.stopPropagation()
@@ -80,45 +81,6 @@ export function DefaultEdge(props: DefaultEdgeProps) {
 
   return (
     <>
-      {/* Define custom markers for selected and hover states */}
-      <defs>
-        <marker
-          id="selected-arrow-marker"
-          markerWidth="12"
-          markerHeight="12"
-          viewBox="-10 -10 20 20"
-          orient="auto"
-          refX="0"
-          refY="0"
-        >
-          <polyline
-            stroke="#e5e7eb"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1"
-            fill="#e5e7eb"
-            points="-5,-4 0,0 -5,4 -5,-4"
-          />
-        </marker>
-        <marker
-          id="hover-arrow-marker"
-          markerWidth="12"
-          markerHeight="12"
-          viewBox="-10 -10 20 20"
-          orient="auto"
-          refX="0"
-          refY="0"
-        >
-          <polyline
-            stroke="#e5e7eb"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1"
-            fill="#e5e7eb"
-            points="-5,-4 0,0 -5,4 -5,-4"
-          />
-        </marker>
-      </defs>
       {/* Visible edge with same style as button edge */}
       <BaseEdge
         path={edgePath}
@@ -139,20 +101,8 @@ export function DefaultEdge(props: DefaultEdgeProps) {
           fill="none"
           stroke="transparent"
           strokeWidth={20}
-          onMouseEnter={() => {
-            if (hoverTimeoutRef.current) {
-              clearTimeout(hoverTimeoutRef.current)
-              hoverTimeoutRef.current = null
-            }
-            setIsHovered(true)
-            setIsEdgeHovered(true)
-          }}
-          onMouseLeave={() => {
-            setIsEdgeHovered(false)
-            hoverTimeoutRef.current = setTimeout(() => {
-              setIsHovered(false)
-            }, 200)
-          }}
+          onMouseEnter={handleEdgeMouseEnter}
+          onMouseLeave={handleEdgeMouseLeave}
           style={{ pointerEvents: 'stroke' }}
         />
       )}
@@ -179,22 +129,11 @@ export function DefaultEdge(props: DefaultEdgeProps) {
               transform: `translate(-50%, -120%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',
               display: 'flex',
+              zIndex: 1000,
             }}
             className="nodrag nopan"
-            onMouseEnter={() => {
-              if (hoverTimeoutRef.current) {
-                clearTimeout(hoverTimeoutRef.current)
-                hoverTimeoutRef.current = null
-              }
-              setIsHovered(true)
-              setIsEdgeHovered(true)
-            }}
-            onMouseLeave={() => {
-              setIsEdgeHovered(false)
-              hoverTimeoutRef.current = setTimeout(() => {
-                setIsHovered(false)
-              }, 200)
-            }}
+            onMouseEnter={handleButtonMouseEnter}
+            onMouseLeave={handleButtonMouseLeave}
           >
             <button
               onClick={handleAddNode}

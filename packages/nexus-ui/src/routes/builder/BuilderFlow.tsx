@@ -30,6 +30,7 @@ type ActivityWithMetadata = Activity & { metadata?: Record<string, unknown> }
 
 import { ButtonEdge } from './edges/ButtonEdge'
 import { DefaultEdge } from './edges/DefaultEdge'
+import { EdgeMarkers } from './edges/edgeMarkers'
 import { LoopBackEdge } from './edges/LoopBackEdge'
 import { LoopDoneEdge } from './edges/LoopDoneEdge'
 import { LoopOutgoingEdge } from './edges/LoopOutgoingEdge'
@@ -615,6 +616,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         maxZoom={1}
         deleteKeyCode={['Delete', 'Backspace']}
       >
+        <EdgeMarkers />
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         <CanvasControls onLayout={onLayout} />
       </ReactFlow>

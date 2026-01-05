@@ -59,11 +59,7 @@ export function ConditionNodeDetails(props: {
         expandable
         menuActions={props.menuActions}
       />
-      <Flex
-        justifyContent={{ default: 'justifyContentFlexEnd' }}
-        gap={{ default: 'gapNone' }}
-        style={{ overflowX: 'hidden', overflowY: 'visible' }}
-      >
+      <Flex justifyContent={{ default: 'justifyContentFlexEnd' }} gap={{ default: 'gapNone' }}>
         <FlexItem grow={{ default: 'grow' }} style={{ minWidth: 0 }}>
           <NodeBody>
             <Details>
@@ -73,7 +69,7 @@ export function ConditionNodeDetails(props: {
             </Details>
           </NodeBody>
         </FlexItem>
-        {props.children}
+        <div style={{ paddingBottom: 'var(--pf-t--global--spacer--md)' }}>{props.children}</div>
       </Flex>
     </>
   )
