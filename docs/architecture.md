@@ -87,7 +87,7 @@ Nice to have (but we'll explain the basics):
 | ------------------- | ------------------------------------- | ----------------------------------------- |
 | **UI Components**   | Base UI (`@base-ui-components/react`) | Headless, accessible components           |
 | **Shared Library**  | `nexus-ui-framework`                  | Common components consumed by `nexus-ui`  |
-| **Styling**         | TailwindCSS 4                         | Utility-first CSS                         |
+| **Styling**         | PatternFly 6                          | Enterprise UI component framework         |
 | **Forms**           | react-hook-form                       | Performant form handling                  |
 | **Icons**           | Lucide React                          | Consistent icon set                       |
 | **Workflow Canvas** | React Flow (`@xyflow/react`)          | Node-based editor for workflows           |

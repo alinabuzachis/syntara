@@ -22,7 +22,7 @@ Nexus UI is a React-based application for building and managing complex automati
 ### Technology Stack
 
 - **Frontend**: React 19, TypeScript, Wouter
-- **Styling**: TailwindCSS 4
+- **Styling**: PatternFly 6
 - **State Management**: TanStack Query
 - **API Integration**: openapi-fetch, openapi-react-query
 - **Testing**: Vitest, React Testing Library

@@ -51,7 +51,7 @@ Before reviewing the PR, read:
 
 - `CLAUDE.md` (global instructions)
 - Any relevant project guidelines: architecture, naming, lint, testing
-- Any domain-specific instructions (e.g., Django, React, Tailwind, SOLID)
+- Any domain-specific instructions (e.g., Django, React, PatternFly, SOLID)
 
 ---
 
@@ -71,6 +71,7 @@ Check whether the changes follow:
 
 - Components in correct package (nexus-ui-framework vs nexus-ui)
 - Uses Base UI components as foundation for new UI
+- Uses PatternFly 6 for styling and design system
 - TanStack Query for server state, Zustand (useWorkflowStore) for workflow state
 - No `any` types, uses generated OpenAPI types
 - Workflow nodes use auto-discovery pattern (register\*.ts with default export)

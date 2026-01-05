@@ -7,7 +7,7 @@ Nexus UI is a cutting-edge React application designed for building and managing 
 ### Key Features
 
 - 🚀 Modern React 19 with TypeScript
-- 🎨 Responsive UI with TailwindCSS 4
+- 🎨 Responsive UI with PatternFly 6
 - 🔀 Advanced workflow canvas and node-based automation
 - 🔒 Type-safe API integrations
 - 🧪 Comprehensive testing infrastructure
@@ -197,7 +197,7 @@ We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING
 
 - React 19 with TypeScript
 - Vite build tool
-- TailwindCSS 4
+- PatternFly 6
 - Base UI headless components
 - Wouter (routing)
 - TanStack Query (data fetching)
@@ -210,7 +210,6 @@ We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING
 ### Nexus UI Framework (Component Library)
 
 - Base UI primitives
-- TailwindCSS 4
 - react-hook-form (form handling)
 - Vite library mode
 - TypeScript declarations

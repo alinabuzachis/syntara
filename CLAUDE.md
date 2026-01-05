@@ -190,7 +190,7 @@ When reviewing code, always ask:
 3. **"Can I extend an existing component?"**
    - Does a similar component exist with different variants?
    - Can I add a prop instead of creating new component?
-   - Would Tailwind variants solve this?
+   - Would PatternFly variants or modifiers solve this?
 
 #### Migration Triggers
 
