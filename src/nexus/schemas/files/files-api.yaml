@@ -1,0 +1,275 @@
+---
+openapi: 3.0.3
+info:
+  title: Files API
+  version: 1.0.0
+  description: |
+    File upload and management API for the Automation Nexus System.
+
+    This specification defines the source of truth for all file operations including:
+    - Standalone file uploads for agent context
+    - File metadata schemas
+    - File processing status tracking
+
+    ## Supported Formats
+    - PDF (.pdf)
+    - Microsoft Word (.doc, .docx)
+    - Plain Text (.txt)
+    - Markdown (.md)
+
+    ## Limits (Configurable)
+    - Max file size: 10 MB per file (via file_upload_max_size_mb)
+    - Max files per request: 10 files (via file_upload_max_files)
+
+    ## Security
+    Internal file paths are never exposed in API responses.
+
+  contact:
+    name: API Support
+    email: support@syntara-orchestration.example.com
+
+servers:
+  - url: https://api.syntara-orchestration.example.com/api/v1
+    description: Production
+  - url: https://staging-api.syntara-orchestration.example.com/api/v1
+    description: Staging
+  - url: http://localhost:8000/api/v1
+    description: Local development
+
+paths:
+  /files:
+    post:
+      summary: Upload Files
+      description: |
+        Upload files independently of invocations for later use in agent execution.
+
+        Returns file_ids that can be stored in workflow configuration and passed to invocations
+        via context_data.file_ids. Files are validated, stored, and queued for document conversion.
+
+        **Supported Formats:** PDF, DOC, DOCX, TXT, MD
+        **Max File Size:** 10 MB per file (configurable via file_upload_max_size_mb)
+        **Max File Count:** 10 files per request (configurable via file_upload_max_files)
+
+        **Security Note:** Internal file paths are never exposed in API responses.
+
+      operationId: uploadFiles
+      tags:
+        - Files
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Files to upload (1-10 files, max 10MB each)
+                  minItems: 1
+                  maxItems: 10
+            encoding:
+              files:
+                contentType: application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, text/markdown
+      responses:
+        '200':
+          description: Files uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResponse'
+              examples:
+                singleFile:
+                  summary: Single file upload
+                  value:
+                    file_ids:
+                      - 550e8400-e29b-41d4-a716-446655440000
+                    files:
+                      - file_id: 550e8400-e29b-41d4-a716-446655440000
+                        filename: document.pdf
+                        size_bytes: 524288
+                        mime_type: application/pdf
+                        status: pending_conversion
+                multipleFiles:
+                  summary: Multiple file upload
+                  value:
+                    file_ids:
+                      - 550e8400-e29b-41d4-a716-446655440000
+                      - 660e8400-e29b-41d4-a716-446655440001
+                    files:
+                      - file_id: 550e8400-e29b-41d4-a716-446655440000
+                        filename: document.pdf
+                        size_bytes: 524288
+                        mime_type: application/pdf
+                        status: pending_conversion
+                      - file_id: 660e8400-e29b-41d4-a716-446655440001
+                        filename: notes.txt
+                        size_bytes: 1024
+                        mime_type: text/plain
+                        status: pending_conversion
+        '400':
+          description: Bad Request - Validation error
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+              examples:
+                noFiles:
+                  summary: No files provided
+                  value:
+                    error: Validation Error
+                    detail: At least one file must be provided
+                fileTooLarge:
+                  summary: File exceeds size limit
+                  value:
+                    error: File Too Large
+                    detail: Uploaded file size (15728640 bytes) exceeds maximum allowed size (10485760 bytes / 10 MB)
+                unsupportedFormat:
+                  summary: File format not supported
+                  value:
+                    error: Unsupported File Format
+                    detail: File type 'image/png' is not supported. Supported formats - PDF, DOC, DOCX, TXT, MD
+                tooManyFiles:
+                  summary: Too many files uploaded
+                  value:
+                    error: Too Many Files
+                    detail: Uploaded 15 files, but maximum allowed is 10 files per request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+        '500':
+          description: Internal Server Error - Storage failure
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+              examples:
+                storageFailure:
+                  summary: File storage failed
+                  value:
+                    error: Internal Server Error
+                    detail: Failed to process file upload
+
+components:
+  schemas:
+    FileUploadResponse:
+      type: object
+      title: File Upload Response
+      description: Response from POST /files endpoint
+      required:
+        - file_ids
+        - files
+      properties:
+        file_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          title: File IDs
+          description: List of file IDs for later reference in invocations
+          example:
+            - 550e8400-e29b-41d4-a716-446655440000
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileUploadInfo'
+          title: Files
+          description: Metadata for each uploaded file
+
+    FileUploadInfo:
+      type: object
+      title: File Upload Info
+      description: Metadata for an uploaded file (excludes internal file_path for security)
+      required:
+        - file_id
+        - filename
+        - size_bytes
+        - mime_type
+        - status
+      properties:
+        file_id:
+          type: string
+          format: uuid
+          title: File ID
+          description: Unique file identifier (UUID)
+          example: 550e8400-e29b-41d4-a716-446655440000
+        filename:
+          type: string
+          title: Filename
+          description: Original filename from upload
+          example: document.pdf
+        size_bytes:
+          type: integer
+          title: Size Bytes
+          description: File size in bytes
+          example: 524288
+        mime_type:
+          type: string
+          title: MIME Type
+          description: Detected MIME type of the file
+          example: application/pdf
+        status:
+          $ref: '#/components/schemas/FileProcessingStatus'
+
+    FileProcessingStatus:
+      type: string
+      enum: [pending_conversion, converting, converted, conversion_failed]
+      title: File Processing Status
+      description: Current status of file processing/conversion
+      example: pending_conversion
+
+    FileMetadata:
+      type: object
+      title: File Metadata
+      description: Internal file metadata including storage path (used in context_data)
+      required:
+        - id
+        - filename
+        - size_bytes
+        - mime_type
+        - file_path
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique file identifier (UUID)
+        filename:
+          type: string
+          description: Original filename
+        size_bytes:
+          type: integer
+          description: File size in bytes
+        mime_type:
+          type: string
+          description: MIME type (e.g., application/pdf)
+        file_path:
+          type: string
+          description: Path to file in storage directory
+        status:
+          $ref: '#/components/schemas/FileProcessingStatus'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+tags:
+  - name: Files
+    description: File upload and management operations for agent context

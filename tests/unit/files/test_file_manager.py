@@ -2,8 +2,8 @@
 
 These tests validate:
 - File save to storage directory (from config, default /tmp)
-- Files saved with correct naming pattern (nexus-{invocation_id}-{filename})
-- List of FileMetadata returned with file_path, status="pending_parse"
+- Files saved with correct naming pattern (nexus-{file_id}-{filename})
+- List of FileMetadata returned with file_path, status=PENDING_CONVERSION
 - Async I/O (aiofiles) is used for file write operations
 - Storage exception on save failures (disk full simulation)
 - Logging of file upload events with metadata
@@ -14,7 +14,6 @@ import asyncio
 import tempfile as tf
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, Mock, patch
-from uuid import uuid4
 
 import pytest
 
@@ -23,6 +22,7 @@ if TYPE_CHECKING:
 
 from nexus.core.config import Settings
 from nexus.files import FileManager
+from nexus.files.models import FileStatus
 
 
 @pytest.mark.asyncio
@@ -33,10 +33,9 @@ async def test_validate_and_save_files_success() -> None:
     - Files saved to correct directory
     - Correct naming pattern used
     - Returns list of FileMetadata
-    - Each metadata has file_path and status="pending_parse"
+    - Each metadata has file_path and status=PENDING_CONVERSION
     """
     # Arrange
-    invocation_id = str(uuid4())
     file_content = b"PDF content"
     mock_file = Mock()
     mock_file.filename = "test.pdf"
@@ -48,7 +47,7 @@ async def test_validate_and_save_files_success() -> None:
     file_manager = FileManager()
 
     # Act
-    result = await file_manager.validate_and_save_files([mock_file], invocation_id)
+    result = await file_manager.validate_and_save_files([mock_file])
 
     # Assert
     assert len(result) == 1
@@ -56,21 +55,20 @@ async def test_validate_and_save_files_success() -> None:
     assert metadata.filename == "test.pdf"
     assert metadata.size_bytes == len(file_content)
     assert metadata.mime_type == "text/plain"  # python-magic detects actual content
-    assert metadata.status == "pending_parse"
-    assert f"nexus-{invocation_id}-test.pdf" in metadata.file_path
+    assert metadata.status == FileStatus.PENDING_CONVERSION
+    assert f"nexus-{metadata.id}-test.pdf" in metadata.file_path
 
 
 @pytest.mark.asyncio
 async def test_files_saved_with_correct_naming_pattern() -> None:
-    """Test that files are saved with pattern: nexus-{invocation_id}-{filename}.
+    """Test that files are saved with pattern: nexus-{file_id}-{filename}.
 
     Validates:
-    - Naming pattern includes invocation_id
+    - Naming pattern includes file_id
     - Original filename preserved
     - Path is absolute
     """
     # Arrange
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "document.pdf"
     mock_file.size = 2048
@@ -81,11 +79,12 @@ async def test_files_saved_with_correct_naming_pattern() -> None:
     file_manager = FileManager()
 
     # Act
-    result = await file_manager.validate_and_save_files([mock_file], invocation_id)
+    result = await file_manager.validate_and_save_files([mock_file])
 
     # Assert
-    file_path = result[0].file_path
-    expected_pattern = f"nexus-{invocation_id}-document.pdf"
+    metadata = result[0]
+    file_path = metadata.file_path
+    expected_pattern = f"nexus-{metadata.id}-document.pdf"
     assert expected_pattern in file_path
     # Should be absolute path
     assert file_path.startswith("/")
@@ -100,7 +99,6 @@ async def test_async_io_used_for_file_operations() -> None:
     - No blocking I/O operations
     """
     # Arrange
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "async_test.pdf"
     mock_file.size = 512
@@ -112,7 +110,7 @@ async def test_async_io_used_for_file_operations() -> None:
 
     # Act & Assert
     # Should complete without blocking
-    result = await asyncio.wait_for(file_manager.validate_and_save_files([mock_file], invocation_id), timeout=5.0)
+    result = await asyncio.wait_for(file_manager.validate_and_save_files([mock_file]), timeout=5.0)
     assert len(result) == 1
 
 
@@ -125,7 +123,6 @@ async def test_storage_exception_on_disk_full() -> None:
     - Exception message is generic (no internal details)
     """
     # Arrange
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "fail.pdf"
     mock_file.size = 1024
@@ -142,7 +139,7 @@ async def test_storage_exception_on_disk_full() -> None:
 
         # Act & Assert
         with pytest.raises((OSError, FileNotFoundError)):
-            await file_manager.validate_and_save_files([mock_file], invocation_id)
+            await file_manager.validate_and_save_files([mock_file])
 
 
 @pytest.mark.asyncio
@@ -154,7 +151,6 @@ async def test_file_upload_events_logged() -> None:
     - Log includes filename, size, user ID, timestamp
     """
     # Arrange
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "logged.pdf"
     mock_file.size = 1024
@@ -166,7 +162,7 @@ async def test_file_upload_events_logged() -> None:
         file_manager = FileManager()
 
         # Act
-        await file_manager.validate_and_save_files([mock_file], invocation_id)
+        await file_manager.validate_and_save_files([mock_file])
 
         # Assert
         # Should have logged the upload
@@ -183,7 +179,6 @@ async def test_storage_failure_detailed_logging() -> None:
     - Details NOT exposed in exception message to client
     """
     # Arrange
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "fail.pdf"
     mock_file.size = 1024
@@ -203,7 +198,7 @@ async def test_storage_failure_detailed_logging() -> None:
 
         # Act & Assert
         with pytest.raises((OSError, FileNotFoundError)):
-            await file_manager.validate_and_save_files([mock_file], invocation_id)
+            await file_manager.validate_and_save_files([mock_file])
 
         # Should have logged error with details
         assert mock_logger.error.called or mock_logger.exception.called
@@ -219,7 +214,6 @@ async def test_multiple_files_saved_successfully() -> None:
     - All metadata returned
     """
     # Arrange
-    invocation_id = str(uuid4())
     mock_files = []
     for i in range(3):
         mock_file = Mock()
@@ -233,15 +227,15 @@ async def test_multiple_files_saved_successfully() -> None:
     file_manager = FileManager()
 
     # Act
-    result = await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files), invocation_id)
+    result = await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
     # Assert
     assert len(result) == 3
     # Each should have unique file_path
     file_paths = [m.file_path for m in result]
     assert len(set(file_paths)) == 3
-    # All should have status="pending_parse"
-    assert all(m.status == "pending_parse" for m in result)
+    # All should have status=PENDING_CONVERSION
+    assert all(m.status == FileStatus.PENDING_CONVERSION for m in result)
 
 
 @pytest.mark.asyncio
@@ -255,7 +249,6 @@ async def test_configurable_storage_directory() -> None:
     # Arrange
     # Use tempfile to create a valid custom directory
     with tf.TemporaryDirectory() as custom_dir:
-        invocation_id = str(uuid4())
         mock_file = Mock()
         mock_file.filename = "test.pdf"
         mock_file.size = 1024
@@ -271,7 +264,7 @@ async def test_configurable_storage_directory() -> None:
             file_manager = FileManager()
 
             # Act
-            result = await file_manager.validate_and_save_files([mock_file], invocation_id)
+            result = await file_manager.validate_and_save_files([mock_file])
 
             # Assert
             file_path = result[0].file_path

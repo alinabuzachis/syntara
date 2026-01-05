@@ -407,7 +407,6 @@ class TestMarkdownConverterWithRealFiles:
 
         # Create FileMetadata instance
         file_metadata = FileMetadata(
-            file_id="test-md-id",
             filename="sample.md",
             size_bytes=len(md_content),
             mime_type="text/markdown",

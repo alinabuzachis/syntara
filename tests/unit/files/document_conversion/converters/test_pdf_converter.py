@@ -84,7 +84,6 @@ class TestPDFConverterWithRealFiles:
 
         # Create FileMetadata instance
         file_metadata = FileMetadata(
-            file_id="test-pdf-id",
             filename="sample.pdf",
             size_bytes=len(pdf_content),
             mime_type="application/pdf",

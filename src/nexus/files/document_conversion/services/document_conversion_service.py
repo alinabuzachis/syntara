@@ -6,7 +6,6 @@ operations with file manager integration and status management.
 
 import logging
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -17,6 +16,7 @@ from nexus.files.document_conversion.registry import (
     get_converter_registry,
 )
 from nexus.files.document_conversion.services.types import ConversionState
+from nexus.files.models import FileStatus
 
 if TYPE_CHECKING:
     from nexus.files.document_conversion.models import ConversionResult
@@ -100,28 +100,16 @@ class DocumentConversionService:
         converter_name: str,
     ) -> None:
         logger.info(
-            "Document conversion succeeded (operation_id=%s, filename=%s, duration_ms=%d)",
+            "Document conversion succeeded (operation_id=%s, filename=%s, duration_ms=%d, converter=%s, output=%s)",
             operation_id,
             file_metadata.filename,
             conversion_result.conversion_time_ms,
+            converter_name,
+            output_filename,
         )
 
-        # Update status to converted with metadata
-        conversion_metadata = {
-            "output_filename": output_filename,
-            "output_path": output_path,
-            "converted_at": datetime.now(UTC).isoformat(),
-            "conversion_time_ms": conversion_result.conversion_time_ms,
-            "converter": converter_name,
-            "operation_id": operation_id,
-        }
-
-        # Include additional metadata from conversion result
-        if conversion_result.metadata:
-            conversion_metadata.update(conversion_result.metadata)
-
-        file_metadata.status = "converted"
-        file_metadata.conversion = conversion_metadata
+        file_metadata.status = FileStatus.CONVERTED
+        file_metadata.converted_content_path = output_path
 
         # Update Invocation record
         await status_updater(file_metadata)
@@ -136,26 +124,16 @@ class DocumentConversionService:
         converter_name: str,
     ) -> None:
         logger.error(
-            "Document conversion failed (operation_id=%s, filename=%s, error=%s)",
+            "Document conversion failed (operation_id=%s, filename=%s, converter=%s, error=%s)",
             operation_id,
             file_metadata.filename,
+            converter_name,
             conversion_result.error_message,
         )
 
         # Update status to conversion_failed
-        file_metadata.status = "conversion_failed"
-        file_metadata.conversion = {
-            "error_message": conversion_result.error_message,
-            "error_type": conversion_result.error_type,
-            "failed_at": datetime.now(UTC).isoformat(),
-            "conversion_time_ms": conversion_result.conversion_time_ms,
-            "converter": converter_name,
-            "operation_id": operation_id,
-        }
-
-        # Include additional metadata from conversion result
-        if conversion_result.metadata:
-            file_metadata.conversion.update(conversion_result.metadata)
+        file_metadata.status = FileStatus.CONVERSION_FAILED
+        file_metadata.conversion_error = conversion_result.error_message
 
         await status_updater(file_metadata)
 
@@ -173,14 +151,8 @@ class DocumentConversionService:
         )
 
         # Update status to conversion_failed with error details
-        file_metadata.status = "conversion_failed"
-        file_metadata.conversion = {
-            "error_message": f"Unexpected error during conversion: {e!s}",
-            "error_type": "unexpected_error",
-            "failed_at": datetime.now(UTC).isoformat(),
-            "operation_id": operation_id,
-            "exception_type": type(e).__name__,
-        }
+        file_metadata.status = FileStatus.CONVERSION_FAILED
+        file_metadata.conversion_error = f"Unexpected error during conversion: {e!s}"
 
         await status_updater(file_metadata)
 
@@ -195,12 +167,8 @@ class DocumentConversionService:
         )
 
         # Update status to conversion_failed
-        file_metadata.status = "conversion_failed"
-        file_metadata.conversion = {
-            "error_message": f"Unsupported MIME type: {file_metadata.mime_type}",
-            "error_type": "unsupported_format",
-            "failed_at": datetime.now(UTC).isoformat(),
-        }
+        file_metadata.status = FileStatus.CONVERSION_FAILED
+        file_metadata.conversion_error = f"Unsupported MIME type: {file_metadata.mime_type}"
 
         # Update Invocation record
         await status_updater(file_metadata)
@@ -211,7 +179,7 @@ class DocumentConversionService:
         """Convert a single FileMetadata object and return updated metadata.
 
         Args:
-            file_metadata: FileMetadata object with status='pending_parse'
+            file_metadata: FileMetadata object with status='pending_conversion'
             status_updater: Callback to update Invocation FileMetadata
 
         Returns:
@@ -224,7 +192,7 @@ class DocumentConversionService:
 
         """
         # Validate input status
-        if file_metadata.status != "pending_parse":
+        if file_metadata.status != FileStatus.PENDING_CONVERSION:
             logger.info(
                 "Skipping file not pending conversion (filename=%s, status=%s)",
                 file_metadata.filename,
@@ -243,7 +211,7 @@ class DocumentConversionService:
         )
 
         # Update status to 'converting'
-        file_metadata.status = "converting"
+        file_metadata.status = FileStatus.CONVERTING
         await status_updater(file_metadata)
 
         # Get appropriate retriever for loading source file

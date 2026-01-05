@@ -42,7 +42,6 @@ class TestWithinBudgetNoCompression:
                 content="Short document",
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
                     filename="test1.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -64,7 +63,8 @@ class TestWithinBudgetNoCompression:
         assert result.package_metadata["compression_retry_count"] == 0
         assert math.isclose(result.grounding_score, 0.8)
         assert len(result.citations) == 1
-        assert result.citations[0] == "file-1"
+        # Citation is now the FileMetadata.id UUID string
+        assert result.citations[0] == str(docs[0].file_metadata.id)
 
 
 class TestCompressionTrigger:
@@ -91,7 +91,6 @@ class TestCompressionTrigger:
                 content="This is a long document that will exceed the token budget. " * 150,
                 relevancy_score=0.9,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
                     filename="test1.txt",
                     size_bytes=5000,
                     mime_type="text/plain",
@@ -160,7 +159,6 @@ class TestSuccessfulRetry:
                 content="This is a very long document that will definitely exceed the token budget. " * 200,
                 relevancy_score=0.85,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
                     filename="test1.txt",
                     size_bytes=10000,
                     mime_type="text/plain",
@@ -231,7 +229,6 @@ class TestMultipleRetries:
                 content="This is a very long document that will definitely exceed the token budget. " * 200,
                 relevancy_score=0.75,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
                     filename="test1.txt",
                     size_bytes=10000,
                     mime_type="text/plain",
@@ -303,7 +300,6 @@ class TestExhaustedRetriesRejection:
                 content="This is a very long document that will definitely exceed the token budget. " * 200,
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
                     filename="test1.txt",
                     size_bytes=10000,
                     mime_type="text/plain",
@@ -370,7 +366,6 @@ class TestCompressionLoopZeroFailure:
                 content="This is a very long document that will definitely exceed the token budget. " * 200,
                 relevancy_score=0.9,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
                     filename="test1.txt",
                     size_bytes=10000,
                     mime_type="text/plain",
@@ -424,13 +419,12 @@ class TestEndToEndWithCitations:
 
     @pytest.mark.asyncio
     async def test_end_to_end_assembly_with_citations(self, assembler_service: AssemblerService) -> None:
-        """Test full workflow with citation extraction from FileMetadata.file_id."""
+        """Test full workflow with citation extraction from FileMetadata.id."""
         docs = [
             RelevantDocument(
                 content="Document 1",
                 relevancy_score=0.7,
                 file_metadata=FileMetadata(
-                    file_id="file-uuid-1",
                     filename="test1.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -442,7 +436,6 @@ class TestEndToEndWithCitations:
                 content="Document 2",
                 relevancy_score=0.9,
                 file_metadata=FileMetadata(
-                    file_id="file-uuid-2",
                     filename="test2.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -459,10 +452,10 @@ class TestEndToEndWithCitations:
             compression_loop=0,
         )
 
-        # Verify citations from FileMetadata.file_id
+        # Verify citations from FileMetadata.id UUIDs
         assert len(result.citations) == 2
-        assert "file-uuid-1" in result.citations
-        assert "file-uuid-2" in result.citations
+        assert str(docs[0].file_metadata.id) in result.citations
+        assert str(docs[1].file_metadata.id) in result.citations
 
         # Verify grounding score computed correctly
         expected_score = (0.7 + 0.9) / 2

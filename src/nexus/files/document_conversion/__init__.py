@@ -12,7 +12,7 @@ Key Components:
 Architecture:
 - Files uploaded through FileManager trigger automatic background conversion
 - Conversions are processed asynchronously via FastAPI BackgroundTasks
-- FileMetadata status tracks conversion progress (pending_parse → converting → converted/failed)
+- FileMetadata status tracks conversion progress (pending_conversion → converting → converted/failed)
 - Invocation execution is gated until all conversions reach terminal status
 
 Supported Formats:

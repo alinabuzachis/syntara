@@ -41,6 +41,7 @@ from nexus.api.auth.dependencies import get_current_user
 from nexus.api.db import get_db
 from nexus.api.main import app
 from nexus.core.models import User, UserRole
+from nexus.files.models import FileMetadata
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
 from nexus.tool_manager.models import Tool, ToolProvider, ToolStatus
 from nexus.tool_manager.models.tool import ToolParameter, ToolParameterType
@@ -55,7 +56,7 @@ from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_
 from tests.fixtures.mock_mcp_provider import MockMCPProvider
 
 # Ensure models are registered with SQLModel metadata
-_ = (Invocation, User, Workflow, WorkflowVersion, Execution)
+_ = (Invocation, User, Workflow, WorkflowVersion, Execution, FileMetadata)
 
 logger = logging.getLogger(__name__)
 

@@ -26,7 +26,6 @@ from nexus.files import FileMetadata
 def create_test_document(
     content: str,
     relevancy_score: float,
-    file_id: str = "file-1",
     filename: str = "test1.txt",
 ) -> RelevantDocument:
     """Create a test RelevantDocument with common defaults."""
@@ -34,7 +33,6 @@ def create_test_document(
         content=content,
         relevancy_score=relevancy_score,
         file_metadata=FileMetadata(
-            file_id=file_id,
             filename=filename,
             size_bytes=100,
             mime_type="text/plain",
@@ -148,7 +146,8 @@ class TestPlannerAssemblerIntegration:
         test_user,
     ) -> None:
         """Test planner injects TokenValidationService and CompressorService into AssemblerService."""
-        docs = [create_test_document("Short document", 0.9)]
+        doc = create_test_document("Short document", 0.9)
+        docs = [doc]
 
         mock_retriever = create_mock_retriever(docs)
         planner = ContextManagerPlanner(
@@ -165,9 +164,9 @@ class TestPlannerAssemblerIntegration:
         # Verify grounding score was computed (indicates AssemblerService worked)
         assert math.isclose(result.grounding_score, 0.9)
 
-        # Verify citations were extracted
+        # Verify citations were extracted (now use FileMetadata.id UUIDs)
         assert len(result.citations) == 1
-        assert result.citations[0] == "file-1"
+        assert result.citations[0] == str(doc.file_metadata.id)
 
     @pytest.mark.usefixtures("test_user_token_config")
     async def test_planner_calls_assembler_with_injected_compressor(
@@ -201,10 +200,9 @@ class TestPlannerAssemblerIntegration:
         test_user,
     ) -> None:
         """Test planner returns ContextPackage directly from AssemblerService without rebuilding."""
-        docs = [
-            create_test_document("Document 1", 0.7, "file-1", "test1.txt"),
-            create_test_document("Document 2", 0.9, "file-2", "test2.txt"),
-        ]
+        doc1 = create_test_document("Document 1", 0.7, "test1.txt")
+        doc2 = create_test_document("Document 2", 0.9, "test2.txt")
+        docs = [doc1, doc2]
 
         mock_retriever = create_mock_retriever(docs)
         planner = ContextManagerPlanner(
@@ -218,10 +216,10 @@ class TestPlannerAssemblerIntegration:
         assert result.correlation_id == "test-direct-return"
         assert math.isclose(result.grounding_score, 0.8)  # (0.7 + 0.9) / 2
 
-        # Verify citations from AssemblerService
+        # Verify citations from AssemblerService (now use FileMetadata.id UUIDs)
         assert len(result.citations) == 2
-        assert "file-1" in result.citations
-        assert "file-2" in result.citations
+        assert str(doc1.file_metadata.id) in result.citations
+        assert str(doc2.file_metadata.id) in result.citations
 
         # Verify payload was built by AssemblerService
         assert result.payload is not None

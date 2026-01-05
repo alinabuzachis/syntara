@@ -4,7 +4,6 @@ This module tests the main document conversion service that coordinates
 conversion operations with FileMetadata integration and status management.
 """
 
-from typing import Any, Literal
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -18,6 +17,7 @@ from nexus.files.document_conversion.services import ConversionState
 from nexus.files.document_conversion.services.document_conversion_service import (
     DocumentConversionService,
 )
+from nexus.files.models import FileStatus
 
 
 class ConversionTestHelper:
@@ -106,34 +106,35 @@ def conversion_helper() -> ConversionTestHelper:
 def sample_file_metadata() -> FileMetadata:
     """Fixture providing sample file metadata for testing."""
     return FileMetadata(
-        file_id=str(uuid4()),
+        id=uuid4(),
         filename="test.pdf",
         size_bytes=1000,
         mime_type="application/pdf",
         file_path="/path/to/test.pdf",
-        status="pending_parse",
+        status=FileStatus.PENDING_CONVERSION,
     )
 
 
 def create_file_metadata(
     filename: str = "test.pdf",
     mime_type: str = "application/pdf",
-    status: Literal["pending_parse", "converting", "converted", "conversion_failed"] = "pending_parse",
+    status: FileStatus = FileStatus.PENDING_CONVERSION,
     *,
-    file_id: str | None = None,
     size_bytes: int = 1000,
     file_path: str | None = None,
-    conversion: dict[str, Any] | None = None,
+    converted_content_path: str | None = None,
+    conversion_error: str | None = None,
 ) -> FileMetadata:
     """Create FileMetadata with sensible defaults."""
     return FileMetadata(
-        file_id=file_id or str(uuid4()),
+        id=uuid4(),
         filename=filename,
         size_bytes=size_bytes,
         mime_type=mime_type,
         file_path=file_path or f"/path/to/{filename}",
         status=status,
-        conversion=conversion,
+        converted_content_path=converted_content_path,
+        conversion_error=conversion_error,
     )
 
 
@@ -187,9 +188,11 @@ class TestDocumentConversionServiceFileMetadataValidation:
     """Test DocumentConversionService validation of FileMetadata status."""
 
     @pytest.mark.asyncio
-    async def test_convert_file_validates_pending_parse_status(self, conversion_helper: ConversionTestHelper) -> None:
-        """Test that convert_file validates FileMetadata status is pending_parse."""
-        file_metadata = create_file_metadata(status="converted")  # Wrong status
+    async def test_convert_file_validates_pending_conversion_status(
+        self, conversion_helper: ConversionTestHelper
+    ) -> None:
+        """Test that convert_file validates FileMetadata status is pending_conversion."""
+        file_metadata = create_file_metadata(status=FileStatus.CONVERTED)  # Wrong status
 
         conversion_state: ConversionState = await conversion_helper.service.convert_file(
             file_metadata, conversion_helper.status_updater
@@ -197,8 +200,10 @@ class TestDocumentConversionServiceFileMetadataValidation:
         assert conversion_state == ConversionState.SKIPPED
 
     @pytest.mark.asyncio
-    async def test_convert_file_accepts_pending_parse_status(self, conversion_helper: ConversionTestHelper) -> None:
-        """Test that convert_file accepts FileMetadata with pending_parse status."""
+    async def test_convert_file_accepts_pending_conversion_status(
+        self, conversion_helper: ConversionTestHelper
+    ) -> None:
+        """Test that convert_file accepts FileMetadata with pending_conversion status."""
         file_metadata = create_file_metadata(filename="test.txt", mime_type="text/plain")
 
         conversion_helper.setup_file_loading(b"Test content")
@@ -278,8 +283,8 @@ class TestDocumentConversionServiceStatusUpdates:
         # Verify status was updated (could be converting or converted due to timing)
         assert conversion_helper.status_updater.call_count >= 1
         first_call_args = conversion_helper.status_updater.call_args_list[0]
-        # The first call should be either "converting" or "converted" (depending on timing)
-        assert first_call_args[0][0].status in ["converting", "converted"]
+        # The first call should be either CONVERTING or CONVERTED (depending on timing)
+        assert first_call_args[0][0].status in [FileStatus.CONVERTING, FileStatus.CONVERTED]
 
     @pytest.mark.asyncio
     async def test_convert_file_updates_status_to_converted_on_success(
@@ -298,10 +303,8 @@ class TestDocumentConversionServiceStatusUpdates:
         assert conversion_helper.status_updater.call_count >= 2
         final_call_args = conversion_helper.status_updater.call_args_list[-1]
         final_metadata = final_call_args[0][0]
-        assert final_metadata.status == "converted"
-        assert final_metadata.conversion is not None
-        assert final_metadata.conversion["output_filename"] == "success.md"
-        assert final_metadata.conversion["conversion_time_ms"] == 750
+        assert final_metadata.status == FileStatus.CONVERTED
+        assert final_metadata.converted_content_path == "/output/success.md"
 
     @pytest.mark.asyncio
     async def test_convert_file_updates_status_to_conversion_failed_on_failure(
@@ -322,10 +325,9 @@ class TestDocumentConversionServiceStatusUpdates:
         assert conversion_helper.status_updater.call_count >= 2
         final_call_args = conversion_helper.status_updater.call_args_list[-1]
         final_metadata = final_call_args[0][0]
-        assert final_metadata.status == "conversion_failed"
-        assert final_metadata.conversion is not None
-        assert "PDF file is corrupted and cannot be processed" in final_metadata.conversion["error_message"]
-        assert final_metadata.conversion["error_type"] == "file_corruption"
+        assert final_metadata.status == FileStatus.CONVERSION_FAILED
+        assert final_metadata.conversion_error is not None
+        assert "PDF file is corrupted and cannot be processed" in final_metadata.conversion_error
 
     @pytest.mark.asyncio
     async def test_convert_file_handles_missing_converter(self, conversion_helper: ConversionTestHelper) -> None:
@@ -341,10 +343,9 @@ class TestDocumentConversionServiceStatusUpdates:
         assert conversion_helper.status_updater.call_count >= 2
         final_call_args = conversion_helper.status_updater.call_args_list[-1]
         final_metadata = final_call_args[0][0]
-        assert final_metadata.status == "conversion_failed"
-        assert final_metadata.conversion is not None
-        assert "Unsupported MIME type" in final_metadata.conversion["error_message"]
-        assert final_metadata.conversion["error_type"] == "unsupported_format"
+        assert final_metadata.status == FileStatus.CONVERSION_FAILED
+        assert final_metadata.conversion_error is not None
+        assert "Unsupported MIME type" in final_metadata.conversion_error
 
 
 class TestDocumentConversionServiceErrorHandling:
@@ -364,10 +365,9 @@ class TestDocumentConversionServiceErrorHandling:
         assert conversion_helper.status_updater.call_count >= 2
         final_call_args = conversion_helper.status_updater.call_args_list[-1]
         final_metadata = final_call_args[0][0]
-        assert final_metadata.status == "conversion_failed"
-        assert final_metadata.conversion is not None
-        assert "Unexpected error during conversion" in final_metadata.conversion["error_message"]
-        assert final_metadata.conversion["error_type"] == "unexpected_error"
+        assert final_metadata.status == FileStatus.CONVERSION_FAILED
+        assert final_metadata.conversion_error is not None
+        assert "Unexpected error during conversion" in final_metadata.conversion_error
 
     @pytest.mark.asyncio
     async def test_convert_file_handles_store_file_exception(self, conversion_helper: ConversionTestHelper) -> None:
@@ -384,8 +384,9 @@ class TestDocumentConversionServiceErrorHandling:
         assert conversion_helper.status_updater.call_count >= 2
         final_call_args = conversion_helper.status_updater.call_args_list[-1]
         final_metadata = final_call_args[0][0]
-        assert final_metadata.status == "conversion_failed"
-        assert "Storage quota exceeded" in final_metadata.conversion["error_message"]
+        assert final_metadata.status == FileStatus.CONVERSION_FAILED
+        assert final_metadata.conversion_error is not None
+        assert "Storage quota exceeded" in final_metadata.conversion_error
 
 
 class TestDocumentConversionServiceStorageIntegration:
@@ -394,7 +395,7 @@ class TestDocumentConversionServiceStorageIntegration:
     @pytest.mark.asyncio
     async def test_store_converted_file_uses_correct_retriever(self, conversion_helper: ConversionTestHelper) -> None:
         """Test that _store_converted_file uses FileManager.get_retriever_for_file."""
-        file_metadata = create_file_metadata(filename="store_test.pdf", status="converting")
+        file_metadata = create_file_metadata(filename="store_test.pdf", status=FileStatus.CONVERTING)
         conversion_result = create_success_result("# Converted Content\n\nThis is the markdown version.", 1000)
 
         # Set up mock retriever for storage operation
@@ -425,7 +426,7 @@ class TestDocumentConversionServiceStorageIntegration:
     async def test_store_converted_file_handles_no_content_error(self, conversion_helper: ConversionTestHelper) -> None:
         """Test that _store_converted_file raises error when conversion has no content."""
         file_metadata = create_file_metadata(
-            filename="no_content.txt", mime_type="text/plain", size_bytes=500, status="converting"
+            filename="no_content.txt", mime_type="text/plain", size_bytes=500, status=FileStatus.CONVERTING
         )
         # Create conversion result with None content
         conversion_result = ConversionResult(

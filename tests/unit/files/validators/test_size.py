@@ -7,7 +7,6 @@ These tests validate:
 
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, Mock, patch
-from uuid import uuid4
 
 import pytest
 
@@ -28,7 +27,6 @@ async def test_rejects_file_exceeding_size_limit() -> None:
     - Default limit is 10MB per file
     """
     # Arrange - 11MB file (exceeds default 10MB limit)
-    invocation_id = str(uuid4())
     large_content = b"0" * (11 * 1024 * 1024)  # 11MB
     mock_file = Mock()
     mock_file.filename = "large.pdf"
@@ -41,7 +39,7 @@ async def test_rejects_file_exceeding_size_limit() -> None:
 
     # Act & Assert
     with pytest.raises(ValidationError) as exc_info:
-        await file_manager.validate_and_save_files([mock_file], invocation_id)
+        await file_manager.validate_and_save_files([mock_file])
 
     # Error message should mention file is too large
     error_message = str(exc_info.value)
@@ -57,7 +55,6 @@ async def test_error_message_includes_actual_and_max_size() -> None:
     - Shows file size in bytes and limit
     """
     # Arrange - 15MB file
-    invocation_id = str(uuid4())
     size_bytes = 15 * 1024 * 1024  # 15MB
     large_content = b"0" * size_bytes
     mock_file = Mock()
@@ -71,7 +68,7 @@ async def test_error_message_includes_actual_and_max_size() -> None:
 
     # Act & Assert
     with pytest.raises(ValidationError) as exc_info:
-        await file_manager.validate_and_save_files([mock_file], invocation_id)
+        await file_manager.validate_and_save_files([mock_file])
 
     error_message = str(exc_info.value)
     # Should mention actual and max size in MB
@@ -89,7 +86,6 @@ async def test_accepts_file_at_exact_size_limit() -> None:
     - Boundary condition handled correctly
     """
     # Arrange - Exactly 10MB
-    invocation_id = str(uuid4())
     size_bytes = 10 * 1024 * 1024  # Exactly 10MB
     content = b"0" * size_bytes
     mock_file = Mock()
@@ -105,7 +101,7 @@ async def test_accepts_file_at_exact_size_limit() -> None:
         file_manager = FileManager()
 
         # Act
-        result = await file_manager.validate_and_save_files([mock_file], invocation_id)
+        result = await file_manager.validate_and_save_files([mock_file])
 
         # Assert
         assert len(result) == 1
@@ -121,7 +117,6 @@ async def test_accepts_file_below_size_limit() -> None:
     - No error for valid sizes
     """
     # Arrange - 5MB file (below limit)
-    invocation_id = str(uuid4())
     size_bytes = 5 * 1024 * 1024  # 5MB
     content = b"0" * size_bytes
     mock_file = Mock()
@@ -137,7 +132,7 @@ async def test_accepts_file_below_size_limit() -> None:
         file_manager = FileManager()
 
         # Act
-        result = await file_manager.validate_and_save_files([mock_file], invocation_id)
+        result = await file_manager.validate_and_save_files([mock_file])
 
         # Assert
         assert len(result) == 1
@@ -153,7 +148,6 @@ async def test_validates_each_file_size_independently() -> None:
     - One oversized file fails entire batch
     """
     # Arrange - 2 small files + 1 large file
-    invocation_id = str(uuid4())
     mock_files = []
 
     # Small file 1
@@ -187,7 +181,7 @@ async def test_validates_each_file_size_independently() -> None:
 
     # Act & Assert
     with pytest.raises(ValidationError) as exc_info:
-        await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files), invocation_id)
+        await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
     # Should fail due to large.pdf being too large
     error_message = str(exc_info.value)
@@ -204,7 +198,6 @@ async def test_configurable_max_size_limit() -> None:
     - Validation uses configured limit
     """
     # Arrange - 6MB file with custom limit of 5MB
-    invocation_id = str(uuid4())
     size_bytes = 6 * 1024 * 1024  # 6MB
     content = b"0" * size_bytes
     mock_file = Mock()
@@ -222,7 +215,7 @@ async def test_configurable_max_size_limit() -> None:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            await file_manager.validate_and_save_files([mock_file], invocation_id)
+            await file_manager.validate_and_save_files([mock_file])
 
         # Should validate against custom limit (5MB)
         error_message = str(exc_info.value)
@@ -238,7 +231,6 @@ async def test_very_small_file_accepted() -> None:
     - Minimum file sizes work (1KB)
     """
     # Arrange - 1KB file
-    invocation_id = str(uuid4())
     size_bytes = 1024  # 1KB
     content = b"0" * size_bytes
     mock_file = Mock()
@@ -251,7 +243,7 @@ async def test_very_small_file_accepted() -> None:
     file_manager = FileManager()
 
     # Act
-    result = await file_manager.validate_and_save_files([mock_file], invocation_id)
+    result = await file_manager.validate_and_save_files([mock_file])
 
     # Assert
     assert len(result) == 1

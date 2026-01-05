@@ -13,6 +13,7 @@ from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
 from nexus.core.config import get_settings
 from nexus.core.models import User
+from nexus.files.models import FileMetadata
 from nexus.tool_manager.models.rate_limit_config import RateLimit
 from nexus.tool_manager.models.tool import Tool, ToolParameter
 from nexus.tool_manager.models.tool_execution import ToolExecution
@@ -39,6 +40,7 @@ _ = (
     UsageCounter,
     UserTokenConfig,
     TokenUsageRecord,
+    FileMetadata,
 )
 
 # this is the Alembic Config object, which provides

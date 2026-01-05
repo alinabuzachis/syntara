@@ -93,8 +93,8 @@ async def test_response_schema_file_metadata(
 
     Validates:
     - file_metadata is array in context_data
-    - Each element has required fields: file_id, filename, size_bytes, mime_type, status
-    - status field is "pending_parse"
+    - Each element has required fields: id, filename, size_bytes, mime_type, status
+    - status field is "pending_conversion"
     - SECURITY: file_path is NOT exposed in API response
     - Multiple files each get metadata
     """
@@ -127,12 +127,12 @@ async def test_response_schema_file_metadata(
 
     # Assert - Each file has required schema fields
     for metadata in file_metadata:
-        assert "file_id" in metadata  # Public identifier
+        assert "id" in metadata  # Public identifier
         assert "filename" in metadata
         assert "size_bytes" in metadata
         assert "mime_type" in metadata
         assert "status" in metadata
-        assert metadata["status"] == "pending_parse"
+        assert metadata["status"] == "pending_conversion"
 
         # SECURITY: Verify file_path is NOT exposed in API response
         assert "file_path" not in metadata, "file_path must not be exposed (security issue)"

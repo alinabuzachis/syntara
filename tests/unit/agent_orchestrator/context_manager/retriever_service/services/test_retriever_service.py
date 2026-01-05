@@ -29,6 +29,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploa
 from nexus.agent_orchestrator.context_manager.retriever_service.services.retriever_service import RetrieverService
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.files import FileMetadata
+from nexus.files.models import FileStatus
 
 
 async def async_session_generator(session: AsyncSession) -> AsyncGenerator[AsyncSession, None]:
@@ -63,13 +64,13 @@ class MockCloudStorageRetriever(DocumentRetriever):
         """Return mock cloud documents as async iterator."""
         # Create a dummy file metadata for cloud documents
         cloud_file_metadata = FileMetadata(
-            file_id="cloud-doc-id",
+            id=uuid4(),
             filename="cloud_doc.txt",
             size_bytes=100,
             mime_type="text/plain",
             file_path="/cloud/path/cloud_doc.txt",
-            status="converted",
-            conversion={"output_path": "/cloud/path/cloud_doc.txt"},
+            status=FileStatus.CONVERTED,
+            converted_content_path="/cloud/path/cloud_doc.txt",
         )
 
         yield RelevantDocument(
@@ -119,33 +120,33 @@ class TestRetrieverServiceMainFlow:
 
             # Create file metadata for each document
             file_metadata_1 = FileMetadata(
-                file_id=str(uuid4()),
+                id=uuid4(),
                 filename="python_tutorial.pdf",
                 size_bytes=len(highly_relevant.read_text()),
                 mime_type="application/pdf",
                 file_path=str(temp_path / "python_tutorial.pdf"),
-                status="converted",
-                conversion={"output_path": str(highly_relevant)},
+                status=FileStatus.CONVERTED,
+                converted_content_path=str(highly_relevant),
             )
 
             file_metadata_2 = FileMetadata(
-                file_id=str(uuid4()),
+                id=uuid4(),
                 filename="programming_basics.docx",
                 size_bytes=len(somewhat_relevant.read_text()),
                 mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 file_path=str(temp_path / "programming_basics.docx"),
-                status="converted",
-                conversion={"output_path": str(somewhat_relevant)},
+                status=FileStatus.CONVERTED,
+                converted_content_path=str(somewhat_relevant),
             )
 
             file_metadata_3 = FileMetadata(
-                file_id=str(uuid4()),
+                id=uuid4(),
                 filename="cooking_recipes.txt",
                 size_bytes=len(less_relevant.read_text()),
                 mime_type="text/plain",
                 file_path=str(temp_path / "cooking_recipes.txt"),
-                status="converted",
-                conversion={"output_path": str(less_relevant)},
+                status=FileStatus.CONVERTED,
+                converted_content_path=str(less_relevant),
             )
 
             # Mock database session and invocation context
@@ -232,23 +233,23 @@ class TestRetrieverServiceMainFlow:
 
             # Create file metadata for testing
             file_metadata_1 = FileMetadata(
-                file_id=str(uuid4()),
+                id=uuid4(),
                 filename="ml_guide.pdf",
                 size_bytes=len(relevant_doc.read_text()),
                 mime_type="application/pdf",
                 file_path=str(temp_path / "ml_guide.pdf"),
-                status="converted",
-                conversion={"output_path": str(relevant_doc)},
+                status=FileStatus.CONVERTED,
+                converted_content_path=str(relevant_doc),
             )
 
             file_metadata_2 = FileMetadata(
-                file_id=str(uuid4()),
+                id=uuid4(),
                 filename="gardening.txt",
                 size_bytes=len(irrelevant_doc.read_text()),
                 mime_type="text/plain",
                 file_path=str(temp_path / "gardening.txt"),
-                status="converted",
-                conversion={"output_path": str(irrelevant_doc)},
+                status=FileStatus.CONVERTED,
+                converted_content_path=str(irrelevant_doc),
             )
 
             # Test with high similarity threshold (should filter out irrelevant docs)
@@ -325,13 +326,13 @@ class TestRetrieverServiceMainFlow:
                 documents.append(doc_file)
 
                 file_metadata = FileMetadata(
-                    file_id=str(uuid4()),
+                    id=uuid4(),
                     filename=f"document_{i}.pdf",
                     size_bytes=len(doc_file.read_text()),
                     mime_type="application/pdf",
                     file_path=str(temp_path / f"document_{i}.pdf"),
-                    status="converted",
-                    conversion={"output_path": str(doc_file)},
+                    status=FileStatus.CONVERTED,
+                    converted_content_path=str(doc_file),
                 )
                 file_metadata_list.append(file_metadata)
 
@@ -492,13 +493,13 @@ class TestRetrieverServiceMainFlow:
 
             # Create file metadata for uploaded file
             uploaded_file_metadata = FileMetadata(
-                file_id=str(uuid4()),
+                id=uuid4(),
                 filename="uploaded_doc.pdf",
                 size_bytes=len(uploaded_file.read_text()),
                 mime_type="application/pdf",
                 file_path=str(temp_path / "uploaded_doc.pdf"),
-                status="converted",
-                conversion={"output_path": str(uploaded_file)},
+                status=FileStatus.CONVERTED,
+                converted_content_path=str(uploaded_file),
             )
 
             mock_session = MagicMock(spec=AsyncSession)

@@ -8,7 +8,6 @@ These tests validate:
 
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, Mock, patch
-from uuid import uuid4
 
 import pytest
 
@@ -29,7 +28,6 @@ async def test_validates_mime_type_using_python_magic() -> None:
     - Content-based detection (not just file extension)
     """
     # Arrange
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "document.pdf"
     mock_file.size = 1024
@@ -47,7 +45,7 @@ async def test_validates_mime_type_using_python_magic() -> None:
             file_manager = FileManager()
 
             # Act
-            result = await file_manager.validate_and_save_files([mock_file], invocation_id)
+            result = await file_manager.validate_and_save_files([mock_file])
 
             # Assert
             # python-magic should have been called
@@ -64,7 +62,6 @@ async def test_rejects_unsupported_mime_types() -> None:
     - ValidationError raised for unsupported formats
     """
     # Arrange - PNG image (unsupported)
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "image.png"
     mock_file.size = 1024
@@ -87,7 +84,7 @@ async def test_rejects_unsupported_mime_types() -> None:
 
             # Act & Assert
             with pytest.raises(ValidationError) as exc_info:
-                await file_manager.validate_and_save_files([mock_file], invocation_id)
+                await file_manager.validate_and_save_files([mock_file])
 
             # Error should mention unsupported format and detected MIME type
             error_message = str(exc_info.value)
@@ -105,7 +102,6 @@ async def test_error_message_lists_supported_formats() -> None:
     - Shows which formats are supported
     """
     # Arrange - Unsupported format
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "video.mp4"
     mock_file.size = 1024
@@ -124,7 +120,7 @@ async def test_error_message_lists_supported_formats() -> None:
 
             # Act & Assert
             with pytest.raises(ValidationError) as exc_info:
-                await file_manager.validate_and_save_files([mock_file], invocation_id)
+                await file_manager.validate_and_save_files([mock_file])
 
             error_message = str(exc_info.value)
             # Should list the supported MIME types
@@ -143,7 +139,6 @@ async def test_accepts_pdf_mime_type() -> None:
     - PDF files pass validation
     """
     # Arrange
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "document.pdf"
     mock_file.size = 1024
@@ -161,7 +156,7 @@ async def test_accepts_pdf_mime_type() -> None:
             file_manager = FileManager()
 
             # Act
-            result = await file_manager.validate_and_save_files([mock_file], invocation_id)
+            result = await file_manager.validate_and_save_files([mock_file])
 
             # Assert
             assert len(result) == 1
@@ -176,7 +171,6 @@ async def test_accepts_docx_mime_type() -> None:
     - application/vnd.openxmlformats-officedocument.wordprocessingml.document accepted
     """
     # Arrange
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "document.docx"
     mock_file.size = 2048
@@ -197,7 +191,7 @@ async def test_accepts_docx_mime_type() -> None:
             file_manager = FileManager()
 
             # Act
-            result = await file_manager.validate_and_save_files([mock_file], invocation_id)
+            result = await file_manager.validate_and_save_files([mock_file])
 
             # Assert
             assert len(result) == 1
@@ -213,7 +207,6 @@ async def test_accepts_text_plain_mime_type() -> None:
     - TXT and MD files supported
     """
     # Arrange
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "readme.txt"
     mock_file.size = 512
@@ -228,7 +221,7 @@ async def test_accepts_text_plain_mime_type() -> None:
         file_manager = FileManager()
 
         # Act
-        result = await file_manager.validate_and_save_files([mock_file], invocation_id)
+        result = await file_manager.validate_and_save_files([mock_file])
 
         # Assert
         assert len(result) == 1
@@ -244,7 +237,6 @@ async def test_validates_mime_type_for_each_file() -> None:
     - One unsupported file fails entire batch
     """
     # Arrange - 2 supported files + 1 unsupported
-    invocation_id = str(uuid4())
     mock_files = []
 
     # Supported PDF
@@ -286,7 +278,7 @@ async def test_validates_mime_type_for_each_file() -> None:
 
             # Act & Assert
             with pytest.raises(ValidationError) as exc_info:
-                await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files), invocation_id)
+                await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
             # Should fail due to image.png with specific error message
             error_message = str(exc_info.value)
@@ -303,7 +295,6 @@ async def test_configurable_allowed_mime_types() -> None:
     - Only configured types accepted
     """
     # Arrange - Only allow PDF
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "notes.txt"
     mock_file.size = 512
@@ -322,7 +313,7 @@ async def test_configurable_allowed_mime_types() -> None:
 
             # Act & Assert
             with pytest.raises(ValidationError) as exc_info:
-                await file_manager.validate_and_save_files([mock_file], invocation_id)
+                await file_manager.validate_and_save_files([mock_file])
 
             # Should reject text/plain and show only PDF is supported
             error_message = str(exc_info.value)

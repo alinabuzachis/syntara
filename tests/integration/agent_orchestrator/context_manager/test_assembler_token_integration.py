@@ -37,7 +37,6 @@ class TestTokenValidationIntegration:
                 content="Short document",
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
                     filename="test1.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -88,7 +87,6 @@ class TestTokenValidationIntegration:
                 content="This is a longer document that will exceed the token budget. " * 100,
                 relevancy_score=0.9,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
                     filename="test1.txt",
                     size_bytes=1000,
                     mime_type="text/plain",
@@ -141,7 +139,6 @@ class TestTokenValidationIntegration:
                 content="Large document content " * 200,
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
                     filename="test1.txt",
                     size_bytes=2000,
                     mime_type="text/plain",
@@ -211,7 +208,6 @@ class TestTokenValidationIntegration:
                 content="Very large document " * 1000,
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
                     filename="test1.txt",
                     size_bytes=10000,
                     mime_type="text/plain",
@@ -260,7 +256,6 @@ class TestTokenValidationIntegration:
                 content="Test document",
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
                     filename="test1.txt",
                     size_bytes=100,
                     mime_type="text/plain",

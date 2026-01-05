@@ -335,7 +335,6 @@ class TestMSWordConverterWithRealFiles:
 
         # Create FileMetadata instance
         file_metadata = FileMetadata(
-            file_id="test-docx-id",
             filename="sample.docx",
             size_bytes=len(docx_content),
             mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

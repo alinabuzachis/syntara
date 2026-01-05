@@ -28,7 +28,7 @@ async def test_upload_pdf_file(auth_client_with_mocked_llm: AsyncClient, test_us
     Validates:
     - PDF file upload succeeds
     - 202 response status
-    - file_metadata array with status="pending_parse"
+    - file_metadata array with status="pending_conversion"
     - File exists at file_path location
     """
     # Arrange
@@ -59,8 +59,8 @@ async def test_upload_pdf_file(auth_client_with_mocked_llm: AsyncClient, test_us
 
     metadata = file_metadata[0]
     assert metadata["filename"] == "sample.pdf"
-    assert metadata["status"] == "pending_parse"
-    assert "file_id" in metadata  # Public identifier
+    assert metadata["status"] == "pending_conversion"
+    assert "id" in metadata  # Public identifier
     assert "file_path" not in metadata  # SECURITY: Internal path not exposed
 
 
@@ -101,7 +101,7 @@ async def test_upload_docx_file(auth_client_with_mocked_llm: AsyncClient, test_u
     assert metadata["filename"] == "sample.docx"
     # DOCX MIME type
     assert "wordprocessing" in metadata["mime_type"] or "document" in metadata["mime_type"]
-    assert metadata["status"] == "pending_parse"
+    assert metadata["status"] == "pending_conversion"
 
 
 @pytest.mark.asyncio
@@ -374,12 +374,12 @@ async def test_multiple_files_upload(
     assert "sample.docx" in filenames
     assert "sample.txt" in filenames
 
-    # All should have status="pending_parse"
-    assert all(m["status"] == "pending_parse" for m in file_metadata)
+    # All should have status="pending_conversion"
+    assert all(m["status"] == "pending_conversion" for m in file_metadata)
 
-    # Verify each file has unique file_id
-    file_ids = [m["file_id"] for m in file_metadata]
-    assert len(file_ids) == len(set(file_ids)), "All file_ids should be unique"
+    # Verify each file has unique id
+    file_ids = [m["id"] for m in file_metadata]
+    assert len(file_ids) == len(set(file_ids)), "All ids should be unique"
 
     # Verify file_path NOT exposed (security)
     for metadata in file_metadata:
@@ -393,7 +393,7 @@ async def test_context_metadata(auth_client_with_mocked_llm: AsyncClient, test_u
     Validates:
     - file_metadata array accessible via GET /invocations/{id}
     - file_metadata is array type
-    - status is "pending_parse" for each file
+    - status is "pending_conversion" for each file
     - All required fields present in metadata
     """
     # Arrange
@@ -428,12 +428,12 @@ async def test_context_metadata(auth_client_with_mocked_llm: AsyncClient, test_u
     assert isinstance(context_data[CONTEXT_KEY_FILE_METADATA], list)
     assert len(context_data[CONTEXT_KEY_FILE_METADATA]) == 1
     # Status can be any valid state since background task might complete quickly
-    valid_statuses = ["pending_parse", "converting", "converted", "conversion_failed"]
+    valid_statuses = ["pending_conversion", "converting", "converted", "conversion_failed"]
     assert context_data[CONTEXT_KEY_FILE_METADATA][0]["status"] in valid_statuses
 
     # Verify file metadata structure
     metadata = context_data[CONTEXT_KEY_FILE_METADATA][0]
-    assert "file_id" in metadata  # Public identifier
+    assert "id" in metadata  # Public identifier
     assert "filename" in metadata
     assert "size_bytes" in metadata
     assert "mime_type" in metadata

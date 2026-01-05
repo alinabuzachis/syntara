@@ -67,10 +67,10 @@ async def test_invoke_agent_with_pdf_document_conversion(auth_client_with_mocked
         for file_metadata in file_metadata_list:
             assert file_metadata["filename"] == "sample.pdf"
             assert file_metadata["mime_type"] == "application/pdf"
-            assert file_metadata["status"] == "pending_parse"
+            assert file_metadata["status"] == "pending_conversion"
             assert file_metadata["size_bytes"] > 0
-            assert "file_id" in file_metadata
-            assert isinstance(file_metadata["file_id"], str)
+            assert "id" in file_metadata
+            assert isinstance(file_metadata["id"], str)
             # file_path is excluded from API responses for security
             assert "file_path" not in file_metadata
 
@@ -95,13 +95,11 @@ async def test_invoke_agent_with_pdf_document_conversion(auth_client_with_mocked
 
             for updated_file_metadata in updated_file_metadata_list:
                 assert updated_file_metadata["status"] == "converted"
-                assert "conversion" in updated_file_metadata
-                conversion_data = updated_file_metadata["conversion"]
-                assert "output_filename" in conversion_data
-                assert "converted_at" in conversion_data
-                assert "conversion_time_ms" in conversion_data
-                # output_path is excluded from API responses for security
-                assert "output_path" not in conversion_data
+                # converted_content_path is populated when conversion succeeds
+                # but excluded from API responses for security
+                assert "converted_content_path" not in updated_file_metadata
+                # conversion_error should be None for successful conversions
+                assert updated_file_metadata.get("conversion_error") is None
 
 
 @pytest.mark.asyncio
@@ -137,7 +135,7 @@ async def test_invoke_agent_with_text_document_conversion(auth_client_with_mocke
         file_metadata = invocation_data["context_data"]["file_metadata"][0]
         assert file_metadata["filename"] == "sample.txt"
         assert file_metadata["mime_type"] == "text/plain"
-        assert file_metadata["status"] == "pending_parse"
+        assert file_metadata["status"] == "pending_conversion"
         # file_path is excluded from API responses for security
         assert "file_path" not in file_metadata
 
@@ -160,10 +158,8 @@ async def test_invoke_agent_with_text_document_conversion(auth_client_with_mocke
             updated_file_metadata = final_data["context_data"]["file_metadata"][0]
 
             assert updated_file_metadata["status"] == "converted"
-            assert "conversion" in updated_file_metadata
-            conversion_data = updated_file_metadata["conversion"]
-            assert "output_filename" in conversion_data
-            assert "converted_at" in conversion_data
-            assert "conversion_time_ms" in conversion_data
-            # output_path is excluded from API responses for security
-            assert "output_path" not in conversion_data
+            # converted_content_path is populated when conversion succeeds
+            # but excluded from API responses for security
+            assert "converted_content_path" not in updated_file_metadata
+            # conversion_error should be None for successful conversions
+            assert updated_file_metadata.get("conversion_error") is None

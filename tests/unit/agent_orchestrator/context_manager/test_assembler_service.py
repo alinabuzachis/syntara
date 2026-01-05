@@ -7,6 +7,7 @@ This module contains unit tests for the AssemblerService class, covering:
 
 import math
 from unittest.mock import AsyncMock, Mock
+from uuid import uuid4
 
 import pytest
 
@@ -40,7 +41,7 @@ class TestGroundingScoreComputation:
                 content="doc1",
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
+                    id=uuid4(),
                     filename="test1.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -52,7 +53,7 @@ class TestGroundingScoreComputation:
                 content="doc2",
                 relevancy_score=0.6,
                 file_metadata=FileMetadata(
-                    file_id="file-2",
+                    id=uuid4(),
                     filename="test2.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -64,7 +65,7 @@ class TestGroundingScoreComputation:
                 content="doc3",
                 relevancy_score=0.9,
                 file_metadata=FileMetadata(
-                    file_id="file-3",
+                    id=uuid4(),
                     filename="test3.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -92,7 +93,7 @@ class TestGroundingScoreComputation:
                 content="doc1",
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
+                    id=uuid4(),
                     filename="test1.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -104,7 +105,7 @@ class TestGroundingScoreComputation:
                 content="doc2",
                 relevancy_score=0.6,
                 file_metadata=FileMetadata(
-                    file_id="file-2",
+                    id=uuid4(),
                     filename="test2.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -131,13 +132,15 @@ class TestCitationExtraction:
         return AssemblerService(token_service, compressor_service)
 
     def test_extract_citations_from_file_metadata_file_id(self, assembler_service) -> None:
-        """Test citations extracted from FileMetadata.file_id."""
+        """Test citations extracted from FileMetadata.id."""
+        file_id_1 = uuid4()
+        file_id_2 = uuid4()
         docs = [
             RelevantDocument(
                 content="doc1",
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-uuid-1",
+                    id=file_id_1,
                     filename="test1.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -149,7 +152,7 @@ class TestCitationExtraction:
                 content="doc2",
                 relevancy_score=0.9,
                 file_metadata=FileMetadata(
-                    file_id="file-uuid-2",
+                    id=file_id_2,
                     filename="test2.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -161,17 +164,18 @@ class TestCitationExtraction:
 
         citations = assembler_service._extract_citations(docs)
 
-        assert citations == ["file-uuid-1", "file-uuid-2"]
+        assert citations == [str(file_id_1), str(file_id_2)]
 
     def test_extract_citations_missing_file_id(self, assembler_service) -> None:
-        """Test citation extraction handles missing file_id gracefully."""
+        """Test citation extraction handles missing id gracefully."""
         # This test will verify the implementation handles edge cases
+        file_id = uuid4()
         docs = [
             RelevantDocument(
                 content="doc1",
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-uuid-1",
+                    id=file_id,
                     filename="test1.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -182,7 +186,7 @@ class TestCitationExtraction:
         ]
 
         citations = assembler_service._extract_citations(docs)
-        assert "file-uuid-1" in citations
+        assert str(file_id) in citations
 
 
 class TestEmptyAndNullDocuments:
@@ -242,7 +246,7 @@ class TestInvalidRelevancyScores:
                 content="doc1",
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
+                    id=uuid4(),
                     filename="test1.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -273,7 +277,7 @@ class TestDocumentContentOrganization:
                 content="Document content 1",
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
+                    id=uuid4(),
                     filename="test1.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -311,7 +315,7 @@ class TestCompressionRetryLoop:
                 content="Long document content" * 100,
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
+                    id=uuid4(),
                     filename="test1.txt",
                     size_bytes=1000,
                     mime_type="text/plain",
@@ -375,7 +379,7 @@ class TestExhaustedRetries:
                 content="Document content",
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
+                    id=uuid4(),
                     filename="test1.txt",
                     size_bytes=1000,
                     mime_type="text/plain",
@@ -430,7 +434,7 @@ class TestPackageMetadataRetryCount:
                 content="Test document",
                 relevancy_score=0.8,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
+                    id=uuid4(),
                     filename="test1.txt",
                     size_bytes=100,
                     mime_type="text/plain",
@@ -459,7 +463,7 @@ class TestPackageMetadataRetryCount:
                 content="Small doc",
                 relevancy_score=0.7,
                 file_metadata=FileMetadata(
-                    file_id="file-1",
+                    id=uuid4(),
                     filename="test1.txt",
                     size_bytes=50,
                     mime_type="text/plain",

@@ -19,6 +19,7 @@ from nexus.files.document_conversion.tasks import (
     DocumentConversionTask,
     get_document_conversion_task,
 )
+from nexus.files.models import FileStatus
 
 
 class DocumentConversionTaskTestHelper:
@@ -63,12 +64,12 @@ def sample_invocation_id() -> UUID:
 def sample_file_metadata() -> FileMetadata:
     """Fixture providing sample FileMetadata for testing."""
     return FileMetadata(
-        file_id="test-file-id-123",
+        id=uuid4(),
         filename="test.pdf",
         file_path="/uploads/test.pdf",
         mime_type="application/pdf",
         size_bytes=1024,
-        status="pending_parse",
+        status=FileStatus.PENDING_CONVERSION,
     )
 
 
@@ -149,12 +150,8 @@ class TestDocumentConversionTaskUpdateMetadata:
     ) -> None:
         """Test metadata updater with multiple files in invocation."""
         # Create invocation with multiple files
-        file_metadata_2 = sample_file_metadata.model_copy(
-            update={"filename": "test2.docx", "file_id": "test-file-id-456"}
-        )
-        file_metadata_3 = sample_file_metadata.model_copy(
-            update={"filename": "test3.txt", "file_id": "test-file-id-789"}
-        )
+        file_metadata_2 = sample_file_metadata.model_copy(update={"filename": "test2.docx", "id": uuid4()})
+        file_metadata_3 = sample_file_metadata.model_copy(update={"filename": "test3.txt", "id": uuid4()})
 
         multi_file_invocation = Invocation(
             id=sample_invocation_id,
@@ -197,10 +194,10 @@ class TestDocumentConversionTaskUpdateMetadata:
             assert len(file_metadata_list) == 3
 
             # Check that only the second file was updated
-            assert file_metadata_list[0]["status"] == "pending_parse"  # First file unchanged
-            assert file_metadata_list[1]["status"] == "converted"  # Second file updated
+            assert file_metadata_list[0]["status"] == FileStatus.PENDING_CONVERSION.value  # First file unchanged
+            assert file_metadata_list[1]["status"] == FileStatus.CONVERTED.value  # Second file updated
             assert file_metadata_list[1]["filename"] == "test2.docx"  # Correct file
-            assert file_metadata_list[2]["status"] == "pending_parse"  # Third file unchanged
+            assert file_metadata_list[2]["status"] == FileStatus.PENDING_CONVERSION.value  # Third file unchanged
 
     @pytest.mark.asyncio
     async def test_update_metadata_invocation_not_found(
@@ -268,12 +265,8 @@ class TestDocumentConversionTaskUpdateMetadata:
             # Update with additional metadata fields
             updated_metadata = sample_file_metadata.model_copy(
                 update={
-                    "status": "converted",
-                    "conversion": {
-                        "converted_path": "/converted/test.md",
-                        "conversion_time_ms": 1500,
-                        "converter_used": "pdf_converter",
-                    },
+                    "status": FileStatus.CONVERTED,
+                    "converted_content_path": "/converted/test.md",
                 }
             )
             await updater(updated_metadata)
@@ -284,17 +277,15 @@ class TestDocumentConversionTaskUpdateMetadata:
             updated_file = file_metadata_list[0]
 
             # Check original fields are preserved
-            assert updated_file["file_id"] == sample_file_metadata.file_id
+            assert str(updated_file["id"]) == str(sample_file_metadata.id)
             assert updated_file["filename"] == sample_file_metadata.filename
             assert updated_file["file_path"] == sample_file_metadata.file_path
             assert updated_file["mime_type"] == sample_file_metadata.mime_type
             assert updated_file["size_bytes"] == sample_file_metadata.size_bytes
 
             # Check updated fields
-            assert updated_file["status"] == "converted"
-            assert updated_file["conversion"]["converted_path"] == "/converted/test.md"
-            assert updated_file["conversion"]["conversion_time_ms"] == 1500
-            assert updated_file["conversion"]["converter_used"] == "pdf_converter"
+            assert updated_file["status"] == FileStatus.CONVERTED.value
+            assert updated_file["converted_content_path"] == "/converted/test.md"
 
 
 class TestDocumentConversionTaskLoadFileMetadata:
@@ -364,8 +355,8 @@ class TestDocumentConversionTaskSingleDocumentConversion:
         task_helper: DocumentConversionTaskTestHelper,
     ) -> None:
         """Test single document conversion skips non-pending files."""
-        # Set status to something other than pending_parse
-        file_metadata = sample_file_metadata.model_copy(update={"status": "converted"})
+        # Set status to something other than pending_conversion
+        file_metadata = sample_file_metadata.model_copy(update={"status": FileStatus.CONVERTED})
         file_metadata_dict = file_metadata.model_dump()
 
         result = await task_helper.task._convert_single_document(sample_invocation_id, file_metadata_dict)

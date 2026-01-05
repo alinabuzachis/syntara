@@ -609,7 +609,6 @@ class TestTextConverterWithRealFiles:
 
         # Create FileMetadata instance
         file_metadata = FileMetadata(
-            file_id="test-txt-id",
             filename="sample.txt",
             size_bytes=len(txt_content),
             mime_type="text/plain",

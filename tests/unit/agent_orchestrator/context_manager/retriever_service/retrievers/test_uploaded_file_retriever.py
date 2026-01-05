@@ -15,6 +15,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploa
     UploadedFileRetriever,
 )
 from nexus.files import FileMetadata
+from nexus.files.models import FileStatus
 
 
 @pytest.mark.integration
@@ -35,13 +36,13 @@ class TestUploadedFileRetrieverIntegration:
 
             # Create file metadata as would be stored in invocation context
             file_metadata = FileMetadata(
-                file_id=str(uuid4()),
+                id=uuid4(),
                 filename="original_document.pdf",
                 size_bytes=1024,
                 mime_type="application/pdf",
                 file_path=str(temp_path / "original_document.pdf"),
-                status="converted",
-                conversion={"output_path": str(converted_file)},
+                status=FileStatus.CONVERTED,
+                converted_content_path=str(converted_file),
             )
 
             # Setup invocation context with file metadata
@@ -60,7 +61,7 @@ class TestUploadedFileRetrieverIntegration:
             assert doc.content == test_content
             assert doc.relevancy_score == pytest.approx(1.0)  # Initial neutral score
             assert doc.source_type == "uploaded_file"
-            assert doc.file_metadata.file_id == file_metadata.file_id
+            assert doc.file_metadata.id == file_metadata.id
             assert "retrieved_at" in doc.retrieval_metadata
 
     @pytest.mark.asyncio
@@ -68,21 +69,21 @@ class TestUploadedFileRetrieverIntegration:
         """Test that unconverted files are skipped during retrieval."""
         # Create file metadata for unconverted file
         pending_file = FileMetadata(
-            file_id=str(uuid4()),
+            id=uuid4(),
             filename="pending_document.pdf",
             size_bytes=512,
             mime_type="application/pdf",
             file_path="/path/to/pending.pdf",
-            status="pending_parse",  # Not converted yet
+            status=FileStatus.PENDING_CONVERSION,
         )
 
         converting_file = FileMetadata(
-            file_id=str(uuid4()),
+            id=uuid4(),
             filename="converting_document.pdf",
             size_bytes=768,
             mime_type="application/pdf",
             file_path="/path/to/converting.pdf",
-            status="converting",  # Still converting
+            status=FileStatus.CONVERTING,
         )
 
         invocation_context = {"file_metadata": [pending_file.model_dump(), converting_file.model_dump()]}
@@ -95,15 +96,15 @@ class TestUploadedFileRetrieverIntegration:
 
     @pytest.mark.asyncio
     async def test_skip_files_without_conversion_path(self) -> None:
-        """Test that converted files without conversion file_path are skipped."""
+        """Test that converted files without converted_content_path are skipped."""
         file_metadata = FileMetadata(
-            file_id=str(uuid4()),
+            id=uuid4(),
             filename="incomplete_conversion.pdf",
             size_bytes=256,
             mime_type="application/pdf",
             file_path="/path/to/incomplete.pdf",
-            status="converted",
-            conversion={},  # Missing file_path in conversion metadata
+            status=FileStatus.CONVERTED,
+            converted_content_path=None,  # Missing converted content path
         )
 
         invocation_context = {"file_metadata": [file_metadata.model_dump()]}
@@ -118,13 +119,13 @@ class TestUploadedFileRetrieverIntegration:
     async def test_handle_missing_converted_file(self) -> None:
         """Test handling when converted file doesn't exist on disk."""
         file_metadata = FileMetadata(
-            file_id=str(uuid4()),
+            id=uuid4(),
             filename="missing_converted.pdf",
             size_bytes=512,
             mime_type="application/pdf",
             file_path="/path/to/original.pdf",
-            status="converted",
-            conversion={"output_path": "/nonexistent/converted.txt"},
+            status=FileStatus.CONVERTED,
+            converted_content_path="/nonexistent/converted.txt",
         )
 
         invocation_context = {"file_metadata": [file_metadata.model_dump()]}
@@ -163,23 +164,23 @@ class TestUploadedFileRetrieverIntegration:
 
             # Create metadata for multiple files
             file_metadata_1 = FileMetadata(
-                file_id=str(uuid4()),
+                id=uuid4(),
                 filename="document1.pdf",
                 size_bytes=1024,
                 mime_type="application/pdf",
                 file_path=str(temp_path / "document1.pdf"),
-                status="converted",
-                conversion={"output_path": str(file1)},
+                status=FileStatus.CONVERTED,
+                converted_content_path=str(file1),
             )
 
             file_metadata_2 = FileMetadata(
-                file_id=str(uuid4()),
+                id=uuid4(),
                 filename="document2.docx",
                 size_bytes=2048,
                 mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 file_path=str(temp_path / "document2.docx"),
-                status="converted",
-                conversion={"output_path": str(file2)},
+                status=FileStatus.CONVERTED,
+                converted_content_path=str(file2),
             )
 
             invocation_context = {"file_metadata": [file_metadata_1.model_dump(), file_metadata_2.model_dump()]}
@@ -200,7 +201,7 @@ class TestUploadedFileRetrieverIntegration:
                 assert isinstance(doc, RelevantDocument)
                 assert doc.relevancy_score == pytest.approx(1.0)
                 assert doc.source_type == "uploaded_file"
-                assert doc.file_metadata.status == "converted"
+                assert doc.file_metadata.status == FileStatus.CONVERTED
 
     @pytest.mark.asyncio
     async def test_file_manager_integration(self) -> None:
@@ -212,13 +213,13 @@ class TestUploadedFileRetrieverIntegration:
             test_file.write_text(test_content, encoding="utf-8")
 
             file_metadata = FileMetadata(
-                file_id=str(uuid4()),
+                id=uuid4(),
                 filename="integration_test.pdf",
                 size_bytes=len(test_content),
                 mime_type="application/pdf",
                 file_path=str(temp_path / "integration_test.pdf"),
-                status="converted",
-                conversion={"output_path": str(test_file)},
+                status=FileStatus.CONVERTED,
+                converted_content_path=str(test_file),
             )
 
             invocation_context = {"file_metadata": [file_metadata.model_dump()]}

@@ -16,7 +16,7 @@ import psutil  # type: ignore[import-untyped]
 import pytest
 from httpx import AsyncClient
 
-from nexus.files import FileMetadata
+from nexus.files import FileMetadata, FileStatus
 from nexus.files.document_conversion.converters.pdf_converter import (
     PDFConverter,
 )
@@ -209,12 +209,11 @@ class TestConversionTimePerformance:
 
             # Create test file metadata
             file_metadata = FileMetadata(
-                file_id="perf-test-123",
                 filename="performance_test.txt",
                 file_path=str(temp_path),
                 mime_type="text/plain",
                 size_bytes=1024 * 1024,  # 1MB
-                status="pending_parse",
+                status=FileStatus.PENDING_CONVERSION,
             )
 
             # Test direct converter performance (simpler than full service)
@@ -277,12 +276,11 @@ class TestFileSizeLimitPerformance:
             temp_file.flush()
 
             file_metadata = FileMetadata(
-                file_id="boundary-test-123",
                 filename="boundary_test.txt",
                 file_path=str(temp_path),
                 mime_type="text/plain",
                 size_bytes=len(boundary_content),
-                status="pending_parse",
+                status=FileStatus.PENDING_CONVERSION,
             )
 
             # Test with direct converter instead of service
@@ -313,12 +311,11 @@ class TestMemoryUsagePerformance:
             temp_file.flush()
 
             file_metadata = FileMetadata(
-                file_id="memory-test-123",
                 filename="memory_test.txt",
                 file_path=str(temp_path),
                 mime_type="text/plain",
                 size_bytes=len(large_content),
-                status="pending_parse",
+                status=FileStatus.PENDING_CONVERSION,
             )
 
             # Test with direct converter instead of full service
@@ -350,12 +347,11 @@ class TestMemoryUsagePerformance:
             temp_file.flush()
 
             file_metadata = FileMetadata(
-                file_id="pdf-memory-test-123",
                 filename="pdf_memory_test.pdf",
                 file_path=str(temp_path),
                 mime_type="application/pdf",
                 size_bytes=len(pdf_content),
-                status="pending_parse",
+                status=FileStatus.PENDING_CONVERSION,
             )
 
             # Test with PDF converter instead of full service
@@ -402,12 +398,11 @@ class TestMemoryUsagePerformance:
                 temp_paths.append(temp_path)
 
                 file_metadata = FileMetadata(
-                    file_id=f"concurrent-test-{i}",
                     filename=f"concurrent_test_{i}.txt",
                     file_path=str(temp_path),
                     mime_type="text/plain",
                     size_bytes=len(content),
-                    status="pending_parse",
+                    status=FileStatus.PENDING_CONVERSION,
                 )
                 file_metadatas.append(file_metadata)
 
@@ -457,12 +452,11 @@ class TestPerformanceBenchmarks:
                 temp_file.flush()
 
                 file_metadata = FileMetadata(
-                    file_id=f"benchmark-{size_mb}mb",
                     filename=f"benchmark_{size_mb}mb.txt",
                     file_path=str(temp_path),
                     mime_type="text/plain",
                     size_bytes=len(content),
-                    status="pending_parse",
+                    status=FileStatus.PENDING_CONVERSION,
                 )
 
                 start_time = time.time()

@@ -30,6 +30,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploa
 from nexus.agent_orchestrator.context_manager.retriever_service.services.retriever_service import RetrieverService
 from nexus.agent_orchestrator.models import Invocation
 from nexus.files import FileMetadata
+from nexus.files.models import FileStatus
 
 
 class MockLLMError(Exception):
@@ -127,13 +128,13 @@ def create_file_metadata_with_content(temp_path: Path, filename: str, content: s
     content_file.write_text(content, encoding="utf-8")
 
     return FileMetadata(
-        file_id=str(uuid4()),
+        id=uuid4(),
         filename=f"{filename}.pdf",
         size_bytes=len(content),
         mime_type="application/pdf",
         file_path=str(temp_path / f"{filename}.pdf"),
-        status="converted",
-        conversion={"output_path": str(content_file)},
+        status=FileStatus.CONVERTED,
+        converted_content_path=str(content_file),
     )
 
 

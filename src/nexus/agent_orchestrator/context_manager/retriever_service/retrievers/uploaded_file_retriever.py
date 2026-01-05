@@ -13,6 +13,7 @@ from typing import Any
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.document_retriever import DocumentRetriever
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.files import FileManager, FileMetadata, get_file_manager
+from nexus.files.models import FileStatus
 
 logger = logging.getLogger(__name__)
 
@@ -194,21 +195,16 @@ class UploadedFileRetriever(DocumentRetriever):
 
         """
         # Only process converted documents
-        if file_metadata.status != "converted":
+        if file_metadata.status != FileStatus.CONVERTED:
             logger.debug("Skipping file with status '%s': %s", file_metadata.status, file_metadata.filename)
             return None
 
-        # Check for conversion metadata
-        if not file_metadata.conversion:
-            logger.warning("File marked as converted but missing conversion metadata: %s", file_metadata.filename)
+        # Check for converted content path
+        if not file_metadata.converted_content_path:
+            logger.warning("File marked as converted but missing converted_content_path: %s", file_metadata.filename)
             return None
 
-        converted_file_path: str | None = file_metadata.conversion.get("output_path")
-        if not converted_file_path:
-            logger.warning("Converted file missing file_path in conversion metadata: %s", file_metadata.filename)
-            return None
-
-        return converted_file_path
+        return file_metadata.converted_content_path
 
     async def _load_document_content(
         self, file_metadata: FileMetadata, converted_file_path: str
@@ -251,7 +247,7 @@ class UploadedFileRetriever(DocumentRetriever):
             "file_path": converted_file_path,
             "retrieved_at": datetime.now(UTC).isoformat(),
             "original_file_path": file_metadata.file_path,
-            "conversion_metadata": file_metadata.conversion,
+            "converted_content_path": file_metadata.converted_content_path,
             "retriever_backend": type(retriever).__name__,
         }
 

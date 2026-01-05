@@ -805,40 +805,17 @@ components:
                   type: array
                   description: Metadata for uploaded files (populated when files are attached)
                   items:
-                    type: object
-                    required:
-                      - filename
-                      - size_bytes
-                      - mime_type
-                      - file_path
-                      - status
-                    properties:
-                      filename:
-                        type: string
-                        description: Original filename
-                      size_bytes:
-                        type: integer
-                        description: File size in bytes
-                      mime_type:
-                        type: string
-                        description: MIME type (e.g., application/pdf)
-                      file_path:
-                        type: string
-                        description: Path to file in storage directory
-                      status:
-                        type: string
-                        enum: [pending_parse]
-                        description: File processing status
+                    $ref: ../files/files-api.yaml#/components/schemas/FileMetadata
               additionalProperties: true
               example:
                 environment: production
                 app_id: customer-svc
                 file_metadata:
-                  - file_id: 550e8400-e29b-41d4-a716-446655440000
+                  - id: 550e8400-e29b-41d4-a716-446655440000
                     filename: document.pdf
                     size_bytes: 524288
                     mime_type: application/pdf
-                    status: pending_parse
+                    status: pending_conversion
             result:
               type: object
               nullable: true

@@ -67,10 +67,10 @@ class AssemblerService:
 
     Coordinates token validation, compression retry loop with progressive
     strategies, grounding score computation, citation extraction from
-    FileMetadata.file_id, and document content organization.
+    FileMetadata.id, and document content organization.
 
     - Added compression_loop parameter for retry control
-    - Citations from FileMetadata.file_id (unique identifier, avoids ambiguity)
+    - Citations from FileMetadata.id (unique identifier, avoids ambiguity)
     - NO System/User Prompt handling (out of scope)
     """
 
@@ -117,7 +117,7 @@ class AssemblerService:
 
         Returns:
             ContextPackage with assembled document content, grounding score,
-            citations from FileMetadata.file_id, and package metadata
+            citations from FileMetadata.id, and package metadata
 
         Raises:
             ContextAssemblyError: When token limits exceeded after all compression
@@ -224,7 +224,7 @@ class AssemblerService:
         # Compute grounding score
         grounding_score = self._compute_grounding_score(working_docs)
 
-        # Extract citations from FileMetadata.file_id
+        # Extract citations from FileMetadata.id
         citations = self._extract_citations(working_docs)
 
         # Build final ContextPackage
@@ -284,25 +284,25 @@ class AssemblerService:
         self,
         documents: list[RelevantDocument],
     ) -> list[str]:
-        """Extract file_id values from RelevantDocument.file_metadata.file_id attributes.
+        """Extract id values from RelevantDocument.file_metadata.id attributes.
 
-        Citations are simply file_id strings from original documents.
-        Compression does not generate new file_ids.
+        Citations are simply id strings from original documents.
+        Compression does not generate new ids.
 
         Args:
             documents: List of RelevantDocuments
 
         Returns:
-            List of file_id strings
+            List of id strings (UUIDs as strings)
 
         """
         citations = []
 
         for doc in documents:
-            if doc.file_metadata and hasattr(doc.file_metadata, "file_id") and doc.file_metadata.file_id:
-                citations.append(doc.file_metadata.file_id)
+            if doc.file_metadata and hasattr(doc.file_metadata, "id") and doc.file_metadata.id:
+                citations.append(str(doc.file_metadata.id))
             else:
-                logger.warning("Document missing file_metadata or file_id, skipping citation extraction")
+                logger.warning("Document missing file_metadata or id, skipping citation extraction")
 
         return citations
 

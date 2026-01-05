@@ -7,7 +7,6 @@ operations with file manager integration and status management.
 import contextlib
 import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
@@ -24,6 +23,7 @@ from nexus.files.document_conversion.services import (
     get_document_conversion_service,
 )
 from nexus.files.document_conversion.services.types import ConversionState
+from nexus.files.models import FileStatus
 
 if TYPE_CHECKING:
     from nexus.files.document_conversion.services.document_conversion_service import (
@@ -108,8 +108,9 @@ class DocumentConversionTask:
 
                 # Find and update the specific file metadata
                 for i, fm_dict in enumerate(file_metadata_list):
-                    if fm_dict.get("file_id") == updated_metadata.file_id:
-                        file_metadata_list[i] = updated_metadata.model_dump()
+                    if str(fm_dict.get("id")) == str(updated_metadata.id):
+                        # Use mode="json" to serialize UUIDs and enums properly for JSONB storage
+                        file_metadata_list[i] = updated_metadata.model_dump(mode="json")
                         break
 
                 # Save updated context_data
@@ -148,7 +149,7 @@ class DocumentConversionTask:
             return ConversionState.FAILED
 
         # Skip if not pending conversion
-        if file_metadata.status != "pending_parse":
+        if file_metadata.status != FileStatus.PENDING_CONVERSION:
             logger.info(
                 "Skipping file not pending conversion (invocation_id=%s, filename=%s, status=%s)",
                 invocation_id,
@@ -177,13 +178,8 @@ class DocumentConversionTask:
             )
 
             # Create failure result
-            file_metadata.status = "conversion_failed"
-            file_metadata.conversion = {
-                "error_message": f"Conversion failed with error: {e!s}",
-                "error_type": "unexpected_error",
-                "failed_at": datetime.now(UTC).isoformat(),
-                "exception_type": type(e).__name__,
-            }
+            file_metadata.status = FileStatus.CONVERSION_FAILED
+            file_metadata.conversion_error = f"Conversion failed with error: {e!s}"
 
             # Update database with failure
             updater = self._get_metadata_updater(invocation_id)
@@ -272,7 +268,7 @@ class DocumentConversionTask:
 
             # Filter files that need conversion
             files_to_convert = [
-                file_metadata for file_metadata in files_metadata if file_metadata.get("status") == "pending_parse"
+                file_metadata for file_metadata in files_metadata if file_metadata.get("status") == "pending_conversion"
             ]
 
             if not files_to_convert:

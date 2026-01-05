@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
 from nexus.agent_orchestrator.models.request import CancellationResult
-from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA, CONTEXT_KEY_FILE_METADATA_CONVERSION
+from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
@@ -31,13 +31,10 @@ class InvocationServiceConvertResourceMixin(ConvertResourceMixin):
     def convert_resource(self, resource: Invocation) -> Invocation:  # type: ignore[override]
         """Clean Invocation metadata."""
         invocation_dict: dict[str, Any] = resource.model_dump()
-        # Exclude file_path and output_path for security - never expose internal filesystem paths in API
+        # Exclude internal filesystem paths for security - never expose in API
         for fm in invocation_dict[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]:
-            fm.pop("file_path")
-            if CONTEXT_KEY_FILE_METADATA_CONVERSION in fm:
-                conversion = fm[CONTEXT_KEY_FILE_METADATA_CONVERSION]
-                if conversion and "output_path" in conversion:
-                    conversion.pop("output_path")
+            fm.pop("file_path", None)
+            fm.pop("converted_content_path", None)
 
         return Invocation.model_validate(invocation_dict)
 
@@ -77,17 +74,13 @@ class InvocationService(BaseService):
         self.session_factory = session_factory
         self.document_conversion_task = document_conversion_task_factory(session_factory)
 
-    async def _handle_file_uploads(self, invocation_id: UUID, files: list[UploadFile]) -> list[FileMetadata]:
+    async def _handle_file_uploads(self, files: list[UploadFile]) -> list[FileMetadata]:
         if not files:
             return []
 
         # Validate and save files (may raise ValidationError or OSError)
-        # This happens BEFORE creating the invocation in DB
         # FileManager handles cleanup if validation/storage fails
-        return await self.file_manager.validate_and_save_files(
-            files=files,
-            invocation_id=str(invocation_id),
-        )
+        return await self.file_manager.validate_and_save_files(files=files)
 
     def _schedule_background_tasks(self, invocation_id: UUID) -> None:
         # Schedule background task for document conversion if provided
@@ -135,10 +128,11 @@ class InvocationService(BaseService):
 
         # Process files if provided - validate BEFORE creating invocation
         final_context_data = context_data or {}
-        file_metadata_list: list[FileMetadata] = await self._handle_file_uploads(invocation_id, files or [])
+        file_metadata_list: list[FileMetadata] = await self._handle_file_uploads(files or [])
 
         # Build file_metadata array for context_data
-        final_context_data[CONTEXT_KEY_FILE_METADATA] = [fm.model_dump() for fm in file_metadata_list]
+        # Use mode="json" to serialize UUIDs and enums properly for JSONB storage
+        final_context_data[CONTEXT_KEY_FILE_METADATA] = [fm.model_dump(mode="json") for fm in file_metadata_list]
 
         # Create invocation (single code path for both file and non-file cases)
         try:
@@ -292,9 +286,8 @@ class InvocationService(BaseService):
                 files_to_cleanup.append(file_metadata["file_path"])
 
             # Add converted file if it exists
-            conversion_data = file_metadata.get(CONTEXT_KEY_FILE_METADATA_CONVERSION)
-            if conversion_data and "output_path" in conversion_data:
-                files_to_cleanup.append(conversion_data["output_path"])
+            if file_metadata.get("converted_content_path"):
+                files_to_cleanup.append(file_metadata["converted_content_path"])
 
         if files_to_cleanup:
             logger.info("Cleaning up %d files for cancelled invocation %s", len(files_to_cleanup), invocation.id)

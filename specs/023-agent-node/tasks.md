@@ -121,7 +121,7 @@ flowchart TB
 
 ## Phase 3.1: Setup
 
-- [ ] **T001** Verify prerequisites and branch setup
+- [x] **T001** Verify prerequisites and branch setup
   - **File**: N/A (verification only)
   - **Actions**:
     1. Verify on branch `023-agent-node`
@@ -192,7 +192,7 @@ flowchart TB
 
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
 
-- [ ] **T003** [P] Unit test for FileMetadata SQLModel
+- [x] **T003** [P] Unit test for FileMetadata SQLModel
   - **File**: `tests/unit/files/models/test_file_metadata.py` (NEW)
   - **Actions**:
     1. Create new test file for FileMetadata model tests
@@ -203,7 +203,7 @@ flowchart TB
   - **Depends on**: T002 (refactor must complete first)
   - **Expected**: Tests fail (model not implemented yet)
 
-- [ ] **T004** [P] Unit test for Files API endpoint
+- [x] **T004** [P] Unit test for Files API endpoint
   - **File**: `tests/unit/api/v1/test_files.py` (NEW)
   - **Actions**:
     1. Create new test file for files endpoint tests
@@ -256,7 +256,7 @@ flowchart TB
 
 ### Phase 3.3a: Data Model Layer (Sequential)
 
-- [ ] **T007** Create FileMetadata SQLModel table and Alembic migration
+- [x] **T007** Create FileMetadata SQLModel table and Alembic migration
   - **File**: `src/nexus/files/models/file_metadata.py` (MODIFY - convert Pydantic to SQLModel)
   - **Actions**:
     1. The `src/nexus/files/` structure already exists from T002 refactor
@@ -279,7 +279,7 @@ flowchart TB
 
 ### Phase 3.3b: File Storage Layer (Sequential)
 
-- [ ] **T008** Refactor `save_file()` to use `file_id` only
+- [x] **T008** Refactor `save_file()` to use `file_id` only
   - **File**: `src/nexus/files/storage/storage.py` (MODIFY - already exists from T002)
   - **Actions**:
     1. Storage module already exists at `src/nexus/files/storage/` from T002 refactor
@@ -369,7 +369,7 @@ flowchart TB
 
 ### Phase 3.3d: Files API (Sequential)
 
-- [ ] **T012** Create POST /api/v1/files endpoint
+- [x] **T012** Create POST /api/v1/files endpoint
   - **File**: `src/nexus/api/v1/files.py` (NEW)
   - **Actions**:
     1. Create new router file `files.py`

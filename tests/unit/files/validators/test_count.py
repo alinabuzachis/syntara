@@ -7,7 +7,6 @@ These tests validate:
 
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, Mock, patch
-from uuid import uuid4
 
 import pytest
 
@@ -28,7 +27,6 @@ async def test_rejects_files_exceeding_count_limit() -> None:
     - Default limit is 10 files
     """
     # Arrange - 11 files (exceeds default limit of 10)
-    invocation_id = str(uuid4())
     mock_files = []
     for i in range(11):
         mock_file = Mock()
@@ -42,7 +40,7 @@ async def test_rejects_files_exceeding_count_limit() -> None:
 
     # Act & Assert
     with pytest.raises(ValidationError) as exc_info:
-        await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files), invocation_id)
+        await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
     # Error message should mention too many files
     error_message = str(exc_info.value)
@@ -58,7 +56,6 @@ async def test_error_message_includes_actual_and_max_count() -> None:
     - Includes both actual and maximum allowed counts
     """
     # Arrange - 15 files
-    invocation_id = str(uuid4())
     mock_files = []
     for i in range(15):
         mock_file = Mock()
@@ -72,7 +69,7 @@ async def test_error_message_includes_actual_and_max_count() -> None:
 
     # Act & Assert
     with pytest.raises(ValidationError) as exc_info:
-        await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files), invocation_id)
+        await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
     error_message = str(exc_info.value)
     # Should mention both 15 (actual) and 10 (max)
@@ -89,7 +86,6 @@ async def test_accepts_files_at_exact_limit() -> None:
     - Boundary condition handled correctly
     """
     # Arrange - Exactly 10 files
-    invocation_id = str(uuid4())
     mock_files = []
     for i in range(10):
         mock_file = Mock()
@@ -103,7 +99,7 @@ async def test_accepts_files_at_exact_limit() -> None:
     file_manager = FileManager()
 
     # Act
-    result = await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files), invocation_id)
+    result = await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
     # Assert
     assert len(result) == 10
@@ -118,7 +114,6 @@ async def test_accepts_files_below_limit() -> None:
     - No validation error for valid count
     """
     # Arrange - 5 files (below limit)
-    invocation_id = str(uuid4())
     mock_files = []
     for i in range(5):
         mock_file = Mock()
@@ -132,7 +127,7 @@ async def test_accepts_files_below_limit() -> None:
     file_manager = FileManager()
 
     # Act
-    result = await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files), invocation_id)
+    result = await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
     # Assert
     assert len(result) == 5
@@ -147,7 +142,6 @@ async def test_configurable_max_files_limit() -> None:
     - Validation uses configured limit
     """
     # Arrange - 6 files with custom limit of 5
-    invocation_id = str(uuid4())
     mock_files = []
     for i in range(6):
         mock_file = Mock()
@@ -165,7 +159,7 @@ async def test_configurable_max_files_limit() -> None:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files), invocation_id)
+            await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
         # Should validate against custom limit (5)
         error_message = str(exc_info.value)
@@ -181,7 +175,6 @@ async def test_single_file_accepted() -> None:
     - Minimum case (1 file) works
     """
     # Arrange - 1 file
-    invocation_id = str(uuid4())
     mock_file = Mock()
     mock_file.filename = "single.pdf"
     mock_file.size = 1024
@@ -192,7 +185,7 @@ async def test_single_file_accepted() -> None:
     file_manager = FileManager()
 
     # Act
-    result = await file_manager.validate_and_save_files([mock_file], invocation_id)
+    result = await file_manager.validate_and_save_files([mock_file])
 
     # Assert
     assert len(result) == 1

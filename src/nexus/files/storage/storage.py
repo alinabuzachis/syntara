@@ -52,17 +52,17 @@ def sanitize_filename(filename: str, max_length: int = 200) -> str:
 async def save_file(
     file_content: bytes,
     filename: str,
-    invocation_id: str,
+    file_id: str,
     retriever: BaseRetriever,
 ) -> str:
     """Save uploaded file to storage using the configured retriever.
 
-    Files are saved with the naming pattern: nexus-{invocation_id}-{sanitized_filename}
+    Files are saved with the naming pattern: nexus-{file_id}-{sanitized_filename}
 
     Args:
         file_content: File content as bytes
         filename: Original filename from upload
-        invocation_id: Invocation ID for file naming
+        file_id: Unique file identifier (UUID) for file naming
         retriever: Storage retriever to use for saving file
 
     Returns:
@@ -78,16 +78,16 @@ async def save_file(
     safe_filename = sanitize_filename(filename)
 
     # Generate file path with naming pattern
-    file_path = f"nexus-{invocation_id}-{safe_filename}"
+    file_path = f"nexus-{file_id}-{safe_filename}"
 
     # Save using retriever
     try:
         saved_path = await retriever.save_file(file_content, file_path)
 
         logger.info(
-            "File saved to storage (filename=%s, invocation_id=%s, size=%d bytes)",
+            "File saved to storage (filename=%s, file_id=%s, size=%d bytes)",
             safe_filename,
-            invocation_id,
+            file_id,
             len(file_content),
         )
 
@@ -96,9 +96,9 @@ async def save_file(
     except (OSError, PermissionError):
         # Log detailed error information (not exposed to client)
         logger.exception(
-            "Storage failure (filename=%s, invocation_id=%s, path=%s, size=%d bytes)",
+            "Storage failure (filename=%s, file_id=%s, path=%s, size=%d bytes)",
             safe_filename,
-            invocation_id,
+            file_id,
             file_path,
             len(file_content),
         )

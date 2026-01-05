@@ -5,59 +5,17 @@ including validation, storage, and metadata generation.
 """
 
 import logging
-from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import UploadFile
-from pydantic import BaseModel, Field
 
 from nexus.core.config import get_settings
 from nexus.files import storage, utils, validators
+from nexus.files.models import FileMetadata, FileStatus
 from nexus.files.retrievers.base import BaseRetriever
 from nexus.files.retrievers.local import LocalFileRetriever
 
 logger = logging.getLogger(__name__)
-
-
-class FileMetadata(BaseModel):
-    """Metadata for uploaded files.
-
-    This is a pure data transfer object (not a database table) that is
-    serialized to JSON and stored in Invocation.context_data JSONB field.
-
-    Uses Pydantic BaseModel (not SQLModel) since:
-    - Not a database table (no table=True)
-    - Not a direct API request/response schema
-    - Only used for serialization to JSONB
-
-    Security Note:
-        file_path contains internal filesystem paths and should NEVER be
-        exposed in API responses. Use file_id for public references.
-        When serializing for API responses, use: model_dump(exclude={'file_path'})
-
-    Attributes:
-        file_id: Unique identifier for the file (UUID, public)
-        filename: Original filename
-        size_bytes: File size in bytes
-        mime_type: Detected MIME type
-        file_path: Internal storage path (EXCLUDED from API responses)
-        status: Processing status (always "pending_parse" for now)
-
-    """
-
-    file_id: str = Field(..., description="Unique file identifier (UUID)")
-    filename: str = Field(..., description="Original filename")
-    size_bytes: int = Field(..., description="File size in bytes", gt=0)
-    mime_type: str = Field(..., description="Detected MIME type")
-    file_path: str = Field(..., description="Internal storage path (not exposed in API)")
-    status: Literal["pending_parse", "converting", "converted", "conversion_failed"] = Field(
-        default="pending_parse",
-        description="Processing status1",
-    )
-    conversion: dict[str, Any] | None = Field(
-        default=None,
-        description="Optional conversion metadata when status is 'converted' or 'conversion_failed'",
-    )
 
 
 class FileManager:
@@ -113,22 +71,25 @@ class FileManager:
     async def validate_and_save_files(
         self,
         files: list[UploadFile],
-        invocation_id: str,
     ) -> list[FileMetadata]:
         """Validate and save uploaded files with transactional cleanup.
 
         This method performs the following operations:
         1. Validate file count, size, and MIME types (reads each file once)
-        2. Save files to storage using the configured retriever
-        3. Generate FileMetadata for each file
-        4. Cleanup saved files if any step fails
+        2. Generate unique file_id (UUID) for each file
+        3. Save files to storage using the configured retriever
+        4. Generate FileMetadata for each file
+        5. Cleanup saved files if any step fails
+
+        Note: Database persistence is handled by the caller. This method
+        returns in-memory FileMetadata objects that should be added to
+        a database session and committed.
 
         Args:
             files: List of uploaded files
-            invocation_id: Invocation ID for file naming and tracking
 
         Returns:
-            List of FileMetadata objects with file information
+            List of FileMetadata objects with file information (not yet persisted)
 
         Raises:
             ValidationError: If file validation fails (count, size, or MIME type)
@@ -138,8 +99,7 @@ class FileManager:
 
         """
         logger.info(
-            "Starting file upload processing (invocation_id=%s, file_count=%d)",
-            invocation_id,
+            "Starting file upload processing (file_count=%d)",
             len(files),
         )
 
@@ -147,10 +107,7 @@ class FileManager:
         try:
             validated_files = await validators.validate_files(files, self.settings)
         except validators.ValidationError:
-            logger.warning(
-                "File validation failed (invocation_id=%s)",
-                invocation_id,
-            )
+            logger.warning("File validation failed")
             raise
 
         # Step 2: Save files and collect metadata
@@ -163,45 +120,47 @@ class FileManager:
                 filename = file.filename or "unknown"
                 file_size_bytes = len(file_content)
 
+                # Generate unique file_id first (used for storage path)
+                file_id = uuid4()
+
                 # Select appropriate retriever based on file context
                 retriever = self.get_retriever_for_file(
                     _file_size_bytes=file_size_bytes,
                     _mime_type=mime_type,
                 )
 
-                # Save file to storage using selected retriever
+                # Save file to storage using file_id for path naming
                 file_path = await storage.save_file(
                     file_content,
                     filename,
-                    invocation_id,
+                    str(file_id),
                     retriever,
                 )
 
                 # Track saved path for potential cleanup
                 saved_file_paths.append(file_path)
 
-                # Create metadata with unique file_id
+                # Create metadata with the generated file_id as primary key
                 metadata = FileMetadata(
-                    file_id=str(uuid4()),  # Generate unique identifier
+                    id=file_id,  # Use as primary key (inherited from BaseResource)
                     filename=filename,
                     size_bytes=file_size_bytes,
                     mime_type=mime_type,
-                    file_path=file_path,  # Internal only, excluded from API response
-                    status="pending_parse",
+                    file_path=file_path,
+                    status=FileStatus.PENDING_CONVERSION,
                 )
                 file_metadata_list.append(metadata)
 
                 logger.info(
-                    "File processed successfully (filename=%s, invocation_id=%s)",
+                    "File processed successfully (filename=%s, file_id=%s)",
                     filename,
-                    invocation_id,
+                    file_id,
                 )
 
         except (OSError, PermissionError):
             # Storage failure - cleanup already saved files
             logger.exception(
-                "Storage failure during file processing (invocation_id=%s), cleaning up %d saved files",
-                invocation_id,
+                "Storage failure during file processing, cleaning up %d saved files",
                 len(saved_file_paths),
             )
 
@@ -212,8 +171,7 @@ class FileManager:
             raise
 
         logger.info(
-            "All files processed successfully (invocation_id=%s, file_count=%d)",
-            invocation_id,
+            "All files processed successfully (file_count=%d)",
             len(file_metadata_list),
         )
 
@@ -245,6 +203,5 @@ def get_file_manager() -> FileManager:
 
 __all__ = [
     "FileManager",
-    "FileMetadata",
     "get_file_manager",
 ]
