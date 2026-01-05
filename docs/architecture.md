@@ -83,19 +83,18 @@ Nice to have (but we'll explain the basics):
 
 ## Technology Stack
 
-| Layer               | Technology                            | Notes                                     |
-| ------------------- | ------------------------------------- | ----------------------------------------- |
-| **UI Components**   | Base UI (`@base-ui-components/react`) | Headless, accessible components           |
-| **Shared Library**  | `nexus-ui-framework`                  | Common components consumed by `nexus-ui`  |
-| **Styling**         | PatternFly 6                          | Enterprise UI component framework         |
-| **Forms**           | react-hook-form                       | Performant form handling                  |
-| **Icons**           | Lucide React                          | Consistent icon set                       |
-| **Workflow Canvas** | React Flow (`@xyflow/react`)          | Node-based editor for workflows           |
-| **State (Server)**  | TanStack Query                        | Caching, fetching, synchronizing API data |
-| **State (Client)**  | Zustand                               | Lightweight store for workflow editing    |
-| **Routing**         | Wouter                                | Minimal router (~1KB)                     |
-| **Build**           | Vite                                  | Fast dev server and bundler               |
-| **Testing**         | Vitest + Testing Library              | Unit and component testing                |
+| Layer               | Technology                              | Notes                                      |
+| ------------------- | --------------------------------------- | ------------------------------------------ |
+| **UI Components**   | PatternFly 6                            | Enterprise UI component framework          |
+| **Styling**         | PatternFly 6                            | Enterprise UI component framework          |
+| **Forms**           | react-hook-form                         | Performant form handling                   |
+| **Icons**           | PatternFly Icons (prefer RhUi-prefixed) | PatternFly icon library, prefer RhUi icons |
+| **Workflow Canvas** | React Flow (`@xyflow/react`)            | Node-based editor for workflows            |
+| **State (Server)**  | TanStack Query                          | Caching, fetching, synchronizing API data  |
+| **State (Client)**  | Zustand                                 | Lightweight store for workflow editing     |
+| **Routing**         | Wouter                                  | Minimal router (~1KB)                      |
+| **Build**           | Vite                                    | Fast dev server and bundler                |
+| **Testing**         | Vitest + Testing Library                | Unit and component testing                 |
 
 ---
 
@@ -212,7 +211,6 @@ The workflow builder is the most complex part. Understanding the flat ↔ nested
 ```
 packages/
 ├── nexus-ui/           ← The actual web app (React + Vite)
-├── nexus-ui-framework/ ← Shared UI components (consumed by nexus-ui)
 ├── nexus-contracts/    ← Generated TypeScript types from OpenAPI
 └── nexus-mock-api/     ← Local mock server for development
 ```
@@ -223,23 +221,20 @@ packages/
 flowchart TB
   subgraph Packages
     UI[nexus-ui<br/>Main App]
-    Framework[nexus-ui-framework<br/>Shared Components]
     Contracts[nexus-contracts<br/>API Types]
     Mock[nexus-mock-api<br/>Dev Server]
   end
 
-  UI --> Framework
   UI --> Contracts
   Mock --> Contracts
-  Framework -.->|"dev dependency"| Contracts
 
   subgraph External
-    BaseUI["@base-ui-components/react"]
+    PatternFly[PatternFly 6]
     ReactFlow["@xyflow/react"]
     TanStack[TanStack Query]
   end
 
-  Framework --> BaseUI
+  UI --> PatternFly
   UI --> ReactFlow
   UI --> TanStack
 ```

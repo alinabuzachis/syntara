@@ -12,7 +12,7 @@ Claude, you have access to the following skills. Use them when appropriate:
 
 ```bash
 # Development
-npm start                  # Start all services (UI, framework, mock API)
+npm start                  # Start all services (UI, mock API)
 npm run start:nexus-ui     # Start UI only
 npm run start:nexus-mock-api # Start mock API only
 
@@ -65,29 +65,29 @@ If you’re working on the workflow builder, the highest-signal sections are in 
 
 ### Component Development Guidelines
 
-**CRITICAL: Always prioritize reusing and extending existing components from `nexus-ui-framework`**
+**CRITICAL: Always prioritize using PatternFly components directly**
 
 Before writing any new UI code, follow this checklist:
 
 1. **Check for Existing Components**
-   - Search `packages/nexus-ui-framework/src/components/` for existing components
-   - Review current components: Button, Alert, Switch, Table, Dialog, EmptyState, Menu, Tooltip, Checkbox, etc.
-   - Verify if an existing component can be reused or extended
+   - Search `packages/nexus-ui/src/components/` for existing application-specific components
+   - Check PatternFly documentation for available components: Button, Alert, Switch, Table, Dialog, EmptyState, Menu, Tooltip, Checkbox, etc.
+   - Verify if a PatternFly component or existing app component can be reused or extended
 
 2. **Component Location Strategy**
-   - **Reusable/Generic components** → `packages/nexus-ui-framework/src/components/`
    - **Application-specific components** → `packages/nexus-ui/src/components/`
-   - When in doubt, prefer framework location for better reusability
+   - Use PatternFly components directly from `@patternfly/react-core` and related packages
+   - When in doubt, prefer PatternFly components over custom implementations
 
-3. **Building New Framework Components**
-   - ALWAYS use `@base-ui-components/react` as the foundation
-   - Build headless, accessible components following Base UI patterns
+3. **Building New Components**
+   - ALWAYS use PatternFly components as the foundation
+   - Build accessible components following PatternFly patterns and design system
    - Include comprehensive tests (see existing `.test.tsx` files)
-   - Export from `packages/nexus-ui-framework/src/index.tsx`
+   - Place in `packages/nexus-ui/src/components/` for app-specific components
 
 4. **Custom Hooks**
    - Extract reusable logic into custom hooks
-   - Place hooks in `packages/nexus-ui-framework/src/hooks/` (create if needed)
+   - Place hooks in `packages/nexus-ui/src/hooks/` (create if needed)
    - Follow naming convention: `useXxx`
    - Include TypeScript types
 
@@ -111,10 +111,10 @@ Before writing any new UI code, follow this checklist:
 
 ```text
 User Request: "Add a confirmation dialog"
-Step 1: Check nexus-ui-framework for Dialog component ✓ (exists)
-Step 2: Check for ConfirmDialog variant ✓ (exists)
-Step 3: Use existing ConfirmDialog from framework
-Result: No new code needed, use import from 'nexus-ui-framework'
+Step 1: Check PatternFly for Dialog/Modal component ✓ (exists)
+Step 2: Check app components for ConfirmDialog variant ✓ (may exist)
+Step 3: Use PatternFly Modal or existing app component
+Result: Use PatternFly Modal component or extend existing app component
 ```
 
 ### Code Review: Spotting Abstraction Opportunities
@@ -179,13 +179,13 @@ When reviewing code, always ask:
 
 1. **"Have I seen this JSX pattern before?"**
    - Search codebase for similar structures
-   - Check if a framework component already exists
-   - Consider if it belongs in `nexus-ui-framework`
+   - Check if a PatternFly component or existing app component already exists
+   - Consider if it should be an app-specific component or use PatternFly directly
 
 2. **"Is this logic reusable?"**
    - Would other components benefit from this?
    - Is there already a hook for this in the codebase?
-   - Should this be a framework-level hook?
+   - Should this be extracted to a shared hook?
 
 3. **"Can I extend an existing component?"**
    - Does a similar component exist with different variants?
@@ -204,7 +204,7 @@ Codebase Search Patterns:
 - Check for copy-pasted utility functions
 ```
 
-**When to migrate to framework:**
+**When to extract to shared components:**
 
 - Component used in 2+ unrelated features
 - Hook provides generic, reusable functionality
@@ -259,9 +259,9 @@ it('increments counter when button clicked', async () => {
 ### Critical Development Workflows
 
 1. Dependency Management
-   - `nexus-ui-framework` must be built before `nexus-ui`
+   - PatternFly components are consumed directly from npm packages
    - Automatic rebuilds in watch mode
-   - Hot reloading for framework changes
+   - Hot reloading for component changes
 
 2. API Contract Generation
    - Types generated from external OpenAPI specs

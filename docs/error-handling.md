@@ -127,7 +127,7 @@ Provides consistent error handling for mutations with special 503 support.
 - Automatic 503 detection with warning alert (amber, not red)
 - Consistent error message extraction from various formats
 - Custom 503 handler support for component-specific behavior
-- Integration with `useAlerts` from framework
+- Integration with `useAlerts` from app components
 
 #### Usage Examples
 
@@ -306,16 +306,11 @@ The backend returns HTTP 503 when the OpenRouter API key is not configured:
 
 ```
 packages/
-├── nexus-ui-framework/
-│   └── src/
-│       ├── components/
-│       │   ├── EmptyStateServiceUnavailable.tsx      # 503 empty state
-│       │   └── EmptyStateServiceUnavailable.test.tsx
-│       └── index.tsx                                  # Exports
-│
 └── nexus-ui/
     └── src/
         ├── components/
+        │   ├── EmptyStateServiceUnavailable.tsx      # 503 empty state
+        │   ├── EmptyStateServiceUnavailable.test.tsx
         │   └── states/
         │       ├── useQueryState.tsx     # Query state hook (handles 503)
         │       └── ErrorState.tsx        # Generic error display
