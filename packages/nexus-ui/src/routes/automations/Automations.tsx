@@ -30,6 +30,7 @@ import { ScrollableTableContainer } from '../../components/table/ScrollableTable
 import { SwitchCell } from '../../components/table/SwitchCell.tsx'
 import { useFuse } from '../../hooks/useFuse'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { getDateField } from '../../utils/getDateField'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
@@ -165,10 +166,10 @@ export default function Automations() {
                   <LinkCell href={`/automation-builder/${workflow.id}`}>{workflow.name}</LinkCell>
                 </Td>
                 <Td dataLabel="Created At">
-                  <DateCell dateString={workflow.createdAt} />
+                  <DateCell dateString={getDateField(workflow, 'createdAt')} />
                 </Td>
                 <Td dataLabel="Updated At">
-                  <DateCell dateString={workflow.updatedAt} />
+                  <DateCell dateString={getDateField(workflow, 'updatedAt')} />
                 </Td>
                 <Td dataLabel="Tags">
                   <LabelsCell labels={workflow.labels} />

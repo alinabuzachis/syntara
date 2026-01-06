@@ -13,6 +13,7 @@ import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useFuse } from '../../hooks/useFuse'
+import { getDateField } from '../../utils/getDateField'
 import { StatusLabel } from '../builder/ExecutionStatus'
 
 export default function Executions() {
@@ -133,7 +134,7 @@ export default function Executions() {
                 </Td>
                 <Td dataLabel="Status">{execution.status && <StatusLabel status={execution.status} />}</Td>
                 <Td dataLabel="Created At">
-                  <DateCell dateString={execution.createdAt} />
+                  <DateCell dateString={getDateField(execution, 'createdAt')} />
                 </Td>
                 <Td dataLabel="Completed At">
                   {execution.completed_at ? (
