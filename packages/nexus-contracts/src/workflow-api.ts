@@ -1399,11 +1399,11 @@ export interface components {
       /** @description Approval prompt/question to display */
       prompt: string
       /**
-       * @description Time to wait for approval (ISO 8601 duration)
-       * @example PT1H
-       * @example P1D
+       * @description Time to wait for approval in seconds
+       * @example 3600
+       * @example 86400
        */
-      timeout?: string
+      timeout?: number
       /**
        * @description Action to take if approval times out
        * @default fail
@@ -1440,19 +1440,19 @@ export interface components {
        */
       backoff?: 'fixed' | 'exponential' | 'linear'
       /**
-       * @description Initial retry interval (ISO 8601 duration)
-       * @default PT1S
-       * @example PT1S
-       * @example PT5S
-       * @example PT10S
+       * @description Initial retry interval in seconds
+       * @default 1
+       * @example 1
+       * @example 5
+       * @example 10
        */
-      initialInterval?: string
+      initialInterval?: number
       /**
-       * @description Maximum retry interval (ISO 8601 duration)
-       * @example PT1M
-       * @example PT5M
+       * @description Maximum retry interval in seconds
+       * @example 60
+       * @example 300
        */
-      maxInterval?: string
+      maxInterval?: number
       /**
        * @description Backoff multiplier for exponential strategy
        * @default 2
@@ -1482,8 +1482,8 @@ export interface components {
       /** @description Human approval configuration (required if requiresApproval is true) */
       approval?: components['schemas']['approvalDefinition']
       retryPolicy?: components['schemas']['retryPolicy']
-      /** @description Activity timeout (ISO 8601 duration) */
-      timeout?: string
+      /** @description Activity timeout in seconds */
+      timeout?: number
       /** @description Output schema definition for this activity */
       outputs?: {
         [key: string]: {
@@ -1634,11 +1634,53 @@ export interface components {
        */
       executor: 'connector'
     })
+    aapJobTemplateTask: {
+      /**
+       * @description Task executor type - Ansible Automation Platform Job Template
+       * @constant
+       */
+      executor: 'aap_job_template'
+      /** @description Configuration for AAP job template execution. Must specify either jobTemplateId OR both jobTemplateName and organizationName. */
+      config: {
+        /** @description AAP job template ID to launch (mutually exclusive with jobTemplateName/organizationName) */
+        jobTemplateId?: number
+        /** @description AAP job template name (requires organizationName, mutually exclusive with jobTemplateId) */
+        jobTemplateName?: string
+        /** @description AAP organization name (requires jobTemplateName, mutually exclusive with jobTemplateId) */
+        organizationName?: string
+        /** @description Override default inventory (ID only) */
+        inventory?: number
+        /** @description List of credential IDs to use */
+        credentials?: number[]
+        /** @description Extra variables to pass to the job (can use expressions like ${input.version}) */
+        extraVars?: {
+          [key: string]: unknown
+        }
+        /** @description Limit job execution to specific hosts */
+        limit?: string
+        /** @description Ansible tags to run (comma-separated) */
+        tags?: string
+        /** @description Ansible tags to skip (comma-separated) */
+        skipTags?: string
+        /**
+         * @description Job verbosity level
+         * @default 0
+         */
+        verbosity?: number
+      } & (unknown | unknown)
+    } & (components['schemas']['baseTaskDefinition'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      executor: 'aap_job_template'
+    })
     taskDefinition:
       | components['schemas']['agenticTask']
       | components['schemas']['scriptTask']
       | components['schemas']['apiTask']
       | components['schemas']['connectorTask']
+      | components['schemas']['aapJobTemplateTask']
     taskActivity: {
       /** @constant */
       type: 'task'
@@ -1778,12 +1820,12 @@ export interface components {
        */
       strategy?: 'all'
       /**
-       * @description Maximum time to wait for converge condition (ISO 8601 duration)
-       * @example PT5M
-       * @example PT30M
-       * @example PT1H
+       * @description Maximum time to wait for converge condition in seconds
+       * @example 300
+       * @example 1800
+       * @example 3600
        */
-      timeout?: string
+      timeout?: number
       /**
        * @description Action to take if timeout is reached before converge condition is met
        * @default fail
@@ -1838,12 +1880,12 @@ export interface components {
         /** @description User or team responsible for the workflow */
         owner?: string
         /**
-         * @description Maximum workflow execution time (ISO 8601 duration) - applies to entire workflow
-         * @example PT1H
-         * @example P1D
-         * @example PT30M
+         * @description Maximum workflow execution time in seconds - applies to entire workflow
+         * @example 3600
+         * @example 86400
+         * @example 1800
          */
-        timeout?: string
+        timeout?: number
       }
       /** @description Workflow trigger configuration - manual trigger only */
       triggers?: components['schemas']['manualTrigger'][]

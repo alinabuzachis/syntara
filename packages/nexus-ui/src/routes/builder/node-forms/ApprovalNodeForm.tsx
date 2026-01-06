@@ -20,7 +20,7 @@ interface ApprovalFormData {
   name: string
   approvers: string
   prompt: string
-  timeout: string
+  timeout?: number
   onTimeout: string
 }
 
@@ -56,11 +56,17 @@ function ApprovalFormFields({ submitButtonText }: { submitButtonText?: string })
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Timeout (ISO 8601)" fieldId="approval-timeout">
-          <TextInput {...register('timeout')} id="approval-timeout" placeholder="P1D" type="text" />
+        <FormGroup label="Timeout (seconds)" fieldId="approval-timeout">
+          <TextInput
+            {...register('timeout', { valueAsNumber: true })}
+            id="approval-timeout"
+            placeholder="86400 (1 day)"
+            type="number"
+            min={1}
+          />
           <FormHelperText>
             <HelperText>
-              <HelperTextItem>Examples: PT1H (1 hour), PT30M (30 min), P1D (1 day)</HelperTextItem>
+              <HelperTextItem>Time to wait for approval in seconds (e.g., 3600 = 1 hour, 86400 = 1 day)</HelperTextItem>
             </HelperText>
           </FormHelperText>
         </FormGroup>
@@ -95,7 +101,7 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
     name: '',
     approvers: '',
     prompt: '',
-    timeout: 'P1D',
+    timeout: 86400, // 1 day in seconds
     onTimeout: 'fail',
   }
 

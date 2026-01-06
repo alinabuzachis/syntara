@@ -41,7 +41,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         name: 'J',
         type: 'converge',
         converge: {
-          timeout: '',
           branches: ['A', 'B'],
           strategy: 'all',
           onTimeout: 'fail',
@@ -122,7 +121,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         name: 'J',
         type: 'converge',
         converge: {
-          timeout: '',
           branches: ['A', 'B'],
           strategy: 'all',
           onTimeout: 'fail',
@@ -284,7 +282,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         name: 'J',
         type: 'converge',
         converge: {
-          timeout: '',
           branches: [
             'activity_ad085604_6f81_4862_9f77_bf7087faa16a',
             'activity_bbf6ae8d_969f_4deb_ad2e_35b021eb16f0',
@@ -377,7 +374,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         name: 'J',
         type: 'converge',
         converge: {
-          timeout: '',
           branches: ['A', 'B'],
           strategy: 'all',
           onTimeout: 'fail',
@@ -449,7 +445,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         name: 'J',
         type: 'converge',
         converge: {
-          timeout: '',
           branches: ['A'],
           strategy: 'all',
           onTimeout: 'fail',
@@ -497,7 +492,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         name: 'J',
         type: 'converge',
         converge: {
-          timeout: '',
           branches: ['A'],
           strategy: 'all',
           onTimeout: 'fail',

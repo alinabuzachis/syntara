@@ -16,8 +16,8 @@ workflow:
       type: task
       retryPolicy:
         maxAttempts: 3
-        initialInterval: PT1S
-        maxInterval: PT5S
+        initialInterval: 1
+        maxInterval: 5
         backoff: linear
       task:
         executor: script

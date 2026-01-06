@@ -14,7 +14,7 @@ workflow:
     - id: slow_task
       name: Slow Task
       type: task
-      timeout: PT2S
+      timeout: 2
       task:
         executor: script
         config:

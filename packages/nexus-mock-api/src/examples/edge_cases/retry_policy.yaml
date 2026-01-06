@@ -16,8 +16,8 @@ workflow:
       type: task
       retryPolicy:
         maxAttempts: 3
-        initialInterval: PT1S
-        maxInterval: PT30S
+        initialInterval: 1
+        maxInterval: 30
         backoff: exponential
         multiplier: 2.0
       task:

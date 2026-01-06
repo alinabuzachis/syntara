@@ -608,7 +608,7 @@ export interface components {
       provider_type: 'mcp'
       /** Format: uri */
       base_url: string
-      api_key: string
+      api_key?: string | null
     } & {
       /**
        * @description discriminator enum property added by openapi-typescript

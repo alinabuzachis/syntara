@@ -32,13 +32,13 @@ workflow:
     - id: unreliable_service
       name: Simulate Unreliable Service
       type: task
-      timeout: PT10S
+      timeout: 10
       retryPolicy:
         maxAttempts: 5
         backoff: exponential
         multiplier: 2.0
-        initialInterval: PT1S
-        maxInterval: PT10S
+        initialInterval: 1
+        maxInterval: 10
       task:
         executor: script
         config:
@@ -53,11 +53,10 @@ workflow:
             # Advance seed by attempt number to get different values on each retry
             if [ -n "$INPUT_SEED" ]; then
               ATTEMPT=${INPUT_TEMPORAL_ATTEMPT:-1}
-              RANDOM=$(( INPUT_SEED + ATTEMPT - 1 ))
+              RANDOM_NUM=$(python3 -c "import random, os; seed = int(os.getenv('INPUT_SEED', 0)); attempt = int(os.getenv('INPUT_TEMPORAL_ATTEMPT', 1)); random.seed(seed + attempt - 1); print(random.randint(0, 99))")
+            else
+              RANDOM_NUM=$((RANDOM % 100))
             fi
-
-            # Generate random number between 0-100
-            RANDOM_NUM=$((RANDOM % 100))
             echo "Random roll: $RANDOM_NUM (need > $INPUT_FAILURE_RATE to succeed)"
 
             if [ "$RANDOM_NUM" -gt "$INPUT_FAILURE_RATE" ]; then
@@ -101,11 +100,11 @@ workflow:
     - id: fixed_backoff_example
       name: Fixed Backoff Example
       type: task
-      timeout: PT5S
+      timeout: 5
       retryPolicy:
         maxAttempts: 3
         backoff: fixed
-        initialInterval: PT2S
+        initialInterval: 2
       task:
         executor: script
         config:

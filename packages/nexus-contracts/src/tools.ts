@@ -332,7 +332,14 @@ export interface components {
       example_value?: Record<string, never>
     }
     ToolUpdate: {
-      enabled: boolean
+      enabled?: boolean
+      /**
+       * @description Current status of the tool
+       * @enum {string}
+       */
+      status?: 'available' | 'missing' | 'error'
+      /** @description Error message from last refresh attempt */
+      refresh_error?: string | null
     }
     ToolBulkUpdate: {
       /** @description List of tool UUIDs to update (max 50) */

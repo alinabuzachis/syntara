@@ -12,6 +12,16 @@ import { nodeMetadata } from './nodeMetadata'
 
 export type ConvergeNode = { type: 'converge' } & Node<ConvergeActivity>
 
+/**
+ * Format seconds as human-readable duration
+ */
+function formatTimeout(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
+  return `${Math.floor(seconds / 86400)}d`
+}
+
 export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
   const metadata = nodeMetadata.converge
   const Icon = metadata.icon!
@@ -35,7 +45,7 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
         <NodeBody>
           <Details>
             <Detail label="Strategy">all</Detail>
-            {timeout && <Detail label="Timeout">{timeout}</Detail>}
+            {timeout && <Detail label="Timeout">{formatTimeout(timeout)}</Detail>}
             <Detail label="On Timeout">{onTimeout}</Detail>
             <Detail label="Aggregate Outputs">{aggregateOutputs ? 'Yes' : 'No'}</Detail>
           </Details>

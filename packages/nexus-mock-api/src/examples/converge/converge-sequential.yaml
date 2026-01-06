@@ -1,0 +1,39 @@
+---
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: converge-sequential-test
+  description: Test converge after sequential activities complete
+triggers:
+  - type: manual
+workflow:
+  activities:
+    - id: seq1
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Step 1"
+    - id: seq2
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Step 2"
+    - id: seq3
+      type: task
+      task:
+        executor: script
+        config:
+          language: bash
+          code: echo "Step 3"
+    - id: converge_sequential
+      type: converge
+      converge:
+        branches:
+          - seq1
+          - seq2
+          - seq3
+        strategy: all

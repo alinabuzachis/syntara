@@ -307,7 +307,7 @@ export function createConvergeActivity(
   id: string,
   name: string,
   config?: {
-    timeout?: string
+    timeout?: number
     onTimeout?: 'continue' | 'fail'
     aggregateOutputs?: boolean
   }

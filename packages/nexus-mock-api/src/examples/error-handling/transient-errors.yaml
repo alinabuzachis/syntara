@@ -29,8 +29,8 @@ workflow:
         maxAttempts: 5
         backoff: exponential
         multiplier: 2
-        initialInterval: PT1S
-        maxInterval: PT10S
+        initialInterval: 1
+        maxInterval: 10
       task:
         executor: script
         config:
@@ -41,10 +41,10 @@ workflow:
             # Advance seed by attempt number to get different values on each retry
             if [ -n "$INPUT_SEED" ]; then
               ATTEMPT=${INPUT_TEMPORAL_ATTEMPT:-1}
-              RANDOM=$(( INPUT_SEED + ATTEMPT - 1 ))
+              RANDOM_VAL=$(python3 -c "import random, os; seed = int(os.getenv('INPUT_SEED', 0)); attempt = int(os.getenv('INPUT_TEMPORAL_ATTEMPT', 1)); random.seed(seed + attempt - 1); print(random.randint(0, 9))")
+            else
+              RANDOM_VAL=$((RANDOM % 10))
             fi
-
-            RANDOM_VAL=$((RANDOM % 10))
             if [ $RANDOM_VAL -lt 7 ]; then
               echo "Transient failure occurred"
               exit 1

@@ -27,7 +27,7 @@ interface LogicFormData {
   maxIterations?: number
   indexVariable?: string
   itemVariable?: string
-  timeout?: string
+  timeout?: number
   onTimeout?: 'continue' | 'fail'
   aggregateOutputs?: boolean
 }
@@ -182,17 +182,19 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
       {logicType === 'converge' && (
         <>
           <StackItem>
-            <FormGroup label="Timeout (ISO 8601 Duration)" fieldId="logic-timeout">
+            <FormGroup label="Timeout (seconds)" fieldId="logic-timeout">
               <TextInput
-                {...register('timeout')}
+                {...register('timeout', { valueAsNumber: true })}
                 id="logic-timeout"
-                placeholder="PT5M (5 minutes)"
-                style={{ fontFamily: 'monospace' }}
-                type="text"
+                placeholder="300 (5 minutes)"
+                type="number"
+                min={1}
               />
               <FormHelperText>
                 <HelperText>
-                  <HelperTextItem>Maximum time to wait for all branches (e.g., PT5M, PT1H, P1D)</HelperTextItem>
+                  <HelperTextItem>
+                    Maximum time to wait for all branches in seconds (e.g., 300 = 5 min, 3600 = 1 hour)
+                  </HelperTextItem>
                 </HelperText>
               </FormHelperText>
             </FormGroup>

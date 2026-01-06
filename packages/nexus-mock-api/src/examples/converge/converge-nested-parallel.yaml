@@ -1,0 +1,53 @@
+---
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: converge-nested-parallel-test
+  description: Test converge with nested parallel execution
+triggers:
+  - type: manual
+workflow:
+  activities:
+    - id: group1
+      type: parallel
+      branches:
+        - id: branch1a
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Branch 1A"
+        - id: branch1b
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Branch 1B"
+    - id: group2
+      type: parallel
+      branches:
+        - id: branch2a
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Branch 2A"
+        - id: branch2b
+          type: task
+          task:
+            executor: script
+            config:
+              language: bash
+              code: echo "Branch 2B"
+    - id: converge_groups
+      type: converge
+      converge:
+        branches:
+          - branch1a
+          - branch1b
+          - branch2a
+          - branch2b
+        strategy: all

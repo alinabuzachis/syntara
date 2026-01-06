@@ -27,7 +27,7 @@ export function ConvergeNodeDetails({ convergeData, nodeId, onClose }: ConvergeN
 
   const handleSubmit = (data: {
     name: string
-    timeout?: string
+    timeout?: number
     onTimeout?: 'continue' | 'fail'
     aggregateOutputs?: boolean
   }) => {
@@ -37,7 +37,7 @@ export function ConvergeNodeDetails({ convergeData, nodeId, onClose }: ConvergeN
         name: data.name,
         converge: {
           ...(convergeData.converge ?? { branches: [], strategy: 'all' as const }),
-          ...(data.timeout && { timeout: data.timeout }),
+          ...(data.timeout !== undefined && { timeout: data.timeout }),
           onTimeout: data.onTimeout ?? 'fail',
           aggregateOutputs: data.aggregateOutputs ?? true,
         },

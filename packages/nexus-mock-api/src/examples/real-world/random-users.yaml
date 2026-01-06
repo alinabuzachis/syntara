@@ -41,7 +41,7 @@ workflow:
         outputs:
           users: $.body.results
           info: $.body.info
-      timeout: PT30S
+      timeout: 30
 
     # Process users with Python
     - id: process_users
@@ -99,4 +99,4 @@ workflow:
           totalUsers: $.output.total_users
           averageAge: $.output.average_age
           summary: $.output.summary
-      timeout: PT1M
+      timeout: 60

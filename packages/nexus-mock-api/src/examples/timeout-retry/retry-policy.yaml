@@ -18,8 +18,8 @@ workflow:
         maxAttempts: 3
         backoff: exponential
         multiplier: 2
-        initialInterval: PT1S
-        maxInterval: PT1M
+        initialInterval: 1
+        maxInterval: 60
       task:
         executor: script
         config:

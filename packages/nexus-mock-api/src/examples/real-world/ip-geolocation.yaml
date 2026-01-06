@@ -43,7 +43,7 @@ workflow:
           timezone: $.body.timezone
           isp: $.body.isp
           status: $.body.status
-      timeout: PT30S
+      timeout: 30
 
     # Generate location report with Bash
     - id: generate_report
@@ -99,4 +99,4 @@ workflow:
         outputs:
           report: $.output
           summary: $.output.summary
-      timeout: PT1M
+      timeout: 60
