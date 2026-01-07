@@ -1,16 +1,33 @@
-/**
- * Type definitions for Builder Edge Components
- * Based on API schema specifications
- */
-
-import type { Edge } from '@xyflow/react'
+import type { EdgeProps } from '@xyflow/react'
 
 /**
- * Builder edge type with proper typing
+ * Shared edge data interface used by all edge types
  */
-export type BuilderEdge = Edge<Record<string, unknown>>
+export interface EdgeData {
+  onAddNode?: (sourceNodeId: string, targetNodeId: string, edgeId: string, sourceHandle?: string) => void
+  isActive?: boolean
+  isPending?: boolean
+}
 
 /**
- * Edge type identifiers (only default as per API schema)
+ * Button edge data interface (different from regular edges)
  */
-export type EdgeTypeId = 'default'
+export interface ButtonEdgeData {
+  onButtonClick?: () => void
+  isActive?: boolean
+  sourceHandle?: string
+}
+
+/**
+ * Base edge props interface that all edge components extend
+ */
+export interface BaseEdgeProps extends Omit<EdgeProps, 'data'> {
+  data?: EdgeData
+}
+
+/**
+ * Button edge props interface
+ */
+export interface ButtonEdgeProps extends Omit<EdgeProps, 'data'> {
+  data?: ButtonEdgeData
+}

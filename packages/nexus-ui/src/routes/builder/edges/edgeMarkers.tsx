@@ -11,7 +11,7 @@ export function EdgeMarkers() {
         markerHeight="12"
         viewBox="-10 -10 20 20"
         orient="auto"
-        refX="0"
+        refX="-5"
         refY="0"
       >
         <polyline
@@ -29,7 +29,7 @@ export function EdgeMarkers() {
         markerHeight="12"
         viewBox="-10 -10 20 20"
         orient="auto"
-        refX="0"
+        refX="-5"
         refY="0"
       >
         <polyline
@@ -47,6 +47,7 @@ export function EdgeMarkers() {
 
 /**
  * Determines the effective marker ID based on edge state.
+ * Note: Pending edges are handled directly in EdgePath component.
  */
 export function getEffectiveMarkerEnd(
   selected: boolean | undefined,

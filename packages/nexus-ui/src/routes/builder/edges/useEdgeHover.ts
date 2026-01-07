@@ -4,15 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 /**
  * Shared hook for edge hover state management.
  * Handles hover detection with delayed cleanup to allow moving from edge to buttons.
- *
- * Note: isAddButtonHovered is managed externally by edge components via setIsAddButtonHovered
- * in their button onMouseEnter/onMouseLeave handlers. The hook provides the state container
- * but doesn't set it internally.
  */
 export function useEdgeHover() {
   const [isHovered, setIsHovered] = useState(false)
   const [isEdgeHovered, setIsEdgeHovered] = useState(false)
-  const [isAddButtonHovered, setIsAddButtonHovered] = useState(false)
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cleanup timeout on unmount
@@ -59,8 +54,6 @@ export function useEdgeHover() {
   return {
     isHovered,
     isEdgeHovered,
-    isAddButtonHovered,
-    setIsAddButtonHovered,
     handleEdgeMouseEnter,
     handleEdgeMouseLeave,
     handleButtonMouseEnter,

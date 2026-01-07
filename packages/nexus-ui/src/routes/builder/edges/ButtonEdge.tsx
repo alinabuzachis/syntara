@@ -1,17 +1,12 @@
-import { BaseEdge, type EdgeProps, Position, useReactFlow } from '@xyflow/react'
+import { Icon } from '@patternfly/react-core'
+import { RhUiAddSquareIcon } from '@patternfly/react-icons'
+import { BaseEdge, EdgeLabelRenderer, Position, useReactFlow } from '@xyflow/react'
 import { useState } from 'react'
 
 import { setPendingDragHandle } from '../utils/pendingDragHandle'
 
 import { adjustSourceCoordinates } from './edgeUtils'
-
-interface ButtonEdgeProps extends EdgeProps {
-  data?: {
-    onButtonClick?: () => void
-    isActive?: boolean
-    sourceHandle?: string
-  }
-}
+import type { ButtonEdgeProps } from './types'
 
 /**
  * Edge with a plus button that opens the add node panel
@@ -131,46 +126,24 @@ export function ButtonEdge(props: ButtonEdgeProps) {
       {/* Visible thin stroke - override CSS opacity when dragging */}
       <path d={edgePath} fill="none" stroke="#6b7280" strokeWidth={2} pointerEvents="none" style={draggingStyle} />
       {/* Plus icon - visual elements (non-interactive) */}
-      <g
-        transform={`translate(${buttonX}, ${buttonY})`}
-        pointerEvents="none"
-        style={{
-          ...draggingStyle,
-          filter: data?.isActive
-            ? 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.6))'
-            : 'none',
-        }}
-      >
-        <rect
-          x={-7}
-          y={-7}
-          width={14}
-          height={14}
-          fill="none"
-          stroke={data?.isActive ? '#ffffff' : '#9ca3af'}
-          strokeWidth={1.5}
-          rx={2}
-          style={draggingStyle}
-        />
-        <line
-          x1={-4}
-          y1={0}
-          x2={4}
-          y2={0}
-          stroke={data?.isActive ? '#ffffff' : '#9ca3af'}
-          strokeWidth={1.5}
-          style={draggingStyle}
-        />
-        <line
-          x1={0}
-          y1={-4}
-          x2={0}
-          y2={4}
-          stroke={data?.isActive ? '#ffffff' : '#9ca3af'}
-          strokeWidth={1.5}
-          style={draggingStyle}
-        />
-      </g>
+      <EdgeLabelRenderer>
+        <div
+          style={{
+            position: 'absolute',
+            transform: `translate(-50%, -50%) translate(${buttonX}px,${buttonY}px)`,
+            pointerEvents: 'none',
+            filter: data?.isActive
+              ? 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.6))'
+              : 'none',
+            color: data?.isActive ? '#ffffff' : '#9ca3af',
+            ...draggingStyle,
+          }}
+        >
+          <Icon iconSize="lg">
+            <RhUiAddSquareIcon />
+          </Icon>
+        </div>
+      </EdgeLabelRenderer>
       {/* Large clickable area (draggable for all node types) */}
       <rect
         x={buttonX - 15}
