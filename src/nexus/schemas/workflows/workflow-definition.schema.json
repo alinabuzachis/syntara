@@ -379,6 +379,39 @@
       },
       "unevaluatedProperties": false
     },
+    "approvalActivity": {
+      "allOf": [
+        { "$ref": "#/definitions/baseActivity" }
+      ],
+      "type": "object",
+      "description": "Human approval node - pauses branch execution until approved or rejected",
+      "required": ["type", "onApproved"],
+      "properties": {
+        "type": {
+          "const": "approval"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed context/prompt for approvers explaining what they are approving"
+        },
+        "onApproved": {
+          "type": "array",
+          "description": "Activities to execute when approval is granted",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/activity"
+          }
+        },
+        "onRejected": {
+          "type": "array",
+          "description": "Activities to execute when approval is rejected or expires",
+          "items": {
+            "$ref": "#/definitions/activity"
+          }
+        }
+      },
+      "unevaluatedProperties": false
+    },
     "activity": {
       "oneOf": [
         { "$ref": "#/definitions/taskActivity" },
@@ -386,7 +419,8 @@
         { "$ref": "#/definitions/sequenceActivity" },
         { "$ref": "#/definitions/conditionActivity" },
         { "$ref": "#/definitions/loopActivity" },
-        { "$ref": "#/definitions/convergeActivity" }
+        { "$ref": "#/definitions/convergeActivity" },
+        { "$ref": "#/definitions/approvalActivity" }
       ],
       "discriminator": {
         "propertyName": "type",
@@ -396,7 +430,8 @@
           "sequence": "#/definitions/sequenceActivity",
           "condition": "#/definitions/conditionActivity",
           "loop": "#/definitions/loopActivity",
-          "converge": "#/definitions/convergeActivity"
+          "converge": "#/definitions/convergeActivity",
+          "approval": "#/definitions/approvalActivity"
         }
       }
     },

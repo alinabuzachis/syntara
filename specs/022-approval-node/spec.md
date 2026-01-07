@@ -1,6 +1,6 @@
 # Feature Specification: Human-in-the-Loop Approval Node
 
-**Feature Branch**: `020-approval-node`
+**Feature Branch**: `022-approval-node`
 **Created**: 2025-12-11
 **Status**: Draft
 **Epic**: [AAP-58015](AAP-58015) - Human-in-the-Loop (Approval node)
@@ -90,14 +90,14 @@ As an Approver, I want to view pending approval requests in the application UI s
 - **FR-001**: Automation Designers MUST be able to add a standalone "Approval" node to a workflow
 - **FR-002**: The Approval node MUST be configurable with a descriptive name/title that appears in approval requests
 - **FR-003**: The Approval node MUST support an optional description field to provide context for approvers
-- **FR-004**: The Approval node MUST have two distinct output ports: "Approved" and "Rejected"
+- **FR-004**: The Approval node MUST have two distinct output ports: "Approved" and "Rejected". The Approved port MUST have downstream activities. The Rejected port may be left unconnected, in which case the branch simply ends on rejection.
 - **FR-005**: The Approval node MUST have exactly one input connection.
 
 #### Workflow Execution
 
 - **FR-006**: When a workflow execution reaches an Approval node, the system MUST pause the branch containing that node while allowing other parallel branches to continue executing
 - **FR-007**: The system MUST create an approval request when a branch is paused at an Approval node
-- **FR-008**: An approval request MUST include: a link to the source workflow execution, the workflow inputs, outputs from completed steps, and the next steps that will execute if approved or rejected
+- **FR-008**: An approval request MUST include: a link to the source workflow execution, the workflow inputs, the output from the previous step (if any), and the next steps that will execute if approved or rejected
 - **FR-009**: The Approval node MAY have an optional timeout configuration. If no timeout is set, the approval request waits indefinitely until acted upon or the workflow is cancelled.
 - **FR-010**: When an approval request times out, the system MUST transition the request to "Expired" status, add an automatic note indicating the request was rejected due to timeout, and resume the workflow following the rejection path
 

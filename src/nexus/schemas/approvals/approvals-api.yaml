@@ -1,0 +1,625 @@
+---
+openapi: 3.0.3
+info:
+  title: Nexus Approvals API
+  version: 1.0.0
+  description: |
+    Human-in-the-loop approval API for the Nexus platform.
+
+    This API provides endpoints for managing approval requests that pause
+    automated processes pending human authorization. Approvals can be
+    triggered by workflow approval nodes.
+
+    ## Key Features
+    - Create approval requests (internal, triggered by workflow engine)
+    - List and filter pending approval requests
+    - View approval details with full context
+    - Submit approval decisions (approve/reject)
+    - Batch approval for multiple requests
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Approvals
+    description: Human-in-the-loop approval request management
+
+paths:
+  /approvals:
+    get:
+      summary: List approval requests
+      description: |
+        Retrieve a paginated list of approval requests with optional filtering.
+
+        Use this endpoint to:
+        - View pending approvals requiring action
+        - Review historical approval decisions
+        - Filter by execution, status, or date range
+      operationId: listApprovals
+      tags:
+        - Approvals
+      parameters:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ApprovalStatus"
+          description: Filter by approval status
+        - name: execution_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by parent workflow execution ID
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam"
+      responses:
+        "200":
+          description: Paginated list of approval requests
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ApprovalRequest"
+                        maxItems: 100
+                    required:
+                      - resources
+        "400":
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Create approval request
+      description: |
+        Create a new approval request for a workflow execution.
+
+        This is an internal endpoint called by the Workflows component when
+        a workflow execution reaches an approval node. It should not be called
+        directly by end users.
+      operationId: createApproval
+      tags:
+        - Approvals
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalCreateRequest"
+      responses:
+        "201":
+          description: Approval request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalRequest"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Approval request already exists for this execution and approval node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /approvals/{approvalId}:
+    get:
+      summary: Get approval request
+      description: |
+        Retrieve details of a specific approval request.
+
+        The response includes:
+        - Full request context (workflow inputs, completed step outputs)
+        - Next steps for both approval and rejection paths
+        - Decision history if already decided
+      operationId: getApproval
+      tags:
+        - Approvals
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Approval request ID
+      responses:
+        "200":
+          description: Approval request details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalRequest"
+        "404":
+          description: Approval request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    patch:
+      summary: Submit approval decision
+      description: |
+        Submit an approval decision (approve or reject).
+
+        Only pending approval requests can be decided. Attempting to modify an approval
+        that is already approved, rejected, expired, or cancelled will return an error.
+
+        When a decision is submitted:
+        1. The approval request status is updated
+        2. The decided_by, decided_at, and decision_notes fields are populated
+        3. A signal is sent to the workflow to resume execution on the appropriate path
+      operationId: decideApproval
+      tags:
+        - Approvals
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Approval request ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalDecisionRequest"
+      responses:
+        "200":
+          description: Approval decision recorded and workflow resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalRequest"
+        "400":
+          description: Invalid request payload (e.g., invalid status value)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Approval request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Approval already decided or workflow cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /approvals/batch:
+    post:
+      summary: Batch approve/reject multiple requests
+      description: |
+        Submit decisions for multiple approval requests at once.
+
+        This endpoint processes each decision independently. If some decisions fail,
+        the successful ones are still recorded. The response includes detailed results
+        for each decision.
+
+        Use cases:
+        - Approving multiple related requests at once
+        - Bulk rejection of stale or irrelevant requests
+      operationId: batchDecideApprovals
+      tags:
+        - Approvals
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchApprovalRequest"
+      responses:
+        "200":
+          description: Batch processing complete (may include partial failures)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchApprovalResponse"
+        "400":
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    ApprovalRequest:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/BaseResource"
+        - type: object
+          title: Approval Request
+          description: |
+            Human-in-the-loop decision point that pauses a workflow branch
+            pending approver response.
+          required:
+            - execution_id
+            - approval_node_id
+            - name
+            - status
+            - next_step_approved
+            - workflow_context
+          properties:
+            execution_id:
+              type: string
+              format: uuid
+              description: Parent workflow execution ID
+            approval_node_id:
+              type: string
+              description: Activity ID from workflow definition
+            name:
+              type: string
+              maxLength: 255
+              description: Display name for the approval request
+            description:
+              type: string
+              nullable: true
+              description: Detailed context/prompt for approvers
+            status:
+              $ref: "#/components/schemas/ApprovalStatus"
+            timeout_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When this request expires (null = no timeout)
+            next_step_approved:
+              description: First activity that executes if approved
+              allOf:
+                - $ref: "#/components/schemas/ActivitySummary"
+            next_step_rejected:
+              nullable: true
+              description: First activity that executes if rejected (null if path ends workflow)
+              allOf:
+                - $ref: "#/components/schemas/ActivitySummary"
+            workflow_context:
+              $ref: "#/components/schemas/WorkflowContext"
+            decided_by:
+              nullable: true
+              description: User who made the decision (captures name at decision time)
+              allOf:
+                - $ref: "#/components/schemas/UserReference"
+            decided_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When decision was made
+            decision_notes:
+              type: string
+              nullable: true
+              maxLength: 2000
+              description: Notes provided with the decision
+
+    ApprovalStatus:
+      type: string
+      title: Approval Status
+      description: Current state of a human approval request
+      enum:
+        - pending
+        - approved
+        - rejected
+        - expired
+        - cancelled
+
+    ActivitySummary:
+      type: object
+      title: Activity Summary
+      description: |
+        Summary of a workflow activity for display in approval context.
+        Provides enough information for UI rendering without exposing
+        full activity configuration details.
+      required:
+        - id
+        - name
+        - type
+      properties:
+        id:
+          type: string
+          description: Activity ID from workflow definition
+          example: apply_changes
+        name:
+          type: string
+          description: Human-readable activity name
+          example: Apply Changes
+        type:
+          type: string
+          description: Activity type (task, approval, parallel, etc.)
+          example: task
+        description:
+          type: string
+          nullable: true
+          description: Optional activity description if available
+          example: Applies the reviewed changes to production
+
+    ApprovalCreateRequest:
+      type: object
+      title: Approval Create Request
+      description: |
+        Request payload for creating an approval request.
+        This is an internal schema used by the Workflows component.
+      required:
+        - execution_id
+        - approval_node_id
+        - name
+        - next_step_approved
+        - workflow_context
+      properties:
+        execution_id:
+          type: string
+          format: uuid
+          description: Parent workflow execution ID
+        approval_node_id:
+          type: string
+          description: Activity ID from workflow definition
+        name:
+          type: string
+          maxLength: 255
+          description: Display name for the approval request
+        description:
+          type: string
+          nullable: true
+          description: Detailed context/prompt for approvers
+        timeout_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When this request expires (null = no timeout)
+        next_step_approved:
+          nullable: true
+          description: First activity that executes if approved (null for non-workflow sources)
+          allOf:
+            - $ref: "#/components/schemas/ActivitySummary"
+        next_step_rejected:
+          nullable: true
+          description: First activity that executes if rejected (null if path ends workflow)
+          allOf:
+            - $ref: "#/components/schemas/ActivitySummary"
+        workflow_context:
+          $ref: "#/components/schemas/WorkflowContext"
+
+    WorkflowContext:
+      type: object
+      title: Workflow Context
+      description: |
+        Essential context for approvers to make a decision.
+        Contains workflow identification, inputs, and the output from the immediately preceding activity.
+        For current workflow state (especially in parallel workflows), approvers should
+        navigate to the workflow execution canvas via the execution link.
+      required:
+        - workflow_version_id
+        - workflow_name
+        - inputs
+      properties:
+        workflow_version_id:
+          type: string
+          format: uuid
+          description: ID of the workflow version being executed
+        workflow_name:
+          type: string
+          description: Name of the workflow
+        inputs:
+          type: object
+          description: Original workflow input parameters (structure varies per workflow)
+          additionalProperties: true
+        previous_step:
+          $ref: "#/components/schemas/PreviousStepContext"
+      example:
+        workflow_version_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        workflow_name: "Production Deployment"
+        inputs:
+          target_environment: production
+          version: "2.1.0"
+          requested_by: alice@example.com
+        previous_step:
+          id: security_scan
+          name: Security Scan
+          type: task
+          output:
+            vulnerabilities_found: 0
+            scan_duration_seconds: 120
+
+    PreviousStepContext:
+      type: object
+      title: Previous Step Context
+      description: |
+        The activity that immediately preceded this approval node, including its output.
+        Null if the approval node is the first activity in the workflow.
+      required:
+        - id
+        - name
+        - type
+      properties:
+        id:
+          type: string
+          description: Activity ID from workflow definition
+          example: security_scan
+        name:
+          type: string
+          description: Human-readable activity name
+          example: Security Scan
+        type:
+          type: string
+          description: Activity type (task, approval, parallel, etc.)
+          example: task
+        output:
+          type: object
+          description: Output from the activity (structure varies per activity type)
+          additionalProperties: true
+          nullable: true
+
+    ApprovalDecisionRequest:
+      type: object
+      title: Approval Decision Request
+      description: |
+        Request payload for submitting an approval decision.
+
+        Status values:
+        - approved: Approver grants the request, workflow continues on approval path
+        - rejected: Approver denies the request, workflow continues on rejection path
+        - cancelled: Internal use only - set by workflow engine when parent workflow is cancelled.
+          Will be restricted to service accounts when authentication is implemented.
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - approved
+            - rejected
+            - cancelled
+          description: Decision status (cancelled is for internal workflow engine use only)
+        notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Optional notes explaining the decision
+
+    BatchApprovalDecision:
+      type: object
+      title: Batch Approval Decision
+      description: Single decision within a batch approval request
+      required:
+        - approval_id
+        - status
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+          description: ID of the approval request
+        status:
+          type: string
+          enum:
+            - approved
+            - rejected
+            - cancelled
+          description: Decision status (cancelled is for internal workflow engine use only)
+        notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Optional notes explaining the decision
+
+    BatchApprovalRequest:
+      type: object
+      title: Batch Approval Request
+      description: Request payload for submitting multiple approval decisions at once
+      required:
+        - decisions
+      properties:
+        decisions:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/BatchApprovalDecision"
+          description: List of approval decisions to submit
+
+    BatchApprovalResult:
+      type: object
+      title: Batch Approval Result
+      description: |
+        Confirmation for a single approval within a batch response.
+      required:
+        - approval_id
+        - success
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+          description: ID of the approval request
+        success:
+          type: boolean
+          description: Whether the decision was successfully recorded
+        status:
+          $ref: "#/components/schemas/ApprovalStatus"
+          description: New status after the decision (if successful)
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When decision was recorded (if successful)
+        decided_by:
+          nullable: true
+          description: User who made the decision (if successful)
+          allOf:
+            - $ref: "#/components/schemas/UserReference"
+        decision_notes:
+          type: string
+          nullable: true
+          description: Notes provided with the decision (echoed back from request)
+        error:
+          type: string
+          nullable: true
+          description: Error message if the decision failed
+
+    BatchApprovalResponse:
+      type: object
+      title: Batch Approval Response
+      description: Response for batch approval submission
+      required:
+        - results
+        - total_success
+        - total_failed
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/BatchApprovalResult"
+          description: Individual results for each decision
+        total_success:
+          type: integer
+          minimum: 0
+          description: Number of successfully processed decisions
+        total_failed:
+          type: integer
+          minimum: 0
+          description: Number of failed decisions
+
+    UserReference:
+      type: object
+      title: User Reference
+      description: Minimal user identification for embedding in other resources
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User's unique identifier
+        name:
+          type: string
+          description: User's display name at time of action
+
+    Error:
+      $ref: "../base/shared-resources.openapi.yaml#/components/schemas/Error"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token authentication
+
+security:
+  - bearerAuth: []

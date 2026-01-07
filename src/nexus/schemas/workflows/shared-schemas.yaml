@@ -23,7 +23,7 @@ components:
 
     WorkflowWithVersion:
       allOf:
-        - $ref: '#/components/schemas/Workflow'
+        - $ref: "#/components/schemas/Workflow"
         - type: object
           title: Workflow With Version
           description: Workflow combined with a specific version's details including workflow definition (stored as JSON), schema version, and change history
@@ -63,7 +63,7 @@ components:
               type: string
               description: Temporal workflow execution ID
             status:
-              $ref: '#/components/schemas/ExecutionStatus'
+              $ref: "#/components/schemas/ExecutionStatus"
             started_by:
               type: string
               format: uuid
@@ -120,7 +120,7 @@ components:
               type: string
               description: Temporal activity execution ID
             status:
-              $ref: '#/components/schemas/ActivityStatus'
+              $ref: "#/components/schemas/ActivityStatus"
             started_at:
               type: string
               format: date-time
@@ -150,44 +150,8 @@ components:
               nullable: true
               description: Iteration number if activity is within a loop (0-indexed)
 
-    Approval:
-      allOf:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
-        - type: object
-          title: Approval
-          description: Human-in-the-loop decision point that pauses workflow execution pending approver response
-          properties:
-            activity_execution_id:
-              type: string
-              format: uuid
-              description: Activity requiring approval
-            approver_id:
-              type: string
-              format: uuid
-              description: User assigned to review this approval
-            status:
-              $ref: '#/components/schemas/ApprovalStatus'
-            request_data:
-              type: object
-              description: Data presented for approval
-            response_data:
-              type: object
-              nullable: true
-              description: Approver's response including reason and comments
-            requested_at:
-              type: string
-              format: date-time
-              description: When approval was requested
-            responded_at:
-              type: string
-              format: date-time
-              nullable: true
-              description: When approver responded
-            expires_at:
-              type: string
-              format: date-time
-              nullable: true
-              description: Approval timeout deadline
+    # NOTE: Approval schemas are defined in ../approvals/approvals-api.yaml
+    # Do not duplicate here - use $ref to the approvals API when needed
 
     ExecutionStatus:
       type: string
@@ -201,11 +165,7 @@ components:
       description: Current state of an individual activity execution
       enum: [pending, running, completed, failed, retrying]
 
-    ApprovalStatus:
-      type: string
-      title: Approval Status
-      description: Current state of a human approval request
-      enum: [pending, approved, rejected, expired]
+    # NOTE: ApprovalStatus is defined in ../approvals/approvals-api.yaml
 
     ActivityType:
       type: object
@@ -221,7 +181,7 @@ components:
           type: string
           description: Unique identifier for the executor type
           example: agentic
-          enum: [agentic, connector, script, api]
+          enum: [agentic, connector, script, api, approval]
         name:
           type: string
           description: Human-readable name of the executor type
@@ -367,20 +327,9 @@ components:
           type: string
           enum: [pause, resume, cancel]
 
-    ApprovalResponseRequest:
-      type: object
-      title: Approval Response Request
-      description: Request payload for approver to approve or reject an approval request with reason
-      required:
-        - status
-        - response_data
-      properties:
-        status:
-          type: string
-          enum: [approved, rejected]
-        response_data:
-          type: object
-          description: Approver's response including reason, comments, and any additional structured data
+    # NOTE: Approval request/response schemas are defined in ../approvals/approvals-api.yaml
+    # Including: ApprovalDecisionRequest, BatchApprovalDecision, BatchApprovalRequest,
+    # BatchApprovalResult, BatchApprovalResponse
 
     # WebSocket-specific schemas
     WebSocketMessage:
@@ -478,7 +427,7 @@ components:
               type: string
               format: uuid
             status:
-              $ref: '#/components/schemas/ExecutionStatus'
+              $ref: "#/components/schemas/ExecutionStatus"
             labels:
               type: object
               additionalProperties:
@@ -503,7 +452,7 @@ components:
               type: string
               format: uuid
             status:
-              $ref: '#/components/schemas/ExecutionStatus'
+              $ref: "#/components/schemas/ExecutionStatus"
             labels:
               type: object
               additionalProperties:

@@ -15,12 +15,13 @@ info:
     │   └── Workflow (+ SoftDeletableResource + UserOwnedResource)
     │       └── WorkflowWithVersion (+ version details)
     ├── Execution (+ workflow execution fields)
-    ├── ActivityExecution (+ activity execution fields)
-    └── Approval (+ approval fields)
+    └── ActivityExecution (+ activity execution fields)
 
     SoftDeletableResource (deleted_at, deleted_by)
     UserOwnedResource (created_by)
     ```
+
+    Note: Approval resources are in a separate API. See `/api/v1/approvals`.
 
     ## Labels
 
@@ -466,113 +467,60 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /approvals:
-    get:
-      summary: List pending approvals
+  /executions/{executionId}/signals/approval-decision:
+    post:
+      summary: Signal approval decision to workflow
       description: |
-        Retrieve approvals for the current user with filtering, sorting, and cursor-based pagination.
-      parameters:
-        - name: status
-          in: query
-          required: false
-          style: deepObject
-          explode: true
-          schema:
-            allOf:
-              - $ref: '#/components/schemas/ApprovalStatus'
-                description: Exact match of status. ?status=<status>
-              - type: object
-                properties:
-                  in:
-                    type: string
-                    description: Match any of the comma-separated values. ?status[in]=<val1,val2>
-          description: |
-            Filter approvals by status.
-            - Exact match: `status=pending`
-            - Multiple values: `status[in]=pending,approved`
-        - name: activity_execution_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-          description: Filter by activity execution ID
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-      responses:
-        '200':
-          description: List of approvals
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Approval'
-                        maxItems: 100
-                    required:
-                      - resources
+        Send an approval decision signal to a running workflow execution.
 
-  /approvals/{approvalId}:
-    get:
-      summary: Get approval
-      description: Retrieve details of a specific approval request.
+        This endpoint is called by the approvals component (via WorkflowAPIClient)
+        to notify a paused workflow that an approval decision has been made.
+        The workflow will resume on either the approved or rejected path based
+        on the decision.
+
+        The signal is durable - if the workflow is temporarily unavailable,
+        the signal will be delivered when it becomes available again.
+      operationId: signalApprovalDecision
+      tags:
+        - Executions
       parameters:
-        - name: approvalId
+        - name: executionId
           in: path
           required: true
           schema:
             type: string
             format: uuid
-      responses:
-        '200':
-          description: Approval details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Approval'
-        '404':
-          description: Approval not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-    patch:
-      summary: Respond to approval
-      description: Approve or reject an approval request
-      parameters:
-        - name: approvalId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+          description: Execution ID of the workflow awaiting approval
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ApprovalResponseRequest'
+              $ref: '#/components/schemas/ApprovalDecisionSignal'
       responses:
         '200':
-          description: Approval response recorded
+          description: Signal sent successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Approval'
+                $ref: '#/components/schemas/SignalResponse'
         '404':
-          description: Approval not found
+          description: Execution not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '409':
+          description: |
+            Execution is not in a state that can receive approval signals
+            (e.g., already completed, cancelled, or not waiting for approval)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Note: Approval endpoints are in a separate API
+  # See: src/nexus/schemas/approvals/approvals-api.yaml
 
 components:
   schemas:
@@ -673,17 +621,13 @@ components:
     ActivityExecution:
       $ref: ./shared-schemas.yaml#/components/schemas/ActivityExecution
 
-    Approval:
-      $ref: ./shared-schemas.yaml#/components/schemas/Approval
+    # Note: Approval schemas are in src/nexus/schemas/approvals/approvals-api.yaml
 
     ExecutionStatus:
       $ref: ./shared-schemas.yaml#/components/schemas/ExecutionStatus
 
     ActivityStatus:
       $ref: ./shared-schemas.yaml#/components/schemas/ActivityStatus
-
-    ApprovalStatus:
-      $ref: ./shared-schemas.yaml#/components/schemas/ApprovalStatus
 
     CreateWorkflowRequest:
       $ref: ./shared-schemas.yaml#/components/schemas/CreateWorkflowRequest
@@ -697,11 +641,55 @@ components:
     ExecutionControlRequest:
       $ref: ./shared-schemas.yaml#/components/schemas/ExecutionControlRequest
 
-    ApprovalResponseRequest:
-      $ref: ./shared-schemas.yaml#/components/schemas/ApprovalResponseRequest
-
     ActivityType:
       $ref: ./shared-schemas.yaml#/components/schemas/ActivityType
+
+    ApprovalDecisionSignal:
+      type: object
+      title: Approval Decision Signal
+      description: |
+        Signal payload for notifying a workflow of an approval decision.
+        Sent by the approvals component when a user approves or rejects a request.
+      required:
+        - approval_id
+        - approval_node_id
+        - status
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+          description: ID of the approval request that was decided
+        approval_node_id:
+          type: string
+          description: Activity ID of the approval node in the workflow definition
+        status:
+          type: string
+          enum:
+            - approved
+            - rejected
+          description: |
+            Decision status from the approvals component.
+        notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Optional notes provided with the decision
+
+    SignalResponse:
+      type: object
+      title: Signal Response
+      description: Response confirming a signal was sent to a workflow
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - signal_sent
+          description: Confirmation that the signal was successfully sent
+        message:
+          type: string
+          description: Human-readable confirmation message
 
     Error:
       $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
