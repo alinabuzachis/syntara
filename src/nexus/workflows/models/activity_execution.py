@@ -30,6 +30,8 @@ class ActivityStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     RETRYING = "retrying"
+    SKIPPED = "skipped"
+    CANCELLED = "cancelled"
 
 
 class ActivityExecution(BaseResource, table=True):

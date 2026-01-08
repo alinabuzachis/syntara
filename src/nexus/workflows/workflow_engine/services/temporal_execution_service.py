@@ -91,7 +91,7 @@ class TemporalExecutionService:
             workflow_yaml: YAML workflow definition string
             workflow_name: Name for this workflow execution
             input_data: Input parameters for the workflow
-            workflow_id: Optional internal workflow ID (auto-generated if not provided)
+            workflow_id: Optional workflow ID (auto-generated if not provided)
 
         Returns:
             WorkflowStartResponse containing:
@@ -126,7 +126,7 @@ class TemporalExecutionService:
             if workflow_id is None:
                 workflow_id = str(uuid4())
 
-            # Create execution record (stub - would be database record)
+            # Create execution record (will be the database record id)
             execution_id = str(uuid4())
 
             # Generate Temporal workflow ID (must be unique for Temporal)

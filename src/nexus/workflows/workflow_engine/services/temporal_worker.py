@@ -7,18 +7,24 @@ The worker connects to the Temporal server and processes tasks from configured q
 import asyncio
 import logging
 import types
+from functools import lru_cache
 
 from temporalio.client import Client
 from temporalio.worker import Worker
 
+from nexus.api.db import AsyncSessionLocal
 from nexus.core.config import get_settings
 from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
     execute_aap_job_template_activity,
 )
 from nexus.workflows.workflow_engine.activities.agentic_activity import execute_agentic_activity
 from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
+from nexus.workflows.workflow_engine.activities.internal import register_activity_monitoring
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.interceptors.monitoring_interceptor import MonitoringWorkflowInterceptor
+from nexus.workflows.workflow_engine.services.activity_sync_registry import set_activity_sync_service
+from nexus.workflows.workflow_engine.services.activity_sync_service import ActivitySyncService
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +56,7 @@ class TemporalWorkerService:
         self.client: Client | None = None
         self.worker: Worker | None = None
         self._worker_task: asyncio.Task[None] | None = None
+        self.activity_sync_service: ActivitySyncService | None = None
 
     async def start(self) -> None:
         """Start the Temporal worker.
@@ -75,18 +82,32 @@ class TemporalWorkerService:
 
             logger.info("Connected to Temporal. Starting worker on queue: %s", self.task_queue)
 
-            # Create worker with workflows and activities
+            # Initialize activity sync service
+            self.activity_sync_service = ActivitySyncService(
+                temporal_client=self.client,
+                session_factory=AsyncSessionLocal,
+            )
+            logger.info("Activity sync service initialized")
+
+            # Register in global registry for access by internal activities
+            set_activity_sync_service(self.activity_sync_service)
+
+            # Create worker with workflows, activities, and interceptors
             self.worker = Worker(
                 self.client,
                 task_queue=self.task_queue,
                 workflows=[DynamicWorkflow],
                 activities=[
+                    # Internal activities
+                    register_activity_monitoring,
+                    # User-facing activities
                     execute_aap_job_template_activity,
                     execute_agentic_activity,
                     execute_api_request,
                     execute_bash_script,
                     execute_python_script,
                 ],
+                interceptors=[MonitoringWorkflowInterceptor()],
             )
 
             # Start worker in background task
@@ -103,6 +124,14 @@ class TemporalWorkerService:
 
         Waits for in-progress tasks to complete before shutting down.
         """
+        # Shutdown activity sync service first
+        if self.activity_sync_service:
+            await self.activity_sync_service.shutdown()
+            self.activity_sync_service = None
+
+        # Unregister from global registry
+        set_activity_sync_service(None)
+
         if self._worker_task:
             logger.info("Stopping Temporal worker...")
 
@@ -137,8 +166,44 @@ class TemporalWorkerService:
         await self.stop()
 
 
-# Global worker instance for application lifecycle
-_worker_service: TemporalWorkerService | None = None
+class WorkerRegistry:
+    """Registry for managing TemporalWorkerService lifecycle without global variables."""
+
+    def __init__(self) -> None:
+        """Initialize the registry."""
+        self._worker: TemporalWorkerService | None = None
+
+    def set_worker(self, worker: TemporalWorkerService | None) -> None:
+        """Register the TemporalWorkerService instance.
+
+        Args:
+            worker: TemporalWorkerService instance or None
+
+        """
+        self._worker = worker
+
+    def get_worker(self) -> TemporalWorkerService | None:
+        """Get the registered TemporalWorkerService instance.
+
+        Returns:
+            TemporalWorkerService if registered, None otherwise
+
+        """
+        return self._worker
+
+
+@lru_cache(maxsize=1)
+def _get_worker_registry() -> WorkerRegistry:
+    """Get the singleton WorkerRegistry instance.
+
+    lru_cache provides thread-safe singleton without global mutable state.
+    The registry itself manages the mutable worker reference.
+
+    Returns:
+        The shared WorkerRegistry instance
+
+    """
+    return WorkerRegistry()
 
 
 async def start_worker(
@@ -162,22 +227,24 @@ async def start_worker(
         >>> await start_worker()  # Called in app startup
 
     """
-    global _worker_service  # noqa: PLW0603
+    registry = _get_worker_registry()
+    existing_worker = registry.get_worker()
 
-    if _worker_service is not None:
+    if existing_worker is not None:
         logger.warning("Temporal worker already running")
-        return _worker_service
+        return existing_worker
 
     settings = get_settings()
-    _worker_service = TemporalWorkerService(
+    worker_service = TemporalWorkerService(
         temporal_address=temporal_address or settings.temporal_address,
         namespace=namespace or settings.temporal_namespace,
         task_queue=task_queue or settings.task_queue,
     )
 
-    await _worker_service.start()
+    await worker_service.start()
+    registry.set_worker(worker_service)
 
-    return _worker_service
+    return worker_service
 
 
 async def stop_worker() -> None:
@@ -189,14 +256,15 @@ async def stop_worker() -> None:
         >>> await stop_worker()  # Called in app shutdown
 
     """
-    global _worker_service  # noqa: PLW0603
+    registry = _get_worker_registry()
+    worker_service = registry.get_worker()
 
-    if _worker_service is None:
+    if worker_service is None:
         logger.warning("No Temporal worker running")
         return
 
-    await _worker_service.stop()
-    _worker_service = None
+    await worker_service.stop()
+    registry.set_worker(None)
 
 
 def get_worker() -> TemporalWorkerService | None:
@@ -206,4 +274,4 @@ def get_worker() -> TemporalWorkerService | None:
         TemporalWorkerService if started, None otherwise
 
     """
-    return _worker_service
+    return _get_worker_registry().get_worker()

@@ -18,13 +18,13 @@ services:
       retries: 5
 
   valkey:
-    image: ${VALKEY_IMAGE:-mirror.gcr.io/valkey/valkey:8}
+    image: ${NEXUS_VALKEY_IMAGE:-mirror.gcr.io/valkey/valkey:8}
     restart: unless-stopped
+    command: sh -c "valkey-server --requirepass $${VALKEY_PASSWORD:-valkey}"
     ports:
-      - ${VALKEY_PORT:-6379}:6379
+      - ${NEXUS_VALKEY_PORT:-6379}:6379
     environment:
-      VALKEY_PASSWORD: ${VALKEY_PASSWORD:-valkey}
-    command: valkey-server --requirepass ${VALKEY_PASSWORD:-valkey}
+      VALKEY_PASSWORD: ${NEXUS_VALKEY_PASSWORD:-valkey}
     healthcheck:
       test: [CMD-SHELL, 'valkey-cli -h 127.0.0.1 -p 6379 -a $${VALKEY_PASSWORD:-valkey} ping']
       interval: 10s
@@ -96,7 +96,7 @@ services:
       - NEXUS_TEMPORAL_ADDRESS=temporal:7233
       - NEXUS_TEMPORAL_NAMESPACE=default
       - NEXUS_VALKEY_HOST=valkey
-      - NEXUS_VALKEY_PASSWORD=${VALKEY_PASSWORD:-valkey}
+      - NEXUS_VALKEY_PASSWORD=${NEXUS_VALKEY_PASSWORD:-valkey}
       - NEXUS_OPENROUTER_API_KEY=${NEXUS_OPENROUTER_API_KEY}
       - NEXUS_OPENROUTER_MODEL=${NEXUS_OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
       - NEXUS_OPENROUTER_BASE_URL=${NEXUS_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
@@ -124,6 +124,13 @@ services:
     restart: unless-stopped
     command: [sh, -c, uv run python -m nexus.workflows.worker]
     environment:
+      # Database Configuration (for activity sync service)
+      - NEXUS_DB_HOST=database
+      - NEXUS_DB_PORT=5432
+      - NEXUS_DB_USER=${NEXUS_DB_USER:-admin}
+      - NEXUS_DB_PASSWORD=${NEXUS_DB_PASSWORD:-admin}
+      - NEXUS_DB_NAME=${NEXUS_DB_NAME:-nexus_api}
+      # Temporal Configuration
       - NEXUS_TEMPORAL_ADDRESS=temporal:7233
       - NEXUS_TEMPORAL_NAMESPACE=default
       - NEXUS_TASK_QUEUE=nexus-workflow-queue
@@ -140,6 +147,8 @@ services:
     volumes:
       - ./src:/opt/app-root/src/src:z
     depends_on:
+      database:
+        condition: service_healthy
       temporal:
         condition: service_healthy
     healthcheck:

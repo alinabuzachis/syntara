@@ -117,3 +117,188 @@ def _get_field(obj: Any, field_name: str, fallback_key: str | None = None) -> An
             return obj.get(fallback_key)
 
     return None
+
+
+def _process_nested_structures(
+    activity: Any,  # noqa: ANN401
+    callback: Callable[[list[Any]], None],
+) -> None:
+    """Process all nested structures in an activity with a callback function.
+
+    This helper consolidates processing of steps, branches, then/else, and loop structures
+    to reduce cognitive complexity in functions that recursively traverse activities.
+
+    Args:
+        activity: Activity object or dict to process
+        callback: Function to call with each nested activity list
+
+    """
+    steps = _get_field(activity, "steps")
+    if steps:
+        callback(steps)
+
+    branches = _get_field(activity, "branches")
+    if branches:
+        callback(branches)
+
+    then_branch = _get_field(activity, "then")
+    if then_branch:
+        callback(then_branch)
+
+    else_branch = _get_field(activity, "else_", fallback_key="else")
+    if else_branch:
+        callback(else_branch)
+
+    loop = _get_field(activity, "loop")
+    if loop:
+        loop_do = _get_field(loop, "do")
+        if loop_do:
+            callback(loop_do)
+
+
+def _collect_branch_activities(
+    branch_activities: list[Any],
+    condition_id: str,
+    branch_type: str,
+    condition_def: dict[str, Any],
+    branch_map: dict[str, dict[str, Any]],
+) -> None:
+    """Recursively collect all activities in a branch and map them to the condition."""
+    for activity in branch_activities:
+        activity_type = _get_field(activity, "type")
+        activity_id = _get_field(activity, "id")
+
+        if activity_type in ["task", "condition", None] and activity_id:
+            branch_map[activity_id] = {
+                "condition_id": condition_id,
+                "branch": branch_type,
+                "condition_def": condition_def,
+            }
+
+        steps = _get_field(activity, "steps")
+        if steps:
+            _collect_branch_activities(steps, condition_id, branch_type, condition_def, branch_map)
+
+        branches = _get_field(activity, "branches")
+        if branches:
+            _collect_branch_activities(branches, condition_id, branch_type, condition_def, branch_map)
+
+        loop = _get_field(activity, "loop")
+        if loop:
+            loop_do = _get_field(loop, "do")
+            if loop_do:
+                _collect_branch_activities(loop_do, condition_id, branch_type, condition_def, branch_map)
+
+
+def _process_condition_branches(
+    activity: Any,  # noqa: ANN401
+    activity_id: str,
+    branch_map: dict[str, dict[str, Any]],
+) -> None:
+    """Process then/else branches of a condition activity."""
+    then_branch = _get_field(activity, "then")
+    if then_branch:
+        _collect_branch_activities(then_branch, activity_id, "then", activity, branch_map)
+
+    else_branch = _get_field(activity, "else_", fallback_key="else")
+    if else_branch:
+        _collect_branch_activities(else_branch, activity_id, "else", activity, branch_map)
+
+
+def _process_activities_for_conditions(
+    activities_list: list[Any],
+    branch_map: dict[str, dict[str, Any]],
+) -> None:
+    """Process activities recursively to find condition nodes and map their branches."""
+    for activity in activities_list:
+        activity_type = _get_field(activity, "type")
+        activity_id = _get_field(activity, "id")
+
+        if activity_type == "condition" and activity_id:
+            _process_condition_branches(activity, activity_id, branch_map)
+
+        _process_nested_structures(
+            activity,
+            lambda nested: _process_activities_for_conditions(nested, branch_map),
+        )
+
+
+def build_branch_head_map(
+    activities: list[Any],
+) -> dict[str, dict[str, Any]]:
+    """Build a map of activities to their parent condition branches.
+
+    This creates a mapping that allows O(1) lookup to determine if an activity
+    is inside a condition branch, and if so, which branch and condition.
+
+    When an activity from a branch starts executing, we can immediately identify
+    the untriggered opposite branch and mark all its activities as SKIPPED.
+
+    Args:
+        activities: List of activities (dicts from workflow definition)
+
+    Returns:
+        Dictionary mapping activity_id to {
+            "condition_id": parent condition ID,
+            "branch": "then" or "else",
+            "condition_def": full condition definition (for getting opposite branch)
+        }
+
+    Example:
+        >>> activities = [{
+        ...     "id": "cond1",
+        ...     "type": "condition",
+        ...     "then": [{"id": "task1", "type": "task"}],
+        ...     "else": [{"id": "task2", "type": "task"}]
+        ... }]
+        >>> build_branch_head_map(activities)
+        {
+            "task1": {"condition_id": "cond1", "branch": "then", "condition_def": {...}},
+            "task2": {"condition_id": "cond1", "branch": "else", "condition_def": {...}}
+        }
+
+    """
+    branch_map: dict[str, dict[str, Any]] = {}
+    _process_activities_for_conditions(activities, branch_map)
+    return branch_map
+
+
+def collect_branch_activity_ids(branch_activities: list[Any]) -> list[str]:
+    """Collect all activity IDs from a branch, recursively including nested activities.
+
+    Only includes task activities and condition nodes (not sequence/parallel/loop containers).
+    This is used to identify activities that should be marked as SKIPPED when a condition
+    branch is not taken.
+
+    Args:
+        branch_activities: List of activities in a branch (dicts from workflow definition)
+
+    Returns:
+        List of activity IDs (includes nested activities from all control flow structures)
+
+    Example:
+        >>> branch = [
+        ...     {"id": "task1", "type": "task"},
+        ...     {"id": "cond1", "type": "condition",
+        ...      "then": [{"id": "task2", "type": "task"}],
+        ...      "else": [{"id": "task3", "type": "task"}]}
+        ... ]
+        >>> collect_branch_activity_ids(branch)
+        ["task1", "cond1", "task2", "task3"]
+
+    """
+    ids: list[str] = []
+
+    for activity in branch_activities:
+        activity_type = _get_field(activity, "type")
+        activity_id = _get_field(activity, "id")
+
+        if activity_type in ["task", "condition", None] and activity_id:
+            ids.append(activity_id)
+
+        _process_nested_structures(
+            activity,
+            lambda nested: ids.extend(collect_branch_activity_ids(nested)),
+        )
+
+    return ids

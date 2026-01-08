@@ -61,6 +61,7 @@ class DynamicWorkflow:
     def __init__(self) -> None:
         """Initialize workflow with expression resolver."""
         self.expression_resolver: ExpressionResolver
+        self.workflow_state: JsonDict = {}
 
     @workflow.run
     async def run(
@@ -97,15 +98,17 @@ class DynamicWorkflow:
                 if input_name not in resolved_inputs and input_param.default is not None:
                     resolved_inputs[input_name] = input_param.default
 
-        # Initialize workflow state
-        workflow_state: JsonDict = {
+        # Initialize workflow state (stored as instance variable for queries)
+        self.workflow_state = {
             "execution_id": execution_id,
             "inputs": resolved_inputs,
             "variables": self.workflow_definition.variables or {},
             "activity_outputs": {},
+            "activity_inputs": {},  # Track activity inputs for queries
             "completed_activities": [],
             "workflow_definition": self.workflow_definition,
         }
+        workflow_state = self.workflow_state
 
         workflow.logger.info(
             f"Starting dynamic workflow: {self.workflow_definition.metadata.name}",
@@ -520,6 +523,9 @@ class DynamicWorkflow:
 
         # Prepare task inputs
         task_inputs = self._prepare_task_inputs(activity, workflow_state)
+
+        # Store activity inputs for query access
+        workflow_state["activity_inputs"][activity.id] = task_inputs
 
         # Configure timeout (resolve template expressions if present)
         if activity.timeout:
@@ -1158,3 +1164,31 @@ class DynamicWorkflow:
         # Add the mapped outputs to result under 'output' key
         result["output"] = mapped_outputs
         return result
+
+    @workflow.query
+    def get_activity_input(self, activity_id: str) -> JsonDict | None:
+        """Query to get activity input data.
+
+        Args:
+            activity_id: Activity ID to query
+
+        Returns:
+            Activity input data or None if not found
+
+        """
+        activity_inputs: dict[str, JsonDict] = self.workflow_state.get("activity_inputs", {})
+        return activity_inputs.get(activity_id)
+
+    @workflow.query
+    def get_activity_output(self, activity_id: str) -> JsonDict | None:
+        """Query to get activity output data.
+
+        Args:
+            activity_id: Activity ID to query
+
+        Returns:
+            Activity output data or None if not found
+
+        """
+        activity_outputs: dict[str, JsonDict] = self.workflow_state.get("activity_outputs", {})
+        return activity_outputs.get(activity_id)

@@ -4,7 +4,7 @@ Provides utilities for Temporal workflow status conversion and synchronization.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -13,6 +13,7 @@ from temporalio.service import RPCError
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 
 if TYPE_CHECKING:
+    from nexus.workflows.workflow_engine.models.responses import WorkflowStatusResponse
     from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,62 @@ def temporal_status_to_execution_status(temporal_status: str) -> ExecutionStatus
     except ValueError:
         logger.warning("Unknown Temporal status '%s', cannot map to ExecutionStatus", temporal_status)
         return None
+
+
+def _calculate_completed_at(execution: Execution, close_time_str: str) -> datetime:
+    """Calculate the completed_at timestamp ensuring it's after created_at.
+
+    Args:
+        execution: Execution model instance
+        close_time_str: ISO format timestamp string from Temporal
+
+    Returns:
+        Adjusted datetime that satisfies created_at < completed_at constraint
+
+    """
+    close_time = datetime.fromisoformat(close_time_str)
+
+    # Ensure completed_at is always greater than created_at to satisfy DB constraint
+    if close_time <= execution.created_at:
+        # Use created_at + 1 microsecond to satisfy the constraint
+        adjusted_time = execution.created_at + timedelta(microseconds=1)
+        logger.warning(
+            "Workflow %s completed (%s) before database record created (%s), "
+            "adjusting completed_at to %s to satisfy constraint",
+            execution.temporal_workflow_id,
+            close_time.isoformat(),
+            execution.created_at.isoformat(),
+            adjusted_time.isoformat(),
+        )
+        return adjusted_time
+
+    return close_time
+
+
+def _update_execution_from_temporal_status(
+    execution: Execution,
+    new_status: ExecutionStatus,
+    status_response: "WorkflowStatusResponse",
+    terminal_states: set[ExecutionStatus],
+) -> None:
+    """Update execution with new status and related metadata.
+
+    Args:
+        execution: Execution model instance to update
+        new_status: New status from Temporal
+        status_response: Response object from Temporal service
+        terminal_states: Set of terminal execution states
+
+    """
+    execution.status = new_status
+
+    # Set completed_at if workflow is now in terminal state
+    if execution.status in terminal_states and status_response.close_time:
+        execution.completed_at = _calculate_completed_at(execution, status_response.close_time)
+
+    # Copy failure message if workflow failed
+    if execution.status == ExecutionStatus.FAILED and status_response.failure_message:
+        execution.error_details = status_response.failure_message
 
 
 async def sync_execution_status_from_temporal(
@@ -117,24 +174,16 @@ async def sync_execution_status_from_temporal(
         # Convert Temporal status to ExecutionStatus
         new_status = temporal_status_to_execution_status(status_response.status)
 
-        if new_status is not None and new_status != execution.status:
-            execution.status = new_status
-            status_changed = True
-
-            # Set completed_at if workflow is now in terminal state
-            if execution.status in terminal_states and status_response.close_time:
-                execution.completed_at = datetime.fromisoformat(status_response.close_time)
-
-            # Copy failure message if workflow failed
-            if execution.status == ExecutionStatus.FAILED and status_response.failure_message:
-                execution.error_details = status_response.failure_message
-        elif new_status is None:
+        if new_status is None:
             logger.warning(
                 "Could not map Temporal status '%s' to ExecutionStatus for execution %s, keeping current status %s",
                 status_response.status,
                 execution.id,
                 execution.status.value,
             )
+        elif new_status != execution.status:
+            _update_execution_from_temporal_status(execution, new_status, status_response, terminal_states)
+            status_changed = True
     except RPCError as e:
         # Workflow not found in Temporal - this can happen in tests or if workflow was purged
         # Just log and skip the sync

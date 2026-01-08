@@ -1,6 +1,6 @@
 """Unit tests for workflow service utilities."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
@@ -114,6 +114,7 @@ class TestSyncExecutionStatusFromTemporal:
         execution.status = ExecutionStatus.RUNNING
         execution.temporal_workflow_id = "exec-123"
         execution.completed_at = None
+        execution.created_at = datetime.fromisoformat("2025-01-31T11:00:00+00:00")
 
         mock_temporal = Mock()
         status_response = Mock()
@@ -134,6 +135,7 @@ class TestSyncExecutionStatusFromTemporal:
         execution.id = uuid4()
         execution.status = ExecutionStatus.RUNNING
         execution.temporal_workflow_id = "exec-123"
+        execution.created_at = datetime.now(UTC)
 
         mock_temporal = Mock()
         status_response = Mock()
@@ -232,6 +234,7 @@ class TestSyncExecutionStatusFromTemporal:
         execution.temporal_workflow_id = "exec-123"
         execution.completed_at = None
         execution.error_details = None
+        execution.created_at = datetime.fromisoformat("2025-11-04T20:00:00+00:00")
 
         mock_temporal = Mock()
         status_response = Mock()
@@ -255,11 +258,11 @@ class TestSyncExecutionStatusFromTemporal:
         execution.status = ExecutionStatus.RUNNING
         execution.temporal_workflow_id = "exec-123"
         execution.completed_at = None
+        execution.created_at = datetime.fromisoformat("2025-11-04T20:00:00+00:00")
 
         mock_temporal = Mock()
         status_response = Mock()
         status_response.status = "completed"
-        # Temporal provides timezone-aware timestamp
         status_response.close_time = "2025-11-04T21:36:52.535665+00:00"
         status_response.failure_message = None
         mock_temporal.get_workflow_status = AsyncMock(return_value=status_response)
@@ -268,10 +271,8 @@ class TestSyncExecutionStatusFromTemporal:
 
         assert result is True
         assert execution.status == ExecutionStatus.COMPLETED
-        # Verify datetime.fromisoformat preserves timezone
         completed_dt = datetime.fromisoformat("2025-11-04T21:36:52.535665+00:00")
         assert execution.completed_at == completed_dt
-        # Ensure it's timezone-aware
         assert execution.completed_at.tzinfo is not None
 
     @pytest.mark.asyncio
@@ -282,19 +283,19 @@ class TestSyncExecutionStatusFromTemporal:
         execution.status = ExecutionStatus.RUNNING
         execution.temporal_workflow_id = "exec-123"
         execution.error_details = None
+        execution.created_at = datetime.now(UTC)
 
         mock_temporal = Mock()
         status_response = Mock()
         status_response.status = "failed"
         status_response.close_time = "2025-11-04T21:36:52.535665+00:00"
-        status_response.failure_message = None  # No failure message
+        status_response.failure_message = None
         mock_temporal.get_workflow_status = AsyncMock(return_value=status_response)
 
         result = await sync_execution_status_from_temporal(execution, mock_temporal)
 
         assert result is True
         assert execution.status == ExecutionStatus.FAILED
-        # error_details should remain unchanged (None)
         assert execution.error_details is None
 
     @pytest.mark.asyncio

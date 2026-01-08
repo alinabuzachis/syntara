@@ -3,15 +3,13 @@
 These tests verify the business logic layer for execution management.
 """
 
-from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, Mock
 from uuid import UUID, uuid4
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
-from temporalio.api.enums.v1 import EventType
 
 from nexus.core.models import User
 from nexus.core.models.base import ResourcesResponseBase
@@ -177,7 +175,9 @@ class TestCreateExecution:
         mock_session.refresh = AsyncMock()
 
         # Mock Temporal service
+        execution_id = str(uuid4())
         temporal_result = Mock()
+        temporal_result.execution_id = execution_id
         temporal_result.temporal_workflow_id = "exec-abc123"
         temporal_result.temporal_run_id = "run-xyz789"
         mock_temporal.start_yaml_workflow = AsyncMock(return_value=temporal_result)
@@ -347,6 +347,7 @@ class TestGetExecution:
         execution.id = execution_id
         execution.status = ExecutionStatus.RUNNING
         execution.temporal_workflow_id = "exec-123"
+        execution.created_at = datetime.now(UTC)
 
         mock_result = Mock()
         mock_result.one_or_none = Mock(return_value=execution)
@@ -886,166 +887,79 @@ class TestGetExecutionActivities:
 
     @pytest.mark.asyncio
     async def test_get_execution_activities_success(self) -> None:
-        """Test successfully getting activities from Temporal history."""
-        # Setup mocks
+        """Test successfully getting activities from database."""
         mock_session = Mock(spec=AsyncSession)
-        mock_session.commit = AsyncMock()
-        mock_session.refresh = AsyncMock()
-        mock_session.add = Mock()
 
         execution_id = uuid4()
-        version_id = uuid4()
+        execution = Mock(spec=Execution)
+        execution.id = execution_id
+        execution.status = ExecutionStatus.RUNNING
+        execution.temporal_workflow_id = "exec-123"
+        execution.created_at = datetime.now(UTC)
 
-        # Mock execution
-        execution = Mock(
-            spec=Execution,
-            id=execution_id,
-            temporal_workflow_id="exec-123",
-            status=ExecutionStatus.RUNNING,
-            workflow_version_id=version_id,
-            last_processed_event_id=0,  # For incremental sync
-        )
+        activity = Mock()
+        activity.id = uuid4()
+        activity.activity_name = "activity-1"
+        activity.temporal_activity_id = "activity-1"
+        activity.status = ActivityStatus.COMPLETED
+        activity.retry_count = 0
 
-        # Mock database queries (all use exec)
         mock_execution_result = Mock()
         mock_execution_result.one_or_none = Mock(return_value=execution)
         mock_activities_result = Mock()
-        mock_activities_result.all = Mock(return_value=[])
-        mock_version = Mock(spec=WorkflowVersion)
-        mock_version.workflow_definition = {"workflow": {"activities": [{"id": "activity-1"}]}}
-        mock_version_result = Mock()
-        mock_version_result.one_or_none = Mock(return_value=mock_version)
-        mock_session.exec = AsyncMock(side_effect=[mock_execution_result, mock_activities_result, mock_version_result])
+        mock_activities_result.all = Mock(return_value=[activity])
 
-        # Mock Temporal
-        mock_temporal = Mock()
-        status_response = Mock(status="running", close_time=None)
-        mock_temporal.get_workflow_status = AsyncMock(return_value=status_response)
+        mock_session.exec = AsyncMock(side_effect=[mock_execution_result, mock_activities_result])
 
-        # Mock Temporal history events
-        event_time = datetime.now(UTC)
-        mock_event1 = MagicMock(event_type=EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED, event_id=5)
-        mock_event1.activity_task_scheduled_event_attributes.activity_id = "activity-1"
-        mock_event1.activity_task_scheduled_event_attributes.activity_type.name = "execute_bash_script"
-        mock_event2 = MagicMock(
-            event_type=EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED, event_time=event_time, event_id=6
-        )
-        mock_event2.activity_task_started_event_attributes.scheduled_event_id = 5
-        mock_event2.activity_task_started_event_attributes.attempt = 1
-        mock_event3 = MagicMock(
-            event_type=EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED, event_time=event_time, event_id=7
-        )
-        mock_event3.activity_task_completed_event_attributes.scheduled_event_id = 5
-
-        # Mock fetch_history_events() to return an async iterator
-        async def mock_async_iterator() -> AsyncIterator[Any]:
-            for event in [mock_event1, mock_event2, mock_event3]:
-                yield event
-
-        mock_handle = Mock()
-        mock_handle.fetch_history_events = Mock(return_value=mock_async_iterator())
-        mock_temporal.temporal_client.get_workflow_handle = Mock(return_value=mock_handle)
-
-        # Execute
         mock_user = Mock(spec=User)
-        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+
         result = await service.get_execution_activities(execution_id)
 
-        # Verify
         assert len(result) == 1
-        assert (
-            result[0].activity_name == "activity-1"
-        )  # activity_name should be workflow def ID, not Temporal function name
+        assert result[0].activity_name == "activity-1"
         assert result[0].temporal_activity_id == "activity-1"
         assert result[0].status == ActivityStatus.COMPLETED
         assert result[0].retry_count == 0
 
     @pytest.mark.asyncio
     async def test_get_execution_activities_incremental_sync(self) -> None:
-        """Test incremental sync - only processes events after last_processed_event_id."""
-        # Setup mocks
+        """Test getting multiple activities from database."""
         mock_session = Mock(spec=AsyncSession)
-        mock_session.commit = AsyncMock()
-        mock_session.refresh = AsyncMock()
-        mock_session.add = Mock()
 
         execution_id = uuid4()
-        version_id = uuid4()
+        execution = Mock(spec=Execution)
+        execution.id = execution_id
+        execution.status = ExecutionStatus.RUNNING
+        execution.temporal_workflow_id = "exec-123"
+        execution.created_at = datetime.now(UTC)
 
-        # Mock execution with last_processed_event_id=6 (already processed events 1-6)
-        execution = Mock(
-            spec=Execution,
-            id=execution_id,
-            temporal_workflow_id="exec-123",
-            status=ExecutionStatus.RUNNING,
-            workflow_version_id=version_id,
-            last_processed_event_id=6,  # Incremental sync checkpoint
-        )
+        activity1 = Mock()
+        activity1.id = uuid4()
+        activity1.activity_name = "activity-1"
+        activity1.temporal_activity_id = "activity-1"
+        activity1.status = ActivityStatus.COMPLETED
 
-        # Mock database queries (all use exec)
+        activity2 = Mock()
+        activity2.id = uuid4()
+        activity2.activity_name = "activity-2"
+        activity2.temporal_activity_id = "activity-2"
+        activity2.status = ActivityStatus.RUNNING
+
         mock_execution_result = Mock()
         mock_execution_result.one_or_none = Mock(return_value=execution)
         mock_activities_result = Mock()
-        mock_activities_result.all = Mock(return_value=[])
-        mock_version = Mock(spec=WorkflowVersion)
-        mock_version.workflow_definition = {"workflow": {"activities": [{"id": "activity-1"}, {"id": "activity-2"}]}}
-        mock_version_result = Mock()
-        mock_version_result.one_or_none = Mock(return_value=mock_version)
-        mock_session.exec = AsyncMock(side_effect=[mock_execution_result, mock_activities_result, mock_version_result])
+        mock_activities_result.all = Mock(return_value=[activity1, activity2])
 
-        # Mock Temporal
-        mock_temporal = Mock()
-        status_response = Mock(status="running", close_time=None)
-        mock_temporal.get_workflow_status = AsyncMock(return_value=status_response)
+        mock_session.exec = AsyncMock(side_effect=[mock_execution_result, mock_activities_result])
 
-        # Mock Temporal history events - mix of old (ID <= 6) and new (ID > 6) events
-        event_time = datetime.now(UTC)
-
-        # Old events (should be skipped)
-        old_event1 = MagicMock(event_type=EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED, event_id=5)
-        old_event1.activity_task_scheduled_event_attributes.activity_id = "activity-1"
-        old_event1.activity_task_scheduled_event_attributes.activity_type.name = "old_activity"
-
-        old_event2 = MagicMock(event_type=EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED, event_time=event_time, event_id=6)
-        old_event2.activity_task_started_event_attributes.scheduled_event_id = 5
-        old_event2.activity_task_started_event_attributes.attempt = 1
-
-        # New events (should be processed)
-        new_event1 = MagicMock(event_type=EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED, event_id=10)
-        new_event1.activity_task_scheduled_event_attributes.activity_id = "activity-2"
-        new_event1.activity_task_scheduled_event_attributes.activity_type.name = "new_activity"
-
-        new_event2 = MagicMock(
-            event_type=EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED, event_time=event_time, event_id=11
-        )
-        new_event2.activity_task_started_event_attributes.scheduled_event_id = 10
-        new_event2.activity_task_started_event_attributes.attempt = 1
-
-        new_event3 = MagicMock(
-            event_type=EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED, event_time=event_time, event_id=12
-        )
-        new_event3.activity_task_completed_event_attributes.scheduled_event_id = 10
-
-        # Mock fetch_history_events() to return all events (old and new)
-        async def mock_async_iterator() -> AsyncIterator[Any]:
-            for event in [old_event1, old_event2, new_event1, new_event2, new_event3]:
-                yield event
-
-        mock_handle = Mock()
-        mock_handle.fetch_history_events = Mock(return_value=mock_async_iterator())
-        mock_temporal.temporal_client.get_workflow_handle = Mock(return_value=mock_handle)
-
-        # Execute
         mock_user = Mock(spec=User)
-        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+
         result = await service.get_execution_activities(execution_id)
 
-        # Verify - should only have 1 activity (activity-2, from new events)
-        # Old events (IDs 5-6) should be skipped due to last_processed_event_id=6
-        assert len(result) == 1
-        assert result[0].activity_name == "activity-2"
-        assert result[0].temporal_activity_id == "activity-2"
+        assert len(result) == 2
+        assert result[0].activity_name == "activity-1"
         assert result[0].status == ActivityStatus.COMPLETED
-
-        # Verify execution's last_processed_event_id was updated to latest event ID
-        assert execution.last_processed_event_id == 12
+        assert result[1].activity_name == "activity-2"
+        assert result[1].status == ActivityStatus.RUNNING

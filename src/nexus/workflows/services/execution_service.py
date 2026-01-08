@@ -6,16 +6,12 @@ HTTP/API concerns in the FastAPI endpoints.
 
 import logging
 from collections.abc import Iterable
-from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 import yaml
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from temporalio.api.enums.v1 import EventType
-from temporalio.api.history.v1 import HistoryEvent
-from temporalio.exceptions import TemporalError
 
 from nexus.core.models import User
 from nexus.core.services import BaseService
@@ -25,12 +21,10 @@ from nexus.workflows.exceptions import (
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
-from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
+from nexus.workflows.models.activity_execution import ActivityExecution
 from nexus.workflows.models.execution import Execution, ExecutionListResponse, ExecutionRead, ExecutionStatus
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
-from nexus.workflows.utils.activity_traversal import traverse_activities
-from nexus.workflows.utils.datetime import ensure_timezone_aware
 from nexus.workflows.utils.temporal import sync_execution_status_from_temporal
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
@@ -172,8 +166,10 @@ class ExecutionService(BaseService):
                 workflow_yaml=workflow_yaml,
                 workflow_name=workflow.name,
                 input_data=input_data,
+                workflow_id=str(workflow.id),
             )
             temporal_workflow_id = temporal_result.temporal_workflow_id
+            execution_id = temporal_result.execution_id
             logger.info(
                 "Temporal workflow started: %s (run_id: %s)",
                 temporal_result.temporal_workflow_id,
@@ -181,11 +177,13 @@ class ExecutionService(BaseService):
             )
         else:
             # For testing without Temporal, generate a stub ID
-            temporal_workflow_id = f"exec-{uuid4()}"
+            execution_id = str(uuid4())
+            temporal_workflow_id = f"exec-{execution_id}"
             logger.warning("No Temporal service available, using stub workflow ID: %s", temporal_workflow_id)
 
         # Step 3: Create execution record in database ONLY after Temporal accepts workflow
         execution = Execution(
+            id=execution_id,
             workflow_id=workflow.id,
             workflow_version_id=workflow_version.id,
             temporal_workflow_id=temporal_workflow_id,
@@ -272,319 +270,34 @@ class ExecutionService(BaseService):
             include_total=include_total,
         )
 
-    async def fetch_activity_definitions_map(self, workflow_version_id: UUID) -> dict[str, dict[str, Any]]:
-        """Fetch activity definitions from workflow version and build a lookup map.
-
-        Recursively traverses the workflow definition to find all activities at any depth,
-        handling sequences (steps), parallels (branches), loops (do), and conditions (then/else).
-
-        Args:
-            workflow_version_id: Workflow version ID
-
-        Returns:
-            Dictionary mapping activity ID to activity definition
-
-        """
-        result = await self.session.exec(select(WorkflowVersion).where(WorkflowVersion.id == workflow_version_id))
-        workflow_version = result.one_or_none()
-
-        activity_definitions_map: dict[str, dict[str, Any]] = {}
-        if workflow_version and workflow_version.workflow_definition:
-            workflow_def = workflow_version.workflow_definition
-            activities_list = workflow_def.get("workflow", {}).get("activities", [])
-
-            traverse_activities(
-                activities_list,
-                lambda activity, _: activity_definitions_map.update({activity["id"]: activity})
-                if "id" in activity
-                else None,
-            )
-
-        return activity_definitions_map
-
-    def _process_activity_scheduled(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
-        """Process ACTIVITY_TASK_SCHEDULED event.
-
-        Args:
-            event: Temporal history event
-            temp_map: Temporary map to store activity data
-
-        """
-        attrs = event.activity_task_scheduled_event_attributes
-        temp_map[event.event_id] = {
-            "activity_id": attrs.activity_id,  # Workflow definition activity ID (e.g., "fetch_data")
-            "activity_name": attrs.activity_id,  # Same as activity_id - the workflow definition ID
-            "status": ActivityStatus.PENDING,
-            "started_at": None,
-            "completed_at": None,
-            "error_details": None,
-            "retry_count": 0,
-        }
-
-    def _process_activity_started(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
-        """Process ACTIVITY_TASK_STARTED event.
-
-        Args:
-            event: Temporal history event
-            temp_map: Temporary map to update activity data
-
-        """
-        attrs = event.activity_task_started_event_attributes
-        scheduled_id = attrs.scheduled_event_id
-        if scheduled_id in temp_map:
-            temp_map[scheduled_id]["status"] = ActivityStatus.RUNNING
-            temp_map[scheduled_id]["started_at"] = ensure_timezone_aware(event.event_time)
-            temp_map[scheduled_id]["retry_count"] = attrs.attempt - 1 if attrs.attempt else 0
-
-    def _process_activity_completed(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
-        """Process ACTIVITY_TASK_COMPLETED event.
-
-        Args:
-            event: Temporal history event
-            temp_map: Temporary map to update activity data
-
-        """
-        attrs = event.activity_task_completed_event_attributes
-        scheduled_id = attrs.scheduled_event_id
-        if scheduled_id in temp_map:
-            temp_map[scheduled_id]["status"] = ActivityStatus.COMPLETED
-            temp_map[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
-
-    def _process_activity_failed(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
-        """Process ACTIVITY_TASK_FAILED event.
-
-        Args:
-            event: Temporal history event
-            temp_map: Temporary map to update activity data
-
-        """
-        attrs = event.activity_task_failed_event_attributes
-        scheduled_id = attrs.scheduled_event_id
-        if scheduled_id in temp_map:
-            temp_map[scheduled_id]["status"] = ActivityStatus.FAILED
-            temp_map[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
-            if attrs.failure:
-                temp_map[scheduled_id]["error_details"] = attrs.failure.message
-
-    def _process_activity_timed_out(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
-        """Process ACTIVITY_TASK_TIMED_OUT event.
-
-        Args:
-            event: Temporal history event
-            temp_map: Temporary map to update activity data
-
-        """
-        attrs = event.activity_task_timed_out_event_attributes
-        scheduled_id = attrs.scheduled_event_id
-        if scheduled_id in temp_map:
-            temp_map[scheduled_id]["status"] = ActivityStatus.FAILED
-            temp_map[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
-            if attrs.failure:
-                temp_map[scheduled_id]["error_details"] = attrs.failure.message
-
-    def _process_activity_canceled(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
-        """Process ACTIVITY_TASK_CANCELED event.
-
-        Args:
-            event: Temporal history event
-            temp_map: Temporary map to update activity data
-
-        """
-        attrs = event.activity_task_canceled_event_attributes
-        scheduled_id = attrs.scheduled_event_id
-        if scheduled_id in temp_map:
-            temp_map[scheduled_id]["status"] = ActivityStatus.FAILED  # Map to FAILED
-            temp_map[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
-            temp_map[scheduled_id]["error_details"] = "Activity was canceled"
-
-    async def _fetch_and_parse_activity_events(
-        self,
-        temporal_workflow_id: str,
-        last_processed_event_id: int = 0,
-        page_size: int = 1000,
-    ) -> tuple[dict[str, dict[str, Any]], int]:
-        """Fetch workflow history from Temporal and parse activity lifecycle events.
-
-        Supports incremental processing by skipping events up to last_processed_event_id.
-        Uses pagination for memory-efficient processing of large histories.
-
-        Args:
-            temporal_workflow_id: Temporal workflow ID
-            last_processed_event_id: Skip events with ID <= this value (0 = process all)
-            page_size: Number of events to fetch per page (default 1000)
-
-        Returns:
-            Tuple of (activities_map, last_event_id):
-                - activities_map: Dictionary mapping activity_id to activity data
-                - last_event_id: Highest event ID processed
-
-        Raises:
-            Exception: If Temporal workflow history fetch fails
-
-        """
-        # Get workflow handle
-        handle = self.temporal_service.temporal_client.get_workflow_handle(temporal_workflow_id)  # type: ignore[union-attr]
-
-        # Build temporary map using scheduled_event_id to correlate lifecycle events
-        temp_map: dict[int, dict[str, Any]] = {}
-        last_event_id = last_processed_event_id
-
-        # Event type to handler mapping (reduces complexity)
-        event_handlers = {
-            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED: self._process_activity_scheduled,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED: self._process_activity_started,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED: self._process_activity_completed,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED: self._process_activity_failed,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT: self._process_activity_timed_out,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED: self._process_activity_canceled,
-        }
-
-        # Stream events (iterator handles pagination internally)
-        async for event in handle.fetch_history_events(page_size=page_size):
-            # Skip already-processed events (incremental sync)
-            if event.event_id <= last_processed_event_id:
-                continue
-
-            # Track latest event ID (events are sequential, so always increasing)
-            last_event_id = event.event_id
-
-            # Process activity events using handler mapping
-            handler = event_handlers.get(event.event_type)
-            if handler:
-                handler(event, temp_map)
-
-        # Transform to use activity_id as key for efficient lookup
-        activities_map: dict[str, dict[str, Any]] = {}
-        for activity_data in temp_map.values():
-            activity_id = activity_data["activity_id"]
-            activities_map[activity_id] = activity_data
-
-        return activities_map, last_event_id
-
-    def _build_activity_execution(
-        self,
-        execution_id: UUID,
-        activity_data: dict[str, Any],
-        activity_definition: dict[str, Any] | None = None,
-    ) -> ActivityExecution:
-        """Build an ActivityExecution object from activity data.
-
-        Args:
-            execution_id: Execution ID
-            activity_data: Parsed activity data from Temporal events
-            activity_definition: Optional activity definition from workflow version
-
-        Returns:
-            ActivityExecution object
-
-        """
-        return ActivityExecution(
-            execution_id=execution_id,
-            activity_name=activity_data["activity_name"],
-            activity_definition=activity_definition,
-            temporal_activity_id=activity_data["activity_id"],
-            status=activity_data["status"],
-            started_at=activity_data["started_at"],
-            completed_at=activity_data["completed_at"],
-            input_data={},  # Temporal history doesn't easily expose decoded input
-            output_data=None,  # Temporal history doesn't easily expose decoded output
-            error_details=activity_data["error_details"],
-            retry_count=activity_data["retry_count"],
-            iteration=None,  # Would need custom tracking to get this
-        )
-
     async def get_execution_activities(self, execution_id: UUID) -> list[ActivityExecution]:
-        """Get all activities for an execution, with DB persistence.
+        """Get all activities for an execution from database.
 
-        Strategy:
-        1. Load existing activities from DB
-        2. Try to sync from Temporal (if available) - upsert all to DB
-        3. If Temporal offline/expired - return existing DB data
+        Activities are automatically synced to the database in real-time by the
+        ActivitySyncService running in the Temporal worker. This method simply
+        queries the database for the current state.
 
         Args:
             execution_id: Execution ID
 
         Returns:
-            List of activity executions from database
+            List of activity executions from database, ordered by created_at
 
         Raises:
             ExecutionNotFoundError: If execution not found
 
         """
-        # Get execution from database
-        execution = await self.get_execution(execution_id)
+        # Verify execution exists
+        await self.get_execution(execution_id)
 
-        # Load all existing activities from DB (single query), ordered by created_at
+        # Load all activities from DB (single query), ordered by created_at
         result = await self.session.exec(
             select(ActivityExecution)
             .where(ActivityExecution.execution_id == execution_id)
             .order_by(ActivityExecution.created_at)  # type: ignore[arg-type]
         )
-        existing_activities = list(result.all())
+        activities = list(result.all())
 
-        # If no Temporal service, return existing DB data
-        if self.temporal_service is None:
-            logger.warning(
-                "No Temporal service available, returning %d activities from database for execution %s",
-                len(existing_activities),
-                execution_id,
-            )
-            return existing_activities
+        logger.debug("Retrieved %d activities for execution %s from database", len(activities), execution_id)
 
-        # Build lookup dict: temporal_activity_id -> ActivityExecution
-        activities_dict = {activity.temporal_activity_id: activity for activity in existing_activities}
-
-        # Fetch activity definitions map
-        activity_definitions_map = await self.fetch_activity_definitions_map(execution.workflow_version_id)
-
-        try:
-            # Fetch and parse activity events from Temporal (incremental sync)
-            temporal_activities_map, last_event_id = await self._fetch_and_parse_activity_events(
-                execution.temporal_workflow_id,
-                last_processed_event_id=execution.last_processed_event_id,
-            )
-
-            # Upsert all activities
-            for temporal_activity_id, activity_data in temporal_activities_map.items():
-                activity_definition = activity_definitions_map.get(activity_data["activity_id"])
-                existing = activities_dict.get(temporal_activity_id)
-
-                if existing:
-                    # Update existing activity
-                    existing.status = activity_data["status"]
-                    existing.activity_name = activity_data["activity_name"]
-                    existing.activity_definition = activity_definition
-                    existing.started_at = activity_data["started_at"]
-                    existing.completed_at = activity_data["completed_at"]
-                    existing.error_details = activity_data["error_details"]
-                    existing.retry_count = activity_data["retry_count"]
-                    existing.updated_at = datetime.now(UTC)
-                else:
-                    # Create new activity
-                    new_activity = self._build_activity_execution(execution.id, activity_data, activity_definition)
-                    self.session.add(new_activity)
-                    activities_dict[temporal_activity_id] = new_activity
-
-            # Update execution's last processed event ID (incremental sync checkpoint)
-            execution.last_processed_event_id = last_event_id
-
-            # Commit changes
-            await self.session.commit()
-
-            logger.info(
-                "Synced %d activities from Temporal for execution %s (last_processed_event_id: %d)",
-                len(activities_dict),
-                execution_id,
-                last_event_id,
-            )
-            return list(activities_dict.values())
-
-        except TemporalError as e:
-            # Temporal fetch failed (offline or workflow expired) - return existing DB data
-            logger.warning(
-                "Could not sync from Temporal for execution %s: %s - returning %d activities from database",
-                execution_id,
-                str(e),
-                len(activities_dict),
-            )
-            return list(activities_dict.values())
+        return activities

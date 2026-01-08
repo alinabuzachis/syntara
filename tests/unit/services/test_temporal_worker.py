@@ -3,7 +3,7 @@
 Tests the TemporalWorkerService class and global worker management functions.
 """
 
-# SLF001: Tests need to access private members (_worker_task, _worker_service) to verify internal state
+# SLF001: Tests need to access private members (_worker_task, registry) to verify internal state
 
 import asyncio
 from collections.abc import Coroutine
@@ -341,7 +341,7 @@ class TestGlobalWorkerManagement:
     async def test_start_worker_first_time(self) -> None:
         """Test starting the global worker for the first time."""
         # Reset global worker state
-        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().set_worker(None)
 
         mock_client = MagicMock()
         mock_worker = MagicMock()
@@ -378,7 +378,7 @@ class TestGlobalWorkerManagement:
             assert worker.task_queue == "test-queue"
 
         # Cleanup
-        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().set_worker(None)
 
     @pytest.mark.asyncio
     async def test_start_worker_already_running(self) -> None:
@@ -387,7 +387,7 @@ class TestGlobalWorkerManagement:
         existing_worker = TemporalWorkerService(
             temporal_address="test-address", namespace="test-namespace", task_queue="test-queue"
         )
-        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = existing_worker
+        nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().set_worker(existing_worker)
 
         worker = await start_worker()
 
@@ -395,7 +395,7 @@ class TestGlobalWorkerManagement:
         assert worker == existing_worker
 
         # Cleanup
-        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().set_worker(None)
 
     @pytest.mark.asyncio
     async def test_stop_worker_when_running(self) -> None:
@@ -403,7 +403,7 @@ class TestGlobalWorkerManagement:
         # Set up running worker
         mock_service = MagicMock()
         mock_service.stop = AsyncMock()
-        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = mock_service
+        nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().set_worker(mock_service)
 
         await stop_worker()
 
@@ -411,17 +411,17 @@ class TestGlobalWorkerManagement:
         mock_service.stop.assert_called_once()
 
         # Verify global reference cleared
-        assert nexus.workflows.workflow_engine.services.temporal_worker._worker_service is None
+        assert nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().get_worker() is None
 
     @pytest.mark.asyncio
     async def test_stop_worker_when_not_running(self) -> None:
         """Test stopping worker when none is running."""
-        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().set_worker(None)
 
         # Should not raise any errors
         await stop_worker()
 
-        assert nexus.workflows.workflow_engine.services.temporal_worker._worker_service is None
+        assert nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().get_worker() is None
 
     def test_get_worker_when_running(self) -> None:
         """Test getting the worker when it's running."""
@@ -429,18 +429,18 @@ class TestGlobalWorkerManagement:
         mock_service = TemporalWorkerService(
             temporal_address="test-address", namespace="test-namespace", task_queue="test-queue"
         )
-        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = mock_service
+        nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().set_worker(mock_service)
 
         worker = get_worker()
 
         assert worker == mock_service
 
         # Cleanup
-        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().set_worker(None)
 
     def test_get_worker_when_not_running(self) -> None:
         """Test getting worker when none is running."""
-        nexus.workflows.workflow_engine.services.temporal_worker._worker_service = None
+        nexus.workflows.workflow_engine.services.temporal_worker._get_worker_registry().set_worker(None)
 
         worker = get_worker()
 
