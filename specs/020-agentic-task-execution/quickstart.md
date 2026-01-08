@@ -55,14 +55,14 @@ Since the `/invocations` endpoint returns an Invocation object (not execution re
 **Agent Orchestrator Logs** (successful integration):
 ```
 INFO: Starting invocation {invocation_id} for session test-session-123
-INFO: Tool Manager Client discovering tools for invocation {invocation_id}
-INFO: Discovered 3 enabled tool providers from Tool Manager
-INFO: Loading tools from provider 'dev_tools' using LangChain
-INFO: Loaded 8 tools from LangChain for provider dev_tools
-INFO: Discovered 5 enabled tools from Tool Manager
-INFO: Filtering LangChain tools by enabled status
-INFO: Filtered to 5 enabled tools for StateGraph
-INFO: Initializing StateGraph with 5 tools for invocation {invocation_id}
+INFO: Starting tool synchronization for invocation {invocation_id}
+INFO: Discovered 3 Tool Providers
+INFO: Discovered 5 enabled and 2 disabled Tools (from 7 total)
+INFO: Retrieved 8 total tools from 3 providers
+INFO: Filtered 5 tools for execution
+INFO: Identified 0 tools missing from MCP servers
+INFO: Re-enabled 1 previously disabled tools that are now available on MCP servers
+INFO: Tool synchronization completed for invocation {invocation_id}
 INFO: LLM selected tool: code_search
 INFO: Tool execution completed successfully
 INFO: Invocation {invocation_id} completed with tool usage
@@ -87,35 +87,37 @@ curl -X GET "http://localhost:8000/api/v1/invocations/{invocation_id}" \
 
 ## Integration Points Validation
 
-### 1. Tool Manager Client Integration
+### 1. Tool Synchronization Workflow
 
-**Verify**: Agent Orchestrator can discover tools
+**Verify**: ToolSynchronizer orchestrates complete discovery process
 ```python
 # In Agent Orchestrator service logs, look for:
-# "Tool Manager Client initialized for invocation {id}"
-# "Discovered X enabled tools from Y providers"
-# "retry_with_backoff used for Tool Manager API calls"
+# "Starting tool synchronization for invocation {id}"
+# "Discovered X Tool Providers"
+# "Discovered Y enabled and Z disabled Tools (from W total)"
+# "Tool synchronization completed for invocation {id}"
 ```
 
-### 2. LangChain Tool Loading
+### 2. ProviderFactory Integration
 
-**Verify**: Tools loaded successfully from providers
+**Verify**: Provider adapters load tools successfully
 ```python
 # In Agent Orchestrator logs:
-# "Loading tools from provider '{provider_name}' using LangChain"
-# "Loaded X tools from LangChain for provider {provider_name}"
-# "Tool loading completed for all enabled providers"
+# "Retrieved X tools from provider {provider_name}"
+# "Retrieved Y total tools from Z providers"
+# Provider retry logs for disabled ERROR providers:
+# "Retry failed for disabled provider {provider_name}: {error}"
 ```
 
-### 3. Tool Filtering by Enabled Status
+### 3. Tool Synchronization and Re-enablement
 
-**Verify**: Tools filtered correctly before StateGraph registration
+**Verify**: Missing tools and re-enablement handled correctly
 ```python
 # In Agent Orchestrator logs:
-# "Retrieved X tools from Tool Manager API"
-# "Filtering LangChain tools by enabled status"
-# "Filtered to Y enabled tools for StateGraph"
-# "Tool filtering completed: Y/X tools enabled"
+# "Filtered X tools for execution"
+# "Identified Y tools missing from MCP servers"
+# "Re-enabled Z previously disabled tools that are now available on MCP servers"
+# "Updated missing tool status: {tool_name}"
 ```
 
 ### 4. LangGraph StateGraph Execution
@@ -150,15 +152,21 @@ curl -X GET "http://localhost:8000/api/v1/invocations/{invocation_id}" \
 - **Check**: Tool providers are enabled and status is "available"  
 - **Check**: retry_with_backoff retry attempts in logs
 
-### Tool Filtering Issues
+### Tool Synchronization Issues
 - **Check**: ToolWithParameters.enabled field matches expected values
-- **Check**: LangChain tool loading returns expected BaseTool objects
-- **Check**: Tool name matching between LangChain and Tool Manager
+- **Check**: ProviderFactory returns expected BaseTool objects with correct namespaced names
+- **Check**: Tool name matching between ProviderFactory and Tool Manager using namespaced_name
+- **Check**: Provider configuration is valid and providers are accessible
+
+### Provider Lifecycle Issues
+- **Check**: Disabled ERROR providers are being retried appropriately
+- **Check**: Provider re-enablement logs show successful status updates
+- **Check**: Missing tools are correctly identified and marked as MISSING status
 
 ### StateGraph Execution Problems
-- **Check**: LangGraph receives non-empty filtered tools list
-- **Check**: Tool parameter schemas are valid
-- **Check**: Tool execution permissions and connectivity
+- **Check**: LangGraph receives non-empty filtered tools list from ToolSynchronizer
+- **Check**: Tool parameter schemas from ProviderFactory match Tool Manager expectations
+- **Check**: Tool execution permissions and connectivity through provider adapters
 
 ## Success Criteria
 

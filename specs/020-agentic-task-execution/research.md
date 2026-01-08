@@ -25,17 +25,19 @@
 
 ## LangGraph Integration Patterns
 
-### Decision: LangChain Native MCP Client with ToolProvider MCP Servers
+### Decision: Use existing ProviderFactory pattern for tool retrieval
 **Rationale**:
-- ToolProviders already have MCP server URLs in their MCPConfiguration
-- LangChain's native MCP client can directly connect to these existing MCP servers
-- LangChain automatically converts MCP tools to LangGraph BaseTools
-- No bridge needed - direct connection: Tool Manager Client → LangChain MCP Client → ToolProvider MCP Servers
+- ToolProviders already use ProviderFactory pattern in Tool Manager
+- Leverages existing Tool Manager provider infrastructure and adapter implementations
+- ProviderFactory handles all provider types and configurations consistently
+- Avoids duplicating MCP connectivity logic already implemented in provider adapters
+- Maintains consistency with Tool Manager architecture and validation patterns
+- Provider adapters already convert to LangChain BaseTools via get_base_tools() method
 
 **Alternatives considered**:
-- Custom MCP bridge/adapter: Unnecessary complexity when ToolProviders already have MCP servers
-- Custom tool adapter pattern: Would bypass LangChain's native MCP integration
-- Direct REST to LangGraph integration: Would miss benefits of LangChain's MCP tooling
+- LangChain Native MCP Client: Would bypass existing ProviderFactory infrastructure
+- Custom MCP bridge/adapter: Unnecessary when ProviderFactory already handles MCP integration
+- Direct REST to LangGraph integration: Would miss benefits of existing provider validation and error handling
 
 ### Decision: Dynamic tool discovery per request
 **Rationale**:
@@ -71,6 +73,26 @@
 
 **Alternatives considered**:
 - Fail fast on tool errors: Would break entire workflow for single tool failure
+
+## Provider Lifecycle Management
+
+### Decision: Automatic provider retry and re-enablement
+**Rationale**:
+- Disabled ERROR providers should be retried to detect recovery without manual intervention
+- Previously missing tools should be auto-re-enabled when they become available on MCP servers
+- Maintains operational resilience and reduces administrative overhead
+- Distinguishes between user-intentionally disabled providers (AVAILABLE status) and system-auto-disabled providers (ERROR status)
+
+**Implementation approach**:
+- `_should_retry_disabled_provider()`: Retry providers with enabled=False AND status=ERROR
+- `_handle_provider_re_enablement()`: Auto-enable recovered providers (set enabled=True, status=AVAILABLE, clear validation_error)
+- `identify_re_enableable_tools()`: Re-enable tools with status=MISSING that are now available on MCP servers
+- Skip retry for user-intentionally disabled providers (enabled=False, status=AVAILABLE)
+
+**Alternatives considered**:
+- Manual re-enablement only: Requires administrative intervention for temporary provider issues
+- Retry all disabled providers: Would override user-intentional disabling decisions
+- No automatic recovery: Poor operational experience during temporary network/provider issues
 
 ## Agent Orchestrator StateGraph Integration
 

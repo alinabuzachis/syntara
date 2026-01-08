@@ -143,14 +143,14 @@ flowchart TD
 ## Phase 3.4: AAP-60416: Agent Orchestrator Integration - Tests First
 
 - [x] T012 [P] Tool Manager client integration tests in tests/integration/agent_orchestrator/tool_manager/test_client_providers.py
-- [x] T013 [P] LangChain MCP client integration tests for connecting to ToolProvider MCP servers in tests/unit/agent_orchestrator/tool_manager/test_mcp_integration.py
+- [x] T013 [P] ProviderFactory integration tests for tool discovery and validation in tests/unit/agent_orchestrator/tool_manager/test_mcp_integration.py
 - [x] T014 [P] Tool filtering by enabled status tests (filter BaseTools by Tool.enabled field) in tests/unit/agent_orchestrator/tool_manager/test_tool_filtering.py
 - [x] T015 [P] Client error handling and propagation tests in tests/integration/agent_orchestrator/tool_manager/test_client_tools.py
 
 ## Phase 3.5: AAP-60416: Agent Orchestrator Integration Implementation
 
 - [x] T016 Tool Manager client dependency injection in src/nexus/agent_orchestrator/services/orchestration_service.py
-- [x] T017 [P] LangChain MCP client integration to connect to ToolProvider MCP servers from MCPConfiguration URLs in src/nexus/agent_orchestrator/tool_manager/mcp_client.py
+- [x] T017 [P] ProviderFactory integration for tool retrieval from configured providers in src/nexus/agent_orchestrator/tool_manager/tool_services.py
 - [x] T018 [P] Tool filtering by enabled status logic (filter BaseTools by Tool.enabled field) in src/nexus/agent_orchestrator/tool_manager/tool_filtering.py
 - [x] T019 [P] Error propagation and handling middleware integrated in src/nexus/agent_orchestrator/tool_manager/tool_services.py
 - [x] T020 [P] Tool synchronization validation and status update logic implemented in src/nexus/agent_orchestrator/tool_manager/tool_services.py (get_and_synchronize_tools function) and OrchestrationService._get_tools method
@@ -272,12 +272,12 @@ Task: "Add ToolNode to existing StateGraph with tool discovery and error handler
 
 ### AAP-60416: Agent Orchestrator Integration
 **Tasks**: T012-T020 (9 tasks)
-- ✅ Orchestrator uses client for tool discovery during invocations
-- ✅ LangChain MCP client integration with ToolProvider MCP servers
-- ✅ Runtime identification of enabled tools per request
-- ✅ Tool synchronization validation and missing/changed tool handling
-- ✅ Error handling for missing providers/disabled tools
-- ✅ API configuration support
+- ✅ Orchestrator uses ToolSynchronizer for comprehensive tool discovery during invocations
+- ✅ ProviderFactory integration with existing Tool Manager provider infrastructure
+- ✅ Runtime identification of enabled tools per request with synchronization workflow
+- ✅ Tool synchronization validation including missing tool detection and re-enablement
+- ✅ Provider lifecycle management with automatic retry and re-enablement of ERROR providers
+- ✅ Error handling for missing providers/disabled tools with status reporting
 
 ### AAP-60417: Tool Calling Support
 **Tasks**: T021-T029 (9 tasks)

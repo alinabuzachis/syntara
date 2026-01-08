@@ -47,31 +47,43 @@
 
 ## Integration Flow
 
-### LangChain MCP Client Integration and Tool Loading
-1. **Tool Provider Discovery**: ToolManagerClient.get_enabled_tool_providers() → List[ToolProviderWithConfiguration] (includes MCP server URLs)
-2. **Tool Metadata Retrieval**: ToolManagerClient.get_enabled_tools() → List[ToolWithParameters] (for filtering enablement)
-3. **MCP Client Connection**: LangChain MCP Client connects directly to ToolProvider MCP server URLs from MCPConfiguration
-4. **Tool Retrieval**: LangChain MCP Client retrieves all tools from ToolProvider MCP servers → List[BaseTool]
-5. **Tool Filtering**: Filter LangChain BaseTools by corresponding ToolWithParameters.enabled status
-6. **StateGraph Registration**: Pass filtered BaseTools to LangGraph StateGraph
-7. **Error Reporting**: If tool execution fails, use ToolManagerClient.update_tool_status() with refresh_error
+### ProviderFactory Integration and Tool Loading
+1. **Tool Provider Discovery**: ToolSynchronizer → ToolManagerClient.get_all_tool_providers() → List[ToolProviderWithConfiguration]
+2. **Tool Metadata Retrieval**: ToolSynchronizer → ToolManagerClient.get_all_tools() → (enabled_tools, disabled_tools)
+3. **Provider Processing**: ProviderFactory creates provider adapters from ToolProviderWithConfiguration
+4. **Tool Retrieval**: Provider adapters call get_base_tools() → List[BaseTool] with namespaced names
+5. **Tool Filtering**: Filter BaseTools by ToolWithParameters.enabled status using namespaced_name matching
+6. **Tool Synchronization**: Update missing tools to MISSING status, re-enable MISSING→AVAILABLE tools
+7. **StateGraph Registration**: Pass filtered BaseTools to LangGraph StateGraph
+8. **Error Reporting**: If tool execution fails, use ToolManagerClient.update_tool_status() with refresh_error
 
-### Data Flow Sequence
+### Simplified Integration Flow
 ```
-User Request → Agent Orchestrator → ToolManagerClient.get_enabled_tool_providers()
-              ↓
-ToolProviderWithConfiguration[] (with MCP URLs) → ToolManagerClient.get_enabled_tools()
-              ↓
-ToolWithParameters[] (enablement status) → LangChain MCP Client.connect(MCP_URLs)
-              ↓
-LangChain MCP Client.get_tools() → BaseTool[] (from ToolProvider MCP servers)
-              ↓
-Filter BaseTools by ToolWithParameters.enabled → Filtered BaseTool[]
-              ↓
-StateGraph(filtered_tools) → LangGraph execution → User Response
-              ↓
-Tool errors → ToolManagerClient.update_tool_status(refresh_error)
+User Request → OrchestrationService → ToolSynchronizer(invocation_id)
+                                   ↓
+                              synchronize_tools() → Filtered BaseTool[]
+                                   ↓  
+                              StateGraph(tools) → Execution
 ```
+
+## Tool Synchronization Component
+
+### ToolSynchronizer Class
+**Purpose**: Stateful orchestration of tool discovery, validation, and synchronization
+**Location**: `src/nexus/agent_orchestrator/tool_manager/tool_services.py`
+
+**Fields**:
+- `invocation_id: UUID` - Unique identifier for this synchronization session
+- `all_providers: List[ToolProviderWithConfiguration]` - Discovered providers (enabled and disabled)
+- `enabled_tools: List[ToolWithParameters]` - Tools with enabled=True from Tool Manager
+- `disabled_tools: List[ToolWithParameters]` - Tools with enabled=False from Tool Manager  
+- `namespaced_tools: List[NamespacedBaseTool]` - Tools retrieved from ProviderFactory
+
+**Methods**:
+- `synchronize_tools() -> List[BaseTool]` - Complete synchronization workflow
+- Handles provider discovery, tool retrieval, filtering, missing tool updates, and re-enablement
+
+**Integration**: Replaces direct ToolManagerClient usage in OrchestrationService._get_tools()
 
 ## Component Structure
 
@@ -79,8 +91,11 @@ Tool errors → ToolManagerClient.update_tool_status(refresh_error)
 src/nexus/agent_orchestrator/
 ├── tool_manager/
 │   ├── __init__.py
-│   └── client.py          # Tool Manager HTTP Client
-└── orchestrator.py        # Main orchestrator with StateGraph integration
+│   ├── tool_manager_client.py    # HTTP Client (T008-T011)
+│   ├── tool_services.py          # Integration & Sync (T017-T020)
+│   ├── tool_filtering.py         # Filtering Logic (T018)
+│   └── types.py                  # Type Definitions
+└── orchestrator.py              # Main orchestrator with StateGraph integration
 ```
 
 ## Dependencies
@@ -88,14 +103,15 @@ src/nexus/agent_orchestrator/
 - **API Schemas**: ToolProviderWithConfiguration, ToolWithParameters from Tool Manager OpenAPI specs
 - **HTTP Client**: `httpx` for async API calls
 - **Retry Logic**: `retry_with_backoff` utility (existing, reads system configuration)
-- **LangChain MCP Client**: For connecting to ToolProvider MCP servers → BaseTool[]
+- **ProviderFactory**: For creating provider adapters and retrieving BaseTools from configured providers
 - **LangGraph**: StateGraph with filtered BaseTools
 - **Tool Status**: Update refresh_error field when tools fail
 
 ## Key Design Decisions
 
-1. **No Custom Bridge/Adapter**: Use LangChain native MCP client to connect to existing ToolProvider MCP servers, then filter by enabled status
+1. **ProviderFactory Integration**: Use existing ProviderFactory pattern to connect to configured providers, leveraging existing adapter infrastructure
 2. **Reuse Existing Models**: Leverage ToolProviderWithConfiguration and ToolWithParameters from API schemas  
-3. **Simple Filtering**: Filter langchain BaseTools list based on ToolWithParameters.enabled field
-4. **Error Feedback Loop**: Report tool execution errors back to Tool Manager via refresh_error field
-5. **System Configuration**: retry_with_backoff handles retry configuration from system settings
+3. **Namespaced Tool Filtering**: Filter BaseTools by ToolWithParameters.enabled field using namespaced_name matching
+4. **Tool Synchronization**: Comprehensive sync workflow including missing tool detection and re-enablement
+5. **Error Feedback Loop**: Report tool execution errors back to Tool Manager via refresh_error field
+6. **Provider Lifecycle Management**: Automatic retry and re-enablement of ERROR providers and MISSING tools
