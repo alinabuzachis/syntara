@@ -1,4 +1,3 @@
-import type { LucideIcon } from 'lucide-react'
 import type { ComponentType } from 'react'
 
 import type { NodeCategory } from '../categories'
@@ -13,7 +12,7 @@ interface NodeConfig<TFormData = unknown> {
   /** Display label in UI */
   label: string
   /** Icon component to display */
-  icon: LucideIcon | ComponentType
+  icon: ComponentType
   /** Category for grouping */
   category?: NodeCategory
   /** Description shown in UI */

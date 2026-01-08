@@ -1,4 +1,4 @@
-import { PlusCircleIcon } from 'lucide-react'
+import { PlusCircleIcon } from '@patternfly/react-icons'
 
 import { createGenericActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import { GenericNodeForm } from '../../node-forms/GenericNodeForm'

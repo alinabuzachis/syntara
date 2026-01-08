@@ -56,7 +56,7 @@ For nodes where you're not ready to implement the full logic yet:
 
 ```typescript
 // registerMyNewNode.ts
-import { Globe } from 'lucide-react'
+import { RhStandardGlobeAbstractIcon } from '@patternfly/react-icons'
 import { createBasicNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 import { MyNewNodeForm } from '../../node-forms/MyNewNodeForm'
@@ -67,7 +67,7 @@ export default function registerMyNewNode() {
     createBasicNode({
       id: 'my-new-node',
       label: 'My New Node',
-      icon: Globe,
+      icon: RhStandardGlobeAbstractIcon,
       category: 'action', // Type-safe category
       description: 'Does something amazing',
       keywords: ['api', 'http', 'request', 'web'],
@@ -84,7 +84,7 @@ For nodes that need to interact with the workflow store or perform complex logic
 
 ```typescript
 // registerMyNewNode.ts
-import { Globe } from 'lucide-react'
+import { RhStandardGlobeAbstractIcon } from '@patternfly/react-icons'
 import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore'
@@ -98,7 +98,7 @@ export default function registerMyNewNode() {
       {
         id: 'my-new-node',
         label: 'My New Node',
-        icon: Globe,
+        icon: RhStandardGlobeAbstractIcon,
         category: 'action', // Type-safe category
         description: 'Does something amazing',
         keywords: ['api', 'http', 'request', 'web'],
@@ -141,13 +141,20 @@ Choose the appropriate category for your node:
 
 ## Icons
 
-Use [Lucide React icons](https://lucide.dev/icons/) for consistency:
+Use [PatternFly React icons](https://patternfly.org/) for consistency:
 
 ```typescript
-import { Globe, Play, Brain, Zap, GitBranch, UserCheck } from 'lucide-react'
+import {
+  RhStandardGlobeAbstractIcon,
+  RhUiPlay,
+  RhStandardBrainIcon,
+  RhStandardElectricalBoltIcon,
+  RhUiBranchIcon,
+  UserCheckIcon,
+} from '@patternfly/react-icons'
 ```
 
-Or use custom SVG icons:
+Or use custom SVG icons (avoid as much as possible):
 
 ```typescript
 // @ts-expect-error - SVG import as React component
@@ -219,7 +226,7 @@ Here's a complete example for a webhook trigger node:
 
 ```typescript
 // registerWebhookNode.ts
-import { Webhook } from 'lucide-react'
+import { RhStandardWebhooksIcon } from '@patternfly/react-icons'
 import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 import { useWorkflowStore, createEventTrigger } from '../../../../stores/useWorkflowStore'
@@ -235,7 +242,7 @@ export function registerWebhookNode() {
       {
         id: 'webhook-trigger',
         label: 'Webhook Trigger',
-        icon: Webhook,
+        icon: RhStandardWebhooksIcon,
         category: 'trigger',
         description: 'Trigger workflow from incoming webhook events',
         keywords: ['webhook', 'http', 'callback', 'event', 'api'],

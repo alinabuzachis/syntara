@@ -1,4 +1,4 @@
-import { PlayIcon, PauseIcon } from 'lucide-react'
+import { RhUiPlayIcon, RhUiPauseIcon } from '@patternfly/react-icons'
 import { describe, it, expect, beforeEach } from 'vitest'
 
 import { NodeRegistry } from './NodeRegistry'
@@ -18,7 +18,7 @@ describe('NodeRegistry', () => {
       const definition: NodeTypeDefinition = {
         id: 'test-node',
         label: 'Test Node',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
       }
@@ -34,7 +34,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'duplicate',
         label: 'First',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
       })
@@ -42,7 +42,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'duplicate',
         label: 'Second',
-        icon: PauseIcon,
+        icon: RhUiPauseIcon,
         formComponent: MockForm,
         onSubmit: () => {},
       })
@@ -55,7 +55,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'test',
         label: 'Test',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
       })
@@ -71,7 +71,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'remove-me',
         label: 'Remove',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
       })
@@ -99,7 +99,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'specific',
         label: 'Specific Node',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
       })
@@ -119,7 +119,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'node1',
         label: 'Node 1',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
       })
@@ -127,7 +127,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'node2',
         label: 'Node 2',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
         enabled: false,
@@ -142,7 +142,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'third',
         label: 'Third',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
         order: 30,
@@ -151,7 +151,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'first',
         label: 'First',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
         order: 10,
@@ -160,7 +160,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'second',
         label: 'Second',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
         order: 20,
@@ -178,7 +178,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'trigger1',
         label: 'Trigger 1',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         category: 'trigger',
         formComponent: MockForm,
         onSubmit: () => {},
@@ -187,7 +187,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'action1',
         label: 'Action 1',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         category: 'action',
         formComponent: MockForm,
         onSubmit: () => {},
@@ -196,7 +196,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'trigger2',
         label: 'Trigger 2',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         category: 'trigger',
         formComponent: MockForm,
         onSubmit: () => {},
@@ -220,7 +220,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'api-call',
         label: 'API Call',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         keywords: ['http', 'rest', 'request'],
         formComponent: MockForm,
         onSubmit: () => {},
@@ -229,7 +229,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'python-script',
         label: 'Python Script',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         keywords: ['python', 'code', 'script'],
         formComponent: MockForm,
         onSubmit: () => {},
@@ -276,7 +276,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'node1',
         label: 'Node 1',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
       })
@@ -284,7 +284,7 @@ describe('NodeRegistry', () => {
       NodeRegistry.register({
         id: 'node2',
         label: 'Node 2',
-        icon: PlayIcon,
+        icon: RhUiPlayIcon,
         formComponent: MockForm,
         onSubmit: () => {},
       })

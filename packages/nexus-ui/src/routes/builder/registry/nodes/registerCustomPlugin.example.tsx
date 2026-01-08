@@ -23,7 +23,7 @@ import {
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
-import { BellIcon } from 'lucide-react'
+import { OutlinedBellIcon } from '@patternfly/react-icons'
 
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import { NodeRegistry } from '../NodeRegistry'
@@ -73,7 +73,7 @@ export function registerNotificationNode() {
   NodeRegistry.register<NotificationFormData>({
     id: 'notification',
     label: 'Send Notification',
-    icon: BellIcon,
+    icon: OutlinedBellIcon,
     category: 'action',
     description: 'Send notifications via email, Slack, or webhook',
     keywords: ['notify', 'alert', 'email', 'slack', 'webhook', 'message'],

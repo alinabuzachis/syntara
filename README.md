@@ -204,7 +204,6 @@ We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING
 - openapi-fetch + openapi-react-query (type-safe API client)
 - Fuse.js (fuzzy search)
 - ReactFlow/XYFlow (workflow diagrams)
-- Lucide icons
 - MSW (API mocking)
 
 ### Nexus UI Framework (Component Library)

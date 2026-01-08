@@ -202,9 +202,9 @@ describe('Integrations Component', () => {
     it('switches to cards view when selected', () => {
       render(<Integrations />, { wrapper })
 
-      // Find all buttons and locate the menu trigger (last button that could be the ellipsis menu)
+      // Find all buttons and locate the menu trigger (button containing an SVG icon)
       const buttons = screen.getAllByRole('button')
-      const menuButton = buttons.find((btn) => btn.querySelector('svg.lucide-ellipsis-vertical'))
+      const menuButton = buttons.find((btn) => btn.querySelector('svg'))
 
       if (menuButton) {
         fireEvent.click(menuButton)

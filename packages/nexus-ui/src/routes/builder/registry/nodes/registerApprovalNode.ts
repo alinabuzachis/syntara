@@ -1,4 +1,4 @@
-import { UserCheckIcon } from 'lucide-react'
+import { UserCheckIcon } from '@patternfly/react-icons'
 
 import { ApprovalNodeForm } from '../../node-forms/ApprovalNodeForm'
 import { createBasicNode } from '../helpers/nodeTemplates'

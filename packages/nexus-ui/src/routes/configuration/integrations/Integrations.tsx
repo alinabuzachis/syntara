@@ -20,8 +20,8 @@ import {
   CheckCircleIcon,
   EllipsisVIcon,
   EyeIcon,
+  RhUiTrashIcon,
   SyncAltIcon,
-  TrashIcon,
   TimesCircleIcon,
 } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
@@ -173,7 +173,7 @@ export default function Integrations() {
     },
     { isSeparator: true },
     {
-      title: <IconLabel icon={<TrashIcon />}>Uninstall</IconLabel>,
+      title: <IconLabel icon={<RhUiTrashIcon />}>Uninstall</IconLabel>,
       onClick: () => {
         setProviderToDelete(provider)
         setDeleteDialogOpen(true)

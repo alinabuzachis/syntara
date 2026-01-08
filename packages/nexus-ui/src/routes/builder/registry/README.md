@@ -30,7 +30,7 @@ Each node type consists of:
 
 - **id**: Unique identifier
 - **label**: Display name in UI
-- **icon**: Icon component (Lucide or custom)
+- **icon**: Icon component (PatternFly or custom)
 - **category**: Optional grouping (trigger, action, logic, etc.)
 - **description**: Help text for users
 - **keywords**: Search terms
@@ -66,7 +66,7 @@ export function MyCustomForm({
 
 ```typescript
 // routes/builder/registry/nodes/registerMyNode.ts
-import { MyIcon } from 'lucide-react'
+import { MyIcon } from '@patternfly/react-icons'
 import { NodeRegistry } from '../NodeRegistry'
 import { MyCustomForm } from '../../node-forms/MyCustomForm'
 import type { MyCustomFormData } from '../../node-forms/MyCustomForm'
