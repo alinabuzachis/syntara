@@ -51,17 +51,23 @@ export VITE_API_URL=http://localhost:8000
 npm start
 ```
 
-## Architecture docs
+## Architecture Documentation
 
-For how the UI is structured (routing, backend requests/data, and how backend workflow nodes become React Flow nodes), see:
+For how the UI is structured, see these comprehensive guides:
 
-- `docs/architecture.md`
-- `docs/zustand-architecture.md` (workflow store details)
+- [`docs/architecture.md`](docs/architecture.md) - Main architecture guide covering routing, state management, and the workflow builder
+- [`docs/data-flow.md`](docs/data-flow.md) - **NEW!** Deep dive into OpenAPI contract generation, type-safe API clients, and workflow transformations (nested ↔ flat)
+- [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Workflow store details, state management patterns, and best practices
 
-If you’re working on the workflow builder, the highest-signal sections are in `docs/architecture.md`:
+### Quick Navigation by Task
 
-- **“How `registerAllNodes()` auto-discovers nodes”** (node registry auto-discovery + file patterns)
-- **“Builder internals (advanced): registry, edges, and graph semantics”** (ButtonEdge, edge sync, joins/conditions, transform pipeline)
+| Working on...                | Read this section                                                                              |
+| ---------------------------- | ---------------------------------------------------------------------------------------------- |
+| **API integration**          | [`docs/data-flow.md`](docs/data-flow.md) - OpenAPI contract generation and type-safe clients   |
+| **Workflow transformations** | [`docs/data-flow.md`](docs/data-flow.md) - Nested to flat conversions with diagrams            |
+| **Node registry**            | [`docs/architecture.md`](docs/architecture.md) - "How registerAllNodes() auto-discovers nodes" |
+| **Builder internals**        | [`docs/architecture.md`](docs/architecture.md) - "Builder internals (advanced)" section        |
+| **State management**         | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Complete Zustand guide        |
 
 ### Component Development Guidelines
 

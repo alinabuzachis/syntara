@@ -151,21 +151,37 @@ interface WorkflowStore {
   currentWorkflow: WorkflowDefinition | null
   workflowVersion: number // Increments only on setWorkflow()
   edges: EdgeConnection[]
+  isDirty: boolean // Tracks unsaved changes
 
-  // Actions
+  // Workflow loading/unloading
   setWorkflow: (workflow: WorkflowDefinition | null) => void
+  loadWorkflowWithEdges: (workflow: WorkflowDefinition, edges: EdgeConnection[]) => void
   updateWorkflow: (updater: (workflow) => workflow) => void
+
+  // Dirty state management
+  markClean: () => void // Called after successful save
+  markDirty: () => void // Called when metadata changes
+
+  // Edge management
   setEdges: (edges: EdgeConnection[]) => void
+
+  // Trigger management
   addTrigger: (trigger: Trigger) => void
   removeTrigger: (index: number) => void
   updateTrigger: (index: number, trigger: Trigger) => void
+
+  // Activity management
   addActivity: (activity: Activity) => void
   removeActivity: (activityId: string) => void
   updateActivity: (activityId: string, updates: Partial<Activity>) => void
-  syncConvergeNodeBranches: () => void
   moveActivityBefore: (activityId: string, beforeActivityId: string) => void
   moveActivityAfter: (activityId: string, afterActivityId: string) => void
   reorderActivitiesFromEdges: () => void
+
+  // Converge node management
+  syncConvergeNodeBranches: () => void
+
+  // Atomic batch operations
   batchRemoveNodesAndEdges: (params: BatchRemoveParams) => void
   batchAddActivitiesAndEdges: (params: BatchAddParams) => void
 }
@@ -180,19 +196,27 @@ interface WorkflowStore {
 │                                                                              │
 │   STATE                        ACTIONS                                       │
 │   ─────                        ───────                                       │
-│   currentWorkflow              setWorkflow()      Load/clear workflow        │
-│   workflowVersion              updateWorkflow()   Incremental changes        │
-│   edges                        setEdges()         Update connections         │
+│   currentWorkflow              setWorkflow()              Load/clear         │
+│   workflowVersion              loadWorkflowWithEdges()    Atomic load        │
+│   edges                        updateWorkflow()           Incremental update │
+│   isDirty                                                                    │
+│                                setEdges()                 Update connections │
+│                                markClean()                Clear dirty flag   │
+│                                markDirty()                Set dirty flag     │
 │                                                                              │
-│                                addActivity()      Add node                   │
-│                                removeActivity()   Delete node                │
-│                                updateActivity()   Modify node                │
+│                                addActivity()              Add node           │
+│                                removeActivity()           Delete node        │
+│                                updateActivity()           Modify node        │
+│                                moveActivityBefore()       Reorder nodes      │
+│                                moveActivityAfter()        Reorder nodes      │
+│                                reorderActivitiesFromEdges() Topology sort    │
 │                                                                              │
-│                                addTrigger()       Add trigger                │
-│                                removeTrigger()    Delete trigger             │
-│                                updateTrigger()    Modify trigger             │
+│                                addTrigger()               Add trigger        │
+│                                removeTrigger()            Delete trigger     │
+│                                updateTrigger()            Modify trigger     │
 │                                                                              │
-│                                batchRemoveNodesAndEdges()   Atomic delete    │
+│                                syncConvergeNodeBranches()  Sync converge     │
+│                                batchRemoveNodesAndEdges() Atomic delete      │
 │                                batchAddActivitiesAndEdges() Atomic add       │
 │                                                                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -252,6 +276,7 @@ function WorkflowHeader() {
 | `useWorkflowName()`    | String               | Name changes                     |
 | `useActivitiesCount()` | Number               | Activity count changes           |
 | `useTriggersCount()`   | Number               | Trigger count changes            |
+| `useIsDirty()`         | Boolean              | Dirty state changes              |
 | `useHasWorkflow()`     | Boolean              | Workflow loaded/unloaded         |
 
 ### 2. Dispatching Actions → Action Accessor
@@ -494,6 +519,66 @@ batchRemoveNodesAndEdges({
 
 ## Advanced Patterns
 
+### Tracking Unsaved Changes (Dirty State)
+
+The store tracks whether there are unsaved changes using the `isDirty` flag:
+
+```typescript
+// Check if there are unsaved changes
+const isDirty = useIsDirty()
+
+// Show warning before navigation
+if (isDirty) {
+  const confirmed = confirm('You have unsaved changes. Are you sure you want to leave?')
+  if (!confirmed) return
+}
+```
+
+**When isDirty is set:**
+
+- Automatically set when activities/edges are modified
+- When metadata is updated (via `markDirty()`)
+
+**When isDirty is cleared:**
+
+- After successful save (via `markClean()`)
+- When loading a new workflow (via `setWorkflow()`)
+
+```typescript
+// After saving successfully
+const handleSave = async () => {
+  const workflow = useWorkflowStore.getState().currentWorkflow
+  await saveWorkflow(workflow)
+  useWorkflowStore.getState().markClean() // Clear dirty flag
+}
+
+// When metadata changes (name, description)
+const handleNameChange = (name: string) => {
+  useWorkflowStore.getState().updateWorkflow((w) => ({ ...w, name }))
+  useWorkflowStore.getState().markDirty() // Mark as dirty
+}
+```
+
+### Atomic Workflow Loading
+
+Use `loadWorkflowWithEdges()` to load a workflow and its edges atomically:
+
+```typescript
+// ✅ GOOD: Atomic operation - single state update
+const { workflow, edges } = loadAndFlattenWorkflow(apiResponse)
+useWorkflowStore.getState().loadWorkflowWithEdges(workflow, edges)
+
+// ❌ BAD: Two separate updates - components might render between calls
+useWorkflowStore.getState().setWorkflow(workflow)
+useWorkflowStore.getState().setEdges(edges) // Components see inconsistent state!
+```
+
+**Why atomic loading matters:**
+
+- Prevents race conditions where components see workflow without edges
+- Single re-render instead of two
+- Ensures edges always match the workflow
+
 ### Applying Incremental Updates
 
 Use `setWorkflow()` vs `updateWorkflow()` appropriately:
@@ -563,15 +648,18 @@ const { updateActivity } = useWorkflowStoreActions()
 
 ## Quick Reference
 
-| I want to...               | Import                    | Use                                                    |
-| -------------------------- | ------------------------- | ------------------------------------------------------ |
-| Read activities            | `useActivities`           | `const activities = useActivities()`                   |
-| Read edges                 | `useEdges`                | `const edges = useEdges()`                             |
-| Check if workflow loaded   | `useHasWorkflow`          | `const loaded = useHasWorkflow()`                      |
-| Update a node              | `useWorkflowStoreActions` | `const { updateActivity } = useWorkflowStoreActions()` |
-| Delete nodes atomically    | `useWorkflowStoreActions` | `batchRemoveNodesAndEdges({ nodeIds, edges })`         |
-| Create a new task          | `createScriptActivity`    | `createScriptActivity(id, name, lang, code)`           |
-| Access state outside React | `useWorkflowStore`        | `useWorkflowStore.getState().currentWorkflow`          |
+| I want to...               | Import                    | Use                                                           |
+| -------------------------- | ------------------------- | ------------------------------------------------------------- |
+| Read activities            | `useActivities`           | `const activities = useActivities()`                          |
+| Read edges                 | `useEdges`                | `const edges = useEdges()`                                    |
+| Check for unsaved changes  | `useIsDirty`              | `const isDirty = useIsDirty()`                                |
+| Check if workflow loaded   | `useHasWorkflow`          | `const loaded = useHasWorkflow()`                             |
+| Load workflow atomically   | `useWorkflowStoreActions` | `const { loadWorkflowWithEdges } = useWorkflowStoreActions()` |
+| Update a node              | `useWorkflowStoreActions` | `const { updateActivity } = useWorkflowStoreActions()`        |
+| Delete nodes atomically    | `useWorkflowStoreActions` | `batchRemoveNodesAndEdges({ nodeIds, edges })`                |
+| Mark workflow as saved     | `useWorkflowStoreActions` | `const { markClean } = useWorkflowStoreActions()`             |
+| Create a new task          | `createScriptActivity`    | `createScriptActivity(id, name, lang, code)`                  |
+| Access state outside React | `useWorkflowStore`        | `useWorkflowStore.getState().currentWorkflow`                 |
 
 ---
 
