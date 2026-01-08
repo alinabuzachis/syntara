@@ -40,6 +40,8 @@ export function NodeComponent(props: {
   }, [expandAllEvent, collapseAllEvent, expandedContext])
 
   // Auto-resize node based on content width
+  // Extract expanded state to avoid complex dependency expression
+  const isExpanded = expandedContext[0]
   useEffect(() => {
     if (!nodeRef.current) return
 
@@ -60,7 +62,7 @@ export function NodeComponent(props: {
     return () => {
       resizeObserver.disconnect()
     }
-  }, [expandedContext[0], props.nodeProps.id, reactFlowInstance])
+  }, [isExpanded, props.nodeProps.id, reactFlowInstance])
 
   const isSelected = props.nodeProps.selected
 

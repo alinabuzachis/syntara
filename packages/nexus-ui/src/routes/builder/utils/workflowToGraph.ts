@@ -2,7 +2,37 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { MarkerType } from '@xyflow/react'
 
 // Type aliases from API contracts
-export type Trigger = WorkflowAPI.components['schemas']['manualTrigger']
+type ManualTrigger = WorkflowAPI.components['schemas']['manualTrigger']
+
+// Custom trigger types (not yet in API schema but used in the codebase)
+type ScheduledTrigger = {
+  type: 'scheduled'
+  schedule:
+    | {
+        scheduleType: 'cron'
+        cron: string
+        timezone?: string
+      }
+    | {
+        scheduleType: 'interval'
+        interval: string
+      }
+    | {
+        scheduleType: 'continuous'
+        continuous: true
+      }
+}
+
+type EventTrigger = {
+  type: 'event'
+  event: {
+    source: string
+    eventType: string
+    filter?: Record<string, unknown>
+  }
+}
+
+export type Trigger = ManualTrigger | ScheduledTrigger | EventTrigger
 
 export type Activity = WorkflowAPI.components['schemas']['activity']
 export type TaskActivity = Extract<Activity, { type: 'task' }>

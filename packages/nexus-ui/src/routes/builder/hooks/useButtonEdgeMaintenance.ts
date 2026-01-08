@@ -11,31 +11,54 @@ function extractLoopHandleId(edgeId: string): 'done' | 'loop' {
   return edgeId.includes('-done') ? 'done' : 'loop'
 }
 
-// Helper function to process loop node handle and create placeholder if needed
-function processLoopNodeHandle(
-  nodeId: string,
-  handleId: 'done' | 'loop',
+// Configuration for multi-handle node types (condition, loop, approval)
+interface HandlePositionConfig {
+  yOffset: number
+  xOffset?: number
+}
+
+/**
+ * Generic helper function to process multi-handle nodes (condition, loop, approval)
+ * and create placeholders and button edges as needed
+ */
+function processMultiHandleNode(
   node: NodeType,
+  handles: readonly string[],
+  handlePositions: Record<string, HandlePositionConfig>,
+  connectedHandles: Map<string, Set<string>>,
+  pendingEdge: { sourceNodeId: string; sourceHandle?: string } | null,
   nodes: NodeType[],
+  handlesNeedingButtonEdges: { nodeId: string; handleId: string }[],
   placeholderNodesToAdd: NodeType[]
 ) {
-  const placeholderId = `placeholder-${nodeId}-${handleId}`
-  const placeholderExists = nodes.some((n) => n.id === placeholderId)
+  handles.forEach((handleId) => {
+    const handleConnected = connectedHandles.get(node.id)?.has(handleId) || false
+    // Only consider this handle as having a pending edge if both nodeId AND handleId match
+    const hasPendingEdge = pendingEdge?.sourceNodeId === node.id && pendingEdge?.sourceHandle === handleId
 
-  if (!placeholderExists) {
-    // Position 'done' handle placeholder above, 'loop' handle placeholder to the right
-    const yOffset = handleId === 'done' ? -30 : 0
-    const xOffset = 200
-    placeholderNodesToAdd.push({
-      id: placeholderId,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      type: 'placeholder' as any,
-      position: { x: node.position.x + xOffset, y: node.position.y + yOffset },
-      data: {},
-      draggable: false,
-      selectable: false,
-    } as NodeType)
-  }
+    if (!handleConnected && !hasPendingEdge) {
+      handlesNeedingButtonEdges.push({ nodeId: node.id, handleId })
+
+      // Create placeholder for this handle
+      const placeholderId = `placeholder-${node.id}-${handleId}`
+      const placeholderExists = nodes.some((n) => n.id === placeholderId)
+
+      if (!placeholderExists) {
+        const positionConfig = handlePositions[handleId]
+        const yOffset = positionConfig.yOffset
+        const xOffset = positionConfig.xOffset ?? 200
+        placeholderNodesToAdd.push({
+          id: placeholderId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          type: 'placeholder' as any,
+          position: { x: node.position.x + xOffset, y: node.position.y + yOffset },
+          data: {},
+          draggable: false,
+          selectable: false,
+        } as NodeType)
+      }
+    }
+  })
 }
 
 interface UseButtonEdgeMaintenanceOptions {
@@ -170,60 +193,55 @@ export function useButtonEdgeMaintenance({
       const conditionHandlesNeedingButtonEdgesRef = { current: [] as { nodeId: string; handleId: string }[] }
       // Track loop node 'done' handles that need button edges
       const loopHandlesNeedingButtonEdgesRef = { current: [] as { nodeId: string; handleId: string }[] }
+      // Track approval node handles that need button edges
+      const approvalHandlesNeedingButtonEdgesRef = { current: [] as { nodeId: string; handleId: string }[] }
 
       // Step 2: Determine which nodes need ButtonEdges and which placeholders to add
       realNodes.forEach((node) => {
         const isConditionNode = node.type === FlowNodeType.CONDITION
         const isLoopNode = node.type === FlowNodeType.LOOP
+        const isApprovalNode = node.type === FlowNodeType.APPROVAL
 
+        // Handle multi-handle nodes (condition, approval, loop) using the reusable helper
         if (isConditionNode) {
-          // Handle condition nodes specially - they have 'true' and 'false' handles
-          const handles = ['true', 'false']
-          handles.forEach((handleId) => {
-            const handleConnected = connectedHandles.get(node.id)?.has(handleId) || false
-            // For condition nodes, only consider this handle as having a pending edge if both nodeId AND handleId match
-            const hasPendingEdge = pendingEdge?.sourceNodeId === node.id && pendingEdge?.sourceHandle === handleId
+          processMultiHandleNode(
+            node,
+            ['true', 'false'] as const,
+            { true: { yOffset: -30 }, false: { yOffset: 30 } },
+            connectedHandles,
+            pendingEdge,
+            nodes,
+            conditionHandlesNeedingButtonEdgesRef.current,
+            placeholderNodesToAddRef.current
+          )
+          return
+        }
 
-            if (!handleConnected && !hasPendingEdge) {
-              conditionHandlesNeedingButtonEdgesRef.current.push({ nodeId: node.id, handleId })
-
-              // Create placeholder for this handle
-              const placeholderId = `placeholder-${node.id}-${handleId}`
-              const placeholderExists = nodes.some((n) => n.id === placeholderId)
-
-              if (!placeholderExists) {
-                // Position true handle placeholder above, false handle placeholder below
-                const yOffset = handleId === 'true' ? -30 : 30
-                placeholderNodesToAddRef.current.push({
-                  id: placeholderId,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  type: 'placeholder' as any,
-                  position: { x: node.position.x + 200, y: node.position.y + yOffset },
-                  data: {},
-                  draggable: false,
-                  selectable: false,
-                } as NodeType)
-              }
-            }
-          })
+        if (isApprovalNode) {
+          processMultiHandleNode(
+            node,
+            ['approved', 'rejected'] as const,
+            { approved: { yOffset: -30 }, rejected: { yOffset: 30 } },
+            connectedHandles,
+            pendingEdge,
+            nodes,
+            approvalHandlesNeedingButtonEdgesRef.current,
+            placeholderNodesToAddRef.current
+          )
           return
         }
 
         if (isLoopNode) {
-          // Handle loop nodes specially - they have 'done' and 'loop' handles
-          // Both handles get button edges when not connected
-          const handles = ['done', 'loop'] as const
-          handles.forEach((handleId) => {
-            const handleConnected = connectedHandles.get(node.id)?.has(handleId) || false
-            const hasPendingEdge = pendingEdge?.sourceNodeId === node.id && pendingEdge?.sourceHandle === handleId
-
-            if (!handleConnected && !hasPendingEdge) {
-              loopHandlesNeedingButtonEdgesRef.current.push({ nodeId: node.id, handleId })
-              // CRITICAL: Always ensure placeholder exists, even if button edge already exists
-              // The placeholder might have been removed during node deletion
-              processLoopNodeHandle(node.id, handleId, node, nodes, placeholderNodesToAddRef.current)
-            }
-          })
+          processMultiHandleNode(
+            node,
+            ['done', 'loop'] as const,
+            { done: { yOffset: -30 }, loop: { yOffset: 0 } },
+            connectedHandles,
+            pendingEdge,
+            nodes,
+            loopHandlesNeedingButtonEdgesRef.current,
+            placeholderNodesToAddRef.current
+          )
           return
         }
 
@@ -299,6 +317,16 @@ export function useButtonEdgeMaintenance({
             .map((edge) => `${edge.source}-${extractLoopHandleId(edge.id)}`)
         )
 
+        // Track which approval handles already have ButtonEdges (nodeId-handleId format)
+        const approvalHandlesWithButtonEdges = new Set(
+          existingButtonEdges
+            .filter((edge) => edge.id.includes('-approved') || edge.id.includes('-rejected'))
+            .map((edge) => {
+              const handleId = edge.id.endsWith('-approved') ? 'approved' : 'rejected'
+              return `${edge.source}-${handleId}`
+            })
+        )
+
         // Determine which ButtonEdges to keep, remove, and add
         const buttonEdgesToKeep: EdgeType[] = []
         const buttonEdgesToAdd: EdgeType[] = []
@@ -329,6 +357,22 @@ export function useButtonEdgeMaintenance({
             )
             if (isNeeded) {
               // Update active state for loop handles
+              buttonEdgesToKeep.push({
+                ...edge,
+                data: {
+                  ...edge.data,
+                  isActive: activeEdgeButtonNodeId === edge.source && activeEdgeButtonHandle === handleId,
+                },
+              })
+            }
+          } else if (edge.id.includes('-approved') || edge.id.includes('-rejected')) {
+            // Check if it's an approval handle button edge
+            const handleId = edge.id.endsWith('-approved') ? 'approved' : 'rejected'
+            const isNeeded = approvalHandlesNeedingButtonEdgesRef.current.some(
+              (h) => h.nodeId === edge.source && h.handleId === handleId
+            )
+            if (isNeeded) {
+              // Update active state for approval handles
               buttonEdgesToKeep.push({
                 ...edge,
                 data: {
@@ -432,6 +476,33 @@ export function useButtonEdgeMaintenance({
           }
         })
 
+        // Add missing ButtonEdges for approval node handles ('approved' and 'rejected')
+        approvalHandlesNeedingButtonEdgesRef.current.forEach(({ nodeId, handleId }) => {
+          const key = `${nodeId}-${handleId}`
+          if (!approvalHandlesWithButtonEdges.has(key)) {
+            const buttonEdgeId = `button-${nodeId}-${handleId}`
+            const placeholderId = `placeholder-${nodeId}-${handleId}`
+
+            const newEdge = {
+              id: buttonEdgeId,
+              source: nodeId,
+              sourceHandle: handleId,
+              target: placeholderId,
+              targetHandle: 'target',
+              type: 'buttonEdge',
+              selectable: false,
+              data: {
+                sourceNodeId: nodeId,
+                sourceHandle: handleId,
+                onButtonClick: () => onAddNodeFromEdge?.(nodeId, undefined, undefined, handleId),
+                // For approval nodes, active only when both nodeId AND handleId match
+                isActive: activeEdgeButtonNodeId === nodeId && activeEdgeButtonHandle === handleId,
+              },
+            } as unknown
+            buttonEdgesToAdd.push(newEdge as EdgeType)
+          }
+        })
+
         // Combine all edges
         const allButtonEdges = [...buttonEdgesToKeep, ...buttonEdgesToAdd]
         const result = [...nonButtonEdges, ...allButtonEdges]
@@ -462,8 +533,17 @@ export function useButtonEdgeMaintenance({
             ? loopHandlesNeedingButtonEdgesRef.current.some((h) => h.nodeId === node.id)
             : false
 
+          // Check if this is an approval node with any button edges
+          const isApprovalNode = node.type === FlowNodeType.APPROVAL
+          const approvalHasButtonEdge = isApprovalNode
+            ? approvalHandlesNeedingButtonEdgesRef.current.some((h) => h.nodeId === node.id)
+            : false
+
           const shouldHaveButtonEdge =
-            nodesNeedingButtonEdgesRef.current.includes(node.id) || conditionHasButtonEdge || loopHasButtonEdge
+            nodesNeedingButtonEdgesRef.current.includes(node.id) ||
+            conditionHasButtonEdge ||
+            loopHasButtonEdge ||
+            approvalHasButtonEdge
           const currentClassName = node.className || ''
 
           // Build new className with button edge class and connected handle classes

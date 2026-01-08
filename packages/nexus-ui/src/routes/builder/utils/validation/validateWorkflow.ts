@@ -2,6 +2,7 @@ import type { Activity } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../workflowTransform'
 
+import { validateApprovalConnections } from './rules/validateApprovalConnections'
 import { validateConditionConnections } from './rules/validateConditionConnections'
 import { validateConvergeInputs } from './rules/validateConvergeInputs'
 import { validateLoopNodes } from './rules/validateLoopNodes'
@@ -14,6 +15,7 @@ import type { ValidationError, ValidationResult, ValidationRule } from './types'
  */
 const ERROR_RULES: ValidationRule[] = [
   validateNoDanglingNodes,
+  validateApprovalConnections,
   validateConditionConnections,
   validateConvergeInputs,
   validateLoopNodes,

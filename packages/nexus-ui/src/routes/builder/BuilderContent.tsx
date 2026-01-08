@@ -291,6 +291,9 @@ export function BuilderContent(props: BuilderContentProps) {
     const nestedActivities = buildNestedConditionStructure(currentWorkflow.workflow.activities, edges)
 
     // Return workflow with updated metadata and nested activities
+    // Note: We cast to WorkflowDefinition since the store's extended type includes
+    // additional trigger types (ScheduledTrigger, EventTrigger) that are compatible
+    // with the base API schema but not explicitly typed in the OpenAPI spec yet
     return {
       ...currentWorkflow,
       metadata: {
@@ -302,7 +305,7 @@ export function BuilderContent(props: BuilderContentProps) {
         ...currentWorkflow.workflow,
         activities: nestedActivities,
       },
-    }
+    } as WorkflowDefinition
   }, [currentWorkflow, workflowName, workflowDescription])
 
   const handleSaveWorkflow = useCallback((): Promise<boolean> => {

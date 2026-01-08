@@ -35,6 +35,7 @@ export function createManualTrigger(requiresApproval?: boolean): WorkflowAPI.com
  * Create a scheduled trigger.
  * @param scheduleType - Type of schedule: 'cron', 'interval', or 'continuous'
  * @param config - Schedule configuration
+ * @note This trigger type is not yet in the API schema - using type assertion
  */
 export function createScheduledTrigger(
   scheduleType: 'cron' | 'interval' | 'continuous',
@@ -43,7 +44,7 @@ export function createScheduledTrigger(
     timezone?: string
     interval?: string
   }
-): WorkflowAPI.components['schemas']['scheduledTrigger'] {
+) {
   if (scheduleType === 'cron' && config.cron) {
     return {
       type: 'scheduled',
@@ -52,7 +53,7 @@ export function createScheduledTrigger(
         cron: config.cron,
         ...(config.timezone && { timezone: config.timezone }),
       },
-    }
+    } as const
   } else if (scheduleType === 'interval' && config.interval) {
     return {
       type: 'scheduled',
@@ -60,7 +61,7 @@ export function createScheduledTrigger(
         scheduleType: 'interval',
         interval: config.interval,
       },
-    }
+    } as const
   } else {
     return {
       type: 'scheduled',
@@ -68,7 +69,7 @@ export function createScheduledTrigger(
         scheduleType: 'continuous',
         continuous: true,
       },
-    }
+    } as const
   }
 }
 
@@ -77,12 +78,9 @@ export function createScheduledTrigger(
  * @param source - Event source identifier
  * @param eventType - Type of event to trigger on
  * @param filter - Optional filter criteria
+ * @note This trigger type is not yet in the API schema - using type assertion
  */
-export function createEventTrigger(
-  source: string,
-  eventType: string,
-  filter?: Record<string, unknown>
-): WorkflowAPI.components['schemas']['eventTrigger'] {
+export function createEventTrigger(source: string, eventType: string, filter?: Record<string, unknown>) {
   return {
     type: 'event',
     event: {
@@ -90,7 +88,7 @@ export function createEventTrigger(
       eventType,
       ...(filter && { filter }),
     },
-  }
+  } as const
 }
 
 // ============================================================================
@@ -104,6 +102,7 @@ export function createEventTrigger(
  * @param language - Script language: 'python', 'javascript', 'bash', or 'powershell'
  * @param code - Script code to execute
  * @param inputs - Optional JSON string of input parameters
+ * @note API schema currently only supports 'python' and 'bash' - using type assertion for forward compatibility
  */
 export function createScriptActivity(
   id: string,
@@ -119,7 +118,7 @@ export function createScriptActivity(
     task: {
       executor: 'script',
       config: {
-        language,
+        language: language as 'python' | 'bash',
         code,
       },
     },
@@ -334,6 +333,7 @@ export function createConvergeActivity(
  * @param name - Display name for the activity
  * @param jobTemplateId - AAP job template ID to launch
  * @param config - Optional configuration (inventory, credentials, extraVars, etc.)
+ * @note The 'aap_job_template' executor is not yet in the API schema - using type assertion
  */
 export function createAAPJobTemplateActivity(
   id: string,
@@ -349,7 +349,8 @@ export function createAAPJobTemplateActivity(
     verbosity?: number
   }
 ): TaskActivity {
-  const activity: TaskActivity = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activity: any = {
     type: 'task',
     id,
     name,
@@ -362,7 +363,7 @@ export function createAAPJobTemplateActivity(
     },
   }
 
-  return activity
+  return activity as TaskActivity
 }
 
 /**
@@ -428,6 +429,57 @@ export function createGenericActivity(id: string, name: string = 'New Node', cus
     // Minimal task config - no executor specified to avoid confusion
     task: {
       config: {},
+    },
+  }
+
+  return activity as TaskActivity
+}
+
+/**
+ * Create an approval activity - a task that requires human approval before execution.
+ * @param id - Unique activity identifier
+ * @param name - Display name for the activity
+ * @param approvers - List of email addresses of users who can approve
+ * @param prompt - Message displayed to approvers explaining what they're approving
+ * @param timeout - Optional ISO 8601 duration string (e.g., 'PT1H' for 1 hour, 'P1D' for 1 day)
+ * @param onTimeout - Action to take when timeout expires: 'fail', 'approve', or 'reject'
+ */
+export function createApprovalActivity(
+  id: string,
+  name: string,
+  approvers: string[],
+  prompt: string,
+  timeout?: number,
+  onTimeout?: 'fail' | 'approve' | 'reject'
+): TaskActivity {
+  // Approval nodes are represented as generic tasks with requiresApproval flag
+  // and approval configuration containing the approval gate details
+  // Note: metadata is not in the API schema but is used by the UI to identify node types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activity: any = {
+    type: 'task',
+    id,
+    name,
+    // Mark this activity as requiring approval
+    requiresApproval: true,
+    // Approval configuration matching backend API structure
+    approval: {
+      approvers,
+      prompt,
+      ...(timeout && { timeout }),
+      ...(onTimeout && { onTimeout }),
+    },
+    // Add metadata to identify this as an approval node and display correct icon
+    metadata: {
+      __executorType: 'approval',
+    },
+    // Minimal task config - approval nodes don't execute code
+    task: {
+      executor: 'script',
+      config: {
+        language: 'python',
+        code: '# Approval gate - execution pauses here until approved',
+      },
     },
   }
 

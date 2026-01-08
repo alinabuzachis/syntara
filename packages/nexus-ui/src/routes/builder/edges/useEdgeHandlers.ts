@@ -2,7 +2,7 @@ import type { MarkerType } from '@xyflow/react'
 import { useReactFlow } from '@xyflow/react'
 import { useCallback } from 'react'
 
-import { getEffectiveMarkerEnd } from './edgeMarkers'
+import { getEffectiveMarkerEnd } from './edgeMarkerHelpers'
 import type { EdgeData } from './types'
 import { useEdgeHover, useEdgeSourceHandle } from './useEdgeHover'
 

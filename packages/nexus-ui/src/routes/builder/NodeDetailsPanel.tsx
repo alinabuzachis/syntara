@@ -8,6 +8,7 @@ import { useWorkflowStore, selectCurrentWorkflow } from '../../stores/useWorkflo
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
 import {
+  ApprovalNodeDetails,
   ConditionNodeDetails,
   ConvergeNodeDetails,
   LoopNodeDetails,
@@ -39,6 +40,9 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     if (node.type === FlowNodeType.TASK && typeof node.data === 'object' && node.data && 'name' in node.data) {
       return node.data.name as string
     }
+    if (node.type === FlowNodeType.APPROVAL && typeof node.data === 'object' && node.data && 'name' in node.data) {
+      return node.data.name as string
+    }
     if (node.type === FlowNodeType.CONDITION && typeof node.data === 'object' && node.data && 'name' in node.data) {
       return node.data.name as string
     }
@@ -67,6 +71,11 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     if (node.type === FlowNodeType.TASK) {
       const taskData = node.data as TaskActivity
       return <TaskNodeDetails taskData={taskData} nodeId={node.id} onClose={onClose} />
+    }
+
+    if (node.type === FlowNodeType.APPROVAL) {
+      const taskData = node.data as TaskActivity
+      return <ApprovalNodeDetails taskData={taskData} nodeId={node.id} onClose={onClose} />
     }
 
     if (node.type === FlowNodeType.CONDITION) {

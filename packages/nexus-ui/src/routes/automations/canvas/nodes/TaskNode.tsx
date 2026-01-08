@@ -11,11 +11,25 @@ import {
   renderObject,
   renderText,
 } from './common/detailRenderers'
+import { detectNodeType, type TaskActivityWithMetadata } from './common/detectNodeType'
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { nodeMetadata, executorMetadata } from './nodeMetadata'
+
+type AAPJobTemplateConfig = {
+  jobTemplateId?: string | number
+  inventory?: string | number
+  extraVars?: Record<string, unknown>
+}
+
+type AAPJobTemplateTask = {
+  task: {
+    executor: string
+    config: AAPJobTemplateConfig
+  }
+}
 
 export type TaskNode = { type: 'task' } & Node<TaskActivity>
 
@@ -40,10 +54,15 @@ export function TaskActivityDetails(
     menuActions?: ReturnType<typeof useNodeMenuActions>
   }>
 ) {
-  const executorMeta = executorMetadata[props.data.task.executor]
+  // Detect the actual node type and extract any connector data
+  const { detectedExecutorType, connectorData, actualExecutor } = detectNodeType(props.data)
+  const dataWithMetadata = props.data as TaskActivityWithMetadata
+  const executorMeta = executorMetadata[actualExecutor] || executorMetadata[props.data.task.executor]
   const Icon = executorMeta?.icon
   const taskExecutor = executorMeta?.label || 'Task'
-  const isAAPTask = props.data.task.executor === 'aap_job_template'
+  // Check if this is an AAP task by checking the detected executor type
+  const isAAPTask = detectedExecutorType === 'aap' || actualExecutor === 'aap_job_template'
+  const aapTask = isAAPTask ? (props.data as unknown as AAPJobTemplateTask) : null
 
   return (
     <>
@@ -68,8 +87,12 @@ export function TaskActivityDetails(
       />
       <NodeBody>
         <Details>
-          {renderCondition(props.data.condition)}
-          {props.data.task.executor === 'script' && (
+          {renderCondition(dataWithMetadata.condition)}
+          {/* Render approval details if this is an approval node */}
+          {detectedExecutorType === 'approval' && props.data.approval && (
+            <>{renderText('Usernames to notify', props.data.approval.approvers.join(', '))}</>
+          )}
+          {props.data.task.executor === 'script' && detectedExecutorType !== 'approval' && (
             <>
               {renderText(props.data.task.config.language, props.data.task.config.code)}
               {renderInputs(props.data.task.inputs)}
@@ -81,14 +104,14 @@ export function TaskActivityDetails(
               {renderText('Method', props.data.task.config.method)}
               {renderText('URL', props.data.task.config.url)}
               {renderObject('Headers', props.data.task.config.headers)}
-              {renderObject('Body', props.data.task.config.body)}
+              {renderObject('Body', props.data.task.config.body as Record<string, unknown> | undefined)}
             </>
           )}
-          {props.data.task.executor === 'aap_job_template' && (
+          {aapTask && (
             <>
-              {renderText('Job Template ID', props.data.task.config.jobTemplateId?.toString())}
-              {renderText('Inventory ID', props.data.task.config.inventory?.toString())}
-              {renderObject('Extra Variables', props.data.task.config.extraVars)}
+              {renderText('Job Template ID', aapTask.task.config.jobTemplateId?.toString())}
+              {renderText('Inventory ID', aapTask.task.config.inventory?.toString())}
+              {renderObject('Extra Variables', aapTask.task.config.extraVars)}
             </>
           )}
           {props.data.task.executor === 'connector' && (
@@ -96,6 +119,14 @@ export function TaskActivityDetails(
               {renderText('Connector', props.data.task.config.connectorId)}
               {renderText('Operation', props.data.task.config.operation)}
               {renderObject('Parameters', props.data.task.config.parameters)}
+            </>
+          )}
+          {/* Render connector details for workaround format (agentic executor with connector data) */}
+          {detectedExecutorType && detectedExecutorType !== 'approval' && connectorData && (
+            <>
+              {renderText('Connector', connectorData.connectorId)}
+              {renderText('Operation', connectorData.operation)}
+              {renderObject('Parameters', connectorData.parameters)}
             </>
           )}
           {renderJson(props.data, props.showJson)}

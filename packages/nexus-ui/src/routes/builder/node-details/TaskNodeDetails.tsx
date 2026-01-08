@@ -1,6 +1,7 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
 
 import { useAlerts } from '../../../components/alerts'
+import { detectNodeType } from '../../../routes/automations/canvas/nodes/common/detectNodeType'
 import { createAAPJobTemplateActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { AAPNodeForm } from '../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../node-forms/AAPNodeForm'
@@ -18,10 +19,14 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
   const { showError } = useAlerts()
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
+
+  // Detect the actual node type - handles disguised AAP/connector nodes
+  const { actualExecutor, detectedExecutorType } = detectNodeType(taskData)
   const executor = taskData.task.executor as string
 
-  // Check if this is an AAP job template task
-  if (executor === 'aap_job_template') {
+  // Check if this is an AAP job template task (including disguised ones)
+  const isAAPTask = detectedExecutorType === 'aap' || actualExecutor === 'aap_job_template'
+  if (isAAPTask) {
     const aapConfig = taskData.task.config as unknown as {
       jobTemplateId: number
       inventory?: number
@@ -73,7 +78,13 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
     )
   }
 
+  // Handle standard executors (script, api, agentic) but exclude approval nodes
   if (executor !== 'script' && executor !== 'api' && executor !== 'agentic') {
+    return null
+  }
+
+  // Don't show action form for approval nodes - they have their own form
+  if (detectedExecutorType === 'approval') {
     return null
   }
 

@@ -161,7 +161,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     // Restore edges from store (needed for loop-back detection)
     storedEdges.forEach(
-      (edge: { id: string; source: string; target: string; sourceHandle?: string; targetHandle?: string }) => {
+      (edge: {
+        id: string
+        source: string
+        target: string
+        sourceHandle?: string | null
+        targetHandle?: string | null
+      }) => {
         // Determine edge type based on handles (must match EdgeFactory logic)
         let edgeType: string = 'default'
         if (edge.targetHandle === 'end') {
@@ -174,8 +180,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
           id: edge.id,
           source: edge.source,
           target: edge.target,
-          sourceHandle: edge.sourceHandle,
-          targetHandle: edge.targetHandle,
+          sourceHandle: edge.sourceHandle ?? undefined,
+          targetHandle: edge.targetHandle ?? undefined,
           type: edgeType,
           markerEnd,
           data: {
@@ -209,6 +215,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
       // Check if this is a generic placeholder node
       const isGeneric = (activity as ActivityWithMetadata).metadata?.__isGeneric === true
 
+      // Check if this is an approval node
+      const isApproval = activity.requiresApproval && activity.approval
+
       // Determine position: loop body nodes should be positioned to the right of their loop nodes
       let position = { x: 0, y: 0 }
       if (loopBodyNodes.has(activity.id)) {
@@ -218,9 +227,17 @@ export function BuilderFlow(props: BuilderFlowProps) {
         position = { x: LOOP_NODE_WIDTH + HORIZONTAL_SPACING, y: 0 }
       }
 
+      // Determine node type
+      let nodeType: 'generic' | 'approval' | 'task' = 'task'
+      if (isGeneric) {
+        nodeType = 'generic'
+      } else if (isApproval) {
+        nodeType = 'approval'
+      }
+
       nodes.push({
         id: activity.id,
-        type: isGeneric ? 'generic' : 'task',
+        type: nodeType,
         position,
         data: activity,
       })
@@ -232,6 +249,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     // Update node types/metadata based on loop-back detection
     // - Task nodes: Convert to task-reversed type
+    // - Approval nodes: Approval nodes don't support loop-back (keep as-is)
     // - Generic nodes: Set __reverseHandles metadata flag (don't change type)
     loopBackNodeIds.forEach((nodeId) => {
       const nodeIndex = nodes.findIndex((n) => n.id === nodeId)
@@ -249,6 +267,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
             },
           } as NodeType
         }
+        // Note: approval nodes are not converted to reversed type as they have branch handles
       }
     })
 

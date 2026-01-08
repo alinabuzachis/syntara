@@ -4,8 +4,44 @@ import { create } from 'zustand'
 import type { EdgeConnection } from '../routes/builder/types/edge'
 
 // Type aliases from API contracts
-type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
-type Trigger = WorkflowAPI.components['schemas']['manualTrigger']
+type WorkflowDefinitionBase = WorkflowAPI.components['schemas']['workflow-definition.schema']
+type ManualTrigger = WorkflowAPI.components['schemas']['manualTrigger']
+
+// Custom trigger types (not yet in API schema but used in the codebase)
+type ScheduledTrigger = {
+  type: 'scheduled'
+  schedule:
+    | {
+        scheduleType: 'cron'
+        cron: string
+        timezone?: string
+      }
+    | {
+        scheduleType: 'interval'
+        interval: string
+      }
+    | {
+        scheduleType: 'continuous'
+        continuous: true
+      }
+}
+
+type EventTrigger = {
+  type: 'event'
+  event: {
+    source: string
+    eventType: string
+    filter?: Record<string, unknown>
+  }
+}
+
+type Trigger = ManualTrigger | ScheduledTrigger | EventTrigger
+
+// Extended workflow definition that supports all trigger types
+type WorkflowDefinition = Omit<WorkflowDefinitionBase, 'triggers'> & {
+  triggers?: Trigger[]
+}
+
 type Activity = WorkflowAPI.components['schemas']['activity']
 type TaskActivity = Extract<Activity, { type: 'task' }>
 
@@ -551,10 +587,16 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
         // Skip non-sequential edges:
         // - Loop body edges (sourceHandle='loop')
         // - Condition branch edges (sourceHandle='true'/'false')
+        // - Approval branch edges (sourceHandle='approved'/'rejected')
         // - Loop-back edges (targetHandle='end')
-        const isSequentialEdge =
-          (!edge.sourceHandle || edge.sourceHandle === 'source' || edge.sourceHandle === 'done') &&
-          edge.targetHandle !== 'end'
+        const isBranchEdge =
+          edge.sourceHandle === 'loop' ||
+          edge.sourceHandle === 'true' ||
+          edge.sourceHandle === 'false' ||
+          edge.sourceHandle === 'approved' ||
+          edge.sourceHandle === 'rejected'
+        const isLoopBackEdge = edge.targetHandle === 'end'
+        const isSequentialEdge = !isBranchEdge && !isLoopBackEdge
 
         if (!isSequentialEdge) {
           return
@@ -929,4 +971,5 @@ export {
   createAAPJobTemplateActivity,
   createConnectorActivity,
   createGenericActivity,
+  createApprovalActivity,
 } from './workflowFactories'

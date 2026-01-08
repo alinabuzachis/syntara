@@ -44,22 +44,3 @@ export function EdgeMarkers() {
     </defs>
   )
 }
-
-/**
- * Determines the effective marker ID based on edge state.
- * Note: Pending edges are handled directly in EdgePath component.
- */
-export function getEffectiveMarkerEnd(
-  selected: boolean | undefined,
-  isEdgeHovered: boolean,
-  isActive: boolean | undefined,
-  defaultMarkerEnd: string | undefined
-): string | undefined {
-  if (selected) {
-    return "url('#selected-arrow-marker')"
-  }
-  if (isEdgeHovered || isActive) {
-    return "url('#hover-arrow-marker')"
-  }
-  return defaultMarkerEnd
-}

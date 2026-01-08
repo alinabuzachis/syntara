@@ -6,6 +6,7 @@ import {
   PluggedIcon,
   ServerIcon,
   SyncIcon,
+  UserCheckIcon,
 } from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
 
@@ -61,4 +62,6 @@ export const executorMetadata: Record<string, { icon: ComponentType<{ className?
   api: { icon: ServerIcon, label: 'REST Api' },
   connector: { icon: PluggedIcon, label: 'Connector' },
   aap_job_template: { icon: AnsibleIcon, label: 'AAP Job' },
+  aap: { icon: AnsibleIcon, label: 'AAP Job' }, // Ansible Automation Platform (alternative key)
+  approval: { icon: UserCheckIcon, label: 'Approval' }, // Human approval gate
 }

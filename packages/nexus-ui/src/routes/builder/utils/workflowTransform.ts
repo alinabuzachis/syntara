@@ -159,6 +159,11 @@ export class WorkflowTransform {
         continue
       }
 
+      // Skip approval nodes - they have explicit branch edges (approved/rejected)
+      if (current.type === 'task' && current.requiresApproval && current.approval) {
+        continue
+      }
+
       // If current is parallel, create edges to next from each branch
       if (current.type === 'parallel') {
         const branches = current.branches || []

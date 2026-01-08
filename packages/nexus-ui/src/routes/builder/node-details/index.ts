@@ -1,3 +1,4 @@
+export { ApprovalNodeDetails } from './ApprovalNodeDetails'
 export { ConditionNodeDetails } from './ConditionNodeDetails'
 export { ConvergeNodeDetails } from './ConvergeNodeDetails'
 export { LoopNodeDetails } from './LoopNodeDetails'

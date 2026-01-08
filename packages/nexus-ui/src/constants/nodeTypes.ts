@@ -12,6 +12,7 @@
 export const FlowNodeType = {
   TRIGGER: 'trigger',
   TASK: 'task',
+  APPROVAL: 'approval',
   CONDITION: 'condition',
   PARALLEL: 'parallel',
   LOOP: 'loop',

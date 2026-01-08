@@ -12,5 +12,6 @@ export type { ValidationError, ValidationResult, ValidationRule, ValidationSever
 
 // Export individual rules for testing
 export { validateNoDanglingNodes } from './rules/validateNoDanglingNodes'
+export { validateApprovalConnections } from './rules/validateApprovalConnections'
 export { validateConditionConnections } from './rules/validateConditionConnections'
 export { validateConvergeInputs } from './rules/validateConvergeInputs'

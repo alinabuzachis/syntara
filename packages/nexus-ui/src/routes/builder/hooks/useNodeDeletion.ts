@@ -3,12 +3,14 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 
 import { FlowNodeType } from '../../../constants'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
+import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { EdgeConnection } from '../types/edge'
 import { EdgeFactory } from '../utils/EdgeFactory'
-import type { EdgeType, NodeType } from '../utils/workflowToGraph'
+import type { EdgeType } from '../utils/workflowToGraph'
 
 interface UseNodeDeletionParams {
   nodes: NodeType[]
-  edges: EdgeType[]
+  edges: EdgeConnection[]
   setNodes: Dispatch<SetStateAction<NodeType[]>>
   setEdges: Dispatch<SetStateAction<EdgeType[]>>
   isDeletingRef: MutableRefObject<boolean>

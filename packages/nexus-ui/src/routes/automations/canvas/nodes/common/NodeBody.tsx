@@ -28,6 +28,10 @@ export function NodeBody(props: NodeBodyProps) {
   useEffect(() => {
     if (!expanded) return // Don't set up listeners when collapsed
 
+    // Capture element reference at effect time for cleanup
+    const element = scrollableRef.current
+    if (!element) return
+
     const handleWheel = (e: WheelEvent) => {
       // Always stop propagation when wheel event is on the scrollable element
       // This allows the element to scroll instead of ReactFlow zooming
@@ -36,19 +40,13 @@ export function NodeBody(props: NodeBodyProps) {
 
     // Use a small timeout to ensure the DOM element is fully rendered after re-expansion
     const timeoutId = setTimeout(() => {
-      const element = scrollableRef.current
-      if (element) {
-        element.addEventListener('wheel', handleWheel, { capture: true })
-      }
+      element.addEventListener('wheel', handleWheel, { capture: true })
     }, 0)
 
     return () => {
       clearTimeout(timeoutId)
-      // Clean up listener if element exists
-      const element = scrollableRef.current
-      if (element) {
-        element.removeEventListener('wheel', handleWheel, { capture: true })
-      }
+      // Use captured element reference for cleanup
+      element.removeEventListener('wheel', handleWheel, { capture: true })
     }
   }, [expanded]) // Re-run when expanded state changes
 
