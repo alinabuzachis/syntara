@@ -178,6 +178,9 @@ class ToolProviderPatch(SQLModel):
         name: Optional human-readable name (1-255 chars)
         description: Optional detailed description (max 2000 chars)
         configuration: Optional provider-specific configuration
+        enabled: Optional enable/disable flag
+        status: Optional provider status
+        validation_error: Optional error message from validation attempts
 
     """
 
@@ -201,6 +204,10 @@ class ToolProviderPatch(SQLModel):
     )
 
     enabled: bool | None = Field(default=None, description="Enable/disable the provider")
+
+    status: ProviderStatus | None = Field(default=None, description="Current status of the provider")
+
+    validation_error: str | None = Field(default=None, description="Error message from last validation attempt")
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",  # Reject unknown fields

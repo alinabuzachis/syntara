@@ -3,6 +3,8 @@
 from abc import abstractmethod
 from typing import Any, Protocol, runtime_checkable
 
+from langchain_core.tools import BaseTool
+
 from nexus.tool_manager.models import (
     Tool,
     ToolProviderValidationResult,
@@ -88,5 +90,23 @@ class ToolProviderAdapter(Protocol):
             ToolNotFoundError: If tool doesn't exist on provider
             ProviderError: If tool validation fails due to provider issues
             TimeoutError: If validation times out
+
+        """
+
+    @abstractmethod
+    async def get_base_tools(self) -> list[BaseTool]:
+        """Get LangChain BaseTools from provider without conversion.
+
+        Returns raw BaseTools for use in Agent Orchestrator without
+        converting to Tool domain models. This enables direct use of
+        LangChain tools for agent execution.
+
+        Returns:
+            list[BaseTool]: Raw LangChain tools from provider
+
+        Raises:
+            ProviderError: If tool retrieval fails
+            TimeoutError: If operation times out
+            ConnectionError: If unable to communicate with provider
 
         """

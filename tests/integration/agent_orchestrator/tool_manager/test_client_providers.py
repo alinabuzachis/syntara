@@ -4,7 +4,7 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from nexus.agent_orchestrator.tool_manager.client import ToolManagerClient
+from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 from nexus.tool_manager.models import ToolProvider
 from nexus.tool_manager.models.tool_provider_configuration import MCPConfiguration
 
@@ -18,12 +18,16 @@ async def tool_manager_client(base_client: AsyncClient) -> ToolManagerClient:
     Uses a small page size (3) to test pagination with 6 total providers.
     """
     # Create ToolManagerClient with small page size to test pagination
-    client = ToolManagerClient(base_url="http://test", limit=3)
+    client = ToolManagerClient(base_url="http://test/api/v1", limit=3)
     await client.close()
 
     # Replace the default HTTP client with the test client's transport
     # Use the same transport as base_client (which connects to the test app)
-    client.session = base_client
+    # Create a new session using the test transport but with the correct base URL
+    client.session = AsyncClient(
+        transport=base_client._transport,
+        base_url="http://test/api/v1",
+    )
 
     return client
 
@@ -33,39 +37,38 @@ class TestToolManagerClientProvidersIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_providers")
-    async def test_get_enabled_tool_providers_filters_and_paginates_correctly(
+    async def test_get_all_tool_providers_returns_all_providers(
         self,
         tool_manager_client: ToolManagerClient,
         multiple_test_providers: list[ToolProvider],
     ) -> None:
-        """Test ToolManagerClient correctly filters and paginates enabled tool providers.
+        """Test ToolManagerClient returns all tool providers without client-side filtering.
 
         Uses the existing multiple_test_providers fixture which creates 6 providers:
         4 enabled (Alpha, Gamma, Delta, Foxtrot) + 2 disabled (Beta, Echo).
-        With page size of 3, this tests pagination with 2 pages of enabled providers.
-        This proves both filtering and pagination work correctly.
+        Client should return ALL 6 providers - filtering is done at service layer.
         """
         # Use ToolManagerClient to retrieve providers
-        retrieved_providers = await tool_manager_client.get_enabled_tool_providers()
+        retrieved_providers = await tool_manager_client.get_all_tool_providers()
 
-        # Count enabled providers from fixture
-        enabled_providers = [p for p in multiple_test_providers if p.enabled]
-        expected_count = len(enabled_providers)
+        # Client should return ALL providers (enabled + disabled)
+        expected_count = len(multiple_test_providers)
 
-        # Verify we got exactly the enabled providers (should be 4)
+        # Verify we got all providers (should be 6 total)
         assert len(retrieved_providers) == expected_count
 
-        # Create mapping of expected enabled provider names
-        expected_enabled_names = {p.name for p in enabled_providers}
+        # Create mapping of all provider names
+        expected_names = {p.name for p in multiple_test_providers}
         retrieved_names = {provider.name for provider in retrieved_providers}
 
-        # Verify all expected enabled providers are present
-        assert retrieved_names == expected_enabled_names
+        # Verify all providers are present (no client-side filtering)
+        assert retrieved_names == expected_names
 
-        # Verify all returned providers are enabled (filtering verification)
-        for provider in retrieved_providers:
-            assert provider.enabled is True
-            assert provider.name in expected_enabled_names
+        # Verify we have both enabled and disabled providers
+        enabled_providers = [p for p in retrieved_providers if p.enabled]
+        disabled_providers = [p for p in retrieved_providers if not p.enabled]
+        assert len(enabled_providers) == 4  # Expected enabled count from fixture
+        assert len(disabled_providers) == 2  # Expected disabled count from fixture
 
         # Verify providers have the expected structure
         for provider in retrieved_providers:

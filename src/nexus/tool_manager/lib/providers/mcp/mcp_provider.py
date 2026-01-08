@@ -26,6 +26,9 @@ from nexus.tool_manager.models import (
 
 logger = logging.getLogger(__name__)
 
+# Log message template for MCP provider operations
+_MCP_PROVIDER_LOG_TEMPLATE = "MCP provider %s: %s"
+
 
 class MCPProvider(ToolProviderAdapter):
     """MCP provider adapter using langchain MultiServerMCPClient.
@@ -149,26 +152,67 @@ class MCPProvider(ToolProviderAdapter):
 
         except TimeoutError as e:
             msg = f"Connection validation timed out after {timeout}s"
-            logger.warning("MCP provider %s: %s", self.provider_name, msg)
+            logger.warning(_MCP_PROVIDER_LOG_TEMPLATE, self.provider_name, msg)
             raise TimeoutError(msg) from e
         except ConnectionError as e:
             msg = "Connection validation failed"
-            logger.warning("MCP provider %s: %s", self.provider_name, msg)
+            logger.warning(_MCP_PROVIDER_LOG_TEMPLATE, self.provider_name, msg)
             raise ConnectionError(msg) from e
         except Exception as e:
             # Handle session termination and other connection errors
             if "Session terminated" in str(e) or "TaskGroup" in str(e):
                 msg = "MCP session failed to establish connection - server may not be ready or incompatible"
-                logger.warning("MCP provider %s: %s", self.provider_name, msg)
+                logger.warning(_MCP_PROVIDER_LOG_TEMPLATE, self.provider_name, msg)
                 raise ConnectionError(msg) from e
             msg = f"Connection validation failed: {e}"
-            logger.exception("MCP provider %s: %s", self.provider_name, msg)
+            logger.exception(_MCP_PROVIDER_LOG_TEMPLATE, self.provider_name, msg)
             return ToolProviderValidationResult(
                 valid=False,
                 provider_type="mcp",
                 validated_at=datetime.now(UTC),
                 error=msg,
             )
+
+    async def get_base_tools(self) -> list[BaseTool]:
+        """Get LangChain BaseTools from provider without conversion.
+
+        Returns raw BaseTools for use in Agent Orchestrator without
+        converting to Tool domain models.
+
+        Returns:
+            list[BaseTool]: Raw LangChain tools from provider
+
+        Raises:
+            ProviderError: If tool retrieval fails
+            TimeoutError: If operation times out
+            ConnectionError: If unable to communicate with provider
+
+        """
+        timeout = 30  # Default timeout for tool retrieval
+
+        try:
+            logger.info("Retrieving base tools from MCP provider %s", self.provider_name)
+
+            client = await self._get_client()
+
+            # Get tools from MCP server
+            langchain_tools: list[BaseTool] = await asyncio.wait_for(client.get_tools(), timeout=timeout)
+
+            logger.info(
+                "Successfully retrieved %d base tools from MCP provider %s",
+                len(langchain_tools),
+                self.provider_name,
+            )
+            return langchain_tools
+
+        except TimeoutError as e:
+            msg = f"Tool retrieval timed out after {timeout}s"
+            logger.warning(_MCP_PROVIDER_LOG_TEMPLATE, self.provider_name, msg)
+            raise TimeoutError(msg) from e
+        except Exception as e:
+            msg = f"Tool retrieval failed: {e}"
+            logger.exception(_MCP_PROVIDER_LOG_TEMPLATE, self.provider_name, msg)
+            raise ConnectionError(msg) from e
 
     async def refresh_tools(self) -> list[Tool]:
         """Refresh and discover tools from the MCP server.
@@ -182,15 +226,11 @@ class MCPProvider(ToolProviderAdapter):
             ConnectionError: If unable to communicate with provider
 
         """
-        timeout = 30  # Default timeout for tool refresh
-
         try:
             logger.info("Refreshing tools from MCP provider %s", self.provider_name)
 
-            client = await self._get_client()
-
-            # Get tools from MCP server
-            langchain_tools: list[BaseTool] = await asyncio.wait_for(client.get_tools(), timeout=timeout)
+            # Use get_base_tools to retrieve raw tools
+            langchain_tools = await self.get_base_tools()
 
             tools = []
             self._tools_cache.clear()
@@ -206,13 +246,12 @@ class MCPProvider(ToolProviderAdapter):
             logger.info("Successfully refreshed %d tools from MCP provider %s", len(tools), self.provider_name)
             return tools
 
-        except TimeoutError as e:
-            msg = f"Tool refresh timed out after {timeout}s"
-            logger.warning("MCP provider %s: %s", self.provider_name, msg)
-            raise TimeoutError(msg) from e
+        except (TimeoutError, ConnectionError):
+            # Re-raise these as they're already properly formatted
+            raise
         except Exception as e:
             msg = f"Tool refresh failed: {e}"
-            logger.exception("MCP provider %s: %s", self.provider_name, msg)
+            logger.exception(_MCP_PROVIDER_LOG_TEMPLATE, self.provider_name, msg)
             raise ConnectionError(msg) from e
 
     async def get_tool_schema(self, tool_name: str) -> ToolSchema:
@@ -255,7 +294,7 @@ class MCPProvider(ToolProviderAdapter):
 
         except Exception as e:
             msg = f"Failed to get schema for tool '{tool_name}': {e}"
-            logger.exception("MCP provider %s: %s", self.provider_name, msg)
+            logger.exception(_MCP_PROVIDER_LOG_TEMPLATE, self.provider_name, msg)
             raise ConnectionError(msg) from e
 
     async def validate_tool(self, tool_name: str, parameters: dict[str, Any] | None = None) -> ToolValidationResult:
@@ -315,11 +354,11 @@ class MCPProvider(ToolProviderAdapter):
 
         except TimeoutError as e:
             msg = "Tool validation timed out after 10s"
-            logger.warning("MCP provider %s: %s", self.provider_name, msg)
+            logger.warning(_MCP_PROVIDER_LOG_TEMPLATE, self.provider_name, msg)
             raise TimeoutError(msg) from e
         except Exception as e:
             msg = f"Tool validation failed: {e}"
-            logger.exception("MCP provider %s: %s", self.provider_name, msg)
+            logger.exception(_MCP_PROVIDER_LOG_TEMPLATE, self.provider_name, msg)
             raise ConnectionError(msg) from e
 
     def _validate_tool_schema(self, langchain_tool: BaseTool, test_params: dict[str, Any]) -> tuple[bool, str | None]:

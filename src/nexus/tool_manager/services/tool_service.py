@@ -26,7 +26,7 @@ from nexus.tool_manager.lib.exceptions import (
 from nexus.tool_manager.models.tool import (
     Tool,
     ToolListResponse,
-    ToolStatus,
+    ToolUpdate,
     ToolWithParameters,
 )
 from nexus.tool_manager.models.tool_bulk_update import MAX_BULK_UPDATES
@@ -132,18 +132,13 @@ class ToolService(BaseService):
     async def update_tool(
         self,
         tool_id: UUID,
-        status: ToolStatus | None = None,
-        refresh_error: str | None = None,
-        *,
-        enabled: bool | None = None,
+        tool_update: ToolUpdate,
     ) -> ToolWithParameters:
         """Update tool enabled state, status, and refresh error.
 
         Args:
             tool_id: UUID of the tool to update
-            status: New tool status
-            refresh_error: Error message from refresh attempt
-            enabled: Enable/disable the tool
+            tool_update: Tool update data with optional fields
 
         Returns:
             Updated Tool instance
@@ -164,12 +159,15 @@ class ToolService(BaseService):
             msg = f"Tool {tool_id} not found"
             raise ToolNotFoundError(msg)
 
-        if enabled is not None:
-            tool.enabled = enabled
-        if status is not None:
-            tool.status = status
-        if refresh_error is not None:
-            tool.refresh_error = refresh_error
+        if tool_update.enabled is not None:
+            tool.enabled = tool_update.enabled
+
+        if tool_update.status is not None:
+            tool.status = tool_update.status
+
+        # Handle refresh_error - check if field was explicitly provided (including None)
+        if "refresh_error" in tool_update.model_fields_set:
+            tool.refresh_error = tool_update.refresh_error
 
         tool.updated_by = self.user.id
         tool.updated_at = datetime.now(UTC)

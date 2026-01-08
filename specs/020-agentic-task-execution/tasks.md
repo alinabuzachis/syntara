@@ -135,25 +135,25 @@ flowchart TD
 - All endpoints must follow path pattern: /api/v1/[component]/[resource]
 - Implement RFC 9457 Problem Details for error responses
 
-- [x] T008 Tool Manager Client base class in src/nexus/agent_orchestrator/tool_manager/client.py
-- [x] T009 [P] Tool provider discovery methods (get_enabled_tool_providers) in src/nexus/agent_orchestrator/tool_manager/client.py
-- [x] T010 [P] Tool retrieval methods (get_enabled_tools) and error status update with refresh_error field for FR-006 in src/nexus/agent_orchestrator/tool_manager/client.py
-- [x] T011 [P] Error reporting methods (update_tool_status) and HTTP session management with exponential backoff retry for Tool Manager API unavailability (FR-006) in src/nexus/agent_orchestrator/tool_manager/client.py
+- [x] T008 Tool Manager Client base class in src/nexus/agent_orchestrator/tool_manager/tool_manager_client.py
+- [x] T009 [P] Tool provider discovery methods (get_enabled_tool_providers) in src/nexus/agent_orchestrator/tool_manager/tool_manager_client.py
+- [x] T010 [P] Tool retrieval methods (get_enabled_tools) and error status update with refresh_error field for FR-006 in src/nexus/agent_orchestrator/tool_manager/tool_manager_client.py
+- [x] T011 [P] Error reporting methods (update_tool_status) and HTTP session management with exponential backoff retry for Tool Manager API unavailability (FR-006) in src/nexus/agent_orchestrator/tool_manager/tool_manager_client.py
 
 ## Phase 3.4: AAP-60416: Agent Orchestrator Integration - Tests First
 
-- [ ] T012 [P] Orchestrator Tool Manager client integration tests in tests/integration/agent_orchestrator/test_tool_manager_integration.py
-- [ ] T013 [P] LangChain MCP client integration tests for connecting to ToolProvider MCP servers in tests/integration/agent_orchestrator/test_mcp_integration.py
-- [ ] T014 [P] Tool filtering by enabled status tests (filter BaseTools by Tool.enabled field) in tests/integration/agent_orchestrator/test_tool_filtering.py
-- [ ] T015 [P] Client error handling and propagation tests in tests/integration/agent_orchestrator/test_error_handling.py
+- [x] T012 [P] Tool Manager client integration tests in tests/integration/agent_orchestrator/tool_manager/test_client_providers.py
+- [x] T013 [P] LangChain MCP client integration tests for connecting to ToolProvider MCP servers in tests/unit/agent_orchestrator/tool_manager/test_mcp_integration.py
+- [x] T014 [P] Tool filtering by enabled status tests (filter BaseTools by Tool.enabled field) in tests/unit/agent_orchestrator/tool_manager/test_tool_filtering.py
+- [x] T015 [P] Client error handling and propagation tests in tests/integration/agent_orchestrator/tool_manager/test_client_tools.py
 
 ## Phase 3.5: AAP-60416: Agent Orchestrator Integration Implementation
 
-- [ ] T016 Tool Manager client dependency injection in src/nexus/agent_orchestrator/orchestrator.py
-- [ ] T017 [P] LangChain MCP client integration to connect to ToolProvider MCP servers from MCPConfiguration URLs in src/nexus/agent_orchestrator/tool_manager/mcp_client.py
-- [ ] T018 [P] Tool filtering by enabled status logic (filter BaseTools by Tool.enabled field) in src/nexus/agent_orchestrator/tool_manager/filtering.py
-- [ ] T019 [P] Error propagation and handling middleware in src/nexus/agent_orchestrator/tool_manager/error_handler.py
-- [ ] T020 [P] Tool synchronization validation and status update logic - compare Tool Manager registered tools with MCP server actual tools, validate tool signatures (parameter count, names, types, required/optional), and update Tool Manager status using precedence: MISSING (tool absent from MCP server) > ERROR (signature mismatch/execution failure) > other errors. Include specific refresh_error messages for each error type in src/nexus/agent_orchestrator/tool_manager/tool_sync_validator.py
+- [x] T016 Tool Manager client dependency injection in src/nexus/agent_orchestrator/services/orchestration_service.py
+- [x] T017 [P] LangChain MCP client integration to connect to ToolProvider MCP servers from MCPConfiguration URLs in src/nexus/agent_orchestrator/tool_manager/mcp_client.py
+- [x] T018 [P] Tool filtering by enabled status logic (filter BaseTools by Tool.enabled field) in src/nexus/agent_orchestrator/tool_manager/tool_filtering.py
+- [x] T019 [P] Error propagation and handling middleware integrated in src/nexus/agent_orchestrator/tool_manager/tool_services.py
+- [x] T020 [P] Tool synchronization validation and status update logic implemented in src/nexus/agent_orchestrator/tool_manager/tool_services.py (get_and_synchronize_tools function) and OrchestrationService._get_tools method
 
 ## Phase 3.6: AAP-60417: Tool Calling Support - Tests First
 
@@ -180,7 +180,7 @@ flowchart TD
 ## Phase 3.9: Integration & Polish
 
 - [ ] T034 Cross-component integration and dependency wiring in src/nexus/agent_orchestrator/__init__.py
-- [ ] T035 [P] Performance optimization and connection pooling in src/nexus/agent_orchestrator/tool_manager/client.py
+- [ ] T035 [P] Performance optimization and connection pooling in src/nexus/agent_orchestrator/tool_manager/tool_manager_client.py
 - [ ] T036 [P] Update documentation: docs/api.md and README.md with Tool Manager integration
 - [ ] T037 Execute manual testing scenarios from quickstart.md
 
@@ -217,9 +217,9 @@ Task: "Error reporting and status update tests in tests/unit/agent_orchestrator/
 
 ### AAP-55696 Implementation Phase (T009-T011):
 ```
-Task: "Tool provider discovery methods (get_enabled_tool_providers) in src/nexus/agent_orchestrator/tool_manager/client.py"
-Task: "Tool retrieval methods (get_enabled_tools) in src/nexus/agent_orchestrator/tool_manager/client.py"
-Task: "Error reporting methods (update_tool_status) and HTTP session management in src/nexus/agent_orchestrator/tool_manager/client.py"
+Task: "Tool provider discovery methods (get_enabled_tool_providers) in src/nexus/agent_orchestrator/tool_manager/tool_manager_client.py"
+Task: "Tool retrieval methods (get_enabled_tools) in src/nexus/agent_orchestrator/tool_manager/tool_manager_client.py"
+Task: "Error reporting methods (update_tool_status) and HTTP session management in src/nexus/agent_orchestrator/tool_manager/tool_manager_client.py"
 ```
 
 ### AAP-60417 Implementation Phase (T024-T027):

@@ -332,3 +332,231 @@ class TestToolProvidersPatchContract:
         data = response.json()
         assert data["enabled"] is True
         assert data["description"] == "Another update without enabled field"
+
+    @pytest.mark.asyncio
+    async def test_patch_provider_status_success_contract(
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+    ) -> None:
+        """Test successful status update via PATCH."""
+        patch_data = {"status": "error"}
+
+        response = await base_client_with_provider_factory.patch(
+            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            json=patch_data,
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+
+        # Contract: Must return 200 OK
+        assert response.status_code == 200
+
+        # Contract: Must update status while preserving other fields
+        data = response.json()
+        assert data["status"] == "error"
+        assert data["name"] == test_tool_provider.name
+        assert data["description"] == test_tool_provider.description
+        assert data["enabled"] == test_tool_provider.enabled
+        expected_config = {
+            "provider_type": "mcp",
+            "base_url": "http://localhost:8080",
+            "api_key": "test-key",
+        }
+        assert data["configuration"] == expected_config
+
+    @pytest.mark.asyncio
+    async def test_patch_provider_validation_error_success_contract(
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+    ) -> None:
+        """Test successful validation_error update via PATCH."""
+        error_message = "Connection failed: timeout after 30 seconds"
+        patch_data = {"validation_error": error_message}
+
+        response = await base_client_with_provider_factory.patch(
+            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            json=patch_data,
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+
+        # Contract: Must return 200 OK
+        assert response.status_code == 200
+
+        # Contract: Must update validation_error while preserving other fields
+        data = response.json()
+        assert data["validation_error"] == error_message
+        assert data["name"] == test_tool_provider.name
+        assert data["description"] == test_tool_provider.description
+        assert data["enabled"] == test_tool_provider.enabled
+        assert data["status"] == test_tool_provider.status.value
+
+    @pytest.mark.asyncio
+    async def test_patch_provider_status_and_validation_error_together_contract(
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+    ) -> None:
+        """Test updating both status and validation_error in single PATCH request."""
+        error_message = "Provider validation failed: invalid configuration"
+        patch_data = {"status": "error", "validation_error": error_message}
+
+        response = await base_client_with_provider_factory.patch(
+            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            json=patch_data,
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+
+        # Contract: Must return 200 OK
+        assert response.status_code == 200
+
+        # Contract: Must update both fields while preserving others
+        data = response.json()
+        assert data["status"] == "error"
+        assert data["validation_error"] == error_message
+        assert data["name"] == test_tool_provider.name
+        assert data["description"] == test_tool_provider.description
+        assert data["enabled"] == test_tool_provider.enabled
+
+    @pytest.mark.asyncio
+    async def test_patch_provider_status_all_valid_values_contract(
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+    ) -> None:
+        """Test PATCH with all valid status enum values."""
+        valid_statuses = ["available", "error", "validating"]
+
+        for status in valid_statuses:
+            patch_data = {"status": status}
+
+            response = await base_client_with_provider_factory.patch(
+                f"/api/v1/tool-providers/{test_tool_provider.id}",
+                json=patch_data,
+                headers={"Content-Type": "application/merge-patch+json"},
+            )
+
+            # Contract: Must return 200 OK for all valid status values
+            assert response.status_code == 200
+
+            # Contract: Must update status correctly
+            data = response.json()
+            assert data["status"] == status
+
+    @pytest.mark.asyncio
+    async def test_patch_provider_status_invalid_value_contract(
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+    ) -> None:
+        """Test PATCH with invalid status value returns validation error."""
+        patch_data = {"status": "invalid_status"}
+
+        response = await base_client_with_provider_factory.patch(
+            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            json=patch_data,
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+
+        # Contract: Must return 422 Unprocessable Entity for invalid enum value
+        assert response.status_code == 422
+
+        # Contract: Must return validation error mentioning the invalid value
+        data = response.json()
+        error_message = str(data.get("error", data.get("detail", "")))
+        assert "invalid_status" in error_message or "status" in error_message.lower()
+
+    @pytest.mark.asyncio
+    async def test_patch_provider_clear_validation_error_contract(
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+    ) -> None:
+        """Test clearing validation_error by setting it to null."""
+        # First, set a validation error
+        error_message = "Some validation error"
+        patch_data = {"validation_error": error_message}
+        response = await base_client_with_provider_factory.patch(
+            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            json=patch_data,
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+        assert response.status_code == 200
+        assert response.json()["validation_error"] == error_message
+
+        # Now clear it by setting to null
+        patch_data_clear = {"validation_error": None}
+        response = await base_client_with_provider_factory.patch(
+            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            json=patch_data_clear,
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+
+        # Contract: Must return 200 OK
+        assert response.status_code == 200
+
+        # Contract: Must clear validation_error field
+        data = response.json()
+        assert data["validation_error"] is None
+
+    @pytest.mark.asyncio
+    async def test_patch_provider_preserve_status_and_validation_error_contract(
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+    ) -> None:
+        """Test that PATCH without status/validation_error fields preserves existing values."""
+        # First, set both status and validation_error
+        initial_patch = {"status": "error", "validation_error": "Initial error message"}
+        response = await base_client_with_provider_factory.patch(
+            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            json=initial_patch,
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+        assert response.status_code == 200
+        initial_data = response.json()
+        assert initial_data["status"] == "error"
+        assert initial_data["validation_error"] == "Initial error message"
+
+        # Now patch without status or validation_error fields
+        patch_other_fields = {"description": "Updated description only"}
+        response = await base_client_with_provider_factory.patch(
+            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            json=patch_other_fields,
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+
+        # Contract: Must return 200 OK
+        assert response.status_code == 200
+
+        # Contract: Must preserve existing status and validation_error values
+        data = response.json()
+        assert data["status"] == "error"  # Preserved from initial_patch
+        assert data["validation_error"] == "Initial error message"  # Preserved from initial_patch
+        assert data["description"] == "Updated description only"  # Updated field
+
+    @pytest.mark.asyncio
+    async def test_patch_provider_status_with_enabled_interaction_contract(
+        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+    ) -> None:
+        """Test interaction between status and enabled fields in PATCH."""
+        # Test that setting status to 'error' and enabled to False works together
+        patch_data = {"status": "error", "enabled": False, "validation_error": "Provider failed validation"}
+
+        response = await base_client_with_provider_factory.patch(
+            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            json=patch_data,
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+
+        # Contract: Must return 200 OK
+        assert response.status_code == 200
+
+        # Contract: Must update all fields correctly
+        data = response.json()
+        assert data["status"] == "error"
+        assert data["enabled"] is False
+        assert data["validation_error"] == "Provider failed validation"
+
+        # Test recovery: set status back to available and enabled to True
+        recovery_patch = {"status": "available", "enabled": True, "validation_error": None}
+        response = await base_client_with_provider_factory.patch(
+            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            json=recovery_patch,
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+
+        # Contract: Must return 200 OK
+        assert response.status_code == 200
+
+        # Contract: Must update all fields for recovery
+        data = response.json()
+        assert data["status"] == "available"
+        assert data["enabled"] is True
+        assert data["validation_error"] is None

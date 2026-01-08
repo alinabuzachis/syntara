@@ -353,7 +353,7 @@ class TestMCPProvider:
         provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
 
         # Execute and verify
-        with pytest.raises(TimeoutError, match="Tool refresh timed out after 30s"):
+        with pytest.raises(TimeoutError, match="Tool retrieval timed out after 30s"):
             await provider.refresh_tools()
 
     @pytest.mark.asyncio
@@ -368,8 +368,62 @@ class TestMCPProvider:
         provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
 
         # Execute and verify
-        with pytest.raises(ConnectionError, match="Tool refresh failed: Server unavailable"):
+        with pytest.raises(ConnectionError, match="Tool retrieval failed: Server unavailable"):
             await provider.refresh_tools()
+
+    @pytest.mark.asyncio
+    @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
+    async def test_get_base_tools_success(self, mock_client_class: Mock) -> None:
+        """Test successful retrieval of base tools."""
+        # Setup
+        mock_client = AsyncMock()
+        mock_tools = [
+            self._create_mock_langchain_tool("tool1", "First tool"),
+            self._create_mock_langchain_tool("tool2", "Second tool"),
+        ]
+        mock_client.get_tools.return_value = mock_tools
+        mock_client_class.return_value = mock_client
+
+        provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
+
+        # Execute
+        base_tools = await provider.get_base_tools()
+
+        # Verify
+        assert len(base_tools) == 2
+        assert base_tools[0].name == "tool1"
+        assert base_tools[1].name == "tool2"
+        mock_client.get_tools.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
+    async def test_get_base_tools_timeout(self, mock_client_class: Mock) -> None:
+        """Test base tools retrieval timeout handling."""
+        # Setup
+        mock_client = AsyncMock()
+        mock_client.get_tools.side_effect = TimeoutError()
+        mock_client_class.return_value = mock_client
+
+        provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
+
+        # Execute and verify
+        with pytest.raises(TimeoutError, match="Tool retrieval timed out after 30s"):
+            await provider.get_base_tools()
+
+    @pytest.mark.asyncio
+    @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
+    async def test_get_base_tools_connection_error(self, mock_client_class: Mock) -> None:
+        """Test base tools retrieval connection error handling."""
+        # Setup
+        mock_client = AsyncMock()
+        mock_client.get_tools.side_effect = RuntimeError("Server unavailable")
+        mock_client_class.return_value = mock_client
+
+        provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
+
+        # Execute and verify
+        with pytest.raises(ConnectionError, match="Tool retrieval failed: Server unavailable"):
+            await provider.get_base_tools()
 
     @pytest.mark.asyncio
     async def test_get_tool_schema_success(self) -> None:

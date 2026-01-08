@@ -613,6 +613,7 @@ class RetrieverServiceSettings(BaseSettings):
         return self
 
 
+# =============================================================================
 # LLM Adapter Retry Configuration
 # =============================================================================
 
@@ -1012,6 +1013,54 @@ class WorkflowEngineSettings(BaseSettings):
 
 
 # =============================================================================
+# Tool Manager Configuration
+# =============================================================================
+
+
+class ToolManagerSettings(BaseSettings):
+    """Tool Manager client configuration settings.
+
+    Configures the HTTP client for Tool Manager REST API integration.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    tool_manager_base_url: HttpUrl = Field(  # type: ignore[assignment]
+        default="http://localhost:8000/api/v1",
+        description="Tool Manager API base URL",
+    )
+
+    tool_manager_timeout_seconds: float = Field(
+        default=30.0,
+        description="Request timeout in seconds",
+        gt=0,
+    )
+
+    tool_manager_max_connections: int = Field(
+        default=10,
+        description="Maximum number of connections to maintain",
+        ge=1,
+    )
+
+    tool_manager_max_keepalive_connections: int = Field(
+        default=5,
+        description="Maximum number of keepalive connections",
+        ge=0,
+    )
+
+    @model_validator(mode="after")
+    def validate_keepalive_connections(self) -> Self:
+        """Validate that keepalive connections don't exceed max connections."""
+        if self.tool_manager_max_keepalive_connections > self.tool_manager_max_connections:
+            msg = (
+                f"tool_manager_max_keepalive_connections ({self.tool_manager_max_keepalive_connections}) "
+                f"cannot exceed tool_manager_max_connections ({self.tool_manager_max_connections})"
+            )
+            raise ValueError(msg)
+        return self
+
+
+# =============================================================================
 # Main Settings
 # =============================================================================
 
@@ -1036,6 +1085,7 @@ class Settings(
     TemporalSettings,
     ContextManagerSettings,
     WorkflowEngineSettings,
+    ToolManagerSettings,
 ):
     """Application-wide settings.
 

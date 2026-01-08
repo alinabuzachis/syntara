@@ -10,7 +10,7 @@ import httpx
 
 from nexus.agent_orchestrator.utils.retry import retry_with_backoff
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
-from nexus.tool_manager.models.tool_provider import ToolProviderWithConfiguration
+from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProviderWithConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +62,8 @@ def _validate_max_keepalive_connections(max_keepalive: int, max_conn: int) -> No
 class ToolManagerClient:
     """HTTP client for Tool Manager REST API integration.
 
-    This client provides methods to discover enabled tool providers,
-    retrieve enabled tools, and report tool execution status back to
+    This client provides methods to discover all tool providers,
+    retrieve all tools, and report tool execution status back to
     the Tool Manager service.
 
     Attributes:
@@ -137,7 +137,7 @@ class ToolManagerClient:
         await self.close()
 
     @retry_with_backoff
-    async def _get_tool_providers_page(self, params: dict[str, str | bool]) -> dict[str, Any]:
+    async def _get_tool_providers_page(self, params: dict[str, str]) -> dict[str, Any]:
         """Get a single page of tool providers with retry logic.
 
         Args:
@@ -153,18 +153,18 @@ class ToolManagerClient:
 
         """
         logger.debug("Fetching tool providers from Tool Manager API with params: %s", params)
-        response = await self.session.get("/api/v1/tool-providers", params=params)
+        response = await self.session.get("/tool-providers", params=params)
         response.raise_for_status()
         return dict(response.json())
 
-    async def get_enabled_tool_providers(self) -> list[ToolProviderWithConfiguration]:
-        """Retrieve enabled tool providers from Tool Manager.
+    async def get_all_tool_providers(self) -> list[ToolProviderWithConfiguration]:
+        """Retrieve all tool providers from Tool Manager.
 
-        Fetches all tool providers that are enabled and available.
+        Fetches all tool providers regardless of enabled status.
         Handles pagination automatically to return all results.
 
         Returns:
-            List of enabled ToolProviderWithConfiguration objects
+            List of all ToolProviderWithConfiguration objects
 
         Raises:
             httpx.HTTPStatusError: On API error responses
@@ -177,7 +177,7 @@ class ToolManagerClient:
 
         while True:
             # Build query parameters
-            params: dict[str, str | bool] = {"enabled": True}
+            params: dict[str, str] = {}
             if cursor:
                 params["cursor"] = cursor
             if self.limit is not None:
@@ -196,11 +196,11 @@ class ToolManagerClient:
             if not cursor:
                 break
 
-        logger.info("Retrieved %d enabled tool providers", len(providers))
+        logger.info("Retrieved %d total tool providers", len(providers))
         return providers
 
     @retry_with_backoff
-    async def _get_tools_page(self, params: dict[str, str | bool]) -> dict[str, Any]:
+    async def _get_tools_page(self, params: dict[str, str]) -> dict[str, Any]:
         """Get a single page of tools with retry logic.
 
         Args:
@@ -216,19 +216,19 @@ class ToolManagerClient:
 
         """
         logger.debug("Fetching tools from Tool Manager API with params: %s", params)
-        response = await self.session.get("/api/v1/tools", params=params)
+        response = await self.session.get("/tools", params=params)
         response.raise_for_status()
         return dict(response.json())
 
-    async def get_enabled_tools(self) -> list[ToolWithParameters]:
-        """Retrieve enabled tools from Tool Manager.
+    async def get_all_tools(self) -> list[ToolWithParameters]:
+        """Retrieve all tools from Tool Manager.
 
-        Fetches all tools that are enabled, regardless of their status.
-        Status filtering (available vs error) is handled at the LangGraph level.
+        Fetches all tools regardless of their enabled status or current status.
+        Status filtering and enabled filtering is handled at the service layer.
         Handles pagination automatically to return all results.
 
         Returns:
-            List of enabled ToolWithParameters objects
+            List of all ToolWithParameters objects
 
         Raises:
             httpx.HTTPStatusError: On API error responses
@@ -241,7 +241,7 @@ class ToolManagerClient:
 
         while True:
             # Build query parameters
-            params: dict[str, str | bool] = {"enabled": True}
+            params: dict[str, str] = {}
             if cursor:
                 params["cursor"] = cursor
             if self.limit is not None:
@@ -260,7 +260,7 @@ class ToolManagerClient:
             if not cursor:
                 break
 
-        logger.info("Retrieved %d enabled tools", len(tools))
+        logger.info("Retrieved %d total tools", len(tools))
         return tools
 
     @retry_with_backoff
@@ -270,7 +270,8 @@ class ToolManagerClient:
         Reports tool execution status back to Tool Manager for operational visibility.
         Used to update tool status to ERROR when execution fails, or back to
         AVAILABLE when tools recover. Tools are automatically disabled when their
-        status is set to MISSING or ERROR.
+        status is set to MISSING or ERROR, and automatically enabled when their
+        status is set to AVAILABLE.
 
         Args:
             tool_id: UUID of the tool to update
@@ -289,20 +290,71 @@ class ToolManagerClient:
             raise ValueError(msg)
 
         # Build request payload
-        update_data: dict[str, str | None | bool] = {"status": status.value}
-        if refresh_error is not None:
-            update_data["refresh_error"] = refresh_error
+        update_data: dict[str, str | None | bool] = {"status": status.value, "refresh_error": refresh_error}
 
         # Disable tool if status is missing or error
         if status in (ToolStatus.MISSING, ToolStatus.ERROR):
             update_data["enabled"] = False
+        # Enable tool if status is available
+        elif status == ToolStatus.AVAILABLE:
+            update_data["enabled"] = True
 
         logger.debug(
             "Updating tool status: tool_id=%s, status=%s, refresh_error=%s", tool_id, status.value, refresh_error
         )
 
         # Make API request
-        response = await self.session.patch(f"/api/v1/tools/{tool_id}", json=update_data)
+        response = await self.session.patch(f"/tools/{tool_id}", json=update_data)
         response.raise_for_status()
 
         logger.info("Updated tool status: tool_id=%s, status=%s", tool_id, status.value)
+
+    @retry_with_backoff
+    async def update_tool_provider_status(
+        self, provider_id: UUID, status: ProviderStatus, validation_error: str | None = None
+    ) -> None:
+        """Update tool provider status in Tool Manager.
+
+        Reports tool provider validation status back to Tool Manager for operational visibility.
+        Used to update provider status to ERROR when validation fails, or back to
+        AVAILABLE when providers recover. Providers are automatically disabled when their
+        status is set to ERROR.
+
+        Args:
+            provider_id: UUID of the provider to update
+            status: New status for the provider
+            validation_error: Error message to set in validation_error field (optional)
+
+        Raises:
+            ValueError: If provider_id is None
+            httpx.HTTPStatusError: On API error responses (404, 409, etc.)
+            httpx.TimeoutException: On request timeout
+            httpx.ConnectError: On network connectivity issues
+
+        """
+        if not provider_id:
+            msg = "Provider ID cannot be None"
+            raise ValueError(msg)
+
+        # Build request payload
+        update_data: dict[str, str | None | bool] = {"status": status.value, "validation_error": validation_error}
+
+        # Disable provider if status is error
+        if status == ProviderStatus.ERROR:
+            update_data["enabled"] = False
+        # Enable provider if status is available
+        elif status == ProviderStatus.AVAILABLE:
+            update_data["enabled"] = True
+
+        logger.debug(
+            "Updating provider status: provider_id=%s, status=%s, validation_error=%s",
+            provider_id,
+            status.value,
+            validation_error,
+        )
+
+        # Make API request
+        response = await self.session.patch(f"/tool-providers/{provider_id}", json=update_data)
+        response.raise_for_status()
+
+        logger.info("Updated provider status: provider_id=%s, status=%s", provider_id, status.value)

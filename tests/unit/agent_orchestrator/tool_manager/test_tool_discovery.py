@@ -7,7 +7,7 @@ import httpx
 import pytest
 import respx
 
-from nexus.agent_orchestrator.tool_manager.client import ToolManagerClient
+from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProviderWithConfiguration
 
 from .conftest import mock_paginated_api
@@ -40,13 +40,13 @@ class TestToolProviderDiscovery:
     @pytest.fixture
     def client(self) -> ToolManagerClient:
         """Create client instance for testing."""
-        return ToolManagerClient(base_url="http://test-api", timeout=30.0)
+        return ToolManagerClient(base_url="http://test-api/api/v1", timeout=30.0)
 
     @respx.mock
-    async def test_get_enabled_tool_providers_success(
+    async def test_get_all_tool_providers_success(
         self, client: ToolManagerClient, sample_provider_response: dict[str, Any]
     ) -> None:
-        """Test successful retrieval of enabled tool providers."""
+        """Test successful retrieval of all tool providers."""
         # Mock successful API response
         respx.get("http://test-api/api/v1/tool-providers").mock(
             return_value=httpx.Response(
@@ -54,7 +54,7 @@ class TestToolProviderDiscovery:
             )
         )
 
-        providers = await client.get_enabled_tool_providers()
+        providers = await client.get_all_tool_providers()
 
         assert len(providers) == 1
         provider = providers[0]
@@ -65,57 +65,57 @@ class TestToolProviderDiscovery:
         assert provider.configuration.provider_type == "mcp"
 
     @respx.mock
-    async def test_get_enabled_tool_providers_filtered(self, client: ToolManagerClient) -> None:
-        """Test that only enabled providers are requested."""
+    async def test_get_all_tool_providers_no_filter(self, client: ToolManagerClient) -> None:
+        """Test that all providers are requested without enabled filter."""
         # Mock API response
         respx.get("http://test-api/api/v1/tool-providers").mock(
             return_value=httpx.Response(200, json={"resources": [], "total_count": 0})
         )
 
-        await client.get_enabled_tool_providers()
+        await client.get_all_tool_providers()
 
-        # Verify the API was called with enabled=true filter
+        # Verify the API was called without enabled filter
         request = respx.calls.last.request
-        assert "enabled=true" in str(request.url)
+        assert "enabled=true" not in str(request.url)
 
     @respx.mock
-    async def test_get_enabled_tool_providers_empty_response(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tool_providers_empty_response(self, client: ToolManagerClient) -> None:
         """Test handling of empty provider list."""
         respx.get("http://test-api/api/v1/tool-providers").mock(
             return_value=httpx.Response(200, json={"resources": [], "total_count": 0})
         )
 
-        providers = await client.get_enabled_tool_providers()
+        providers = await client.get_all_tool_providers()
 
         assert providers == []
 
     @respx.mock
-    async def test_get_enabled_tool_providers_api_error(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tool_providers_api_error(self, client: ToolManagerClient) -> None:
         """Test handling of API errors during provider discovery."""
         respx.get("http://test-api/api/v1/tool-providers").mock(
             return_value=httpx.Response(500, text="Internal server error")
         )
 
         with pytest.raises(httpx.HTTPStatusError):
-            await client.get_enabled_tool_providers()
+            await client.get_all_tool_providers()
 
     @respx.mock
-    async def test_get_enabled_tool_providers_timeout(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tool_providers_timeout(self, client: ToolManagerClient) -> None:
         """Test handling of timeout during provider discovery."""
         respx.get("http://test-api/api/v1/tool-providers").mock(side_effect=httpx.TimeoutException("Request timeout"))
 
         with pytest.raises(httpx.TimeoutException):
-            await client.get_enabled_tool_providers()
+            await client.get_all_tool_providers()
 
     @respx.mock
-    async def test_get_enabled_tool_providers_network_error(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tool_providers_network_error(self, client: ToolManagerClient) -> None:
         """Test handling of network errors during provider discovery."""
         respx.get("http://test-api/api/v1/tool-providers").mock(side_effect=httpx.ConnectError("Connection failed"))
 
         with pytest.raises(httpx.ConnectError):
-            await client.get_enabled_tool_providers()
+            await client.get_all_tool_providers()
 
-    async def test_get_enabled_tool_providers_pagination(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tool_providers_pagination(self, client: ToolManagerClient) -> None:
         """Test handling of paginated provider responses."""
         # Define paginated response data
         providers_page1 = [
@@ -155,7 +155,7 @@ class TestToolProviderDiscovery:
         ]
 
         with mock_paginated_api(r".*tool-providers.*", pages):
-            providers = await client.get_enabled_tool_providers()
+            providers = await client.get_all_tool_providers()
 
         assert len(providers) == 2
         assert providers[0].name == "provider_1"

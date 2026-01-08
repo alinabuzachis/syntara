@@ -6,7 +6,7 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from nexus.agent_orchestrator.tool_manager.client import ToolManagerClient
+from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 from nexus.tool_manager.models import Tool
 
 if TYPE_CHECKING:
@@ -50,12 +50,16 @@ async def tool_manager_client(base_client: AsyncClient) -> ToolManagerClient:
     Uses a small page size (5) to test pagination with 15 total tools.
     """
     # Create ToolManagerClient with small page size to test pagination
-    client = ToolManagerClient(base_url="http://test", limit=5)
+    client = ToolManagerClient(base_url="http://test/api/v1", limit=5)
     await client.close()
 
     # Replace the default HTTP client with the test client's transport
     # Use the same transport as base_client (which connects to the test app)
-    client.session = base_client
+    # Create a new session using the test transport but with the correct base URL
+    client.session = AsyncClient(
+        transport=base_client._transport,
+        base_url="http://test/api/v1",
+    )
 
     return client
 
@@ -65,33 +69,36 @@ class TestToolManagerClientIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("mixed_test_tools")
-    async def test_get_enabled_tools_filters_and_paginates_correctly(
+    async def test_get_all_tools_returns_all_tools(
         self,
         tool_manager_client: ToolManagerClient,
     ) -> None:
-        """Test ToolManagerClient correctly filters and paginates enabled tools.
+        """Test ToolManagerClient returns all tools without client-side filtering.
 
         Creates 15 total tools (10 enabled + 5 disabled) with page size of 5.
-        Verifies that get_enabled_tools() returns only the 10 enabled ones
-        by making multiple paginated requests (2 pages of 5 each).
-        This proves both filtering and pagination work correctly.
+        Client should return ALL 15 tools - filtering is done at service layer.
         """
         # Use ToolManagerClient to retrieve tools
-        retrieved_tools = await tool_manager_client.get_enabled_tools()
+        retrieved_tools = await tool_manager_client.get_all_tools()
 
-        # Verify we got exactly 10 enabled tools (not all 15)
-        assert len(retrieved_tools) == 10
+        # Verify we got all 15 tools (enabled + disabled)
+        assert len(retrieved_tools) == 15
 
-        # Create mapping of expected enabled tool names (tools 1-10 are enabled)
-        expected_enabled_names = {f"Client Test Tool {i + 1}" for i in range(10)}
+        # Create mapping of all tool names (tools 1-15)
+        expected_names = {f"Client Test Tool {i + 1}" for i in range(15)}
         retrieved_names = {tool.name for tool in retrieved_tools}
 
-        # Verify all expected enabled tools are present
-        assert retrieved_names == expected_enabled_names
+        # Verify all tools are present (no client-side filtering)
+        assert retrieved_names == expected_names
 
-        # Verify all returned tools are enabled (filtering verification)
+        # Verify we have both enabled and disabled tools
+        enabled_tools = [t for t in retrieved_tools if t.enabled]
+        disabled_tools = [t for t in retrieved_tools if not t.enabled]
+        assert len(enabled_tools) == 10  # Expected enabled count from fixture
+        assert len(disabled_tools) == 5  # Expected disabled count from fixture
+
+        # Verify basic tool structure
         for tool in retrieved_tools:
-            assert tool.enabled is True
             assert tool.status.value == "available"
             assert tool.name.startswith("Client Test Tool")
             assert tool.namespaced_name.startswith("client_test::")

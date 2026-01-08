@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from nexus.agent_orchestrator.tool_manager.client import ToolManagerClient
+from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 
 
 class TestToolManagerClientInit:

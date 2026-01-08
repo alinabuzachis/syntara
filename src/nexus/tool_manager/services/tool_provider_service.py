@@ -451,6 +451,13 @@ class ToolProviderService(BaseService):
         if provider_patch.enabled is not None:
             provider.enabled = provider_patch.enabled
 
+        if provider_patch.status is not None:
+            provider.status = provider_patch.status
+
+        # Handle validation_error - check if field was explicitly provided (including None)
+        if "validation_error" in provider_patch.model_fields_set:
+            provider.validation_error = provider_patch.validation_error
+
         if provider_patch.configuration is not None:
             # Validate merged configuration. Pydantic validates when the property is set.
             provider.configuration = provider_patch.configuration

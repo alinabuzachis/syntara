@@ -191,9 +191,7 @@ async def update_tool(
     try:
         return await service.update_tool(
             tool_id,
-            tool_update.status,
-            tool_update.refresh_error,
-            enabled=tool_update.enabled,
+            tool_update,
         )
 
     except ToolNotFoundError as e:

@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
+from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
@@ -27,6 +28,7 @@ from nexus.agent_orchestrator.models.agent_state import AgentState, AgentStateFa
 from nexus.agent_orchestrator.models.streaming_events import CompletionEventData, DeltaEventData
 from nexus.agent_orchestrator.services.error_handler import classify_streaming_error
 from nexus.agent_orchestrator.services.streaming_service import get_invocation_stream_id
+from nexus.agent_orchestrator.tool_manager import ToolSynchronizer
 from nexus.core.valkey.stream import StreamClient
 
 logger = logging.getLogger(__name__)
@@ -91,6 +93,22 @@ class OrchestrationService:
 
         logger.info("LangGraph orchestration initialized successfully")
         return graph
+
+    async def _get_tools(self, invocation_id: UUID) -> list[BaseTool]:
+        """Get available tools for the agent execution.
+
+        Performs tool discovery and synchronization to ensure all available
+        tools are properly registered and accessible for the current invocation.
+
+        Args:
+            invocation_id: Unique identifier for the current invocation
+
+        Returns:
+            List of synchronized BaseTool instances available for agent use
+
+        """
+        synchronizer = ToolSynchronizer(invocation_id)
+        return await synchronizer.synchronize_tools()
 
     async def execute(
         self, prompt: str, session_id: str, invocation_id: UUID, correlation_id: str | None = None

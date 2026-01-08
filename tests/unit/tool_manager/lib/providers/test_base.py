@@ -10,6 +10,8 @@ Tests cover:
 import inspect
 from datetime import UTC, datetime
 
+from langchain_core.tools import BaseTool
+
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
 from nexus.tool_manager.lib.providers.mcp import MCPProvider
 from nexus.tool_manager.models import ToolProviderValidationResult, ToolSchema, ToolValidationResult
@@ -90,6 +92,10 @@ class CompleteProvider(ToolProviderAdapter):
             message=f"{tool_name}::{parameters!s}",
             validated_at=datetime.now(UTC),
         )
+
+    async def get_base_tools(self) -> list[BaseTool]:
+        """Mock implementation."""
+        return []
 
 
 def test_complete_provider_recognized() -> None:

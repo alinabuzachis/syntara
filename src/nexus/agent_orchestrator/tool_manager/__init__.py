@@ -1,5 +1,23 @@
 """Tool Manager integration for Agent Orchestrator."""
 
-from .client import ToolManagerClient
+from .tool_filtering import (
+    filter_base_tools_by_enabled,
+    identify_missing_tools,
+    identify_unregistered_tools,
+)
+from .tool_manager_client import ToolManagerClient
+from .tool_services import (
+    ToolSynchronizer,
+    report_tool_execution_failure,
+)
+from .types import NamespacedBaseTool
 
-__all__ = ["ToolManagerClient"]
+__all__ = [
+    "NamespacedBaseTool",
+    "ToolManagerClient",
+    "ToolSynchronizer",
+    "filter_base_tools_by_enabled",
+    "identify_missing_tools",
+    "identify_unregistered_tools",
+    "report_tool_execution_failure",
+]

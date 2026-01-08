@@ -24,6 +24,7 @@ from nexus.tool_manager.lib.exceptions import (
 from nexus.tool_manager.models.tool import (
     Tool,
     ToolStatus,
+    ToolUpdate,
 )
 from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.services.tool_service import ToolService
@@ -78,7 +79,7 @@ async def test_update_tool_status_disable_success(
     test_tool.enabled = True
     await test_db_session.commit()
 
-    updated_tool = await service.update_tool(test_tool.id, enabled=False)
+    updated_tool = await service.update_tool(test_tool.id, ToolUpdate(enabled=False))
 
     assert not updated_tool.enabled
     assert updated_tool.updated_by == test_user.id
@@ -96,7 +97,7 @@ async def test_update_tool_status_enable_success(
     test_tool.enabled = False
     await test_db_session.commit()
 
-    updated_tool = await service.update_tool(test_tool.id, enabled=True)
+    updated_tool = await service.update_tool(test_tool.id, ToolUpdate(enabled=True))
 
     assert updated_tool.enabled
     assert updated_tool.updated_by == test_user.id
@@ -110,7 +111,7 @@ async def test_update_tool_status_not_found(test_db_session: AsyncSession, test_
     non_existent_id = uuid4()
 
     with pytest.raises(ToolNotFoundError, match=f"Tool {non_existent_id} not found"):
-        await service.update_tool(non_existent_id, enabled=False)
+        await service.update_tool(non_existent_id, ToolUpdate(enabled=False))
 
 
 @pytest.mark.asyncio
@@ -122,7 +123,7 @@ async def test_update_tool_status_success(test_db_session: AsyncSession, test_to
     test_tool.status = ToolStatus.AVAILABLE
     await test_db_session.commit()
 
-    updated_tool = await service.update_tool(test_tool.id, status=ToolStatus.ERROR)
+    updated_tool = await service.update_tool(test_tool.id, ToolUpdate(status=ToolStatus.ERROR))
 
     assert updated_tool.status == ToolStatus.ERROR
     assert updated_tool.updated_by == test_user.id
@@ -141,7 +142,7 @@ async def test_update_tool_refresh_error_success(
     await test_db_session.commit()
 
     error_message = "Connection timeout while refreshing tool"
-    updated_tool = await service.update_tool(test_tool.id, refresh_error=error_message)
+    updated_tool = await service.update_tool(test_tool.id, ToolUpdate(refresh_error=error_message))
 
     assert updated_tool.refresh_error == error_message
     assert updated_tool.updated_by == test_user.id
@@ -161,7 +162,7 @@ async def test_update_tool_all_fields_success(test_db_session: AsyncSession, tes
 
     error_message = "Tool provider unavailable"
     updated_tool = await service.update_tool(
-        test_tool.id, status=ToolStatus.ERROR, refresh_error=error_message, enabled=False
+        test_tool.id, ToolUpdate(status=ToolStatus.ERROR, refresh_error=error_message, enabled=False)
     )
 
     assert not updated_tool.enabled
@@ -634,7 +635,7 @@ async def test_update_tool_status_audit_tracking(
     service = ToolService(test_db_session, test_user)
 
     original_updated_at = test_tool.updated_at
-    updated_tool = await service.update_tool(test_tool.id, enabled=False)
+    updated_tool = await service.update_tool(test_tool.id, ToolUpdate(enabled=False))
 
     assert updated_tool.updated_by == test_user.id
     assert updated_tool.updated_at > original_updated_at

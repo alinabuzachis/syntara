@@ -3,7 +3,10 @@
 import random
 from datetime import UTC, datetime
 from typing import Any
+from unittest.mock import Mock
 from uuid import UUID, uuid4
+
+from langchain_core.tools import BaseTool
 
 from nexus.tool_manager.lib.exceptions import ProviderError, ToolNotFoundError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
@@ -212,6 +215,22 @@ class MockMCPProvider(ToolProviderAdapter):
                 ],
             ),
         ]
+
+    async def get_base_tools(self) -> list[BaseTool]:
+        """Get LangChain BaseTools from provider without conversion.
+
+        Returns raw BaseTools for use in Agent Orchestrator without
+        converting to Tool domain models.
+        """
+        # Create mock LangChain BaseTools
+        mock_tools: list[BaseTool] = []
+        for tool in self._mock_tools[:1]:  # Return just echo_tool for simplicity
+            mock_tool = Mock(spec=BaseTool)
+            mock_tool.name = tool.name
+            mock_tool.description = tool.description
+            mock_tools.append(mock_tool)
+
+        return mock_tools
 
     async def get_tool_schema(self, tool_name: str) -> ToolSchema:
         """Get detailed schema for a specific tool."""

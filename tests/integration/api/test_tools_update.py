@@ -262,3 +262,43 @@ class TestToolsUpdateContract:
         assert data["description"] == original_data["description"]
         assert data["provider_id"] == original_data["provider_id"]
         assert data["namespaced_name"] == original_data["namespaced_name"]
+
+    @pytest.mark.asyncio
+    async def test_update_tool_clear_refresh_error_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
+        """Test clearing refresh_error by setting it to null."""
+        # First, set a refresh error
+        error_message = "Initial error message"
+        response = await base_client.patch(f"/api/v1/tools/{test_tool.id}", json={"refresh_error": error_message})
+        assert response.status_code == 200
+        assert response.json()["refresh_error"] == error_message
+
+        # Now clear it by setting to null
+        response = await base_client.patch(f"/api/v1/tools/{test_tool.id}", json={"refresh_error": None})
+
+        # Contract: Must return 200 OK
+        assert response.status_code == 200
+
+        # Contract: Must clear refresh_error field
+        data = response.json()
+        assert data["refresh_error"] is None
+
+    @pytest.mark.asyncio
+    async def test_update_tool_preserve_refresh_error_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
+        """Test that PATCH without refresh_error field preserves existing value."""
+        # First, set a refresh error
+        error_message = "Persistent error message"
+        response = await base_client.patch(f"/api/v1/tools/{test_tool.id}", json={"refresh_error": error_message})
+        assert response.status_code == 200
+        initial_data = response.json()
+        assert initial_data["refresh_error"] == error_message
+
+        # Now patch without refresh_error field
+        response = await base_client.patch(f"/api/v1/tools/{test_tool.id}", json={"enabled": False})
+
+        # Contract: Must return 200 OK
+        assert response.status_code == 200
+
+        # Contract: Must preserve existing refresh_error value
+        data = response.json()
+        assert data["refresh_error"] == error_message  # Preserved from initial set
+        assert not data["enabled"]  # Updated field

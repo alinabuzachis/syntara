@@ -1,15 +1,26 @@
-"""Configuration for tool_manager tests to run with fast retry settings."""
+"""Configuration and shared fixtures for tool_manager unit tests.
+
+Provides fast retry settings and common test fixtures for tool providers,
+tools, and mock clients used across tool manager unit tests.
+"""
 
 from collections.abc import Callable, Generator, Iterator
 from contextlib import contextmanager
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, Mock, patch
+from uuid import uuid4
 
 import httpx
 import pytest
 import respx
+from langchain_core.tools import BaseTool
 
+from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
+from nexus.agent_orchestrator.tool_manager.types import NamespacedBaseTool
 from nexus.core.config import AdapterRetrySettings
+from nexus.tool_manager.models.tool import ToolWithParameters
+from nexus.tool_manager.models.tool_provider import ToolProviderWithConfiguration
+from nexus.tool_manager.models.tool_provider_configuration import MCPConfiguration
 
 
 @pytest.fixture(autouse=True)
@@ -88,7 +99,7 @@ def mock_paginated_api(url_pattern: str, pages: list[dict[str, Any]]) -> Iterato
 
         with mock_paginated_api(r".*tool-providers.*", pages):
             # Test code that makes paginated requests
-            result = await client.get_enabled_tool_providers()
+            result = await client.get_all_tool_providers()
 
     """
     mock_response = PaginationMockFactory.create_paginated_response(pages)
@@ -96,3 +107,126 @@ def mock_paginated_api(url_pattern: str, pages: list[dict[str, Any]]) -> Iterato
     with respx.mock:
         respx.get(url__regex=url_pattern).mock(side_effect=mock_response)
         yield
+
+
+@pytest.fixture
+def sample_tool_providers() -> list[ToolProviderWithConfiguration]:
+    """Sample tool providers with MCP configurations for testing."""
+    user_id = uuid4()
+    return [
+        ToolProviderWithConfiguration(
+            id=uuid4(),
+            name="dev_tools",
+            enabled=True,
+            status="available",
+            created_by=user_id,
+            configuration=MCPConfiguration(provider_type="mcp", base_url="http://localhost:3001/mcp", api_key=None),
+        ),
+        ToolProviderWithConfiguration(
+            id=uuid4(),
+            name="file_tools",
+            enabled=True,
+            status="available",
+            created_by=user_id,
+            configuration=MCPConfiguration(provider_type="mcp", base_url="http://localhost:3002/mcp", api_key=None),
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_langchain_base_tools() -> list[Mock]:
+    """Mock LangChain BaseTools from MCP servers."""
+    tool1 = Mock(spec=BaseTool)
+    tool1.name = "code_search"
+    tool1.description = "Search for code patterns"
+
+    tool2 = Mock(spec=BaseTool)
+    tool2.name = "file_read"
+    tool2.description = "Read file contents"
+
+    tool3 = Mock(spec=BaseTool)
+    tool3.name = "build_project"
+    tool3.description = "Build the project"
+
+    # Tool exists in MCP but not in Tool Manager registry
+    tool4 = Mock(spec=BaseTool)
+    tool4.name = "unregistered_tool"
+    tool4.description = "Tool not in Tool Manager"
+
+    return [tool1, tool2, tool3, tool4]
+
+
+@pytest.fixture
+def mock_namespaced_tools(mock_langchain_base_tools: list[Mock]) -> list[NamespacedBaseTool]:
+    """Mock NamespacedBaseTool tuples from MCP servers."""
+    return [
+        ("dev_tools::code_search", mock_langchain_base_tools[0]),
+        ("file_tools::file_read", mock_langchain_base_tools[1]),
+        ("dev_tools::build_project", mock_langchain_base_tools[2]),
+        ("dev_tools::unregistered_tool", mock_langchain_base_tools[3]),
+    ]
+
+
+@pytest.fixture
+def sample_tools() -> list[ToolWithParameters]:
+    """Sample tools from Tool Manager for testing."""
+    user_id = uuid4()
+    provider_1_id = uuid4()
+    provider_2_id = uuid4()
+    return [
+        ToolWithParameters(
+            id=uuid4(),
+            name="code_search",
+            namespaced_name="dev_tools::code_search",
+            description="Search for code patterns",
+            provider_id=provider_1_id,
+            enabled=True,
+            status="available",
+            parameters=[],
+            created_by=user_id,
+        ),
+        ToolWithParameters(
+            id=uuid4(),
+            name="file_read",
+            namespaced_name="file_tools::file_read",
+            description="Read file contents",
+            provider_id=provider_2_id,
+            enabled=True,
+            status="available",
+            parameters=[],
+            created_by=user_id,
+        ),
+        ToolWithParameters(
+            id=uuid4(),
+            name="disabled_tool",
+            namespaced_name="dev_tools::disabled_tool",
+            description="A disabled tool",
+            provider_id=provider_1_id,
+            enabled=False,
+            status="available",
+            parameters=[],
+            created_by=user_id,
+        ),
+        ToolWithParameters(
+            id=uuid4(),
+            name="missing_tool",
+            namespaced_name="dev_tools::missing_tool",
+            description="Tool missing from MCP server",
+            provider_id=provider_1_id,
+            enabled=True,
+            status="available",
+            parameters=[],
+            created_by=user_id,
+        ),
+    ]
+
+
+@pytest.fixture
+async def tool_manager_client() -> Mock:
+    """Mock Tool Manager client for testing."""
+    client = Mock(spec=ToolManagerClient)
+    client.get_all_tool_providers = AsyncMock()
+    client.get_all_tools = AsyncMock()
+    client.update_tool_status = AsyncMock()
+    client.close = AsyncMock()
+    return client

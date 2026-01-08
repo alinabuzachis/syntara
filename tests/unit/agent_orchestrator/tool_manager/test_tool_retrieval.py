@@ -7,7 +7,7 @@ import httpx
 import pytest
 import respx
 
-from nexus.agent_orchestrator.tool_manager.client import ToolManagerClient
+from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 from nexus.tool_manager.models.tool import ToolParameter, ToolParameterType, ToolStatus, ToolWithParameters
 
 from .conftest import mock_paginated_api
@@ -52,19 +52,17 @@ class TestToolRetrieval:
     @pytest.fixture
     def client(self) -> ToolManagerClient:
         """Create client instance for testing."""
-        return ToolManagerClient(base_url="http://test-api", timeout=30.0)
+        return ToolManagerClient(base_url="http://test-api/api/v1", timeout=30.0)
 
     @respx.mock
-    async def test_get_enabled_tools_success(
-        self, client: ToolManagerClient, sample_tool_response: dict[str, Any]
-    ) -> None:
-        """Test successful retrieval of enabled tools."""
+    async def test_get_all_tools_success(self, client: ToolManagerClient, sample_tool_response: dict[str, Any]) -> None:
+        """Test successful retrieval of all tools."""
         # Mock successful API response
         respx.get("http://test-api/api/v1/tools").mock(
             return_value=httpx.Response(200, json={"resources": [sample_tool_response], "total_count": 1, "next": None})
         )
 
-        tools = await client.get_enabled_tools()
+        tools = await client.get_all_tools()
 
         assert len(tools) == 1
         tool = tools[0]
@@ -82,32 +80,32 @@ class TestToolRetrieval:
         assert param.required is True
 
     @respx.mock
-    async def test_get_enabled_tools_filtered(self, client: ToolManagerClient) -> None:
-        """Test that only enabled tools are requested."""
+    async def test_get_all_tools_no_filter(self, client: ToolManagerClient) -> None:
+        """Test that all tools are requested without enabled filter."""
         # Mock API response
         respx.get("http://test-api/api/v1/tools").mock(
             return_value=httpx.Response(200, json={"resources": [], "total_count": 0})
         )
 
-        await client.get_enabled_tools()
+        await client.get_all_tools()
 
-        # Verify the API was called with enabled=true filter
+        # Verify the API was called without enabled filter
         request = respx.calls.last.request
-        assert "enabled=true" in str(request.url)
+        assert "enabled=true" not in str(request.url)
 
     @respx.mock
-    async def test_get_enabled_tools_empty_response(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tools_empty_response(self, client: ToolManagerClient) -> None:
         """Test handling of empty tools list."""
         respx.get("http://test-api/api/v1/tools").mock(
             return_value=httpx.Response(200, json={"resources": [], "total_count": 0})
         )
 
-        tools = await client.get_enabled_tools()
+        tools = await client.get_all_tools()
 
         assert tools == []
 
     @respx.mock
-    async def test_get_enabled_tools_multiple_parameters(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tools_multiple_parameters(self, client: ToolManagerClient) -> None:
         """Test tool with multiple parameters."""
         tool_id = str(uuid4())
         complex_tool = {
@@ -166,7 +164,7 @@ class TestToolRetrieval:
             return_value=httpx.Response(200, json={"resources": [complex_tool], "total_count": 1, "next": None})
         )
 
-        tools = await client.get_enabled_tools()
+        tools = await client.get_all_tools()
 
         assert len(tools) == 1
         tool = tools[0]
@@ -182,30 +180,30 @@ class TestToolRetrieval:
         assert params_by_name["include_metadata"].required is False
 
     @respx.mock
-    async def test_get_enabled_tools_api_error(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tools_api_error(self, client: ToolManagerClient) -> None:
         """Test handling of API errors during tool retrieval."""
         respx.get("http://test-api/api/v1/tools").mock(return_value=httpx.Response(500, text="Internal server error"))
 
         with pytest.raises(httpx.HTTPStatusError):
-            await client.get_enabled_tools()
+            await client.get_all_tools()
 
     @respx.mock
-    async def test_get_enabled_tools_timeout(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tools_timeout(self, client: ToolManagerClient) -> None:
         """Test handling of timeout during tool retrieval."""
         respx.get("http://test-api/api/v1/tools").mock(side_effect=httpx.TimeoutException("Request timeout"))
 
         with pytest.raises(httpx.TimeoutException):
-            await client.get_enabled_tools()
+            await client.get_all_tools()
 
     @respx.mock
-    async def test_get_enabled_tools_network_error(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tools_network_error(self, client: ToolManagerClient) -> None:
         """Test handling of network errors during tool retrieval."""
         respx.get("http://test-api/api/v1/tools").mock(side_effect=httpx.ConnectError("Connection failed"))
 
         with pytest.raises(httpx.ConnectError):
-            await client.get_enabled_tools()
+            await client.get_all_tools()
 
-    async def test_get_enabled_tools_pagination(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tools_pagination(self, client: ToolManagerClient) -> None:
         """Test handling of paginated tool responses."""
         # Define paginated response data
         tools_page1 = [
@@ -249,14 +247,14 @@ class TestToolRetrieval:
         ]
 
         with mock_paginated_api(r".*tools.*", pages):
-            tools = await client.get_enabled_tools()
+            tools = await client.get_all_tools()
 
         assert len(tools) == 2
         assert tools[0].name == "tool_1"
         assert tools[1].name == "tool_2"
 
     @respx.mock
-    async def test_get_enabled_tools_status_filtering(self, client: ToolManagerClient) -> None:
+    async def test_get_all_tools_status_filtering(self, client: ToolManagerClient) -> None:
         """Test that tools with different statuses are handled correctly."""
         # Include tools with different statuses - only available ones should be usable
         mixed_status_tools = [
@@ -295,9 +293,9 @@ class TestToolRetrieval:
             return_value=httpx.Response(200, json={"resources": mixed_status_tools, "total_count": 2, "next": None})
         )
 
-        tools = await client.get_enabled_tools()
+        tools = await client.get_all_tools()
 
-        # Both tools should be returned (filtering by status is handled at LangGraph level)
+        # Both tools should be returned (filtering by status is handled at service level)
         assert len(tools) == 2
         available_tools = [t for t in tools if t.status == ToolStatus.AVAILABLE]
         error_tools = [t for t in tools if t.status == ToolStatus.ERROR]
