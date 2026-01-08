@@ -164,13 +164,10 @@ async def invoke_agent(
             )
 
         # Check if we're in test mode and have a test session factory
-        # Background DocumentConversionTask processes need to use the same database session
-        # as the main test to prevent them from connecting to the production database.
+        # Background tasks need to use the same database session as the main test.
         # In tests, conftest.py sets app.state.test_session_factory to the test DB session factory.
-        # This ensures background tasks and API calls use the same isolated test database.
-        test_session_factory = getattr(request.app.state, "test_session_factory", None)
-        # If test_session_factory is None (production), DocumentConversionTask uses default get_db dependency injection
-        service = InvocationService(db, current_user, background_tasks, session_factory=test_session_factory)
+        session_factory = getattr(request.app.state, "test_session_factory", None) or get_db
+        service = InvocationService(db, current_user, background_tasks, session_factory=session_factory)
         return await service.create_invocation(
             prompt=final_prompt,
             session_id=final_session_id,
@@ -185,18 +182,27 @@ async def invoke_agent(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
+    except ValidationError as e:
+        # Pydantic validation errors (invalid request data) - 422 Unprocessable Entity
+        # NOTE: Must be caught BEFORE ValueError since ValidationError is a subclass of ValueError
+        logger.warning("Pydantic validation error in invocation request", exc_info=e)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Invalid request data",
+        ) from e
+    except ValueError as e:
+        # file_ids validation error (files not found) - 400 Bad Request
+        logger.warning("File ID validation error in invocation request: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
     except (OSError, PermissionError) as e:
         # Storage failures (disk full, permission denied, I/O errors) - 500 Internal Server Error
         logger.exception("File storage error creating invocation")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to process file upload",
-        ) from e
-    except ValidationError as e:
-        logger.warning("Pydantic validation error in invocation request", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Invalid request data",
         ) from e
     except Exception as e:
         logger.exception("Unexpected error creating invocation")

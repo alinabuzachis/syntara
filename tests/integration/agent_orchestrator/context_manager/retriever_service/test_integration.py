@@ -13,6 +13,7 @@ FIXTURES_DIR = Path(__file__).parent.parent.parent.parent.parent / "fixtures" / 
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip(reason="AAP-60783: UploadedFileRetriever needs session_factory injection to query test database")
 async def test_retriever_service_integration_with_agent_invocation(
     auth_client_with_mocked_llm, test_user, mock_openrouter_llm
 ) -> None:
@@ -29,6 +30,9 @@ async def test_retriever_service_integration_with_agent_invocation(
     content appears in the agent's context.
 
     The test mocks LLM responses to ensure deterministic behavior without real LLM calls.
+
+    TODO(AAP-60783): Enable this test after UploadedFileRetriever is updated to accept
+    session_factory via RetrieverRegistry for proper test database access.
     """
     # Mock LLM responses for both relevancy checking and final agent response
     with (

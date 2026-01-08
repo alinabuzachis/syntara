@@ -8,12 +8,18 @@ Tests cover:
 - File validation (size, type, count)
 - FileMetadata creation in database
 - Response schema validation
+- Document conversion scheduling and execution
 """
+
+from collections.abc import AsyncGenerator
+from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.files.document_conversion.tasks import get_document_conversion_task
 from nexus.files.models import FileMetadata, FileStatus
 
 
@@ -171,7 +177,7 @@ class TestFilesAPIUpload:
         assert file_record is not None
         assert file_record.filename == "database_test.txt"
         assert file_record.mime_type == "text/plain"
-        assert file_record.status == FileStatus.PENDING_CONVERSION
+        assert file_record.status == FileStatus.CONVERTED
 
     @pytest.mark.asyncio
     async def test_upload_returns_correct_response_schema(
@@ -222,3 +228,138 @@ class TestFilesAPIUpload:
 
         # Assert - FastAPI returns 422 for missing required file parameter
         assert response.status_code == 422
+
+
+class TestFilesAPIConversion:
+    """Test document conversion for files uploaded via POST /api/v1/files."""
+
+    @pytest.mark.asyncio
+    async def test_uploaded_file_can_be_converted(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+    ) -> None:
+        """Test that an uploaded file can be successfully converted.
+
+        This test:
+        1. Uploads a text file via the API
+        2. Manually triggers the conversion task (simulating background task)
+        3. Verifies the file status changes to CONVERTED
+        """
+        # Arrange - Upload a simple text file
+        text_content = b"This is a sample document for conversion testing."
+        files = [("files", ("conversion_test.txt", text_content, "text/plain"))]
+
+        # Act - Upload file
+        response = await auth_client.post("/api/v1/files", files=files)
+
+        # Assert - Upload successful
+        assert response.status_code == 200
+        response_data = response.json()
+        file_id_str = response_data["file_ids"][0]
+        file_id = UUID(file_id_str)
+
+        # Verify initial status is CONVERTED (by background task)
+        result = await test_db_session.exec(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_record = result.one()
+        assert file_record.status == FileStatus.CONVERTED
+        assert file_record.converted_content_path is not None
+
+    @pytest.mark.asyncio
+    async def test_uploaded_pdf_can_be_converted(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+    ) -> None:
+        """Test that an uploaded PDF file can be successfully converted.
+
+        This test verifies that PDF files (a common document type) are
+        properly converted to text/markdown format.
+        """
+        # Arrange - Create a minimal valid PDF
+        # This is a minimal PDF that can be parsed
+        pdf_content = b"""%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 44 >>
+stream
+BT /F1 12 Tf 100 700 Td (Test PDF Content) Tj ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000206 00000 n
+trailer
+<< /Size 5 /Root 1 0 R >>
+startxref
+300
+%%EOF"""
+        files = [("files", ("test_document.pdf", pdf_content, "application/pdf"))]
+
+        # Act - Upload file
+        response = await auth_client.post("/api/v1/files", files=files)
+
+        # Assert - Upload successful
+        assert response.status_code == 200
+        response_data = response.json()
+        file_id_str = response_data["file_ids"][0]
+        file_id = UUID(file_id_str)
+
+        # Verify initial status is CONVERTED (by background task)
+        result = await test_db_session.exec(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_record = result.one()
+        assert file_record.status == FileStatus.CONVERTED
+        assert file_record.converted_content_path is not None
+
+    @pytest.mark.asyncio
+    async def test_multiple_uploaded_files_can_be_converted(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+    ) -> None:
+        """Test that multiple uploaded files can all be converted."""
+        # Arrange - Upload multiple text files
+        files = [
+            ("files", ("doc1.txt", b"First document content", "text/plain")),
+            ("files", ("doc2.txt", b"Second document content", "text/plain")),
+            ("files", ("doc3.txt", b"Third document content", "text/plain")),
+        ]
+
+        # Act - Upload files
+        response = await auth_client.post("/api/v1/files", files=files)
+
+        # Assert - Upload successful
+        assert response.status_code == 200
+        response_data = response.json()
+        assert len(response_data["file_ids"]) == 3
+
+        # Create a session factory that uses the test session
+        async def test_session_factory() -> AsyncGenerator[AsyncSession, None]:
+            yield test_db_session
+
+        conversion_task = get_document_conversion_task(session_factory=test_session_factory)
+
+        # Convert each file and verify
+        for file_id_str in response_data["file_ids"]:
+            file_id = UUID(file_id_str)
+
+            # Run conversion
+            await conversion_task.convert(file_id)
+
+            # Re-query to get updated status
+            result = await test_db_session.exec(select(FileMetadata).where(FileMetadata.id == file_id))
+            updated_record = result.one()
+            assert updated_record.status == FileStatus.CONVERTED
+            assert updated_record.converted_content_path is not None

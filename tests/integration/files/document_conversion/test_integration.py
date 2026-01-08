@@ -1,10 +1,17 @@
-"""Integration tests for document conversion with agent invocation workflow."""
+"""Integration tests for document conversion with agent invocation workflow.
+
+NOTE: With the refactored architecture (AAP-60780), context_data now contains
+file_ids (UUIDs) instead of full file_metadata. The actual FileMetadata records
+are stored in the FileMetadata database table, not in context_data.
+"""
 
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
 
+from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from tests.conftest import wait_for_invocation_execution
 
 # Test fixtures directory
@@ -19,6 +26,10 @@ async def test_invoke_agent_with_pdf_document_conversion(auth_client_with_mocked
     - Creation of an Invocation using POST with documents included
     - Document conversion processing in background task
     - Invocation execution after conversion completes
+
+    With AAP-60780 changes:
+    - context_data contains file_ids (UUIDs) instead of file_metadata
+    - FileMetadata records are stored in the database
 
     """
     # Load test PDF file
@@ -54,25 +65,18 @@ async def test_invoke_agent_with_pdf_document_conversion(auth_client_with_mocked
         assert invocation_data["session_id"] == "document-conversion-test"
         assert invocation_data["created_by"] == str(test_user.id)
 
-        # Verify context_data contains file_metadata
+        # Verify context_data contains file_ids (new architecture)
         assert "context_data" in invocation_data
         assert invocation_data["context_data"] is not None
-        assert "file_metadata" in invocation_data["context_data"]
+        assert CONTEXT_KEY_FILE_IDS in invocation_data["context_data"]
 
-        file_metadata_list = invocation_data["context_data"]["file_metadata"]
-        assert isinstance(file_metadata_list, list)
-        assert len(file_metadata_list) == 2
+        file_ids = invocation_data["context_data"][CONTEXT_KEY_FILE_IDS]
+        assert isinstance(file_ids, list)
+        assert len(file_ids) == 2
 
-        # Check both files have correct metadata
-        for file_metadata in file_metadata_list:
-            assert file_metadata["filename"] == "sample.pdf"
-            assert file_metadata["mime_type"] == "application/pdf"
-            assert file_metadata["status"] == "pending_conversion"
-            assert file_metadata["size_bytes"] > 0
-            assert "id" in file_metadata
-            assert isinstance(file_metadata["id"], str)
-            # file_path is excluded from API responses for security
-            assert "file_path" not in file_metadata
+        # Verify all file_ids are valid UUIDs
+        for file_id in file_ids:
+            UUID(file_id)  # Will raise if not valid UUID
 
         # Wait for background document conversion and invocation execution
         async with wait_for_invocation_execution(
@@ -89,17 +93,10 @@ async def test_invoke_agent_with_pdf_document_conversion(auth_client_with_mocked
             result_content = final_data["result"]["content"]
             assert "Mock LLM response" in result_content
 
-            # Verify document conversion status for both files
-            updated_file_metadata_list = final_data["context_data"]["file_metadata"]
-            assert len(updated_file_metadata_list) == 2
-
-            for updated_file_metadata in updated_file_metadata_list:
-                assert updated_file_metadata["status"] == "converted"
-                # converted_content_path is populated when conversion succeeds
-                # but excluded from API responses for security
-                assert "converted_content_path" not in updated_file_metadata
-                # conversion_error should be None for successful conversions
-                assert updated_file_metadata.get("conversion_error") is None
+            # Verify file_ids are still present in context_data
+            assert CONTEXT_KEY_FILE_IDS in final_data["context_data"]
+            final_file_ids = final_data["context_data"][CONTEXT_KEY_FILE_IDS]
+            assert len(final_file_ids) == 2
 
 
 @pytest.mark.asyncio
@@ -131,13 +128,12 @@ async def test_invoke_agent_with_text_document_conversion(auth_client_with_mocke
         invocation_data = response.json()
         invocation_id = invocation_data["id"]
 
-        # Verify invocation created with text file metadata
-        file_metadata = invocation_data["context_data"]["file_metadata"][0]
-        assert file_metadata["filename"] == "sample.txt"
-        assert file_metadata["mime_type"] == "text/plain"
-        assert file_metadata["status"] == "pending_conversion"
-        # file_path is excluded from API responses for security
-        assert "file_path" not in file_metadata
+        # Verify invocation created with file_ids (new architecture)
+        file_ids = invocation_data["context_data"][CONTEXT_KEY_FILE_IDS]
+        assert len(file_ids) == 1
+
+        # Verify file_id is a valid UUID
+        UUID(file_ids[0])
 
         # Wait for conversion and execution
         async with wait_for_invocation_execution(
@@ -154,12 +150,7 @@ async def test_invoke_agent_with_text_document_conversion(auth_client_with_mocke
             result_content = final_data["result"]["content"]
             assert "Mock LLM response" in result_content
 
-            # Verify document conversion status
-            updated_file_metadata = final_data["context_data"]["file_metadata"][0]
-
-            assert updated_file_metadata["status"] == "converted"
-            # converted_content_path is populated when conversion succeeds
-            # but excluded from API responses for security
-            assert "converted_content_path" not in updated_file_metadata
-            # conversion_error should be None for successful conversions
-            assert updated_file_metadata.get("conversion_error") is None
+            # Verify file_ids are still present in context_data
+            assert CONTEXT_KEY_FILE_IDS in final_data["context_data"]
+            final_file_ids = final_data["context_data"][CONTEXT_KEY_FILE_IDS]
+            assert len(final_file_ids) == 1

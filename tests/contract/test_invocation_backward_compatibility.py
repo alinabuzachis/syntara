@@ -2,14 +2,18 @@
 
 These tests validate:
 - Application/json requests still work without files
-- Context_data is empty object when no files
+- Context_data is empty object when no files (no file_ids key)
 - Existing functionality not broken by file upload feature
+
+NOTE: With AAP-60780 refactoring, context_data no longer contains file_metadata.
+Instead, it contains file_ids (UUIDs) when files are uploaded, and is empty
+when no files are present.
 """
 
 import pytest
 from httpx import AsyncClient
 
-from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA
+from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
 
 
 @pytest.mark.asyncio
@@ -47,7 +51,7 @@ async def test_json_request_context_data_empty_without_files(
 
     Validates:
     - context_data field exists but is empty
-    - No file_metadata field when no files
+    - No file_ids field when no files (AAP-60780)
     """
     # Arrange
     payload = {
@@ -65,7 +69,9 @@ async def test_json_request_context_data_empty_without_files(
     assert response.status_code == 202
     response_data = response.json()
     assert CONTEXT_KEY in response_data
-    assert response_data[CONTEXT_KEY] == {CONTEXT_KEY_FILE_METADATA: []}
+    # With AAP-60780, context_data is empty when no files are uploaded
+    assert response_data[CONTEXT_KEY] == {}
+    assert CONTEXT_KEY_FILE_IDS not in response_data[CONTEXT_KEY]
 
 
 @pytest.mark.asyncio
@@ -74,7 +80,7 @@ async def test_json_request_with_existing_context_data(auth_client_with_mocked_l
 
     Validates:
     - Can still pass context_data in JSON payload
-    - File metadata not added when no files
+    - file_ids not added when no files (AAP-60780)
     """
     # Arrange
     payload = {
@@ -96,11 +102,12 @@ async def test_json_request_with_existing_context_data(auth_client_with_mocked_l
     assert response.status_code == 202
     response_data = response.json()
     assert CONTEXT_KEY in response_data
+    # With AAP-60780, user-provided context_data is preserved without file_ids when no files
     assert response_data[CONTEXT_KEY] == {
         "environment": "production",
         "region": "us-east-1",
-        CONTEXT_KEY_FILE_METADATA: [],
     }
+    assert CONTEXT_KEY_FILE_IDS not in response_data[CONTEXT_KEY]
 
 
 @pytest.mark.asyncio
@@ -109,7 +116,7 @@ async def test_multipart_request_without_files_compatible(auth_client_with_mocke
 
     Validates:
     - Multipart requests can omit files parameter
-    - Maintains same behavior as JSON requests
+    - Maintains same behavior as JSON requests (AAP-60780)
     """
     # Arrange
     data = {
@@ -126,7 +133,9 @@ async def test_multipart_request_without_files_compatible(auth_client_with_mocke
     # Assert
     assert response.status_code == 202
     response_data = response.json()
-    assert response_data[CONTEXT_KEY] == {CONTEXT_KEY_FILE_METADATA: []}
+    # With AAP-60780, context_data is empty when no files are uploaded
+    assert response_data[CONTEXT_KEY] == {}
+    assert CONTEXT_KEY_FILE_IDS not in response_data[CONTEXT_KEY]
 
 
 @pytest.mark.asyncio

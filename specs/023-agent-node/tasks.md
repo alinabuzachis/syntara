@@ -290,7 +290,7 @@ flowchart TB
   - **Depends on**: T007
   - **Note**: Complete removal of `invocation_id` from file storage layer.
 
-- [ ] **T009** Refactor `FileManager` to manage FileMetadata DB records
+- [x] **T009** Refactor `FileManager` to manage FileMetadata DB records
   - **File**: `src/nexus/files/file_manager.py` (MODIFY - already exists from T002)
   - **Actions**:
     1. Add `session: AsyncSession` parameter to `__init__()` for DB access
@@ -321,7 +321,7 @@ flowchart TB
 - Standalone file uploads (`POST /api/v1/files`) only trigger conversion and update `FileMetadata.status` in DB
 - Invocations with `file_ids` (pre-converted) execute immediately
 
-- [ ] **T010** Update DocumentConversionTask/Service to use FileManager methods
+- [x] **T010** Update DocumentConversionTask/Service to use FileManager methods
   - **Files**:
     - `src/nexus/files/document_conversion/tasks/document_conversion_task.py`
     - `src/nexus/files/document_conversion/services/document_conversion_service.py`
@@ -341,7 +341,7 @@ flowchart TB
   - **Depends on**: T009
   - **Rationale**: Uses FileManager for all FileMetadata operations (encapsulation). Converted content stored on filesystem (not DB) to protect against bloat.
 
-- [ ] **T011** Update Invocations API and InvocationService to handle file_ids
+- [x] **T011** Update Invocations API and InvocationService to handle file_ids
   - **Files**:
     - `src/nexus/api/v1/invocation.py`
     - `src/nexus/agent_orchestrator/services/invocation_service.py`

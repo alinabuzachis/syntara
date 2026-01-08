@@ -13,7 +13,8 @@ from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_ll
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.api.db.session import get_db
-from nexus.core.constants import CONTEXT_KEY_FILE_METADATA
+from nexus.core.constants import CONTEXT_KEY_FILE_IDS
+from nexus.files import FileManager, FileStatus, get_file_manager
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +26,20 @@ class InvocationExecutor:
     document conversion is complete, allowing for decoupled execution.
     """
 
-    def __init__(self, session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] = get_db) -> None:
+    def __init__(
+        self,
+        session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] = get_db,
+        file_manager_factory: Callable[[], FileManager] = get_file_manager,
+    ) -> None:
         """Initialize execution service with database session factory.
 
         Args:
             session_factory: Factory function for creating database sessions
+            file_manager_factory: Factory function for creating FileManager
 
         """
         self.session_factory = session_factory
+        self.file_manager = file_manager_factory()
         # Create async context manager from the session factory
         self.get_async_session_context = contextlib.asynccontextmanager(session_factory)
 
@@ -68,7 +75,7 @@ class InvocationExecutor:
             )
 
             # Log conversion failures but allow execution to proceed (FR-020)
-            self._log_conversion_failures(invocation)
+            await self._log_conversion_failures(invocation, session)
 
             # Initialize OrchestrationService - fail immediately if LLM not configured
             try:
@@ -169,26 +176,38 @@ class InvocationExecutor:
             fresh_invocation.completed_at = now
             await session.commit()
 
-    def _log_conversion_failures(self, invocation: Invocation) -> None:
+    async def _log_conversion_failures(self, invocation: Invocation, session: AsyncSession) -> None:
         """Log conversion failures but allow execution to proceed (FR-020).
+
+        Queries FileMetadata records by file_ids via FileManager and logs any
+        that have CONVERSION_FAILED status. This allows execution to continue
+        with partial file context rather than failing entirely.
 
         Args:
             invocation: The invocation to check for conversion failures
+            session: Database session for querying FileMetadata
 
         """
-        if CONTEXT_KEY_FILE_METADATA not in invocation.context_data:
+        if not invocation.context_data:
             return
-        file_metadata_obj = invocation.context_data[CONTEXT_KEY_FILE_METADATA]
-        if not file_metadata_obj or not isinstance(file_metadata_obj, list):
+
+        file_id_strs = invocation.context_data.get(CONTEXT_KEY_FILE_IDS, [])
+        if not file_id_strs or not isinstance(file_id_strs, list):
             return
-        failed_conversions = [
-            fm for fm in file_metadata_obj if isinstance(fm, dict) and fm.get("status") == "conversion_failed"
-        ]
-        if failed_conversions:
+
+        # Convert strings to UUIDs at the boundary
+        file_ids = [UUID(fid) for fid in file_id_strs]
+
+        # Query FileMetadata records via FileManager
+        file_metadata_records = await self.file_manager.get_files_metadata(file_ids, session)
+        failed_files = [f for f in file_metadata_records if f.status == FileStatus.CONVERSION_FAILED]
+
+        if failed_files:
             logger.warning(
-                "Proceeding with invocation despite %d failed conversions (invocation_id=%s)",
-                len(failed_conversions),
+                "Proceeding with invocation despite %d failed conversions (invocation_id=%s, failed_files=%s)",
+                len(failed_files),
                 invocation.id,
+                [f.filename for f in failed_files],
             )
 
 
@@ -198,9 +217,12 @@ class InvocationExecutor:
 
 
 def get_invocation_executor(
-    session_factory: Callable[[], AsyncGenerator[AsyncSession, None]],
+    session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] = get_db,
 ) -> InvocationExecutor:
     """Create a InvocationExecutor instance with fresh dependencies.
+
+    Args:
+        session_factory: Session factory for database operations (defaults to get_db)
 
     Returns:
         InvocationExecutor: Fresh InvocationExecutor instance
@@ -210,7 +232,7 @@ def get_invocation_executor(
         await invocation_executor.execute_invocation(invocation_id)
 
     """
-    return InvocationExecutor(session_factory)
+    return InvocationExecutor(session_factory=session_factory)
 
 
 # ===================================================

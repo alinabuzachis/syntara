@@ -2,6 +2,9 @@
 
 This module provides the standalone file upload endpoint that creates
 FileMetadata records in the database for later use in agent invocations.
+
+Document conversion is triggered automatically for each uploaded file
+as a background task (AAP-60780 decoupling).
 """
 
 import logging
@@ -9,9 +12,11 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     File,
     HTTPException,
+    Request,
     UploadFile,
     status,
 )
@@ -22,6 +27,7 @@ from nexus.api.auth import get_current_user
 from nexus.api.db import get_db
 from nexus.core.models import User
 from nexus.files import FileManager, get_file_manager
+from nexus.files.document_conversion.tasks import DocumentConversionTask
 from nexus.files.validators import ValidationError as FileValidationError
 
 router = APIRouter(prefix="/files", tags=["Files"])
@@ -59,9 +65,11 @@ class FileUploadResponse(BaseModel):
     "Files are validated, stored, and queued for document conversion.",
 )
 async def upload_files(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],  # noqa: ARG001 - required for authentication
     file_manager: Annotated[FileManager, Depends(get_file_manager)],
+    background_tasks: BackgroundTasks,
     files: Annotated[list[UploadFile], File(description="Files to upload (1-10 files, max 10MB each)")],
 ) -> FileUploadResponse:
     """Upload files for later use in agent invocations.
@@ -70,14 +78,18 @@ async def upload_files(
     1. Validated (size, type, count)
     2. Stored on the filesystem
     3. Registered in the FileMetadata database table
+    4. Queued for document conversion (background task)
 
     The returned file_ids can be stored in workflow configuration and passed
-    to invocations via context_data.file_ids.
+    to invocations via context_data.file_ids. Pre-converted files enable
+    immediate invocation execution without conversion delay.
 
     Args:
+        request: FastAPI request object (for determining content type)
         db: Database session (dependency injected)
         current_user: Current authenticated user
         file_manager: FileManager instance (dependency injected)
+        background_tasks: FastAPI background tasks for scheduling conversion
         files: List of files to upload (multipart/form-data)
 
     Returns:
@@ -108,10 +120,21 @@ async def upload_files(
         for metadata in file_metadata_list:
             await db.refresh(metadata)
 
-        # TODO(nexus): Schedule document conversion for each file: AAP-60350
-        # Document conversion for standalone files will be implemented in a separate ticket.
-        # For now, files are stored with status=pending_conversion and can be converted
-        # when attached to an invocation.
+        # Schedule document conversion for each file as a background task (AAP-60780)
+        # This enables pre-conversion so files are ready when attached to invocations
+
+        # Check if we're in test mode and have a test session factory
+        # Background tasks need to use the same database session as the main test.
+        # In tests, conftest.py sets app.state.test_session_factory to the test DB session factory.
+        session_factory = getattr(request.app.state, "test_session_factory", None) or get_db
+        document_conversion_task = DocumentConversionTask(session_factory=session_factory)
+
+        for metadata in file_metadata_list:
+            logger.info(
+                "Scheduling document conversion for standalone file upload (file_id=%s)",
+                metadata.id,
+            )
+            background_tasks.add_task(document_conversion_task.convert, metadata.id)
 
         # Build response (exclude file_path for security)
         file_upload_infos = [

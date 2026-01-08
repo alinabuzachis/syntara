@@ -4,16 +4,21 @@ These tests validate contract compliance with the OpenAPI schema:
 - Multipart/form-data request schema with files array
 - Files parameter is optional (backward compatibility)
 - Files array maxItems: 10 constraint
-- Response includes file_metadata array in context_data
-- Security: file_path is NOT exposed in API response
+- Response includes file_ids array in context_data (AAP-60780)
+- FileMetadata is stored in database, not exposed in API response
 
 Contract matches schemas/agent_orchestrator/agent-orchestrator-api.yaml
+
+NOTE: With AAP-60780 refactoring, context_data no longer contains file_metadata.
+Instead, it contains file_ids (UUIDs) when files are uploaded.
 """
+
+import uuid
 
 import pytest
 from httpx import AsyncClient
 
-from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA
+from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
 
 
 @pytest.mark.asyncio
@@ -24,7 +29,7 @@ async def test_files_parameter_is_optional(
 
     Validates:
     - Request without files succeeds
-    - context_data is empty when no files uploaded
+    - context_data is empty when no files uploaded (AAP-60780)
     """
     # Arrange
     data = {
@@ -41,7 +46,9 @@ async def test_files_parameter_is_optional(
     # Assert
     assert response.status_code == 202
     response_data = response.json()
-    assert response_data.get(CONTEXT_KEY, {}) == {CONTEXT_KEY_FILE_METADATA: []}
+    # With AAP-60780, context_data is empty when no files are uploaded
+    assert response_data.get(CONTEXT_KEY, {}) == {}
+    assert CONTEXT_KEY_FILE_IDS not in response_data.get(CONTEXT_KEY, {})
 
 
 @pytest.mark.asyncio
@@ -86,17 +93,16 @@ async def test_files_array_max_items_constraint(
 
 
 @pytest.mark.asyncio
-async def test_response_schema_file_metadata(
+async def test_response_schema_file_ids(
     auth_client_with_mocked_llm: AsyncClient,
 ) -> None:
-    """Test file_metadata array schema in response.
+    """Test file_ids array schema in response (AAP-60780).
 
     Validates:
-    - file_metadata is array in context_data
-    - Each element has required fields: id, filename, size_bytes, mime_type, status
-    - status field is "pending_conversion"
-    - SECURITY: file_path is NOT exposed in API response
-    - Multiple files each get metadata
+    - file_ids is array in context_data (not file_metadata)
+    - Each element is a valid UUID
+    - Multiple files each get a unique file_id
+    - FileMetadata is stored in database, not in API response (security)
     """
     # Arrange - Upload 2 files to validate array behavior
     files = [
@@ -119,24 +125,19 @@ async def test_response_schema_file_metadata(
     assert response.status_code == 202
     response_data = response.json()
     assert CONTEXT_KEY in response_data
-    assert CONTEXT_KEY_FILE_METADATA in response_data[CONTEXT_KEY]
+    assert CONTEXT_KEY_FILE_IDS in response_data[CONTEXT_KEY]
 
-    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
-    assert isinstance(file_metadata, list)
-    assert len(file_metadata) == 2
+    file_ids = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_IDS]
+    assert isinstance(file_ids, list)
+    assert len(file_ids) == 2
 
-    # Assert - Each file has required schema fields
-    for metadata in file_metadata:
-        assert "id" in metadata  # Public identifier
-        assert "filename" in metadata
-        assert "size_bytes" in metadata
-        assert "mime_type" in metadata
-        assert "status" in metadata
-        assert metadata["status"] == "pending_conversion"
+    # Assert - Each file_id is a valid UUID
+    for file_id in file_ids:
+        uuid.UUID(file_id)  # Will raise if not valid UUID
 
-        # SECURITY: Verify file_path is NOT exposed in API response
-        assert "file_path" not in metadata, "file_path must not be exposed (security issue)"
+    # Assert - All file_ids are unique
+    assert len(file_ids) == len(set(file_ids)), "All file_ids should be unique"
 
-    # Assert - Filenames match uploaded files
-    filenames = {m["filename"] for m in file_metadata}
-    assert filenames == {"doc1.pdf", "doc2.txt"}
+    # SECURITY: Verify file_metadata is NOT exposed in API response
+    # With AAP-60780, metadata lives in database, not in context_data
+    assert "file_metadata" not in response_data[CONTEXT_KEY], "file_metadata should not be in API response"

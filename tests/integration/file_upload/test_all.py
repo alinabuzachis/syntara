@@ -10,6 +10,10 @@ These tests validate end-to-end file upload scenarios from quickstart.md:
 - Scenario 7: Too Many Files Error
 - Scenario 8: Multiple Files Upload
 - Scenario 9: Context Data Integration
+
+NOTE: With the refactored architecture (AAP-60780), context_data now contains
+file_ids (UUIDs) instead of full file_metadata. The actual FileMetadata records
+are stored in the FileMetadata database table, not in context_data.
 """
 
 from pathlib import Path
@@ -17,7 +21,7 @@ from pathlib import Path
 import pytest
 from httpx import AsyncClient
 
-from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_METADATA
+from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
 from tests.fixtures import generate_large_file
 
 
@@ -28,8 +32,8 @@ async def test_upload_pdf_file(auth_client_with_mocked_llm: AsyncClient, test_us
     Validates:
     - PDF file upload succeeds
     - 202 response status
-    - file_metadata array with status="pending_conversion"
-    - File exists at file_path location
+    - file_ids array in context_data
+    - FileMetadata records created in database
     """
     # Arrange
     with sample_pdf_path.open("rb") as f:
@@ -51,17 +55,17 @@ async def test_upload_pdf_file(auth_client_with_mocked_llm: AsyncClient, test_us
 
     response_data = response.json()
     assert CONTEXT_KEY in response_data
-    assert CONTEXT_KEY_FILE_METADATA in response_data[CONTEXT_KEY]
+    assert CONTEXT_KEY_FILE_IDS in response_data[CONTEXT_KEY]
 
-    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
-    assert isinstance(file_metadata, list)
-    assert len(file_metadata) == 1
+    file_ids = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_IDS]
+    assert isinstance(file_ids, list)
+    assert len(file_ids) == 1
 
-    metadata = file_metadata[0]
-    assert metadata["filename"] == "sample.pdf"
-    assert metadata["status"] == "pending_conversion"
-    assert "id" in metadata  # Public identifier
-    assert "file_path" not in metadata  # SECURITY: Internal path not exposed
+    # Verify file_ids are UUIDs
+    import uuid
+
+    for file_id in file_ids:
+        uuid.UUID(file_id)  # Will raise if not valid UUID
 
 
 @pytest.mark.asyncio
@@ -70,8 +74,7 @@ async def test_upload_docx_file(auth_client_with_mocked_llm: AsyncClient, test_u
 
     Validates:
     - DOCX file upload succeeds
-    - MIME type correctly detected
-    - File metadata includes DOCX MIME type
+    - file_ids array in context_data
     """
     # Arrange
     with sample_docx_path.open("rb") as f:
@@ -94,14 +97,14 @@ async def test_upload_docx_file(auth_client_with_mocked_llm: AsyncClient, test_u
     assert response.status_code == 202
 
     response_data = response.json()
-    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
-    assert len(file_metadata) == 1
+    file_ids = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_IDS]
+    assert len(file_ids) == 1
 
-    metadata = file_metadata[0]
-    assert metadata["filename"] == "sample.docx"
-    # DOCX MIME type
-    assert "wordprocessing" in metadata["mime_type"] or "document" in metadata["mime_type"]
-    assert metadata["status"] == "pending_conversion"
+    # Verify file_ids are UUIDs
+    import uuid
+
+    for file_id in file_ids:
+        uuid.UUID(file_id)  # Will raise if not valid UUID
 
 
 @pytest.mark.asyncio
@@ -114,10 +117,12 @@ async def test_upload_text_and_markdown(
     """Scenario 3: Upload Text/Markdown Files.
 
     Validates:
-    - Text file MIME type detection
-    - Markdown file MIME type detection
-    - Both file types accepted
+    - Text file upload succeeds
+    - Markdown file upload succeeds
+    - file_ids in context_data
     """
+    import uuid
+
     # Test TXT file
     with sample_txt_path.open("rb") as f:
         files = [("files", ("sample.txt", f, "text/plain"))]
@@ -135,8 +140,9 @@ async def test_upload_text_and_markdown(
     # Assert TXT
     assert response.status_code == 202
     response_data = response.json()
-    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
-    assert file_metadata[0]["mime_type"] in ["text/plain", "text/markdown"]
+    file_ids = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_IDS]
+    assert len(file_ids) == 1
+    uuid.UUID(file_ids[0])
 
     # Test MD file
     with sample_md_path.open("rb") as f:
@@ -155,9 +161,9 @@ async def test_upload_text_and_markdown(
     # Assert MD
     assert response.status_code == 202
     response_data = response.json()
-    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
-    # Markdown may be detected as text/plain or text/markdown
-    assert file_metadata[0]["mime_type"] in ["text/plain", "text/markdown"]
+    file_ids = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_IDS]
+    assert len(file_ids) == 1
+    uuid.UUID(file_ids[0])
 
 
 @pytest.mark.asyncio
@@ -167,8 +173,7 @@ async def test_invocation_without_files(auth_client_with_mocked_llm: AsyncClient
     Validates:
     - JSON requests without files still work
     - 202 response
-    - context_data is empty object
-    - No file_metadata field
+    - context_data is None or empty (no file_ids)
     """
     # Arrange
     payload = {
@@ -186,9 +191,11 @@ async def test_invocation_without_files(auth_client_with_mocked_llm: AsyncClient
     assert response.status_code == 202
 
     response_data = response.json()
-    assert CONTEXT_KEY in response_data
-    assert response_data[CONTEXT_KEY] == {"file_metadata": []}
-    assert response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA] == []
+    # context_data should be None or not contain file_ids
+    context_data = response_data.get(CONTEXT_KEY)
+    if context_data:
+        # If context_data exists, it shouldn't have file_ids (no files uploaded)
+        assert CONTEXT_KEY_FILE_IDS not in context_data or context_data.get(CONTEXT_KEY_FILE_IDS) == []
 
 
 @pytest.mark.asyncio
@@ -329,10 +336,11 @@ async def test_multiple_files_upload(
     Validates:
     - 3 files uploaded in single request
     - 202 response
-    - file_metadata array with 3 elements
-    - All files have correct metadata
-    - All files exist at their file_path locations
+    - file_ids array with 3 elements
+    - All file_ids are unique UUIDs
     """
+    import uuid
+
     # Arrange
     with (
         sample_pdf_path.open("rb") as pdf_file,
@@ -363,27 +371,17 @@ async def test_multiple_files_upload(
     assert response.status_code == 202
 
     response_data = response.json()
-    file_metadata = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_METADATA]
+    file_ids = response_data[CONTEXT_KEY][CONTEXT_KEY_FILE_IDS]
 
     # Verify 3 elements
-    assert len(file_metadata) == 3
+    assert len(file_ids) == 3
 
-    # Verify each file has correct metadata
-    filenames = [m["filename"] for m in file_metadata]
-    assert "sample.pdf" in filenames
-    assert "sample.docx" in filenames
-    assert "sample.txt" in filenames
+    # All should be valid UUIDs
+    for file_id in file_ids:
+        uuid.UUID(file_id)
 
-    # All should have status="pending_conversion"
-    assert all(m["status"] == "pending_conversion" for m in file_metadata)
-
-    # Verify each file has unique id
-    file_ids = [m["id"] for m in file_metadata]
-    assert len(file_ids) == len(set(file_ids)), "All ids should be unique"
-
-    # Verify file_path NOT exposed (security)
-    for metadata in file_metadata:
-        assert "file_path" not in metadata
+    # Verify unique file_ids
+    assert len(file_ids) == len(set(file_ids)), "All file_ids should be unique"
 
 
 @pytest.mark.asyncio
@@ -391,11 +389,12 @@ async def test_context_metadata(auth_client_with_mocked_llm: AsyncClient, test_u
     """Scenario 9: Context Data Integration.
 
     Validates:
-    - file_metadata array accessible via GET /invocations/{id}
-    - file_metadata is array type
-    - status is "pending_conversion" for each file
-    - All required fields present in metadata
+    - file_ids array accessible via GET /invocations/{id}
+    - file_ids is array type
+    - file_ids contains valid UUIDs
     """
+    import uuid
+
     # Arrange
     with sample_pdf_path.open("rb") as f:
         files = [("files", ("sample.pdf", f, "application/pdf"))]
@@ -423,21 +422,10 @@ async def test_context_metadata(auth_client_with_mocked_llm: AsyncClient, test_u
     invocation_data = invocation_response.json()
     context_data = invocation_data[CONTEXT_KEY]
 
-    # Verify context structure
-    assert CONTEXT_KEY_FILE_METADATA in context_data
-    assert isinstance(context_data[CONTEXT_KEY_FILE_METADATA], list)
-    assert len(context_data[CONTEXT_KEY_FILE_METADATA]) == 1
-    # Status can be any valid state since background task might complete quickly
-    valid_statuses = ["pending_conversion", "converting", "converted", "conversion_failed"]
-    assert context_data[CONTEXT_KEY_FILE_METADATA][0]["status"] in valid_statuses
+    # Verify context structure with new file_ids format
+    assert CONTEXT_KEY_FILE_IDS in context_data
+    assert isinstance(context_data[CONTEXT_KEY_FILE_IDS], list)
+    assert len(context_data[CONTEXT_KEY_FILE_IDS]) == 1
 
-    # Verify file metadata structure
-    metadata = context_data[CONTEXT_KEY_FILE_METADATA][0]
-    assert "id" in metadata  # Public identifier
-    assert "filename" in metadata
-    assert "size_bytes" in metadata
-    assert "mime_type" in metadata
-    assert metadata["filename"] == "sample.pdf"
-
-    # SECURITY: Verify file_path is NOT exposed
-    assert "file_path" not in metadata
+    # Verify file_id is a valid UUID
+    uuid.UUID(context_data[CONTEXT_KEY_FILE_IDS][0])

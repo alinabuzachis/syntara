@@ -2,12 +2,19 @@
 
 This module provides the main FileManager class for handling file uploads,
 including validation, storage, and metadata generation.
+
+The FileManager is the single source of truth for all FileMetadata operations.
+All components (DocumentConversionTask, InvocationService, UploadedFileRetriever)
+must access FileMetadata records through FileManager methods, not via direct
+database queries (encapsulation principle).
 """
 
 import logging
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import UploadFile
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.config import get_settings
 from nexus.files import storage, utils, validators
@@ -22,9 +29,14 @@ class FileManager:
     """Manager for file upload operations.
 
     This class handles file validation, storage, and metadata generation
-    for file uploads in invocations. The FileManager supports multiple storage
-    backends and selects the appropriate retriever based on runtime context
+    for file uploads. The FileManager supports multiple storage backends
+    and selects the appropriate retriever based on runtime context
     (file size, type, user preferences, etc.).
+
+    The FileManager is the single source of truth for all FileMetadata operations.
+    All components (DocumentConversionTask, InvocationService, UploadedFileRetriever)
+    must access FileMetadata records through FileManager methods, not via direct
+    database queries (encapsulation principle).
 
     Attributes:
         settings: Application settings for validation limits
@@ -176,6 +188,98 @@ class FileManager:
         )
 
         return file_metadata_list
+
+    async def get_file_metadata(
+        self,
+        file_id: UUID,
+        session: AsyncSession,
+    ) -> FileMetadata | None:
+        """Get FileMetadata record by file_id.
+
+        Args:
+            file_id: UUID of the file to retrieve
+            session: Database session
+
+        Returns:
+            FileMetadata record if found, None otherwise
+
+        """
+        return await session.get(FileMetadata, file_id)
+
+    async def get_files_metadata(
+        self,
+        file_ids: list[UUID],
+        session: AsyncSession,
+    ) -> list[FileMetadata]:
+        """Get multiple FileMetadata records by file_ids.
+
+        Args:
+            file_ids: List of file UUIDs to retrieve
+            session: Database session
+
+        Returns:
+            List of FileMetadata records (may be fewer than requested if some not found)
+
+        """
+        if not file_ids:
+            return []
+
+        # Query all matching records
+        # FileMetadata.id is inherited from BaseResource, so type checker doesn't see in_() method
+        statement = select(FileMetadata).where(FileMetadata.id.in_(file_ids))  # type: ignore[attr-defined]
+        result = await session.exec(statement)
+        return list(result.all())
+
+    async def update_file_status(
+        self,
+        file_id: UUID,
+        status: FileStatus,
+        session: AsyncSession,
+        *,
+        converted_content_path: str | None = None,
+        conversion_error: str | None = None,
+    ) -> FileMetadata:
+        """Update file conversion status in database.
+
+        Used by DocumentConversionTask to update status after conversion.
+
+        Args:
+            file_id: UUID of the file to update
+            status: New status (CONVERTING, CONVERTED, CONVERSION_FAILED)
+            session: Database session
+            converted_content_path: Path to converted markdown (if successful)
+            conversion_error: Error message (if failed)
+
+        Returns:
+            Updated FileMetadata record
+
+        Raises:
+            ValueError: If file not found
+
+        """
+        file_metadata = await session.get(FileMetadata, file_id)
+        if not file_metadata:
+            msg = f"File not found: {file_id}"
+            raise ValueError(msg)
+
+        # Update fields
+        file_metadata.status = status
+        if converted_content_path is not None:
+            file_metadata.converted_content_path = converted_content_path
+        if conversion_error is not None:
+            file_metadata.conversion_error = conversion_error
+
+        session.add(file_metadata)
+        await session.commit()
+        await session.refresh(file_metadata)
+
+        logger.info(
+            "File status updated (file_id=%s, status=%s)",
+            file_id,
+            status.value,
+        )
+
+        return file_metadata
 
 
 # ===================================================
