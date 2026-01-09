@@ -10,7 +10,7 @@ import {
   Title,
 } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
-import { EllipsisVIcon } from '@patternfly/react-icons'
+import { RhUiEllipsisVerticalFillIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 
 export function IntegrationCard(props: { integration: ToolProvider }) {
@@ -28,7 +28,7 @@ export function IntegrationCard(props: { integration: ToolProvider }) {
           variant="plain"
           aria-label="Card actions"
         >
-          <EllipsisVIcon />
+          <RhUiEllipsisVerticalFillIcon />
         </MenuToggle>
       )}
     >

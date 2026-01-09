@@ -8,7 +8,7 @@ import {
   Stack,
   StackItem,
 } from '@patternfly/react-core'
-import { AngleLeftIcon, AngleRightIcon } from '@patternfly/react-icons'
+import { RhUiCaretLeftIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Table } from '@patternfly/react-table'
 import type { ReactNode } from 'react'
 
@@ -89,10 +89,10 @@ export function ScrollableTableContainer({ children, footer, 'aria-label': ariaL
                         onClick={footer.onPrev}
                         aria-label="Previous page"
                       >
-                        <AngleLeftIcon /> Previous
+                        <RhUiCaretLeftIcon /> Previous
                       </Button>
                       <Button variant="plain" isDisabled={!footer.next} onClick={footer.onNext} aria-label="Next page">
-                        Next <AngleRightIcon />
+                        Next <RhUiCaretRightIcon />
                       </Button>
                     </Flex>
                   )}

@@ -1,5 +1,5 @@
 import { Icon } from '@patternfly/react-core'
-import { AngleDownIcon } from '@patternfly/react-icons'
+import { RhUiCaretDownIcon } from '@patternfly/react-icons'
 import { useContext } from 'react'
 
 import { NodeExpandedContext } from './NodeExpandedContext'
@@ -28,7 +28,7 @@ export function NodeExpandToggle() {
         cursor: 'pointer',
       }}
     >
-      <AngleDownIcon />
+      <RhUiCaretDownIcon />
     </Icon>
   )
 }

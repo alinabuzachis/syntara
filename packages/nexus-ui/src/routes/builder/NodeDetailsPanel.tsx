@@ -1,6 +1,6 @@
 import type { ConditionActivity, ConvergeActivity, LoopActivity, TaskActivity } from '@ansible/nexus-contracts'
 import { Button, CompassPanel, Flex, FlexItem, Icon, Stack, StackItem, Title, TitleSizes } from '@patternfly/react-core'
-import { FileIcon, TimesIcon } from '@patternfly/react-icons'
+import { RhUiDocumentFillIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 import type { Node } from '@xyflow/react'
 
 import { FlowNodeType } from '../../constants'
@@ -115,7 +115,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
             <FlexItem>
               <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
                 <Icon>
-                  <FileIcon />
+                  <RhUiDocumentFillIcon />
                 </Icon>
                 <Title headingLevel="h2" size={TitleSizes.lg}>
                   {getNodeTitle()}
@@ -125,7 +125,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
             <FlexItem>
               <Button variant="plain" onClick={onClose} aria-label="Close">
                 <Icon>
-                  <TimesIcon />
+                  <RhUiCloseIcon />
                 </Icon>
               </Button>
             </FlexItem>

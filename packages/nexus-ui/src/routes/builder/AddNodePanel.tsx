@@ -15,7 +15,7 @@ import {
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
-import { PlusIcon, CloseIcon, RhUiArrowLeftIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiCloseIcon, RhUiArrowLeftIcon } from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
 
 import { useWorkflowStore, useWorkflowStoreActions } from '../../stores/useWorkflowStore'
@@ -190,7 +190,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
               <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
                 <FlexItem>
                   <Icon>
-                    <PlusIcon />
+                    <RhUiAddIcon />
                   </Icon>
                 </FlexItem>
                 <FlexItem>
@@ -203,7 +203,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
             <FlexItem>
               <Button variant="plain" onClick={props.onClose} aria-label="Close">
                 <Icon>
-                  <CloseIcon />
+                  <RhUiCloseIcon />
                 </Icon>
               </Button>
             </FlexItem>

@@ -1,5 +1,4 @@
 import {
-  Avatar,
   Button,
   Divider,
   Dropdown,
@@ -22,6 +21,7 @@ import {
 } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
 import {
+  RedhatIcon,
   RhUiDarkModeIcon,
   RhUiIncreasingIcon,
   RhUiInfrastructureIcon,
@@ -29,14 +29,12 @@ import {
   RhUiListIcon,
   RhUiMenuBarsIcon,
   RhUiNotificationIcon,
+  RhUiProfileFillIcon,
   RhUiQuestionMarkCircleIcon,
   RhUiSettingsIcon,
 } from '@patternfly/react-icons'
 import { useMemo, useRef, useState } from 'react'
 import { useLocation } from 'wouter'
-
-import avatarImg from '../assets/avatar.svg'
-import { RedHatIcon } from '../components/icons/RedHatIcon'
 
 import { navigationItems } from './navigationItems'
 import { useUnsavedChanges } from './useUnsavedChanges'
@@ -127,7 +125,7 @@ export function AppDockedNav() {
       aria-label="User menu"
       style={{ padding: 0 }}
     >
-      <Avatar src={avatarImg} alt="User avatar" size="sm" />
+      <RhUiProfileFillIcon />
     </MenuToggle>
   )
 
@@ -136,7 +134,7 @@ export function AppDockedNav() {
       <MastheadMain>
         <MastheadBrand>
           <MastheadLogo component="a">
-            <RedHatIcon style={{ height: '24px', width: '24px' }} />
+            <RedhatIcon style={{ height: '24px', width: '24px', color: '#E00' }} />
           </MastheadLogo>
         </MastheadBrand>
       </MastheadMain>

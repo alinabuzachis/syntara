@@ -1,5 +1,5 @@
 import { Button, EmptyState, EmptyStateBody, EmptyStateActions, EmptyStateFooter } from '@patternfly/react-core'
-import { CubesIcon } from '@patternfly/react-icons'
+import { RhUiCubesFillIcon } from '@patternfly/react-icons'
 
 /**
  * EmptyStateNoData component for displaying when there's no data available.
@@ -47,7 +47,7 @@ export function EmptyStateNoData(props: EmptyStateNoDataProps) {
   const defaultButtonText = 'Add data'
 
   // Use custom image component if provided, otherwise use default icon
-  const icon = imageSrc ? () => <ImageIcon src={imageSrc} alt={imageAlt ?? 'No data'} /> : CubesIcon
+  const icon = imageSrc ? () => <ImageIcon src={imageSrc} alt={imageAlt ?? 'No data'} /> : RhUiCubesFillIcon
 
   return (
     <EmptyState headingLevel="h2" titleText={title ?? defaultTitle} icon={icon} isFullHeight>

@@ -1,4 +1,4 @@
-import { BoltIcon } from '@patternfly/react-icons'
+import { RhUiElectricityFillIcon } from '@patternfly/react-icons'
 
 import { createApiActivity, createScriptActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import type { ActionFormData } from '../../hooks/useNodeCreation'
@@ -12,7 +12,7 @@ export default function registerActionNode() {
   NodeRegistry.register<ActionFormData>({
     id: 'action',
     label: 'Action',
-    icon: BoltIcon,
+    icon: RhUiElectricityFillIcon,
     category: 'action',
     description: 'Execute scripts or make API calls',
     keywords: ['script', 'api', 'http', 'python', 'javascript', 'bash', 'rest'],

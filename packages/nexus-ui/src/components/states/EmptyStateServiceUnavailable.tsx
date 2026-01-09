@@ -1,5 +1,5 @@
 import { EmptyState, EmptyStateBody } from '@patternfly/react-core'
-import { ExclamationCircleIcon } from '@patternfly/react-icons'
+import { RhUiErrorFillIcon } from '@patternfly/react-icons'
 
 export interface EmptyStateServiceUnavailableProps {
   title?: string
@@ -30,7 +30,7 @@ export function EmptyStateServiceUnavailable(props: Readonly<EmptyStateServiceUn
     : (description ?? defaultDescription)
 
   return (
-    <EmptyState headingLevel="h2" titleText={title ?? defaultTitle} icon={ExclamationCircleIcon} isFullHeight>
+    <EmptyState headingLevel="h2" titleText={title ?? defaultTitle} icon={RhUiErrorFillIcon} isFullHeight>
       <EmptyStateBody>{fullDescription}</EmptyStateBody>
     </EmptyState>
   )

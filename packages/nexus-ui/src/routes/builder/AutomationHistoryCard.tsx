@@ -12,7 +12,7 @@ import {
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
-import { RhUiHistoryIcon, TimesIcon } from '@patternfly/react-icons'
+import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 
 import { StatusLabel } from './ExecutionStatus'
 
@@ -54,7 +54,7 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
             <FlexItem>
               <Button variant="plain" onClick={props.onClose} aria-label="Close">
                 <Icon>
-                  <TimesIcon />
+                  <RhUiCloseIcon />
                 </Icon>
               </Button>
             </FlexItem>

@@ -1,11 +1,11 @@
 import {
   BrainIcon,
-  CodeBranchIcon,
-  CodeIcon,
-  PlayIcon,
-  PluggedIcon,
-  ServerIcon,
-  SyncIcon,
+  RhUiBranchFillIcon,
+  RhUiCodeIcon,
+  RhUiPlayFillIcon,
+  RhUiPlugFillIcon,
+  RhUiServerFillIcon,
+  RhUiSyncIcon,
   UserCheckIcon,
 } from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
@@ -24,7 +24,7 @@ export interface NodeMetadata {
 
 export const nodeMetadata: Record<string, NodeMetadata> = {
   trigger: {
-    icon: PlayIcon,
+    icon: RhUiPlayFillIcon,
     label: 'Trigger',
     disableTarget: true,
     expandable: false,
@@ -34,12 +34,12 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
     expandable: true,
   },
   condition: {
-    icon: CodeBranchIcon,
+    icon: RhUiBranchFillIcon,
     label: 'Condition',
     expandable: true,
   },
   loop: {
-    icon: SyncIcon,
+    icon: RhUiSyncIcon,
     label: 'Loop',
     enableEnd: true,
     expandable: false,
@@ -49,7 +49,7 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
     expandable: false,
   },
   converge: {
-    icon: CodeBranchIcon,
+    icon: RhUiBranchFillIcon,
     label: 'Converge',
     expandable: false,
   },
@@ -57,10 +57,10 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
 
 // Task executor metadata - different tasks have different icons
 export const executorMetadata: Record<string, { icon: ComponentType<{ className?: string }>; label: string }> = {
-  script: { icon: CodeIcon, label: 'Script' },
+  script: { icon: RhUiCodeIcon, label: 'Script' },
   agentic: { icon: BrainIcon, label: 'Agentic' },
-  api: { icon: ServerIcon, label: 'REST Api' },
-  connector: { icon: PluggedIcon, label: 'Connector' },
+  api: { icon: RhUiServerFillIcon, label: 'REST Api' },
+  connector: { icon: RhUiPlugFillIcon, label: 'Connector' },
   aap_job_template: { icon: AnsibleIcon, label: 'AAP Job' },
   aap: { icon: AnsibleIcon, label: 'AAP Job' }, // Ansible Automation Platform (alternative key)
   approval: { icon: UserCheckIcon, label: 'Approval' }, // Human approval gate

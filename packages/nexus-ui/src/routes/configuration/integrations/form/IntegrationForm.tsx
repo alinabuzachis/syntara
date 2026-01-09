@@ -13,7 +13,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '@patternfly/react-core'
-import { RhUiErrorIcon, ServerIcon } from '@patternfly/react-icons'
+import { RhUiErrorIcon, RhUiServerFillIcon } from '@patternfly/react-icons'
 import { Controller, useForm } from 'react-hook-form'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -100,7 +100,7 @@ export function IntegrationForm() {
                     <ToggleGroupItem
                       text={
                         <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-                          <ServerIcon />
+                          <RhUiServerFillIcon />
                           <span>MCP Server</span>
                         </Flex>
                       }

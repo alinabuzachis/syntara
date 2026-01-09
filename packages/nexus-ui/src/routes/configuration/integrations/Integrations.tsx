@@ -18,7 +18,7 @@ import {
 import type { MenuToggleElement } from '@patternfly/react-core'
 import {
   CheckCircleIcon,
-  EllipsisVIcon,
+  RhUiEllipsisVerticalFillIcon,
   EyeIcon,
   RhUiTrashIcon,
   SyncAltIcon,
@@ -220,7 +220,7 @@ export default function Integrations() {
                 isExpanded={isViewMenuOpen}
                 variant="plain"
               >
-                <EllipsisVIcon />
+                <RhUiEllipsisVerticalFillIcon />
               </MenuToggle>
             )}
           >

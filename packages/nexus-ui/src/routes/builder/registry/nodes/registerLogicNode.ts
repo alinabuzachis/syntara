@@ -1,4 +1,4 @@
-import { CodeBranchIcon } from '@patternfly/react-icons'
+import { RhUiBranchFillIcon } from '@patternfly/react-icons'
 
 import {
   createConditionActivity,
@@ -45,7 +45,7 @@ export default function registerLogicNode() {
       {
         id: 'logic',
         label: 'Logic',
-        icon: CodeBranchIcon,
+        icon: RhUiBranchFillIcon,
         category: 'logic',
         description: 'Add conditional logic and branching to workflows',
         keywords: ['if', 'else', 'condition', 'branch', 'switch', 'case', 'decision', 'converge', 'join'],

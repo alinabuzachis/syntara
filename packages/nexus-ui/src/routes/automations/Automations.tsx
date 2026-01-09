@@ -12,7 +12,7 @@ import {
   Stack,
   StackItem,
 } from '@patternfly/react-core'
-import { ListIcon, PencilAltIcon, PlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiListIcon, RhUiEditFillIcon, RhUiPlayFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useState } from 'react'
@@ -100,20 +100,20 @@ export default function Automations() {
 
   const getRowActions = (workflow: Workflow): IAction[] => [
     {
-      title: <IconLabel icon={<PencilAltIcon />}>Edit automation</IconLabel>,
+      title: <IconLabel icon={<RhUiEditFillIcon />}>Edit automation</IconLabel>,
       onClick: () => {
         setLocation(`/automation-builder/${workflow.id}`)
       },
     },
     {
-      title: <IconLabel icon={<PlayIcon />}>Run automation</IconLabel>,
+      title: <IconLabel icon={<RhUiPlayFillIcon />}>Run automation</IconLabel>,
       onClick: () => {
         setSelectedWorkflow(workflow)
         setConfirmDialogOpen(true)
       },
     },
     {
-      title: <IconLabel icon={<ListIcon />}>View run history</IconLabel>,
+      title: <IconLabel icon={<RhUiListIcon />}>View run history</IconLabel>,
       onClick: () => {
         setLocation(`/executions?workflow_id=${workflow.id}`)
       },

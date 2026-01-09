@@ -24,13 +24,13 @@ import {
   Tooltip,
 } from '@patternfly/react-core'
 import {
-  EllipsisVIcon,
-  PlayIcon,
-  PlusIcon,
+  RhUiPlayFillIcon,
+  RhUiAddIcon,
   RhUiHistoryIcon,
-  FileCodeIcon,
-  SaveIcon,
+  RhUiCodeIcon,
+  RhUiSaveFillIcon,
   RhUiTrashIcon,
+  RhUiEllipsisVerticalFillIcon,
 } from '@patternfly/react-icons'
 import { useQueryClient, type Query } from '@tanstack/react-query'
 import { useReactFlow, type Node } from '@xyflow/react'
@@ -603,7 +603,7 @@ export function BuilderContent(props: BuilderContentProps) {
                 }}
                 icon={
                   <Icon isInline>
-                    <PlusIcon />
+                    <RhUiAddIcon />
                   </Icon>
                 }
                 iconPosition="start"
@@ -619,7 +619,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     onClick={() => setConfirmDialogOpen(true)}
                     icon={
                       <Icon isInline>
-                        <PlayIcon />
+                        <RhUiPlayFillIcon />
                       </Icon>
                     }
                     iconPosition="start"
@@ -637,7 +637,7 @@ export function BuilderContent(props: BuilderContentProps) {
                   onClick={handleToggleDetails}
                   icon={
                     <Icon isInline>
-                      <FileCodeIcon />
+                      <RhUiCodeIcon />
                     </Icon>
                   }
                   aria-label="Workflow details"
@@ -667,7 +667,7 @@ export function BuilderContent(props: BuilderContentProps) {
                 isDisabled={isPending}
                 icon={
                   <Icon isInline>
-                    <SaveIcon />
+                    <RhUiSaveFillIcon />
                   </Icon>
                 }
                 iconPosition="start"
@@ -704,7 +704,7 @@ export function BuilderContent(props: BuilderContentProps) {
                         isExpanded={isKebabOpen}
                         aria-label="Automation actions"
                       >
-                        <EllipsisVIcon />
+                        <RhUiEllipsisVerticalFillIcon />
                       </MenuToggle>
                     )}
                   >

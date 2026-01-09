@@ -1,6 +1,6 @@
 import { Divider, Dropdown, DropdownItem, DropdownList, MenuToggle } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
-import { EllipsisVIcon } from '@patternfly/react-icons'
+import { RhUiEllipsisVerticalFillIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 
 import type { NodeMenuAction } from '../hooks/useNodeMenuActions'
@@ -49,7 +49,7 @@ export function NodeMenu(props: Readonly<NodeMenuProps>) {
             aria-label="Node actions menu"
             className="nodrag nopan"
           >
-            <EllipsisVIcon />
+            <RhUiEllipsisVerticalFillIcon />
           </MenuToggle>
         )}
       >

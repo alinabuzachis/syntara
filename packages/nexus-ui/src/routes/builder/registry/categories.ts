@@ -1,4 +1,10 @@
-import { BoltIcon, BrainIcon, CodeBranchIcon, PlayIcon, UserCheckIcon } from '@patternfly/react-icons'
+import {
+  BrainIcon,
+  RhUiBranchFillIcon,
+  RhUiElectricityFillIcon,
+  RhUiPlayFillIcon,
+  UserCheckIcon,
+} from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
 
 /**
@@ -45,7 +51,7 @@ export const CATEGORY_METADATA: Record<NodeCategory, CategoryMetadata> = {
   trigger: {
     id: NodeCategories.TRIGGER,
     label: 'Triggers',
-    icon: PlayIcon,
+    icon: RhUiPlayFillIcon,
     description: 'Start workflow execution with manual, scheduled, or event triggers',
     order: 1,
     color: 'blue',
@@ -53,7 +59,7 @@ export const CATEGORY_METADATA: Record<NodeCategory, CategoryMetadata> = {
   action: {
     id: NodeCategories.ACTION,
     label: 'Actions',
-    icon: BoltIcon,
+    icon: RhUiElectricityFillIcon,
     description: 'Execute tasks, run scripts, or make API calls',
     order: 2,
     color: 'purple',
@@ -61,7 +67,7 @@ export const CATEGORY_METADATA: Record<NodeCategory, CategoryMetadata> = {
   logic: {
     id: NodeCategories.LOGIC,
     label: 'Logic & Control',
-    icon: CodeBranchIcon,
+    icon: RhUiBranchFillIcon,
     description: 'Add conditional logic, branching, and flow control',
     order: 3,
     color: 'orange',
@@ -85,7 +91,7 @@ export const CATEGORY_METADATA: Record<NodeCategory, CategoryMetadata> = {
   other: {
     id: NodeCategories.OTHER,
     label: 'Other',
-    icon: BoltIcon,
+    icon: RhUiElectricityFillIcon,
     description: 'Miscellaneous nodes',
     order: 99,
     color: 'gray',

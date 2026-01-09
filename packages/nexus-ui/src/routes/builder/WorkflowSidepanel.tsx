@@ -16,7 +16,7 @@ import {
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
-import { FileCodeIcon, TimesIcon } from '@patternfly/react-icons'
+import { RhUiCodeIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 
 import { CodeBlock } from '../../components/details/CodeBlock'
 
@@ -40,7 +40,7 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
             <FlexItem>
               <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
                 <Icon>
-                  <FileCodeIcon />
+                  <RhUiCodeIcon />
                 </Icon>
                 <Title headingLevel="h2" size={TitleSizes.lg}>
                   Workflow Details
@@ -50,7 +50,7 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
             <FlexItem>
               <Button variant="plain" onClick={props.onClose} aria-label="Close">
                 <Icon>
-                  <TimesIcon />
+                  <RhUiCloseIcon />
                 </Icon>
               </Button>
             </FlexItem>

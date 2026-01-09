@@ -1,5 +1,5 @@
 import { EmptyState, EmptyStateBody } from '@patternfly/react-core'
-import { ExclamationCircleIcon } from '@patternfly/react-icons'
+import { RhUiErrorFillIcon } from '@patternfly/react-icons'
 
 import { getErrorMessage, isServiceUnavailableError } from '../../utils/apiErrors'
 
@@ -15,7 +15,7 @@ export function ErrorState(props: { title?: string; message: unknown }) {
   const message = getErrorMessage(props.message)
 
   return (
-    <EmptyState data-testid="error-state" headingLevel="h2" titleText={title} icon={ExclamationCircleIcon} isFullHeight>
+    <EmptyState data-testid="error-state" headingLevel="h2" titleText={title} icon={RhUiErrorFillIcon} isFullHeight>
       <EmptyStateBody>{message}</EmptyStateBody>
     </EmptyState>
   )
