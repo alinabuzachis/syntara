@@ -193,7 +193,7 @@ function ApprovalFormFields({
       <StackItem>
         <FormGroup label="Message" fieldId="approval-prompt">
           <TextArea
-            {...register('prompt', { required: true })}
+            {...register('prompt')}
             id="approval-prompt"
             placeholder="Please approve this deployment to production"
             rows={3}
