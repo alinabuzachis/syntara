@@ -16,7 +16,7 @@ import {
   TextInput,
   Tooltip,
 } from '@patternfly/react-core'
-import { PlayIcon, PlusIcon, CloseIcon, RhUiHistoryIcon, FileCodeIcon, SaveIcon } from '@patternfly/react-icons'
+import { PlayIcon, PlusIcon, RhUiHistoryIcon, FileCodeIcon, SaveIcon } from '@patternfly/react-icons'
 import { useQueryClient, type Query } from '@tanstack/react-query'
 import { useReactFlow, type Node } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -24,7 +24,6 @@ import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
-import { AppRoute } from '../../app/AppRoute'
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
@@ -99,7 +98,7 @@ export function BuilderContent(props: BuilderContentProps) {
     markClean,
     markDirty,
   } = useWorkflowStore()
-  const { registerSaveHandler, unregisterSaveHandler, requestNavigation } = useUnsavedChanges()
+  const { registerSaveHandler, unregisterSaveHandler } = useUnsavedChanges()
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -458,11 +457,6 @@ export function BuilderContent(props: BuilderContentProps) {
     }
   }, [historyCardOpen, executionsQuery])
 
-  const handleCancel = useCallback(() => {
-    // Use the unsaved changes context to handle navigation with confirmation
-    requestNavigation(AppRoute.Automations.Root)
-  }, [requestNavigation])
-
   const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node<NodeType['data']>) => {
     // Check if this is a generic placeholder node
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -643,19 +637,6 @@ export function BuilderContent(props: BuilderContentProps) {
                 iconPosition="start"
               >
                 {isPending ? 'Saving...' : 'Save'}
-              </Button>
-
-              <Button
-                variant="plain"
-                onClick={handleCancel}
-                icon={
-                  <Icon isInline>
-                    <CloseIcon />
-                  </Icon>
-                }
-                iconPosition="start"
-              >
-                Cancel
               </Button>
 
               {!isNew && (
