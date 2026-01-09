@@ -746,4 +746,264 @@ describe('Automations Component', () => {
       expect(() => fireEvent.click(prevButton)).not.toThrow()
     })
   })
+
+  describe('Delete Automation', () => {
+    it('shows delete option in row actions menu', async () => {
+      render(<Automations />, { wrapper })
+
+      // Wait for table to render
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      // Open the actions menu
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      fireEvent.click(menuTrigger)
+
+      // Verify delete option exists
+      await waitFor(() => {
+        expect(screen.getByText('Delete automation')).toBeInTheDocument()
+      })
+    })
+
+    it('opens delete confirmation modal when delete is clicked', async () => {
+      render(<Automations />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      // Open actions menu
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      fireEvent.click(menuTrigger)
+
+      // Click delete
+      const deleteItem = await screen.findByText('Delete automation')
+      fireEvent.click(deleteItem)
+
+      // Verify modal is shown
+      await waitFor(() => {
+        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
+        expect(screen.getByText(/You are about to permanently delete this automation/)).toBeInTheDocument()
+        expect(screen.getByText(/This automation will stop running immediately/)).toBeInTheDocument()
+      })
+    })
+
+    it('deletes automation successfully and shows success alert', async () => {
+      const mockRefetch = vi.fn()
+      const mockDeleteMutate = vi.fn((params, callbacks) => {
+        if (callbacks?.onSuccess) {
+          callbacks.onSuccess(undefined, params, undefined)
+        }
+      })
+
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockWorkflows,
+          next: null,
+          prev: null,
+          total: mockWorkflows.length,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
+        if (method === 'delete') {
+          return {
+            mutate: mockDeleteMutate,
+            mutateAsync: vi.fn(),
+            reset: vi.fn(),
+            isPending: false,
+            isError: false,
+            isSuccess: false,
+            isIdle: true,
+            error: null,
+            data: undefined,
+            variables: undefined,
+            context: undefined,
+            failureCount: 0,
+            failureReason: null,
+            status: 'idle',
+            submittedAt: 0,
+          }
+        }
+        return {
+          mutate: vi.fn(),
+          mutateAsync: vi.fn(),
+          reset: vi.fn(),
+          isPending: false,
+          isError: false,
+          isSuccess: false,
+          isIdle: true,
+          error: null,
+          data: undefined,
+          variables: undefined,
+          context: undefined,
+          failureCount: 0,
+          failureReason: null,
+          status: 'idle',
+          submittedAt: 0,
+        }
+      })
+
+      render(<Automations />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      // Open actions menu and click delete
+      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      fireEvent.click(menuTrigger)
+
+      const deleteItem = await screen.findByText('Delete automation')
+      fireEvent.click(deleteItem)
+
+      // Confirm deletion
+      await waitFor(() => {
+        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
+      })
+
+      const deleteButton = screen.getByRole('button', { name: 'Delete' })
+      fireEvent.click(deleteButton)
+
+      // Verify success
+      await waitFor(() => {
+        expect(mockDeleteMutate).toHaveBeenCalled()
+        expect(mockRefetch).toHaveBeenCalled()
+        expect(screen.getByText('Automation Deleted')).toBeInTheDocument()
+        expect(screen.getByText(/Successfully deleted automation/)).toBeInTheDocument()
+      })
+    })
+
+    it('handles delete error and shows error alert', async () => {
+      const mockError = { message: 'Delete failed' }
+      const mockDeleteMutate = vi.fn((params, callbacks) => {
+        if (callbacks?.onError) {
+          callbacks.onError(mockError, params, undefined)
+        }
+      })
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
+        if (method === 'delete') {
+          return {
+            mutate: mockDeleteMutate,
+            mutateAsync: vi.fn(),
+            reset: vi.fn(),
+            isPending: false,
+            isError: false,
+            isSuccess: false,
+            isIdle: true,
+            error: null,
+            data: undefined,
+            variables: undefined,
+            context: undefined,
+            failureCount: 0,
+            failureReason: null,
+            status: 'idle',
+            submittedAt: 0,
+          }
+        }
+        return {
+          mutate: vi.fn(),
+          mutateAsync: vi.fn(),
+          reset: vi.fn(),
+          isPending: false,
+          isError: false,
+          isSuccess: false,
+          isIdle: true,
+          error: null,
+          data: undefined,
+          variables: undefined,
+          context: undefined,
+          failureCount: 0,
+          failureReason: null,
+          status: 'idle',
+          submittedAt: 0,
+        }
+      })
+
+      render(<Automations />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      // Open actions menu and click delete
+      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      fireEvent.click(menuTrigger)
+
+      const deleteItem = await screen.findByText('Delete automation')
+      fireEvent.click(deleteItem)
+
+      // Confirm deletion
+      await waitFor(() => {
+        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
+      })
+
+      const deleteButton = screen.getByRole('button', { name: 'Delete' })
+      fireEvent.click(deleteButton)
+
+      // Verify error alert
+      await waitFor(() => {
+        expect(mockDeleteMutate).toHaveBeenCalled()
+        expect(screen.getByText('Delete Failed')).toBeInTheDocument()
+        expect(screen.getByText(/Failed to delete automation/)).toBeInTheDocument()
+      })
+    })
+
+    it('can cancel delete operation', async () => {
+      render(<Automations />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      // Open actions menu and click delete
+      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      fireEvent.click(menuTrigger)
+
+      const deleteItem = await screen.findByText('Delete automation')
+      fireEvent.click(deleteItem)
+
+      // Modal appears
+      await waitFor(() => {
+        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
+      })
+
+      // Click cancel
+      const cancelButton = screen.getByRole('button', { name: 'Cancel' })
+      fireEvent.click(cancelButton)
+
+      // Modal closes
+      await waitFor(() => {
+        expect(screen.queryByText('Delete automation?')).not.toBeInTheDocument()
+      })
+    })
+  })
 })

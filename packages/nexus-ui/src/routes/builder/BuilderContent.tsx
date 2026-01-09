@@ -3,9 +3,16 @@ import {
   Button,
   CompassPanel,
   Divider,
+  Dropdown,
+  DropdownItem,
+  DropdownList,
   Flex,
   FlexItem,
   Icon,
+  List,
+  ListItem,
+  MenuToggle,
+  type MenuToggleElement,
   Modal,
   ModalBody,
   ModalFooter,
@@ -16,7 +23,15 @@ import {
   TextInput,
   Tooltip,
 } from '@patternfly/react-core'
-import { PlayIcon, PlusIcon, RhUiHistoryIcon, FileCodeIcon, SaveIcon } from '@patternfly/react-icons'
+import {
+  EllipsisVIcon,
+  PlayIcon,
+  PlusIcon,
+  RhUiHistoryIcon,
+  FileCodeIcon,
+  SaveIcon,
+  RhUiTrashIcon,
+} from '@patternfly/react-icons'
 import { useQueryClient, type Query } from '@tanstack/react-query'
 import { useReactFlow, type Node } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -29,6 +44,7 @@ import { workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { FlowNodeType } from '../../constants'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { getErrorMessage } from '../../utils/apiErrors'
 import { NodeExpandedAllContext } from '../automations/canvas/nodes/common/NodeExpandedAllContext'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
@@ -101,8 +117,10 @@ export function BuilderContent(props: BuilderContentProps) {
   const { registerSaveHandler, unregisterSaveHandler } = useUnsavedChanges()
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [historyCardOpen, setHistoryCardOpen] = useState(false)
+  const [isKebabOpen, setIsKebabOpen] = useState(false)
   const [addNodePanelOpen, setAddNodePanelOpen] = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node<NodeType['data']> | null>(null)
   const [sourceNodeId, setSourceNodeId] = useState<string | null>(null)
@@ -260,6 +278,7 @@ export function BuilderContent(props: BuilderContentProps) {
     '/workflows/{workflowId}'
   )
   const { mutate: executeAutomation } = workflowClient.useMutation('post', '/executions')
+  const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflowId}')
 
   const isPending = isCreating || isUpdating
 
@@ -421,15 +440,32 @@ export function BuilderContent(props: BuilderContentProps) {
           setConfirmDialogOpen(false)
         },
         onError: (error) => {
-          showError(
-            `Failed to start automation "${workflowName}": ${error.message || 'Unknown error'}`,
-            'Automation Failed'
-          )
+          showError(`Failed to start automation "${workflowName}": ${getErrorMessage(error)}`, 'Automation Failed')
           setConfirmDialogOpen(false)
         },
       }
     )
   }, [workflow, workflowName, executeAutomation, showSuccess, showError])
+
+  const handleDeleteAutomation = useCallback(() => {
+    if (!workflow?.id) return
+
+    deleteWorkflow(
+      { params: { path: { workflowId: workflow.id } } },
+      {
+        onSuccess: () => {
+          showSuccess(`Successfully deleted automation "${workflowName}"`, 'Automation Deleted')
+          setDeleteDialogOpen(false)
+          // Navigate to new workflow page to start fresh
+          setLocation('/automation-builder/new')
+        },
+        onError: (error) => {
+          showError(`Failed to delete automation "${workflowName}": ${getErrorMessage(error)}`, 'Delete Failed')
+          setDeleteDialogOpen(false)
+        },
+      }
+    )
+  }, [workflow, workflowName, deleteWorkflow, showSuccess, showError, setLocation])
 
   const handleToggleDetails = useCallback(() => {
     setDetailsOpen((prev) => {
@@ -650,6 +686,43 @@ export function BuilderContent(props: BuilderContentProps) {
                     }}
                     label={isEnabled ? 'Enabled' : 'Disabled'}
                   />
+                </>
+              )}
+
+              {!isNew && workflow?.id && (
+                <>
+                  <Divider orientation={{ default: 'vertical' }} />
+                  <Dropdown
+                    isOpen={isKebabOpen}
+                    onOpenChange={(isOpen) => setIsKebabOpen(isOpen)}
+                    popperProps={{ position: 'right' }}
+                    toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                      <MenuToggle
+                        ref={toggleRef}
+                        variant="plain"
+                        onClick={() => setIsKebabOpen(!isKebabOpen)}
+                        isExpanded={isKebabOpen}
+                        aria-label="Automation actions"
+                      >
+                        <EllipsisVIcon />
+                      </MenuToggle>
+                    )}
+                  >
+                    <DropdownList>
+                      <DropdownItem
+                        onClick={() => {
+                          setDeleteDialogOpen(true)
+                          setIsKebabOpen(false)
+                        }}
+                        isDanger
+                      >
+                        <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                          <RhUiTrashIcon />
+                        </Icon>
+                        Delete automation
+                      </DropdownItem>
+                    </DropdownList>
+                  </Dropdown>
                 </>
               )}
             </AppPageHeader>
@@ -928,6 +1001,39 @@ export function BuilderContent(props: BuilderContentProps) {
             </Button>
             <Button variant="primary" onClick={handleRunAutomation}>
               Run now
+            </Button>
+          </ModalFooter>
+        </Modal>
+        <Modal
+          isOpen={deleteDialogOpen}
+          onClose={() => setDeleteDialogOpen(false)}
+          variant="medium"
+          aria-labelledby="delete-automation-modal-title"
+          aria-describedby="delete-automation-modal-body"
+        >
+          <ModalHeader title="Delete automation?" titleIconVariant="warning" labelId="delete-automation-modal-title" />
+          <ModalBody id="delete-automation-modal-body">
+            <Stack hasGutter>
+              <StackItem>
+                You are about to permanently delete this automation. This action cannot be reversed. After deletion, the
+                following will occur:
+              </StackItem>
+              <StackItem>
+                <List>
+                  <ListItem>This automation will stop running immediately.</ListItem>
+                  <ListItem>
+                    Any other automations that use this one as a step will also become invalid and stop running.
+                  </ListItem>
+                </List>
+              </StackItem>
+            </Stack>
+          </ModalBody>
+          <ModalFooter>
+            <Button key="cancel" variant="secondary" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button key="delete" variant="danger" onClick={handleDeleteAutomation}>
+              Delete
             </Button>
           </ModalFooter>
         </Modal>

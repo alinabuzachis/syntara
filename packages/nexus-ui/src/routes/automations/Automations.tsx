@@ -2,14 +2,17 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
+  List,
+  ListItem,
   Modal,
   ModalBody,
   ModalFooter,
   ModalHeader,
   SearchInput,
+  Stack,
   StackItem,
 } from '@patternfly/react-core'
-import { ListIcon, PencilAltIcon, PlayIcon } from '@patternfly/react-icons'
+import { ListIcon, PencilAltIcon, PlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useState } from 'react'
@@ -47,9 +50,12 @@ export default function Automations() {
   })
   const workflows = workflowsQuery.data?.resources ?? []
   const { mutate: executeAutomation } = workflowClient.useMutation('post', '/executions')
+  const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflowId}')
   const { showSuccess, showError } = useAlerts()
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
+  const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(null)
   const [, setLocation] = useLocation()
 
   const { search, setSearch, items: automations } = useFuse<Workflow>(workflows, [{ name: 'name' }])
@@ -63,6 +69,30 @@ export default function Automations() {
         },
         onError: (error: unknown) => {
           showError(`Failed to start automation "${workflow.name}": ${getErrorMessage(error)}`, 'Automation Failed')
+        },
+      }
+    )
+  }
+
+  const handleDeleteAutomation = () => {
+    if (!workflowToDelete) return
+
+    deleteWorkflow(
+      { params: { path: { workflowId: workflowToDelete.id } } },
+      {
+        onSuccess: () => {
+          showSuccess(`Successfully deleted automation "${workflowToDelete.name}"`, 'Automation Deleted')
+          void workflowsQuery.refetch()
+        },
+        onError: (error: unknown) => {
+          showError(
+            `Failed to delete automation "${workflowToDelete.name}": ${getErrorMessage(error)}`,
+            'Delete Failed'
+          )
+        },
+        onSettled: () => {
+          setDeleteDialogOpen(false)
+          setWorkflowToDelete(null)
         },
       }
     )
@@ -86,6 +116,16 @@ export default function Automations() {
       title: <IconLabel icon={<ListIcon />}>View run history</IconLabel>,
       onClick: () => {
         setLocation(`/executions?workflow_id=${workflow.id}`)
+      },
+    },
+    {
+      isSeparator: true,
+    },
+    {
+      title: <IconLabel icon={<RhUiTrashIcon />}>Delete automation</IconLabel>,
+      onClick: () => {
+        setWorkflowToDelete(workflow)
+        setDeleteDialogOpen(true)
       },
     },
   ]
@@ -212,6 +252,39 @@ export default function Automations() {
           </Button>
           <Button variant="link" onClick={() => setConfirmDialogOpen(false)}>
             Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+      <Modal
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        variant="medium"
+        aria-labelledby="delete-automation-modal-title"
+        aria-describedby="delete-automation-modal-body"
+      >
+        <ModalHeader title="Delete automation?" titleIconVariant="warning" labelId="delete-automation-modal-title" />
+        <ModalBody id="delete-automation-modal-body">
+          <Stack hasGutter>
+            <StackItem>
+              You are about to permanently delete this automation. This action cannot be reversed. After deletion, the
+              following will occur:
+            </StackItem>
+            <StackItem>
+              <List>
+                <ListItem>This automation will stop running immediately.</ListItem>
+                <ListItem>
+                  Any other automations that use this one as a step will also become invalid and stop running.
+                </ListItem>
+              </List>
+            </StackItem>
+          </Stack>
+        </ModalBody>
+        <ModalFooter>
+          <Button key="cancel" variant="secondary" onClick={() => setDeleteDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button key="delete" variant="danger" onClick={handleDeleteAutomation}>
+            Delete
           </Button>
         </ModalFooter>
       </Modal>
