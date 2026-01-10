@@ -25,6 +25,9 @@ with workflow.unsafe.imports_passed_through():
     from .activities.agentic_activity import execute_agentic_activity
     from .activities.api_activity import execute_api_request
 
+# Import template resolution utilities
+from nexus.workflows.utils.template_resolution import resolve_config_templates
+
 from .activities.common import build_retry_policy
 
 # Import script activities (use asyncio.subprocess, no sandbox issues)
@@ -34,6 +37,7 @@ from .models import (
     AAPJobTemplateExecutorConfig,
     Activity,
     ActivityType,
+    AgenticExecutorConfig,
     APIExecutorConfig,
     ConvergeDefinition,
     ExecutorType,
@@ -500,6 +504,44 @@ class DynamicWorkflow:
                 float(cast("float", resolved)) if resolved is not None else retry_policy.multiplier
             )
 
+    def _resolve_config_templates(
+        self,
+        config: ScriptExecutorConfig | APIExecutorConfig | AgenticExecutorConfig | AAPJobTemplateExecutorConfig,
+        workflow_state: JsonDict,
+    ) -> ScriptExecutorConfig | APIExecutorConfig | AgenticExecutorConfig | AAPJobTemplateExecutorConfig:
+        """Resolve template expressions in executor config fields.
+
+        This enables config fields (like timeout, environment variables, etc.) to reference
+        previous activity outputs using ${activity.output.field} syntax.
+
+        Args:
+            config: Executor config to resolve (Script, API, or AAP Job Template)
+            workflow_state: Current workflow state with activity_outputs
+
+        Returns:
+            New config instance with resolved template expressions
+
+        """
+        # Serialize config to dict, excluding None values to avoid validation errors on deserialization
+        config_dict = config.model_dump(by_alias=True, warnings=False, exclude_none=True)
+
+        # Resolve template expressions using full workflow_state (includes activity_outputs)
+        # Exclude 'code' field for scripts as it contains script code with its own variable syntax
+        # Exclude 'authentication' for API configs as credentials must remain as ${secrets.xxx} for later resolution
+        exclude_fields = {"code"} if isinstance(config, ScriptExecutorConfig) else set()
+        if isinstance(config, APIExecutorConfig):
+            exclude_fields.add("authentication")
+        resolved_dict = resolve_config_templates(
+            config_dict,
+            workflow_state,
+            resolver=self.expression_resolver,
+            exclude_fields=exclude_fields,
+        )
+
+        # Deserialize back to the appropriate config model
+        config_type = type(config)
+        return config_type.model_validate(resolved_dict)
+
     async def _execute_task_activity(
         self,
         activity: Activity,
@@ -536,6 +578,10 @@ class DynamicWorkflow:
         # Resolve retry policy fields if present
         if activity.retry_policy:
             self._resolve_retry_policy_templates(activity.retry_policy, workflow_state)
+
+        # Resolve config templates (enable config fields to reference previous activity outputs)
+        # Serialize config to dict, resolve templates, then deserialize back to model
+        activity.task.config = self._resolve_config_templates(activity.task.config, workflow_state)
 
         # Execute based on executor type
         if activity.task.executor == ExecutorType.SCRIPT:
