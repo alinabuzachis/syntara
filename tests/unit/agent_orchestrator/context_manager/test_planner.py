@@ -40,7 +40,7 @@ class TestContextManagerPlanner:
         assert planner.settings.context_manager_required_grounding_score == pytest.approx(0.7)
 
     @pytest.mark.asyncio
-    async def test_plan_request_successful_workflow(self, mock_user: User) -> None:
+    async def test_plan_request_successful_workflow(self, mock_user: User, mock_compressor) -> None:
         """Test plan_request executes the full workflow successfully with new AssemblerService."""
         # Mock the RetrieverService
         mock_retrieve_service = AsyncMock()
@@ -48,12 +48,6 @@ class TestContextManagerPlanner:
 
         def mock_retriever_factory(session_factory) -> AsyncMock:
             return mock_retrieve_service
-
-        # Mock CompressorService
-        mock_compressor = AsyncMock()
-
-        def mock_compressor_factory() -> AsyncMock:
-            return mock_compressor
 
         # Mock AssemblerService to return a ContextPackage
         mock_context_package = ContextPackage(
@@ -71,7 +65,7 @@ class TestContextManagerPlanner:
 
         planner = ContextManagerPlanner(
             retriever_service_factory=mock_retriever_factory,
-            compressor_service_factory=mock_compressor_factory,
+            compressor_service_factory=lambda: mock_compressor,
         )
 
         with (
@@ -110,7 +104,7 @@ class TestContextManagerPlanner:
         mock_retrieve_service.retrieve_relevant_documents.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_plan_request_with_different_parameters(self, mock_user: User) -> None:
+    async def test_plan_request_with_different_parameters(self, mock_user: User, mock_compressor) -> None:
         """Test plan_request with different parameter combinations."""
         mock_context_package = ContextPackage(
             correlation_id="different-run",
@@ -120,12 +114,7 @@ class TestContextManagerPlanner:
             package_metadata={},
         )
 
-        mock_compressor = AsyncMock()
-
-        def mock_compressor_factory() -> AsyncMock:
-            return mock_compressor
-
-        planner = ContextManagerPlanner(compressor_service_factory=mock_compressor_factory)
+        planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
 
         with (
             patch(
@@ -146,7 +135,7 @@ class TestContextManagerPlanner:
         assert result.correlation_id == "different-run"
 
     @pytest.mark.asyncio
-    async def test_plan_request_timing_metadata(self, mock_user: User) -> None:
+    async def test_plan_request_timing_metadata(self, mock_user: User, mock_compressor) -> None:
         """Test that timing metadata is properly recorded in AssemblerService."""
         mock_context_package = ContextPackage(
             correlation_id="timing-test",
@@ -161,12 +150,7 @@ class TestContextManagerPlanner:
             },
         )
 
-        mock_compressor = AsyncMock()
-
-        def mock_compressor_factory() -> AsyncMock:
-            return mock_compressor
-
-        planner = ContextManagerPlanner(compressor_service_factory=mock_compressor_factory)
+        planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
 
         with (
             patch(
@@ -192,7 +176,9 @@ class TestContextManagerPlanner:
         assert metadata["compression_retry_count"] == 0
 
     @pytest.mark.asyncio
-    async def test_plan_request_with_service_exceptions(self, mock_user: User, mock_session_factory) -> None:
+    async def test_plan_request_with_service_exceptions(
+        self, mock_user: User, mock_session_factory, mock_compressor
+    ) -> None:
         """Test plan_request handles retrieval exceptions gracefully."""
         # Mock retrieval service to raise exception
         mock_retrieve_service = AsyncMock()
@@ -210,15 +196,10 @@ class TestContextManagerPlanner:
             package_metadata={},
         )
 
-        mock_compressor = AsyncMock()
-
-        def mock_compressor_factory() -> AsyncMock:
-            return mock_compressor
-
         planner = ContextManagerPlanner(
             session_factory=mock_session_factory,
             retriever_service_factory=mock_retriever_factory,
-            compressor_service_factory=mock_compressor_factory,
+            compressor_service_factory=lambda: mock_compressor,
         )
 
         with (
@@ -252,7 +233,7 @@ class TestContextManagerPlanner:
             mock_retrieve_service.retrieve_relevant_documents.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_plan_request_passes_config_to_assembler(self, mock_user: User) -> None:
+    async def test_plan_request_passes_config_to_assembler(self, mock_user: User, mock_compressor) -> None:
         """Test that planner passes configuration values to AssemblerService."""
         mock_context_package = ContextPackage(
             correlation_id="config-test",
@@ -262,12 +243,7 @@ class TestContextManagerPlanner:
             package_metadata={},
         )
 
-        mock_compressor = AsyncMock()
-
-        def mock_compressor_factory() -> AsyncMock:
-            return mock_compressor
-
-        planner = ContextManagerPlanner(compressor_service_factory=mock_compressor_factory)
+        planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
 
         with (
             patch(

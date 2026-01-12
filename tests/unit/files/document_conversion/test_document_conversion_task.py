@@ -64,18 +64,12 @@ class TestDocumentConversionTaskConvert:
         )
 
     @pytest.mark.asyncio
-    async def test_convert_file_not_found(self, sample_file_id: UUID) -> None:
+    async def test_convert_file_not_found(self, sample_file_id: UUID, mock_session_factory) -> None:
         """Test convert returns FAILED when file not found in database."""
         # Create mock file manager that returns None
         mock_file_manager = MagicMock()
         mock_file_manager.get_file_metadata = AsyncMock(return_value=None)
         mock_file_manager.update_file_status = AsyncMock()
-
-        # Create mock session factory
-        mock_session = AsyncMock()
-
-        async def mock_session_factory() -> AsyncGenerator[AsyncMock, None]:
-            yield mock_session
 
         with patch(
             "nexus.files.document_conversion.tasks.document_conversion_task.get_file_manager",
@@ -93,7 +87,7 @@ class TestDocumentConversionTaskConvert:
 
     @pytest.mark.asyncio
     async def test_convert_skips_already_converted(
-        self, sample_file_id: UUID, sample_file_metadata: FileMetadata
+        self, sample_file_id: UUID, sample_file_metadata: FileMetadata, mock_session_factory
     ) -> None:
         """Test convert returns SKIPPED when file is not pending conversion."""
         # Set status to already converted
@@ -103,12 +97,6 @@ class TestDocumentConversionTaskConvert:
         mock_file_manager = MagicMock()
         mock_file_manager.get_file_metadata = AsyncMock(return_value=sample_file_metadata)
         mock_file_manager.update_file_status = AsyncMock()
-
-        # Create mock session factory
-        mock_session = AsyncMock()
-
-        async def mock_session_factory() -> AsyncGenerator[AsyncMock, None]:
-            yield mock_session
 
         task = DocumentConversionTask(
             file_manager_factory=lambda: mock_file_manager,
@@ -123,18 +111,14 @@ class TestDocumentConversionTaskConvert:
         mock_file_manager.update_file_status.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_convert_success(self, sample_file_id: UUID, sample_file_metadata: FileMetadata) -> None:
+    async def test_convert_success(
+        self, sample_file_id: UUID, sample_file_metadata: FileMetadata, mock_session_factory
+    ) -> None:
         """Test successful file conversion."""
         # Create mock file manager
         mock_file_manager = MagicMock()
         mock_file_manager.get_file_metadata = AsyncMock(return_value=sample_file_metadata)
         mock_file_manager.update_file_status = AsyncMock()
-
-        # Create mock session factory
-        mock_session = AsyncMock()
-
-        async def mock_session_factory() -> AsyncGenerator[AsyncMock, None]:
-            yield mock_session
 
         # Create mock conversion service
         mock_service = MagicMock()
@@ -153,18 +137,14 @@ class TestDocumentConversionTaskConvert:
         mock_service.convert_file.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_convert_handles_exception(self, sample_file_id: UUID, sample_file_metadata: FileMetadata) -> None:
+    async def test_convert_handles_exception(
+        self, sample_file_id: UUID, sample_file_metadata: FileMetadata, mock_session_factory
+    ) -> None:
         """Test convert handles exceptions gracefully."""
         # Create mock file manager
         mock_file_manager = MagicMock()
         mock_file_manager.get_file_metadata = AsyncMock(return_value=sample_file_metadata)
         mock_file_manager.update_file_status = AsyncMock()
-
-        # Create mock session factory
-        mock_session = AsyncMock()
-
-        async def mock_session_factory() -> AsyncGenerator[AsyncMock, None]:
-            yield mock_session
 
         # Create mock conversion service that raises an exception
         mock_service = MagicMock()
@@ -183,7 +163,7 @@ class TestDocumentConversionTaskConvert:
         mock_file_manager.update_file_status.assert_called()
 
     @pytest.mark.asyncio
-    async def test_convert_with_uuid(self, sample_file_metadata: FileMetadata) -> None:
+    async def test_convert_with_uuid(self, sample_file_metadata: FileMetadata, mock_session_factory) -> None:
         """Test convert works with UUID file_id."""
         file_uuid = sample_file_metadata.id
 
@@ -191,12 +171,6 @@ class TestDocumentConversionTaskConvert:
         mock_file_manager = MagicMock()
         mock_file_manager.get_file_metadata = AsyncMock(return_value=sample_file_metadata)
         mock_file_manager.update_file_status = AsyncMock()
-
-        # Create mock session factory
-        mock_session = AsyncMock()
-
-        async def mock_session_factory() -> AsyncGenerator[AsyncMock, None]:
-            yield mock_session
 
         # Create mock conversion service
         mock_service = MagicMock()

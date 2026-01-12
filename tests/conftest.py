@@ -1422,3 +1422,18 @@ def mock_token_calculator() -> Mock:
     from nexus.agent_orchestrator.token_manager.services import TokenCalculator
 
     return Mock(spec=TokenCalculator)
+
+
+@pytest.fixture
+def mock_compressor() -> AsyncMock:
+    """Create a mock CompressorService for testing.
+
+    This fixture provides an AsyncMock for CompressorService,
+    useful for testing context manager and assembler logic without
+    actual compression overhead.
+
+    Returns:
+        AsyncMock: A mock CompressorService instance.
+
+    """
+    return AsyncMock()

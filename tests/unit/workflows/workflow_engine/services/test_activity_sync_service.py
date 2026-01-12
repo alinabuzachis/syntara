@@ -17,10 +17,9 @@ from nexus.workflows.workflow_engine.services.activity_sync_service import Activ
 class TestActivitySyncService:
     """Test ActivitySyncService class."""
 
-    def test_init(self) -> None:
+    def test_init(self, mock_session_factory) -> None:
         """Test service initialization."""
         mock_client = Mock()
-        mock_session_factory = Mock()
 
         service = ActivitySyncService(
             temporal_client=mock_client,
@@ -32,20 +31,18 @@ class TestActivitySyncService:
         assert service._sync_tasks == {}
         assert service._shutdown is False
 
-    def test_is_monitoring_execution_returns_false_when_not_monitoring(self) -> None:
+    def test_is_monitoring_execution_returns_false_when_not_monitoring(self, mock_session_factory) -> None:
         """Test is_monitoring_execution returns False when execution not monitored."""
         mock_client = Mock()
-        mock_session_factory = Mock()
         service = ActivitySyncService(mock_client, mock_session_factory)
 
         execution_id = uuid4()
 
         assert service.is_monitoring_execution(execution_id) is False
 
-    def test_is_monitoring_execution_returns_true_when_monitoring(self) -> None:
+    def test_is_monitoring_execution_returns_true_when_monitoring(self, mock_session_factory) -> None:
         """Test is_monitoring_execution returns True when execution is monitored."""
         mock_client = Mock()
-        mock_session_factory = Mock()
         service = ActivitySyncService(mock_client, mock_session_factory)
 
         execution_id = uuid4()
@@ -55,10 +52,9 @@ class TestActivitySyncService:
         assert service.is_monitoring_execution(execution_id) is True
 
     @pytest.mark.asyncio
-    async def test_start_monitoring_execution_stores_task(self) -> None:
+    async def test_start_monitoring_execution_stores_task(self, mock_session_factory) -> None:
         """Test start_monitoring_execution stores monitoring task."""
         mock_client = Mock()
-        mock_session_factory = Mock()
         service = ActivitySyncService(mock_client, mock_session_factory)
 
         execution_id = uuid4()
@@ -84,10 +80,9 @@ class TestActivitySyncService:
                 await task
 
     @pytest.mark.asyncio
-    async def test_start_monitoring_execution_skips_if_already_monitoring(self) -> None:
+    async def test_start_monitoring_execution_skips_if_already_monitoring(self, mock_session_factory) -> None:
         """Test start_monitoring_execution skips if already monitoring."""
         mock_client = Mock()
-        mock_session_factory = Mock()
         service = ActivitySyncService(mock_client, mock_session_factory)
 
         execution_id = uuid4()
@@ -102,10 +97,9 @@ class TestActivitySyncService:
             mock_monitor.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_shutdown_cancels_all_tasks(self) -> None:
+    async def test_shutdown_cancels_all_tasks(self, mock_session_factory) -> None:
         """Test shutdown cancels all monitoring tasks."""
         mock_client = Mock()
-        mock_session_factory = Mock()
         service = ActivitySyncService(mock_client, mock_session_factory)
 
         task1 = asyncio.create_task(asyncio.sleep(100))

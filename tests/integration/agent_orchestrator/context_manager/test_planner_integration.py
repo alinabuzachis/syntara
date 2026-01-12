@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator.context_manager.compressor import CompressorService
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
 from nexus.agent_orchestrator.context_manager.planner import ContextManagerPlanner
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import (
@@ -54,21 +53,8 @@ def create_retriever_factory(
 ) -> Callable[[Callable[[], AsyncGenerator[AsyncSession, None]]], RetrieverService]:
     """Create a retriever factory that returns the mocked retriever."""
 
-    def factory(
-        session_factory: Callable[[], AsyncGenerator[AsyncSession, None]],
-    ) -> RetrieverService:
+    def factory(session_factory: Callable[[], AsyncGenerator[AsyncSession, None]]) -> AsyncMock:
         return mock_retriever
-
-    return factory
-
-
-def create_compressor_factory(mock_compressor: AsyncMock | None = None) -> Callable[[], CompressorService]:
-    """Create a compressor factory that returns a mocked compressor."""
-    if mock_compressor is None:
-        mock_compressor = AsyncMock()
-
-    def factory() -> CompressorService:
-        return mock_compressor
 
     return factory
 
@@ -116,6 +102,7 @@ class TestPlannerAssemblerIntegration:
         self,
         test_db_session,
         test_user,
+        mock_compressor,
     ) -> None:
         """Test planner passes compression_loop parameter correctly to AssemblerService."""
         docs = [create_test_document("Test document content", 0.8)]
@@ -123,7 +110,7 @@ class TestPlannerAssemblerIntegration:
         mock_retriever = create_mock_retriever(docs)
         planner = ContextManagerPlanner(
             retriever_service_factory=create_retriever_factory(mock_retriever),
-            compressor_service_factory=create_compressor_factory(),
+            compressor_service_factory=lambda: mock_compressor,
         )
 
         result = await execute_planner_request(planner, test_db_session, test_user, "test-integration")
@@ -144,6 +131,7 @@ class TestPlannerAssemblerIntegration:
         self,
         test_db_session,
         test_user,
+        mock_compressor,
     ) -> None:
         """Test planner injects TokenValidationService and CompressorService into AssemblerService."""
         doc = create_test_document("Short document", 0.9)
@@ -152,7 +140,7 @@ class TestPlannerAssemblerIntegration:
         mock_retriever = create_mock_retriever(docs)
         planner = ContextManagerPlanner(
             retriever_service_factory=create_retriever_factory(mock_retriever),
-            compressor_service_factory=create_compressor_factory(),
+            compressor_service_factory=lambda: mock_compressor,
         )
 
         result = await execute_planner_request(planner, test_db_session, test_user, "test-dependencies")
@@ -177,14 +165,14 @@ class TestPlannerAssemblerIntegration:
         """Test planner injects CompressorService into AssemblerService correctly."""
         docs = [create_test_document("Test content", 0.8)]
 
-        # Mock compressor to verify it gets injected
-        mock_compressor = AsyncMock()
-        mock_compressor.compress = AsyncMock(return_value="Compressed content")
+        # Mock compressor to verify it gets injected (custom behavior for this test)
+        custom_mock_compressor = AsyncMock()
+        custom_mock_compressor.compress = AsyncMock(return_value="Compressed content")
 
         mock_retriever = create_mock_retriever(docs)
         planner = ContextManagerPlanner(
             retriever_service_factory=create_retriever_factory(mock_retriever),
-            compressor_service_factory=create_compressor_factory(mock_compressor),
+            compressor_service_factory=lambda: custom_mock_compressor,
         )
 
         result = await execute_planner_request(planner, test_db_session, test_user, "test-compression")
@@ -198,6 +186,7 @@ class TestPlannerAssemblerIntegration:
         self,
         test_db_session,
         test_user,
+        mock_compressor,
     ) -> None:
         """Test planner returns ContextPackage directly from AssemblerService without rebuilding."""
         doc1 = create_test_document("Document 1", 0.7, "test1.txt")
@@ -207,7 +196,7 @@ class TestPlannerAssemblerIntegration:
         mock_retriever = create_mock_retriever(docs)
         planner = ContextManagerPlanner(
             retriever_service_factory=create_retriever_factory(mock_retriever),
-            compressor_service_factory=create_compressor_factory(),
+            compressor_service_factory=lambda: mock_compressor,
         )
 
         result = await execute_planner_request(planner, test_db_session, test_user, "test-direct-return")
