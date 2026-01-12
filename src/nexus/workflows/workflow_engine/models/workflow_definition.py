@@ -5,6 +5,7 @@ They are used for validation and type-safe access to workflow configuration.
 """
 
 import re
+import uuid
 from enum import Enum
 from http import HTTPMethod
 from typing import Any, Literal, Self
@@ -241,6 +242,7 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
         agent: Optional agent identifier for routing
         model: Optional model identifier
         timeout: Timeout for agent invocation in seconds (default from NEXUS_AGENTIC_TIMEOUT_SECONDS, max: 3600)
+        file_ids: List of file IDs to include as context for the agent (max 10)
 
     """
 
@@ -255,6 +257,27 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
         le=3600,
         description="Timeout in seconds (default from NEXUS_AGENTIC_TIMEOUT_SECONDS, max: 3600)",
     )
+    file_ids: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="List of file IDs to include as context for the agent",
+        alias="fileIds",
+    )
+
+    @field_validator("file_ids")
+    @classmethod
+    def validate_file_ids_format(cls, v: list[str]) -> list[str]:
+        """Validate each file_id is a valid UUID format (unless it's a template expression)."""
+        for file_id in v:
+            # Skip template expressions like ${input.files}
+            if isinstance(file_id, str) and TEMPLATE_PATTERN.search(file_id):
+                continue
+            try:
+                uuid.UUID(file_id)
+            except ValueError as err:
+                msg = f"Invalid file_id format: '{file_id}'. Must be a valid UUID."
+                raise ValueError(msg) from err
+        return v
 
 
 class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
