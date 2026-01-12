@@ -799,23 +799,22 @@ components:
               title: Context Data
               description: |
                 Additional context for the invocation.
-                When files are uploaded, includes file_metadata array.
+                When files are uploaded, includes file_ids array (list of UUID strings referencing FileMetadata table).
               properties:
-                file_metadata:
+                file_ids:
                   type: array
-                  description: Metadata for uploaded files (populated when files are attached)
+                  description: File IDs referencing FileMetadata records (populated when files are attached)
                   items:
-                    $ref: ../files/files-api.yaml#/components/schemas/FileMetadata
+                    type: string
+                    format: uuid
+                    description: UUID of a FileMetadata record
               additionalProperties: true
               example:
                 environment: production
                 app_id: customer-svc
-                file_metadata:
-                  - id: 550e8400-e29b-41d4-a716-446655440000
-                    filename: document.pdf
-                    size_bytes: 524288
-                    mime_type: application/pdf
-                    status: pending_conversion
+                file_ids:
+                  - 550e8400-e29b-41d4-a716-446655440000
+                  - 660e8400-e29b-41d4-a716-446655440001
             result:
               type: object
               nullable: true

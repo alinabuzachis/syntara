@@ -120,12 +120,12 @@ class Invocation(UserOwnedResource, table=True):
 
     # JSONB fields
     # Note: context_data may contain:
-    # - file_metadata: list[dict] - File upload metadata (see FileMetadata model)
+    # - file_ids: list[str] - File IDs referencing FileMetadata table
     # - Other context fields as needed
     context_data: dict[str, object] = Field(
         default_factory=dict,
         sa_type=JSONB,
-        description="Additional context for the request, including file_metadata array if files uploaded",
+        description="Additional context for the request, including file_ids array if files uploaded",
     )
 
     result: dict[str, object] | None = Field(

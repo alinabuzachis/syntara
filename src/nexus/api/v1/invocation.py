@@ -103,7 +103,7 @@ async def invoke_agent(
         files: File uploads (multipart/form-data only, 1-10 files, max 10MB each by default)
 
     Returns:
-        Created invocation with file_metadata in context_data if files uploaded
+        Created invocation with file_ids in context_data if files uploaded
 
     Raises:
         HTTPException: 400 for validation errors, 500 for storage failures
