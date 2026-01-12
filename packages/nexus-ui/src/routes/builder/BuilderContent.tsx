@@ -25,12 +25,12 @@ import {
 } from '@patternfly/react-core'
 import {
   RhUiPlayFillIcon,
-  RhUiAddIcon,
   RhUiHistoryIcon,
   RhUiCodeIcon,
   RhUiSaveFillIcon,
   RhUiTrashIcon,
   RhUiEllipsisVerticalFillIcon,
+  RhUiAddSquareIcon,
 } from '@patternfly/react-icons'
 import { useQueryClient, type Query } from '@tanstack/react-query'
 import { useReactFlow, type Node } from '@xyflow/react'
@@ -603,7 +603,7 @@ export function BuilderContent(props: BuilderContentProps) {
                 }}
                 icon={
                   <Icon isInline>
-                    <RhUiAddIcon />
+                    <RhUiAddSquareIcon />
                   </Icon>
                 }
                 iconPosition="start"

@@ -15,7 +15,7 @@ import {
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
-import { RhUiAddIcon, RhUiCloseIcon, RhUiArrowLeftIcon } from '@patternfly/react-icons'
+import { RhUiCloseIcon, RhUiArrowLeftIcon, RhUiAddSquareIcon } from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
 
 import { useWorkflowStore, useWorkflowStoreActions } from '../../stores/useWorkflowStore'
@@ -190,7 +190,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
               <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
                 <FlexItem>
                   <Icon>
-                    <RhUiAddIcon />
+                    <RhUiAddSquareIcon />
                   </Icon>
                 </FlexItem>
                 <FlexItem>
