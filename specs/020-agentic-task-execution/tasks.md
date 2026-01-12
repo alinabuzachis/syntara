@@ -157,18 +157,18 @@ flowchart TD
 
 ## Phase 3.6: AAP-60417: Tool Calling Support - Tests First
 
-- [ ] T021 [P] LangChain tool loading integration tests in tests/integration/agent_orchestrator/test_langchain_integration.py
-- [ ] T022 [P] StateGraph tool registration tests in tests/integration/agent_orchestrator/test_stategraph_integration.py
-- [ ] T023 [P] End-to-end tool execution workflow tests in tests/integration/agent_orchestrator/test_tool_execution_workflow.py
+- [x] T021 [P] LangChain tool loading integration tests (covered by ToolSynchronizer tests in tool_manager module)
+- [x] T022 [P] StateGraph tool registration tests (covered by test_tool_execution_workflow.py)
+- [x] T023 [P] End-to-end tool execution workflow tests in tests/integration/agent_orchestrator/test_tool_execution_workflow.py
 
 ## Phase 3.7: AAP-60417: Tool Calling Support Implementation
 
-- [ ] T024 LangChain tool loading and BaseTool conversion in src/nexus/agent_orchestrator/tool_manager/langchain_adapter.py
+- [x] T024 LangChain tool loading and BaseTool conversion (handled by ToolSynchronizer in tool_services.py)
 - [ ] T025 [P] Tool execution failure retry and auto-disable logic implementing FR-009 retry-then-disable workflow (3 retries with exponential backoff, set enabled=False and status=MISSING/ERROR on persistent failure) in src/nexus/agent_orchestrator/tool_manager/execution_failure_handler.py
 - [ ] T026 [P] Custom error handler function for tool execution monitoring with 30-second timeout enforcement in src/nexus/agent_orchestrator/tool_manager/tool_error_handler.py
 - [ ] T027 [P] Tool execution logging wrapper functions (wrap_tool_call/awrap_tool_call) with timeout tracking for FR-007 in src/nexus/agent_orchestrator/tool_manager/tool_execution_logging.py
-- [ ] T028 Add ToolNode to existing StateGraph with tool discovery and error handler integration, using logging wrappers from tool_manager module in src/nexus/agent_orchestrator/services/orchestration_service.py
-- [ ] T029 Integrate tool execution monitoring with existing streaming infrastructure in src/nexus/agent_orchestrator/services/orchestration_service.py
+- [x] T028 Add ToolNode to existing StateGraph with tool discovery and error handler integration, using logging wrappers from tool_manager module in src/nexus/agent_orchestrator/services/orchestration_service.py
+- [x] T029 Integrate tool execution monitoring with existing streaming infrastructure in src/nexus/agent_orchestrator/services/orchestration_service.py
 
 ## Phase 3.8: Edge Case Testing
 

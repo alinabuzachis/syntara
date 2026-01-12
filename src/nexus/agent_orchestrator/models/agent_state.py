@@ -4,8 +4,13 @@ This module defines the state structure that flows through the LangGraph
 state machine during agent orchestration.
 """
 
-from typing import Any, TypedDict
+import operator
+from typing import Annotated, Any
 from uuid import UUID
+
+from langchain.messages import AnyMessage
+from langchain_core.messages import HumanMessage
+from typing_extensions import TypedDict
 
 from nexus.agent_orchestrator.constants import AgentRoutes
 
@@ -43,6 +48,10 @@ class AgentState(TypedDict):
     current_agent: str
     """Name of the current/target agent ('orchestrator', 'generic_agent', 'workflow_generator')"""
 
+    # Tool execution messages
+    messages: Annotated[list[AnyMessage], operator.add]
+    """Messages for LangGraph ToolNode execution and LLM communication"""
+
     # Results
     result: dict[str, Any] | None
     """Final result from agent execution"""
@@ -53,7 +62,10 @@ class AgentStateFactory:
 
     @staticmethod
     def create_initial_state(
-        prompt: str, session_id: str, invocation_id: UUID, correlation_id: str | None = None
+        prompt: str,
+        session_id: str,
+        invocation_id: UUID,
+        correlation_id: str | None = None,
     ) -> AgentState:
         """Create initial state for LangGraph execution.
 
@@ -75,5 +87,6 @@ class AgentStateFactory:
             invocation_id=str(invocation_id),
             context_package=None,
             current_agent=AgentRoutes.ORCHESTRATOR,
+            messages=[HumanMessage(prompt)],
             result=None,
         )

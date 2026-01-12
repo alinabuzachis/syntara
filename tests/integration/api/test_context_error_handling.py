@@ -32,8 +32,6 @@ class TestContextErrorHandling:
         - Original prompt is used when context enhancement fails
         - Error is logged but doesn't propagate to user
         - Response may not have context metadata on failure
-
-        This test MUST FAIL until T008 (error handling implementation) is implemented.
         """
         # Mock Context Manager to simulate failure
         with patch.object(ContextManagerPlanner, "plan_request") as mock_plan:
@@ -92,8 +90,6 @@ class TestContextErrorHandling:
         """Test graceful handling of Context Manager timeouts.
 
         Verifies that slow context processing doesn't block invocation indefinitely.
-
-        This test MUST FAIL until T008 (error handling implementation) is implemented.
         """
 
         # Mock Context Manager to simulate slow response
@@ -101,7 +97,13 @@ class TestContextErrorHandling:
             await asyncio.sleep(5.0)  # Simulate 5 second delay
             return ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
 
-        with patch.object(ContextManagerPlanner, "plan_request", side_effect=slow_plan_request):
+        with (
+            patch.object(ContextManagerPlanner, "plan_request", side_effect=slow_plan_request),
+            patch("nexus.core.config.get_settings") as mock_get_settings,
+        ):
+            # Mock settings to use a short timeout to avoid long test runs
+            mock_settings = mock_get_settings.return_value
+            mock_settings.context_manager_request_timeout_seconds = 3
             prompt = "Test timeout handling"
             session_id = "timeout-test"
 
@@ -143,8 +145,6 @@ class TestContextErrorHandling:
         """Test handling of partial context failures.
 
         Tests scenarios where Context Manager returns successfully but with incomplete data.
-
-        This test MUST FAIL until T008 (error handling implementation) is implemented.
         """
         # Mock Context Manager to return context package with some fields missing/invalid
         mock_context_package = ContextPackage(
@@ -198,8 +198,6 @@ class TestContextErrorHandling:
         """Test handling of different types of Context Manager exceptions.
 
         This verifies graceful handling of various failure modes.
-
-        This test MUST FAIL until T008 (error handling implementation) is implemented.
         """
         exception_types = [
             ConnectionError("Database connection failed"),
@@ -250,9 +248,7 @@ class TestContextErrorHandling:
 
         Verifies that errors are logged with appropriate context for troubleshooting.
         """
-        with (
-            patch.object(ContextManagerPlanner, "plan_request") as mock_plan,
-        ):
+        with patch.object(ContextManagerPlanner, "plan_request") as mock_plan:
             mock_plan.side_effect = ConnectionError("Database unavailable")
 
             prompt = "Test logging on context failure"

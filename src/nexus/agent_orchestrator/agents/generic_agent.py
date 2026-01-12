@@ -4,14 +4,19 @@ Handles information queries and questions using LLM via OpenRouter.
 """
 
 import logging
+from typing import TYPE_CHECKING
 
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import SystemMessage
+from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
 from nexus.agent_orchestrator.agents.base_agent import BaseAgent
-from nexus.agent_orchestrator.models.agent_response import GenericAgentResponse
+from nexus.agent_orchestrator.models import GenericAgentResponse
 from nexus.agent_orchestrator.models.agent_state import AgentState
 from nexus.agent_orchestrator.utils.retry import retry_with_backoff
+
+if TYPE_CHECKING:
+    from langchain.messages import AnyMessage
 
 logger = logging.getLogger(__name__)
 
@@ -23,31 +28,20 @@ class GenericAgent(BaseAgent):
     to user questions about tools, services, and capabilities.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ChatOpenAI, available_tools: list[BaseTool]) -> None:
         """Initialize GenericAgent with LangChain LLM.
 
         Args:
             llm: Configured ChatOpenAI instance (from openrouter_config)
+            available_tools: Tools that are available to the LLM
 
         """
         super().__init__()
         self.llm: ChatOpenAI = llm
-
-        # Create prompt template for information queries
-        self.prompt_template = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "You are an information assistant for the Nexus automation system. "
-                    "Answer user questions concisely and accurately. "
-                    "Focus on providing helpful, direct answers about tools, services, and capabilities.",
-                ),
-                ("human", "{query}"),
-            ]
-        )
+        self.available_tools = available_tools
 
     @retry_with_backoff
-    async def _execute(self, state: AgentState) -> GenericAgentResponse:
+    async def _execute(self, state: AgentState) -> AgentState:
         """Execute GenericAgent-specific logic: query LLM for answer.
 
         Args:
@@ -57,28 +51,31 @@ class GenericAgent(BaseAgent):
             GenericAgentResponse SQLModel instance with LLM-generated answer
 
         """
-        # Use the enhanced prompt from orchestrator (includes context)
-        enhanced_prompt = state["prompt"]
-
-        # Format prompt using template
-        messages = self.prompt_template.format_messages(query=enhanced_prompt)
-
         # Query LLM via LangChain (async)
-        response = await self.llm.ainvoke(messages)
+        llm_with_tools = self.llm.bind_tools(self.available_tools)
+        messages: list[AnyMessage] = [
+            SystemMessage(
+                content="You are an information assistant for the Nexus automation system. "
+                "Answer user questions concisely and accurately. "
+                "Focus on providing helpful, direct answers about tools, services, and capabilities."
+            )
+        ] + state["messages"]
+        result_message = await llm_with_tools.ainvoke(messages)
 
-        # Extract content from response as a string
-        answer = str(response.text)
+        # Update AgentState
+        state["messages"] = [result_message]
+        answer = str(result_message.text)
+        response_metadata = result_message.response_metadata
+        response_model: GenericAgentResponse = GenericAgentResponse(content=answer, response_metadata=response_metadata)
 
-        # Handle empty response
+        # Handle empty responses
         if not answer or not answer.strip():
-            return self._handle_empty_response(
+            response_model = self._handle_empty_response(
                 state["invocation_id"],
-                response.response_metadata,
+                result_message.response_metadata,
                 message=None,
             )
 
-        # Return GenericAgentResponse SQLModel instance
-        return GenericAgentResponse(
-            content=answer,
-            response_metadata=response.response_metadata,
-        )
+        state["result"] = response_model.model_dump(by_alias=True)
+
+        return state

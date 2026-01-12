@@ -2,7 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, NoReturn
+from typing import NoReturn
 
 from nexus.agent_orchestrator.exceptions import (
     AgentConfigurationError,
@@ -11,7 +11,6 @@ from nexus.agent_orchestrator.exceptions import (
     AgentTimeoutError,
 )
 from nexus.agent_orchestrator.models.agent_response import (
-    BaseAgentResponse,
     GenericAgentResponse,
 )
 from nexus.agent_orchestrator.models.agent_state import AgentState
@@ -33,7 +32,7 @@ class BaseAgent(ABC):
         """Initialize base agent."""
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    async def execute_as_node(self, state: AgentState) -> dict[str, Any]:
+    async def execute_as_node(self, state: AgentState) -> AgentState:
         """Execute as LangGraph node with standardized workflow.
 
         This template method enforces a consistent execution pattern across all agents:
@@ -60,20 +59,17 @@ class BaseAgent(ABC):
 
         try:
             # Call agent-specific implementation (returns SQLModel instance)
-            response_model = await self._execute(state)
-
-            # Convert SQLModel to dict for LangGraph compatibility
-            result: dict[str, Any] = response_model.model_dump(by_alias=True)
+            updated_state = await self._execute(state)
 
             self._log_execution_success(state["invocation_id"])
 
-            return result
+            return updated_state
 
         except Exception as e:  # noqa: BLE001
             self._handle_execution_error(e, state["invocation_id"])
 
     @abstractmethod
-    async def _execute(self, state: AgentState) -> BaseAgentResponse:
+    async def _execute(self, state: AgentState) -> AgentState:
         """Execute agent-specific logic.
 
         This method must be implemented by each concrete agent to provide

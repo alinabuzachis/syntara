@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
+from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 
 
 def create_mock_streaming_event(event_type: str, content: str | None = None) -> dict[str, Any]:
@@ -54,12 +55,10 @@ class TestOrchestrationServiceInitialization:
         mock_context_manager = MagicMock()
 
         # Act
-        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 
         service = OrchestrationService(mock_llm, mock_context_manager)
 
         # Assert
-        assert service.graph is not None
         assert service.llm == mock_llm
         assert service.context_manager == mock_context_manager
 
@@ -83,18 +82,15 @@ class TestOrchestrationServiceStreamingExecution:
         )
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
-        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
-
         service = OrchestrationService(mock_llm, mock_context_manager)
         invocation_id = uuid4()
 
         # Mock astream_events to return streaming chunks
+        mock_graph = AsyncMock()
+        mock_graph.astream_events = lambda *_args, **_kwargs: mock_astream_events_generator("Hello", " ", "World")
+
         with (
-            patch.object(
-                service.graph,
-                "astream_events",
-                return_value=mock_astream_events_generator("Hello", " ", "World"),
-            ),
+            patch.object(service, "_setup_graph", return_value=mock_graph),
             patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
         ):
             mock_client_instance = AsyncMock()
@@ -140,14 +136,15 @@ class TestOrchestrationServiceStreamingExecution:
         test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
         mock_context_manager.plan_request.return_value = test_context
 
-        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
-
         service = OrchestrationService(mock_llm, mock_context_manager)
         invocation_id = uuid4()
 
         # Mock astream_events
+        mock_graph = AsyncMock()
+        mock_graph.astream_events = lambda *_args, **_kwargs: mock_astream_events_generator("Test")
+
         with (
-            patch.object(service.graph, "astream_events", return_value=mock_astream_events_generator("Test")),
+            patch.object(service, "_setup_graph", return_value=mock_graph),
             patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
         ):
             mock_client_instance = AsyncMock()
@@ -180,14 +177,15 @@ class TestOrchestrationServiceStreamingExecution:
         test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
         mock_context_manager.plan_request.return_value = test_context
 
-        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
-
         service = OrchestrationService(mock_llm, mock_context_manager)
         invocation_id = uuid4()
 
         # Mock astream_events
+        mock_graph = AsyncMock()
+        mock_graph.astream_events = lambda *_args, **_kwargs: mock_astream_events_generator("Done")
+
         with (
-            patch.object(service.graph, "astream_events", return_value=mock_astream_events_generator("Done")),
+            patch.object(service, "_setup_graph", return_value=mock_graph),
             patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
         ):
             mock_client_instance = AsyncMock()
@@ -224,8 +222,6 @@ class TestOrchestrationServiceErrorHandling:
         test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
         mock_context_manager.plan_request.return_value = test_context
 
-        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
-
         service = OrchestrationService(mock_llm, mock_context_manager)
         invocation_id = uuid4()
 
@@ -236,8 +232,11 @@ class TestOrchestrationServiceErrorHandling:
             msg = "LLM streaming error"
             raise RuntimeError(msg)
 
+        mock_graph = AsyncMock()
+        mock_graph.astream_events = lambda *_args, **_kwargs: error_generator()
+
         with (
-            patch.object(service.graph, "astream_events", return_value=error_generator()),
+            patch.object(service, "_setup_graph", return_value=mock_graph),
             patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
         ):
             mock_client_instance = AsyncMock()
@@ -268,8 +267,6 @@ class TestOrchestrationServiceErrorHandling:
         test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
         mock_context_manager.plan_request.return_value = test_context
 
-        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
-
         service = OrchestrationService(mock_llm, mock_context_manager)
         invocation_id = uuid4()
 
@@ -281,8 +278,11 @@ class TestOrchestrationServiceErrorHandling:
                 yield create_mock_streaming_event("on_chat_model_stream", "")
             raise ValueError(msg)
 
+        mock_graph = AsyncMock()
+        mock_graph.astream_events = lambda *_args, **_kwargs: error_generator()
+
         with (
-            patch.object(service.graph, "astream_events", return_value=error_generator()),
+            patch.object(service, "_setup_graph", return_value=mock_graph),
             patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
         ):
             mock_client_instance = AsyncMock()
@@ -315,16 +315,23 @@ class TestOrchestrationServiceSessionManagement:
         test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
-        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
-
         service = OrchestrationService(mock_llm, mock_context_manager)
         session_id = "multi-turn-session"
         invocation_id_1 = uuid4()
         invocation_id_2 = uuid4()
 
-        # Mock astream_events
+        # Mock astream_events with tracking
+        mock_graph = AsyncMock()
+        call_tracker = []
+
+        def track_calls(state: object, config: object, **kwargs: object) -> AsyncGenerator[dict[str, Any], None]:
+            call_tracker.append((state, config, kwargs))
+            return mock_astream_events_generator("Response")
+
+        mock_graph.astream_events = track_calls
+
         with (
-            patch.object(service.graph, "astream_events", return_value=mock_astream_events_generator("Response")),
+            patch.object(service, "_setup_graph", return_value=mock_graph),
             patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
         ):
             mock_client_instance = AsyncMock()
@@ -351,13 +358,13 @@ class TestOrchestrationServiceSessionManagement:
             assert result2["response_metadata"]["source"] == "streaming"
 
             # Both should have been executed with same session_id for checkpointing
-            assert service.graph.astream_events.call_count == 2  # type: ignore[attr-defined]
+            assert len(call_tracker) == 2
 
             # Verify both used the same session_id in config
-            call1 = service.graph.astream_events.call_args_list[0]  # type: ignore[attr-defined]
-            call2 = service.graph.astream_events.call_args_list[1]  # type: ignore[attr-defined]
-            assert call1[0][1]["configurable"]["thread_id"] == session_id
-            assert call2[0][1]["configurable"]["thread_id"] == session_id
+            call1 = call_tracker[0]
+            call2 = call_tracker[1]
+            assert call1[1]["configurable"]["thread_id"] == session_id  # type: ignore[index]
+            assert call2[1]["configurable"]["thread_id"] == session_id  # type: ignore[index]
 
 
 class TestOrchestrationServiceLogging:
@@ -374,14 +381,15 @@ class TestOrchestrationServiceLogging:
         test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
-        from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
-
         service = OrchestrationService(mock_llm, mock_context_manager)
         invocation_id = uuid4()
 
         # Mock astream_events
+        mock_graph = AsyncMock()
+        mock_graph.astream_events = lambda *_args, **_kwargs: mock_astream_events_generator("Test")
+
         with (
-            patch.object(service.graph, "astream_events", return_value=mock_astream_events_generator("Test")),
+            patch.object(service, "_setup_graph", return_value=mock_graph),
             patch("nexus.agent_orchestrator.services.orchestration_service.StreamClient") as mock_stream_client,
             patch("nexus.agent_orchestrator.services.orchestration_service.logger") as mock_logger,
         ):

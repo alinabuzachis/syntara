@@ -4,11 +4,11 @@ Tests the GenericAgent implementation using LangGraph node execution.
 """
 
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from nexus.agent_orchestrator.agents import GenericAgent
 from nexus.agent_orchestrator.exceptions import (
@@ -28,13 +28,16 @@ class TestGenericAgentLLMIntegration:
     @pytest.mark.asyncio
     async def test_generic_agent_queries_llm_and_returns_answer(self) -> None:
         """Test GenericAgent queries LangChain LLM via LangGraph node execution."""
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(
-            content="Available tools include deployment-agent, monitoring-agent, and testing-agent."
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.return_value = AIMessage(
+            content="Available tools include deployment-agent, monitoring-agent, and testing-agent.",
+            response_metadata={},
         )
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
-        agent = GenericAgent(llm=mock_llm)
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
         invocation_id = uuid4()
         state: AgentState = {
             "prompt": "What tools are available for deployment?",
@@ -44,25 +47,31 @@ class TestGenericAgentLLMIntegration:
             "invocation_id": str(invocation_id),
             "context_package": None,
             "current_agent": "generic_agent",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
         response = await agent.execute_as_node(state)
 
         assert isinstance(response, dict)
-        assert response["type"] == "answer"
-        assert "deployment-agent" in response["content"]
-        assert "monitoring-agent" in response["content"]
-        mock_llm.ainvoke.assert_called_once()
+        assert "result" in response
+        result = response["result"]
+        assert result is not None
+        assert result["type"] == "answer"
+        assert "deployment-agent" in result["content"]
+        assert "monitoring-agent" in result["content"]
+        mock_llm_with_tools.ainvoke.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generic_agent_result_type_is_answer_not_workflow(self) -> None:
         """Test GenericAgent returns type='answer' (not 'workflow')."""
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="Test answer")
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.return_value = AIMessage(content="Test answer", response_metadata={})
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
-        agent = GenericAgent(llm=mock_llm)
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
         invocation_id = uuid4()
         state: AgentState = {
             "prompt": "test query",
@@ -72,23 +81,28 @@ class TestGenericAgentLLMIntegration:
             "invocation_id": str(invocation_id),
             "context_package": None,
             "current_agent": "generic_agent",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
         response = await agent.execute_as_node(state)
 
-        assert response["type"] == "answer"
+        result = response["result"]
+        assert result is not None
+        assert result["type"] == "answer"
 
     @pytest.mark.asyncio
     async def test_generic_agent_raises_configuration_error_for_invalid_api_key(
         self,
     ) -> None:
         """Test GenericAgent raises AgentConfigurationError for invalid API key."""
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.side_effect = RuntimeError("Invalid API key")
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.side_effect = RuntimeError("Invalid API key")
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
-        agent = GenericAgent(llm=mock_llm)
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
         invocation_id = str(uuid4())
         state: AgentState = {
             "prompt": "test query",
@@ -98,6 +112,7 @@ class TestGenericAgentLLMIntegration:
             "invocation_id": invocation_id,
             "context_package": None,
             "current_agent": "generic_agent",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
@@ -110,11 +125,13 @@ class TestGenericAgentLLMIntegration:
     @pytest.mark.asyncio
     async def test_generic_agent_raises_rate_limit_error(self) -> None:
         """Test GenericAgent raises AgentRateLimitError for rate limit errors."""
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.side_effect = RuntimeError("Rate limit exceeded")
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.side_effect = RuntimeError("Rate limit exceeded")
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
-        agent = GenericAgent(llm=mock_llm)
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
         invocation_id = str(uuid4())
         state: AgentState = {
             "prompt": "test query",
@@ -124,6 +141,7 @@ class TestGenericAgentLLMIntegration:
             "invocation_id": invocation_id,
             "context_package": None,
             "current_agent": "generic_agent",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
@@ -136,11 +154,13 @@ class TestGenericAgentLLMIntegration:
     @pytest.mark.asyncio
     async def test_generic_agent_raises_timeout_error(self) -> None:
         """Test GenericAgent raises AgentTimeoutError for timeout scenarios."""
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.side_effect = TimeoutError("Request timed out")
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.side_effect = TimeoutError("Request timed out")
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
-        agent = GenericAgent(llm=mock_llm)
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
         invocation_id = str(uuid4())
         state: AgentState = {
             "prompt": "test query",
@@ -150,6 +170,7 @@ class TestGenericAgentLLMIntegration:
             "invocation_id": invocation_id,
             "context_package": None,
             "current_agent": "generic_agent",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
@@ -165,11 +186,13 @@ class TestGenericAgentPromptEngineering:
     @pytest.mark.asyncio
     async def test_generic_agent_uses_information_assistant_prompt(self) -> None:
         """Test GenericAgent uses appropriate prompt template for information queries."""
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="Test response")
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.return_value = AIMessage(content="Test response", response_metadata={})
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
-        agent = GenericAgent(llm=mock_llm)
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
         user_prompt = "What deployment tools exist?"
         invocation_id = uuid4()
         state: AgentState = {
@@ -180,23 +203,26 @@ class TestGenericAgentPromptEngineering:
             "invocation_id": str(invocation_id),
             "context_package": None,
             "current_agent": "generic_agent",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
         await agent.execute_as_node(state)
 
-        mock_llm.ainvoke.assert_called_once()
-        call_args = mock_llm.ainvoke.call_args
+        mock_llm_with_tools.ainvoke.assert_called_once()
+        call_args = mock_llm_with_tools.ainvoke.call_args
         assert call_args is not None
 
     @pytest.mark.asyncio
     async def test_generic_agent_handles_empty_llm_response(self) -> None:
         """Test GenericAgent handles empty LLM responses."""
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="")
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.return_value = AIMessage(content="", response_metadata={})
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
-        agent = GenericAgent(llm=mock_llm)
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
         invocation_id = uuid4()
         state: AgentState = {
             "prompt": "test query",
@@ -206,23 +232,28 @@ class TestGenericAgentPromptEngineering:
             "invocation_id": str(invocation_id),
             "context_package": None,
             "current_agent": "generic_agent",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
         response = await agent.execute_as_node(state)
 
         assert isinstance(response, dict)
-        assert response["content"] is not None
-        assert "couldn't generate an answer" in response["content"]
+        result = response["result"]
+        assert result is not None
+        assert result["content"] is not None
+        assert "couldn't generate an answer" in result["content"]
 
     @pytest.mark.asyncio
     async def test_generic_agent_raises_error_for_malformed_llm_response(self) -> None:
         """Test GenericAgent raises AgentError for malformed LLM responses."""
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = None  # Malformed response
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.return_value = None  # Malformed response
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
-        agent = GenericAgent(llm=mock_llm)
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
         invocation_id = str(uuid4())
         state: AgentState = {
             "prompt": "test query",
@@ -232,6 +263,7 @@ class TestGenericAgentPromptEngineering:
             "invocation_id": invocation_id,
             "context_package": None,
             "current_agent": "generic_agent",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
@@ -249,11 +281,13 @@ class TestGenericAgentLogging:
         self,
     ) -> None:
         """Test GenericAgent logs all LLM interactions with correlation IDs."""
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = AIMessage(content="Test response")
+        mock_llm = Mock()
+        mock_llm_with_tools = AsyncMock()
+        mock_llm_with_tools.ainvoke.return_value = AIMessage(content="Test response", response_metadata={})
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
         mock_llm.model_name = "anthropic/claude-3.5-sonnet"
 
-        agent = GenericAgent(llm=mock_llm)
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
         invocation_id = uuid4()
         state: AgentState = {
             "prompt": "test query",
@@ -263,6 +297,7 @@ class TestGenericAgentLogging:
             "invocation_id": str(invocation_id),
             "context_package": None,
             "current_agent": "generic_agent",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 

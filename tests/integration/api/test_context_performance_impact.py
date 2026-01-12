@@ -29,7 +29,6 @@ class TestContextPerformanceImpact:
 
         This verifies that context enhancement adds acceptable overhead.
 
-        This test MUST FAIL until T007 (core integration) is implemented.
         Note: Performance thresholds are defined by performance team during implementation.
         """
         # Test 1: Baseline performance (minimal context processing)
@@ -125,10 +124,7 @@ class TestContextPerformanceImpact:
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
-        """Test that context processing timeouts don't significantly impact performance.
-
-        This test MUST FAIL until T008 (error handling implementation) is implemented.
-        """
+        """Test that context processing timeouts don't significantly impact performance."""
 
         # Mock slow context processing
         def slow_context_processing(*args: object, **kwargs: object) -> ContextPackage:
@@ -173,10 +169,7 @@ class TestContextPerformanceImpact:
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
-        """Test performance under concurrent context-enhanced invocations.
-
-        This test MUST FAIL until T007 (core integration) is implemented.
-        """
+        """Test performance under concurrent context-enhanced invocations."""
 
         # Mock context that adds some processing time
         def context_with_delay(*args: object, **kwargs: object) -> ContextPackage:
@@ -239,10 +232,7 @@ class TestContextPerformanceImpact:
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
-        """Test that context enhancement doesn't cause excessive memory usage.
-
-        This test MUST FAIL until T007 (core integration) is implemented.
-        """
+        """Test that context enhancement doesn't cause excessive memory usage."""
         # Test with larger context payloads to check memory handling
         large_context_sizes = [1024, 4096, 8192]  # bytes
 
@@ -298,8 +288,6 @@ class TestContextPerformanceImpact:
         """Test potential performance benefits from context caching (future optimization).
 
         This test documents expected behavior for future caching implementations.
-
-        This test MUST FAIL until T007 (core integration) is implemented.
         """
         # This test is placeholder for future context caching optimizations
         # For now, just verify that repeated similar queries work consistently

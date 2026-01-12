@@ -439,13 +439,19 @@ def mock_openrouter_llm() -> Generator[MagicMock, None, None]:
 
     """
     mock_llm = MagicMock()
-    # Mock ainvoke to return a proper AIMessage (used by GenericAgent._execute)
-    mock_llm.ainvoke = AsyncMock(
+
+    # Create mock for LLM with tools bound (pattern used by GenericAgent)
+    mock_llm_with_tools = AsyncMock()
+    mock_llm_with_tools.ainvoke = AsyncMock(
         return_value=AIMessage(
             content="Mock LLM response for testing",
             response_metadata={"model": "mock-model", "finish_reason": "stop"},
         )
     )
+
+    # Setup bind_tools method to return the tool-bound mock
+    mock_llm.bind_tools = MagicMock(return_value=mock_llm_with_tools)
+    mock_llm.model_name = "mock-model"
 
     # Mock CompressorService for planner integration
     mock_compressor = AsyncMock()
@@ -453,6 +459,7 @@ def mock_openrouter_llm() -> Generator[MagicMock, None, None]:
 
     # Patch in all locations where get_openrouter_llm is imported
     # AND patch CompressorService.__init__ to avoid OpenRouter API key requirement
+    # AND patch OrchestrationService._get_tools to avoid slow tool synchronization retry logic
     with (
         patch(
             "nexus.api.v1.invocation.get_openrouter_llm",
@@ -465,6 +472,10 @@ def mock_openrouter_llm() -> Generator[MagicMock, None, None]:
         patch(
             "nexus.agent_orchestrator.context_manager.compressor.CompressorService",
             return_value=mock_compressor,
+        ),
+        patch(
+            "nexus.agent_orchestrator.services.orchestration_service.OrchestrationService._get_tools",
+            return_value=[],
         ),
     ):
         yield mock_llm

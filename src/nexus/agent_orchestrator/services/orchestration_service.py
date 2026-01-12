@@ -4,17 +4,19 @@ This service manages the LangGraph state machine that coordinates
 multiple specialized agents with context integration and checkpointing.
 """
 
-import copy
 import logging
+from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
+from langchain_core.messages import AIMessage
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from langgraph.prebuilt import ToolNode
 
 if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig
@@ -54,25 +56,27 @@ class OrchestrationService:
         """
         self.llm = llm
         self.context_manager = context_manager_planner
-        self.graph = self._setup_graph()
 
-    def _setup_graph(self) -> CompiledStateGraph[AgentState, None, Any, Any]:
-        """Set up the LangGraph state machine.
+    async def _setup_graph(self, state: AgentState) -> CompiledStateGraph[AgentState, None, Any, Any]:
+        """Set up the LangGraph state machine with ToolNode integration.
 
         Returns:
             Compiled LangGraph state machine
 
         """
-        logger.info("Initializing LangGraph orchestration")
+        logger.info("Initializing LangGraph orchestration with ToolNode support")
 
         # Create state graph
         workflow = StateGraph(AgentState)
 
         # Add agent nodes
-        workflow.add_node(AgentRoutes.ORCHESTRATOR, self._orchestrator_node)
-        workflow.add_node(AgentRoutes.GENERIC_AGENT, self._generic_agent_node)
+        invocation_id: UUID = UUID(state["invocation_id"])
+        available_tools: list[BaseTool] = await self._get_tools(invocation_id)
+        workflow.add_node(AgentRoutes.ORCHESTRATOR, self._create_orchestrator_node())
+        workflow.add_node(AgentRoutes.GENERIC_AGENT, self._create_generic_agent_node(available_tools))
+        workflow.add_node(AgentRoutes.TOOLS, self._create_tool_node(available_tools))
 
-        # Set entry point
+        # Set entry point to ToolNode
         workflow.set_entry_point(AgentRoutes.ORCHESTRATOR)
 
         # Add conditional edges from orchestrator to specialist agents
@@ -84,14 +88,17 @@ class OrchestrationService:
             },
         )
 
-        # Generic agent ends execution
-        workflow.add_edge(AgentRoutes.GENERIC_AGENT, END)
+        # Add conditional edges from GenericAgent to Tools
+        workflow.add_conditional_edges(AgentRoutes.GENERIC_AGENT, self._should_call_tools, [AgentRoutes.TOOLS, END])
+
+        # Tools to GenericAgent route
+        workflow.add_edge(AgentRoutes.TOOLS, AgentRoutes.GENERIC_AGENT)
 
         # Compile graph with checkpointing for multi-turn support
         checkpointer = MemorySaver()
         graph = workflow.compile(checkpointer=checkpointer)
 
-        logger.info("LangGraph orchestration initialized successfully")
+        logger.info("LangGraph orchestration with ToolNode initialized successfully")
         return graph
 
     async def _get_tools(self, invocation_id: UUID) -> list[BaseTool]:
@@ -140,6 +147,8 @@ class OrchestrationService:
             prompt=prompt, session_id=session_id, invocation_id=invocation_id, correlation_id=correlation_id
         )
 
+        graph: CompiledStateGraph[AgentState, None, Any, Any] = await self._setup_graph(initial_state)
+
         async with StreamClient() as client:
             try:
                 # Execute graph with streaming events
@@ -149,7 +158,7 @@ class OrchestrationService:
                 final_state: AgentState | None = None
 
                 # Stream events from LangGraph
-                async for event in self.graph.astream_events(initial_state, config, version="v2"):
+                async for event in graph.astream_events(initial_state, config, version="v2"):
                     # Process streaming events (event is StandardStreamEvent | CustomStreamEvent)
                     event_dict = cast("dict[str, Any]", event)
                     await self._process_streaming_event(event_dict, invocation_id, stream_id, client)
@@ -340,44 +349,63 @@ class OrchestrationService:
 
         return response.model_dump()
 
-    async def _orchestrator_node(self, state: AgentState) -> AgentState:
-        """Execute orchestrator agent node.
+    # ===============================
+    # Nodes
+    # -------------------------------
 
-        Args:
-            state: Current graph state
+    def _create_orchestrator_node(self) -> Callable[..., Coroutine[Any, Any, AgentState]]:
+        async def _orchestrator_node(state: AgentState) -> AgentState:
+            """Execute orchestrator agent node.
 
-        Returns:
-            Updated state with context integration and routing
+            Args:
+                state: Current graph state
 
-        """
-        orchestrator = OrchestratorAgent(self.context_manager)
-        return await orchestrator.execute(state)
+            Returns:
+                Updated state with context integration and routing
 
-    async def _generic_agent_node(self, state: AgentState) -> AgentState:
-        """Execute generic agent node.
+            """
+            orchestrator = OrchestratorAgent(self.context_manager)
+            return await orchestrator.execute(state)
 
-        Args:
-            state: Current graph state
+        return _orchestrator_node
 
-        Returns:
-            State with generic agent result
+    def _create_generic_agent_node(
+        self, available_tools: list[BaseTool]
+    ) -> Callable[..., Coroutine[Any, Any, AgentState]]:
+        async def _generic_agent_node(state: AgentState) -> AgentState:
+            """Execute generic agent node.
 
-        """
-        # Use direct import
-        agent_class = GenericAgent
+            Args:
+                state: Current graph state
 
-        logger.info("Executing GenericAgent for invocation %s", state["invocation_id"])
+            Returns:
+                State with generic agent result
 
-        agent = agent_class(self.llm)
-        result = await agent.execute_as_node(state)
+            """
+            # Use direct import
+            agent_class = GenericAgent
 
-        # Enhance result with context metadata if available
-        enhanced_result = self._enhance_result_with_context(result, state)
+            logger.info("Executing GenericAgent for invocation %s", state["invocation_id"])
 
-        updated_state = copy.deepcopy(state)
-        updated_state["result"] = enhanced_result
+            agent = agent_class(llm=self.llm, available_tools=available_tools)
+            updated_state = await agent.execute_as_node(state)
 
-        return updated_state
+            # Enhance result with context metadata if available
+            self._enhance_result_with_context_metadata(updated_state)
+
+            return updated_state
+
+        return _generic_agent_node
+
+    def _create_tool_node(self, tools: list[BaseTool]) -> ToolNode:
+        # Create ToolNode with dynamic tool discovery and error handling
+        return ToolNode(tools)
+
+    # ===============================
+
+    # ===============================
+    # Conditional routing
+    # -------------------------------
 
     def _route_after_orchestrator(self, state: AgentState) -> str:
         """Determine routing after orchestrator execution.
@@ -391,34 +419,39 @@ class OrchestrationService:
         """
         return state["current_agent"]
 
-    def _enhance_result_with_context(self, base_result: dict[str, Any], state: AgentState) -> dict[str, Any]:
-        """Enhance agent result with context metadata.
+    def _should_call_tools(self, state: AgentState) -> str:
+        """Decide if we should continue the loop or stop based upon whether the LLM requires a tool call."""
+        messages = state["messages"]
+        last_message = messages[-1]
 
-        Based on PR 168 enhanced response format.
+        # If the LLM needs a tool call, then route to our ToolNode
+        if isinstance(last_message, AIMessage) and last_message.tool_calls:
+            return AgentRoutes.TOOLS
+
+        # Otherwise, we stop (reply to the user)
+        return END
+
+    # ===============================
+
+    def _enhance_result_with_context_metadata(self, state: AgentState) -> None:
+        """Enhance AgentState with context metadata.
 
         Args:
-            base_result: Base result from agent execution
             state: Current state with context information
 
-        Returns:
-            Enhanced result with context metadata
-
         """
-        enhanced_result = base_result.copy()
-
         # Add context enhancement metadata if available
+        result = state.get("result")
         context_package = state.get("context_package")
-        if context_package:
+        if result is not None and context_package is not None:
             # Use correlation_id from context package when context is applied
-            enhanced_result["correlation_id"] = context_package["correlation_id"]
-            enhanced_result["grounding_score"] = context_package["grounding_score"]
-            enhanced_result["context_enhancement"] = {
+            result["correlation_id"] = context_package["correlation_id"]
+            result["grounding_score"] = context_package["grounding_score"]
+            result["context_enhancement"] = {
                 "turn_id": context_package["package_id"],  # Use turn_id as per API schema
                 "citations": context_package["citations"],
                 "context_applied": context_package["context_applied"],
             }
-        else:
+        elif result is not None:
             # Use correlation_id from state when no context is applied
-            enhanced_result["correlation_id"] = state["correlation_id"]
-
-        return enhanced_result
+            result["correlation_id"] = state.get("correlation_id")

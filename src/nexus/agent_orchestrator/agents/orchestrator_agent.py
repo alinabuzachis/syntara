@@ -4,6 +4,7 @@ This agent serves as the entry point for the LangGraph state machine,
 handling context integration and routing requests to appropriate specialist agents.
 """
 
+import asyncio
 import copy
 import logging
 from typing import Any, ClassVar
@@ -13,6 +14,7 @@ from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.context_manager.planner import ContextManagerPlanner
 from nexus.agent_orchestrator.exceptions import ContextIntegrationError
 from nexus.agent_orchestrator.models.agent_state import AgentState
+from nexus.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +77,19 @@ class OrchestratorAgent:
         try:
             logger.debug("Calling context manager for session %s", state["session_id"])
 
-            # Call context manager using PR 168 pattern
-            context_package = await self.context_manager.plan_request(
-                correlation_id=state["correlation_id"],
-                session_id=state["session_id"],
-                query=state["original_prompt"],
-                invocation_id=UUID(state["invocation_id"]),
+            # Get timeout from settings
+            settings = get_settings()
+            timeout = settings.context_manager_request_timeout_seconds
+
+            # Call context manager using PR 168 pattern with configurable timeout
+            context_package = await asyncio.wait_for(
+                self.context_manager.plan_request(
+                    correlation_id=state["correlation_id"],
+                    session_id=state["session_id"],
+                    query=state["original_prompt"],
+                    invocation_id=UUID(state["invocation_id"]),
+                ),
+                timeout=timeout,
             )
 
             # Enhance prompt with context

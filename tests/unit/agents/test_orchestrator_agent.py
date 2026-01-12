@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from langchain_core.messages import HumanMessage
 
 from nexus.agent_orchestrator.agents.orchestrator_agent import OrchestratorAgent
 from nexus.agent_orchestrator.constants import AgentRoutes
@@ -40,6 +41,7 @@ class TestOrchestratorAgentContextIntegration:
             "invocation_id": invocation_id,
             "context_package": None,
             "current_agent": "",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
@@ -77,6 +79,7 @@ class TestOrchestratorAgentContextIntegration:
             "invocation_id": invocation_id,
             "context_package": None,
             "current_agent": "",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
@@ -123,6 +126,7 @@ class TestOrchestratorAgentContextIntegration:
                 "invocation_id": invocation_id,
                 "context_package": None,
                 "current_agent": "",
+                "messages": [HumanMessage("test")],
                 "result": None,
             }
 
@@ -165,6 +169,7 @@ class TestOrchestratorAgentRouting:
                 "invocation_id": invocation_id,
                 "context_package": None,
                 "current_agent": "",
+                "messages": [HumanMessage("test")],
                 "result": None,
             }
 
@@ -201,6 +206,7 @@ class TestOrchestratorAgentRouting:
                 "invocation_id": invocation_id,
                 "context_package": None,
                 "current_agent": "",
+                "messages": [HumanMessage("test")],
                 "result": None,
             }
 
@@ -241,6 +247,7 @@ class TestOrchestratorAgentPromptFormatting:
             "invocation_id": invocation_id,
             "context_package": None,
             "current_agent": "",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
@@ -284,6 +291,7 @@ class TestOrchestratorAgentPromptFormatting:
             "invocation_id": invocation_id,
             "context_package": None,
             "current_agent": "",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 
@@ -318,6 +326,7 @@ class TestOrchestratorAgentLogging:
             "invocation_id": invocation_id,
             "context_package": None,
             "current_agent": "",
+            "messages": [HumanMessage("test")],
             "result": None,
         }
 

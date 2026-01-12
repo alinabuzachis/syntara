@@ -30,8 +30,6 @@ class TestContextQualityMetrics:
         - Empty context returns grounding_score = 0.0
         - High-quality context returns higher grounding scores
         - Grounding scores are in valid range (0.0-1.0)
-
-        This test MUST FAIL until T007 (core integration) is implemented.
         """
         # Test 1: Empty context (current minimal implementation)
         prompt_empty_context = "Simple greeting that needs no context"
@@ -121,10 +119,7 @@ class TestContextQualityMetrics:
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
-        """Test that grounding scores are always in valid range (0.0-1.0).
-
-        This test MUST FAIL until T007 (core integration) is implemented.
-        """
+        """Test that grounding scores are always in valid range (0.0-1.0)."""
         test_scores = [0.0, 0.25, 0.5, 0.75, 1.0]
 
         for score in test_scores:
@@ -176,10 +171,7 @@ class TestContextQualityMetrics:
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
     ) -> None:
-        """Test that context enhancement provides complete information for quality assessment.
-
-        This test MUST FAIL until T007 (core integration) is implemented.
-        """
+        """Test that context enhancement provides complete information for quality assessment."""
         mock_context_package = ContextPackage(
             correlation_id="metadata-test-123",
             payload={"context": "test content"},
@@ -249,8 +241,6 @@ class TestContextQualityMetrics:
         """Test that system can distinguish between empty and populated context scenarios.
 
         This helps validate that quality metrics are meaningful.
-
-        This test MUST FAIL until T007 (core integration) is implemented.
         """
         # Test 1: Explicitly empty context
         mock_empty_context = ContextPackage(
@@ -342,8 +332,6 @@ class TestContextQualityMetrics:
         """Test that correlation_id enables proper correlation between invocation and context.
 
         This verifies the debugging/observability aspect of context quality.
-
-        This test MUST FAIL until T007 (core integration) is implemented.
         """
         unique_correlation_id = "correlation-test-12345"
         mock_context_package = ContextPackage(

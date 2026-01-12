@@ -76,11 +76,13 @@ async def test_retriever_service_integration_with_agent_invocation(
                 assert final_data is not None
                 assert final_data["status"] == "completed"
 
-                # Verify agent LLM received the prompt and was executed
-                mock_openrouter_llm.ainvoke.assert_called()
+                # Verify agent LLM with bound tools was executed
+                # GenericAgent calls llm.bind_tools() so we need to check the bound LLM
+                bound_llm = mock_openrouter_llm.bind_tools.return_value
+                bound_llm.ainvoke.assert_called()
 
                 # Verify the agent received the original prompt
-                agent_call_args = mock_openrouter_llm.ainvoke.call_args[0][0]
+                agent_call_args = bound_llm.ainvoke.call_args[0][0]
                 messages_str = str(agent_call_args)
                 assert "What are the key machine learning algorithms I should know about?" in messages_str
 

@@ -13,14 +13,17 @@ from nexus.agent_orchestrator.exceptions import (
     AgentTimeoutError,
 )
 from nexus.agent_orchestrator.models.agent_response import GenericAgentResponse
+from nexus.agent_orchestrator.models.agent_state import AgentState
 
 
 class ConcreteAgent(BaseAgent):
     """Concrete implementation of BaseAgent for testing."""
 
-    async def _execute(self, state) -> GenericAgentResponse:  # noqa: ARG002
+    async def _execute(self, state: AgentState) -> AgentState:
         """Test implementation."""
-        return GenericAgentResponse(content="test response")
+        response = GenericAgentResponse(content="test response")
+        state["result"] = response.model_dump(by_alias=True)
+        return state
 
 
 class TestBaseAgentInitialization:

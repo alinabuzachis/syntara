@@ -27,8 +27,6 @@ class TestContextEnhancedInvocations:
         - Response includes correlation_id and grounding_score fields
         - Context delimiters are added to the prompt
         - Enhanced metadata is properly stored
-
-        This test MUST FAIL until T007 (core integration) is implemented.
         """
         # Create invocation with prompt that would benefit from context
         prompt = "What are the best practices for API design in our system?"
@@ -93,8 +91,6 @@ class TestContextEnhancedInvocations:
         """Test that context enhancement includes proper correlation information.
 
         Verifies that the correlation_id enables correlation between invocation and context processing.
-
-        This test MUST FAIL until T007 (core integration) is implemented.
         """
         prompt = "Test prompt for correlation"
         session_id = "correlation-test-session"

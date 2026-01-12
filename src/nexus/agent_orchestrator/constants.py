@@ -8,4 +8,5 @@ class AgentRoutes(StrEnum):
 
     ORCHESTRATOR = "orchestrator"
     GENERIC_AGENT = "generic_agent"
+    TOOLS = "tools"
     END = "__end__"

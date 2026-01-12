@@ -27,9 +27,12 @@ class ConversionTestHelper:
         """Initialize the test helper with fresh mocks."""
         self.mock_file_manager = MagicMock()
         self.mock_converter_registry = MagicMock()
-        self.mock_converter = AsyncMock()
+        self.mock_converter = MagicMock()
         self.mock_retriever = AsyncMock()
         self.status_updater = AsyncMock()
+
+        # Make convert_with_timeout async since it's an async method
+        self.mock_converter.convert_with_timeout = AsyncMock()
 
         # Set up default mock behaviors
         self._setup_default_mocks()
