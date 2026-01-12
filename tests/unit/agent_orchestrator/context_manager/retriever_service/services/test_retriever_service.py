@@ -5,7 +5,7 @@ including document retrieval, relevancy checking, ranking, and filtering.
 """
 
 import tempfile
-from collections.abc import AsyncGenerator, AsyncIterator
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -23,18 +23,13 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.agent_orchestrator.context_manager.retriever_service.registries.relevancy_registry import RelevancyRegistry
 from nexus.agent_orchestrator.context_manager.retriever_service.registries.retriever_registry import RetrieverRegistry
-from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploaded_file_retriever import (
-    UploadedFileRetriever,
-)
 from nexus.agent_orchestrator.context_manager.retriever_service.services.retriever_service import RetrieverService
 from nexus.agent_orchestrator.models.invocation import Invocation
+from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.files import FileMetadata
 from nexus.files.models import FileStatus
 
-
-async def async_session_generator(session: AsyncSession) -> AsyncGenerator[AsyncSession, None]:
-    """Create an async generator for the session factory."""
-    yield session
+from .conftest import TestUploadedFileRetriever, async_session_generator
 
 
 class MockRelevancyChecker(RelevancyChecker):
@@ -88,13 +83,15 @@ class TestRetrieverServiceMainFlow:
 
     @pytest.fixture
     def retriever_registry(self) -> RetrieverRegistry:
-        """Provide a clean RetrieverRegistry with uploaded file retriever registered."""
+        """Provide a clean RetrieverRegistry with test uploaded file retriever registered."""
         registry = RetrieverRegistry()
-        registry.register_retriever("uploaded_file", UploadedFileRetriever)
+        registry.register_retriever("uploaded_file", TestUploadedFileRetriever)
         return registry
 
     @pytest.mark.asyncio
-    async def test_end_to_end_document_retrieval_and_ranking(self, retriever_registry: RetrieverRegistry) -> None:
+    async def test_end_to_end_document_retrieval_and_ranking(
+        self, retriever_registry: RetrieverRegistry, mock_file_manager: MagicMock
+    ) -> None:
         """Test complete flow from document retrieval to ranked results."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -149,22 +146,25 @@ class TestRetrieverServiceMainFlow:
                 converted_content_path=str(less_relevant),
             )
 
+            # Set up mock FileManager for TestUploadedFileRetriever
+            file_ids = (file_metadata_1.id, file_metadata_2.id, file_metadata_3.id)
+            mock_file_manager._test_file_metadata_store[file_ids] = [
+                file_metadata_1,
+                file_metadata_2,
+                file_metadata_3,
+            ]
+            TestUploadedFileRetriever._test_file_manager = mock_file_manager
+
             # Mock database session and invocation context
             mock_session = MagicMock(spec=AsyncSession)
 
-            # Create a mock invocation with the test file metadata
+            # Create a mock invocation with file_ids
             invocation_id = uuid4()
             mock_invocation = Invocation(
                 id=invocation_id,
                 prompt="test prompt",
                 session_id="test_session",
-                context_data={
-                    "file_metadata": [
-                        file_metadata_1.model_dump(),
-                        file_metadata_2.model_dump(),
-                        file_metadata_3.model_dump(),
-                    ]
-                },
+                context_data={CONTEXT_KEY_FILE_IDS: [str(fid) for fid in file_ids]},
             )
 
             # Configure the mock session to return the mock invocation
@@ -215,7 +215,9 @@ class TestRetrieverServiceMainFlow:
                 assert isinstance(doc.retrieval_metadata, dict)
 
     @pytest.mark.asyncio
-    async def test_configuration_based_filtering(self, retriever_registry: RetrieverRegistry) -> None:
+    async def test_configuration_based_filtering(
+        self, retriever_registry: RetrieverRegistry, mock_file_manager: MagicMock
+    ) -> None:
         """Test filtering results based on configuration thresholds."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -252,21 +254,24 @@ class TestRetrieverServiceMainFlow:
                 converted_content_path=str(irrelevant_doc),
             )
 
+            # Set up mock FileManager for TestUploadedFileRetriever
+            file_ids = (file_metadata_1.id, file_metadata_2.id)
+            mock_file_manager._test_file_metadata_store[file_ids] = [
+                file_metadata_1,
+                file_metadata_2,
+            ]
+            TestUploadedFileRetriever._test_file_manager = mock_file_manager
+
             # Test with high similarity threshold (should filter out irrelevant docs)
             mock_session = MagicMock(spec=AsyncSession)
 
-            # Create a mock invocation with the test file metadata
+            # Create a mock invocation with file_ids
             invocation_id = uuid4()
             mock_invocation = Invocation(
                 id=invocation_id,
                 prompt="test prompt",
                 session_id="test_session",
-                context_data={
-                    "file_metadata": [
-                        file_metadata_1.model_dump(),
-                        file_metadata_2.model_dump(),
-                    ]
-                },
+                context_data={CONTEXT_KEY_FILE_IDS: [str(fid) for fid in file_ids]},
             )
 
             # Configure the mock session to return the mock invocation
@@ -309,7 +314,9 @@ class TestRetrieverServiceMainFlow:
             assert "machine learning" in returned_doc.content.lower()
 
     @pytest.mark.asyncio
-    async def test_max_results_limiting(self, retriever_registry: RetrieverRegistry) -> None:
+    async def test_max_results_limiting(
+        self, retriever_registry: RetrieverRegistry, mock_file_manager: MagicMock
+    ) -> None:
         """Test limiting results based on max_results configuration."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -336,16 +343,21 @@ class TestRetrieverServiceMainFlow:
                 )
                 file_metadata_list.append(file_metadata)
 
+            # Set up mock FileManager for TestUploadedFileRetriever
+            file_ids = tuple(fm.id for fm in file_metadata_list)
+            mock_file_manager._test_file_metadata_store[file_ids] = file_metadata_list
+            TestUploadedFileRetriever._test_file_manager = mock_file_manager
+
             # Test with max_results = 3
             mock_session = MagicMock(spec=AsyncSession)
 
-            # Create a mock invocation with the test file metadata
+            # Create a mock invocation with file_ids
             invocation_id = uuid4()
             mock_invocation = Invocation(
                 id=invocation_id,
                 prompt="test prompt",
                 session_id="test_session",
-                context_data={"file_metadata": [metadata.model_dump() for metadata in file_metadata_list]},
+                context_data={CONTEXT_KEY_FILE_IDS: [str(fid) for fid in file_ids]},
             )
 
             # Configure the mock session to return the mock invocation
@@ -479,7 +491,9 @@ class TestRetrieverServiceMainFlow:
         # Note: session is accessed via factory, not stored directly
 
     @pytest.mark.asyncio
-    async def test_multiple_storage_backends_coordination(self, retriever_registry: RetrieverRegistry) -> None:
+    async def test_multiple_storage_backends_coordination(
+        self, retriever_registry: RetrieverRegistry, mock_file_manager: MagicMock
+    ) -> None:
         """Test coordination of multiple registered retrievers."""
         # This test verifies that RetrieverService uses ALL registered retrievers
         # to collate documents from different storage backends
@@ -502,20 +516,22 @@ class TestRetrieverServiceMainFlow:
                 converted_content_path=str(uploaded_file),
             )
 
+            # Set up mock FileManager for TestUploadedFileRetriever
+            file_ids = (uploaded_file_metadata.id,)
+            mock_file_manager._test_file_metadata_store[file_ids] = [uploaded_file_metadata]
+            TestUploadedFileRetriever._test_file_manager = mock_file_manager
+
             mock_session = MagicMock(spec=AsyncSession)
 
-            # Create mock invocation with file metadata from both backends
+            # Create mock invocation with file_ids
             invocation_id = uuid4()
             mock_invocation = Invocation(
                 id=invocation_id,
                 prompt="test prompt",
                 session_id="test_session",
                 context_data={
-                    "file_metadata": [
-                        uploaded_file_metadata.model_dump(),
-                        # Note: Cloud storage retriever ignores invocation context
-                        # but we include metadata to show multiple backends
-                    ]
+                    CONTEXT_KEY_FILE_IDS: [str(fid) for fid in file_ids]
+                    # Note: Cloud storage retriever ignores invocation context
                 },
             )
 

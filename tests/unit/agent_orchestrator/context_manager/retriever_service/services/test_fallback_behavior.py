@@ -5,7 +5,6 @@ to keyword-based checking when LLM services are unavailable.
 """
 
 import tempfile
-from collections.abc import AsyncGenerator
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -24,22 +23,17 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.registries.relevancy_registry import RelevancyRegistry
 from nexus.agent_orchestrator.context_manager.retriever_service.registries.retriever_registry import RetrieverRegistry
-from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploaded_file_retriever import (
-    UploadedFileRetriever,
-)
 from nexus.agent_orchestrator.context_manager.retriever_service.services.retriever_service import RetrieverService
 from nexus.agent_orchestrator.models import Invocation
+from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.files import FileMetadata
 from nexus.files.models import FileStatus
+
+from .conftest import TestUploadedFileRetriever, async_session_generator
 
 
 class MockLLMError(Exception):
     """Custom exception for test LLM failures."""
-
-
-async def async_session_generator(session: AsyncSession) -> AsyncGenerator[AsyncSession, None]:
-    """Create an async generator for the session factory."""
-    yield session
 
 
 @pytest.fixture
@@ -97,9 +91,9 @@ def llm_config_strict() -> RelevancyConfiguration:
 
 @pytest.fixture
 def configured_retriever_registry() -> RetrieverRegistry:
-    """Create a RetrieverRegistry with UploadedFileRetriever registered."""
+    """Create a RetrieverRegistry with TestUploadedFileRetriever registered."""
     registry = RetrieverRegistry()
-    registry.register_retriever("uploaded_file", UploadedFileRetriever)
+    registry.register_retriever("uploaded_file", TestUploadedFileRetriever)
     return registry
 
 
@@ -147,6 +141,7 @@ class TestFallbackBehavior:
         self,
         configured_retriever_registry: RetrieverRegistry,
         configured_relevancy_registry: RelevancyRegistry,
+        mock_file_manager: MagicMock,
     ) -> None:
         """Test that LLM failure automatically triggers keyword fallback."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -156,6 +151,11 @@ class TestFallbackBehavior:
             test_content = "This document discusses Python programming and machine learning algorithms."
             file_metadata = create_file_metadata_with_content(temp_path, "test_document", test_content)
 
+            # Set up mock FileManager for TestUploadedFileRetriever
+            file_ids = (file_metadata.id,)
+            mock_file_manager._test_file_metadata_store[file_ids] = [file_metadata]
+            TestUploadedFileRetriever._test_file_manager = mock_file_manager
+
             # Setup mock session and invocation
             mock_session = MagicMock(spec=AsyncSession)
             invocation_id = uuid4()
@@ -163,7 +163,7 @@ class TestFallbackBehavior:
                 id=invocation_id,
                 prompt="test prompt",
                 session_id="test_session",
-                context_data={"file_metadata": [file_metadata.model_dump()]},
+                context_data={CONTEXT_KEY_FILE_IDS: [str(fid) for fid in file_ids]},
             )
             mock_session.get.return_value = mock_invocation
 
@@ -205,6 +205,7 @@ class TestFallbackBehavior:
         self,
         configured_retriever_registry: RetrieverRegistry,
         configured_relevancy_registry: RelevancyRegistry,
+        mock_file_manager: MagicMock,
     ) -> None:
         """Test that LLM timeout triggers keyword fallback."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -214,6 +215,11 @@ class TestFallbackBehavior:
             test_content = "Machine learning and artificial intelligence concepts explained."
             file_metadata = create_file_metadata_with_content(temp_path, "timeout_test", test_content)
 
+            # Set up mock FileManager for TestUploadedFileRetriever
+            file_ids = (file_metadata.id,)
+            mock_file_manager._test_file_metadata_store[file_ids] = [file_metadata]
+            TestUploadedFileRetriever._test_file_manager = mock_file_manager
+
             # Setup mock session and invocation
             mock_session = MagicMock(spec=AsyncSession)
             invocation_id = uuid4()
@@ -221,7 +227,7 @@ class TestFallbackBehavior:
                 id=invocation_id,
                 prompt="test prompt",
                 session_id="test_session",
-                context_data={"file_metadata": [file_metadata.model_dump()]},
+                context_data={CONTEXT_KEY_FILE_IDS: [str(fid) for fid in file_ids]},
             )
             mock_session.get.return_value = mock_invocation
 
@@ -264,6 +270,7 @@ class TestFallbackBehavior:
         self,
         configured_retriever_registry: RetrieverRegistry,
         configured_relevancy_registry: RelevancyRegistry,
+        mock_file_manager: MagicMock,
     ) -> None:
         """Test handling when LLM fails for some documents but not others."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -275,6 +282,11 @@ class TestFallbackBehavior:
             )
             file_metadata2 = create_file_metadata_with_content(temp_path, "doc2", "Second document about data science.")
 
+            # Set up mock FileManager for TestUploadedFileRetriever
+            file_ids = (file_metadata1.id, file_metadata2.id)
+            mock_file_manager._test_file_metadata_store[file_ids] = [file_metadata1, file_metadata2]
+            TestUploadedFileRetriever._test_file_manager = mock_file_manager
+
             # Setup mock session and invocation
             mock_session = MagicMock(spec=AsyncSession)
             invocation_id = uuid4()
@@ -282,7 +294,7 @@ class TestFallbackBehavior:
                 id=invocation_id,
                 prompt="test prompt",
                 session_id="test_session",
-                context_data={"file_metadata": [file_metadata1.model_dump(), file_metadata2.model_dump()]},
+                context_data={CONTEXT_KEY_FILE_IDS: [str(fid) for fid in file_ids]},
             )
             mock_session.get.return_value = mock_invocation
 
@@ -322,6 +334,7 @@ class TestFallbackBehavior:
         self,
         configured_retriever_registry: RetrieverRegistry,
         configured_relevancy_registry: RelevancyRegistry,
+        mock_file_manager: MagicMock,
     ) -> None:
         """Test that keyword fallback provides reasonable relevancy scoring."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -335,6 +348,11 @@ class TestFallbackBehavior:
                 temp_path, "cooking_recipes", "Cooking recipes for delicious Italian pasta dishes."
             )
 
+            # Set up mock FileManager for TestUploadedFileRetriever
+            file_ids = (relevant_metadata.id, irrelevant_metadata.id)
+            mock_file_manager._test_file_metadata_store[file_ids] = [relevant_metadata, irrelevant_metadata]
+            TestUploadedFileRetriever._test_file_manager = mock_file_manager
+
             # Setup mock session and invocation
             mock_session = MagicMock(spec=AsyncSession)
             invocation_id = uuid4()
@@ -342,7 +360,7 @@ class TestFallbackBehavior:
                 id=invocation_id,
                 prompt="test prompt",
                 session_id="test_session",
-                context_data={"file_metadata": [relevant_metadata.model_dump(), irrelevant_metadata.model_dump()]},
+                context_data={CONTEXT_KEY_FILE_IDS: [str(fid) for fid in file_ids]},
             )
             mock_session.get.return_value = mock_invocation
 

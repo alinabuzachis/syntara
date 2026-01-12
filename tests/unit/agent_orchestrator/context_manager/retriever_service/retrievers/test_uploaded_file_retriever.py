@@ -1,15 +1,17 @@
-"""Integration tests for UploadedFileRetriever.
+"""Unit tests for UploadedFileRetriever.
 
-This module tests the integration between UploadedFileRetriever and FileManager,
-ensuring proper document retrieval from uploaded files.
+This module tests UploadedFileRetriever's document retrieval logic with mocked FileManager,
+ensuring proper validation, error handling, and edge case coverage.
 """
 
 import tempfile
 from pathlib import Path
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 
+from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import DocumentRetrievalError
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploaded_file_retriever import (
     UploadedFileRetriever,
@@ -18,12 +20,11 @@ from nexus.files import FileMetadata
 from nexus.files.models import FileStatus
 
 
-@pytest.mark.integration
-class TestUploadedFileRetrieverIntegration:
-    """Integration tests for UploadedFileRetriever with FileManager."""
+class TestUploadedFileRetriever:
+    """Unit tests for UploadedFileRetriever with mocked FileManager."""
 
     @pytest.mark.asyncio
-    async def test_retrieve_converted_documents(self) -> None:
+    async def test_retrieve_converted_documents(self, mock_session_factory, mock_file_manager) -> None:
         """Test retrieving documents from converted uploaded files."""
         # Setup temporary files for testing
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -34,9 +35,10 @@ class TestUploadedFileRetrieverIntegration:
             test_content = "This is a test document with important information about machine learning algorithms."
             converted_file.write_text(test_content, encoding="utf-8")
 
-            # Create file metadata as would be stored in invocation context
+            # Create file metadata as would be stored in database
+            file_id = uuid4()
             file_metadata = FileMetadata(
-                id=uuid4(),
+                id=file_id,
                 filename="original_document.pdf",
                 size_bytes=1024,
                 mime_type="application/pdf",
@@ -45,14 +47,23 @@ class TestUploadedFileRetrieverIntegration:
                 converted_content_path=str(converted_file),
             )
 
-            # Setup invocation context with file metadata
-            invocation_context = {"file_metadata": [file_metadata.model_dump()]}
+            # Configure shared mock_file_manager to return the file metadata
+            mock_file_manager._test_file_metadata_store[(file_id,)] = [file_metadata]
+
+            # Setup invocation context with file_ids
+            invocation_context = {"file_ids": [str(file_id)]}
 
             # Create UploadedFileRetriever instance
-            retriever = UploadedFileRetriever()
+            retriever = UploadedFileRetriever(
+                file_manager_factory=lambda: mock_file_manager,
+                session_factory=mock_session_factory,
+            )
 
             # Execute retrieval
             documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
+
+            # Verify FileManager was called correctly
+            mock_file_manager.get_files_metadata.assert_called_once()
 
             # Verify results
             assert len(documents) == 1
@@ -65,11 +76,12 @@ class TestUploadedFileRetrieverIntegration:
             assert "retrieved_at" in doc.retrieval_metadata
 
     @pytest.mark.asyncio
-    async def test_skip_unconverted_files(self) -> None:
-        """Test that unconverted files are skipped during retrieval."""
+    async def test_raise_error_for_unconverted_files(self, mock_session_factory, mock_file_manager) -> None:
+        """Test that unconverted files raise DocumentRetrievalError."""
         # Create file metadata for unconverted file
+        file_id = uuid4()
         pending_file = FileMetadata(
-            id=uuid4(),
+            id=file_id,
             filename="pending_document.pdf",
             size_bytes=512,
             mime_type="application/pdf",
@@ -77,49 +89,122 @@ class TestUploadedFileRetrieverIntegration:
             status=FileStatus.PENDING_CONVERSION,
         )
 
-        converting_file = FileMetadata(
-            id=uuid4(),
-            filename="converting_document.pdf",
-            size_bytes=768,
-            mime_type="application/pdf",
-            file_path="/path/to/converting.pdf",
-            status=FileStatus.CONVERTING,
+        # Configure shared mock_file_manager to return unconverted file
+        mock_file_manager._test_file_metadata_store[(file_id,)] = [pending_file]
+
+        invocation_context = {"file_ids": [str(file_id)]}
+
+        retriever = UploadedFileRetriever(
+            file_manager_factory=lambda: mock_file_manager,
+            session_factory=mock_session_factory,
         )
 
-        invocation_context = {"file_metadata": [pending_file.model_dump(), converting_file.model_dump()]}
-
-        retriever = UploadedFileRetriever()
-        documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
-
-        # Should return empty list since no files are converted
-        assert documents == []
+        # Should raise DocumentRetrievalError for unconverted files
+        with pytest.raises(DocumentRetrievalError, match="non-CONVERTED status"):
+            async for _ in retriever.retrieve_documents(invocation_context):
+                pass
 
     @pytest.mark.asyncio
-    async def test_skip_files_without_conversion_path(self) -> None:
-        """Test that converted files without converted_content_path are skipped."""
-        file_metadata = FileMetadata(
-            id=uuid4(),
-            filename="incomplete_conversion.pdf",
-            size_bytes=256,
+    async def test_raise_error_for_missing_files(self, mock_session_factory, mock_file_manager) -> None:
+        """Test that missing file_ids raise DocumentRetrievalError."""
+        file_id_1 = uuid4()
+        file_id_2 = uuid4()  # This one won't be found
+
+        # Mock FileManager to return only one file
+        file_metadata_1 = FileMetadata(
+            id=file_id_1,
+            filename="found.pdf",
+            size_bytes=1024,
             mime_type="application/pdf",
-            file_path="/path/to/incomplete.pdf",
+            file_path="/path/to/found.pdf",
             status=FileStatus.CONVERTED,
-            converted_content_path=None,  # Missing converted content path
+            converted_content_path="/path/to/converted.txt",
         )
 
-        invocation_context = {"file_metadata": [file_metadata.model_dump()]}
+        # Configure shared mock_file_manager to return only one file
+        mock_file_manager._test_file_metadata_store[(file_id_1, file_id_2)] = [file_metadata_1]
 
-        retriever = UploadedFileRetriever()
-        documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
+        invocation_context = {"file_ids": [str(file_id_1), str(file_id_2)]}
 
-        # Should return empty list since conversion path is missing
-        assert documents == []
+        retriever = UploadedFileRetriever(
+            file_manager_factory=lambda: mock_file_manager,
+            session_factory=mock_session_factory,
+        )
+
+        with pytest.raises(DocumentRetrievalError, match="Files not found in database"):
+            async for _ in retriever.retrieve_documents(invocation_context):
+                pass
 
     @pytest.mark.asyncio
-    async def test_handle_missing_converted_file(self) -> None:
+    async def test_raise_error_for_non_string_items(self, mock_session_factory) -> None:
+        """Test that non-string items in file_ids raise DocumentRetrievalError."""
+        invocation_context = {"file_ids": [12345, None, "valid-uuid"]}  # Mixed types
+
+        retriever = UploadedFileRetriever(
+            session_factory=mock_session_factory,
+        )
+
+        # UUID() will raise TypeError for non-string types
+        with pytest.raises(DocumentRetrievalError, match="Invalid UUID"):
+            async for _ in retriever.retrieve_documents(invocation_context):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_raise_error_for_invalid_uuid_format(self, mock_session_factory) -> None:
+        """Test that invalid UUID strings raise DocumentRetrievalError."""
+        invocation_context = {"file_ids": ["not-a-uuid", "also-invalid"]}
+
+        retriever = UploadedFileRetriever(
+            session_factory=mock_session_factory,
+        )
+
+        with pytest.raises(DocumentRetrievalError, match="Invalid UUID"):
+            async for _ in retriever.retrieve_documents(invocation_context):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_raise_error_for_invalid_type(self, mock_session_factory) -> None:
+        """Test that non-list file_ids raise DocumentRetrievalError."""
+        invocation_context = {"file_ids": "not-a-list"}  # String instead of list
+
+        retriever = UploadedFileRetriever(
+            session_factory=mock_session_factory,
+        )
+
+        with pytest.raises(DocumentRetrievalError, match="must be a list"):
+            async for _ in retriever.retrieve_documents(invocation_context):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_database_error_propagation(self, mock_session_factory, mock_file_manager) -> None:
+        """Test that database errors from FileManager are propagated correctly."""
+        from sqlalchemy.exc import OperationalError
+
+        file_id = uuid4()
+
+        # Override get_files_metadata to raise database error
+        mock_file_manager.get_files_metadata = AsyncMock(
+            side_effect=OperationalError("connection refused", {}, Exception("connection refused"))
+        )
+
+        invocation_context = {"file_ids": [str(file_id)]}
+
+        retriever = UploadedFileRetriever(
+            file_manager_factory=lambda: mock_file_manager,
+            session_factory=mock_session_factory,
+        )
+
+        # Database errors should propagate (not be caught/converted)
+        with pytest.raises(OperationalError, match="connection refused"):
+            async for _ in retriever.retrieve_documents(invocation_context):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_handle_missing_converted_file(self, mock_session_factory, mock_file_manager) -> None:
         """Test handling when converted file doesn't exist on disk."""
+        file_id = uuid4()
         file_metadata = FileMetadata(
-            id=uuid4(),
+            id=file_id,
             filename="missing_converted.pdf",
             size_bytes=512,
             mime_type="application/pdf",
@@ -128,30 +213,88 @@ class TestUploadedFileRetrieverIntegration:
             converted_content_path="/nonexistent/converted.txt",
         )
 
-        invocation_context = {"file_metadata": [file_metadata.model_dump()]}
+        # Configure shared mock_file_manager to return the file metadata
+        mock_file_manager._test_file_metadata_store[(file_id,)] = [file_metadata]
 
-        retriever = UploadedFileRetriever()
+        invocation_context = {"file_ids": [str(file_id)]}
 
-        # Should handle gracefully - either skip the file or raise DocumentRetrievalError
-        # Implementation will determine exact behavior
-        async for _ in retriever.retrieve_documents(invocation_context):
-            pass  # May yield nothing or raise an exception
+        retriever = UploadedFileRetriever(
+            file_manager_factory=lambda: mock_file_manager,
+            session_factory=mock_session_factory,
+        )
+
+        # Should handle gracefully - returns empty list (errors logged)
+        documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
+        assert len(documents) == 0
 
     @pytest.mark.asyncio
-    async def test_empty_invocation_context(self) -> None:
+    async def test_empty_invocation_context(self, mock_session_factory) -> None:
         """Test handling of empty invocation context."""
-        retriever = UploadedFileRetriever()
+        retriever = UploadedFileRetriever(
+            session_factory=mock_session_factory,
+        )
 
         # Empty context
         documents = [doc async for doc in retriever.retrieve_documents({})]
         assert documents == []
 
-        # Context with empty file_metadata
-        documents = [doc async for doc in retriever.retrieve_documents({"file_metadata": []})]
+        # Context with empty file_ids
+        documents = [doc async for doc in retriever.retrieve_documents({"file_ids": []})]
         assert documents == []
 
     @pytest.mark.asyncio
-    async def test_multiple_converted_files(self) -> None:
+    async def test_duplicate_file_ids_deduped(self, mock_session_factory, mock_file_manager) -> None:
+        """Test that duplicate file_ids are silently deduplicated."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create a test converted file
+            converted_file = temp_path / "converted_document.txt"
+            test_content = "This is a test document that appears in the request multiple times."
+            converted_file.write_text(test_content, encoding="utf-8")
+
+            # Create file metadata
+            file_id = uuid4()
+            file_metadata = FileMetadata(
+                id=file_id,
+                filename="document.pdf",
+                size_bytes=1024,
+                mime_type="application/pdf",
+                file_path=str(temp_path / "document.pdf"),
+                status=FileStatus.CONVERTED,
+                converted_content_path=str(converted_file),
+            )
+
+            # Configure shared mock_file_manager to return the file metadata
+            mock_file_manager._test_file_metadata_store[(file_id,)] = [file_metadata]
+
+            # Request with duplicate file_ids
+            invocation_context = {"file_ids": [str(file_id), str(file_id), str(file_id)]}
+
+            # Create UploadedFileRetriever instance
+            retriever = UploadedFileRetriever(
+                file_manager_factory=lambda: mock_file_manager,
+                session_factory=mock_session_factory,
+            )
+
+            # Execute retrieval
+            documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
+
+            # Verify FileManager was called with deduplicated list
+            mock_file_manager.get_files_metadata.assert_called_once()
+            called_file_ids = mock_file_manager.get_files_metadata.call_args[0][0]
+            assert len(called_file_ids) == 1
+            assert called_file_ids[0] == file_id
+
+            # Verify results - should only return one document
+            assert len(documents) == 1
+            doc = documents[0]
+            assert isinstance(doc, RelevantDocument)
+            assert doc.content == test_content
+            assert doc.file_metadata.id == file_metadata.id
+
+    @pytest.mark.asyncio
+    async def test_multiple_converted_files(self, mock_session_factory, mock_file_manager) -> None:
         """Test retrieving multiple converted files."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -163,8 +306,11 @@ class TestUploadedFileRetrieverIntegration:
             file2.write_text("Second document content", encoding="utf-8")
 
             # Create metadata for multiple files
+            file_id_1 = uuid4()
+            file_id_2 = uuid4()
+
             file_metadata_1 = FileMetadata(
-                id=uuid4(),
+                id=file_id_1,
                 filename="document1.pdf",
                 size_bytes=1024,
                 mime_type="application/pdf",
@@ -174,7 +320,7 @@ class TestUploadedFileRetrieverIntegration:
             )
 
             file_metadata_2 = FileMetadata(
-                id=uuid4(),
+                id=file_id_2,
                 filename="document2.docx",
                 size_bytes=2048,
                 mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -183,9 +329,15 @@ class TestUploadedFileRetrieverIntegration:
                 converted_content_path=str(file2),
             )
 
-            invocation_context = {"file_metadata": [file_metadata_1.model_dump(), file_metadata_2.model_dump()]}
+            # Configure shared mock_file_manager to return both file metadata
+            mock_file_manager._test_file_metadata_store[(file_id_1, file_id_2)] = [file_metadata_1, file_metadata_2]
 
-            retriever = UploadedFileRetriever()
+            invocation_context = {"file_ids": [str(file_id_1), str(file_id_2)]}
+
+            retriever = UploadedFileRetriever(
+                file_manager_factory=lambda: mock_file_manager,
+                session_factory=mock_session_factory,
+            )
             documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
 
             # Should return both documents
@@ -204,7 +356,7 @@ class TestUploadedFileRetrieverIntegration:
                 assert doc.file_metadata.status == FileStatus.CONVERTED
 
     @pytest.mark.asyncio
-    async def test_file_manager_integration(self) -> None:
+    async def test_file_manager_integration(self, mock_session_factory, mock_file_manager) -> None:
         """Test integration with FileManager through dependency injection."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -212,8 +364,9 @@ class TestUploadedFileRetrieverIntegration:
             test_content = "Integration test content for FileManager"
             test_file.write_text(test_content, encoding="utf-8")
 
+            file_id = uuid4()
             file_metadata = FileMetadata(
-                id=uuid4(),
+                id=file_id,
                 filename="integration_test.pdf",
                 size_bytes=len(test_content),
                 mime_type="application/pdf",
@@ -222,10 +375,16 @@ class TestUploadedFileRetrieverIntegration:
                 converted_content_path=str(test_file),
             )
 
-            invocation_context = {"file_metadata": [file_metadata.model_dump()]}
+            # Configure shared mock_file_manager to return the file metadata
+            mock_file_manager._test_file_metadata_store[(file_id,)] = [file_metadata]
+
+            invocation_context = {"file_ids": [str(file_id)]}
 
             # Create retriever - it should internally use FileManager
-            retriever = UploadedFileRetriever()
+            retriever = UploadedFileRetriever(
+                file_manager_factory=lambda: mock_file_manager,
+                session_factory=mock_session_factory,
+            )
             documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
 
             assert len(documents) == 1

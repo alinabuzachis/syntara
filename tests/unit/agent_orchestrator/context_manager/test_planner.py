@@ -192,7 +192,7 @@ class TestContextManagerPlanner:
         assert metadata["compression_retry_count"] == 0
 
     @pytest.mark.asyncio
-    async def test_plan_request_with_service_exceptions(self, mock_user: User) -> None:
+    async def test_plan_request_with_service_exceptions(self, mock_user: User, mock_session_factory) -> None:
         """Test plan_request handles retrieval exceptions gracefully."""
         # Mock retrieval service to raise exception
         mock_retrieve_service = AsyncMock()
@@ -216,6 +216,7 @@ class TestContextManagerPlanner:
             return mock_compressor
 
         planner = ContextManagerPlanner(
+            session_factory=mock_session_factory,
             retriever_service_factory=mock_retriever_factory,
             compressor_service_factory=mock_compressor_factory,
         )

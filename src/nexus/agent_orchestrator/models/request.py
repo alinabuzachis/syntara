@@ -44,7 +44,10 @@ class InvocationCreateRequest(SQLModel, populate_by_name=True):
         default_factory=dict,
         validation_alias=AliasChoices("contextData", "context_data"),
         serialization_alias="contextData",
-        description="Optional additional context for the request",
+        description=(
+            "Optional additional context for the request. "
+            "Use 'file_ids' (array of UUID strings) to reference uploaded files."
+        ),
     )
 
 

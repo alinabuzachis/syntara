@@ -470,6 +470,33 @@ def mock_openrouter_llm() -> Generator[MagicMock, None, None]:
         yield mock_llm
 
 
+@pytest.fixture
+def mock_session_factory() -> Callable[[], AsyncGenerator[Any, None]]:
+    """Provide a mock database session factory for unit tests.
+
+    This fixture creates a mock AsyncSession that can be used as a session factory
+    in components that require database access. The mock session is properly configured
+    with async context manager support (__aenter__ and __aexit__).
+
+    Returns:
+        Callable that returns an async generator yielding a mock AsyncSession
+
+    Example:
+        async def test_something(mock_session_factory):
+            component = MyComponent(session_factory=mock_session_factory)
+            # component will use the mock session
+
+    """
+    mock_session = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+
+    async def session_gen() -> AsyncGenerator[Any, None]:
+        yield mock_session
+
+    return session_gen
+
+
 @pytest_asyncio.fixture
 async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
     """Create a base test client with database session override (no authentication).

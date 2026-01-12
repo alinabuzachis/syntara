@@ -399,7 +399,7 @@ flowchart TB
 
 ### Phase 3.3f: Retriever Service (Sequential)
 
-- [ ] **T014** Update `UploadedFileRetriever` to use `file_ids` via FileManager
+- [X] **T014** Update `UploadedFileRetriever` to use `file_ids` via FileManager
   - **File**: `src/nexus/agent_orchestrator/context_manager/retriever_service/retrievers/uploaded_file_retriever.py`
   - **Note**: `UploadedFileRetriever` already exists and handles file retrieval from `context_data.file_metadata` (embedded Pydantic objects). Update to use `file_ids` instead and access `FileMetadata` via `FileManager`.
   - **Key design decision**: `context_data` contains only `file_ids` (UUIDs), not hydrated `FileMetadata` objects. The retriever uses `FileManager` to get full records (encapsulation). This keeps `Invocation.context_data` lean and makes `FileMetadata` table the single source of truth.
