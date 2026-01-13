@@ -3,6 +3,7 @@
 Tests T011: Rolling window correctly includes/excludes records based on time.
 """
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -11,7 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
 from nexus.agent_orchestrator.token_manager.services import TokenValidationService
-from nexus.core.models.user import User, UserRole
+from nexus.core.models import User
 
 
 @pytest_asyncio.fixture
@@ -134,6 +135,7 @@ async def test_per_user_window_configuration(
     service: TokenValidationService,
     test_db_session: AsyncSession,
     test_user,
+    user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """Test T011: Each user can have a different rolling window duration.
 
@@ -151,15 +153,11 @@ async def test_per_user_window_configuration(
     test_db_session.add(user_a_config)
 
     # User B with 24-hour window
-    user_b = User(
+    user_b = await user_factory(
         email="userb_window@example.com",
         username="userb_window",
         full_name="User B Window",
-        role=UserRole.CREATOR,
     )
-    test_db_session.add(user_b)
-    await test_db_session.commit()
-    await test_db_session.refresh(user_b)
 
     user_b_config = UserTokenConfig(
         user_id=user_b.id,

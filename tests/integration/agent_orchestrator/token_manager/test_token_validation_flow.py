@@ -13,7 +13,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.agent_orchestrator.token_manager.exceptions import TokenLimitExceededError
 from nexus.agent_orchestrator.token_manager.models import UserTokenConfig
 from nexus.agent_orchestrator.token_manager.services import TokenValidationService
-from nexus.core.models.user import User, UserRole
 
 
 @pytest_asyncio.fixture
@@ -31,17 +30,13 @@ async def user_a_config(test_db_session: AsyncSession, test_user) -> UserTokenCo
 
 
 @pytest_asyncio.fixture
-async def user_b_config(test_db_session: AsyncSession) -> UserTokenConfig:
+async def user_b_config(test_db_session: AsyncSession, user_factory) -> UserTokenConfig:
     """Create configuration for user B."""
-    user_b = User(
+    user_b = await user_factory(
         email="userb@example.com",
         username="userb",
         full_name="User B",
-        role=UserRole.CREATOR,
     )
-    test_db_session.add(user_b)
-    await test_db_session.commit()
-    await test_db_session.refresh(user_b)
 
     config = UserTokenConfig(
         user_id=user_b.id,

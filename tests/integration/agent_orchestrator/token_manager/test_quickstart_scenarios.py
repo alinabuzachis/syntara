@@ -6,6 +6,7 @@ implementation matches the specification.
 
 import logging
 import sys
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -17,7 +18,7 @@ from nexus.agent_orchestrator.token_manager.models import (
     UserTokenConfig,
 )
 from nexus.agent_orchestrator.token_manager.services import TokenValidationService
-from nexus.core.models.user import User, UserRole
+from nexus.core.models import User
 
 # Configure logger to output to stdout
 logger = logging.getLogger(__name__)
@@ -33,21 +34,10 @@ class TestQuickstartScenarios:
     """Validation tests for quickstart scenarios."""
 
     @pytest.mark.asyncio
-    async def test_scenario_1_request_within_limit(self, test_db_session: AsyncSession) -> None:
+    async def test_scenario_1_request_within_limit(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Scenario 1: Request within limit is accepted."""
-        # Create test user
-        user = User(
-            username="qs_user1",
-            email="qs_user1@example.com",
-            full_name="Quickstart User 1",
-            role=UserRole.VIEWER,
-        )
-        test_db_session.add(user)
-        await test_db_session.commit()
-        await test_db_session.refresh(user)
-
         # Create config with 10,000 token limit
-        config = UserTokenConfig(user_id=user.id, token_limit=10000, window_duration_seconds=86400)
+        config = UserTokenConfig(user_id=test_user.id, token_limit=10000, window_duration_seconds=86400)
         test_db_session.add(config)
         await test_db_session.commit()
 
@@ -55,18 +45,18 @@ class TestQuickstartScenarios:
         service = TokenValidationService()
 
         # Simulate 8,000 tokens already used
-        usage_record = TokenUsageRecord(user_id=user.id, token_count=8000, request_timestamp=datetime.now(UTC))
+        usage_record = TokenUsageRecord(user_id=test_user.id, token_count=8000, request_timestamp=datetime.now(UTC))
         test_db_session.add(usage_record)
         await test_db_session.commit()
 
         # Test: Submit request with ~1,500 tokens
         test_text = "token " * 300  # ~300 words * ~5 tokens/word = ~1500 tokens
 
-        tokens_used = await service.validate_and_record(user.id, test_text, test_db_session)
+        tokens_used = await service.validate_and_record(test_user.id, test_text, test_db_session)
         assert tokens_used > 0, "Should have recorded some tokens"
 
         # Verify current usage
-        usage_stats = await service.get_current_usage(user.id, test_db_session)
+        usage_stats = await service.get_current_usage(test_user.id, test_db_session)
         current_usage = usage_stats["current_usage"]
         expected = 8000 + tokens_used
         assert current_usage == expected, f"Usage {current_usage} != expected {expected}"
@@ -75,21 +65,10 @@ class TestQuickstartScenarios:
         logger.info("✅ SCENARIO 1 PASSED: %d tokens recorded, total: %d", tokens_used, current_usage)
 
     @pytest.mark.asyncio
-    async def test_scenario_2_request_exceeds_limit(self, test_db_session: AsyncSession) -> None:
+    async def test_scenario_2_request_exceeds_limit(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Scenario 2: Request exceeding limit is blocked."""
-        # Create test user
-        user = User(
-            username="qs_user2",
-            email="qs_user2@example.com",
-            full_name="Quickstart User 2",
-            role=UserRole.VIEWER,
-        )
-        test_db_session.add(user)
-        await test_db_session.commit()
-        await test_db_session.refresh(user)
-
         # Create config
-        config = UserTokenConfig(user_id=user.id, token_limit=10000, window_duration_seconds=86400)
+        config = UserTokenConfig(user_id=test_user.id, token_limit=10000, window_duration_seconds=86400)
         test_db_session.add(config)
         await test_db_session.commit()
 
@@ -97,7 +76,7 @@ class TestQuickstartScenarios:
         service = TokenValidationService()
 
         # Simulate 9,500 tokens already used
-        usage_record = TokenUsageRecord(user_id=user.id, token_count=9500, request_timestamp=datetime.now(UTC))
+        usage_record = TokenUsageRecord(user_id=test_user.id, token_count=9500, request_timestamp=datetime.now(UTC))
         test_db_session.add(usage_record)
         await test_db_session.commit()
 
@@ -107,7 +86,7 @@ class TestQuickstartScenarios:
         large_text = "token " * 600  # ~600 tokens, which will push total to ~10100
 
         with pytest.raises(TokenLimitExceededError) as exc_info:
-            await service.validate_and_record(user.id, large_text, test_db_session)
+            await service.validate_and_record(test_user.id, large_text, test_db_session)
 
         # Verify error details
         error = exc_info.value
@@ -116,25 +95,23 @@ class TestQuickstartScenarios:
         assert error.request_tokens > 0
 
         # Verify usage wasn't recorded
-        usage_stats = await service.get_current_usage(user.id, test_db_session)
+        usage_stats = await service.get_current_usage(test_user.id, test_db_session)
         final_usage = usage_stats["current_usage"]
         assert final_usage == 9500, "Usage should not have increased"
 
         logger.info("✅ SCENARIO 2 PASSED: Request correctly blocked at %d/%d", error.current_usage, error.token_limit)
 
     @pytest.mark.asyncio
-    async def test_scenario_3_rolling_window_excludes_old_records(self, test_db_session: AsyncSession) -> None:
+    async def test_scenario_3_rolling_window_excludes_old_records(
+        self, test_db_session: AsyncSession, user_factory: Callable[..., Awaitable[User]]
+    ) -> None:
         """Scenario 3: Rolling window excludes old records."""
         # Create test user
-        user = User(
+        user = await user_factory(
             username="qs_user3",
             email="qs_user3@example.com",
             full_name="Quickstart User 3",
-            role=UserRole.VIEWER,
         )
-        test_db_session.add(user)
-        await test_db_session.commit()
-        await test_db_session.refresh(user)
 
         # Create config with 24-hour window
         config = UserTokenConfig(user_id=user.id, token_limit=10000, window_duration_seconds=86400)
@@ -172,25 +149,21 @@ class TestQuickstartScenarios:
         logger.info("✅ SCENARIO 3 PASSED: Rolling window correctly excluded old records, new total: %d", new_usage)
 
     @pytest.mark.asyncio
-    async def test_scenario_4_per_user_independence(self, test_db_session: AsyncSession) -> None:
+    async def test_scenario_4_per_user_independence(
+        self, test_db_session: AsyncSession, user_factory: Callable[..., Awaitable[User]]
+    ) -> None:
         """Scenario 4: Per-user independence."""
         # Create two test users
-        user_a = User(
+        user_a = await user_factory(
             username="qs_user_a",
             email="qs_user_a@example.com",
             full_name="Quickstart User A",
-            role=UserRole.VIEWER,
         )
-        user_b = User(
+        user_b = await user_factory(
             username="qs_user_b",
             email="qs_user_b@example.com",
             full_name="Quickstart User B",
-            role=UserRole.VIEWER,
         )
-        test_db_session.add_all([user_a, user_b])
-        await test_db_session.commit()
-        await test_db_session.refresh(user_a)
-        await test_db_session.refresh(user_b)
 
         # Create different configs
         config_a = UserTokenConfig(user_id=user_a.id, token_limit=5000, window_duration_seconds=3600)

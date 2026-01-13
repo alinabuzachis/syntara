@@ -11,6 +11,7 @@ import logging
 import statistics
 import sys
 import time
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -28,7 +29,7 @@ from nexus.agent_orchestrator.token_manager.services import (
     TokenCalculator,
     TokenValidationService,
 )
-from nexus.core.models.user import User, UserRole
+from nexus.core.models import User
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -48,7 +49,7 @@ class TestConcurrentRequestPerformance:
 
     @pytest.mark.asyncio
     async def test_concurrent_requests_from_single_user_meets_latency_target(  # noqa: PLR0915
-        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine
+        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine, test_user: User
     ) -> None:
         """Test concurrent requests from same user maintain correctness.
 
@@ -59,20 +60,9 @@ class TestConcurrentRequestPerformance:
         Note: The <200ms p95 target applies to individual sequential requests.
         Under high concurrency with database locking, latency is higher but ensures correctness.
         """
-        # Setup: Create user first (foreign key requirement)
-        user = User(
-            username="perf_test_user",
-            email="perf_test_user@example.com",
-            full_name="Performance Test User",
-            role=UserRole.VIEWER,
-        )
-        test_db_session.add(user)
-        await test_db_session.commit()
-        await test_db_session.refresh(user)
-
         # Create user config with sufficient limit for all requests
         config = UserTokenConfig(
-            user_id=user.id,
+            user_id=test_user.id,
             token_limit=100000,  # High limit to test performance, not limit enforcement
             window_duration_seconds=3600,
         )
@@ -103,7 +93,7 @@ class TestConcurrentRequestPerformance:
             start_time = time.perf_counter()
             async with session_factory() as session:
                 try:
-                    await service.validate_and_record(user_id=user.id, request_text=test_text, session=session)
+                    await service.validate_and_record(user_id=test_user.id, request_text=test_text, session=session)
                     await session.commit()
                     end_time = time.perf_counter()
                     latency_ms = (end_time - start_time) * 1000
@@ -166,7 +156,7 @@ class TestConcurrentRequestPerformance:
             logger.info("✅ Concurrent request latency within acceptable range")
 
             # Verify data consistency (no race conditions)
-            stmt = select(TokenUsageRecord).where(TokenUsageRecord.user_id == user.id)
+            stmt = select(TokenUsageRecord).where(TokenUsageRecord.user_id == test_user.id)
             db_result = await test_db_session.exec(stmt)
             usage_records = db_result.all()
             total_tokens = sum(record.token_count for record in usage_records)
@@ -180,7 +170,7 @@ class TestConcurrentRequestPerformance:
 
     @pytest.mark.asyncio
     async def test_concurrent_capacity_handles_multiple_users(  # noqa: PLR0915
-        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine
+        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine, user_factory: Callable[..., Awaitable[User]]
     ) -> None:
         """Test system handles concurrent requests from multiple users.
 
@@ -195,15 +185,11 @@ class TestConcurrentRequestPerformance:
         user_configs = []
         for i in range(3):
             # Create user first (foreign key requirement)
-            user = User(
+            user = await user_factory(
                 username=f"perf_test_user_{i}",
                 email=f"perf_test_user_{i}@example.com",
                 full_name=f"Performance Test User {i}",
-                role=UserRole.VIEWER,
             )
-            test_db_session.add(user)
-            await test_db_session.commit()
-            await test_db_session.refresh(user)
 
             config = UserTokenConfig(
                 user_id=user.id,
@@ -326,7 +312,7 @@ class TestConcurrentRequestPerformance:
 
     @pytest.mark.asyncio
     async def test_concurrent_requests_enforce_limits_correctly(
-        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine
+        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine, test_user: User
     ) -> None:
         """Test that concurrent requests correctly enforce token limits without race conditions.
 
@@ -335,20 +321,9 @@ class TestConcurrentRequestPerformance:
         - No double-counting occurs
         - Final usage equals sum of accepted requests
         """
-        # Setup: Create user first (foreign key requirement)
-        user = User(
-            username="perf_test_limit_enforcement",
-            email="perf_test_limit_enforcement@example.com",
-            full_name="Performance Test Limit Enforcement",
-            role=UserRole.VIEWER,
-        )
-        test_db_session.add(user)
-        await test_db_session.commit()
-        await test_db_session.refresh(user)
-
         # Create user config with tight limit
         config = UserTokenConfig(
-            user_id=user.id,
+            user_id=test_user.id,
             token_limit=5000,  # Low limit to test enforcement
             window_duration_seconds=3600,
         )
@@ -378,7 +353,7 @@ class TestConcurrentRequestPerformance:
             """Submit a request and track acceptance/rejection."""
             async with session_factory() as session:
                 try:
-                    await service.validate_and_record(user_id=user.id, request_text=test_text, session=session)
+                    await service.validate_and_record(user_id=test_user.id, request_text=test_text, session=session)
                     await session.commit()
                     accepted.append(request_num)
                     return True
@@ -401,7 +376,7 @@ class TestConcurrentRequestPerformance:
         logger.info("  Rejected: %d requests", len(rejected))
 
         # Get final usage
-        stmt = select(TokenUsageRecord).where(TokenUsageRecord.user_id == user.id)
+        stmt = select(TokenUsageRecord).where(TokenUsageRecord.user_id == test_user.id)
         result = await test_db_session.exec(stmt)
         usage_records = result.all()
         final_usage = sum(record.token_count for record in usage_records)

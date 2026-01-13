@@ -587,27 +587,37 @@ async def base_client_with_provider_factory(
     return base_client
 
 
+@pytest.fixture
+def default_user_data() -> dict[str, Any]:
+    """Provide default user attributes."""
+    return {
+        "username": "testuser",
+        "email": "testuser@example.com",
+        "full_name": "Test User",
+        "role": UserRole.CREATOR,
+    }
+
+
 @pytest_asyncio.fixture
-async def test_user(test_db_session: AsyncSession) -> "User":
-    """Create a test user.
+async def user_factory(
+    test_db_session: AsyncSession, default_user_data: dict[str, Any]
+) -> Callable[..., Awaitable["User"]]:
+    """Factory fixture for creating a custom user."""
 
-    Args:
-        test_db_session: Test database session
+    async def _create_user(**overrides: object) -> "User":
+        user_data = {**default_user_data, **overrides}
+        user = User(**user_data)
+        test_db_session.add(user)
+        await test_db_session.commit()
+        return user
 
-    Returns:
-        User: Test user instance
+    return _create_user
 
-    """
-    user = User(
-        username="testuser",
-        email="testuser@example.com",
-        full_name="Test User",
-        role=UserRole.CREATOR,
-    )
-    test_db_session.add(user)
-    await test_db_session.commit()
-    await test_db_session.refresh(user)
-    return user
+
+@pytest_asyncio.fixture
+async def test_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
+    """Create test user with default attributes."""
+    return await user_factory()
 
 
 @pytest_asyncio.fixture

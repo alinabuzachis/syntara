@@ -13,6 +13,7 @@ Tests cover:
 - Enum validation (InvocationStatus)
 """
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -23,7 +24,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
-from nexus.core.models import User, UserRole
+from nexus.core.models import User
 
 
 @pytest.mark.asyncio
@@ -217,18 +218,16 @@ async def test_query_invocations_by_status(test_db_session: AsyncSession, test_u
 
 
 @pytest.mark.asyncio
-async def test_query_invocations_by_user(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_query_invocations_by_user(
+    test_db_session: AsyncSession, test_user: User, user_factory: Callable[..., Awaitable[User]]
+) -> None:
     """Test querying invocations by created_by."""
     # Create a second user for testing
-    user2 = User(
+    user2 = await user_factory(
         username="testuser2",
         email="testuser2@example.com",
         full_name="Test User 2",
-        role=UserRole.VIEWER,
     )
-    test_db_session.add(user2)
-    await test_db_session.commit()
-    await test_db_session.refresh(user2)
 
     # Create invocations for different users
     invocation1 = Invocation(

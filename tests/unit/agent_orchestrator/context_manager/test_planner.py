@@ -26,7 +26,7 @@ class TestContextManagerPlanner:
         return User(
             id=uuid4(),
             username="testuser",
-            email="test@example.com",
+            email="testuser@example.com",
             full_name="Test User",
             role=UserRole.CREATOR,
         )
