@@ -28,4 +28,5 @@ export const AppRoute = {
     FAQ: '/support/faq',
     Glossary: '/support/glossary',
   },
+  DemoWebSocket: '/demo-ws',
 }

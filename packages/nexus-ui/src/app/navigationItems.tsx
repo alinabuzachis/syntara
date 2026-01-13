@@ -21,6 +21,7 @@ const IntegrationForm = lazy(() =>
 const Integrations = lazy(() => import('../routes/configuration/integrations/Integrations'))
 const IntegrationTools = lazy(() => import('../routes/configuration/integrations/IntegrationTools'))
 const Glossary = lazy(() => import('../routes/documentation/glossary/Glossary'))
+const DemoWebSocket = lazy(() => import('../routes/demo-ws/DemoWebSocket'))
 
 export const navigationItems: INavigationItem[] = [
   {
@@ -106,6 +107,12 @@ export const navigationItems: INavigationItem[] = [
         element: <Glossary />,
       },
     ],
+  },
+  // Demo Routes
+  {
+    label: 'WebSocket Demo',
+    path: AppRoute.DemoWebSocket,
+    element: <DemoWebSocket />,
   },
   // Hidden routes (not shown in navigation, but needed for routing)
   {

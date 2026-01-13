@@ -58,16 +58,18 @@ For how the UI is structured, see these comprehensive guides:
 - [`docs/architecture.md`](docs/architecture.md) - Main architecture guide covering routing, state management, and the workflow builder
 - [`docs/data-flow.md`](docs/data-flow.md) - **NEW!** Deep dive into OpenAPI contract generation, type-safe API clients, and workflow transformations (nested ↔ flat)
 - [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Workflow store details, state management patterns, and best practices
+- [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - WebSocket infrastructure, multi-channel architecture, and real-time features
 
 ### Quick Navigation by Task
 
-| Working on...                | Read this section                                                                              |
-| ---------------------------- | ---------------------------------------------------------------------------------------------- |
-| **API integration**          | [`docs/data-flow.md`](docs/data-flow.md) - OpenAPI contract generation and type-safe clients   |
-| **Workflow transformations** | [`docs/data-flow.md`](docs/data-flow.md) - Nested to flat conversions with diagrams            |
-| **Node registry**            | [`docs/architecture.md`](docs/architecture.md) - "How registerAllNodes() auto-discovers nodes" |
-| **Builder internals**        | [`docs/architecture.md`](docs/architecture.md) - "Builder internals (advanced)" section        |
-| **State management**         | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Complete Zustand guide        |
+| Working on...                | Read this section                                                                                           |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **API integration**          | [`docs/data-flow.md`](docs/data-flow.md) - OpenAPI contract generation and type-safe clients                |
+| **Workflow transformations** | [`docs/data-flow.md`](docs/data-flow.md) - Nested to flat conversions with diagrams                         |
+| **Node registry**            | [`docs/architecture.md`](docs/architecture.md) - "How registerAllNodes() auto-discovers nodes"              |
+| **Builder internals**        | [`docs/architecture.md`](docs/architecture.md) - "Builder internals (advanced)" section                     |
+| **State management**         | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Complete Zustand guide                     |
+| **WebSocket / real-time**    | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - Multi-channel WebSocket infrastructure |
 
 ### Component Development Guidelines
 
@@ -292,6 +294,11 @@ it('increments counter when button clicked', async () => {
 
 - UI: <http://localhost:5173>
 - Mock API: <http://localhost:3000>
+- WebSocket: `ws://localhost:8000` (real backend) or via mock API
+
+### Demo Pages
+
+- **WebSocket Demo**: <http://localhost:5173/demo-ws> — Test WebSocket channels (Coffee, Chat, Agent Events, Tokens)
 
 ## Deployment Considerations
 

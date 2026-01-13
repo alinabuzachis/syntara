@@ -46,17 +46,18 @@ Nice to have (but we'll explain the basics):
 
 ## Key Terms (Glossary)
 
-| Term               | What it is                                                                                                                  | Learn more                                               |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| **Zustand**        | Lightweight state management library (like Redux but simpler). We use it for workflow editing state.                        | [Zustand docs](https://zustand-demo.pmnd.rs/)            |
-| **TanStack Query** | Server-state library that handles fetching, caching, and synchronizing backend data. Replaces manual `useEffect` + `fetch`. | [TanStack Query docs](https://tanstack.com/query/latest) |
-| **React Flow**     | Library for building node-based editors (like our workflow canvas). Nodes + edges = graph.                                  | [React Flow docs](https://reactflow.dev/)                |
-| **Wouter**         | Tiny router (~1KB). Like React Router but minimal.                                                                          | [Wouter docs](https://github.com/molefrog/wouter)        |
-| **OpenAPI**        | Specification for REST APIs. We generate TypeScript types from the backend's OpenAPI spec.                                  | [OpenAPI spec](https://swagger.io/specification/)        |
-| **Dagre**          | Graph layout algorithm. Automatically positions nodes so the workflow looks organized.                                      | [Dagre wiki](https://github.com/dagrejs/dagre/wiki)      |
-| **Activity**       | A single step in a workflow (e.g., a task, condition, loop). Backend term.                                                  |                                                          |
-| **Node**           | React Flow term for a visual box on the canvas. Activities become nodes.                                                    |                                                          |
-| **Edge**           | React Flow term for a connection line between nodes.                                                                        |                                                          |
+| Term                  | What it is                                                                                                                  | Learn more                                                 |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **Zustand**           | Lightweight state management library (like Redux but simpler). We use it for workflow editing state.                        | [Zustand docs](https://zustand-demo.pmnd.rs/)              |
+| **TanStack Query**    | Server-state library that handles fetching, caching, and synchronizing backend data. Replaces manual `useEffect` + `fetch`. | [TanStack Query docs](https://tanstack.com/query/latest)   |
+| **React Flow**        | Library for building node-based editors (like our workflow canvas). Nodes + edges = graph.                                  | [React Flow docs](https://reactflow.dev/)                  |
+| **Wouter**            | Tiny router (~1KB). Like React Router but minimal.                                                                          | [Wouter docs](https://github.com/molefrog/wouter)          |
+| **OpenAPI**           | Specification for REST APIs. We generate TypeScript types from the backend's OpenAPI spec.                                  | [OpenAPI spec](https://swagger.io/specification/)          |
+| **Dagre**             | Graph layout algorithm. Automatically positions nodes so the workflow looks organized.                                      | [Dagre wiki](https://github.com/dagrejs/dagre/wiki)        |
+| **useWebSocketStore** | Zustand store that manages WebSocket connections, reconnection, and message routing.                                        | [`websocket-architecture.md`](./websocket-architecture.md) |
+| **Activity**          | A single step in a workflow (e.g., a task, condition, loop). Backend term.                                                  |                                                            |
+| **Node**              | React Flow term for a visual box on the canvas. Activities become nodes.                                                    |                                                            |
+| **Edge**              | React Flow term for a connection line between nodes.                                                                        |                                                            |
 
 ---
 
@@ -92,6 +93,7 @@ Nice to have (but we'll explain the basics):
 | **Workflow Canvas** | React Flow (`@xyflow/react`)            | Node-based editor for workflows            |
 | **State (Server)**  | TanStack Query                          | Caching, fetching, synchronizing API data  |
 | **State (Client)**  | Zustand                                 | Lightweight store for workflow editing     |
+| **WebSocket**       | Pure Zustand store                      | Real-time communication with backend       |
 | **Routing**         | Wouter                                  | Minimal router (~1KB)                      |
 | **Build**           | Vite                                    | Fast dev server and bundler                |
 | **Testing**         | Vitest + Testing Library                | Unit and component testing                 |
@@ -246,7 +248,8 @@ Within `packages/nexus-ui/src/`:
 | `app/`                          | App shell, layout, routing                                     |
 | `client.tsx`                    | Typed API clients (OpenAPI → TanStack Query hooks)             |
 | `routes/`                       | Feature areas: builder, automations, executions, configuration |
-| `stores/`                       | Client state (Zustand)                                         |
+| `stores/`                       | Client state (Zustand) — workflow store                        |
+| `lib/websocket/`                | WebSocket infrastructure (store, hooks, types, utils)          |
 | `components/`                   | App-specific components                                        |
 | `constants/`, `hooks/`, `test/` | Shared utilities                                               |
 
@@ -364,11 +367,12 @@ const { workflowId } = useParams()
 
 ## State Management
 
-| Type               | Technology                   | Purpose                                              |
-| ------------------ | ---------------------------- | ---------------------------------------------------- |
-| **Server State**   | TanStack Query               | All API data — fetching, caching, background updates |
-| **Client State**   | React useState/useContext    | Local UI state (modals, forms, selections)           |
-| **Workflow State** | Zustand (`useWorkflowStore`) | Builder workflow editing state                       |
+| Type                | Technology                    | Purpose                                              |
+| ------------------- | ----------------------------- | ---------------------------------------------------- |
+| **Server State**    | TanStack Query                | All API data — fetching, caching, background updates |
+| **Client State**    | React useState/useContext     | Local UI state (modals, forms, selections)           |
+| **Workflow State**  | Zustand (`useWorkflowStore`)  | Builder workflow editing state                       |
+| **WebSocket State** | Zustand (`useWebSocketStore`) | Real-time connection state and messages              |
 
 ```mermaid
 flowchart TB
@@ -402,6 +406,52 @@ flowchart TB
 - Type-safe API interactions via `openapi-react-query`
 - Automatic memoization through React Compiler
 
+### WebSocket State
+
+For real-time features, we use a pure Zustand architecture (no Context/Provider needed):
+
+```mermaid
+flowchart TB
+  subgraph Backend["Backend WebSocket Server"]
+    WS[WebSocket Endpoint]
+  end
+
+  subgraph WebSocketInfra["WebSocket Infrastructure (lib/websocket/)"]
+    Store[useWebSocketStore<br/>Zustand - connection logic]
+    Hooks[useWebSocket]
+  end
+
+  subgraph Component["React Component"]
+    UI[Component UI]
+  end
+
+  WS <-->|"messages"| Store
+  Store --> Hooks
+  Hooks --> UI
+```
+
+**Quick usage:**
+
+```tsx
+import { useWebSocket } from '../../lib/websocket'
+
+function ChatComponent() {
+  // Single hook for connect, send, and receive
+  const { sendRaw, isConnected } = useWebSocket(
+    { id: 'chat', path: '/ws/example/v1/chat' },
+    { onMessage: (msg) => console.log('Received:', msg) }
+  )
+
+  return (
+    <button onClick={() => sendRaw({ message: 'Hello' })} disabled={!isConnected}>
+      Send
+    </button>
+  )
+}
+```
+
+> 📚 **See [`docs/websocket-architecture.md`](./websocket-architecture.md) for comprehensive WebSocket documentation.**
+
 ### Zustand Quick Reference
 
 > 📚 **See [docs/zustand-architecture.md](./zustand-architecture.md) for comprehensive documentation** on the Zustand store architecture, best practices, and usage patterns.
@@ -418,37 +468,9 @@ flowchart TB
 
 ## Backend Requests + Data Flow (TanStack Query + OpenAPI clients)
 
-> 📚 **For a comprehensive guide** on OpenAPI contract generation, type-safe API calls, and data transformation, see [docs/data-flow.md](./data-flow.md)
-
-### Quick Overview
-
-The UI uses automatically generated TypeScript types from the backend's OpenAPI specification:
-
-```mermaid
-flowchart LR
-    subgraph Backend
-        YAML[OpenAPI YAML<br/>Specs]
-    end
-
-    subgraph Generation
-        Gen[npm run gen]
-        TS[TypeScript Types]
-    end
-
-    subgraph UI
-        Client[API Clients]
-        Query[TanStack Query]
-    end
-
-    YAML -->|"Clone repo"| Gen
-    Gen -->|"openapi-typescript"| TS
-    TS --> Client
-    Client --> Query
-```
-
 ### Making API calls
 
-All backend calls go through typed clients in [`src/client.tsx`](../packages/nexus-ui/src/client.tsx):
+All backend calls go through typed clients in `src/client.tsx`:
 
 ```tsx
 // Reading data
@@ -463,27 +485,11 @@ mutation.mutate({ body: workflowPayload })
 
 ### Available clients
 
-| Client                | Used for               | Generated from      |
-| --------------------- | ---------------------- | ------------------- |
-| `workflowClient`      | Workflows, executions  | workflow-api.yaml   |
-| `toolsClient`         | Tools                  | tools.yaml          |
-| `toolProvidersClient` | Integrations/providers | tool-providers.yaml |
-
-### Type Generation
-
-Types are generated by cloning the backend repository and running `openapi-typescript`:
-
-```bash
-# Regenerate types when backend API changes
-npm run gen
-```
-
-**What this does:**
-
-1. Clones `syntara-orchestration/syntara` repository
-2. Runs `openapi-typescript` on each YAML spec
-3. Outputs TypeScript definitions to `packages/nexus-contracts/src/`
-4. Cleans up and formats the code
+| Client                | Used for               |
+| --------------------- | ---------------------- |
+| `workflowClient`      | Workflows, executions  |
+| `toolsClient`         | Tools                  |
+| `toolProvidersClient` | Integrations/providers |
 
 ### Where does the backend URL come from?
 
@@ -500,50 +506,16 @@ npm run gen
 
 ## Workflow Builder: backend workflow → UI graph (React Flow)
 
-> 📚 **For detailed data transformation with code examples**, see [docs/data-flow.md](./data-flow.md)
+> This is the most complex part of the codebase. Take your time here.
 
 ### The key insight: flat vs. nested
 
-The builder uses a different data structure than the backend API:
-
-| Format     | Where used  | Structure                                                                   |
+| Format     | Where used  | Example                                                                     |
 | ---------- | ----------- | --------------------------------------------------------------------------- |
 | **Nested** | Backend API | `condition: { then: [task1, task2], else: [task3] }`                        |
 | **Flat**   | Builder UI  | `activities: [condition, task1, task2, task3]` + edges encode relationships |
 
-**Why flat?** Visual editors work better with:
-
-- A flat list of all nodes (easier to add/remove/reorder)
-- Explicit edges showing connections (easier to manipulate visually)
-
-```mermaid
-flowchart TB
-    subgraph API["Backend API Format (Nested)"]
-        direction TB
-        N1["Condition Node"]
-        N2["then: [Task1, Task2]"]
-        N3["else: [Task3]"]
-        N1 --> N2
-        N1 --> N3
-    end
-
-    subgraph Builder["Builder Format (Flat)"]
-        direction TB
-        F1["activities: [
-        Condition (then=[], else=[]),
-        Task1,
-        Task2,
-        Task3
-        ]"]
-        F2["edges: [
-        Condition→Task1 (handle='true'),
-        Task1→Task2,
-        Condition→Task3 (handle='false')
-        ]"]
-    end
-
-    API <-->|"WorkflowTransform"| Builder
-```
+**Why flat?** Easier to add/remove/reorder nodes in a visual editor.
 
 ### Builder entry points
 
@@ -554,62 +526,31 @@ flowchart TB
 
 ### Load path: API → store → canvas
 
-```mermaid
-sequenceDiagram
-    participant API as Backend API
-    participant TQ as TanStack Query
-    participant WT as WorkflowTransform
-    participant Z as Zustand Store
-    participant BF as BuilderFlow
-    participant RF as React Flow Canvas
-
-    API->>TQ: WorkflowDefinition (nested)
-    TQ->>WT: flatten(workflow)
-    WT->>Z: Store flat activities + edges
-    Z->>BF: Subscribe to changes
-    BF->>BF: Convert to React Flow format
-    BF->>BF: Apply Dagre layout
-    BF->>RF: Render nodes + edges
 ```
-
-**Steps:**
-
 1. Fetch workflow from API (nested format)
-2. `WorkflowTransform.flatten()` extracts activities + generates edges
+       ↓
+2. WorkflowTransform.flatten() extracts activities + generates edges
+       ↓
 3. Store in Zustand (flat activities + edges)
-4. `BuilderFlow` converts to React Flow nodes + edges
+       ↓
+4. BuilderFlow converts to React Flow nodes + edges
+       ↓
 5. React Flow renders the canvas
+```
 
 ### Save path: canvas → store → API
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant Z as Zustand Store
-    participant V as Validation
-    participant WT as WorkflowTransform
-    participant M as Mutation
-    participant API as Backend API
-
-    U->>Z: Click Save
-    Z->>V: Validate graph
-    alt Invalid
-        V-->>U: Show errors
-    else Valid
-        Z->>WT: nest(activities, edges)
-        WT->>M: Nested workflow
-        M->>API: PUT /workflows/{id}
-        API-->>U: Success
-    end
 ```
-
-**Steps:**
-
 1. User clicks Save
+       ↓
 2. Read flat activities + edges from Zustand
-3. Validate the graph (check for disconnected nodes, invalid conditions, etc.)
-4. `WorkflowTransform.nest()` converts back to nested structure
+       ↓
+3. Validate the graph
+       ↓
+4. buildNestedConditionStructure() converts back to nested
+       ↓
 5. Submit to API via mutation
+```
 
 ### Key files
 
@@ -1200,8 +1141,8 @@ queryClient.invalidateQueries({ queryKey: ['get', '/workflows'] })
 
 ## Related Docs
 
-| Doc                                                         | Content                                                               |
-| ----------------------------------------------------------- | --------------------------------------------------------------------- |
-| [`docs/data-flow.md`](./data-flow.md)                       | OpenAPI contract generation, API clients, and workflow transformation |
-| [`docs/zustand-architecture.md`](./zustand-architecture.md) | Deep dive into workflow store, actions, and state management          |
-| [`CLAUDE.md`](../CLAUDE.md)                                 | Quick reference for AI assistants and developers                      |
+| Doc                                                             | Content                                                      |
+| --------------------------------------------------------------- | ------------------------------------------------------------ |
+| [`docs/zustand-architecture.md`](./zustand-architecture.md)     | Deep dive into workflow store, actions, and state management |
+| [`docs/websocket-architecture.md`](./websocket-architecture.md) | WebSocket infrastructure, hooks, and real-time patterns      |
+| [`CLAUDE.md`](../CLAUDE.md)                                     | Quick reference for AI assistants and developers             |

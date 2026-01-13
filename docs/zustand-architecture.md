@@ -136,8 +136,9 @@ User clicks "Save"
 
 ```text
 packages/nexus-ui/src/stores/
-├── useWorkflowStore.ts          # Main store + selectors + hooks
+├── useWorkflowStore.ts          # Main workflow store + selectors + hooks
 ├── workflowFactories.ts         # Entity factory functions
+# Note: WebSocket store is in lib/websocket/store.ts (separate infrastructure)
 ├── useWorkflowStore.test.ts     # Core store tests
 ├── useWorkflowStore.selectors.test.ts  # Selector/hook tests
 └── ... (other test files)
@@ -679,6 +680,63 @@ The architecture prioritizes:
 3. **Simplicity** - Clean, intuitive API
 4. **Atomicity** - Batch operations for coupled state
 5. **Testability** - Easy to mock and test
+
+---
+
+---
+
+## Other Zustand Stores
+
+### WebSocket Store (`useWebSocketStore`)
+
+The WebSocket infrastructure uses a dedicated Zustand store in `lib/websocket/`:
+
+```text
+packages/nexus-ui/src/lib/websocket/store.ts
+```
+
+| Purpose                    | Description                                                 |
+| -------------------------- | ----------------------------------------------------------- |
+| Track connection states    | Per-channel connection status (connecting, connected, etc.) |
+| Manage WebSocket instances | Native WebSocket creation, reconnection, cleanup            |
+| Message routing            | Route messages to subscribers via callback pattern          |
+| Reconnection logic         | Exponential backoff with configurable attempts              |
+
+**Primary hooks (from `lib/websocket/hooks.ts`):**
+
+| Hook                             | Purpose                                        |
+| -------------------------------- | ---------------------------------------------- |
+| `useWebSocket(channel, options)` | Connect to channel, get send/state/controls    |
+| `useWebSocketState`              | Get connection state only (minimal re-renders) |
+
+**Store selectors (from `lib/websocket/store.ts`):**
+
+| Selector                    | Returns             | Use case                      |
+| --------------------------- | ------------------- | ----------------------------- |
+| `selectConnectionState(id)` | ConnectionState     | Get channel connection state  |
+| `selectIsConnected(id)`     | boolean             | Check if channel is connected |
+| `selectError(id)`           | string \| undefined | Get last error for channel    |
+
+**Usage pattern:**
+
+```tsx
+import { useWebSocket, WebSocketChannel } from '../../lib/websocket'
+
+function ChatComponent() {
+  const { connectionState, isConnected, sendRaw } = useWebSocket(WebSocketChannel.Chat, {
+    onMessage: (msg) => console.log('Received:', msg),
+  })
+
+  return (
+    <div>
+      <Badge color={isConnected ? 'green' : 'red'}>{connectionState}</Badge>
+      <button onClick={() => sendRaw({ text: 'Hello' })}>Send</button>
+    </div>
+  )
+}
+```
+
+> 📚 **See [`docs/websocket-architecture.md`](./websocket-architecture.md) for comprehensive WebSocket documentation.**
 
 ---
 
