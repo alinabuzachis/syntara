@@ -48,7 +48,7 @@ workflow:
           openIssues: $.body.open_issues_count
           createdAt: $.body.created_at
           updatedAt: $.body.updated_at
-      timeout: PT30S
+      timeout: 30
 
     # Fetch repository languages
     - id: fetch_languages
@@ -64,7 +64,7 @@ workflow:
             User-Agent: Nexus-Workflow-Engine
         outputs:
           languages: $.body
-      timeout: PT30S
+      timeout: 30
 
     # Analyze repository data with Python
     - id: analyze_repo
@@ -140,4 +140,4 @@ workflow:
           report: $.output
           summary: $.output.summary
           popularityScore: $.output.statistics.popularity_score
-      timeout: PT1M
+      timeout: 60
