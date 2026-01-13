@@ -1,0 +1,461 @@
+import type { Approval, ApprovalStatus } from '@ansible/nexus-contracts'
+import {
+  CompassPanel,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
+  Label,
+  SearchInput,
+  StackItem,
+} from '@patternfly/react-core'
+import { RhUiDislikeFillIcon, RhUiLikeFillIcon, RhUiWarningFillIcon } from '@patternfly/react-icons'
+import { Thead, Tbody, Tr, Th, Td, ExpandableRowContent } from '@patternfly/react-table'
+import { useMemo, useState } from 'react'
+
+import { AppPage } from '../../app/AppPage'
+import { AppPageHeader } from '../../app/AppPageHeader'
+import { workflowClient } from '../../client'
+import { EmptyStateFilter } from '../../components/EmptyStateFilter'
+import { EmptyStateNoData } from '../../components/EmptyStateNoData'
+import { useQueryState } from '../../components/states/useQueryState'
+import { DateCell } from '../../components/table/DateCell'
+import { LinkCell } from '../../components/table/LinkCell'
+import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { useFuse } from '../../hooks/useFuse'
+
+import { mockApprovals } from './mockApprovals'
+
+type ApprovalWithDetails = Approval & {
+  approvalName?: string
+  // approvalType?: string // Removed for RH1 - may be added back later
+  automationName?: string
+  workflowId?: string
+}
+
+// Extended status type to include 'cancelled' which is in the spec but may not be in contracts yet
+type ExtendedApprovalStatus = ApprovalStatus | 'cancelled'
+
+const statusMap: Record<ExtendedApprovalStatus, 'info' | 'success' | 'danger' | 'warning'> = {
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'danger',
+  expired: 'warning',
+  cancelled: 'info',
+}
+
+const statusIcons: Record<ExtendedApprovalStatus, React.ComponentType<{ className?: string }>> = {
+  pending: RhUiWarningFillIcon,
+  approved: RhUiLikeFillIcon,
+  rejected: RhUiDislikeFillIcon,
+  expired: RhUiWarningFillIcon,
+  cancelled: RhUiWarningFillIcon,
+}
+
+function ApprovalStatusBadges({ approval }: { approval: ApprovalWithDetails }) {
+  if (!approval.status) {
+    return null
+  }
+
+  const IconComponent = statusIcons[approval.status]
+  const capitalizedStatus = approval.status.charAt(0).toUpperCase() + approval.status.slice(1)
+
+  return (
+    <Label variant="outline" status={statusMap[approval.status]} icon={<IconComponent />}>
+      {capitalizedStatus}
+    </Label>
+  )
+}
+
+type SortColumn = 'approvalName' | 'automationName' | 'requested_at' | 'decided_at' | 'status'
+// 'approvalType' removed for RH1 - may be added back later
+type SortDirection = 'asc' | 'desc'
+
+// Feature flag: Set to false when backend endpoints are ready
+// Check at runtime to allow testing
+const getUseMockApprovals = () => import.meta.env.VITE_USE_MOCK_APPROVALS !== 'false'
+
+export default function Approvals() {
+  const USE_MOCK_APPROVALS = getUseMockApprovals()
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [sortColumn, setSortColumn] = useState<SortColumn>('requested_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
+  const approvalsQuery = workflowClient.useQuery('get', '/approvals', {
+    params: {
+      query: {
+        cursor: cursor ?? undefined,
+        limit: 20,
+        include_total: true,
+      },
+    },
+    enabled: !USE_MOCK_APPROVALS, // Only query API if not using mock data
+  })
+
+  // Use mock data if enabled, otherwise use API data
+  const approvalsData = USE_MOCK_APPROVALS
+    ? { resources: mockApprovals, total: mockApprovals.length, next: null, prev: null }
+    : approvalsQuery.data
+
+  const enrichedApprovals = useMemo(() => {
+    const approvals = (approvalsData?.resources ?? []) as ApprovalWithDetails[]
+    return approvals.map((approval) => {
+      const approvalWithFields = approval as unknown as {
+        name?: string
+        workflow_context?: {
+          workflow_version_id?: string
+          workflow_name?: string
+        }
+      }
+
+      const approvalName = approvalWithFields.name || approval.id
+      const workflowContext = approvalWithFields.workflow_context || {}
+      const automationName = workflowContext.workflow_name || 'Unknown'
+      const workflowId = workflowContext.workflow_version_id
+
+      return {
+        ...approval,
+        approvalName,
+        automationName,
+        workflowId,
+      }
+    })
+  }, [approvalsData?.resources])
+
+  const {
+    search,
+    setSearch,
+    items: filteredApprovals,
+  } = useFuse(enrichedApprovals, [{ name: 'approvalName' }, { name: 'automationName' }])
+  // Removed 'approvalType' from search for RH1
+
+  // Sort the filtered approvals
+  const sortedApprovals = useMemo(() => {
+    const sorted = [...filteredApprovals]
+    sorted.sort((a, b) => {
+      let aValue: string | number | undefined
+      let bValue: string | number | undefined
+
+      switch (sortColumn) {
+        case 'approvalName':
+          aValue = a.approvalName || a.id
+          bValue = b.approvalName || b.id
+          break
+        // case 'approvalType': // Removed for RH1
+        //   aValue = a.approvalType || ''
+        //   bValue = b.approvalType || ''
+        //   break
+        case 'automationName':
+          aValue = a.automationName || ''
+          bValue = b.automationName || ''
+          break
+        case 'requested_at':
+          // Use createdAt from BaseResource (represents when approval was requested)
+          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0
+          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0
+          break
+        case 'decided_at': {
+          const aDecidedAt = (a as unknown as { decided_at?: string | null }).decided_at
+          const bDecidedAt = (b as unknown as { decided_at?: string | null }).decided_at
+          // Use undefined for null values - existing comparison logic will sort them to the end
+          aValue = aDecidedAt ? new Date(aDecidedAt).getTime() : undefined
+          bValue = bDecidedAt ? new Date(bDecidedAt).getTime() : undefined
+          break
+        }
+        case 'status':
+          aValue = a.status || ''
+          bValue = b.status || ''
+          break
+      }
+
+      if (aValue === undefined && bValue === undefined) return 0
+      if (aValue === undefined) return 1
+      if (bValue === undefined) return -1
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue)
+        return sortDirection === 'asc' ? comparison : -comparison
+      }
+
+      const comparison = (aValue as number) - (bValue as number)
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+    return sorted
+  }, [filteredApprovals, sortColumn, sortDirection])
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
+  const queryState = useQueryState(approvalsQuery, 'Error loading approvals')
+
+  // Only show query state (loading/error) if using real API
+  if (!USE_MOCK_APPROVALS && queryState) {
+    return (
+      <AppPage>
+        <AppPageHeader title="Approvals" />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
+
+  const toggleRow = (approvalId: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(approvalId)) {
+        next.delete(approvalId)
+      } else {
+        next.add(approvalId)
+      }
+      return next
+    })
+  }
+
+  // Check if all rows are currently expanded
+  const allRowsExpanded = sortedApprovals.length > 0 && expandedRows.size === sortedApprovals.length
+  const collapseAllAriaLabel = allRowsExpanded ? 'Collapse all' : 'Expand all'
+
+  const onCollapseAll = (_event: unknown, _rowIndex: number, isOpen: boolean) => {
+    setExpandedRows(isOpen ? new Set(sortedApprovals.map((a) => a.id)) : new Set())
+  }
+
+  return (
+    <AppPage>
+      <AppPageHeader title="Approvals">
+        <SearchInput
+          placeholder="Search approvals..."
+          value={search}
+          onChange={(_event, value) => setSearch(value)}
+          onClear={() => setSearch('')}
+          style={{ width: '250px' }}
+        />
+      </AppPageHeader>
+      {filteredApprovals.length === 0 ? (
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            {search ? (
+              <EmptyStateFilter clearAllFilters={() => setSearch('')} />
+            ) : (
+              <EmptyStateNoData
+                title="No approvals found"
+                description="No approvals are currently pending or available."
+              />
+            )}
+          </CompassPanel>
+        </StackItem>
+      ) : (
+        <ScrollableTableContainer
+          aria-label="Approvals table"
+          isExpandable
+          footer={{
+            content: (
+              <>
+                {filteredApprovals.length} {filteredApprovals.length === 1 ? 'approval' : 'approvals'}
+                {approvalsQuery.data?.total && approvalsQuery.data.total > filteredApprovals.length && (
+                  <span style={{ opacity: 0.6 }}> (of {approvalsQuery.data.total} total)</span>
+                )}
+              </>
+            ),
+            prev: approvalsQuery.data?.prev ?? null,
+            next: approvalsQuery.data?.next ?? null,
+            onPrev: () => setCursor(approvalsQuery.data?.prev ?? null),
+            onNext: () => setCursor(approvalsQuery.data?.next ?? null),
+          }}
+        >
+          <Thead>
+            <Tr>
+              <Th
+                expand={{
+                  // PatternFly's areAllExpanded expects the inverse: true when we want to show "expand" state,
+                  // false when we want to show "collapse" state (i.e., when all rows are expanded)
+                  // The Icon, Aria Label, and behavior all work properly like this.
+                  areAllExpanded: !allRowsExpanded,
+                  collapseAllAriaLabel,
+                  onToggle: onCollapseAll,
+                }}
+                aria-label="Row expansion"
+              />
+              <Th
+                modifier="nowrap"
+                sort={{
+                  sortBy: {
+                    index: 0,
+                    direction: sortColumn === 'approvalName' ? sortDirection : undefined,
+                    defaultDirection: 'asc',
+                  },
+                  onSort: () => handleSort('approvalName'),
+                  columnIndex: 0,
+                }}
+              >
+                Approval name
+              </Th>
+              {/* Approval type column removed for RH1 - may be added back later */}
+              {/* <Th
+                modifier="nowrap"
+                sort={{
+                  sortBy: {
+                    index: 1,
+                    direction: sortColumn === 'approvalType' ? sortDirection : undefined,
+                    defaultDirection: 'asc',
+                  },
+                  onSort: () => handleSort('approvalType'),
+                  columnIndex: 1,
+                }}
+              >
+                Approval type
+              </Th> */}
+              <Th
+                modifier="nowrap"
+                sort={{
+                  sortBy: {
+                    index: 1,
+                    direction: sortColumn === 'automationName' ? sortDirection : undefined,
+                    defaultDirection: 'asc',
+                  },
+                  onSort: () => handleSort('automationName'),
+                  columnIndex: 1,
+                }}
+              >
+                Automation
+              </Th>
+              <Th
+                modifier="nowrap"
+                sort={{
+                  sortBy: {
+                    index: 2,
+                    direction: sortColumn === 'requested_at' ? sortDirection : undefined,
+                    defaultDirection: 'desc',
+                  },
+                  onSort: () => handleSort('requested_at'),
+                  columnIndex: 2,
+                }}
+              >
+                Approval initiated
+              </Th>
+              <Th
+                modifier="nowrap"
+                sort={{
+                  sortBy: {
+                    index: 3,
+                    direction: sortColumn === 'decided_at' ? sortDirection : undefined,
+                    defaultDirection: 'asc',
+                  },
+                  onSort: () => handleSort('decided_at'),
+                  columnIndex: 3,
+                }}
+              >
+                Actioned on
+              </Th>
+              <Th
+                modifier="nowrap"
+                sort={{
+                  sortBy: {
+                    index: 4,
+                    direction: sortColumn === 'status' ? sortDirection : undefined,
+                    defaultDirection: 'asc',
+                  },
+                  onSort: () => handleSort('status'),
+                  columnIndex: 4,
+                }}
+              >
+                Status
+              </Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {sortedApprovals.map((approval, index) => {
+              const isExpanded = expandedRows.has(approval.id)
+
+              return (
+                <>
+                  <Tr key={approval.id} isContentExpanded={isExpanded}>
+                    <Td
+                      expand={{
+                        rowIndex: index,
+                        isExpanded,
+                        onToggle: () => toggleRow(approval.id),
+                      }}
+                    />
+                    <Td dataLabel="Approval name">
+                      <LinkCell href={`/approvals/${approval.id}`}>{approval.approvalName || approval.id}</LinkCell>
+                    </Td>
+                    {/* Approval type column removed for RH1 - may be added back later */}
+                    {/* <Td dataLabel="Approval type">{approval.approvalType || 'Approval'}</Td> */}
+                    <Td dataLabel="Automation">
+                      {approval.workflowId ? (
+                        <LinkCell href={`/automation-builder/${approval.workflowId}`}>
+                          {approval.automationName}
+                        </LinkCell>
+                      ) : (
+                        approval.automationName
+                      )}
+                    </Td>
+                    <Td dataLabel="Approval initiated">
+                      {/* Use createdAt from BaseResource (represents when approval was requested) */}
+                      <DateCell dateString={approval.createdAt} />
+                    </Td>
+                    <Td dataLabel="Actioned on">
+                      {(() => {
+                        const approvalWithFields = approval as unknown as {
+                          decided_at?: string | null
+                          decided_by?: { id: string; name: string } | null
+                        }
+                        const decidedAt = approvalWithFields.decided_at
+                        const decidedBy = approvalWithFields.decided_by
+
+                        if (decidedAt) {
+                          return (
+                            <>
+                              {decidedBy ? (
+                                <>
+                                  <LinkCell href={`/users/${decidedBy.id}`}>{decidedBy.name}</LinkCell>
+                                  {' at '}
+                                </>
+                              ) : null}
+                              <DateCell dateString={decidedAt} />
+                            </>
+                          )
+                        }
+                        return <DateCell dateString={null} />
+                      })()}
+                    </Td>
+                    <Td dataLabel="Status">
+                      <ApprovalStatusBadges approval={approval} />
+                    </Td>
+                  </Tr>
+                  <Tr key={`${approval.id}-expanded`} isExpanded={isExpanded}>
+                    <Td colSpan={6}>
+                      {' '}
+                      {/* TODO: revert back to 7 after returning "approval type" column */}
+                      <ExpandableRowContent>
+                        <div style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
+                          <DescriptionList>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>Description</DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {(approval as unknown as { description?: string | null }).description ||
+                                  'No description provided'}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                          </DescriptionList>
+                        </div>
+                      </ExpandableRowContent>
+                    </Td>
+                  </Tr>
+                </>
+              )
+            })}
+          </Tbody>
+        </ScrollableTableContainer>
+      )}
+    </AppPage>
+  )
+}

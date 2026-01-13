@@ -22,6 +22,8 @@ const Integrations = lazy(() => import('../routes/configuration/integrations/Int
 const IntegrationTools = lazy(() => import('../routes/configuration/integrations/IntegrationTools'))
 const Glossary = lazy(() => import('../routes/documentation/glossary/Glossary'))
 const DemoWebSocket = lazy(() => import('../routes/demo-ws/DemoWebSocket'))
+const Approvals = lazy(() => import('../routes/approvals/Approvals'))
+const ApprovalDetail = lazy(() => import('../routes/approvals/ApprovalDetail'))
 
 export const navigationItems: INavigationItem[] = [
   {
@@ -52,7 +54,15 @@ export const navigationItems: INavigationItem[] = [
   },
   {
     label: 'Approvals',
-    path: AppRoute.Approvals,
+    path: AppRoute.Approvals.Root,
+    element: <Approvals />,
+  },
+  // Hidden route for approval detail page
+  {
+    label: 'Approval Detail',
+    path: AppRoute.Approvals.Approval,
+    element: <ApprovalDetail />,
+    hidden: true,
   },
   {
     label: 'Configuration',

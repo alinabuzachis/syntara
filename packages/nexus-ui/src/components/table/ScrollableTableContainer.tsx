@@ -32,13 +32,20 @@ interface ScrollableTableContainerProps {
   footer?: ReactNode | TableFooterProps
   /** Aria label for the table */
   'aria-label': string
+  /** Whether the table is expandable (affects table layout) */
+  isExpandable?: boolean
 }
 
 /**
  * A reusable container component for scrollable tables with sticky headers.
  * Provides consistent styling and layout for tables across the application.
  */
-export function ScrollableTableContainer({ children, footer, 'aria-label': ariaLabel }: ScrollableTableContainerProps) {
+export function ScrollableTableContainer({
+  children,
+  footer,
+  'aria-label': ariaLabel,
+  isExpandable,
+}: ScrollableTableContainerProps) {
   return (
     <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
       <CompassPanel hasNoPadding isFullHeight isScrollable>
@@ -51,10 +58,15 @@ export function ScrollableTableContainer({ children, footer, 'aria-label': ariaL
               aria-label={ariaLabel}
               isPlain
               isStickyHeader
+              isExpandable={isExpandable}
               style={
                 {
                   '--pf-t--global--border--color--default': 'rgba(196, 181, 253, 0.2)',
-                  tableLayout: 'fixed',
+                  // NOTE: We deliberately do not use `table-layout: fixed` for expandable tables because
+                  // PatternFly's expandable row layout relies on the browser's automatic table layout to
+                  // correctly size columns and expansion control cells. For non-expandable tables, we use
+                  // a fixed layout to keep column widths stable.
+                  ...(isExpandable ? {} : { tableLayout: 'fixed' }),
                   width: '100%',
                 } as React.CSSProperties
               }

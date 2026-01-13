@@ -11,7 +11,10 @@ export const AppRoute = {
     Root: '/executions',
     Execution: '/executions/:executionId',
   },
-  Approvals: '/approvals',
+  Approvals: {
+    Root: '/approvals',
+    Approval: '/approvals/:approvalId',
+  },
   Configuration: {
     Overview: '/configuration',
     Integrations: {
