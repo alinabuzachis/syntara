@@ -146,60 +146,73 @@ curl -X POST "http://localhost:8000/api/v1/invocations" \
 - New files are stored in `FileMetadata`, converted, then execution proceeds
 - Agent receives content from all files (both pre-uploaded and newly uploaded)
 
-### 3. Stream Results via WebSocket
+### 3. Monitor Async Execution via Workflow
+
+The agent executes asynchronously and signals completion via callback. In a workflow context:
 
 ```python
+# In agentic_activity.py - Workflow execution pattern
 import asyncio
-import websockets
-import json
+from temporalio import workflow
 
-async def stream_invocation(invocation_id: str):
-    uri = f"ws://localhost:8000/ws/agent_orchestrator/v1/invocations/{invocation_id}"
+async def execute_agentic_activity(config: AgenticExecutorConfig) -> dict:
+    # Generate callback URL for this specific activity
+    callback_url = await generate_activity_signal_url(execution_id, activity_id)
 
-    async with websockets.connect(uri) as ws:
-        async for message in ws:
-            event = json.loads(message)
-            event_type = event.get("event_type")
+    # Invoke agent asynchronously with callback URL
+    response = await client.invoke_agent_async(
+        prompt=config.prompt,
+        file_ids=config.file_ids,
+        metadata={"callback_url": callback_url}
+    )
 
-            if event_type == "delta":
-                # Content chunk received
-                print(event["data"]["delta"], end="", flush=True)
-            elif event_type == "completion":
-                # Streaming complete
-                print("\n--- Complete ---")
-                return event["data"]
-            elif event_type == "error":
-                # Error occurred
-                print(f"\nError: {event['data']['detail']}")
-                raise Exception(event["data"]["detail"])
+    print(f"Agent invoked: {response['id']}, status: {response['status']}")
 
-# Usage
-asyncio.run(stream_invocation("770e8400-e29b-41d4-a716-446655440003"))
+    # Wait for signal from Agent Orchestrator
+    signal_data = await workflow.wait_condition(
+        lambda: activity_id in workflow._activity_signals,
+        timeout=timedelta(seconds=config.timeout)
+    )
+
+    print(f"Agent completed: {signal_data['status']}")
+    return signal_data
+
+# Note: Agent Orchestrator calls back to callback_url when execution completes
+# The workflow continues automatically when the signal is received
 ```
 
-### 4. Invoke Agent via Python Client
+### 4. Invoke Agent via Python Client (Async Pattern)
 
 ```python
 from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorClient
 
-async def invoke_with_file_context():
+async def invoke_with_file_context_async():
     async with AgentOrchestratorClient() as client:
-        result = await client.invoke_agent(
+        # Generate callback URL (normally handled by workflow activity)
+        callback_url = "http://localhost:8000/api/v1/executions/exec-123/activities/act-456/signal"
+
+        response = await client.invoke_agent_async(
             prompt="Analyze the documents and identify key themes",
             user_id="user-123",
             file_ids=[
                 "550e8400-e29b-41d4-a716-446655440001",
                 "550e8400-e29b-41d4-a716-446655440002"
             ],
+            metadata={"callback_url": callback_url},
             timeout_seconds=120.0,
         )
 
-        print(f"Status: {result['status']}")
-        print(f"Result: {result['result']}")
+        print(f"Invocation ID: {response['id']}")
+        print(f"Status: {response['status']}")  # "pending"
+        print("Agent is executing asynchronously...")
+        print(f"Will callback to: {callback_url}")
 
 # Usage
 import asyncio
-asyncio.run(invoke_with_file_context())
+asyncio.run(invoke_with_file_context_async())
+
+# Note: In real usage, workflow.wait_condition() handles waiting for the callback
+# The agent executes independently and POSTs to callback_url when done
 ```
 
 ### 5. Configure Agent Node in Workflow YAML
@@ -251,7 +264,7 @@ Run these tests to verify the feature works correctly:
 # Test Files API endpoint
 pytest tests/unit/api/v1/test_files.py -v
 
-# Test AgentOrchestratorClient WebSocket streaming
+# Test AgentOrchestratorClient async callbacks
 pytest tests/unit/workflows/clients/test_agent_orchestrator_client.py -v
 ```
 
@@ -299,10 +312,10 @@ pytest tests/integration/workflow/test_agentic_activity_with_files.py -v
    - Invoke with a non-existent `file_id`
    - Verify appropriate error is returned
 
-9. **WebSocket streaming**:
-   - Create invocation with file_ids
-   - Connect to WebSocket and verify events stream correctly
-   - Verify `completion` event contains full result
+9. **Async callback completion**:
+   - Create invocation with file_ids and callback_url
+   - Verify invocation returns immediately with pending status
+   - Verify agent calls back to callback_url when complete
 
 ---
 
@@ -359,10 +372,11 @@ pytest tests/integration/workflow/test_agentic_activity_with_files.py -v
 - Verify the file was successfully uploaded
 - Check that you're using the correct file_id from the upload response
 
-### WebSocket connection drops
-- Check invocation ID is valid UUID
+### Callback timeout or missing signal
+- Check callback_url is reachable from Agent Orchestrator
+- Verify invocation ID is valid UUID
 - Verify invocation exists and is not expired
-- Use `last_event_id` query param to resume
+- Check workflow signal timeout settings
 
 ### Agent doesn't see file content
 - Verify file was successfully uploaded (check response from /files)
@@ -384,7 +398,7 @@ pytest tests/integration/workflow/test_agentic_activity_with_files.py -v
 - [ ] Invocations can be created with `file_ids` in context
 - [ ] Agent retrieves file content by querying `FileMetadata` table
 - [ ] Agent receives file content (loaded from `converted_content_path` on filesystem)
-- [ ] WebSocket streaming delivers events in real-time
+- [ ] Async callbacks deliver completion signals via HTTP POST to callback URLs
 - [ ] Client accumulates events and returns final result
 - [ ] Workflow activities can specify `file_ids` in config
 - [ ] `Invocation.context_data` only contains `file_ids`, not full metadata

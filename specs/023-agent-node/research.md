@@ -108,32 +108,35 @@ async def save_file(file_content, filename, invocation_id, retriever) -> str:
 - `_validate_invocation_response()` checks `status in ("completed", "failed", "cancelled")`
 - **BUG**: POST /invocations returns HTTP 202 with `status: "created"`, not terminal status
 - Uses httpx async client with retry logic and exponential backoff
-- No WebSocket consumption - only HTTP
+- Uses synchronous POST-only pattern (no async callbacks)
 
 **Gap Identified**:
-- Client incorrectly expects terminal status in POST response (POST returns `created`)
-- Client does NOT use WebSocket to wait for completion
+- Client uses synchronous pattern instead of async callback pattern from PR #271
+- No support for callback URLs and signal-based completion
 - No `file_ids` parameter in `invoke_agent()` signature
 
 **Required Changes**:
-1. Add `file_ids: list[str] | None = None` parameter to `invoke_agent()`
-2. Add `stream_invocation(invocation_id, on_event, timeout)` method for WebSocket streaming
-3. After POST returns 202, call `stream_invocation()` to wait for terminal status
-4. Pass `file_ids` in `contextData` of POST payload
+1. Add `file_ids: list[str] | None = None` parameter to `invoke_agent_async()`
+2. Add `invoke_agent_async()` method for callback pattern with metadata containing callback_url
+3. Return immediately with invocation_id and pending status (no blocking)
+4. Pass `file_ids` in `contextData` and callback_url in metadata of POST payload
 
-### 6. WebSocket Streaming Infrastructure
+### 6. Async Callback Infrastructure (PR #271)
 
-**Location**: `src/nexus/agent_orchestrator/ws/adaptor_streaming.py`
+**Locations**:
+- Signal endpoint: `src/nexus/api/v1/executions.py`
+- URL generation: `src/nexus/workflows/utils/url.py`
+- Workflow signals: `src/nexus/workflows/workflow_engine/dynamic_workflow.py`
 
-**Endpoint**: `/ws/agent_orchestrator/v1/invocations/{invocation_id}`
+**Signal Endpoint**: `POST /executions/{execution_id}/activities/{activity_id}/signal`
 
 **Current Capabilities**:
-- Full WebSocket streaming support
-- Events streamed from Valkey
-- Event types: `delta`, `completion`, `error`, `cancelled`
-- Supports replay and resume
+- HTTP callback support for Agent Orchestrator completion signaling
+- Temporal signal handling for workflow continuation
+- Signal payload processing with full result data
+- Activity signal waiting with configurable timeouts
 
-**Key Decision**: WebSocket streaming infrastructure already exists. The `AgentOrchestratorClient` just needs to consume it.
+**Key Decision**: Async callback infrastructure from PR #271 replaces WebSocket streaming with more reliable HTTP-based callback + Temporal signal pattern.
 
 ### 7. Agentic Activity
 
@@ -184,7 +187,7 @@ class FileUploadSettings(BaseSettings):
 | `/api/v1/invocations` | **Remove file_metadata, accept file_ids only** | Small |
 | `Invocation` model | **Remove file_metadata from context_data docs** | Small |
 | `UploadedFileRetriever` | **Query FileMetadata table by file_id** | Medium |
-| `AgentOrchestratorClient` | **Add WebSocket streaming + file_ids** | Medium |
+| `AgentOrchestratorClient` | **Add async callback pattern + file_ids** | Medium |
 | `AgenticExecutorConfig` | Add `file_ids` field | Small |
 | `agentic_activity` | Pass `file_ids` to client | Small |
 | Alembic migration | **NEW migration for FileMetadata table** | Small |
@@ -267,9 +270,9 @@ Currently `DocumentConversionTask.convert()` calls `InvocationExecutor.execute_i
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | File cleanup (orphaned files) | Disk space waste | Future: Add cleanup job for files not referenced by any workflow |
-| WebSocket connection drops | Response lost | Use `last_event_id` for resumption, implement retry logic |
+| Callback URL unreachable | Signal delivery fails | Verify network connectivity, implement retry logic in Agent Orchestrator |
 | Large files cause timeout | Upload fails | Mitigated by 10MB limit per file |
-| Temporal activity timeout | Activity fails | Use heartbeats during streaming, configure appropriate timeouts |
+| Temporal activity timeout | Activity fails | Configure appropriate signal wait timeouts, use workflow.wait_condition() |
 
 ---
 

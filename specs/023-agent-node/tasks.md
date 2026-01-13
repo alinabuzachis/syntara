@@ -20,7 +20,7 @@ flowchart TB
     subgraph Tests[Phase 3.2: Tests First - TDD]
         T003[T003: Unit test FileMetadata model]
         T004[T004: Unit test files API]
-        T005[T005: Unit test client streaming]
+        T005[T005: Unit test client async callbacks]
         T006[T006: Integration test file context]
     end
 
@@ -51,8 +51,8 @@ flowchart TB
     end
 
     subgraph Client[Phase 3.3g: Client Layer]
-        T015[T015: stream_invocation method]
-        T016[T016: invoke_agent with file_ids]
+        T015[T015: invoke_agent_async method]
+        T016[T016: agentic activity async callbacks]
     end
 
     subgraph Workflow[Phase 3.3h: Workflow Layer]
@@ -218,15 +218,15 @@ flowchart TB
   - **Depends on**: T002 (refactor must complete first)
   - **Expected**: Tests fail (functionality not implemented yet)
 
-- [ ] **T005** [P] Unit test for AgentOrchestratorClient WebSocket streaming
+- [ ] **T005** [P] Unit test for AgentOrchestratorClient async callbacks
   - **File**: `tests/unit/workflows/clients/test_agent_orchestrator_client.py` (NEW or MODIFY)
   - **Actions**:
     1. Create/modify test file for client tests
-    2. Add test `test_stream_invocation_receives_delta_events()`
-    3. Add test `test_stream_invocation_returns_on_completion()`
-    4. Add test `test_stream_invocation_raises_on_error_event()`
-    5. Add test `test_invoke_agent_with_file_ids()`
-    6. Add test `test_invoke_agent_uses_websocket_for_completion()`
+    2. Add test `test_invoke_agent_async_returns_pending_status()`
+    3. Add test `test_invoke_agent_async_includes_callback_url()`
+    4. Add test `test_invoke_agent_async_with_file_ids()`
+    5. Add test `test_invoke_agent_async_timeout_handling()`
+    6. Add test `test_activity_waits_for_signal_completion()`
   - **Depends on**: T002 (refactor must complete first)
   - **Expected**: Tests fail (functionality not implemented yet)
 
@@ -238,7 +238,7 @@ flowchart TB
     3. Add test `test_upload_files_then_invoke_agent()`
     4. Add test `test_agent_retrieves_file_metadata_from_db()`
     5. Add test `test_invoke_with_invalid_file_id_fails()`
-    6. Add test `test_invoke_streams_response_via_websocket()`
+    6. Add test `test_invoke_receives_signal_via_callback()`
   - **Depends on**: T002 (refactor must complete first)
   - **Expected**: Tests fail (functionality not implemented yet)
 
@@ -417,27 +417,27 @@ flowchart TB
 
 ### Phase 3.3g: Client Layer (Sequential)
 
-- [ ] **T015** Add `stream_invocation()` method to AgentOrchestratorClient
+- [ ] **T015** Add `invoke_agent_async()` method to AgentOrchestratorClient
   - **File**: `src/nexus/workflows/clients/agent_orchestrator_client.py`
-  - **Note**: WebSocket endpoint already exists at `/ws/agent_orchestrator/v1/invocations/{id}` (see `adaptor_streaming.py`). This task only adds client-side consumption.
+  - **Note**: Async callback system (PR #271) already exists with signal endpoint `/executions/{execution_id}/activities/{activity_id}/signal` and Temporal signal handling.
   - **Actions**:
-    1. Add new method `stream_invocation(invocation_id, on_event, timeout_seconds)`
-    2. Connect to **existing** WebSocket `/ws/agent_orchestrator/v1/invocations/{id}`
-    3. Accumulate events until terminal state (`completion`, `error`, `cancelled`)
-    4. Call `on_event` callback for each event (if provided)
-    5. Return final result dict
-    6. Handle WebSocket errors and timeouts
+    1. Add new method `invoke_agent_async(prompt, user_id, metadata, file_ids, ...)`
+    2. Include `callback_url` from metadata in POST request to `/invocations`
+    3. Return immediately with `{id: "inv-123", status: "pending", metadata: {...}}`
+    4. No blocking or waiting for completion (handled by workflow signals)
+    5. Support `file_ids` parameter for context
+    6. Handle HTTP errors and timeouts for the POST request
   - **Depends on**: T005 (tests must exist first)
-  - **Rationale**: Fixes bug where `invoke_agent()` expects terminal status from POST but API returns `created`. New flow: POST → get invocation_id → stream_invocation() → return result.
+  - **Rationale**: Replaces synchronous `invoke_agent()` with async pattern. New flow: POST with callback_url → return immediately → Agent Orchestrator calls back when done → workflow continues via signal.
 
-- [ ] **T016** Update `invoke_agent()` to accept `file_ids` and use streaming
-  - **File**: `src/nexus/workflows/clients/agent_orchestrator_client.py`
+- [ ] **T016** Update agentic activity for async callbacks and signal waiting
+  - **File**: `src/nexus/workflows/workflow_engine/activities/agentic_activity.py`
   - **Actions**:
-    1. Add `file_ids: list[str] | None = None` parameter
-    2. If `file_ids` provided, include in `context_data` of POST payload (just IDs, not metadata)
-    3. After POST returns 202, call `stream_invocation()` to wait for completion
-    4. Remove synchronous completion validation (was blocking)
-    5. Return result from `stream_invocation()`
+    1. Generate callback URL using `generate_activity_signal_url(execution_id, activity_id)`
+    2. Call `invoke_agent_async()` with `file_ids` and callback_url in metadata
+    3. Use `workflow.wait_condition()` to wait for signal from Agent Orchestrator
+    4. Return result data from signal payload when received
+    5. Handle timeout and error scenarios for signal waiting
   - **Depends on**: T015, T014
 
 ### Phase 3.3h: Workflow Layer (Sequential)
@@ -484,7 +484,7 @@ flowchart TB
     1. Start API with `make run-api`
     2. Test Scenario 1: Upload files via POST /files - verify `FileMetadata` record created in DB
     3. Test Scenario 2: Invoke agent with file_ids - verify files retrieved from DB
-    4. Test Scenario 3: Verify streaming response via WebSocket
+    4. Test Scenario 3: Verify async callback response via signal
     5. Document any issues found
   - **Depends on**: T019
 
@@ -666,7 +666,7 @@ flowchart TB
 ```
 Task: "Unit test for FileMetadata model in tests/unit/files/models/test_file_metadata.py" (T003)
 Task: "Unit test for Files API endpoint in tests/unit/api/v1/test_files.py" (T004)
-Task: "Unit test for AgentOrchestratorClient streaming in tests/unit/workflows/clients/test_agent_orchestrator_client.py" (T005)
+Task: "Unit test for AgentOrchestratorClient async callbacks in tests/unit/workflows/clients/test_agent_orchestrator_client.py" (T005)
 Task: "Integration test for file context flow in tests/integration/workflow/test_agentic_activity_with_files.py" (T006)
 ```
 
@@ -674,7 +674,7 @@ Task: "Integration test for file context flow in tests/integration/workflow/test
 ```
 # These can run concurrently:
 Task: "Add file_ids to AgenticExecutorConfig in src/nexus/workflows/workflow_engine/models/workflow_definition.py" (T017)
-Task: "Add stream_invocation() method in src/nexus/workflows/clients/agent_orchestrator_client.py" (T015)
+Task: "Add invoke_agent_async() method in src/nexus/workflows/clients/agent_orchestrator_client.py" (T015)
 ```
 
 ---

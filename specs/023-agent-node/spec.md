@@ -81,14 +81,14 @@ Per comments on the parent epic ([AAP-57961](AAP-57961)), core Agent node infras
 - **Agentic activity** (`agentic_activity.py`) executes agents from workflows via `AgentOrchestratorClient`
 - **Invocations API** (`POST /api/v1/invocations`) accepts prompts and returns HTTP 202 with invocation ID
 - **File storage** (`file_manager`) handles validation, storage, and document conversion for uploaded files
-- **WebSocket streaming** (`/ws/agent_orchestrator/v1/invocations/{id}`) delivers real-time events from agent execution
+- **Async callback system** (PR #271) (`/executions/{execution_id}/activities/{activity_id}/signal`) delivers completion events from agent execution via HTTP callbacks and Temporal signals
 - **AgenticExecutorConfig** defines workflow node configuration (prompt, agent, model, timeout)
 
 **Gaps Identified (Code Review 2025-12-12):**
 1. **File uploads coupled to invocations** - `file_manager.validate_and_save_files()` requires `invocation_id`; no standalone upload API
 2. **No design-time file API** - Files can only be uploaded during invocation creation, not at workflow design time
 3. **AgenticExecutorConfig missing file_ids** - No field to store file references in workflow configuration
-4. **Client lacks WebSocket streaming** - `AgentOrchestratorClient.invoke_agent()` expects terminal response from HTTP POST, but POST returns HTTP 202 with `created` status
+4. **Client lacks async callback support** - `AgentOrchestratorClient.invoke_agent()` is synchronous; needs `invoke_agent_async()` method for callback pattern with signal waiting
 5. **No file retrieval by ID** - `UploadedFileRetriever` uses embedded `file_metadata` from context; needs to query DB by `file_id`
 6. **Frontend missing file upload** - `AIAgentNodeForm.tsx` has no file upload section
 

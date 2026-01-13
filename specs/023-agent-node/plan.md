@@ -44,7 +44,7 @@ Enable Agent Node in workflows to accept file attachments that provide context f
 - ✅ `DocumentConversionTask` - converts files to markdown (background task)
 - ✅ `AgenticExecutorConfig` - has `prompt`, `agent`, `model`, `timeout`
 - ✅ `AgentOrchestratorClient.invoke_agent()` - POSTs to `/invocations`
-- ✅ **WebSocket streaming (server-side)** - `/ws/agent_orchestrator/v1/invocations/{id}` fully functional
+- ✅ **Async callback system (PR #271)** - signal endpoint `/executions/{execution_id}/activities/{activity_id}/signal` and Temporal signal handling
 - ✅ `agentic_activity` - Temporal activity that calls client
 
 **What Needs to Change:**
@@ -52,8 +52,8 @@ Enable Agent Node in workflows to accept file attachments that provide context f
 - ❌ `FileMetadata` is Pydantic model stored in JSONB - needs SQLModel table
 - ❌ No standalone file upload API - needs `POST /api/v1/files`
 - ❌ `AgenticExecutorConfig` missing `file_ids` field
-- ❌ Client expects terminal status from POST - **BUG**: API returns `created`, client raises error
-- ❌ Client doesn't consume WebSocket - needs `stream_invocation()` method
+- ❌ Client uses callback pattern - needs `invoke_agent_async()` method for callback pattern
+- ❌ Activity needs to generate callback URLs and wait for signals instead of blocking on client
 - ❌ `UploadedFileRetriever` uses embedded `file_metadata` - needs to query DB by `file_id`
 
 **Primary Changes (Ordered):**
@@ -65,8 +65,8 @@ Enable Agent Node in workflows to accept file attachments that provide context f
 6. **Update `UploadedFileRetriever`** to use `FileManager.get_files_metadata()` (encapsulation)
 7. **Update `InvocationService`** to use `FileManager.get_files_metadata()` for validation (encapsulation)
 8. **Add `file_ids` to `AgenticExecutorConfig`** (workflow config)
-9. **Add `stream_invocation()` to `AgentOrchestratorClient`** (consume existing WebSocket)
-10. **Update `agentic_activity`** to pass `file_ids` to client
+9. **Add `invoke_agent_async()` to `AgentOrchestratorClient`** (async callback pattern with metadata for callback URL)
+10. **Update `agentic_activity`** to generate callback URL, pass to client, and wait for signal
 
 **Encapsulation Principle:** All components (`DocumentConversionTask`, `InvocationService`, `UploadedFileRetriever`) access `FileMetadata` records through `FileManager` methods, not via direct database queries.
 
@@ -85,14 +85,18 @@ flowchart TB
     end
 
     subgraph Execute[Runtime - Workflow Execution]
-        Workflow[Temporal Workflow] -->|file_ids + prompt| Client[AgentOrchestratorClient]
-        Client -->|POST /invocations with file_ids| InvAPI[Invocations API]
-        InvAPI -->|execute| Agent[Agent]
+        Workflow[Temporal Workflow] -->|file_ids + prompt + callback_url| Client[AgentOrchestratorClient]
+        Client -->|POST /invocations with file_ids & callback_url| InvAPI[Invocations API]
+        InvAPI -->|returns invocation_id immediately| Client
+        Client -->|returns pending status| Workflow
+        Workflow -->|wait for signal| WaitSignal[workflow.wait_condition]
+        InvAPI -->|execute asynchronously| Agent[Agent]
         Agent -->|retrieve_documents| Retriever[UploadedFileRetriever]
         Retriever -->|query file_id, get path| FileMetaDB
         Retriever -->|read content.md| FileStorage
-        Agent -->|stream events| WS[WebSocket]
-        WS -->|result| Client
+        Agent -->|HTTP POST when complete| SignalAPI[Signal Endpoint]
+        SignalAPI -->|send Temporal signal| Workflow
+        Workflow -->|resume with result| Complete[Activity Complete]
     end
 
     WorkflowDB -.->|file_ids| Workflow
@@ -104,6 +108,8 @@ flowchart TB
 - At runtime, `UploadedFileRetriever` queries DB for paths, then reads content from filesystem
 - This protects DB from bloat (converted content can be large)
 - `Invocation.context_data` only contains `file_ids` (references), not full metadata
+- Agent execution is completely asynchronous - workflow doesn't block waiting for completion
+- Callback URL enables external Agent Orchestrator to signal workflow when work is done
 
 ## Agent Node → File Linkage
 
@@ -134,14 +140,14 @@ activities:
 
 ## Technical Context
 **Language/Version**: Python 3.12
-**Primary Dependencies**: FastAPI, SQLModel, httpx, websockets, temporalio
+**Primary Dependencies**: FastAPI, SQLModel, httpx, temporalio
 **Storage**: PostgreSQL with SQLModel ORM, Valkey for event streaming, filesystem for file uploads
 **Testing**: pytest with pytest-asyncio
 **Target Platform**: Linux server (containerized)
 **Project Type**: single (monolithic backend)
-**Performance Goals**: Real-time streaming via WebSocket (upload timeout requirements deferred)
+**Performance Goals**: Asynchronous agent execution with callback-based completion (upload timeout requirements deferred)
 **Constraints**: 10 MB max file size, 10 files max per request, allowed MIME types (PDF, DOC, DOCX, TXT, MD)
-**Scale/Scope**: New API endpoint, file_manager refactor, client streaming - ~400-500 lines of code changes
+**Scale/Scope**: New API endpoint, file_manager refactor, client async callbacks, signal handling - ~400-500 lines of code changes
 
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
@@ -221,13 +227,28 @@ src/nexus/agent_orchestrator/models/
 └── invocation.py                 # MODIFY: Update context_data docstring (no file_metadata)
 
 src/nexus/workflows/clients/
-└── agent_orchestrator_client.py  # MODIFY: Add WebSocket streaming
+└── agent_orchestrator_client.py  # MODIFY: Add invoke_agent_async() method
+
+src/nexus/workflows/utils/
+└── url.py                        # NEW: URL generation for callback endpoints
 
 src/nexus/workflows/workflow_engine/activities/
-└── agentic_activity.py           # MODIFY: Pass file_ids to invoke_agent()
+└── agentic_activity.py           # MODIFY: Generate callback URLs, pass to client, wait for signals
+
+src/nexus/workflows/workflow_engine/
+└── dynamic_workflow.py           # MODIFY: Add activity signal handler for receiving callbacks
 
 src/nexus/workflows/workflow_engine/models/
 └── workflow_definition.py        # MODIFY: Add file_ids to AgenticExecutorConfig
+
+src/nexus/workflows/workflow_engine/services/
+└── temporal_execution_service.py # MODIFY: Add signal sending capabilities
+
+src/nexus/workflows/services/
+└── execution_service.py          # MODIFY: Add activity signal handling
+
+src/nexus/api/v1/
+└── executions.py                 # MODIFY: Add signal endpoint for callbacks
 
 src/nexus/schemas/agent_orchestrator/
 └── agent-orchestrator-api.yaml   # MODIFY: Add /files endpoint, file_ids field
@@ -236,7 +257,8 @@ tests/unit/
 ├── api/v1/test_files.py                # NEW: File upload endpoint tests
 ├── files/models/test_file_metadata.py  # NEW: FileMetadata model tests
 ├── agent_orchestrator/context_manager/retriever_service/retrievers/test_uploaded_file_retriever.py  # MODIFY: Update for file_ids
-└── workflows/clients/test_agent_orchestrator_client.py  # MODIFY: Add streaming tests
+├── workflows/clients/test_agent_orchestrator_client.py  # MODIFY: Add async callback tests
+└── workflows/utils/test_url.py                          # NEW: Tests for URL generation
 
 tests/integration/workflow/
 └── test_agentic_activity_with_files.py  # NEW: End-to-end file context tests
@@ -268,8 +290,8 @@ nexus-ui/packages/nexus-contracts/src/
 1. **file_manager**: `validate_and_save_files(files, invocation_id)` stores files as `nexus-{invocation_id}-{filename}` - refactor to use `file_id` only
 2. **storage.py**: `save_file()` requires `invocation_id` param - replace with `file_id` param
 3. **FileMetadata**: Currently a Pydantic model stored in `Invocation.context_data` - **convert to SQLModel table**
-4. **WebSocket**: Full streaming at `/ws/agent_orchestrator/v1/invocations/{id}` with replay/resume support via query params
-5. **AgentOrchestratorClient**: `invoke_agent()` expects terminal status from POST but POST returns `created` - need `stream_invocation()` method
+4. **Async Callbacks (PR #271)**: Signal endpoint `/executions/{execution_id}/activities/{activity_id}/signal` with Temporal signal handling
+5. **AgentOrchestratorClient**: `invoke_agent()` is synchronous - need `invoke_agent_async()` method for callback pattern with metadata
 6. **UploadedFileRetriever**: Currently uses embedded `file_metadata` from context - **update to query `FileMetadata` table by `file_id`**
 7. **Invocations API**: `POST /invocations` supports multipart/form-data with files, stores metadata in `context_data.file_metadata` - **remove file_metadata, accept file_ids only**
 8. **DocumentConversionService**: Updates file status but currently expects invocation context - **update to modify FileMetadata records in DB**
@@ -423,25 +445,14 @@ class FileUploadResponse(BaseModel):
 
 ### 4. Client Interface Changes
 
-**Note:** WebSocket streaming already exists server-side at `/ws/agent_orchestrator/v1/invocations/{id}`. The client just needs to consume it.
+**Note:** Async callback system (PR #271) already exists with signal endpoint `/executions/{execution_id}/activities/{activity_id}/signal` and Temporal signal handling.
 
-**Current Bug:** `invoke_agent()` expects terminal status from POST response, but API returns `created` status. Fix: POST creates invocation → `stream_invocation()` consumes WebSocket until completion.
+**Current Implementation:** `invoke_agent()` is synchronous and blocks. New approach: `invoke_agent_async()` returns immediately with invocation_id, callback URL passed in metadata, workflow waits for signal.
 
 **AgentOrchestratorClient** (updated methods):
 ```python
 class AgentOrchestratorClient:
-    async def stream_invocation(
-        self,
-        invocation_id: str,
-        on_event: Callable[[dict], None] | None = None,
-    ) -> dict[str, Any]:
-        """Connect to EXISTING WebSocket endpoint and stream until terminal state.
-
-        WebSocket endpoint: /ws/agent_orchestrator/v1/invocations/{invocation_id}
-        This endpoint already exists - this method just consumes it.
-        """
-
-    async def invoke_agent(
+    async def invoke_agent_async(
         self,
         prompt: str,
         user_id: str,
@@ -449,42 +460,57 @@ class AgentOrchestratorClient:
         agent: str | None = None,
         model: str | None = None,
         input_data: dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,  # Contains callback_url for signal endpoint
         correlation_id: str | None = None,
         timeout_seconds: float | None = None,
         file_ids: list[str] | None = None,  # NEW: References to uploaded files
     ) -> dict[str, Any]:
-        """Invoke agent with optional file context.
+        """Invoke agent asynchronously with callback URL for completion signaling.
 
-        Flow: POST /invocations → get invocation_id → stream_invocation() → return result
+        Flow: POST /invocations with callback_url in metadata → return invocation_id immediately
+        Agent Orchestrator calls back to callback_url when complete → workflow receives signal
         """
 ```
 
-**Invocation Response** (returned by `invoke_agent()` and `stream_invocation()`):
+**Invocation Response** (returned by `invoke_agent_async()` immediately):
 ```python
-# Final result after streaming completes
+# Immediate response from POST /invocations
 {
     "id": "770e8400-e29b-41d4-a716-446655440003",
-    "status": "completed",  # or "failed", "cancelled"
-    "result": "The analysis of the uploaded documents shows...",  # LLM response content
-    "error_message": None,  # Populated if status is "failed"
-    "created_at": "2025-12-11T10:30:00Z",
-    "completed_at": "2025-12-11T10:30:45Z",
+    "status": "pending",  # Agent execution happens asynchronously
     "metadata": {
-        "model": "anthropic/claude-3.5-sonnet",
-        "tokens_used": 1234,
-        "file_ids": ["550e8400-...", "550e8400-..."]  # Files that were processed
+        "callback_url": "http://api/executions/exec-123/activities/act-456/signal"
     }
 }
 ```
 
-**Agentic Activity Result** (returned to Temporal workflow):
+**Signal Payload** (sent to callback URL when agent completes):
 ```python
-# execute_agentic_activity() returns this to the workflow
+# Sent via HTTP POST to callback_url by Agent Orchestrator
+{
+    "signal_data": {
+        "result": "The analysis of the uploaded documents shows...",  # LLM response content
+        "status": "completed",  # or "failed", "cancelled"
+        "error_message": None,  # Populated if status is "failed"
+        "invocation_id": "770e8400-e29b-41d4-a716-446655440003",
+        "completed_at": "2025-12-11T10:30:45Z",
+        "metadata": {
+            "model": "anthropic/claude-3.5-sonnet",
+            "tokens_used": 1234,
+            "file_ids": ["550e8400-...", "550e8400-..."]  # Files that were processed
+        }
+    }
+}
+```
+
+**Agentic Activity Result** (returned to Temporal workflow after signal received):
+```python
+# execute_agentic_activity() returns this to the workflow after workflow.wait_condition() resolves
 {
     "status": "completed",
     "result": "The analysis of the uploaded documents shows...",
     "invocation_id": "770e8400-e29b-41d4-a716-446655440003",
+    "callback_url": "http://api/executions/exec-123/activities/act-456/signal",
     "metadata": {
         "model": "anthropic/claude-3.5-sonnet",
         "tokens_used": 1234
@@ -533,7 +559,7 @@ class UploadedFileRetriever(DocumentRetriever):
 | File validation (size/type) | `test_upload_rejects_invalid_file()` |
 | Pass file_ids to invocation | `test_invoke_agent_with_file_ids()` |
 | Agent retrieves file content | `test_agent_retrieves_files_by_id()` |
-| Streaming response | `test_invoke_agent_streams_response_via_websocket()` |
+| Async callback response | `test_invoke_agent_async_returns_pending_and_callback_url()` |
 
 ## Phase 2: Task Planning Approach
 *This section describes what the /tasks command will do - DO NOT execute during /plan*
@@ -548,12 +574,12 @@ class UploadedFileRetriever(DocumentRetriever):
 7. Update `UploadedFileRetriever` to use `FileManager.get_files_metadata()` (encapsulation)
 8. Update `InvocationService` to use `FileManager.get_files_metadata()` for validation (encapsulation)
 9. Add `file_ids` to `AgenticExecutorConfig`
-10. Add `stream_invocation()` method to `AgentOrchestratorClient`
-11. Update `invoke_agent()` to pass `file_ids` in context
-12. Update agentic activity to pass `file_ids`
+10. Add `invoke_agent_async()` method to `AgentOrchestratorClient`
+11. Update agentic activity to generate callback URLs and wait for signals
+12. Update agentic activity to pass `file_ids` and callback URL to client
 13. Write unit tests for `FileMetadata` model
 14. Write unit tests for files API
-15. Write unit tests for client streaming
+15. Write unit tests for client async callbacks
 16. Write integration tests for end-to-end flow
 
 **Ordering Strategy**:
@@ -562,8 +588,8 @@ class UploadedFileRetriever(DocumentRetriever):
 - Then `FileManager` methods (`get_file_metadata`, `get_files_metadata`, `update_file_status`)
 - Then services that use FileManager (`DocumentConversionTask`, `InvocationService`, `UploadedFileRetriever`)
 - Then Files API (design-time upload)
-- Then client changes (streaming + `file_ids`)
-- Then workflow changes (config → activity)
+- Then client changes (async callbacks + `file_ids`)
+- Then workflow changes (config → activity + signal handling)
 - Tests interspersed with implementation
 
 **Encapsulation Note**: All components access `FileMetadata` through `FileManager` methods, not direct DB queries.

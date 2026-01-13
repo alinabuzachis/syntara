@@ -611,17 +611,17 @@ class InvocationService:
 
 **What Already Exists:**
 - `invoke_agent()` method - POSTs to `/invocations`
-- WebSocket streaming server-side at `/ws/agent_orchestrator/v1/invocations/{id}`
+- Async callback system (PR #271) - signal endpoint `/executions/{execution_id}/activities/{activity_id}/signal` and Temporal signal handling
 
 **What Needs to Change:**
-- Fix bug: `invoke_agent()` expects terminal status from POST but API returns `created`
-- Add `stream_invocation()` method to consume existing WebSocket
-- Add `file_ids` parameter to `invoke_agent()`
+- Replace synchronous `invoke_agent()` with asynchronous `invoke_agent_async()` method
+- Add callback URL generation and metadata passing for signal completion
+- Add `file_ids` parameter to `invoke_agent_async()`
 
 **Updated Method**:
 
 ```python
-async def invoke_agent(
+async def invoke_agent_async(
     self,
     prompt: str,
     user_id: str,
@@ -629,12 +629,12 @@ async def invoke_agent(
     agent: str | None = None,
     model: str | None = None,
     input_data: dict[str, Any] | None = None,
-    metadata: dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,  # Contains callback_url for signal endpoint
     correlation_id: str | None = None,
     timeout_seconds: float | None = None,
     file_ids: list[str] | None = None,  # NEW: File references
 ) -> dict[str, Any]:
-    """Invoke agent with optional file context.
+    """Invoke agent asynchronously with callback URL for completion signaling.
 
     Args:
         prompt: Natural language prompt for the agent
@@ -643,76 +643,94 @@ async def invoke_agent(
         agent: Optional agent identifier for routing
         model: Optional model identifier to use
         input_data: Optional input data for the agent
-        metadata: Optional additional metadata
+        metadata: Optional metadata including callback_url for signal endpoint
         correlation_id: Optional correlation ID for tracking
         timeout_seconds: Optional timeout override
         file_ids: Optional list of file IDs to include as context
 
     Returns:
-        Full invocation response containing id, status, result, etc.
+        Immediate response with invocation_id and pending status (not final result)
     """
 ```
 
-**New Method** (consumes existing WebSocket endpoint):
+**Response Schema** (immediate return from `invoke_agent_async()`):
 
 ```python
-async def stream_invocation(
-    self,
-    invocation_id: str,
-    on_event: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
-    timeout_seconds: float | None = None,
-) -> dict[str, Any]:
-    """Connect to EXISTING WebSocket and stream events until completion.
+# Immediate response from POST /invocations
+{
+    "id": "770e8400-e29b-41d4-a716-446655440003",
+    "status": "pending",  # Agent execution happens asynchronously
+    "metadata": {
+        "callback_url": "http://api/executions/exec-123/activities/act-456/signal"
+    }
+}
+```
 
-    WebSocket endpoint already exists: /ws/agent_orchestrator/v1/invocations/{id}
-    This method consumes it - no server-side changes needed.
+**Signal Payload Schema** (sent to callback URL when agent completes):
 
-    Args:
-        invocation_id: UUID of the invocation to stream
-        on_event: Optional callback for each event (for progress reporting)
-        timeout_seconds: Optional timeout override
-
-    Returns:
-        Final result dict with status, result/error_message, etc.
-    """
+```python
+# Sent via HTTP POST to callback_url by Agent Orchestrator
+{
+    "signal_data": {
+        "result": "The analysis of the uploaded documents shows...",  # LLM response content
+        "status": "completed",  # or "failed", "cancelled"
+        "error_message": None,  # Populated if status is "failed"
+        "invocation_id": "770e8400-e29b-41d4-a716-446655440003",
+        "completed_at": "2025-12-11T10:30:45Z",
+        "metadata": {
+            "model": "anthropic/claude-3.5-sonnet",
+            "tokens_used": 1234,
+            "file_ids": ["550e8400-...", "550e8400-..."]  # Files that were processed
+        }
+    }
+}
 ```
 
 **Timeout Architecture**:
 
 | Timeout Type | Default | Max | Controlled By |
 |--------------|---------|-----|---------------|
-| WebSocket idle | 30s | - | Client reconnect logic |
+| Signal waiting | 300s | 3600s | `workflow.wait_condition()` timeout |
 | Invocation execution | 300s | 3600s | `AgenticExecutorConfig.timeout` |
-| Temporal activity | Varies | - | Activity definition + heartbeats |
+| Temporal activity | Varies | - | Activity definition + signal waiting |
 
-**Heartbeat Strategy** (implemented in `agentic_activity`, not in WebSocket client):
+**Signal Waiting Strategy** (implemented in `agentic_activity`):
 
-The `agentic_activity` is responsible for sending Temporal heartbeats, keeping the client layer clean:
+The `agentic_activity` generates callback URL, invokes agent asynchronously, then waits for signal:
 
 ```python
 # In agentic_activity.py
 async def execute_agentic_activity(config: AgenticExecutorConfig) -> dict:
-    async def heartbeat_loop():
-        while True:
-            await asyncio.sleep(30)  # Heartbeat every 30 seconds
-            activity.heartbeat()
+    # Generate callback URL for this specific activity
+    callback_url = await generate_activity_signal_url(execution_id, activity_id)
 
-    heartbeat_task = asyncio.create_task(heartbeat_loop())
-    try:
-        result = await client.invoke_agent(
-            prompt=config.prompt,
-            file_ids=config.file_ids,
-            timeout_seconds=config.timeout,
-        )
-        return result
-    finally:
-        heartbeat_task.cancel()
+    # Invoke agent asynchronously with callback URL
+    response = await client.invoke_agent_async(
+        prompt=config.prompt,
+        file_ids=config.file_ids,
+        timeout_seconds=config.timeout,
+        metadata={"callback_url": callback_url}
+    )
+
+    # Wait for signal from Agent Orchestrator
+    signal_data = await workflow.wait_condition(
+        lambda: activity_id in workflow._activity_signals,
+        timeout=timedelta(seconds=config.timeout)
+    )
+
+    return {
+        "status": signal_data["status"],
+        "result": signal_data["result"],
+        "invocation_id": response["id"],
+        "callback_url": callback_url
+    }
 ```
 
 This approach:
 - Keeps `AgentOrchestratorClient` as a general-purpose client (no Temporal coupling)
-- Heartbeats continue during POST, WebSocket streaming, and reconnection attempts
-- Activity stays alive as long as it's making progress, even during brief WebSocket drops
+- Activity returns immediately after invoking agent, then waits for external signal
+- No blocking or long-running connections between client and Agent Orchestrator
+- Workflow can continue processing other activities while waiting for agent completion
 
 ---
 
@@ -786,10 +804,18 @@ Temporal Workflow
     │   AgenticExecutorConfig { prompt, file_ids }
     │       │
     │       ▼
-    │   AgentOrchestratorClient.invoke_agent(file_ids=...)
+    │   AgentOrchestratorClient.invoke_agent_async(file_ids=..., metadata={callback_url})
     │       │
     │       ▼
-    │   POST /api/v1/invocations { context_data: { file_ids: [...] } }
+    │   POST /api/v1/invocations { context_data: { file_ids: [...] }, metadata: { callback_url: "..." } }
+    │       │
+    │       ▼
+    │   Returns immediately: { id: "inv-123", status: "pending" }
+    │       │
+    │       ▼
+    │   Workflow waits for signal: workflow.wait_condition()
+    │       │
+    │       │ (Meanwhile, asynchronously...)
     │       │
     │       ▼
     │   Agent executes
@@ -806,7 +832,10 @@ Temporal Workflow
     │   LLM processes with file context (from converted_content)
     │       │
     │       ▼
-    │   Stream results via WebSocket
+    │   Agent Orchestrator POSTs to callback_url with signal_data
+    │       │
+    │       ▼
+    │   Workflow receives signal and continues execution
     │
     └── Return result to workflow
 ```
@@ -843,7 +872,7 @@ There's a potential race condition if a workflow is executed before file convers
 **Future options to consider**:
 1. **Block at design time**: UI checks all files are `CONVERTED` before allowing workflow save
 2. **Wait at runtime**: Poll until conversion completes (with timeout)
-3. **Wait with progress**: Send WebSocket events while waiting for conversion
+3. **Wait with progress**: Send status updates via callback while waiting for conversion
 4. **Block workflow execution**: Temporal workflow checks file status before starting
 
 For MVP, fail-fast is acceptable. Enhancement can be added in a future iteration.
