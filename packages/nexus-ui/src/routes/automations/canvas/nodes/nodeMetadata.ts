@@ -1,5 +1,5 @@
 import {
-  BrainIcon,
+  RhUiRobotIcon,
   RhUiBranchFillIcon,
   RhUiCodeIcon,
   RhUiPlayFillIcon,
@@ -58,7 +58,7 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
 // Task executor metadata - different tasks have different icons
 export const executorMetadata: Record<string, { icon: ComponentType<{ className?: string }>; label: string }> = {
   script: { icon: RhUiCodeIcon, label: 'Script' },
-  agentic: { icon: BrainIcon, label: 'Agentic' },
+  agentic: { icon: RhUiRobotIcon, label: 'Agentic' },
   api: { icon: RhUiServerFillIcon, label: 'REST Api' },
   connector: { icon: RhUiPlugFillIcon, label: 'Connector' },
   aap_job_template: { icon: AnsibleIcon, label: 'AAP Job' },

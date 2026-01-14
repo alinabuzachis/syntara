@@ -1,5 +1,5 @@
 import {
-  BrainIcon,
+  RhUiRobotIcon,
   RhUiBranchFillIcon,
   RhUiElectricityFillIcon,
   RhUiPlayFillIcon,
@@ -75,7 +75,7 @@ export const CATEGORY_METADATA: Record<NodeCategory, CategoryMetadata> = {
   integration: {
     id: NodeCategories.INTEGRATION,
     label: 'Integrations',
-    icon: BrainIcon,
+    icon: RhUiRobotIcon,
     description: 'Connect to external services and platforms',
     order: 4,
     color: 'green',

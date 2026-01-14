@@ -1,4 +1,4 @@
-import { BrainIcon } from '@patternfly/react-icons'
+import { RhUiRobotIcon } from '@patternfly/react-icons'
 
 import { AIAgentNodeForm } from '../../node-forms/AIAgentNodeForm'
 import { createBasicNode } from '../helpers/nodeTemplates'
@@ -12,7 +12,7 @@ export default function registerAIAgentNode() {
     createBasicNode({
       id: 'agent',
       label: 'AI Agent',
-      icon: BrainIcon,
+      icon: RhUiRobotIcon,
       category: 'action',
       description: 'Execute tasks using AI agents',
       keywords: ['ai', 'agent', 'llm', 'gpt', 'intelligent', 'autonomous'],

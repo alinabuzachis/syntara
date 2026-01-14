@@ -147,8 +147,8 @@ Use [PatternFly React icons](https://patternfly.org/) for consistency:
 import {
   RhStandardGlobeAbstractIcon,
   RhUiPlay,
-  RhStandardBrainIcon,
-  RhStandardElectricalBoltIcon,
+  RhUiRobotIcon,
+  RhUiElectricityIcon,
   RhUiBranchIcon,
   UserCheckIcon,
 } from '@patternfly/react-icons'
