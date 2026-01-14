@@ -203,6 +203,65 @@ export function createApiActivity(
 }
 
 /**
+ * Create an agentic activity (AI agent with MCP server integration).
+ * @param id - Unique activity identifier
+ * @param name - Display name for the activity
+ * @param tools - Optional array of tool names available to the agent
+ * @param prompt - Optional natural language prompt for the agent
+ * @param model - Optional LLM model to use
+ * @param inputs - Optional JSON string of input parameters
+ */
+export function createAgenticActivity(
+  id: string,
+  name: string,
+  tools?: string[],
+  prompt?: string,
+  model?: string,
+  inputs?: string
+): TaskActivity {
+  const config: {
+    agent: string
+    tools?: string[]
+    prompt?: string
+    model?: string
+  } = {
+    agent: '', // Default empty string since UI doesn't collect this field
+  }
+
+  if (tools && tools.length > 0) {
+    config.tools = tools
+  }
+
+  if (prompt) {
+    config.prompt = prompt
+  }
+
+  if (model) {
+    config.model = model
+  }
+
+  const activity: TaskActivity = {
+    type: 'task',
+    id,
+    name,
+    task: {
+      executor: 'agentic',
+      config,
+    },
+  }
+
+  if (inputs) {
+    try {
+      activity.task.inputs = JSON.parse(inputs)
+    } catch {
+      // If inputs is not valid JSON, skip it
+    }
+  }
+
+  return activity
+}
+
+/**
  * Create a condition activity.
  * @param id - Unique activity identifier
  * @param name - Display name for the activity

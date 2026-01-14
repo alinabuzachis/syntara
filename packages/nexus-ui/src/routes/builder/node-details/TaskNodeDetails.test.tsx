@@ -3,22 +3,27 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import * as workflowStore from '../../../stores/useWorkflowStore'
+import type { WorkflowStore } from '../../../stores/useWorkflowStore'
 
 import { TaskNodeDetails } from './TaskNodeDetails'
 
 const mockUpdateActivity = vi.fn()
 const mockCreateAAPJobTemplateActivity = vi.fn()
 
-vi.spyOn(workflowStore, 'useWorkflowStore').mockImplementation((selector: unknown) => {
+vi.spyOn(workflowStore, 'useWorkflowStore').mockImplementation((selector?: (state: WorkflowStore) => unknown) => {
   const store = {
     updateActivity: mockUpdateActivity,
   }
-  return selector ? selector(store) : store
+  return selector ? selector(store as unknown as WorkflowStore) : store
 })
 
 vi.spyOn(workflowStore, 'useWorkflowStoreActions').mockImplementation(() => ({
   updateActivity: mockUpdateActivity,
   setWorkflow: vi.fn(),
+  loadWorkflowWithEdges: vi.fn(),
+  updateWorkflow: vi.fn(),
+  markClean: vi.fn(),
+  markDirty: vi.fn(),
   setEdges: vi.fn(),
   addTrigger: vi.fn(),
   removeTrigger: vi.fn(),
@@ -102,6 +107,27 @@ vi.mock('../node-forms/AAPNodeForm', () => ({
   ),
 }))
 
+// Mock AIAgentNodeDetails
+vi.mock('./AIAgentNodeDetails', () => ({
+  AIAgentNodeDetails: ({
+    taskData,
+    nodeId,
+    onClose,
+  }: {
+    taskData: Record<string, unknown>
+    nodeId: string
+    onClose: () => void
+  }) => (
+    <div data-testid="ai-agent-node-details">
+      <div data-testid="agent-node-id">{nodeId}</div>
+      <div data-testid="agent-task-name">{String(taskData.name)}</div>
+      <button onClick={onClose} data-testid="agent-close-button">
+        Close
+      </button>
+    </div>
+  ),
+}))
+
 describe('TaskNodeDetails Component', () => {
   const mockOnClose = vi.fn()
 
@@ -178,6 +204,29 @@ describe('TaskNodeDetails Component', () => {
     render(<TaskNodeDetails taskData={taskData} nodeId="task-aap" onClose={mockOnClose} />)
 
     expect(screen.getByTestId('aap-node-form')).toBeInTheDocument()
+  })
+
+  it('renders AIAgentNodeDetails for agentic task', () => {
+    const taskData = {
+      type: 'task' as const,
+      id: 'task-agent',
+      name: 'AI Agent Task',
+      task: {
+        executor: 'agentic' as const,
+        config: {
+          agent: '',
+          model: 'claude-3-sonnet',
+          prompt: 'Analyze the data',
+          tools: ['calculator', 'web_search'],
+        },
+      },
+    }
+
+    render(<TaskNodeDetails taskData={taskData} nodeId="task-agent" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('ai-agent-node-details')).toBeInTheDocument()
+    expect(screen.getByTestId('agent-node-id')).toHaveTextContent('task-agent')
+    expect(screen.getByTestId('agent-task-name')).toHaveTextContent('AI Agent Task')
   })
 
   it('returns null for unsupported executor type', () => {

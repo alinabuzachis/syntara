@@ -1,10 +1,11 @@
 import { FormGroup, StackItem, TextInput } from '@patternfly/react-core'
-import type { UseFormReturn } from 'react-hook-form'
+import type { Path, UseFormReturn } from 'react-hook-form'
 
 interface ActivityNameFieldProps<T extends { name: string }> {
   register: UseFormReturn<T>['register']
   fieldId: string
   label?: string
+  placeholder?: string
 }
 
 /**
@@ -15,14 +16,15 @@ export function ActivityNameField<T extends { name: string }>({
   register,
   fieldId,
   label = 'Activity Name',
+  placeholder = 'Enter activity name',
 }: ActivityNameFieldProps<T>) {
   return (
     <StackItem>
       <FormGroup label={label} isRequired fieldId={fieldId}>
         <TextInput
-          {...register('name', { required: true })}
+          {...register('name' as Path<T>, { required: true })}
           id={fieldId}
-          placeholder="Enter activity name"
+          placeholder={placeholder}
           type="text"
         />
       </FormGroup>

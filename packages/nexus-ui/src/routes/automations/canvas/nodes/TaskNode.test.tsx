@@ -76,6 +76,30 @@ describe('TaskActivityDetails', () => {
     expect(screen.getByText('run_action')).toBeInTheDocument()
   })
 
+  it('renders agentic task details correctly', () => {
+    const mockAgenticTask: TaskActivity = {
+      type: 'task',
+      id: 'task-4',
+      name: 'AI Agent Task',
+      task: {
+        executor: 'agentic',
+        config: {
+          agent: '',
+          model: 'claude-3-sonnet',
+          prompt: 'Analyze the data and provide insights',
+          tools: ['calculator', 'web_search'],
+        },
+      },
+    }
+
+    render(<TaskActivityDetails data={mockAgenticTask} />)
+
+    expect(screen.getByText('AI Agent Task')).toBeInTheDocument()
+    expect(screen.getByText('Agentic')).toBeInTheDocument()
+    expect(screen.getByText('Model')).toBeInTheDocument()
+    expect(screen.getByText('claude-3-sonnet')).toBeInTheDocument()
+  })
+
   it.skip('renders AAP connector task with AAP label', () => {
     // SKIPPED: SVG import issue in test environment
     // This test verifies AAP connector detection, but the Ansible SVG icon

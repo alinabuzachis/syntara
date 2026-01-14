@@ -121,6 +121,10 @@ export function TaskActivityDetails(
               {renderObject('Parameters', props.data.task.config.parameters)}
             </>
           )}
+          {/* Render agentic task details */}
+          {props.data.task.executor === 'agentic' && !connectorData && detectedExecutorType !== 'approval' && (
+            <>{renderText('Model', props.data.task.config.model)}</>
+          )}
           {/* Render connector details for workaround format (agentic executor with connector data) */}
           {detectedExecutorType && detectedExecutorType !== 'approval' && connectorData && (
             <>

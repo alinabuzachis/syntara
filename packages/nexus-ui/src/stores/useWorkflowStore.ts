@@ -965,6 +965,7 @@ export {
   createEventTrigger,
   createScriptActivity,
   createApiActivity,
+  createAgenticActivity,
   createConditionActivity,
   createLoopActivity,
   createConvergeActivity,

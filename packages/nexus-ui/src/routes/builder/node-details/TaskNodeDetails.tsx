@@ -9,6 +9,8 @@ import { ActionNodeForm } from '../node-forms/ActionNodeForm'
 import type { ActionFormData } from '../node-forms/ActionNodeForm'
 import { buildAAPConfig, parsePositiveInt } from '../utils/aapHelpers'
 
+import { AIAgentNodeDetails } from './AIAgentNodeDetails'
+
 interface TaskNodeDetailsProps {
   taskData: TaskActivity & { task: { executor: string; config: unknown } }
   nodeId: string
@@ -23,6 +25,17 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
   // Detect the actual node type - handles disguised AAP/connector nodes
   const { actualExecutor, detectedExecutorType } = detectNodeType(taskData)
   const executor = taskData.task.executor as string
+
+  // Check if this is an agentic task
+  if (executor === 'agentic') {
+    return (
+      <AIAgentNodeDetails
+        taskData={taskData as TaskActivity & { task: { executor: 'agentic'; config: unknown } }}
+        nodeId={nodeId}
+        onClose={onClose}
+      />
+    )
+  }
 
   // Check if this is an AAP job template task (including disguised ones)
   const isAAPTask = detectedExecutorType === 'aap' || actualExecutor === 'aap_job_template'

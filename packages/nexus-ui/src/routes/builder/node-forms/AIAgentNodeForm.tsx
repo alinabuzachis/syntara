@@ -1,82 +1,59 @@
-import {
-  Form,
-  FormGroup,
-  FormSelect,
-  FormSelectOption,
-  Stack,
-  StackItem,
-  TextArea,
-  TextInput,
-} from '@patternfly/react-core'
+import { Form, FormGroup, FormSelect, FormSelectOption, Stack, StackItem, TextArea } from '@patternfly/react-core'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
 import { ActivityNameField } from './shared/ActivityNameField'
 import { FormSubmitButton } from './shared/FormSubmitButton'
 
-interface AIAgentFormData {
+// Type definitions
+export interface AIAgentFormData {
   name: string
-  agent: string
-  tools: string
-  prompt: string
   model: string
+  prompt: string
+  tools: string
 }
 
 interface AIAgentNodeFormProps {
   onSubmit: (data: AIAgentFormData) => void
   onCancel: () => void
   submitButtonText?: string
+  initialData?: Partial<AIAgentFormData>
 }
 
+/**
+ * Form fields component for AI Agent node configuration
+ */
 function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) {
   const { register, control } = useFormContext<AIAgentFormData>()
   return (
     <Stack hasGutter>
-      <ActivityNameField register={register} fieldId="agent-name" />
+      <ActivityNameField register={register} fieldId="agent-name" label="Agent name" placeholder="Enter agent name" />
       <StackItem>
-        <FormGroup label="Agent / MCP Server" isRequired fieldId="agent-agent">
-          <TextInput
-            {...register('agent', { required: true })}
-            id="agent-agent"
-            placeholder="mcp://agent-server"
-            type="text"
-          />
-        </FormGroup>
-      </StackItem>
-      <StackItem>
-        <FormGroup label="Tools (comma-separated)" fieldId="agent-tools">
-          <TextInput {...register('tools')} id="agent-tools" placeholder="tool1, tool2, tool3" type="text" />
-        </FormGroup>
-      </StackItem>
-      <StackItem>
-        <FormGroup label="Model" fieldId="agent-model">
-          <Controller
-            control={control}
-            name="model"
-            defaultValue="claude-3-sonnet"
-            render={({ field }) => (
-              <FormSelect
-                id="agent-model"
-                aria-label="Model"
-                value={field.value}
-                onChange={(_event, value) => field.onChange(value)}
-              >
-                <FormSelectOption value="claude-3-opus" label="Claude 3 Opus" />
-                <FormSelectOption value="claude-3-sonnet" label="Claude 3 Sonnet" />
-                <FormSelectOption value="gpt-4" label="GPT-4" />
-                <FormSelectOption value="gpt-4-turbo" label="GPT-4 Turbo" />
-                <FormSelectOption value="gemini-pro" label="Gemini Pro" />
-              </FormSelect>
-            )}
-          />
-        </FormGroup>
-      </StackItem>
-      <StackItem>
-        <FormGroup label="Prompt" fieldId="agent-prompt">
+        <FormGroup label="Prompt" fieldId="agent-prompt" isRequired>
           <TextArea
-            {...register('prompt')}
+            {...register('prompt', { required: true })}
             id="agent-prompt"
             placeholder="Natural language instructions for the agent..."
             rows={3}
+          />
+        </FormGroup>
+      </StackItem>
+      <StackItem>
+        <FormGroup label="Tools" fieldId="agent-tools">
+          <Controller
+            control={control}
+            name="tools"
+            defaultValue=""
+            render={({ field }) => (
+              <FormSelect
+                id="agent-tools"
+                aria-label="Tools"
+                value={field.value}
+                onChange={(_event, value) => field.onChange(value)}
+                isDisabled
+              >
+                <FormSelectOption value="" label="All tools selected" />
+              </FormSelect>
+            )}
           />
         </FormGroup>
       </StackItem>
@@ -86,12 +63,15 @@ function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) 
 }
 
 export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
+  // Get model from environment variable or use default
+  const defaultModel = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet'
+
   const defaultValues: AIAgentFormData = {
     name: '',
-    agent: '',
-    tools: '',
+    model: defaultModel,
     prompt: '',
-    model: 'claude-3-sonnet',
+    tools: '',
+    ...props.initialData,
   }
 
   const handleSubmit = (data: AIAgentFormData) => {
