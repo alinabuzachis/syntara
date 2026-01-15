@@ -9,8 +9,8 @@ These tests execute real Temporal workflows with mocked Agent Orchestrator.
 For unit-level testing of error handling and edge cases, see contract tests.
 """
 
+import asyncio
 from collections.abc import AsyncIterator
-from typing import Any
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -63,32 +63,15 @@ workflow:
 
 @pytest_asyncio.fixture
 async def mock_agent_client_success() -> AgentOrchestratorClient:
-    """Create a mock Agent Orchestrator client that succeeds."""
+    """Create a mock Agent Orchestrator client that succeeds.
+
+    Returns invocation_id immediately (async pattern).
+    The test must send a signal to complete the workflow.
+    """
     client = AsyncMock(spec=AgentOrchestratorClient)
 
-    async def invoke_agent(**kwargs: object) -> dict[str, Any]:
-        return {
-            "id": "inv_test_123",
-            "status": "completed",
-            "result": {
-                "answer": "Test answer from agent",
-                "sources": ["web", "knowledge_base"],
-            },
-            "error_message": None,
-            "created_at": "2025-10-31T00:00:00Z",
-            "updated_at": "2025-10-31T00:00:01Z",
-            "started_at": "2025-10-31T00:00:00Z",
-            "completed_at": "2025-10-31T00:00:01Z",
-            "prompt": kwargs.get("prompt", "Test prompt"),
-            "session_id": "test-session",
-            "created_by": "test-user",
-            "updated_by": None,
-            "context_data": {},
-            "checkpoint_data": None,
-            "labels": {},
-        }
-
-    client.invoke_agent = invoke_agent
+    # Mock invoke_agent_async to return invocation ID immediately
+    client.invoke_agent_async = AsyncMock(return_value="inv_test_123")
     client.__aenter__ = AsyncMock(return_value=client)
     client.__aexit__ = AsyncMock(return_value=None)
 
@@ -143,16 +126,39 @@ async def test_agentic_workflow_executes_successfully(
         task_queue="test-agentic-queue",
     )
 
+    # Wait a bit for workflow to reach the agentic activity and start waiting for signal
+    await asyncio.sleep(0.5)
+
+    # Send signal with agent result (simulates Agent Orchestrator callback)
+    # The signal should contain the raw result data (not wrapped)
+    # The workflow will extract and process it based on output mappings ($.result.answer)
+    await handle.signal(
+        "activity_signal",
+        args=[
+            "agent_task",  # activity_id
+            {
+                # This is the raw data structure from agent execution
+                # Output mappings in YAML expect $.result.answer, so we need "result" key
+                "result": {
+                    "answer": "Test answer from agent",
+                    "sources": ["web", "knowledge_base"],
+                },
+            },
+        ],
+    )
+
     result = await handle.result()
 
     # Verify workflow completed
     assert result["status"] == "completed"
     assert "agent_task" in result["activity_outputs"]
 
-    # Verify agent result
+    # Verify agent result was received via signal
+    # The workflow extracts signal_data.get("result") and processes output mappings
     agent_output = result["activity_outputs"]["agent_task"]
-    assert agent_output["status"] == "completed"
-    assert "answer" in agent_output["result"]
+    assert "output" in agent_output
+    assert agent_output["output"]["answer"] == "Test answer from agent"
+    assert agent_output["output"]["sources"] == ["web", "knowledge_base"]
 
 
 @pytest.mark.integration
@@ -179,7 +185,29 @@ async def test_agentic_activity_parameter_mapping(
         task_queue="test-agentic-queue",
     )
 
+    # Wait for workflow to reach the agentic activity
+    await asyncio.sleep(0.5)
+
+    # Send signal with agent result
+    await handle.signal(
+        "activity_signal",
+        args=[
+            "agent_task",
+            {
+                "result": {
+                    "answer": "Mapped test answer",
+                    "sources": ["test_source"],
+                },
+            },
+        ],
+    )
+
     result = await handle.result()
 
     # Verify execution completed
     assert result["status"] == "completed"
+
+    # Verify output mappings were applied
+    agent_output = result["activity_outputs"]["agent_task"]
+    assert "output" in agent_output
+    assert agent_output["output"]["answer"] == "Mapped test answer"

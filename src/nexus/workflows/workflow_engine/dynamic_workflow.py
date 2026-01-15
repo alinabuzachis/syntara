@@ -49,6 +49,7 @@ from .models import (
     WhileLoopDefinition,
     WorkflowDefinition,
 )
+from .signals import WorkflowSignalProcessor
 
 # Type alias for JSON-like dictionaries to avoid duplication
 JsonDict = dict[str, Any]
@@ -63,9 +64,44 @@ class DynamicWorkflow:
     """
 
     def __init__(self) -> None:
-        """Initialize workflow with expression resolver."""
+        """Initialize workflow with expression resolver and signal storage."""
         self.expression_resolver: ExpressionResolver
         self.workflow_state: JsonDict = {}
+        self._activity_signals: dict[str, list[dict[str, Any]]] = {}
+
+    @workflow.signal
+    async def activity_signal(
+        self,
+        activity_id: str,
+        signal_data: dict[str, Any],
+    ) -> None:
+        """Handle generic activity signals.
+
+        Receives signals sent to specific activities and stores them for
+        activities to process. Activities can check for signals by querying
+        self._activity_signals[activity_id].
+
+        Args:
+            activity_id: Activity ID from workflow definition
+            signal_data: Signal payload data (arbitrary JSON structure)
+
+        """
+        workflow.logger.info(
+            f"SIGNAL RECEIVED: activity_id={activity_id}, signal_status={signal_data.get('status')}, "
+            f"has_result={signal_data.get('result') is not None}, "
+            f"has_error={signal_data.get('error_message') is not None}",
+            extra={"activity_id": activity_id, "signal_data_keys": list(signal_data.keys())},
+        )
+
+        if activity_id not in self._activity_signals:
+            self._activity_signals[activity_id] = []
+
+        self._activity_signals[activity_id].append(signal_data)
+
+        workflow.logger.info(
+            f"Signal stored for activity {activity_id} (total_signals={len(self._activity_signals[activity_id])})",
+            extra={"activity_id": activity_id, "signal_count": len(self._activity_signals[activity_id])},
+        )
 
     @workflow.run
     async def run(
@@ -383,9 +419,19 @@ class DynamicWorkflow:
             raise ValueError(msg)
 
         try:
-            result = await workflow.execute_activity(
+            # Prepare activity config with execution context for callback URL generation
+            activity_config = activity.task.model_dump(warnings=False)
+
+            # Inject execution_id and activity_id into metadata for the activity to use
+            if "metadata" not in activity_config:
+                activity_config["metadata"] = {}
+            activity_config["metadata"]["execution_id"] = execution_id
+            activity_config["metadata"]["activity_id"] = activity.id
+
+            # Execute agentic activity - this returns immediately with activity metadata
+            activity_result = await workflow.execute_activity(
                 execute_agentic_activity,
-                args=[activity.task.model_dump(warnings=False), task_inputs],
+                args=[activity_config, task_inputs],
                 activity_id=activity.id,
                 start_to_close_timeout=activity_timeout,
                 retry_policy=build_retry_policy(
@@ -393,11 +439,68 @@ class DynamicWorkflow:
                 ),
             )
 
+            invocation_id = activity_result.get("invocation_id")
+            callback_url = activity_result.get("callback_url")
+            workflow.logger.info(
+                f"Agentic activity {activity.id} started, waiting for signal "
+                f"(invocation_id={invocation_id}, callback_url={callback_url}, "
+                f"timeout={activity_timeout.total_seconds()}s)",
+                extra={"activity_id": activity.id, "execution_id": execution_id, "invocation_id": invocation_id},
+            )
+
+            # Wait for signal with the actual result
+            # The signal will be sent to /executions/{execution_id}/activities/{activity_id}/signal
+            workflow.logger.info(
+                f"Entering wait_condition for activity {activity.id} (timeout={activity_timeout.total_seconds()}s)",
+                extra={"activity_id": activity.id, "execution_id": execution_id},
+            )
+
+            try:
+                await workflow.wait_condition(
+                    lambda: activity.id in self._activity_signals,
+                    timeout=activity_timeout,
+                )
+                workflow.logger.info(
+                    f"wait_condition completed successfully for activity {activity.id}",
+                    extra={"activity_id": activity.id, "execution_id": execution_id},
+                )
+            except Exception as wait_error:
+                workflow.logger.error(
+                    f"wait_condition failed for activity {activity.id}: {wait_error}",
+                    extra={
+                        "activity_id": activity.id,
+                        "execution_id": execution_id,
+                        "error_type": type(wait_error).__name__,
+                    },
+                )
+                raise
+
+            # Extract the signal result
+            signal_results = self._activity_signals[activity.id]
+            if not signal_results:
+                msg = f"No signal received for activity {activity.id}"
+                raise ValueError(msg)  # noqa: TRY301
+
+            # Get the most recent signal (in case multiple were sent)
+            signal_data = signal_results[-1]
+
+            workflow.logger.info(
+                f"Received signal for agentic activity {activity.id} (signal_count={len(signal_results)})",
+                extra={
+                    "activity_id": activity.id,
+                    "execution_id": execution_id,
+                    "signal_data_keys": list(signal_data.keys()),
+                },
+            )
+
+            # Process signal (handles both success and failure)
+            result = WorkflowSignalProcessor.process_signal(signal_data, activity.id, execution_id)
+
             # Process output mappings if defined
             if activity.task.outputs:
                 result = self._process_output_mappings(result, activity.task.outputs)
 
-            return cast("JsonDict", result)
+            return result
 
         except Exception as e:
             workflow.logger.error(

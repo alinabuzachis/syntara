@@ -321,6 +321,15 @@ class ServerSettings(BaseSettings):
         description="Enable hot reload (development only)",
     )
 
+    workflow_base_url: str | None = Field(
+        default=None,
+        description=(
+            "Workflow API base URL for callback URL generation (e.g., 'http://nexus:8000/api/v1'). "
+            "If not set, will be constructed from server_host and server_port. "
+            "Used by workflow activities to generate callback URLs for external services."
+        ),
+    )
+
     # CORS configuration
     cors_allow_origins: list[str] = Field(
         default=["*"],

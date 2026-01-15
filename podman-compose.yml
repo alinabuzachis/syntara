@@ -136,6 +136,10 @@ services:
       - NEXUS_TASK_QUEUE=nexus-workflow-queue
       - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
       - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
+      # Workflow API Base URL (for workflow callback URL generation)
+      - NEXUS_WORKFLOW_BASE_URL=${NEXUS_WORKFLOW_BASE_URL:-http://nexus:8000/api/v1}
+      # Agent Orchestrator Configuration (for agentic activities)
+      - NEXUS_AGENT_ORCHESTRATOR_BASE_URL=${NEXUS_AGENT_ORCHESTRATOR_BASE_URL:-http://nexus:8000/api/v1}
       # AAP Configuration (for AAP Job Template activity)
       - NEXUS_AAP_BASE_URL=${NEXUS_AAP_BASE_URL}
       - NEXUS_AAP_USERNAME=${NEXUS_AAP_USERNAME}

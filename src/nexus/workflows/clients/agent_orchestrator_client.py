@@ -9,7 +9,7 @@ import http
 import logging
 from enum import Enum
 from types import TracebackType
-from typing import Any, cast
+from typing import Any
 from uuid import uuid4
 
 import httpx
@@ -198,7 +198,132 @@ class AgentOrchestratorClient:
             msg = f"Failed invocation missing 'error_message' (invocation_id={invocation_id})"
             raise AgentOrchestratorError(msg, code=ErrorCode.MISSING_ERROR_MESSAGE, details=str(result))
 
-    async def invoke_agent(
+    def _build_invocation_payload(
+        self,
+        prompt: str,
+        user_id: str,
+        session_id: str,
+        correlation_id: str,
+        agent: str | None,
+        model: str | None,
+        input_data: dict[str, Any] | None,
+        metadata: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Build the request payload for agent invocation.
+
+        Args:
+            prompt: Natural language prompt
+            user_id: User identifier
+            session_id: Session ID
+            correlation_id: Correlation ID
+            agent: Optional agent identifier
+            model: Optional model identifier
+            input_data: Optional input data
+            metadata: Optional metadata (callback_url will be extracted to top level)
+
+        Returns:
+            Request payload dictionary
+
+        """
+        # Extract callback_url from metadata to put it at top level of contextData
+        callback_url = None
+        if metadata:
+            callback_url = metadata.pop("callback_url", None)
+            # If metadata is now empty, set it to None so it doesn't appear in contextData
+            if not metadata:
+                metadata = None
+
+        return {
+            "prompt": prompt,
+            "createdBy": user_id,
+            "sessionId": session_id,
+            "contextData": {
+                k: v
+                for k, v in {
+                    "correlation_id": correlation_id,
+                    "input_data": input_data,
+                    "model": model,
+                    "agent": agent,
+                    "callback_url": callback_url,
+                    "metadata": metadata,
+                }.items()
+                if v is not None
+            },
+        }
+
+    async def _attempt_invocation(
+        self,
+        payload: dict[str, Any],
+        correlation_id: str,
+        attempt: int,
+    ) -> str:
+        """Attempt a single invocation request.
+
+        Args:
+            payload: Request payload
+            correlation_id: Correlation ID for logging
+            attempt: Current attempt number
+
+        Returns:
+            Invocation ID
+
+        Raises:
+            AgentOrchestratorError: If invocation ID is missing
+            Exception: For HTTP errors
+
+        """
+        logger.debug("Attempt %d/%d (correlation_id=%s)", attempt, self.max_retries, correlation_id)
+
+        response = await self.http_client.post(
+            "/invocations",
+            json=payload,
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        result = response.json()
+
+        invocation_id = result.get("id")
+        if not invocation_id:
+            msg = "Agent Orchestrator response missing or invalid 'id'"
+            raise AgentOrchestratorError(msg, code=ErrorCode.MISSING_FIELD, details=str(result))
+
+        logger.info(
+            "Invocation created (correlation_id=%s, id=%s, status=%s)",
+            correlation_id,
+            invocation_id,
+            result.get("status"),
+        )
+        return str(invocation_id)
+
+    def _handle_invocation_error(self, error: Exception) -> None:
+        """Handle and convert invocation errors to appropriate exceptions.
+
+        Args:
+            error: The error to handle
+
+        Raises:
+            AgentOrchestratorConnectionError: For connection errors
+            AgentOrchestratorError: For HTTP and other errors
+
+        """
+        if isinstance(error, (httpx.ConnectError, httpx.TimeoutException)):
+            msg = f"Failed to connect after {self.max_retries} attempts"
+            raise AgentOrchestratorConnectionError(msg, details=str(error)) from error
+
+        if isinstance(error, httpx.HTTPStatusError):
+            is_server_error = error.response.status_code >= http.HTTPStatus.INTERNAL_SERVER_ERROR
+            code = ErrorCode.HTTP_SERVER_ERROR if is_server_error else ErrorCode.HTTP_CLIENT_ERROR
+            msg = f"HTTP {error.response.status_code} error"
+            raise AgentOrchestratorError(msg, code=code, details=error.response.text) from error
+
+        if isinstance(error, AgentOrchestratorError):
+            raise error
+
+        # Other errors
+        msg = f"{type(error).__name__}: {error}"
+        raise AgentOrchestratorError(msg, code=ErrorCode.UNEXPECTED_ERROR, details=str(error)) from error
+
+    async def invoke_agent_async(
         self,
         prompt: str,
         user_id: str,
@@ -208,9 +333,12 @@ class AgentOrchestratorClient:
         input_data: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         correlation_id: str | None = None,
-        timeout_seconds: float | None = None,
-    ) -> dict[str, Any]:
-        """Invoke Agent Orchestrator and return the completed invocation.
+    ) -> str:
+        """Invoke Agent Orchestrator asynchronously and return immediately with invocation ID.
+
+        Unlike invoke_agent(), this method does not wait for the agent to complete.
+        It creates the invocation and returns the invocation ID immediately.
+        The agent orchestrator should call a callback URL when the agent completes.
 
         Args:
             prompt: Natural language prompt for the agent
@@ -219,12 +347,11 @@ class AgentOrchestratorClient:
             agent: Optional agent identifier for routing (included in metadata)
             model: Optional model identifier to use
             input_data: Optional input data for the agent
-            metadata: Optional additional metadata
+            metadata: Optional additional metadata (should include callback_url)
             correlation_id: Optional correlation ID for tracking (auto-generated if not provided)
-            timeout_seconds: Optional timeout override in seconds (uses client default if not provided)
 
         Returns:
-            dict: Full invocation response containing id, status, result, error_message, etc.
+            str: The invocation ID for tracking
 
         Raises:
             AgentOrchestratorConnectionError: If connection fails after retries
@@ -236,7 +363,7 @@ class AgentOrchestratorClient:
         session_id = session_id or str(uuid4())
 
         logger.info(
-            "Invoking agent (correlation_id=%s, prompt_len=%d, agent=%s, model=%s)",
+            "Invoking agent asynchronously (correlation_id=%s, prompt_len=%d, agent=%s, model=%s)",
             correlation_id,
             len(prompt),
             agent,
@@ -244,73 +371,24 @@ class AgentOrchestratorClient:
         )
 
         # Build request payload
-        payload = {
-            "prompt": prompt,
-            "createdBy": user_id,
-            "sessionId": session_id,
-            "contextData": {
-                k: v
-                for k, v in {
-                    "correlation_id": correlation_id,
-                    "input_data": input_data,
-                    "model": model,
-                    "agent": agent,
-                    "metadata": metadata,
-                }.items()
-                if v is not None
-            },
-        }
+        payload = self._build_invocation_payload(
+            prompt, user_id, session_id, correlation_id, agent, model, input_data, metadata
+        )
 
         # Invoke with retry logic for transient failures
         last_error: Exception | None = None
 
-        # Use provided timeout or fall back to client default
-        request_timeout = timeout_seconds if timeout_seconds is not None else self.timeout
-
         for attempt in range(1, self.max_retries + 1):
             try:
-                logger.debug("Attempt %d/%d (correlation_id=%s)", attempt, self.max_retries, correlation_id)
+                return await self._attempt_invocation(payload, correlation_id, attempt)
 
-                # Make the invocation with timeout override
-                response = await self.http_client.post(
-                    "/invocations",
-                    json=payload,
-                    timeout=request_timeout,
-                )
-                response.raise_for_status()
-                result = response.json()
-
-                # Validate response
-                self._validate_invocation_response(result)
-
-                logger.info(
-                    "Invocation completed (correlation_id=%s, id=%s, status=%s)",
-                    correlation_id,
-                    result["id"],
-                    result["status"],
-                )
-                return cast("dict[str, Any]", result)
-
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - Broad exception catch is intentional for retry logic
                 # Determine if we should retry
                 is_last_attempt = attempt == self.max_retries
                 should_retry = self._is_retryable_error(e) and not is_last_attempt
 
                 if not should_retry:
-                    # Raise immediately for non-retryable errors or exhausted retries
-                    if isinstance(e, (httpx.ConnectError, httpx.TimeoutException)):
-                        msg = f"Failed to connect after {self.max_retries} attempts"
-                        raise AgentOrchestratorConnectionError(msg, details=str(e)) from e
-                    if isinstance(e, httpx.HTTPStatusError):
-                        is_server_error = e.response.status_code >= http.HTTPStatus.INTERNAL_SERVER_ERROR
-                        code = ErrorCode.HTTP_SERVER_ERROR if is_server_error else ErrorCode.HTTP_CLIENT_ERROR
-                        msg = f"HTTP {e.response.status_code} error"
-                        raise AgentOrchestratorError(msg, code=code, details=e.response.text) from e
-                    if isinstance(e, AgentOrchestratorError):
-                        raise
-                    # Other errors
-                    msg = f"{type(e).__name__}: {e}"
-                    raise AgentOrchestratorError(msg, code=ErrorCode.UNEXPECTED_ERROR, details=str(e)) from e
+                    self._handle_invocation_error(e)
 
                 # Retry with exponential backoff
                 last_error = e

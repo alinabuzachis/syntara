@@ -48,6 +48,10 @@ class AgentState(TypedDict):
     current_agent: str
     """Name of the current/target agent ('orchestrator', 'generic_agent', 'workflow_generator')"""
 
+    # Metadata and context
+    metadata: dict[str, Any] | None
+    """Metadata from invocation context_data (includes callback_url for PR #271)"""
+
     # Tool execution messages
     messages: Annotated[list[AnyMessage], operator.add]
     """Messages for LangGraph ToolNode execution and LLM communication"""
@@ -66,6 +70,7 @@ class AgentStateFactory:
         session_id: str,
         invocation_id: UUID,
         correlation_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AgentState:
         """Create initial state for LangGraph execution.
 
@@ -74,6 +79,7 @@ class AgentStateFactory:
             session_id: Session identifier
             invocation_id: Invocation UUID
             correlation_id: Optional correlation ID (defaults to invocation_id)
+            metadata: Optional metadata from invocation context_data (e.g., callback_url)
 
         Returns:
             Initial AgentState ready for orchestration
@@ -87,6 +93,7 @@ class AgentStateFactory:
             invocation_id=str(invocation_id),
             context_package=None,
             current_agent=AgentRoutes.ORCHESTRATOR,
+            metadata=metadata,
             messages=[HumanMessage(prompt)],
             result=None,
         )

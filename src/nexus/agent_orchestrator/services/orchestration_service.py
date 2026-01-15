@@ -8,19 +8,18 @@ import asyncio
 import logging
 from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 from uuid import UUID
 
+import httpx
 from langchain_core.messages import AIMessage
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
-
-if TYPE_CHECKING:
-    from langchain_core.runnables import RunnableConfig
 
 from nexus.agent_orchestrator.agents.generic_agent import GenericAgent
 from nexus.agent_orchestrator.agents.orchestrator_agent import OrchestratorAgent
@@ -36,6 +35,7 @@ from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
     create_tool_awrapper,
     create_tool_wrapper,
 )
+from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.core.valkey.stream import StreamClient
 
 logger = logging.getLogger(__name__)
@@ -127,7 +127,12 @@ class OrchestrationService:
         return await synchronizer.synchronize_tools()
 
     async def execute(
-        self, prompt: str, session_id: str, invocation_id: UUID, correlation_id: str | None = None
+        self,
+        prompt: str,
+        session_id: str,
+        invocation_id: UUID,
+        correlation_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Execute agent orchestration with LLM streaming through LangGraph.
 
@@ -139,6 +144,7 @@ class OrchestrationService:
             session_id: Session identifier for multi-turn tracking
             invocation_id: Invocation UUID
             correlation_id: Optional correlation ID for distributed tracing
+            metadata: Optional metadata from invocation context_data (e.g., callback_url)
 
         Returns:
             Agent execution result with context enhancement metadata (dict format for DB storage)
@@ -153,7 +159,11 @@ class OrchestrationService:
 
         # Create initial state
         initial_state = AgentStateFactory.create_initial_state(
-            prompt=prompt, session_id=session_id, invocation_id=invocation_id, correlation_id=correlation_id
+            prompt=prompt,
+            session_id=session_id,
+            invocation_id=invocation_id,
+            correlation_id=correlation_id,
+            metadata=metadata,
         )
 
         graph: CompiledStateGraph[AgentState, None, Any, Any] = await self._setup_graph(initial_state)
@@ -162,24 +172,15 @@ class OrchestrationService:
             try:
                 # Execute graph with streaming events
                 config: RunnableConfig = cast("RunnableConfig", {"configurable": {"thread_id": session_id}})
-
-                # Track final state to capture context metadata
-                final_state: AgentState | None = None
-
-                # Stream events from LangGraph
-                async for event in graph.astream_events(initial_state, config, version="v2"):
-                    # Process streaming events (event is StandardStreamEvent | CustomStreamEvent)
-                    event_dict = cast("dict[str, Any]", event)
-                    await self._process_streaming_event(event_dict, invocation_id, stream_id, client)
-
-                    # Capture final state from graph end events
-                    if event_dict.get("event") == "on_chain_end" and event_dict.get("name") == "LangGraph":
-                        data = event_dict.get("data")
-                        if isinstance(data, dict):
-                            final_state = cast("AgentState | None", data.get("output"))
+                final_state = await self._execute_graph_streaming(
+                    graph, initial_state, config, invocation_id, stream_id, client
+                )
 
                 # Publish completion event
                 await self._publish_completion_event(invocation_id, stream_id, client)
+
+                # Handle completion callback
+                await self._handle_completion_callback(final_state, invocation_id)
 
                 logger.info("Streaming orchestration completed (invocation_id=%s)", invocation_id)
 
@@ -188,8 +189,101 @@ class OrchestrationService:
 
             except Exception as e:
                 # Handle streaming errors
+                logger.exception(
+                    "Exception in orchestration service (invocation_id=%s, error_type=%s)",
+                    invocation_id,
+                    type(e).__name__,
+                )
                 await self._handle_streaming_error(e, invocation_id, stream_id, client)
+
+                # Send failure signal to workflow if callback_url is present
+                callback_url = metadata.get("callback_url") if metadata else None
+                await WorkflowSignalClient.send_failure_signal(callback_url, invocation_id, e)
+
                 raise
+
+    async def _execute_graph_streaming(
+        self,
+        graph: CompiledStateGraph[AgentState, None, Any, Any],
+        initial_state: AgentState,
+        config: RunnableConfig,
+        invocation_id: UUID,
+        stream_id: str,
+        client: StreamClient,
+    ) -> AgentState | None:
+        """Execute graph with streaming and capture final state.
+
+        Args:
+            graph: Compiled LangGraph state machine
+            initial_state: Initial agent state
+            config: Runnable config with thread_id
+            invocation_id: Invocation UUID
+            stream_id: Valkey stream ID
+            client: StreamClient for publishing events
+
+        Returns:
+            Final agent state or None if not captured
+
+        """
+        final_state: AgentState | None = None
+
+        # Stream events from LangGraph
+        async for event in graph.astream_events(initial_state, config, version="v2"):
+            # Process streaming events (event is StandardStreamEvent | CustomStreamEvent)
+            event_dict = cast("dict[str, Any]", event)
+            await self._process_streaming_event(event_dict, invocation_id, stream_id, client)
+
+            # Capture final state from graph end events
+            final_state = self._extract_final_state(event_dict, final_state)
+
+        return final_state
+
+    def _extract_final_state(
+        self, event_dict: dict[str, Any], current_final_state: AgentState | None
+    ) -> AgentState | None:
+        """Extract final state from graph end event.
+
+        Args:
+            event_dict: Event dictionary from astream_events
+            current_final_state: Current captured final state
+
+        Returns:
+            Updated final state or current state if not a graph end event
+
+        """
+        if event_dict.get("event") == "on_chain_end" and event_dict.get("name") == "LangGraph":
+            data = event_dict.get("data")
+            if isinstance(data, dict):
+                return cast("AgentState | None", data.get("output"))
+
+        return current_final_state
+
+    async def _handle_completion_callback(self, final_state: AgentState | None, invocation_id: UUID) -> None:
+        """Handle completion callback with error handling.
+
+        Args:
+            final_state: Final agent state with callback metadata
+            invocation_id: Invocation UUID for logging
+
+        """
+        logger.info(
+            "Checking for completion callback (invocation_id=%s, has_final_state=%s)",
+            invocation_id,
+            final_state is not None,
+        )
+
+        if not final_state:
+            logger.warning("No final_state available for callback (invocation_id=%s)", invocation_id)
+            return
+
+        try:
+            await self._send_completion_callback(final_state, invocation_id)
+        except (httpx.RequestError, httpx.HTTPStatusError, httpx.TimeoutException):
+            logger.exception("Activity signal failed for invocation %s", invocation_id)
+            # Continue without failing - notification is not critical
+        except Exception:
+            logger.exception("Unexpected error during activity signal for invocation %s", invocation_id)
+            # Continue without failing - notification is not critical
 
     async def _process_streaming_event(
         self, event: dict[str, Any], invocation_id: UUID, stream_id: str, client: StreamClient
@@ -357,6 +451,52 @@ class OrchestrationService:
         )
 
         return response.model_dump()
+
+    async def _send_completion_callback(self, final_state: AgentState, invocation_id: UUID) -> None:
+        """Send completion callback to workflow after agent execution.
+
+        Sends HTTP callback to workflow when agent completes, replicating the functionality
+        previously handled by NotificationNode.
+
+        Args:
+            final_state: Final state containing agent result and metadata
+            invocation_id: Invocation UUID for logging
+
+        """
+        logger.info(
+            "CALLBACK CHECK: Checking completion callback for invocation %s (final_state_keys=%s)",
+            invocation_id,
+            list(final_state.keys()) if final_state else None,
+        )
+
+        # Extract callback URL from metadata
+        metadata = final_state.get("metadata") or {}
+        callback_url = metadata.get("callback_url")
+
+        logger.info(
+            "CALLBACK CHECK: callback_url=%s, has_metadata=%s (invocation %s)",
+            callback_url,
+            metadata is not None,
+            invocation_id,
+        )
+
+        if not callback_url:
+            logger.warning(
+                "No callback_url found in metadata for invocation %s, skipping callback (metadata=%s)",
+                invocation_id,
+                metadata,
+            )
+            return
+
+        # Extract agent result
+        result = final_state.get("result")
+        if not result:
+            logger.warning("No result found in final_state for callback (invocation %s)", invocation_id)
+            return
+
+        logger.info("CALLBACK: Sending activity signal to %s (invocation %s)", callback_url, invocation_id)
+        # Send the activity signal
+        await WorkflowSignalClient.send_success_signal(callback_url, invocation_id, result)
 
     # ===============================
     # Nodes

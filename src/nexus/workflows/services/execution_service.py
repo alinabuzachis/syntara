@@ -18,6 +18,7 @@ from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin, PostProcessingMixin
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
+    TemporalUnavailableError,
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
@@ -169,15 +170,16 @@ class ExecutionService(BaseService):
                 workflow_id=str(workflow.id),
             )
             temporal_workflow_id = temporal_result.temporal_workflow_id
-            execution_id = temporal_result.execution_id
+            execution_id = UUID(temporal_result.execution_id)
             logger.info(
-                "Temporal workflow started: %s (run_id: %s)",
+                "Temporal workflow started: %s (run_id: %s, execution_id: %s)",
                 temporal_result.temporal_workflow_id,
                 temporal_result.temporal_run_id,
+                execution_id,
             )
         else:
             # For testing without Temporal, generate a stub ID
-            execution_id = str(uuid4())
+            execution_id = uuid4()
             temporal_workflow_id = f"exec-{execution_id}"
             logger.warning("No Temporal service available, using stub workflow ID: %s", temporal_workflow_id)
 
@@ -301,3 +303,51 @@ class ExecutionService(BaseService):
         logger.debug("Retrieved %d activities for execution %s from database", len(activities), execution_id)
 
         return activities
+
+    async def send_activity_signal(
+        self,
+        execution_id: UUID,
+        activity_id: str,
+        signal_data: dict[str, Any],
+    ) -> None:
+        """Send a signal to a specific activity in a workflow execution.
+
+        Retrieves the execution from the database to get the temporal_workflow_id,
+        then sends the signal via the Temporal execution service.
+
+        Args:
+            execution_id: Execution ID
+            activity_id: Activity ID from workflow definition
+            signal_data: Arbitrary signal data to send to the activity
+
+        Raises:
+            ExecutionNotFoundError: If execution not found
+            Exception: If Temporal service unavailable or signal fails
+
+        """
+        # Get execution to retrieve temporal_workflow_id
+        execution = await self.get_execution(execution_id)
+
+        if self.temporal_service is None:
+            operation = "signal sending"
+            raise TemporalUnavailableError(operation)
+
+        logger.info(
+            "Sending signal to activity %s in execution %s (temporal_workflow_id: %s)",
+            activity_id,
+            execution_id,
+            execution.temporal_workflow_id,
+        )
+
+        # Send signal via Temporal service
+        await self.temporal_service.send_activity_signal(
+            temporal_workflow_id=execution.temporal_workflow_id,
+            activity_id=activity_id,
+            signal_data=signal_data,
+        )
+
+        logger.info(
+            "Signal sent successfully to activity %s in execution %s",
+            activity_id,
+            execution_id,
+        )

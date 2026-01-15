@@ -49,6 +49,7 @@ class TestGenericAgentLLMIntegration:
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         response = await agent.execute_as_node(state)
@@ -83,6 +84,7 @@ class TestGenericAgentLLMIntegration:
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         response = await agent.execute_as_node(state)
@@ -114,6 +116,7 @@ class TestGenericAgentLLMIntegration:
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         with pytest.raises(AgentConfigurationError) as exc_info:
@@ -143,6 +146,7 @@ class TestGenericAgentLLMIntegration:
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         with pytest.raises(AgentRateLimitError) as exc_info:
@@ -172,6 +176,7 @@ class TestGenericAgentLLMIntegration:
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         with pytest.raises(AgentTimeoutError) as exc_info:
@@ -205,6 +210,7 @@ class TestGenericAgentPromptEngineering:
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         await agent.execute_as_node(state)
@@ -234,6 +240,7 @@ class TestGenericAgentPromptEngineering:
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         response = await agent.execute_as_node(state)
@@ -265,6 +272,7 @@ class TestGenericAgentPromptEngineering:
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         with pytest.raises(AgentError) as exc_info:
@@ -299,6 +307,7 @@ class TestGenericAgentLogging:
             "current_agent": "generic_agent",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         with patch.object(agent, "logger") as mock_logger:

@@ -13,10 +13,11 @@ from nexus.api.db import get_db
 from nexus.core.models import User
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
+    TemporalUnavailableError,
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
-from nexus.workflows.models import ExecutionListParams
+from nexus.workflows.models import ActivitySignalPayload, ExecutionListParams, SignalResponse
 from nexus.workflows.models.activity_execution import ActivityExecution
 from nexus.workflows.models.execution import (
     Execution,
@@ -244,4 +245,70 @@ async def list_execution_activities(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list activities: {e}",
+        ) from e
+
+
+@router.post("/{execution_id}/activities/{activity_id}/signal")
+async def signal_activity(
+    execution_id: UUID,
+    activity_id: str,
+    payload: ActivitySignalPayload,
+    service: Annotated[ExecutionService, Depends(get_execution_service)],
+) -> SignalResponse:
+    """Send a signal to a specific activity in a workflow execution.
+
+    This endpoint allows external systems to send arbitrary signals to
+    activities that are waiting for external events. The activity must be
+    designed to handle signals via the workflow's signal handler.
+
+    Args:
+        execution_id: Execution ID
+        activity_id: Activity ID from workflow definition
+        payload: Signal payload containing signal_data
+        service: Execution service (injected by FastAPI)
+
+    Returns:
+        Signal response confirming delivery
+
+    Raises:
+        HTTPException: 404 if execution not found
+        HTTPException: 503 if Temporal unavailable
+        HTTPException: 500 if signal fails
+
+    """
+    logger.info(
+        "Sending signal to activity %s in execution %s",
+        activity_id,
+        execution_id,
+    )
+
+    try:
+        await service.send_activity_signal(
+            execution_id=execution_id,
+            activity_id=activity_id,
+            signal_data=payload.signal_data,
+        )
+        return SignalResponse(
+            status="signal_sent",
+            message=f"Signal sent to activity {activity_id}",
+        )
+    except ExecutionNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except TemporalUnavailableError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        ) from e
+    except Exception as e:
+        logger.exception(
+            "Failed to send signal to activity %s in execution %s",
+            activity_id,
+            execution_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send signal: {e}",
         ) from e

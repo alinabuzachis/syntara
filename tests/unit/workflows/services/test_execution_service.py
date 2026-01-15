@@ -175,9 +175,9 @@ class TestCreateExecution:
         mock_session.refresh = AsyncMock()
 
         # Mock Temporal service
-        execution_id = str(uuid4())
+        temporal_execution_id = uuid4()
         temporal_result = Mock()
-        temporal_result.execution_id = execution_id
+        temporal_result.execution_id = str(temporal_execution_id)
         temporal_result.temporal_workflow_id = "exec-abc123"
         temporal_result.temporal_run_id = "run-xyz789"
         mock_temporal.start_yaml_workflow = AsyncMock(return_value=temporal_result)
@@ -194,6 +194,7 @@ class TestCreateExecution:
 
         # Verify
         assert isinstance(result, Execution)
+        assert result.id == temporal_execution_id
         assert result.workflow_id == workflow_id
         assert result.workflow_version_id == version_id
         assert result.temporal_workflow_id == "exec-abc123"

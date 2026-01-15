@@ -47,7 +47,8 @@ def mock_agent_client() -> Generator[AsyncMock, None, None]:
     with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
         # Create mock instance
         mock_instance = AsyncMock()
-        mock_instance.invoke_agent = AsyncMock(side_effect=create_mock_client_response)
+        # New async pattern: invoke_agent_async returns invocation_id immediately
+        mock_instance.invoke_agent_async = AsyncMock(return_value="inv_123456")
         mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
         mock_instance.__aexit__ = AsyncMock(return_value=None)
 
@@ -85,7 +86,7 @@ class TestAgenticActivityExecution:
 
     @pytest.mark.asyncio
     async def test_invokes_agent_orchestrator(self, workflow_definition_agentic, mock_agent_client) -> None:
-        """Test that agentic activity invokes Agent Orchestrator successfully."""
+        """Test that agentic activity invokes Agent Orchestrator asynchronously."""
         activity_config = workflow_definition_agentic["tasks"][0]
         input_data = {"question": "What is the meaning of life?"}
 
@@ -95,12 +96,13 @@ class TestAgenticActivityExecution:
             input_data=input_data,
         )
 
-        # Verify Agent Orchestrator was called
-        mock_agent_client.invoke_agent.assert_called_once()
+        # Verify Agent Orchestrator was called asynchronously
+        mock_agent_client.invoke_agent_async.assert_called_once()
 
-        # Verify result contains Agent Orchestrator response
-        assert result["status"] == "completed"
-        assert result["result"]["answer"] == "42"
+        # Verify result contains metadata (activity returns immediately, doesn't wait)
+        assert result["status"] == "running"
+        assert result["invocation_id"] == "inv_123456"
+        assert "callback_url" in result
 
     @pytest.mark.asyncio
     async def test_parameter_mapping_to_agent_orchestrator(
@@ -115,8 +117,8 @@ class TestAgenticActivityExecution:
             input_data=input_data,
         )
 
-        # Verify invoke_agent was called with correct parameters
-        call_args = mock_agent_client.invoke_agent.call_args
+        # Verify invoke_agent_async was called with correct parameters
+        call_args = mock_agent_client.invoke_agent_async.call_args
 
         # Check agent
         assert call_args.kwargs["agent"] == "nexus-agent://default"
@@ -132,7 +134,7 @@ class TestAgenticActivityExecution:
 
     @pytest.mark.asyncio
     async def test_invokes_agent_and_gets_result(self, workflow_definition_agentic, mock_agent_client) -> None:
-        """Test that activity invokes agent and gets the complete result."""
+        """Test that activity invokes agent async and returns metadata (workflow waits for signal)."""
         activity_config = workflow_definition_agentic["tasks"][0]
         input_data = {"question": "What is the meaning of life?"}
 
@@ -141,12 +143,12 @@ class TestAgenticActivityExecution:
             input_data=input_data,
         )
 
-        # Verify invoke_agent was called (not poll_for_result)
-        mock_agent_client.invoke_agent.assert_called()
+        # Verify invoke_agent_async was called
+        mock_agent_client.invoke_agent_async.assert_called()
 
-        # Verify result contains the expected data
-        assert result["status"] == "completed"
-        assert result["result"]["answer"] == "42"
+        # Verify result contains metadata (activity returns immediately)
+        assert result["status"] == "running"
+        assert result["invocation_id"] == "inv_123456"
 
 
 class TestAgenticActivityErrorHandling:
@@ -155,13 +157,17 @@ class TestAgenticActivityErrorHandling:
     @pytest.mark.asyncio
     async def test_handles_agent_orchestrator_unavailable(self, workflow_definition_agentic, mock_agent_client) -> None:
         """Test error handling when Agent Orchestrator is unavailable."""
-        # Reconfigure mock to raise connection error
-        mock_agent_client.invoke_agent.side_effect = ConnectionError("Agent Orchestrator unavailable")
+        # Reconfigure mock to raise connection error from async method
+        from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorConnectionError
+
+        mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorConnectionError(
+            "Agent Orchestrator unavailable"
+        )
 
         activity_config = workflow_definition_agentic["tasks"][0]
 
-        # Should wrap connection error in AgenticActivityError
-        with pytest.raises(AgenticActivityError) as exc_info:
+        # Should raise the connection error (not wrapped since it's already specific)
+        with pytest.raises(AgentOrchestratorConnectionError) as exc_info:
             await execute_agentic_activity(
                 activity_config=activity_config,
                 input_data={"question": "test"},
@@ -171,48 +177,37 @@ class TestAgenticActivityErrorHandling:
 
     @pytest.mark.asyncio
     async def test_handles_agent_orchestrator_timeout(self, workflow_definition_agentic, mock_agent_client) -> None:
-        """Test timeout handling for long-running Agent Orchestrator invocations."""
-        # Reconfigure mock to raise timeout error
-        mock_agent_client.invoke_agent.side_effect = TimeoutError("Invocation timed out")
+        """Test timeout handling for Agent Orchestrator invocations."""
+        # Reconfigure mock to raise timeout error from async method
+        from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorError, ErrorCode
+
+        mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorError(
+            "Invocation timed out", code=ErrorCode.TIMEOUT
+        )
 
         activity_config = workflow_definition_agentic["tasks"][0]
 
-        # Should wrap timeout error in AgenticActivityError
+        # Should wrap in AgenticActivityError
         with pytest.raises(AgenticActivityError) as exc_info:
             await execute_agentic_activity(
                 activity_config=activity_config,
                 input_data={"question": "test"},
             )
 
-        assert "timed out" in str(exc_info.value).lower()
+        assert "error" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_handles_agent_orchestrator_error_response(
         self, workflow_definition_agentic, mock_agent_client
     ) -> None:
-        """Test handling of error responses from Agent Orchestrator."""
+        """Test that async invocation succeeds even if agent will fail later.
 
-        # Reconfigure mock to return error response
-        async def error_invoke(**kwargs: object) -> dict[str, Any]:
-            return {
-                "id": "inv_error",
-                "status": "failed",
-                "result": None,
-                "error_message": "Agent execution failed",
-                "created_at": "2025-10-31T00:00:00Z",
-                "updated_at": "2025-10-31T00:00:01Z",
-                "started_at": "2025-10-31T00:00:00Z",
-                "completed_at": "2025-10-31T00:00:01Z",
-                "prompt": kwargs.get("prompt", "Test prompt"),
-                "session_id": "test-session",
-                "created_by": "test-user",
-                "updated_by": None,
-                CONTEXT_KEY: {},
-                "checkpoint_data": None,
-                "labels": {},
-            }
-
-        mock_agent_client.invoke_agent = error_invoke
+        With async pattern, the activity returns immediately with status 'pending'.
+        Errors come later via the signal. The workflow handles this by timing out
+        or receiving a failure signal from the Agent Orchestrator.
+        """
+        # Mock returns invocation ID successfully (agent will fail later)
+        mock_agent_client.invoke_agent_async.return_value = "inv_error"
 
         activity_config = workflow_definition_agentic["tasks"][0]
 
@@ -221,9 +216,9 @@ class TestAgenticActivityErrorHandling:
             input_data={"question": "test"},
         )
 
-        # Should capture error in result
-        assert result["status"] == "failed"
-        assert "failed" in result["error_message"].lower()
+        # Activity returns running status - errors come later via signal
+        assert result["status"] == "running"
+        assert result["invocation_id"] == "inv_error"
 
 
 class TestAgenticActivityRetryLogic:
@@ -236,8 +231,12 @@ class TestAgenticActivityRetryLogic:
         Note: Retry logic is handled by Temporal, not by execute_agentic_activity.
         This test verifies the activity fails on connection errors without internal retry.
         """
-        # Reconfigure mock to fail with connection error
-        mock_agent_client.invoke_agent.side_effect = ConnectionError("Temporary failure")
+        # Reconfigure mock to fail with Agent Orchestrator error
+        from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorError, ErrorCode
+
+        mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorError(
+            "Temporary failure", code=ErrorCode.HTTP_SERVER_ERROR
+        )
 
         activity_config = workflow_definition_agentic["tasks"][0]
 
@@ -248,7 +247,7 @@ class TestAgenticActivityRetryLogic:
                 input_data={"question": "test"},
             )
 
-        assert "failure" in str(exc_info.value).lower()
+        assert "error" in str(exc_info.value).lower()
 
 
 class TestAgenticActivityEdgeCases:
@@ -295,10 +294,10 @@ class TestAgenticActivityEdgeCases:
     @pytest.mark.asyncio
     async def test_handles_missing_invocation_id_in_response(self) -> None:
         """Test handling of malformed Agent Orchestrator response."""
-        # Mock client that returns response without invocation_id
+        # Mock client that raises error for missing invocation_id
         bad_client = AsyncMock()
-        bad_client.invoke_agent.side_effect = AgentOrchestratorError(
-            "Agent Orchestrator response missing or invalid 'invocation_id'"
+        bad_client.invoke_agent_async.side_effect = AgentOrchestratorError(
+            "Agent Orchestrator response missing or invalid 'id'"
         )
         bad_client.__aenter__ = AsyncMock(return_value=bad_client)
         bad_client.__aexit__ = AsyncMock(return_value=None)
@@ -320,7 +319,7 @@ class TestAgenticActivityEdgeCases:
                     input_data={},
                 )
 
-        assert "invocation_id" in str(exc_info.value).lower()
+        assert "error" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_metadata_not_mutated(self, mock_agent_client) -> None:
@@ -345,29 +344,12 @@ class TestAgenticActivityEdgeCases:
             metadata: dict[str, Any] | None = None,
             session_id: str | None = None,
             correlation_id: str | None = None,
-            timeout_seconds: float | None = None,
-        ) -> dict[str, Any]:
+        ) -> str:
             nonlocal captured_metadata
             captured_metadata = metadata
-            return {
-                "id": "inv_123",
-                "status": "completed",
-                "result": {},
-                "error_message": None,
-                "created_at": "2025-10-31T00:00:00Z",
-                "updated_at": "2025-10-31T00:00:01Z",
-                "started_at": "2025-10-31T00:00:00Z",
-                "completed_at": "2025-10-31T00:00:01Z",
-                "prompt": prompt,
-                "session_id": "test-session",
-                "created_by": "test-user",
-                "updated_by": None,
-                CONTEXT_KEY: {},
-                "checkpoint_data": None,
-                "labels": {},
-            }
+            return "inv_123"
 
-        mock_agent_client.invoke_agent = capture_invoke
+        mock_agent_client.invoke_agent_async = capture_invoke
 
         # Original metadata
         original_metadata = {"custom_key": "custom_value"}
@@ -496,7 +478,7 @@ class TestAgenticActivitySecurity:
             input_data=input_data,
         )
 
-        assert result["status"] == "completed"
+        assert result["status"] == "running"
 
 
 class TestAgenticActivityErrorHandlingAdvanced:
@@ -507,7 +489,7 @@ class TestAgenticActivityErrorHandlingAdvanced:
         """Test handling of malformed JSON from Agent Orchestrator."""
         # Mock client that returns malformed response
         bad_client = AsyncMock()
-        bad_client.invoke_agent.side_effect = AgentOrchestratorError("Response missing 'id'")
+        bad_client.invoke_agent_async.side_effect = AgentOrchestratorError("Response missing 'id'")
         bad_client.__aenter__ = AsyncMock(return_value=bad_client)
         bad_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -534,7 +516,7 @@ class TestAgenticActivityErrorHandlingAdvanced:
     async def test_handles_invalid_status_in_response(self) -> None:
         """Test handling of invalid status values from Agent Orchestrator."""
         bad_client = AsyncMock()
-        bad_client.invoke_agent.side_effect = AgentOrchestratorError("Response has non-terminal status 'pending'")
+        bad_client.invoke_agent_async.side_effect = AgentOrchestratorError("Response has non-terminal status 'pending'")
         bad_client.__aenter__ = AsyncMock(return_value=bad_client)
         bad_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -561,7 +543,9 @@ class TestAgenticActivityErrorHandlingAdvanced:
     async def test_handles_json_decode_error(self) -> None:
         """Test handling of JSON decode errors from Agent Orchestrator."""
         bad_client = AsyncMock()
-        bad_client.invoke_agent.side_effect = AgentOrchestratorError(f"{json.JSONDecodeError.__name__}: Invalid JSON")
+        bad_client.invoke_agent_async.side_effect = AgentOrchestratorError(
+            f"{json.JSONDecodeError.__name__}: Invalid JSON"
+        )
         bad_client.__aenter__ = AsyncMock(return_value=bad_client)
         bad_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -609,9 +593,9 @@ class TestAgenticActivityErrorHandlingAdvanced:
             ),
         )
 
-        # All should complete successfully
+        # All should return running status (workflow waits for signals)
         assert len(results) == 3
-        assert all(r["status"] == "completed" for r in results)
+        assert all(r["status"] == "running" for r in results)
 
     @pytest.mark.asyncio
     async def test_validates_inputs_before_network_call(self, mock_agent_client) -> None:
@@ -619,29 +603,13 @@ class TestAgenticActivityErrorHandlingAdvanced:
         # This prevents wasting network resources on invalid inputs
         call_count = 0
 
-        async def track_calls(**kwargs: object) -> dict[str, Any]:
+        def track_calls(**kwargs: object) -> str:
             nonlocal call_count
             call_count += 1
-            return {
-                "id": "inv_123",
-                "status": "completed",
-                "result": {},
-                "error_message": None,
-                "created_at": "2025-10-31T00:00:00Z",
-                "updated_at": "2025-10-31T00:00:01Z",
-                "started_at": "2025-10-31T00:00:00Z",
-                "completed_at": "2025-10-31T00:00:01Z",
-                "prompt": str(kwargs.get("prompt", "")),
-                "session_id": "test-session",
-                "created_by": "test-user",
-                "updated_by": None,
-                CONTEXT_KEY: {},
-                "checkpoint_data": None,
-                "labels": {},
-            }
+            return "inv_123"
 
         # Reconfigure mock to track calls
-        mock_agent_client.invoke_agent = track_calls
+        mock_agent_client.invoke_agent_async = track_calls
 
         activity_config = {
             "executor": "agentic",
@@ -677,18 +645,18 @@ class TestAgenticActivityTimeoutConfiguration:
             },
         }
 
-        await execute_agentic_activity(
+        result = await execute_agentic_activity(
             activity_config=activity_config,
             input_data={},
         )
 
-        # Verify invoke_agent was called with default timeout
-        call_args = mock_agent_client.invoke_agent.call_args
-        assert call_args.kwargs["timeout_seconds"] == 300.0
+        # Verify async invocation was called (timeout is used by workflow's wait_condition, not the activity)
+        mock_agent_client.invoke_agent_async.assert_called_once()
+        assert result["status"] == "running"
 
     @pytest.mark.asyncio
     async def test_uses_custom_timeout_when_specified(self, mock_agent_client) -> None:
-        """Test that custom timeout is passed through to client."""
+        """Test that custom timeout is accepted (used by workflow's wait_condition)."""
         activity_config = {
             "executor": "agentic",
             "config": {
@@ -698,14 +666,14 @@ class TestAgenticActivityTimeoutConfiguration:
             },
         }
 
-        await execute_agentic_activity(
+        result = await execute_agentic_activity(
             activity_config=activity_config,
             input_data={},
         )
 
-        # Verify invoke_agent was called with custom timeout
-        call_args = mock_agent_client.invoke_agent.call_args
-        assert call_args.kwargs["timeout_seconds"] == 600.0
+        # Verify async invocation was called (timeout is used by workflow for wait_condition)
+        mock_agent_client.invoke_agent_async.assert_called_once()
+        assert result["status"] == "running"
 
     @pytest.mark.asyncio
     async def test_rejects_timeout_below_minimum(self) -> None:
@@ -768,7 +736,7 @@ class TestAgenticActivityInputEdgeCases:
             input_data={},
         )
 
-        assert result["status"] == "completed"
+        assert result["status"] == "running"
 
     @pytest.mark.asyncio
     async def test_handles_complex_nested_input_data(self) -> None:
@@ -799,7 +767,7 @@ class TestAgenticActivityInputEdgeCases:
             input_data=input_data,
         )
 
-        assert result["status"] == "completed"
+        assert result["status"] == "running"
 
     @pytest.mark.asyncio
     async def test_handles_unicode_input(self) -> None:
@@ -820,7 +788,7 @@ class TestAgenticActivityInputEdgeCases:
             input_data=input_data,
         )
 
-        assert result["status"] == "completed"
+        assert result["status"] == "running"
 
     @pytest.mark.asyncio
     async def test_handles_numeric_and_boolean_inputs(self) -> None:
@@ -845,7 +813,7 @@ class TestAgenticActivityInputEdgeCases:
             input_data=input_data,
         )
 
-        assert result["status"] == "completed"
+        assert result["status"] == "running"
 
 
 class TestAgenticActivityCorrelationID:
@@ -871,7 +839,7 @@ class TestAgenticActivityCorrelationID:
         )
 
         # Verify the provided correlation ID was used
-        call_args = mock_agent_client.invoke_agent.call_args
+        call_args = mock_agent_client.invoke_agent_async.call_args
         assert call_args.kwargs["correlation_id"] == "workflow-correlation-123"
 
     @pytest.mark.asyncio
@@ -892,7 +860,7 @@ class TestAgenticActivityCorrelationID:
         )
 
         # Verify a correlation ID was generated (UUID format)
-        call_args = mock_agent_client.invoke_agent.call_args
+        call_args = mock_agent_client.invoke_agent_async.call_args
         correlation_id = call_args.kwargs["correlation_id"]
         assert correlation_id is not None
         assert len(correlation_id) == 36  # UUID format: 8-4-4-4-12
@@ -919,7 +887,7 @@ class TestAgenticActivityCorrelationID:
         )
 
         # Verify a correlation ID was generated
-        call_args = mock_agent_client.invoke_agent.call_args
+        call_args = mock_agent_client.invoke_agent_async.call_args
         correlation_id = call_args.kwargs["correlation_id"]
         assert correlation_id is not None
         assert len(correlation_id) == 36  # UUID format

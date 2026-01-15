@@ -43,6 +43,7 @@ class TestOrchestratorAgentContextIntegration:
             "current_agent": "",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         # Act
@@ -81,6 +82,7 @@ class TestOrchestratorAgentContextIntegration:
             "current_agent": "",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         # Act
@@ -128,6 +130,7 @@ class TestOrchestratorAgentContextIntegration:
                 "current_agent": "",
                 "messages": [HumanMessage("test")],
                 "result": None,
+                "metadata": None,
             }
 
             # Act
@@ -171,6 +174,7 @@ class TestOrchestratorAgentRouting:
                 "current_agent": "",
                 "messages": [HumanMessage("test")],
                 "result": None,
+                "metadata": None,
             }
 
             # Act
@@ -208,6 +212,7 @@ class TestOrchestratorAgentRouting:
                 "current_agent": "",
                 "messages": [HumanMessage("test")],
                 "result": None,
+                "metadata": None,
             }
 
             # Act
@@ -249,6 +254,7 @@ class TestOrchestratorAgentPromptFormatting:
             "current_agent": "",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         # Act
@@ -293,6 +299,7 @@ class TestOrchestratorAgentPromptFormatting:
             "current_agent": "",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         # Act
@@ -328,6 +335,7 @@ class TestOrchestratorAgentLogging:
             "current_agent": "",
             "messages": [HumanMessage("test")],
             "result": None,
+            "metadata": None,
         }
 
         # Act

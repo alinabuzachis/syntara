@@ -4,6 +4,7 @@ import contextlib
 import logging
 from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -12,6 +13,7 @@ from nexus.agent_orchestrator import ContextManagerPlanner
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
+from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.api.db.session import get_db
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.files import FileManager, FileStatus, get_file_manager
@@ -84,11 +86,17 @@ class InvocationExecutor:
                     OrchestrationService,
                 )
 
+                logger.info("Initializing LLM for invocation %s", invocation.id)
                 llm = get_openrouter_llm()
                 context_manager_planner = ContextManagerPlanner(session_factory=self.session_factory)
                 orchestration_service = OrchestrationService(llm=llm, context_manager_planner=context_manager_planner)
+                logger.info("LLM initialized successfully for invocation %s", invocation.id)
             except LLMConfigurationError as e:
                 # Mark invocation as failed
+                logger.exception(
+                    "LLM configuration failed for invocation %s",
+                    invocation.id,
+                )
                 now = datetime.now(UTC)
                 invocation.started_at = now  # Set started_at to indicate when failure was detected
                 invocation.status = InvocationStatus.FAILED
@@ -96,6 +104,12 @@ class InvocationExecutor:
                 invocation.completed_at = now
                 await session.commit()
                 logger.exception("Invocation failed (invocation_id=%s): %s", invocation.id, invocation.error_message)
+
+                # Send failure signal to workflow
+                callback_url = cast(
+                    "str | None", invocation.context_data.get("callback_url") if invocation.context_data else None
+                )
+                await WorkflowSignalClient.send_failure_signal(callback_url, invocation.id, e)
                 return
 
             # Store ID for logging in case of session errors
@@ -121,6 +135,7 @@ class InvocationExecutor:
                     session_id=invocation.session_id,
                     invocation_id=exec_invocation_id,
                     correlation_id=correlation_id,
+                    metadata=invocation.context_data,
                 )
 
                 # Check if invocation was cancelled during execution (fix race condition)
@@ -144,8 +159,19 @@ class InvocationExecutor:
                 # Invocation was cancelled during execution - this is expected behavior
                 # Don't mark as failed since cancellation is already handled
                 logger.info("Invocation cancelled during execution (invocation_id=%s)", exec_invocation_id)
-            except Exception as e:  # noqa: BLE001 - Need to catch all exceptions for graceful error handling
+            except Exception as e:
+                logger.exception(
+                    "Exception during invocation execution (invocation_id=%s, error_type=%s)",
+                    exec_invocation_id,
+                    type(e).__name__,
+                )
                 await self._handle_execution_error(e, exec_invocation_id, session)
+
+                # Send failure signal to workflow
+                callback_url = cast(
+                    "str | None", invocation.context_data.get("callback_url") if invocation.context_data else None
+                )
+                await WorkflowSignalClient.send_failure_signal(callback_url, exec_invocation_id, e)
 
     async def _handle_execution_error(self, error: Exception, invocation_id: UUID, session: AsyncSession) -> None:
         """Handle execution errors by marking invocation as failed.

@@ -6,15 +6,15 @@ integrating with the Agent Orchestrator service for AI-driven task execution.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from pydantic import ValidationError
 from temporalio import activity, workflow
 
 from nexus.workflows.utils.template_resolution import resolve_config_templates
+from nexus.workflows.utils.url import generate_activity_signal_url
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models import AgenticExecutorConfig
 
@@ -29,9 +29,6 @@ with workflow.unsafe.imports_passed_through():
 
 logger = logging.getLogger(__name__)
 
-# Heartbeat interval for long-running LLM calls (in seconds)
-HEARTBEAT_INTERVAL_SECONDS = 30.0
-
 
 # ============================================================================
 # Exceptions
@@ -40,30 +37,6 @@ HEARTBEAT_INTERVAL_SECONDS = 30.0
 
 class AgenticActivityError(Exception):
     """Base exception for agentic activity errors."""
-
-
-# ============================================================================
-# Heartbeat Support
-# ============================================================================
-
-
-async def _heartbeat_loop(interval_seconds: float = HEARTBEAT_INTERVAL_SECONDS) -> None:
-    """Send periodic heartbeat signals to Temporal to keep activity alive.
-
-    This prevents Temporal from timing out long-running LLM invocations.
-
-    Args:
-        interval_seconds: Time between heartbeats (default: 30 seconds)
-
-    """
-    while True:
-        await asyncio.sleep(interval_seconds)
-        try:
-            activity.heartbeat()
-            logger.debug("Sent activity heartbeat")
-        except Exception:  # noqa: BLE001 - Heartbeat must not fail the activity; any error type should be caught and logged
-            # If we can't send heartbeat, log but continue
-            logger.warning("Failed to send activity heartbeat", exc_info=True)
 
 
 # ============================================================================
@@ -232,11 +205,9 @@ async def execute_agentic_activity(
     file_ids = config.file_ids if config.file_ids else []
 
     # Get workflow info for audit trail (if running in Temporal context)
-    in_temporal_context = False
     try:
         activity_info = activity.info()
         workflow_id = activity_info.workflow_id
-        in_temporal_context = True
     except RuntimeError:
         # Not in activity context (e.g., tests or direct invocation)
         workflow_id = "direct-invocation"
@@ -244,50 +215,93 @@ async def execute_agentic_activity(
     # Use system user ID for workflow-initiated invocations, until users have been added/integrated
     user_id = str(constants.SYSTEM_USER_ID)
 
+    # Generate callback URL if execution context is available
+    callback_url = None
+    execution_id_str = activity_config.get("metadata", {}).get("execution_id")
+    activity_id = activity_config.get("metadata", {}).get("activity_id")
+
+    if execution_id_str and activity_id:
+        try:
+            execution_id = UUID(execution_id_str)
+            callback_url = generate_activity_signal_url(execution_id, activity_id)
+            logger.info(
+                "Generated callback URL for activity (correlation_id=%s, callback_url=%s)",
+                correlation_id,
+                callback_url,
+            )
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                "Failed to generate callback URL (correlation_id=%s): %s",
+                correlation_id,
+                str(e),
+            )
+
     logger.info(
-        "Invoking Agent Orchestrator (correlation_id=%s, user_id=%s, agent=%s, model=%s, file_count=%d)",
+        "Invoking Agent Orchestrator "
+        "(correlation_id=%s, user_id=%s, agent=%s, model=%s, file_count=%d, has_callback=%s)",
         correlation_id,
         user_id,
         config.agent,
         config.model,
         len(file_ids),
+        callback_url is not None,
     )
 
     # Prepare input_data with file_ids included
     # Note: file_ids passed via input_data until invoke_agent() supports file_ids directly (AAP-60785)
     extended_input_data = {**input_data, "file_ids": file_ids} if file_ids else input_data
 
-    # Start heartbeat task for long-running LLM calls (only in Temporal context)
-    heartbeat_task: asyncio.Task[None] | None = None
-
     # Use context manager for automatic resource cleanup
     async with AgentOrchestratorClient(base_url=constants.AGENT_ORCHESTRATOR_BASE_URL) as agent_client:
         try:
-            # Start heartbeat loop if in Temporal context
-            if in_temporal_context:
-                heartbeat_task = asyncio.create_task(_heartbeat_loop())
-                logger.debug("Started heartbeat task for agentic activity")
+            # Build metadata with callback URL if available
+            agent_metadata = {
+                "activity_name": activity_config.get("name", "unknown"),
+                "workflow_id": workflow_id,
+            }
+            if callback_url:
+                agent_metadata["callback_url"] = callback_url
 
-            # Invoke agent and get completed result
-            result = await agent_client.invoke_agent(
+            # Invoke agent asynchronously - returns immediately with invocation ID
+            # The workflow will wait for a signal with the actual result
+            logger.info(
+                "Invoking agent asynchronously (correlation_id=%s, callback_url=%s)",
+                correlation_id,
+                callback_url,
+            )
+
+            invocation_id = await agent_client.invoke_agent_async(
                 prompt=config.prompt,
                 user_id=user_id,
                 agent=config.agent,
                 model=config.model,
                 input_data=extended_input_data,
-                metadata={
-                    "activity_name": activity_config.get("name", "unknown"),
-                    "workflow_id": workflow_id,
-                },
+                metadata=agent_metadata,
                 correlation_id=correlation_id,
-                timeout_seconds=float(config.timeout),
             )
 
             logger.info(
-                "Agent invocation completed (correlation_id=%s, invocation_id=%s, status=%s)",
+                "Agent invocation created successfully (correlation_id=%s, invocation_id=%s, callback_url=%s)",
                 correlation_id,
-                result.get("id"),
-                result.get("status"),
+                invocation_id,
+                callback_url,
+            )
+
+            # Return metadata for the workflow to track
+            # The workflow will wait for a signal with the actual result
+            result = {
+                "activity_id": activity_id,
+                "invocation_id": invocation_id,
+                "status": "running",
+                "callback_url": callback_url,
+                "correlation_id": correlation_id,
+            }
+
+            logger.info(
+                "Returning from agentic activity - workflow will now wait for signal "
+                "(correlation_id=%s, invocation_id=%s)",
+                correlation_id,
+                invocation_id,
             )
 
             return result
@@ -305,12 +319,3 @@ async def execute_agentic_activity(
             logger.exception("Unexpected error during agentic activity (correlation_id=%s)", correlation_id)
             msg = f"Unexpected error: {e}"
             raise AgenticActivityError(msg) from e
-
-        finally:
-            # Cancel heartbeat task
-            if heartbeat_task is not None:
-                heartbeat_task.cancel()
-                # Use gather with return_exceptions=True to await the cancelled task
-                # without raising its CancelledError (cleanup pattern for child tasks)
-                await asyncio.gather(heartbeat_task, return_exceptions=True)
-                logger.debug("Stopped heartbeat task for agentic activity")

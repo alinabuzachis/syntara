@@ -1,0 +1,65 @@
+---
+schemaVersion: 1.0.0
+version: 1
+metadata:
+  name: agentic-with-aap
+  description: Workflow combining agentic task and aap task. You would have to configure NEXUS_AAP_BASE_URL,NEXUS_AAP_USERNAME,NEXUS_AAP_PASSWORD and NEXUS_OPENROUTER_API_KEY in your .env file
+  tags:
+    - agentic
+    - aap
+    - demo
+triggers:
+  - type: manual
+
+inputs:
+  prompt:
+    type: string
+    description: Prompt
+    default: |
+      Find the Job Template that is installed out of the box in the majority of AAP installations.
+
+      CRITICAL INSTRUCTIONS:
+      - Your response must contain ONLY the JSON object below
+      - Do NOT include any explanatory text, notes, or comments before or after the JSON
+      - Do NOT include markdown code blocks or backticks
+      - Return ONLY raw JSON
+
+      Required format:
+      {
+        "default_job_template": "template_name_here"
+      }
+  organization_name:
+    type: string
+    description: Name of the organization
+    required: true
+    default: "Default"
+
+workflow:
+  activities:
+    - id: name_via_ai
+      name: Get Popular Job Template Name
+      type: task
+      task:
+        executor: agentic
+        config:
+          agent: production://analysis-agent
+          model: claude-3-5-sonnet-20241022
+          prompt: ${inputs.prompt}
+        outputs:
+          analysis: $.result.content
+
+    # Conditional activity - only run AAP if agentic succeeded
+    - id: conditional_aap_launch
+      type: condition
+      name: If LLM got the popular Job Template Name
+      condition: ${name_via_ai.output.analysis.default_job_template}
+      then:
+        - id: launch_job_by_name
+          type: task
+          name: Launch the Job Template in AAP
+          task:
+            executor: aap_job_template
+            config:
+              jobTemplateName: ${name_via_ai.output.analysis.default_job_template}
+              organizationName: ${inputs.organization_name}
+              verbosity: 3

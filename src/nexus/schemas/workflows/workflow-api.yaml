@@ -519,6 +519,67 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /executions/{execution_id}/activities/{activity_id}/signal:
+    post:
+      summary: Send signal to activity in workflow
+      description: |
+        Send a signal to a specific activity within a running workflow execution.
+
+        This endpoint allows external systems to send arbitrary signals to
+        activities that are waiting for external events. The activity must be
+        designed to handle signals via the workflow's signal handler.
+
+        The signal is durable - if the workflow is temporarily unavailable,
+        the signal will be delivered when it becomes available again.
+      operationId: signalActivity
+      tags:
+        - Executions
+      parameters:
+        - name: execution_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Execution ID of the running workflow
+        - name: activity_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Activity ID from the workflow definition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivitySignalPayload'
+      responses:
+        '200':
+          description: Signal sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalResponse'
+        '404':
+          description: Execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Failed to send signal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Temporal workflow engine unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   # Note: Approval endpoints are in a separate API
   # See: src/nexus/schemas/approvals/approvals-api.yaml
 
@@ -690,6 +751,27 @@ components:
         message:
           type: string
           description: Human-readable confirmation message
+
+    ActivitySignalPayload:
+      type: object
+      title: Activity Signal Payload
+      description: |
+        Generic signal payload for sending arbitrary data to a specific activity
+        within a running workflow execution.
+      required:
+        - signal_data
+      properties:
+        signal_data:
+          type: object
+          additionalProperties: true
+          description: |
+            Arbitrary JSON data to send to the activity. The structure depends
+            on what the activity expects to receive.
+          example:
+            action: "resume"
+            status: "completed"
+            result:
+              value: 42
 
     Error:
       $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error

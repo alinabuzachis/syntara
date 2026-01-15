@@ -31,6 +31,7 @@ def sample_agent_state() -> AgentState:
         "invocation_id": str(uuid4()),
         "context_package": None,
         "current_agent": "generic_agent",
+        "metadata": None,
         "messages": [HumanMessage("What is the weather today?")],
         "result": None,
     }
@@ -394,6 +395,7 @@ class TestConcurrentRequestsWithIndependentState:
             "invocation_id": str(uuid4()),
             "context_package": None,
             "current_agent": "generic_agent",
+            "metadata": None,
             "messages": [HumanMessage(query)],
             "result": None,
         }

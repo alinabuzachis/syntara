@@ -51,3 +51,17 @@ class ExecutionNotFoundError(Exception):
         """Initialize exception with execution ID."""
         self.execution_id = execution_id
         super().__init__(f"Execution {execution_id} not found")
+
+
+class TemporalUnavailableError(Exception):
+    """Raised when Temporal service is unavailable."""
+
+    def __init__(self, operation: str = "operation") -> None:
+        """Initialize exception with operation description.
+
+        Args:
+            operation: Description of the operation that failed
+
+        """
+        self.operation = operation
+        super().__init__(f"Temporal service unavailable - cannot perform {operation}")
