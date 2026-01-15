@@ -18,7 +18,7 @@ services:
       retries: 5
 
   valkey:
-    image: ${NEXUS_VALKEY_IMAGE:-mirror.gcr.io/valkey/valkey:8}
+    image: ${NEXUS_VALKEY_IMAGE:-quay.io/sclorg/valkey-8-c10s:latest}
     restart: unless-stopped
     command: sh -c "valkey-server --requirepass $${VALKEY_PASSWORD:-valkey}"
     ports:
