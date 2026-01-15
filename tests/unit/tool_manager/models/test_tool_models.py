@@ -44,7 +44,6 @@ async def test_create_tool_with_required_fields(
     )
     test_db_session.add(tool)
     await test_db_session.commit()
-    await test_db_session.refresh(tool)
 
     assert tool.id == tool_id
     assert tool.provider_id == test_tool_provider.id
@@ -84,7 +83,6 @@ async def test_create_tool_with_all_fields(
     )
     test_db_session.add(tool)
     await test_db_session.commit()
-    await test_db_session.refresh(tool)
 
     assert tool.enabled is False
     assert tool.status == ToolStatus.ERROR
@@ -169,7 +167,6 @@ async def test_create_tool_parameter(
     )
     test_db_session.add(param)
     await test_db_session.commit()
-    await test_db_session.refresh(param)
 
     assert param.id == param_id
     assert param.tool_id == tool_id
@@ -245,7 +242,6 @@ async def test_tool_parameter_relationship(
 
     test_db_session.add_all([param1, param2])
     await test_db_session.commit()
-    await test_db_session.refresh(tool)
 
     # sqlalchemy supports lazy-load by default
     result = await test_db_session.exec(
@@ -378,8 +374,6 @@ async def test_tool_namespaced_name_different_names_allowed(
 
     test_db_session.add_all([tool1, tool2])
     await test_db_session.commit()  # Should succeed
-    await test_db_session.refresh(tool1)
-    await test_db_session.refresh(tool2)
 
     # Verify both tools were created successfully
     assert tool1.namespaced_name == "test_provider::tool_one"
@@ -412,7 +406,6 @@ async def test_tool_namespaced_name_case_sensitivity(
     )
     test_db_session.add(tool2)
     await test_db_session.commit()  # Should succeed
-    await test_db_session.refresh(tool2)
 
     # Verify both tools exist with their respective namespaced_names
     assert tool1.namespaced_name == "test::tool"

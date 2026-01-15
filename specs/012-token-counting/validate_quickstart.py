@@ -83,7 +83,6 @@ async def scenario_1_within_limit(session: AsyncSession) -> bool:
         )
         session.add(user)
         await session.commit()
-        await session.refresh(user)
 
         # Create config with 10,000 token limit
         config = UserTokenConfig(user_id=user.id, token_limit=10000, window_duration_seconds=86400)
@@ -140,7 +139,6 @@ async def scenario_2_exceeds_limit(session: AsyncSession) -> bool:
         )
         session.add(user)
         await session.commit()
-        await session.refresh(user)
 
         # Create config
         config = UserTokenConfig(user_id=user.id, token_limit=10000, window_duration_seconds=86400)
@@ -203,7 +201,6 @@ async def scenario_3_rolling_window(session: AsyncSession) -> bool:
         )
         session.add(user)
         await session.commit()
-        await session.refresh(user)
 
         # Create config with 24-hour window
         config = UserTokenConfig(user_id=user.id, token_limit=10000, window_duration_seconds=86400)
@@ -278,8 +275,6 @@ async def scenario_4_per_user_independence(session: AsyncSession) -> bool:
         )
         session.add_all([user_a, user_b])
         await session.commit()
-        await session.refresh(user_a)
-        await session.refresh(user_b)
 
         # Create different configs
         config_a = UserTokenConfig(user_id=user_a.id, token_limit=5000, window_duration_seconds=3600)

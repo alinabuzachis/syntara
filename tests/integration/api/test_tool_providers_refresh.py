@@ -21,7 +21,6 @@ class TestToolProvidersRefreshContract:
         test_tool_provider.status = ProviderStatus.AVAILABLE
         test_db_session.add(test_tool_provider)
         await test_db_session.commit()
-        await test_db_session.refresh(test_tool_provider)
 
         response = await base_client_with_provider_factory.post(
             f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
@@ -46,7 +45,6 @@ class TestToolProvidersRefreshContract:
         test_tool_provider.status = ProviderStatus.AVAILABLE
         test_db_session.add(test_tool_provider)
         await test_db_session.commit()
-        await test_db_session.refresh(test_tool_provider)
 
         response = await base_client_with_provider_factory.post(
             f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
@@ -71,7 +69,6 @@ class TestToolProvidersRefreshContract:
         test_tool_provider.status = ProviderStatus.AVAILABLE
         test_db_session.add(test_tool_provider)
         await test_db_session.commit()
-        await test_db_session.refresh(test_tool_provider)
 
         response = await base_client_with_provider_factory.post(
             f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
@@ -96,7 +93,6 @@ class TestToolProvidersRefreshContract:
         test_tool_provider.status = ProviderStatus.ERROR
         test_db_session.add(test_tool_provider)
         await test_db_session.commit()
-        await test_db_session.refresh(test_tool_provider)
 
         response = await base_client_with_provider_factory.post(
             f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
@@ -132,7 +128,6 @@ class TestToolProvidersRefreshContract:
         test_tool_provider.status = ProviderStatus.ERROR
         test_db_session.add(test_tool_provider)
         await test_db_session.commit()
-        await test_db_session.refresh(test_tool_provider)
 
         response = await base_client_with_provider_factory.post(
             f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
@@ -174,7 +169,6 @@ class TestToolProvidersRefreshContract:
         test_tool_provider.status = ProviderStatus.AVAILABLE
         test_db_session.add(test_tool_provider)
         await test_db_session.commit()
-        await test_db_session.refresh(test_tool_provider)
 
         response = await base_client_with_provider_factory.post(
             f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
@@ -208,7 +202,6 @@ class TestToolProvidersRefreshContract:
         test_tool_provider.status = ProviderStatus.AVAILABLE
         test_db_session.add(test_tool_provider)
         await test_db_session.commit()
-        await test_db_session.refresh(test_tool_provider)
 
         # This test ensures the API can handle concurrent refresh operations
         response = await base_client_with_provider_factory.post(

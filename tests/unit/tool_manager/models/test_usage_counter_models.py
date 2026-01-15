@@ -40,7 +40,6 @@ async def test_create_usage_counter_with_required_fields(test_db_session: AsyncS
     )
     test_db_session.add(counter)
     await test_db_session.commit()
-    await test_db_session.refresh(counter)
 
     assert counter.id == counter_id
     assert counter.counter_type == CounterType.PROVIDER
@@ -88,7 +87,6 @@ async def test_create_usage_counter_with_all_fields(
     )
     test_db_session.add(counter)
     await test_db_session.commit()
-    await test_db_session.refresh(counter)
 
     assert counter.counter_type == CounterType.TOOL_USER
     assert counter.provider_id == test_tool_provider.id
@@ -220,7 +218,6 @@ async def test_usage_counter_provider_scoped(
     )
     test_db_session.add(counter)
     await test_db_session.commit()
-    await test_db_session.refresh(counter)
 
     assert counter.counter_type == CounterType.PROVIDER
     assert counter.provider_id == test_tool_provider.id
@@ -250,7 +247,6 @@ async def test_usage_counter_tool_scoped(test_db_session: AsyncSession, test_too
     )
     test_db_session.add(counter)
     await test_db_session.commit()
-    await test_db_session.refresh(counter)
 
     assert counter.counter_type == CounterType.TOOL
     assert counter.provider_id is None
@@ -281,7 +277,6 @@ async def test_usage_counter_user_scoped(test_db_session: AsyncSession, test_use
     )
     test_db_session.add(counter)
     await test_db_session.commit()
-    await test_db_session.refresh(counter)
 
     assert counter.counter_type == CounterType.USER
     assert counter.provider_id is None

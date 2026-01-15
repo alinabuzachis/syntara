@@ -39,7 +39,6 @@ async def test_create_invocation_with_required_fields(test_db_session: AsyncSess
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     # Verify required fields
     assert invocation.id is not None
@@ -81,7 +80,6 @@ async def test_create_invocation_with_all_fields(test_db_session: AsyncSession, 
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     # Verify all fields
     assert invocation.prompt == "Analyze production metrics"
@@ -107,18 +105,15 @@ async def test_invocation_status_transitions(test_db_session: AsyncSession, test
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     # Update status to paused
     invocation.status = InvocationStatus.PAUSED
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
     assert invocation.status == InvocationStatus.PAUSED
 
     # Update status to cancelled
     invocation.status = InvocationStatus.CANCELLED
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
     assert invocation.status == InvocationStatus.CANCELLED
 
 
@@ -134,7 +129,6 @@ async def test_invocation_timestamps(test_db_session: AsyncSession, test_user: U
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     created_at = invocation.created_at
     updated_at = invocation.updated_at
@@ -147,7 +141,6 @@ async def test_invocation_timestamps(test_db_session: AsyncSession, test_user: U
     invocation.status = InvocationStatus.COMPLETED
     invocation.completed_at = datetime.now(UTC)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     # created_at should not change, updated_at should
     assert invocation.created_at == created_at
@@ -176,7 +169,6 @@ async def test_invocation_jsonb_fields(test_db_session: AsyncSession, test_user:
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     # Verify JSONB data is preserved
     assert invocation.context_data == complex_context
@@ -266,7 +258,6 @@ async def test_invocation_repr(test_db_session: AsyncSession, test_user: User) -
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     repr_str = repr(invocation)
     assert "Invocation" in repr_str
@@ -530,13 +521,11 @@ async def test_invocation_status_completed(test_db_session: AsyncSession, test_u
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     # Update to completed
     invocation.status = InvocationStatus.COMPLETED
     invocation.completed_at = datetime.now(UTC)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     assert invocation.status == InvocationStatus.COMPLETED
     assert invocation.completed_at is not None
@@ -554,14 +543,12 @@ async def test_invocation_status_failed(test_db_session: AsyncSession, test_user
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     # Update to failed with error message
     invocation.status = InvocationStatus.FAILED
     invocation.error_message = "Tool execution timeout"
     invocation.completed_at = datetime.now(UTC)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     assert invocation.status == InvocationStatus.FAILED
     assert invocation.error_message == "Tool execution timeout"
@@ -583,7 +570,6 @@ async def test_invocation_error_message_field(test_db_session: AsyncSession, tes
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     assert invocation.error_message == error_msg
     assert len(invocation.error_message) > 50  # Verify it can store longer messages
@@ -632,7 +618,6 @@ async def ***REMOVED***(test_db_session: AsyncSession, test_user: User) -> None:
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     # Verify all timestamps have timezone info
     assert invocation.created_at.tzinfo is not None
@@ -661,7 +646,6 @@ async def test_invocation_session_id_max_length(test_db_session: AsyncSession, t
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     assert invocation.session_id == max_length_session_id
     assert len(invocation.session_id) == 255
@@ -679,7 +663,6 @@ async def test_invocation_status_default_value(test_db_session: AsyncSession, te
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     assert invocation.status == InvocationStatus.CREATED
 
@@ -699,7 +682,6 @@ async def test_invocation_prompt_max_length(test_db_session: AsyncSession, test_
 
     test_db_session.add(invocation)
     await test_db_session.commit()
-    await test_db_session.refresh(invocation)
 
     assert invocation.prompt == max_length_prompt
     assert len(invocation.prompt) == 10000

@@ -108,8 +108,6 @@ class TestOrchestrationServiceGetTools:
         test_db_session.add(tool_1)
         test_db_session.add(tool_2)
         await test_db_session.commit()
-        await test_db_session.refresh(tool_1)
-        await test_db_session.refresh(tool_2)
 
         # Update the provider to enabled status (mimicking tool refresh behavior)
         # This circumvents the normal refresh mechanism since we're adding tools manually
@@ -285,7 +283,6 @@ class TestOrchestrationServiceGetTools:
 
         test_db_session.add(missing_tool)
         await test_db_session.commit()
-        await test_db_session.refresh(missing_tool)
 
         # Enable the provider (similar to existing test fixture)
         provider_record = await test_db_session.get(ToolProvider, provider_id)
@@ -370,7 +367,6 @@ class TestOrchestrationServiceGetTools:
 
         test_db_session.add(provider_tool)
         await test_db_session.commit()
-        await test_db_session.refresh(provider_tool)
 
         # Enable the provider (similar to existing test fixture)
         provider_record = await test_db_session.get(ToolProvider, provider_id)
@@ -463,7 +459,6 @@ class TestOrchestrationServiceGetTools:
 
         test_db_session.add(provider_tool)
         await test_db_session.commit()
-        await test_db_session.refresh(provider_tool)
 
         invocation_id = uuid4()
 

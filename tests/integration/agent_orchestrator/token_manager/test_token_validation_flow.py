@@ -25,7 +25,6 @@ async def user_a_config(test_db_session: AsyncSession, test_user) -> UserTokenCo
     )
     test_db_session.add(config)
     await test_db_session.commit()
-    await test_db_session.refresh(config)
     return config
 
 
@@ -45,7 +44,6 @@ async def user_b_config(test_db_session: AsyncSession, user_factory) -> UserToke
     )
     test_db_session.add(config)
     await test_db_session.commit()
-    await test_db_session.refresh(config)
     return config
 
 

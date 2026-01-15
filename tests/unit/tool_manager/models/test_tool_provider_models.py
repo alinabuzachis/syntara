@@ -49,7 +49,6 @@ async def test_create_tool_provider_with_required_fields(test_db_session: AsyncS
     )
     test_db_session.add(provider)
     await test_db_session.commit()
-    await test_db_session.refresh(provider)
 
     assert provider.id == provider_id
     assert provider.name == "Test Provider"
@@ -92,7 +91,6 @@ async def test_create_tool_provider_with_all_fields(test_db_session: AsyncSessio
     )
     test_db_session.add(provider)
     await test_db_session.commit()
-    await test_db_session.refresh(provider)
 
     assert provider.enabled is False
     assert provider.status == ProviderStatus.ERROR
@@ -266,7 +264,6 @@ async def test_tool_provider_tools_relationship(
 
     test_db_session.add_all([tool1, tool2])
     await test_db_session.commit()
-    await test_db_session.refresh(test_tool_provider)
 
     # Load provider with tools relationship using selectinload
     result = await test_db_session.exec(
@@ -377,8 +374,6 @@ async def test_tool_provider_different_names_allowed(test_db_session: AsyncSessi
 
     test_db_session.add_all([provider1, provider2])
     await test_db_session.commit()  # Should succeed
-    await test_db_session.refresh(provider1)
-    await test_db_session.refresh(provider2)
 
     # Verify both providers were created successfully
     assert provider1.name == "Provider Alpha"
@@ -407,7 +402,6 @@ async def test_tool_provider_name_case_sensitivity(test_db_session: AsyncSession
     )
     test_db_session.add(provider2)
     await test_db_session.commit()  # Should succeed
-    await test_db_session.refresh(provider2)
 
     # Verify both providers exist with their respective names
     assert provider1.name == "test provider"

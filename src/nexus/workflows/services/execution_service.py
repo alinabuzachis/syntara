@@ -197,7 +197,6 @@ class ExecutionService(BaseService):
 
         self.session.add(execution)
         await self.session.commit()
-        await self.session.refresh(execution)
 
         logger.info(
             "Execution created successfully: %s (temporal_workflow_id: %s)",

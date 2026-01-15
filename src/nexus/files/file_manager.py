@@ -271,7 +271,6 @@ class FileManager:
 
         session.add(file_metadata)
         await session.commit()
-        await session.refresh(file_metadata)
 
         logger.info(
             "File status updated (file_id=%s, status=%s)",

@@ -57,7 +57,6 @@ async def test_create_execution_with_required_fields(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.id is not None
     assert execution.workflow_id == test_workflow.id
@@ -101,7 +100,6 @@ async def test_create_execution_with_all_fields(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.status == ExecutionStatus.COMPLETED
     assert execution.input_data == input_data
@@ -128,14 +126,12 @@ async def test_execution_soft_delete(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     # Perform soft delete
     now = datetime.now(UTC)
     execution.deleted_at = now
     execution.deleted_by = test_user.id
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.deleted_at == now
     assert execution.deleted_by == test_user.id
@@ -162,14 +158,12 @@ async def test_execution_labels_jsonb_operations(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.labels == labels
 
     # Update labels (all values must be strings per spec 006)
     execution.labels = {"env": "prod", "region": "us-west-2", "critical": "true"}
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.labels["env"] == "prod"
     assert execution.labels["critical"] == "true"
@@ -202,7 +196,6 @@ async def test_execution_input_data_jsonb_operations(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.input_data == input_data
     assert execution.input_data["string_param"] == "value"
@@ -261,13 +254,11 @@ async def test_execution_completed_at_constraint_valid(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     # Set completed_at to be after created_at
     completed_time = execution.created_at + timedelta(minutes=5)
     execution.completed_at = completed_time
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.completed_at is not None
     assert execution.completed_at > execution.created_at
@@ -291,7 +282,6 @@ async def test_execution_completed_at_constraint_invalid(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     # Try to set completed_at to be before created_at
     invalid_time = execution.created_at - timedelta(minutes=5)
@@ -322,7 +312,6 @@ async def test_execution_status_default(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.status == ExecutionStatus.PENDING
 
@@ -345,7 +334,6 @@ async def test_execution_labels_default(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.labels == {}
     assert isinstance(execution.labels, dict)
@@ -369,7 +357,6 @@ async def test_execution_input_data_default(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.input_data == {}
     assert isinstance(execution.input_data, dict)
@@ -394,7 +381,6 @@ async def test_execution_relationship_with_workflow(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     # Access workflow relationship
     assert execution.workflow.id == test_workflow.id
@@ -424,7 +410,6 @@ async def test_execution_relationship_with_workflow_version(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     # Access workflow_version relationship
     assert execution.workflow_version.id == test_workflow_version.id
@@ -454,7 +439,6 @@ async def test_execution_relationship_with_user(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     # Verify created_by and updated_by fields reference the user
     assert execution.created_by == test_user.id
@@ -544,7 +528,6 @@ async def test_execution_error_details_storage(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.error_details == large_error
     assert len(execution.error_details) > 1000

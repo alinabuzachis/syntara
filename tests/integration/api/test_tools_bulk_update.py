@@ -313,7 +313,6 @@ class TestToolsBulkUpdateContract:
 
         test_db_session.add(soft_deleted_tool)
         await test_db_session.commit()
-        await test_db_session.refresh(soft_deleted_tool)
 
         # Soft delete the tool
         soft_deleted_tool.soft_delete(test_user.id)
@@ -332,7 +331,6 @@ class TestToolsBulkUpdateContract:
 
         test_db_session.add(active_tool)
         await test_db_session.commit()
-        await test_db_session.refresh(active_tool)
 
         # Attempt to update both soft-deleted and active tool
         tool_ids = [str(soft_deleted_tool.id), str(active_tool.id)]
@@ -388,7 +386,6 @@ class TestToolsBulkUpdateContract:
 
         test_db_session.add(soft_deleted_tool)
         await test_db_session.commit()
-        await test_db_session.refresh(soft_deleted_tool)
 
         # Soft delete it
         soft_deleted_tool.soft_delete(test_user.id)

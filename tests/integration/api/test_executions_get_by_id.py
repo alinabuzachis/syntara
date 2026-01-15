@@ -53,7 +53,6 @@ async def test_get_execution_with_error_details(
     test_execution.status = ExecutionStatus.FAILED
     test_execution.error_details = "Connection timeout to external service"
     await session.commit()
-    await session.refresh(test_execution)
 
     # Fetch the execution
     response = await client.get(f"/api/v1/executions/{test_execution.id}")
@@ -76,7 +75,6 @@ async def test_get_execution_with_completed_at(
     test_execution.status = ExecutionStatus.COMPLETED
     test_execution.completed_at = datetime.now(UTC)
     await session.commit()
-    await session.refresh(test_execution)
 
     # Fetch the execution
     response = await client.get(f"/api/v1/executions/{test_execution.id}")

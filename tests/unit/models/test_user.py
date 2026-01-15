@@ -27,7 +27,6 @@ async def test_create_user_with_required_fields(
     user = User(id=uuid4(), **default_user_data)
     test_db_session.add(user)
     await test_db_session.commit()
-    await test_db_session.refresh(user)
 
     assert user.id is not None
     assert user.username == default_user_data["username"]
@@ -60,7 +59,6 @@ async def test_create_user_with_all_fields(test_db_session: AsyncSession) -> Non
     )
     test_db_session.add(user)
     await test_db_session.commit()
-    await test_db_session.refresh(user)
 
     assert user.is_active is True
     assert user.last_login == now
@@ -96,7 +94,6 @@ async def test_user_soft_delete(
     user.deleted_at = now
     user.deleted_by = admin.id
     await test_db_session.commit()
-    await test_db_session.refresh(user)
 
     assert user.deleted_at == now
     assert user.deleted_by == admin.id
@@ -131,7 +128,6 @@ async def test_update_last_login(test_db_session: AsyncSession, test_user: User)
     before_update = datetime.now(UTC)
     test_user.update_last_login()
     await test_db_session.commit()
-    await test_db_session.refresh(test_user)
 
     assert test_user.last_login is not None
     assert test_user.last_login >= before_update  # type: ignore[unreachable]

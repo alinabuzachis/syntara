@@ -719,7 +719,6 @@ async def test_workflow(test_db_session: AsyncSession, test_user: "User") -> "Wo
     )
     test_db_session.add(version)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
     return workflow
 
 
@@ -755,7 +754,6 @@ async def test_execution(test_db_session: AsyncSession, test_user: "User", test_
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
     return execution
 
 
@@ -1352,7 +1350,6 @@ async def test_tool_provider(test_db_session: AsyncSession, test_user: User) -> 
     )
     test_db_session.add(tool_provider)
     await test_db_session.commit()
-    await test_db_session.refresh(tool_provider)
     return tool_provider
 
 
@@ -1433,7 +1430,6 @@ async def test_tool(test_db_session: AsyncSession, test_tool_provider: ToolProvi
     )
     test_db_session.add(tool)
     await test_db_session.commit()
-    await test_db_session.refresh(tool)
     return tool
 
 

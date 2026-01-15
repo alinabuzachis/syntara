@@ -10,9 +10,12 @@ Tests cover:
 """
 
 from datetime import UTC, datetime
+from typing import Any, cast
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.orm import selectinload
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
@@ -34,7 +37,6 @@ async def test_create_workflow_with_required_fields(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.id is not None
     assert workflow.name == "test-workflow"
@@ -67,7 +69,6 @@ async def test_create_workflow_with_all_fields(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.description == "A complete workflow definition"
     assert workflow.labels == labels
@@ -89,14 +90,12 @@ async def test_workflow_soft_delete(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     # Perform soft delete
     now = datetime.now(UTC)
     workflow.deleted_at = now
     workflow.deleted_by = test_user.id
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.deleted_at == now
     assert workflow.deleted_by == test_user.id
@@ -118,14 +117,12 @@ async def test_workflow_labels_jsonb_operations(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.labels == labels
 
     # Update labels (all values must be strings per spec 006)
     workflow.labels = {"env": "prod", "region": "us-west-2", "critical": "true"}
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.labels["env"] == "prod"
     assert workflow.labels["critical"] == "true"
@@ -144,21 +141,18 @@ async def test_workflow_is_enabled_toggle(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.is_enabled is True
 
     # Disable workflow
     workflow.is_enabled = False
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.is_enabled is False
 
     # Re-enable workflow
     workflow.is_enabled = True
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.is_enabled is True
 
@@ -176,14 +170,12 @@ async def test_workflow_increment_version(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.current_version == 1
 
     # Increment version
     new_version = workflow.increment_version()
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert new_version == 2
     assert workflow.current_version == 2
@@ -191,7 +183,6 @@ async def test_workflow_increment_version(
     # Increment again
     new_version = workflow.increment_version()
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert new_version == 3
     assert workflow.current_version == 3
@@ -210,7 +201,6 @@ async def test_workflow_relationship_with_user(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     # Verify created_by field references the user
     assert workflow.created_by == test_user.id
@@ -229,7 +219,6 @@ async def test_workflow_relationship_with_versions(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     # Create versions
     version1 = WorkflowVersion(
@@ -252,8 +241,11 @@ async def test_workflow_relationship_with_versions(
     await test_db_session.commit()
 
     # Access versions from workflow
-    await test_db_session.refresh(workflow, ["versions"])
-    assert len(workflow.versions) == 2
+    result = await test_db_session.exec(
+        select(Workflow).where(Workflow.id == workflow.id).options(selectinload(cast("Any", Workflow.versions)))
+    )
+    persisted_workflow = result.one()
+    assert len(persisted_workflow.versions) == 2
 
 
 @pytest.mark.asyncio
@@ -290,7 +282,6 @@ async def test_workflow_labels_default(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.labels == {}
     assert isinstance(workflow.labels, dict)
@@ -309,7 +300,6 @@ async def test_workflow_is_enabled_default(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.is_enabled is True
 
@@ -327,6 +317,5 @@ async def test_workflow_current_version_default(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
 
     assert workflow.current_version == 1

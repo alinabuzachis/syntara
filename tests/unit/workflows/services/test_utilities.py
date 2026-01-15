@@ -201,7 +201,7 @@ class TestSyncExecutionStatusFromTemporal:
         assert result is True
         assert execution.status == ExecutionStatus.RUNNING
         mock_session.commit.assert_awaited_once()
-        mock_session.refresh.assert_awaited_once_with(execution)
+        mock_session.refresh.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_persist_skips_commit_when_no_change(self) -> None:

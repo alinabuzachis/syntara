@@ -198,6 +198,5 @@ async def sync_execution_status_from_temporal(
     # Persist changes only if status changed and persist is requested
     if persist and status_changed and session is not None:
         await session.commit()
-        await session.refresh(execution)
 
     return status_changed

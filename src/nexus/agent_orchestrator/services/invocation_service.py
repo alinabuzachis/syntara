@@ -232,7 +232,6 @@ class InvocationService(BaseService):
             )
             self.session.add(invocation)
             await self.session.commit()
-            await self.session.refresh(invocation)
 
             logger.info(
                 "Invocation created successfully (invocation_id=%s, file_count=%d)",

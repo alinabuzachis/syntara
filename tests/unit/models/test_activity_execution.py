@@ -41,7 +41,6 @@ async def test_create_activity_execution_with_required_fields(
     )
     test_db_session.add(activity)
     await test_db_session.commit()
-    await test_db_session.refresh(activity)
 
     assert activity.id is not None
     assert activity.execution_id == execution.id
@@ -93,7 +92,6 @@ async def test_create_activity_execution_with_all_fields(
     )
     test_db_session.add(activity)
     await test_db_session.commit()
-    await test_db_session.refresh(activity)
 
     assert activity.activity_name == "complete_activity"
     assert activity.status == ActivityStatus.COMPLETED
@@ -247,7 +245,6 @@ async def test_activity_timezone_aware_datetimes(
     )
     test_db_session.add(activity)
     await test_db_session.commit()
-    await test_db_session.refresh(activity)
 
     # Verify datetimes are timezone-aware
     assert activity.created_at.tzinfo is not None
@@ -275,7 +272,6 @@ async def test_activity_labels_jsonb_operations(
     )
     test_db_session.add(activity)
     await test_db_session.commit()
-    await test_db_session.refresh(activity)
 
     # Verify labels stored correctly
     assert activity.labels == labels
@@ -284,7 +280,6 @@ async def test_activity_labels_jsonb_operations(
     # Update labels
     activity.labels = {"environment": "staging"}
     await test_db_session.commit()
-    await test_db_session.refresh(activity)
 
     assert activity.labels == {"environment": "staging"}
 
@@ -311,7 +306,6 @@ async def test_activity_relationship_with_execution(
     await test_db_session.commit()
 
     # Reload execution with activities relationship
-    await test_db_session.refresh(execution)
     exec_result = await test_db_session.exec(select(Execution).where(Execution.id == execution.id))
     loaded_execution = exec_result.one()
 
@@ -363,7 +357,6 @@ async def test_activity_definition_storage(
     )
     test_db_session.add(activity)
     await test_db_session.commit()
-    await test_db_session.refresh(activity)
 
     # Verify complex structure stored and retrieved correctly
     assert activity.activity_definition == activity_def

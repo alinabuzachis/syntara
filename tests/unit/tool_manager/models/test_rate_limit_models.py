@@ -36,7 +36,6 @@ async def test_create_rate_limit_with_required_fields(test_db_session: AsyncSess
     )
     test_db_session.add(rate_limit)
     await test_db_session.commit()
-    await test_db_session.refresh(rate_limit)
 
     assert rate_limit.id == rate_limit_id
     assert rate_limit.target_type == TargetType.PROVIDER
@@ -77,7 +76,6 @@ async def test_create_rate_limit_with_all_fields(test_db_session: AsyncSession, 
     )
     test_db_session.add(rate_limit)
     await test_db_session.commit()
-    await test_db_session.refresh(rate_limit)
 
     assert rate_limit.target_type == TargetType.TOOL
     assert rate_limit.target_name == "Test Tool Rate Limit"
@@ -204,7 +202,6 @@ async def test_rate_limit_provider_target(test_db_session: AsyncSession, test_us
     )
     test_db_session.add(rate_limit)
     await test_db_session.commit()
-    await test_db_session.refresh(rate_limit)
 
     assert rate_limit.target_type == TargetType.PROVIDER
     assert rate_limit.target_id == provider_id
@@ -231,7 +228,6 @@ async def test_rate_limit_tool_target(test_db_session: AsyncSession, test_user: 
     )
     test_db_session.add(rate_limit)
     await test_db_session.commit()
-    await test_db_session.refresh(rate_limit)
 
     assert rate_limit.target_type == TargetType.TOOL
     assert rate_limit.target_id == tool_id
@@ -259,7 +255,6 @@ async def test_rate_limit_user_target(test_db_session: AsyncSession, test_user: 
     )
     test_db_session.add(rate_limit)
     await test_db_session.commit()
-    await test_db_session.refresh(rate_limit)
 
     assert rate_limit.target_type == TargetType.USER
     assert rate_limit.target_id == user_id
@@ -289,7 +284,6 @@ async def test_rate_limit_usage_tracking(test_db_session: AsyncSession, test_use
     )
     test_db_session.add(rate_limit)
     await test_db_session.commit()
-    await test_db_session.refresh(rate_limit)
 
     assert rate_limit.current_usage == 35
     assert rate_limit.usage_reset_at == reset_time

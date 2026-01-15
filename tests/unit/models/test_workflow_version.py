@@ -40,7 +40,6 @@ async def test_create_workflow_version_with_required_fields(
     )
     test_db_session.add(version)
     await test_db_session.commit()
-    await test_db_session.refresh(version)
 
     assert version.id is not None
     assert version.workflow_id == test_workflow.id
@@ -72,7 +71,6 @@ async def test_create_workflow_version_with_all_fields(
     )
     test_db_session.add(version)
     await test_db_session.commit()
-    await test_db_session.refresh(version)
 
     assert version.change_description == "Initial version"
 
@@ -94,14 +92,12 @@ async def test_workflow_version_soft_delete(
     )
     test_db_session.add(version)
     await test_db_session.commit()
-    await test_db_session.refresh(version)
 
     # Perform soft delete
     now = datetime.now(UTC)
     version.deleted_at = now
     version.deleted_by = test_user.id
     await test_db_session.commit()
-    await test_db_session.refresh(version)
 
     assert version.deleted_at == now
     assert version.deleted_by == test_user.id
@@ -195,7 +191,6 @@ async def test_workflow_version_relationship_with_workflow(
     )
     test_db_session.add(version)
     await test_db_session.commit()
-    await test_db_session.refresh(version)
 
     # Access workflow relationship
     assert version.workflow.id == test_workflow.id
@@ -225,7 +220,6 @@ async def test_workflow_version_relationship_with_user(
     )
     test_db_session.add(version)
     await test_db_session.commit()
-    await test_db_session.refresh(version)
 
     # Verify created_by field references the user
     assert version.created_by == test_user.id
@@ -278,7 +272,6 @@ async def test_workflow_version_workflow_definition_storage(
     )
     test_db_session.add(version)
     await test_db_session.commit()
-    await test_db_session.refresh(version)
 
     assert version.workflow_definition is not None
     assert version.workflow_definition.get("metadata", {}).get("name") == "large-workflow"

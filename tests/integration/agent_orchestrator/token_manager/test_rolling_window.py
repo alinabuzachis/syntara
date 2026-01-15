@@ -25,7 +25,6 @@ async def user_config(test_db_session: AsyncSession, test_user) -> UserTokenConf
     )
     test_db_session.add(config)
     await test_db_session.commit()
-    await test_db_session.refresh(config)
     return config
 
 

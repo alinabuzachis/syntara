@@ -54,9 +54,6 @@ async def test_list_execution_activities_returns_persisted_data(
     for activity in activities:
         test_db_session.add(activity)
     await test_db_session.commit()
-    await test_db_session.refresh(activities[0])
-    await test_db_session.refresh(activities[1])
-    await test_db_session.refresh(activities[2])
 
     # List activities via API
     response = await base_client.get(f"/api/v1/executions/{test_execution.id}/activities")
@@ -266,7 +263,6 @@ async def test_list_execution_activities_multiple_executions_isolated(
     )
     test_db_session.add(execution2)
     await test_db_session.commit()
-    await test_db_session.refresh(execution2)
 
     # Create activities for first execution
     for i in range(2):

@@ -31,7 +31,6 @@ async def test_file_metadata_create_with_defaults(test_db_session: AsyncSession)
 
     test_db_session.add(file_metadata)
     await test_db_session.commit()
-    await test_db_session.refresh(file_metadata)
 
     # Verify required fields
     assert file_metadata.id is not None
@@ -73,7 +72,6 @@ async def test_file_metadata_status_enum_values(test_db_session: AsyncSession) -
         )
         test_db_session.add(file_metadata)
         await test_db_session.commit()
-        await test_db_session.refresh(file_metadata)
 
         assert file_metadata.status == status
 
@@ -109,7 +107,6 @@ async def test_file_metadata_inherits_base_resource_fields(test_db_session: Asyn
 
     test_db_session.add(file_metadata)
     await test_db_session.commit()
-    await test_db_session.refresh(file_metadata)
 
     # id should be auto-generated UUID
     assert file_metadata.id is not None
@@ -138,7 +135,6 @@ async def test_file_metadata_with_converted_content(test_db_session: AsyncSessio
 
     test_db_session.add(file_metadata)
     await test_db_session.commit()
-    await test_db_session.refresh(file_metadata)
 
     assert file_metadata.status == FileStatus.CONVERTED
     assert file_metadata.converted_content_path == "/storage/nexus-abc123-content.md"
@@ -161,7 +157,6 @@ async def ***REMOVED***(test_db_session: AsyncSession) -> None:
 
     test_db_session.add(file_metadata)
     await test_db_session.commit()
-    await test_db_session.refresh(file_metadata)
 
     assert file_metadata.status == FileStatus.CONVERSION_FAILED
     assert file_metadata.conversion_error == error_message
@@ -194,12 +189,10 @@ async def test_file_metadata_update_status(test_db_session: AsyncSession) -> Non
 
     test_db_session.add(file_metadata)
     await test_db_session.commit()
-    await test_db_session.refresh(file_metadata)
 
     # Update to converting
     file_metadata.status = FileStatus.CONVERTING
     await test_db_session.commit()
-    await test_db_session.refresh(file_metadata)
 
     assert file_metadata.status == FileStatus.CONVERTING
 
@@ -207,7 +200,6 @@ async def test_file_metadata_update_status(test_db_session: AsyncSession) -> Non
     file_metadata.status = FileStatus.CONVERTED
     file_metadata.converted_content_path = "/storage/nexus-proc123-content.md"
     await test_db_session.commit()
-    await test_db_session.refresh(file_metadata)
 
     assert file_metadata.status == FileStatus.CONVERTED
     assert file_metadata.converted_content_path == "/storage/nexus-proc123-content.md"

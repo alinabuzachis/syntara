@@ -59,7 +59,6 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
         )
         test_db_session.add(file_metadata)
         await test_db_session.commit()
-        await test_db_session.refresh(file_metadata)
 
         file_manager = get_file_manager()
 
@@ -180,7 +179,6 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
         )
         test_db_session.add(invocation)
         await test_db_session.commit()
-        await test_db_session.refresh(invocation)
 
         async def session_factory() -> AsyncGenerator[AsyncSession, None]:
             yield test_db_session

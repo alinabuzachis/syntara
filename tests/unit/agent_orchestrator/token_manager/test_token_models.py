@@ -22,7 +22,6 @@ async def test_user_token_config_creation(test_db_session: AsyncSession, test_us
     )
     test_db_session.add(config)
     await test_db_session.commit()
-    await test_db_session.refresh(config)
 
     # Verify BaseResource fields are present
     assert config.id is not None
@@ -92,7 +91,6 @@ async def test_user_token_config_timestamps(test_db_session: AsyncSession, test_
     )
     test_db_session.add(config)
     await test_db_session.commit()
-    await test_db_session.refresh(config)
 
     # Verify timestamps are set
     assert config.created_at is not None
@@ -114,7 +112,6 @@ async def test_user_token_config_has_labels(test_db_session: AsyncSession, test_
     )
     test_db_session.add(config)
     await test_db_session.commit()
-    await test_db_session.refresh(config)
 
     assert config.labels == {"environment": "test", "priority": "high"}
 
@@ -131,7 +128,6 @@ async def test_token_usage_record_creation(test_db_session: AsyncSession, test_u
     )
     test_db_session.add(record)
     await test_db_session.commit()
-    await test_db_session.refresh(record)
 
     # Verify BaseResource fields
     assert record.id is not None
@@ -164,7 +160,6 @@ async def test_token_usage_record_timestamp_defaults(test_db_session: AsyncSessi
     )
     test_db_session.add(record)
     await test_db_session.commit()
-    await test_db_session.refresh(record)
 
     # request_timestamp should be set automatically
     assert record.request_timestamp is not None
@@ -180,7 +175,6 @@ async def test_token_usage_record_has_labels(test_db_session: AsyncSession, test
     )
     test_db_session.add(record)
     await test_db_session.commit()
-    await test_db_session.refresh(record)
 
     assert record.labels == {"source": "api", "endpoint": "/generate"}
 
@@ -200,7 +194,6 @@ async def test_token_usage_record_created_at_vs_request_timestamp(
     )
     test_db_session.add(record)
     await test_db_session.commit()
-    await test_db_session.refresh(record)
 
     # created_at should be recent (DB insert time)
     # request_timestamp should be the past time we set

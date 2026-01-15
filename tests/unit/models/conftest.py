@@ -32,7 +32,6 @@ async def test_workflow_minimal(
     )
     test_db_session.add(workflow)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow)
     return workflow
 
 
@@ -63,7 +62,6 @@ async def test_workflow_version_minimal(
     )
     test_db_session.add(workflow_version)
     await test_db_session.commit()
-    await test_db_session.refresh(workflow_version)
     return workflow_version
 
 
@@ -95,5 +93,4 @@ async def test_execution_minimal(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
     return execution

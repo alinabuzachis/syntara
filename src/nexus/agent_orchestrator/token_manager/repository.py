@@ -67,7 +67,6 @@ class TokenUsageRepository:
                 )
                 session.add(config)
                 await session.commit()
-                await session.refresh(config)
                 return config
 
             # Not dev-user and no config exists

@@ -70,7 +70,6 @@ class TestToolProvidersValidateContract:
         )
         test_db_session.add(test_tool_provider)
         await test_db_session.commit()
-        await test_db_session.refresh(test_tool_provider)
 
         # Patch MockMCPProvider.validate_connection to simulate connection failure
         with patch("tests.fixtures.mock_mcp_provider.MockMCPProvider.validate_connection") as mock_validate:
@@ -139,7 +138,6 @@ class TestToolProvidersValidateContract:
         )
         test_db_session.add(test_tool_provider)
         await test_db_session.commit()
-        await test_db_session.refresh(test_tool_provider)
 
         # Patch MockMCPProvider.validate_connection to simulate connection failure
         with patch("tests.fixtures.mock_mcp_provider.MockMCPProvider.validate_connection") as mock_validate:

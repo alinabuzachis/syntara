@@ -213,7 +213,6 @@ class TestCreateExecution:
         # Verify database operations
         mock_session.add.assert_called_once()
         mock_session.commit.assert_awaited_once()
-        mock_session.refresh.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_create_execution_success_without_temporal(self) -> None:

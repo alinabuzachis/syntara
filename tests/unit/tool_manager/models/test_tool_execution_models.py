@@ -44,7 +44,6 @@ async def test_create_tool_execution_with_required_fields(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.id == execution_id
     assert execution.tool_id == test_tool.id
@@ -90,7 +89,6 @@ async def test_create_tool_execution_with_all_fields(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.execution_end == end_time
     assert execution.duration_ms == 1500
@@ -124,7 +122,6 @@ async def test_create_tool_execution_with_error(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     assert execution.status == ExecutionStatus.ERROR
     assert execution.error_message == "Connection timeout"
@@ -279,7 +276,6 @@ async def test_tool_execution_input_parameters_field(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     # Verify complex JSON is stored and retrieved correctly
     assert execution.input_parameters == complex_params
@@ -324,7 +320,6 @@ async def test_tool_execution_output_data_field(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     # Verify complex JSON is stored and retrieved correctly
     assert execution.output_data == complex_output
@@ -353,7 +348,6 @@ async def test_tool_execution_null_output_data(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     # Verify output_data defaults to None
     assert execution.output_data is None
@@ -377,7 +371,6 @@ async def test_tool_execution_empty_json_fields(
     )
     test_db_session.add(execution)
     await test_db_session.commit()
-    await test_db_session.refresh(execution)
 
     # Verify empty JSON objects are handled correctly
     assert execution.input_parameters == {}

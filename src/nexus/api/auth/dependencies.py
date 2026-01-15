@@ -38,6 +38,5 @@ async def get_current_user(db: Annotated[AsyncSession, Depends(get_db)]) -> User
         )
         db.add(user)
         await db.commit()
-        await db.refresh(user)
 
     return user

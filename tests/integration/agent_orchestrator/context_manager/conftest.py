@@ -20,7 +20,6 @@ async def test_user_token_config(test_db_session, test_user) -> UserTokenConfig:
     )
     test_db_session.add(config)
     await test_db_session.commit()
-    await test_db_session.refresh(config)
     return config
 
 
@@ -39,5 +38,4 @@ async def test_user_low_token_config(test_db_session, test_user) -> UserTokenCon
     )
     test_db_session.add(config)
     await test_db_session.commit()
-    await test_db_session.refresh(config)
     return config
