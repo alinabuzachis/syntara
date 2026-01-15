@@ -191,6 +191,7 @@ class TestErrorReporting:
         assert exc_info.value.response.status_code == 404
 
     @respx.mock
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_update_tool_status_api_error(self, client: ToolManagerClient) -> None:
         """Test handling of API errors during status update."""
         tool_id = uuid4()
@@ -207,6 +208,7 @@ class TestErrorReporting:
         assert exc_info.value.response.status_code == 500
 
     @respx.mock
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_update_tool_status_timeout(self, client: ToolManagerClient) -> None:
         """Test handling of timeout during status update."""
         tool_id = uuid4()
@@ -221,6 +223,7 @@ class TestErrorReporting:
             )
 
     @respx.mock
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_update_tool_status_network_error(self, client: ToolManagerClient) -> None:
         """Test handling of network errors during status update."""
         tool_id = uuid4()
@@ -414,6 +417,7 @@ class TestErrorReporting:
         assert exc_info.value.response.status_code == 404
 
     @respx.mock
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_update_tool_provider_status_api_error(self, client: ToolManagerClient) -> None:
         """Test handling of API errors during provider status update."""
         provider_id = uuid4()

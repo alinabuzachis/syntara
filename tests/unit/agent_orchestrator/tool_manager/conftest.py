@@ -4,10 +4,10 @@ Provides fast retry settings and common test fixtures for tool providers,
 tools, and mock clients used across tool manager unit tests.
 """
 
-from collections.abc import Callable, Generator, Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import httpx
@@ -17,29 +17,9 @@ from langchain_core.tools import BaseTool
 
 from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 from nexus.agent_orchestrator.tool_manager.types import NamespacedBaseTool
-from nexus.core.config import AdapterRetrySettings
 from nexus.tool_manager.models.tool import ToolWithParameters
 from nexus.tool_manager.models.tool_provider import ToolProviderWithConfiguration
 from nexus.tool_manager.models.tool_provider_configuration import MCPConfiguration
-
-
-@pytest.fixture(autouse=True)
-def fast_retry_settings() -> Generator[AdapterRetrySettings, None, None]:
-    """Configure fast retry settings for all tool_manager tests.
-
-    This fixture automatically applies to all tests in this directory
-    and makes retry operations run much faster for testing.
-    """
-    fast_settings = AdapterRetrySettings(
-        adapter_max_retries=3,  # Keep max retries for testing retry logic
-        adapter_initial_backoff_seconds=0.001,  # Very fast: 1ms
-        adapter_backoff_growth_factor=2.0,  # Standard exponential backoff
-        adapter_max_backoff_seconds=0.1,  # Cap at 100ms
-        adapter_request_timeout_seconds=1.0,  # Short timeout: 1s
-    )
-
-    with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=fast_settings):
-        yield fast_settings
 
 
 class PaginationMockFactory:

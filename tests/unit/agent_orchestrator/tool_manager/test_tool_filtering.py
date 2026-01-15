@@ -20,15 +20,17 @@ class TestToolFiltering:
     def test_filter_base_tools_by_enabled_tools(
         self, mock_namespaced_tools: list[NamespacedBaseTool], sample_tools: list[ToolWithParameters]
     ) -> None:
-        """Test filtering LangChain BaseTools by enabled ToolWithParameters using namespaced_name."""
+        """Test filtering NamespacedBaseTools by enabled ToolWithParameters using namespaced_name."""
         filtered_tools = tool_filtering.filter_base_tools_by_enabled(
             namespaced_tools=mock_namespaced_tools, enabled_tools=sample_tools
         )
 
-        # Should only return BaseTools that match enabled ToolWithParameters
+        # Should only return NamespacedBaseTools that match enabled ToolWithParameters
         assert len(filtered_tools) == 2
-        assert filtered_tools[0].name == "code_search"
-        assert filtered_tools[1].name == "file_read"
+        # Extract the BaseTools from the tuples for comparison
+        base_tools = [tool for _, tool in filtered_tools]
+        assert base_tools[0].name == "code_search"
+        assert base_tools[1].name == "file_read"
 
     def test_identify_missing_tools_in_mcp(
         self, mock_namespaced_tools: list[NamespacedBaseTool], sample_tools: list[ToolWithParameters]
@@ -61,16 +63,23 @@ class TestToolFiltering:
     def test_filter_preserves_base_tool_objects(
         self, mock_namespaced_tools: list[NamespacedBaseTool], sample_tools: list[ToolWithParameters]
     ) -> None:
-        """Test that filtering returns original BaseTool objects, not copies."""
+        """Test that filtering returns original NamespacedBaseTool tuples and BaseTool objects, not copies."""
         filtered_tools = tool_filtering.filter_base_tools_by_enabled(
             namespaced_tools=mock_namespaced_tools, enabled_tools=sample_tools
         )
 
-        # Should be original objects, not copies
+        # Should be original NamespacedBaseTool tuples that were in the input
+        for filtered_tool in filtered_tools:
+            assert filtered_tool in mock_namespaced_tools
+            # Verify it's a tuple with (namespaced_name, BaseTool)
+            assert isinstance(filtered_tool, tuple)
+            assert len(filtered_tool) == 2
+
+        # Verify that the BaseTool objects within the tuples are the same objects as in original
         original_tools = [tool for _, tool in mock_namespaced_tools]
-        for i, filtered_tool in enumerate(filtered_tools):
-            assert filtered_tool in original_tools
-            assert isinstance(filtered_tool, type(original_tools[i]))
+        for i, (_, filtered_base_tool) in enumerate(filtered_tools):
+            assert filtered_base_tool in original_tools
+            assert isinstance(filtered_base_tool, type(original_tools[i]))
 
     def test_empty_lists_handling(self) -> None:
         """Test handling of empty tool lists."""
@@ -145,3 +154,67 @@ class TestToolFiltering:
         # Verify the manually disabled tool is NOT included
         re_enabled_names = [tool.name for tool in re_enableable_tools]
         assert "tool_1" not in re_enabled_names
+
+    def test_enhance_namespaced_tools_with_metadata(self) -> None:
+        """Test that enhance_namespaced_tools_with_metadata adds tool_id to BaseTool metadata."""
+        # Create sample BaseTools with namespacing
+        tool1 = Mock(spec=BaseTool)
+        tool1.name = "tool1"
+        tool1.metadata = None  # Initially no metadata
+
+        tool2 = Mock(spec=BaseTool)
+        tool2.name = "tool2"
+        tool2.metadata = {}  # Initially empty metadata
+
+        # Create NamespacedBaseTools
+        namespaced_tools = [
+            ("provider1::tool1", tool1),
+            ("provider1::tool2", tool2),
+        ]
+
+        # Create corresponding enabled ToolWithParameters
+        tool1_id = uuid4()
+        tool2_id = uuid4()
+        provider_id = uuid4()
+        user_id = uuid4()
+        enabled_tools = [
+            ToolWithParameters(
+                id=tool1_id,
+                name="tool1",
+                namespaced_name="provider1::tool1",
+                description="Tool 1",
+                provider_id=provider_id,
+                enabled=True,
+                status=ToolStatus.AVAILABLE,
+                parameters=[],
+                created_by=user_id,
+            ),
+            ToolWithParameters(
+                id=tool2_id,
+                name="tool2",
+                namespaced_name="provider1::tool2",
+                description="Tool 2",
+                provider_id=provider_id,
+                enabled=True,
+                status=ToolStatus.AVAILABLE,
+                parameters=[],
+                created_by=user_id,
+            ),
+        ]
+
+        enhanced_tools = tool_filtering.enhance_namespaced_tools_with_metadata(namespaced_tools, enabled_tools)  # type: ignore[arg-type]
+
+        # Should return both tools with tool_id in metadata
+        assert len(enhanced_tools) == 2
+
+        # Find specific tools and verify their metadata
+        tool1_enhanced = next(tool for tool in enhanced_tools if tool.name == "tool1")
+        tool2_enhanced = next(tool for tool in enhanced_tools if tool.name == "tool2")
+
+        assert hasattr(tool1_enhanced, "metadata")
+        assert tool1_enhanced.metadata is not None
+        assert tool1_enhanced.metadata.get("tool_id") == str(tool1_id)
+
+        assert hasattr(tool2_enhanced, "metadata")
+        assert tool2_enhanced.metadata is not None
+        assert tool2_enhanced.metadata.get("tool_id") == str(tool2_id)

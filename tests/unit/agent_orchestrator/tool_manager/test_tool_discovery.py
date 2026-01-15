@@ -90,6 +90,7 @@ class TestToolProviderDiscovery:
         assert providers == []
 
     @respx.mock
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tool_providers_api_error(self, client: ToolManagerClient) -> None:
         """Test handling of API errors during provider discovery."""
         respx.get("http://test-api/api/v1/tool-providers").mock(
@@ -100,6 +101,7 @@ class TestToolProviderDiscovery:
             await client.get_all_tool_providers()
 
     @respx.mock
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tool_providers_timeout(self, client: ToolManagerClient) -> None:
         """Test handling of timeout during provider discovery."""
         respx.get("http://test-api/api/v1/tool-providers").mock(side_effect=httpx.TimeoutException("Request timeout"))
@@ -108,6 +110,7 @@ class TestToolProviderDiscovery:
             await client.get_all_tool_providers()
 
     @respx.mock
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tool_providers_network_error(self, client: ToolManagerClient) -> None:
         """Test handling of network errors during provider discovery."""
         respx.get("http://test-api/api/v1/tool-providers").mock(side_effect=httpx.ConnectError("Connection failed"))

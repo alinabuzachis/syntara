@@ -180,6 +180,7 @@ class TestToolRetrieval:
         assert params_by_name["include_metadata"].required is False
 
     @respx.mock
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tools_api_error(self, client: ToolManagerClient) -> None:
         """Test handling of API errors during tool retrieval."""
         respx.get("http://test-api/api/v1/tools").mock(return_value=httpx.Response(500, text="Internal server error"))
@@ -188,6 +189,7 @@ class TestToolRetrieval:
             await client.get_all_tools()
 
     @respx.mock
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tools_timeout(self, client: ToolManagerClient) -> None:
         """Test handling of timeout during tool retrieval."""
         respx.get("http://test-api/api/v1/tools").mock(side_effect=httpx.TimeoutException("Request timeout"))
@@ -196,6 +198,7 @@ class TestToolRetrieval:
             await client.get_all_tools()
 
     @respx.mock
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tools_network_error(self, client: ToolManagerClient) -> None:
         """Test handling of network errors during tool retrieval."""
         respx.get("http://test-api/api/v1/tools").mock(side_effect=httpx.ConnectError("Connection failed"))

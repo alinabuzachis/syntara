@@ -17,15 +17,15 @@ logger = logging.getLogger(__name__)
 def filter_base_tools_by_enabled(
     namespaced_tools: list[NamespacedBaseTool],
     enabled_tools: list[ToolWithParameters],
-) -> list[BaseTool]:
-    """Filter LangChain BaseTools by enabled ToolWithParameters using namespaced_name.
+) -> list[NamespacedBaseTool]:
+    """Filter NamespacedBaseTools by enabled ToolWithParameters using namespaced_name.
 
     Args:
         namespaced_tools: List of NamespacedTool from MCP servers
         enabled_tools: List of enabled ToolWithParameters from Tool Manager
 
     Returns:
-        List of BaseTools that match enabled ToolWithParameters
+        List of NamespacedBaseTools that match enabled ToolWithParameters
 
     """
     if not namespaced_tools or not enabled_tools:
@@ -37,13 +37,57 @@ def filter_base_tools_by_enabled(
     filtered_tools = []
     for namespaced_name, base_tool in namespaced_tools:
         if namespaced_name in enabled_names:
-            filtered_tools.append(base_tool)
+            filtered_tools.append((namespaced_name, base_tool))
             logger.debug("Including enabled tool: %s", namespaced_name)
         else:
             logger.debug("Excluding tool (not enabled or not registered): %s", namespaced_name)
 
     logger.info("Filtered %d tools from %d base tools", len(filtered_tools), len(namespaced_tools))
     return filtered_tools
+
+
+def enhance_namespaced_tools_with_metadata(
+    namespaced_tools: list[NamespacedBaseTool],
+    enabled_tools: list[ToolWithParameters],
+) -> list[BaseTool]:
+    """Enhance NamespacedBaseTools with metadata from Tool Manager (optimized version).
+
+    This function is optimized to work with NamespacedBaseTools to avoid regenerating
+    namespace names during metadata enhancement.
+
+    Args:
+        namespaced_tools: List of NamespacedBaseTools (namespaced_name, BaseTool)
+        enabled_tools: List of enabled ToolWithParameters from Tool Manager
+
+    Returns:
+        List of BaseTools enhanced with metadata
+
+    """
+    if not namespaced_tools or not enabled_tools:
+        return [base_tool for _, base_tool in namespaced_tools]
+
+    # Create a mapping of namespaced_name to tool IDs for O(1) lookup
+    # This avoids the need to regenerate namespace names from enabled_tools
+    namespaced_name_to_id = {tool.namespaced_name: tool.id for tool in enabled_tools}
+
+    enhanced_tools = []
+    for namespaced_name, base_tool in namespaced_tools:
+        if namespaced_name in namespaced_name_to_id:
+            tool_id = namespaced_name_to_id[namespaced_name]
+
+            # Add tool_id to BaseTool metadata for failure handling
+            if not hasattr(base_tool, "metadata") or base_tool.metadata is None:
+                base_tool.metadata = {}
+            base_tool.metadata["tool_id"] = str(tool_id)
+
+            logger.debug("Enhanced tool with metadata: %s (tool_id=%s)", namespaced_name, tool_id)
+        else:
+            logger.warning("Could not find tool_id for tool: %s", namespaced_name)
+
+        enhanced_tools.append(base_tool)
+
+    logger.info("Enhanced %d tools with metadata", len(enhanced_tools))
+    return enhanced_tools
 
 
 def identify_missing_tools(

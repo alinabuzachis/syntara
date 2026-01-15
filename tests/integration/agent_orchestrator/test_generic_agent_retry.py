@@ -9,7 +9,7 @@ makes LLM calls through the retry decorator.
 import asyncio
 import time
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import uuid4
 
 import openai
@@ -18,31 +18,6 @@ from langchain_core.messages import HumanMessage
 
 from nexus.agent_orchestrator.agents.generic_agent import GenericAgent
 from nexus.agent_orchestrator.models.agent_state import AgentState
-from nexus.core.config import AdapterRetrySettings
-
-
-@pytest.fixture
-def retry_settings_fast() -> AdapterRetrySettings:
-    """Create retry settings with fast delays for testing."""
-    return AdapterRetrySettings(
-        adapter_max_retries=3,
-        adapter_initial_backoff_seconds=0.1,  # Fast for testing
-        adapter_backoff_growth_factor=2.0,
-        adapter_max_backoff_seconds=1.0,
-        adapter_request_timeout_seconds=5.0,
-    )
-
-
-@pytest.fixture
-def retry_settings_disabled() -> AdapterRetrySettings:
-    """Create retry settings with retries disabled."""
-    return AdapterRetrySettings(
-        adapter_max_retries=0,
-        adapter_initial_backoff_seconds=1.0,
-        adapter_backoff_growth_factor=2.0,
-        adapter_max_backoff_seconds=10.0,
-        adapter_request_timeout_seconds=30.0,
-    )
 
 
 @pytest.fixture
@@ -65,9 +40,9 @@ class TestSuccessfulRetryAfterTransientError:
     """Test scenario: successful retry after transient 503 error."""
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_retry_succeeds_after_503_error(
         self,
-        retry_settings_fast: AdapterRetrySettings,
         sample_agent_state: AgentState,
     ) -> None:
         """Test that GenericAgent retries and succeeds after 503 error."""
@@ -105,21 +80,20 @@ class TestSuccessfulRetryAfterTransientError:
         # Create agent
         agent = GenericAgent(llm=mock_llm, available_tools=[])
 
-        # Execute with patched settings
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=retry_settings_fast):
-            await agent._execute(sample_agent_state)
+        # Execute
+        await agent._execute(sample_agent_state)
 
-            # Verify success
-            result_data = sample_agent_state["result"]
-            assert result_data is not None
-            assert result_data["content"] == "I am Malenia, blade of Miquella."
-            assert call_count == 2  # Initial + 1 retry
-            assert "model" in result_data["response_metadata"]
+        # Verify success
+        result_data = sample_agent_state["result"]
+        assert result_data is not None
+        assert result_data["content"] == "I am Malenia, blade of Miquella."
+        assert call_count == 2  # Initial + 1 retry
+        assert "model" in result_data["response_metadata"]
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_retry_succeeds_after_connection_error(
         self,
-        retry_settings_fast: AdapterRetrySettings,
         sample_agent_state: AgentState,
     ) -> None:
         """Test that GenericAgent retries and succeeds after APIConnectionError."""
@@ -147,22 +121,21 @@ class TestSuccessfulRetryAfterTransientError:
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=retry_settings_fast):
-            await agent._execute(sample_agent_state)
+        await agent._execute(sample_agent_state)
 
-            result_data = sample_agent_state["result"]
-            assert result_data is not None
-            assert result_data["content"] == "Success after connection error."
-            assert call_count == 2
+        result_data = sample_agent_state["result"]
+        assert result_data is not None
+        assert result_data["content"] == "Success after connection error."
+        assert call_count == 2
 
 
 class TestExhaustedRetriesAfterMultipleFailures:
     """Test scenario: exhausted retries after persistent errors."""
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_fails_after_max_retries_with_500_errors(
         self,
-        retry_settings_fast: AdapterRetrySettings,
         sample_agent_state: AgentState,
     ) -> None:
         """Test that GenericAgent fails after exhausting retries with 500 errors."""
@@ -192,24 +165,23 @@ class TestExhaustedRetriesAfterMultipleFailures:
 
         start_time = time.time()
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=retry_settings_fast):
-            with pytest.raises(openai.APIStatusError) as exc_info:
-                await agent._execute(sample_agent_state)
+        with pytest.raises(openai.APIStatusError) as exc_info:
+            await agent._execute(sample_agent_state)
 
-            elapsed = time.time() - start_time
+        elapsed = time.time() - start_time
 
-            # Verify retries exhausted
-            assert call_count == 4  # Initial + 3 retries
-            assert "Internal server error" in str(exc_info.value)
+        # Verify retries exhausted
+        assert call_count == 4  # Initial + 3 retries
+        assert "Internal server error" in str(exc_info.value)
 
-            # Verify delays applied (0.1s, 0.2s, 0.4s with jitter)
-            # Total should be ~0.7s + jitter + execution time
-            assert 0.5 <= elapsed <= 1.5
+        # Verify delays applied (0.1s, 0.2s, 0.4s with jitter)
+        # Total should be ~0.7s + jitter + execution time
+        assert 0.5 <= elapsed <= 1.5
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_fails_after_max_retries_with_different_errors(
         self,
-        retry_settings_fast: AdapterRetrySettings,
         sample_agent_state: AgentState,
     ) -> None:
         """Test that retry continues with different error types."""
@@ -236,21 +208,20 @@ class TestExhaustedRetriesAfterMultipleFailures:
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=retry_settings_fast):
-            with pytest.raises(openai.APIStatusError):
-                await agent._execute(sample_agent_state)
+        with pytest.raises(openai.APIStatusError):
+            await agent._execute(sample_agent_state)
 
-            # All errors should have been tried
-            assert call_count == 4
+        # All errors should have been tried
+        assert call_count == 4
 
 
 class TestNonRetryableErrorFailsImmediately:
     """Test scenario: non-retryable errors fail without retry."""
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_authentication_error_fails_immediately(
         self,
-        retry_settings_fast: AdapterRetrySettings,
         sample_agent_state: AgentState,
     ) -> None:
         """Test that authentication errors fail without retry."""
@@ -275,18 +246,17 @@ class TestNonRetryableErrorFailsImmediately:
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=retry_settings_fast):
-            with pytest.raises(openai.AuthenticationError) as exc_info:
-                await agent._execute(sample_agent_state)
+        with pytest.raises(openai.AuthenticationError) as exc_info:
+            await agent._execute(sample_agent_state)
 
-            # No retries
-            assert call_count == 1
-            assert "Invalid API key" in str(exc_info.value)
+        # No retries
+        assert call_count == 1
+        assert "Invalid API key" in str(exc_info.value)
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fast_retry_settings")
     async def test_bad_request_error_fails_immediately(
         self,
-        retry_settings_fast: AdapterRetrySettings,
         sample_agent_state: AgentState,
     ) -> None:
         """Test that bad request errors fail without retry."""
@@ -311,20 +281,19 @@ class TestNonRetryableErrorFailsImmediately:
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=retry_settings_fast):
-            with pytest.raises(openai.BadRequestError):
-                await agent._execute(sample_agent_state)
+        with pytest.raises(openai.BadRequestError):
+            await agent._execute(sample_agent_state)
 
-            assert call_count == 1
+        assert call_count == 1
 
 
 class TestZeroRetriesConfiguration:
     """Test scenario: retry disabled with max_retries=0."""
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("disabled_retry_settings")
     async def test_zero_retries_fails_immediately_on_503(
         self,
-        retry_settings_disabled: AdapterRetrySettings,
         sample_agent_state: AgentState,
     ) -> None:
         """Test that retry is disabled when max_retries=0."""
@@ -351,12 +320,11 @@ class TestZeroRetriesConfiguration:
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=retry_settings_disabled):
-            with pytest.raises(openai.APIStatusError):
-                await agent._execute(sample_agent_state)
+        with pytest.raises(openai.APIStatusError):
+            await agent._execute(sample_agent_state)
 
-            # No retries despite retryable error
-            assert call_count == 1
+        # No retries despite retryable error
+        assert call_count == 1
 
 
 class TestConcurrentRequestsWithIndependentState:
@@ -453,9 +421,8 @@ class TestConcurrentRequestsWithIndependentState:
         assert call_counts["c"] == 4
 
     @pytest.mark.asyncio
-    async def test_concurrent_requests_independent_retry_counters(
-        self, retry_settings_fast: AdapterRetrySettings
-    ) -> None:
+    @pytest.mark.usefixtures("fast_retry_settings")
+    async def test_concurrent_requests_independent_retry_counters(self) -> None:
         """Test that concurrent requests have independent retry state."""
         call_counts = {"a": 0, "b": 0, "c": 0}
 
@@ -470,13 +437,12 @@ class TestConcurrentRequestsWithIndependentState:
         state_c = self._create_test_state("c", "Query C")
 
         # Run concurrently
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=retry_settings_fast):
-            results = await asyncio.gather(
-                agent_a._execute(state_a),
-                agent_b._execute(state_b),
-                agent_c._execute(state_c),
-                return_exceptions=True,
-            )
+        results = await asyncio.gather(
+            agent_a._execute(state_a),
+            agent_b._execute(state_b),
+            agent_c._execute(state_c),
+            return_exceptions=True,
+        )
 
-            # Validate results
-            self._validate_concurrent_retry_results(results, call_counts)
+        # Validate results
+        self._validate_concurrent_retry_results(results, call_counts)

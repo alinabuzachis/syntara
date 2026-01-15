@@ -4,6 +4,7 @@ This service manages the LangGraph state machine that coordinates
 multiple specialized agents with context integration and checkpointing.
 """
 
+import asyncio
 import logging
 from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
@@ -31,6 +32,10 @@ from nexus.agent_orchestrator.models.streaming_events import CompletionEventData
 from nexus.agent_orchestrator.services.error_handler import classify_streaming_error
 from nexus.agent_orchestrator.services.streaming_service import get_invocation_stream_id
 from nexus.agent_orchestrator.tool_manager import ToolSynchronizer
+from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
+    create_tool_awrapper,
+    create_tool_wrapper,
+)
 from nexus.core.valkey.stream import StreamClient
 
 logger = logging.getLogger(__name__)
@@ -72,9 +77,13 @@ class OrchestrationService:
         # Add agent nodes
         invocation_id: UUID = UUID(state["invocation_id"])
         available_tools: list[BaseTool] = await self._get_tools(invocation_id)
+
         workflow.add_node(AgentRoutes.ORCHESTRATOR, self._create_orchestrator_node())
         workflow.add_node(AgentRoutes.GENERIC_AGENT, self._create_generic_agent_node(available_tools))
-        workflow.add_node(AgentRoutes.TOOLS, self._create_tool_node(available_tools))
+        workflow.add_node(
+            AgentRoutes.TOOLS,
+            self._create_tool_node(available_tools),
+        )
 
         # Set entry point to ToolNode
         workflow.set_entry_point(AgentRoutes.ORCHESTRATOR)
@@ -398,8 +407,19 @@ class OrchestrationService:
         return _generic_agent_node
 
     def _create_tool_node(self, tools: list[BaseTool]) -> ToolNode:
-        # Create ToolNode with dynamic tool discovery and error handling
-        return ToolNode(tools)
+        """Create ToolNode with retry error handling for both sync and async tools."""
+        # Get the current event loop to pass to sync wrapper for reliable tool disable operations
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        # Create ToolNode with both sync and async wrappers for comprehensive failure handling
+        return ToolNode(
+            tools,
+            awrap_tool_call=create_tool_awrapper(),  # For async tool execution
+            wrap_tool_call=create_tool_wrapper(loop),  # For sync tool execution
+        )
 
     # ===============================
 

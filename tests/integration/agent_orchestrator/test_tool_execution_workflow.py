@@ -6,15 +6,18 @@ through the complete StateGraph workflow including ToolNode integration.
 
 import asyncio
 from collections.abc import Generator
+from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+import httpx
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, HTTPStatusError
 from langchain_core.tools import tool
 
 from nexus.tool_manager.lib.providers.mcp import MCPProvider
-from tests.conftest import wait_for_invocation_execution
+from nexus.tool_manager.models import ToolProviderValidationResult
+from tests.conftest import wait_for_invocation_execution, wait_for_tool_status
 
 
 @pytest.fixture(autouse=True)
@@ -39,14 +42,25 @@ def mock_tool_manager_client(base_client: AsyncClient) -> Generator[None, None, 
         yield
 
 
-@pytest.fixture(autouse=True)
-def mock_mcp_provider_for_testing(base_client: AsyncClient) -> Generator[None, None, None]:
-    """Override MCP provider to use test-compatible HTTP client."""
+@pytest.fixture
+def patch_mcp_provider() -> Generator[None, None, None]:
+    """Base fixture that patches MCP provider methods to work without real MCP server."""
+
+    async def patched_validate_connection(self) -> ToolProviderValidationResult:
+        """Patched validate_connection that always succeeds for testing."""
+        return ToolProviderValidationResult(valid=True, provider_type="mcp", validated_at=datetime.now(UTC))
+
+    # Patch validate_connection method that's common to all MCP provider tests
+    with patch.object(MCPProvider, "validate_connection", patched_validate_connection):
+        yield
+
+
+@pytest.fixture
+def mock_mcp_provider_for_testing(base_client: AsyncClient, patch_mcp_provider: None) -> Generator[None, None, None]:
+    """Override MCP provider to use test-compatible methods without real MCP server."""
 
     async def patched_get_base_tools(self) -> list[Any]:
         """Patched get_base_tools that works in test environment."""
-        # Dummy await to satisfy SonarCloud - function must be async to match MCPProvider.get_base_tools signature
-        await asyncio.sleep(0)
 
         # For testing purposes, return mock tools instead of connecting to real MCP server
         # This avoids HTTP client context issues in test environment
@@ -63,56 +77,92 @@ def mock_mcp_provider_for_testing(base_client: AsyncClient) -> Generator[None, N
         # Return mock tools that simulate what an MCP provider would return
         return [mock_calculator, mock_greeter]
 
-    # Patch the get_base_tools method
+    # Patch get_base_tools method for basic testing tools
     with patch.object(MCPProvider, "get_base_tools", patched_get_base_tools):
         yield
+
+
+@pytest.fixture
+def mock_mcp_provider_with_retry_tools(
+    base_client: AsyncClient, patch_mcp_provider: None
+) -> Generator[None, None, None]:
+    """Override MCP provider with tools that support retry testing."""
+    # Global state to track tool execution attempts
+    call_counts = {"retry_tool": 0, "network_tool": 0, "failing_tool": 0}
+
+    async def patched_get_base_tools(self) -> list[Any]:
+        """Patched get_base_tools with retry-capable tools."""
+        await asyncio.sleep(0)
+
+        @tool
+        def mock_retry_tool(message: str) -> str:
+            """Tool that fails on first call, succeeds on second."""
+            call_counts["retry_tool"] += 1
+            if call_counts["retry_tool"] == 1:
+                error_message = "First call always fails for testing"
+                raise TimeoutError(error_message)
+            return f"Success on attempt {call_counts['retry_tool']}: {message}"
+
+        @tool
+        def mock_network_tool(endpoint: str) -> str:
+            """Tool that simulates network failure on first call."""
+            call_counts["network_tool"] += 1
+            if call_counts["network_tool"] == 1:
+                error_message = "Network connection timeout"
+                raise TimeoutError(error_message)
+            return f"Connected to {endpoint} on attempt {call_counts['network_tool']}"
+
+        @tool
+        def mock_failing_tool(data: str) -> str:
+            """Tool that consistently fails and should be disabled."""
+            call_counts["failing_tool"] += 1
+            error_message = f"Persistent failure on attempt {call_counts['failing_tool']}"
+            response = Mock()
+            response.status_code = httpx.codes.INTERNAL_SERVER_ERROR
+            raise HTTPStatusError(error_message, request=Mock(), response=response)
+
+        return [mock_retry_tool, mock_network_tool, mock_failing_tool]
+
+    # Patch get_base_tools method for retry testing tools
+    with patch.object(MCPProvider, "get_base_tools", patched_get_base_tools):
+        yield
+
+
+async def _create_tool_provider(base_client: AsyncClient) -> str:
+    """Create a ToolProvider for testing."""
+    provider_data = {
+        "name": "test-tool-execution",
+        "description": "Test MCP provider for tool execution",
+        "configuration": {
+            "provider_type": "mcp",
+            "base_url": "https://somewhere.com",
+        },
+    }
+
+    # Create provider
+    create_response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+    assert create_response.status_code == 201
+
+    provider_id = create_response.json()["id"]
+
+    # Validate provider
+    validate_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/validate")
+    assert validate_response.status_code == 200
+    assert validate_response.json()["valid"] is True
+
+    # Refresh tools
+    refresh_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/refresh-tools")
+    assert refresh_response.status_code == 200
+    assert refresh_response.json()["refreshed_count"] > 0
+
+    return str(provider_id)
 
 
 class TestToolExecutionWorkflow:
     """Integration tests for end-to-end tool execution workflow."""
 
-    async def _create_and_validate_mcp_provider(self, base_client: AsyncClient) -> str:
-        """Create and validate an MCP provider for testing."""
-        # There are a lot of issues running FastMCP with beartype.
-        # See https://github.com/beartype/beartype/issues/542 (for example).
-        # Unfortunately the simplest solution is to isolate the MCP tests from all others.
-        # This means we also need to lazy-import our ExampleMCPServer to avoid it being loaded early.
-        from tests.fixtures.example_mcp_server import ExampleMCPServer
-
-        test_server = ExampleMCPServer(host="localhost", port=8768)
-
-        async with test_server.running():
-            await asyncio.sleep(1.0)
-
-            provider_data = {
-                "name": "test-tool-execution",
-                "description": "Test MCP provider for tool execution",
-                "configuration": {
-                    "provider_type": "mcp",
-                    "base_url": f"{test_server.base_url}",
-                },
-            }
-
-            # Create provider
-            create_response = await base_client.post("/api/v1/tool-providers", json=provider_data)
-            assert create_response.status_code == 201
-
-            provider_id = create_response.json()["id"]
-
-            # Validate provider
-            validate_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/validate")
-            assert validate_response.status_code == 200
-            assert validate_response.json()["valid"] is True
-
-            # Refresh tools
-            refresh_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/refresh-tools")
-            assert refresh_response.status_code == 200
-            assert refresh_response.json()["refreshed_count"] > 0
-
-            return str(provider_id)
-
-    @pytest.mark.mcp
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("mock_mcp_provider_for_testing")
     async def test_invocation_with_tool_execution(self, auth_client_with_tool_aware_mocked_llm: AsyncClient) -> None:
         """Test that invocations can execute tools through StateGraph ToolNode integration.
 
@@ -123,8 +173,8 @@ class TestToolExecutionWorkflow:
         4. LLM intelligently selects and calls appropriate tools
         5. Tool execution results are included in invocation response
         """
-        # Set up MCP provider with tools
-        await self._create_and_validate_mcp_provider(auth_client_with_tool_aware_mocked_llm)
+        # Set up ToolProvider
+        await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
 
         # Verify tools are available before creating invocation
         tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
@@ -180,14 +230,14 @@ class TestToolExecutionWorkflow:
                 f"Expected tool usage indication in response: {result_content}"
             )
 
-    @pytest.mark.mcp
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("mock_mcp_provider_for_testing")
     async def test_invocation_with_greeter_tool_execution(
         self, auth_client_with_tool_aware_mocked_llm: AsyncClient
     ) -> None:
         """Test that the LLM can intelligently select and execute different tools based on prompts."""
-        # Set up MCP provider with tools
-        await self._create_and_validate_mcp_provider(auth_client_with_tool_aware_mocked_llm)
+        # Set up ToolProvider
+        await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
 
         # Verify tools are available
         tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
@@ -232,7 +282,6 @@ class TestToolExecutionWorkflow:
                 f"Expected tool usage indication in response: {result_content}"
             )
 
-    @pytest.mark.mcp
     @pytest.mark.asyncio
     async def test_invocation_without_available_tools(
         self, auth_client_with_tool_aware_mocked_llm: AsyncClient
@@ -266,12 +315,12 @@ class TestToolExecutionWorkflow:
             response_metadata = result.get("response_metadata", {})
             assert response_metadata.get("orchestration") == "langgraph"
 
-    @pytest.mark.mcp
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("mock_mcp_provider_for_testing")
     async def test_invocation_with_disabled_tools(self, auth_client_with_tool_aware_mocked_llm: AsyncClient) -> None:
         """Test invocation behavior when tools are discovered but disabled."""
-        # Create and validate provider with tools
-        provider_id = await self._create_and_validate_mcp_provider(auth_client_with_tool_aware_mocked_llm)
+        # Set up ToolProvider
+        provider_id = await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
 
         # Get tools and disable them
         tools_response = await auth_client_with_tool_aware_mocked_llm.get(
@@ -309,3 +358,170 @@ class TestToolExecutionWorkflow:
             assert completed_invocation is not None
             assert completed_invocation["status"] == "completed"
             assert completed_invocation["result"] is not None
+
+
+class TestToolExecutionFailureRetryWorkflow:
+    """Integration tests for tool execution failure handling, retry mechanisms, and auto-disable functionality."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fast_retry_settings")
+    @pytest.mark.usefixtures("mock_mcp_provider_with_retry_tools")
+    async def test_tool_retry_mechanism_with_eventual_success(
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient
+    ) -> None:
+        """Test that the retry mechanism works when a tool fails initially but succeeds on retry."""
+        # Set up ToolProvider
+        await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
+
+        # Verify retry tools are available
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
+        assert tools_response.status_code == 200
+        tools_data = tools_response.json()
+        available_tools = tools_data["resources"]
+
+        tool_names = [tool_item["name"] for tool_item in available_tools]
+        assert "mock_retry_tool" in tool_names, f"mock_retry_tool not found in tools: {tool_names}"
+
+        # Create invocation that should trigger retry tool usage
+        invocation_data = {
+            "prompt": "Use the mock_retry_tool to process the message 'test data'.",
+            "session_id": "test-retry-mechanism-session",
+        }
+
+        create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)
+        assert create_response.status_code == 202
+
+        invocation_response = create_response.json()
+        invocation_id = invocation_response["id"]
+
+        # Wait for invocation to complete with extended timeout for retry behavior
+        async with wait_for_invocation_execution(
+            auth_client_with_tool_aware_mocked_llm, invocation_id, max_wait_time=20.0
+        ) as completed_invocation:
+            # Verify invocation completed successfully after retry
+            assert completed_invocation is not None
+            assert completed_invocation["status"] == "completed"
+            assert completed_invocation["result"] is not None
+
+            result = completed_invocation["result"]
+            result_content = result.get("content", "")
+
+            # Should contain evidence of successful execution on second attempt
+            assert any(keyword in result_content for keyword in ["Success on attempt 2", "test data"]), (
+                f"Expected successful retry result in response: {result_content}"
+            )
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fast_retry_settings")
+    @pytest.mark.usefixtures("mock_mcp_provider_with_retry_tools")
+    async def test_tool_retry_mechanism_with_network_error_recovery(
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient
+    ) -> None:
+        """Test that the retry mechanism handles network errors and recovers on retry."""
+        # Set up ToolProvider
+        await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
+
+        # Verify network tool is available
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
+        assert tools_response.status_code == 200
+        tools_data = tools_response.json()
+        available_tools = tools_data["resources"]
+
+        tool_names = [tool_item["name"] for tool_item in available_tools]
+        assert "mock_network_tool" in tool_names, f"mock_network_tool not found in tools: {tool_names}"
+
+        # Create invocation that should trigger network tool usage
+        invocation_data = {
+            "prompt": "Use the mock_network_tool to connect to endpoint 'api.example.com'.",
+            "session_id": "test-network-retry-session",
+        }
+
+        create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)
+        assert create_response.status_code == 202
+
+        invocation_response = create_response.json()
+        invocation_id = invocation_response["id"]
+
+        # Wait for invocation to complete with extended timeout for retry behavior
+        async with wait_for_invocation_execution(
+            auth_client_with_tool_aware_mocked_llm, invocation_id, max_wait_time=20.0
+        ) as completed_invocation:
+            # Verify invocation completed successfully after network retry
+            assert completed_invocation is not None
+            assert completed_invocation["status"] == "completed"
+            assert completed_invocation["result"] is not None
+
+            result = completed_invocation["result"]
+            result_content = result.get("content", "")
+
+            # Should contain evidence of successful connection on second attempt
+            assert any(keyword in result_content for keyword in ["Connected to api.example.com", "attempt 2"]), (
+                f"Expected successful network retry result in response: {result_content}"
+            )
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fast_retry_settings")
+    @pytest.mark.usefixtures("mock_mcp_provider_with_retry_tools")
+    async def test_tool_automatic_disable_on_persistent_failure(
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient
+    ) -> None:
+        """Test that consistently failing tools are automatically disabled."""
+        # Set up ToolProvider
+        provider_id = await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
+
+        # Verify failing tool is available and enabled initially
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get(
+            "/api/v1/tools", params={"provider_id[eq]": provider_id}
+        )
+        assert tools_response.status_code == 200
+        tools_data = tools_response.json()
+        available_tools = tools_data["resources"]
+
+        failing_tool = next(
+            (tool_item for tool_item in available_tools if tool_item["name"] == "mock_failing_tool"), None
+        )
+        assert failing_tool is not None, "mock_failing_tool not found in available tools"
+        assert failing_tool["enabled"] is True, "Tool should be initially enabled"
+
+        failing_tool_id = failing_tool["id"]
+
+        # Create invocation that should trigger failing tool usage
+        invocation_data = {
+            "prompt": "Use the mock_failing_tool to process data 'test input'.",
+            "session_id": "test-auto-disable-session",
+        }
+
+        create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)
+        assert create_response.status_code == 202
+
+        invocation_response = create_response.json()
+        invocation_id = invocation_response["id"]
+
+        # Wait for invocation to complete (should eventually fail after retries)
+        async with wait_for_invocation_execution(
+            auth_client_with_tool_aware_mocked_llm, invocation_id, max_wait_time=25.0
+        ) as completed_invocation:
+            # Invocation may complete with failure or still succeed with error handling
+            assert completed_invocation is not None
+
+        # Wait for the tool to be automatically disabled due to persistent failures
+        async with wait_for_tool_status(
+            auth_client_with_tool_aware_mocked_llm, failing_tool_id, "error", max_wait_time=10.0
+        ) as tool_status:
+            # Verify the tool was found and has the expected status
+            assert tool_status is not None, "Failed to get tool status"
+
+            # Critical assertion: Tool should be automatically disabled due to persistent failures
+            assert tool_status["enabled"] is False, (
+                f"Tool should be automatically disabled after persistent failures, but enabled={tool_status['enabled']}"
+            )
+
+            # Tool status should be marked as having issues
+            assert tool_status.get("status") == "error", (
+                f"Tool status should indicate issues after failures, got: {tool_status.get('status')}"
+            )
+            refresh_error = tool_status.get("refresh_error")
+            assert refresh_error is not None, "Tool refresh_error should not be None"
+            assert "Persistent failure on attempt 4" in refresh_error, (
+                f"Tool refresh_error should indicate reason for failure, got: {refresh_error}"
+            )

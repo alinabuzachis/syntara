@@ -11,6 +11,7 @@ from uuid import UUID
 from langchain_core.tools import BaseTool
 
 from nexus.agent_orchestrator.tool_manager.tool_filtering import (
+    enhance_namespaced_tools_with_metadata,
     filter_base_tools_by_enabled,
     identify_missing_tools,
     identify_re_enableable_tools,
@@ -312,20 +313,39 @@ async def _retrieve_base_tools_from_providers(
 def _filter_enabled_tools(
     namespaced_tools: list[NamespacedBaseTool],
     enabled_tools: list[ToolWithParameters],
-) -> list[BaseTool]:
-    """Filter BaseTools by enabled status using namespaced_name.
+) -> list[NamespacedBaseTool]:
+    """Filter NamespacedBaseTools by enabled status using namespaced_name.
 
     Args:
         namespaced_tools: List of NamespacedTool from providers
         enabled_tools: List of enabled tools from Tool Manager
 
     Returns:
-        List of filtered BaseTools
+        List of filtered NamespacedBaseTools
 
     """
     filtered_tools = filter_base_tools_by_enabled(namespaced_tools, enabled_tools)
     logger.info("Filtered %d tools for execution", len(filtered_tools))
     return filtered_tools
+
+
+def _enhance_tools_with_metadata(
+    namespaced_tools: list[NamespacedBaseTool],
+    enabled_tools: list[ToolWithParameters],
+) -> list[BaseTool]:
+    """Enhance NamespacedBaseTools with metadata from Tool Manager (optimized).
+
+    Args:
+        namespaced_tools: List of filtered NamespacedBaseTools
+        enabled_tools: List of enabled tools from Tool Manager
+
+    Returns:
+        List of BaseTools enhanced with metadata
+
+    """
+    enhanced_tools = enhance_namespaced_tools_with_metadata(namespaced_tools, enabled_tools)
+    logger.info("Enhanced %d tools with metadata", len(enhanced_tools))
+    return enhanced_tools
 
 
 async def _update_missing_tools(
@@ -466,17 +486,20 @@ class ToolSynchronizer:
             # Step 3: Filter BaseTools by enabled status
             filtered_tools = _filter_enabled_tools(self.namespaced_tools, self.enabled_tools)
 
-            # Step 4: Update missing tools in Tool Manager (async, best-effort)
+            # Step 4: Enhance BaseTools with metadata for failure handling
+            enhanced_tools = _enhance_tools_with_metadata(filtered_tools, self.enabled_tools)
+
+            # Step 5: Update missing tools in Tool Manager (async, best-effort)
             await _update_missing_tools(self.namespaced_tools, self.enabled_tools)
 
-            # Step 5: Re-enable previously disabled tools that are now available
+            # Step 6: Re-enable previously disabled tools that are now available
             await _update_re_enabled_tools(self.namespaced_tools, self.disabled_tools)
 
-            # Step 6: Log unregistered tools for awareness
+            # Step 7: Log unregistered tools for awareness
             _log_unregistered_tools(self.namespaced_tools, self.enabled_tools)
 
             logger.info("Tool synchronization completed for invocation %s", self.invocation_id)
-            return filtered_tools
+            return enhanced_tools
 
         except Exception:
             # Don't fail the entire execution if tool sync fails

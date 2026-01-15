@@ -45,6 +45,12 @@ def _create_tool_completion_response(tool_results: list[dict[str, str]]) -> str:
             response_parts.append(f"I calculated the result using the calculator tool and got: {tool_result['result']}")
         elif tool_result["name"] == "mock_greeter":
             response_parts.append(f"I used the greeting tool and it responded: {tool_result['result']}")
+        elif tool_result["name"] == "mock_retry_tool":
+            response_parts.append(f"I used the retry tool and got: {tool_result['result']}")
+        elif tool_result["name"] == "mock_network_tool":
+            response_parts.append(f"I used the network tool and got: {tool_result['result']}")
+        elif tool_result["name"] == "mock_failing_tool":
+            response_parts.append(f"I attempted to use the failing tool and got: {tool_result['result']}")
         else:
             response_parts.append(f"I executed the {tool_result['name']} tool and got: {tool_result['result']}")
 
@@ -57,13 +63,16 @@ def mock_tool_aware_llm() -> Generator[MagicMock, None, None]:
 
     This fixture creates an LLM mock that:
     1. Recognizes when prompts require tool usage
-    2. Returns appropriate tool calls for calculator/greeter scenarios
+    2. Returns appropriate tool calls for calculator/greeter/retry scenarios
     3. Allows real tool discovery (_get_tools is NOT mocked)
     4. Enables assertions on tool execution and results
 
     The LLM will return tool calls for:
     - "calculate", "sum", "add" -> calls mock_calculator
     - "greet", "hello" -> calls mock_greeter
+    - "mock_retry_tool", "retry tool" -> calls mock_retry_tool
+    - "mock_network_tool", "network tool", "api.example.com" -> calls mock_network_tool
+    - "mock_failing_tool", "failing tool" -> calls mock_failing_tool
     - Other prompts -> regular text response
 
     Yields:
@@ -83,34 +92,59 @@ def mock_tool_aware_llm() -> Generator[MagicMock, None, None]:
                 response_metadata={"model": "mock-tool-aware-model", "finish_reason": "stop"},
             )
 
-        # Determine if we should call a tool based on prompt content (first time only)
-        if any(keyword in prompt_content for keyword in ["calculate", "sum", "add", "5", "3"]):
-            # Return a tool call for calculator
-            return AIMessage(
-                content="I'll calculate that for you using the calculator tool.",
-                tool_calls=[
-                    {
-                        "name": "mock_calculator",
-                        "args": {"a": 5, "b": 3},
-                        "id": "calc_call_1",
-                    }
-                ],
-                response_metadata={"model": "mock-tool-aware-model", "finish_reason": "tool_calls"},
-            )
-        if any(keyword in prompt_content for keyword in ["greet", "hello", "hi"]):
-            # Return a tool call for greeter
-            return AIMessage(
-                content="I'll greet you using the greeting tool.",
-                tool_calls=[
-                    {
-                        "name": "mock_greeter",
-                        "args": {"name": "Test User"},
-                        "id": "greet_call_1",
-                    }
-                ],
-                response_metadata={"model": "mock-tool-aware-model", "finish_reason": "tool_calls"},
-            )
-        # Return regular text response
+        # Determine which tool to call based on prompt content
+        tool_configs = [
+            (
+                ["calculate", "sum", "add", "5", "3"],
+                {
+                    "content": "I'll calculate that for you using the calculator tool.",
+                    "tool_call": {"name": "mock_calculator", "args": {"a": 5, "b": 3}, "id": "calc_call_1"},
+                },
+            ),
+            (
+                ["greet", "hello", "hi"],
+                {
+                    "content": "I'll greet you using the greeting tool.",
+                    "tool_call": {"name": "mock_greeter", "args": {"name": "Test User"}, "id": "greet_call_1"},
+                },
+            ),
+            (
+                ["mock_retry_tool", "retry tool"],
+                {
+                    "content": "I'll use the retry tool to process your message.",
+                    "tool_call": {"name": "mock_retry_tool", "args": {"message": "test data"}, "id": "retry_call_1"},
+                },
+            ),
+            (
+                ["mock_network_tool", "network tool", "api.example.com"],
+                {
+                    "content": "I'll use the network tool to connect to the endpoint.",
+                    "tool_call": {
+                        "name": "mock_network_tool",
+                        "args": {"endpoint": "api.example.com"},
+                        "id": "network_call_1",
+                    },
+                },
+            ),
+            (
+                ["mock_failing_tool", "failing tool"],
+                {
+                    "content": "I'll use the failing tool to process your data.",
+                    "tool_call": {"name": "mock_failing_tool", "args": {"data": "test input"}, "id": "failing_call_1"},
+                },
+            ),
+        ]
+
+        # Check each tool configuration
+        for keywords, config in tool_configs:
+            if any(keyword in prompt_content for keyword in keywords):
+                return AIMessage(
+                    content=str(config["content"]),
+                    tool_calls=[config["tool_call"]],
+                    response_metadata={"model": "mock-tool-aware-model", "finish_reason": "tool_calls"},
+                )
+
+        # Default response when no tool is needed
         return AIMessage(
             content="I can help you with that. No tools needed for this request.",
             response_metadata={"model": "mock-tool-aware-model", "finish_reason": "stop"},

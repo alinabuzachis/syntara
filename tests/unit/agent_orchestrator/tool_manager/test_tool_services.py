@@ -105,7 +105,7 @@ class TestToolServices:
             # Setup MCP client (mocked at the provider level)
             mock_mcp_instance = Mock()
             mock_mcp_client_class.return_value = mock_mcp_instance
-            mock_mcp_instance.get_tools.return_value = [mock_tool]
+            mock_mcp_instance.get_tools = AsyncMock(return_value=[mock_tool])
 
             # Test the full synchronization process
             invocation_id = uuid4()
@@ -239,7 +239,7 @@ class TestToolServices:
             # Setup MCP client
             mock_mcp_instance = Mock()
             mock_mcp_client_class.return_value = mock_mcp_instance
-            mock_mcp_instance.get_tools.return_value = [mock_tool]
+            mock_mcp_instance.get_tools = AsyncMock(return_value=[mock_tool])
 
             # Test the ToolSynchronizer class
             invocation_id = uuid4()
@@ -260,6 +260,21 @@ class TestToolServices:
             assert len(synchronizer.all_providers) == 2
             assert len(synchronizer.enabled_tools) == 3
             assert len(synchronizer.disabled_tools) == 1
+
+            # Should return exactly 1 filtered tool (only code_search is mocked from MCP)
+            assert len(result) == 1
+
+            # Verify that the returned BaseTool has tool_id metadata
+            code_search_tool = result[0]
+            assert code_search_tool.name == "code_search"
+            assert hasattr(code_search_tool, "metadata")
+            assert code_search_tool.metadata is not None
+            assert "tool_id" in code_search_tool.metadata
+
+            # Find the corresponding ToolWithParameters to verify the tool_id matches
+            code_search_tool_data = next(tool for tool in sample_tools if tool.name == "code_search")
+            expected_tool_id = str(code_search_tool_data.id)
+            assert code_search_tool.metadata["tool_id"] == expected_tool_id
 
             # Verify the synchronization process was executed
             tool_manager_client.get_all_tool_providers.assert_called_once()

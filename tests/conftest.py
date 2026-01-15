@@ -40,6 +40,7 @@ from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.api.auth.dependencies import get_current_user
 from nexus.api.db import get_db
 from nexus.api.main import app
+from nexus.core.config import get_settings
 from nexus.core.models import User, UserRole
 from nexus.files.models import FileMetadata
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
@@ -138,6 +139,50 @@ async def wait_for_invocation_execution(
     # If we didn't get execution state, get the current state for testing
     if final_data is None:
         status_response = await client.get(f"/api/v1/invocations/{invocation_id}")
+        if status_response.status_code == 200:
+            final_data = status_response.json()
+
+    yield final_data
+
+
+@asynccontextmanager
+async def wait_for_tool_status(
+    client: AsyncClient, tool_id: str, expected_status: str, max_wait_time: float = 10.0, wait_interval: float = 0.2
+) -> AsyncGenerator[dict[str, Any] | None, None]:
+    """Context manager that waits for a tool to reach a specific status.
+
+    This is useful for testing scenarios where tools may be automatically disabled
+    or their status changes due to background processes.
+
+    Args:
+        client: The HTTP client to use for polling
+        tool_id: The ID of the tool to monitor
+        expected_status: The status to wait for (e.g., "error", "active")
+        max_wait_time: Maximum time to wait in seconds (default: 10.0)
+        wait_interval: How often to check in seconds (default: 0.2)
+
+    Yields:
+        The final tool data after status change or timeout
+
+    """
+    elapsed_time = 0.0
+    final_data: dict[str, Any] | None = None
+
+    while elapsed_time < max_wait_time:
+        # Check the current status of the tool
+        status_response = await client.get(f"/api/v1/tools/{tool_id}")
+        if status_response.status_code == 200:
+            status_data = status_response.json()
+            if status_data.get("status") == expected_status:
+                final_data = status_data
+                break
+
+        await asyncio.sleep(wait_interval)
+        elapsed_time += wait_interval
+
+    # If we didn't get the expected status, get the current state for testing
+    if final_data is None:
+        status_response = await client.get(f"/api/v1/tools/{tool_id}")
         if status_response.status_code == 200:
             final_data = status_response.json()
 
@@ -940,6 +985,60 @@ def load_workflow() -> Callable[[str], Any]:
         return parse_workflow_yaml(workflow_yaml)
 
     return _load
+
+
+# ============================================================================
+# Agent Orchestrator Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def fast_retry_settings() -> Generator[None, None, None]:
+    """Configure fast retry settings for agent orchestrator tests.
+
+    This fixture applies to tests that need faster retry operations
+    and makes retry operations run much faster for testing, particularly
+    for invocation execution retry workflows that would otherwise be slow.
+
+    Patches get_settings() to return a Settings object with fast adapter retry values
+    while preserving access to all other settings.
+    """
+    # Get the real settings instance
+    original_settings = get_settings()
+
+    # Create patches for individual properties on the real settings instance
+    with (
+        patch.object(original_settings, "adapter_max_retries", 3),
+        patch.object(original_settings, "adapter_initial_backoff_seconds", 0.1),
+        patch.object(original_settings, "adapter_backoff_growth_factor", 2.0),
+        patch.object(original_settings, "adapter_max_backoff_seconds", 1.0),
+        patch.object(original_settings, "adapter_request_timeout_seconds", 5.0),
+    ):
+        yield
+
+
+@pytest.fixture
+def disabled_retry_settings() -> Generator[None, None, None]:
+    """Configure disabled retry settings for agent orchestrator tests.
+
+    This fixture sets adapter retry settings with retries disabled (max_retries=0)
+    to test immediate failure scenarios without retry attempts.
+
+    Patches get_settings() to return a Settings object with disabled adapter retry values
+    while preserving access to all other settings.
+    """
+    # Get the real settings instance
+    original_settings = get_settings()
+
+    # Create patches for individual properties on the real settings instance
+    with (
+        patch.object(original_settings, "adapter_max_retries", 0),
+        patch.object(original_settings, "adapter_initial_backoff_seconds", 1.0),
+        patch.object(original_settings, "adapter_backoff_growth_factor", 2.0),
+        patch.object(original_settings, "adapter_max_backoff_seconds", 10.0),
+        patch.object(original_settings, "adapter_request_timeout_seconds", 30.0),
+    ):
+        yield
 
 
 # ============================================================================
