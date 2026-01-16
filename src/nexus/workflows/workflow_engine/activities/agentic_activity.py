@@ -247,10 +247,6 @@ async def execute_agentic_activity(
         callback_url is not None,
     )
 
-    # Prepare input_data with file_ids included
-    # Note: file_ids passed via input_data until invoke_agent() supports file_ids directly (AAP-60785)
-    extended_input_data = {**input_data, "file_ids": file_ids} if file_ids else input_data
-
     # Use context manager for automatic resource cleanup
     async with AgentOrchestratorClient(base_url=constants.AGENT_ORCHESTRATOR_BASE_URL) as agent_client:
         try:
@@ -275,7 +271,8 @@ async def execute_agentic_activity(
                 user_id=user_id,
                 agent=config.agent,
                 model=config.model,
-                input_data=extended_input_data,
+                input_data=input_data,
+                file_ids=file_ids,
                 metadata=agent_metadata,
                 correlation_id=correlation_id,
             )

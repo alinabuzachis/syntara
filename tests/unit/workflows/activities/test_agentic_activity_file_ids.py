@@ -4,7 +4,7 @@ Tests for AAP-60786 - Agentic Activity file_ids Integration.
 
 These tests verify:
 - file_ids are extracted from config correctly
-- file_ids are passed to Agent Orchestrator via input_data
+- file_ids are passed to Agent Orchestrator as a dedicated parameter
 - file_ids validation (max count, format, etc.)
 """
 
@@ -68,7 +68,7 @@ class TestAgenticActivityFileIds:
 
     @pytest.mark.asyncio
     async def test_file_ids_extracted_from_config(self, mock_agent_client: AsyncMock) -> None:
-        """Test that file_ids are correctly extracted from config."""
+        """Test that file_ids are correctly extracted from config and passed as parameter."""
         file_ids = generate_valid_uuids(3)
         activity_config = {
             "executor": "agentic",
@@ -89,15 +89,16 @@ class TestAgenticActivityFileIds:
             # Verify invoke_agent_async was called
             mock_agent_client.invoke_agent_async.assert_called_once()
 
-            # Verify file_ids were included in input_data
+            # Verify file_ids were passed as a parameter, NOT in input_data
             call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert "input_data" in call_kwargs
-            assert "file_ids" in call_kwargs["input_data"]
-            assert call_kwargs["input_data"]["file_ids"] == file_ids
+            assert "file_ids" in call_kwargs
+            assert call_kwargs["file_ids"] == file_ids
+            # Ensure file_ids is NOT in input_data
+            assert "file_ids" not in call_kwargs.get("input_data", {})
 
     @pytest.mark.asyncio
     async def test_file_ids_empty_not_added_to_input_data(self, mock_agent_client: AsyncMock) -> None:
-        """Test that empty file_ids list doesn't add file_ids to input_data."""
+        """Test that when no file_ids specified, empty list is passed as parameter."""
         activity_config = {
             "executor": "agentic",
             "config": {
@@ -114,18 +115,19 @@ class TestAgenticActivityFileIds:
                 input_data={"original_key": "original_value"},
             )
 
-            # Verify input_data was passed without file_ids
+            # Verify file_ids was passed as empty list parameter
             call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            input_data = call_kwargs["input_data"]
+            assert "file_ids" in call_kwargs
+            assert call_kwargs["file_ids"] == []
 
-            # Original data should be preserved
+            # Original input_data should be preserved without file_ids
+            input_data = call_kwargs["input_data"]
             assert input_data.get("original_key") == "original_value"
-            # file_ids should not be present when empty
             assert "file_ids" not in input_data
 
     @pytest.mark.asyncio
     async def test_file_ids_merged_with_existing_input_data(self, mock_agent_client: AsyncMock) -> None:
-        """Test that file_ids are merged with existing input_data."""
+        """Test that file_ids are passed as separate parameter, not merged with input_data."""
         file_ids = generate_valid_uuids(2)
         activity_config = {
             "executor": "agentic",
@@ -147,17 +149,20 @@ class TestAgenticActivityFileIds:
                 input_data=original_input,
             )
 
-            # Verify input_data contains both original data and file_ids
+            # Verify file_ids passed as separate parameter
             call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            input_data = call_kwargs["input_data"]
+            assert "file_ids" in call_kwargs
+            assert call_kwargs["file_ids"] == file_ids
 
+            # Verify input_data contains only original data, NOT file_ids
+            input_data = call_kwargs["input_data"]
             assert input_data["user_query"] == "What's in these files?"
             assert input_data["context"] == {"key": "value"}
-            assert input_data["file_ids"] == file_ids
+            assert "file_ids" not in input_data
 
     @pytest.mark.asyncio
     async def test_file_ids_max_count_accepted(self, mock_agent_client: AsyncMock) -> None:
-        """Test that maximum 10 file_ids are accepted and passed correctly."""
+        """Test that maximum 10 file_ids are accepted and passed correctly as parameter."""
         file_ids = generate_valid_uuids(10)
         activity_config = {
             "executor": "agentic",
@@ -176,7 +181,8 @@ class TestAgenticActivityFileIds:
             )
 
             call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
-            assert len(call_kwargs["input_data"]["file_ids"]) == 10
+            assert "file_ids" in call_kwargs
+            assert len(call_kwargs["file_ids"]) == 10
 
     @pytest.mark.asyncio
     async def test_file_ids_invalid_rejected_during_config_extraction(self) -> None:

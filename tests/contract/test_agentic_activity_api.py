@@ -341,6 +341,7 @@ class TestAgenticActivityEdgeCases:
             agent: str | None = None,
             model: str | None = None,
             input_data: dict[str, Any] | None = None,
+            file_ids: list[str] | None = None,
             metadata: dict[str, Any] | None = None,
             session_id: str | None = None,
             correlation_id: str | None = None,

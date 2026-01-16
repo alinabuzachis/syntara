@@ -207,6 +207,7 @@ class AgentOrchestratorClient:
         agent: str | None,
         model: str | None,
         input_data: dict[str, Any] | None,
+        file_ids: list[str] | None,
         metadata: dict[str, Any] | None,
     ) -> dict[str, Any]:
         """Build the request payload for agent invocation.
@@ -219,6 +220,7 @@ class AgentOrchestratorClient:
             agent: Optional agent identifier
             model: Optional model identifier
             input_data: Optional input data
+            file_ids: Optional list of file IDs
             metadata: Optional metadata (callback_url will be extracted to top level)
 
         Returns:
@@ -242,6 +244,7 @@ class AgentOrchestratorClient:
                 for k, v in {
                     "correlation_id": correlation_id,
                     "input_data": input_data,
+                    "file_ids": file_ids,
                     "model": model,
                     "agent": agent,
                     "callback_url": callback_url,
@@ -331,6 +334,7 @@ class AgentOrchestratorClient:
         agent: str | None = None,
         model: str | None = None,
         input_data: dict[str, Any] | None = None,
+        file_ids: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
         correlation_id: str | None = None,
     ) -> str:
@@ -347,6 +351,7 @@ class AgentOrchestratorClient:
             agent: Optional agent identifier for routing (included in metadata)
             model: Optional model identifier to use
             input_data: Optional input data for the agent
+            file_ids: Optional list of file IDs to include as context
             metadata: Optional additional metadata (should include callback_url)
             correlation_id: Optional correlation ID for tracking (auto-generated if not provided)
 
@@ -363,16 +368,17 @@ class AgentOrchestratorClient:
         session_id = session_id or str(uuid4())
 
         logger.info(
-            "Invoking agent asynchronously (correlation_id=%s, prompt_len=%d, agent=%s, model=%s)",
+            "Invoking agent asynchronously (correlation_id=%s, prompt_len=%d, agent=%s, model=%s, file_count=%d)",
             correlation_id,
             len(prompt),
             agent,
             model,
+            len(file_ids) if file_ids else 0,
         )
 
         # Build request payload
         payload = self._build_invocation_payload(
-            prompt, user_id, session_id, correlation_id, agent, model, input_data, metadata
+            prompt, user_id, session_id, correlation_id, agent, model, input_data, file_ids, metadata
         )
 
         # Invoke with retry logic for transient failures
