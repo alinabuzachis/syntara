@@ -26,7 +26,7 @@ import {
 } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useState } from 'react'
+import { useReducer } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../../app/AppPage'
@@ -72,9 +72,72 @@ function StatusLabel({ status }: { status: string }) {
   )
 }
 
+interface IntegrationsState {
+  cursor: string | null
+  validateDialogOpen: boolean
+  providerToValidate: ToolProvider | null
+  deleteDialogOpen: boolean
+  providerToDelete: ToolProvider | null
+  view: 'table' | 'cards'
+  isViewMenuOpen: boolean
+}
+
+type IntegrationsAction =
+  | { type: 'SET_CURSOR'; payload: string | null }
+  | { type: 'SET_VALIDATE_DIALOG'; payload: boolean }
+  | { type: 'SET_PROVIDER_TO_VALIDATE'; payload: ToolProvider | null }
+  | { type: 'SET_DELETE_DIALOG'; payload: boolean }
+  | { type: 'SET_PROVIDER_TO_DELETE'; payload: ToolProvider | null }
+  | { type: 'SET_VIEW'; payload: 'table' | 'cards' }
+  | { type: 'SET_VIEW_MENU_OPEN'; payload: boolean }
+  | { type: 'OPEN_VALIDATE_DIALOG'; payload: ToolProvider }
+  | { type: 'OPEN_DELETE_DIALOG'; payload: ToolProvider }
+  | { type: 'CLOSE_VALIDATE_DIALOG' }
+  | { type: 'CLOSE_DELETE_DIALOG' }
+
+function integrationsReducer(state: IntegrationsState, action: IntegrationsAction): IntegrationsState {
+  switch (action.type) {
+    case 'SET_CURSOR':
+      return { ...state, cursor: action.payload }
+    case 'SET_VALIDATE_DIALOG':
+      return { ...state, validateDialogOpen: action.payload }
+    case 'SET_PROVIDER_TO_VALIDATE':
+      return { ...state, providerToValidate: action.payload }
+    case 'SET_DELETE_DIALOG':
+      return { ...state, deleteDialogOpen: action.payload }
+    case 'SET_PROVIDER_TO_DELETE':
+      return { ...state, providerToDelete: action.payload }
+    case 'SET_VIEW':
+      return { ...state, view: action.payload }
+    case 'SET_VIEW_MENU_OPEN':
+      return { ...state, isViewMenuOpen: action.payload }
+    case 'OPEN_VALIDATE_DIALOG':
+      return { ...state, providerToValidate: action.payload, validateDialogOpen: true }
+    case 'OPEN_DELETE_DIALOG':
+      return { ...state, providerToDelete: action.payload, deleteDialogOpen: true }
+    case 'CLOSE_VALIDATE_DIALOG':
+      return { ...state, validateDialogOpen: false, providerToValidate: null }
+    case 'CLOSE_DELETE_DIALOG':
+      return { ...state, deleteDialogOpen: false, providerToDelete: null }
+    default:
+      return state
+  }
+}
+
 export default function Integrations() {
   const [, navigate] = useLocation()
-  const [cursor, setCursor] = useState<string | null>(null)
+  const [state, dispatch] = useReducer(integrationsReducer, {
+    cursor: null,
+    validateDialogOpen: false,
+    providerToValidate: null,
+    deleteDialogOpen: false,
+    providerToDelete: null,
+    view: 'table',
+    isViewMenuOpen: false,
+  })
+  const { cursor, validateDialogOpen, providerToValidate, deleteDialogOpen, providerToDelete, view, isViewMenuOpen } =
+    state
+
   const query = toolProvidersClient.useQuery('get', '/tool_providers', {
     params: {
       query: {
@@ -86,12 +149,6 @@ export default function Integrations() {
   })
   const { search, setSearch, items: results } = useFuse<ToolProvider>(query.data?.resources ?? [], [{ name: 'name' }])
   const { showAlert } = useAlerts()
-
-  const [validateDialogOpen, setValidateDialogOpen] = useState(false)
-  const [providerToValidate, setProviderToValidate] = useState<ToolProvider | null>(null)
-
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [providerToDelete, setProviderToDelete] = useState<ToolProvider | null>(null)
 
   const { mutate: validateProvider } = toolProvidersClient.useMutation('post', '/tool_providers/{provider_id}/validate')
   const { mutate: deleteProvider } = toolProvidersClient.useMutation('delete', '/tool_providers/{provider_id}')
@@ -120,8 +177,7 @@ export default function Integrations() {
           })
         },
         onSettled: () => {
-          setValidateDialogOpen(false)
-          setProviderToValidate(null)
+          dispatch({ type: 'CLOSE_VALIDATE_DIALOG' })
         },
       }
     )
@@ -151,8 +207,7 @@ export default function Integrations() {
           })
         },
         onSettled: () => {
-          setDeleteDialogOpen(false)
-          setProviderToDelete(null)
+          dispatch({ type: 'CLOSE_DELETE_DIALOG' })
         },
       }
     )
@@ -167,22 +222,17 @@ export default function Integrations() {
     {
       title: <IconLabel icon={<CheckCircleIcon />}>Validate connection</IconLabel>,
       onClick: () => {
-        setProviderToValidate(provider)
-        setValidateDialogOpen(true)
+        dispatch({ type: 'OPEN_VALIDATE_DIALOG', payload: provider })
       },
     },
     { isSeparator: true },
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Uninstall</IconLabel>,
       onClick: () => {
-        setProviderToDelete(provider)
-        setDeleteDialogOpen(true)
+        dispatch({ type: 'OPEN_DELETE_DIALOG', payload: provider })
       },
     },
   ]
-
-  const [view, setView] = useState<'table' | 'cards'>('table')
-  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false)
 
   const queryState = useQueryState(query, 'Error loading integrations')
   if (queryState) {
@@ -212,11 +262,11 @@ export default function Integrations() {
           </Button>
           <Dropdown
             isOpen={isViewMenuOpen}
-            onOpenChange={(isOpen) => setIsViewMenuOpen(isOpen)}
+            onOpenChange={(isOpen) => dispatch({ type: 'SET_VIEW_MENU_OPEN', payload: isOpen })}
             toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
               <MenuToggle
                 ref={toggleRef}
-                onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
+                onClick={() => dispatch({ type: 'SET_VIEW_MENU_OPEN', payload: !isViewMenuOpen })}
                 isExpanded={isViewMenuOpen}
                 variant="plain"
               >
@@ -230,8 +280,8 @@ export default function Integrations() {
                   key="table"
                   isSelected={view === 'table'}
                   onClick={() => {
-                    setView('table')
-                    setIsViewMenuOpen(false)
+                    dispatch({ type: 'SET_VIEW', payload: 'table' })
+                    dispatch({ type: 'SET_VIEW_MENU_OPEN', payload: false })
                   }}
                 >
                   Table
@@ -240,8 +290,8 @@ export default function Integrations() {
                   key="cards"
                   isSelected={view === 'cards'}
                   onClick={() => {
-                    setView('cards')
-                    setIsViewMenuOpen(false)
+                    dispatch({ type: 'SET_VIEW', payload: 'cards' })
+                    dispatch({ type: 'SET_VIEW_MENU_OPEN', payload: false })
                   }}
                 >
                   Cards
@@ -282,8 +332,8 @@ export default function Integrations() {
               ),
               prev: query.data?.prev ?? null,
               next: query.data?.next ?? null,
-              onPrev: () => setCursor(query.data?.prev ?? null),
-              onNext: () => setCursor(query.data?.next ?? null),
+              onPrev: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.prev ?? null }),
+              onNext: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.next ?? null }),
             }}
           >
             <Thead>
@@ -325,26 +375,34 @@ export default function Integrations() {
           </CompassPanel>
         </StackItem>
       )}
-      <Modal isOpen={validateDialogOpen} onClose={() => setValidateDialogOpen(false)} variant="small">
+      <Modal
+        isOpen={validateDialogOpen}
+        onClose={() => dispatch({ type: 'SET_VALIDATE_DIALOG', payload: false })}
+        variant="small"
+      >
         <ModalHeader title="Validate integration" />
         <ModalBody>Are you sure you want to validate the connection for "{providerToValidate?.name}"?</ModalBody>
         <ModalFooter>
           <Button variant="primary" onClick={handleValidate}>
             Validate
           </Button>
-          <Button variant="link" onClick={() => setValidateDialogOpen(false)}>
+          <Button variant="link" onClick={() => dispatch({ type: 'SET_VALIDATE_DIALOG', payload: false })}>
             Cancel
           </Button>
         </ModalFooter>
       </Modal>
-      <Modal isOpen={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} variant="small">
+      <Modal
+        isOpen={deleteDialogOpen}
+        onClose={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
+        variant="small"
+      >
         <ModalHeader title="Delete integration" />
         <ModalBody>Are you sure you want to delete "{providerToDelete?.name}"? This action cannot be undone.</ModalBody>
         <ModalFooter>
           <Button variant="danger" onClick={handleDelete}>
             Delete
           </Button>
-          <Button variant="link" onClick={() => setDeleteDialogOpen(false)}>
+          <Button variant="link" onClick={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}>
             Cancel
           </Button>
         </ModalFooter>

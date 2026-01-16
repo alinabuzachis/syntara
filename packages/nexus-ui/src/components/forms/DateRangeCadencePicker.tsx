@@ -9,7 +9,7 @@ import {
   StackItem,
   TextInput,
 } from '@patternfly/react-core'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useReducer, useRef } from 'react'
 
 import { parseRepeatingInterval as parseRepeatingIntervalUtil } from '../../utils/triggerFormatting'
 
@@ -158,6 +158,62 @@ const cadenceOptions: { value: CadenceValue; label: string }[] = [
   { value: 'annually', label: 'Annually' },
 ]
 
+interface DateRangeCadenceState {
+  startDate: string
+  cadence: CadenceValue
+  triggerHour: number
+  triggerMinute: number
+  triggerPeriod: 'AM' | 'PM'
+  endDate: string
+}
+
+type DateRangeCadenceAction =
+  | { type: 'SET_START_DATE'; payload: string }
+  | { type: 'SET_CADENCE'; payload: CadenceValue }
+  | { type: 'SET_TRIGGER_HOUR'; payload: number }
+  | { type: 'SET_TRIGGER_MINUTE'; payload: number }
+  | { type: 'SET_TRIGGER_PERIOD'; payload: 'AM' | 'PM' }
+  | { type: 'SET_END_DATE'; payload: string }
+  | {
+      type: 'INIT_FROM_VALUE'
+      payload: {
+        startDate: string
+        cadence: CadenceValue
+        hour: number
+        minute: number
+        period: 'AM' | 'PM'
+        endDate: string
+      }
+    }
+
+function dateRangeCadenceReducer(state: DateRangeCadenceState, action: DateRangeCadenceAction): DateRangeCadenceState {
+  switch (action.type) {
+    case 'SET_START_DATE':
+      return { ...state, startDate: action.payload }
+    case 'SET_CADENCE':
+      return { ...state, cadence: action.payload }
+    case 'SET_TRIGGER_HOUR':
+      return { ...state, triggerHour: action.payload }
+    case 'SET_TRIGGER_MINUTE':
+      return { ...state, triggerMinute: action.payload }
+    case 'SET_TRIGGER_PERIOD':
+      return { ...state, triggerPeriod: action.payload }
+    case 'SET_END_DATE':
+      return { ...state, endDate: action.payload }
+    case 'INIT_FROM_VALUE':
+      return {
+        startDate: action.payload.startDate,
+        cadence: action.payload.cadence,
+        triggerHour: action.payload.hour,
+        triggerMinute: action.payload.minute,
+        triggerPeriod: action.payload.period,
+        endDate: action.payload.endDate,
+      }
+    default:
+      return state
+  }
+}
+
 /**
  * Date Range Cadence Picker Component
  *
@@ -179,12 +235,15 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
   const parsed = parseRepeatingInterval(value)
   const time = extractTime(parsed.start)
 
-  const [startDate, setStartDate] = useState(toDateOnly(parsed.start))
-  const [cadence, setCadence] = useState<CadenceValue>(durationToCadence(parsed.cadence))
-  const [triggerHour, setTriggerHour] = useState(time.hour)
-  const [triggerMinute, setTriggerMinute] = useState(time.minute)
-  const [triggerPeriod, setTriggerPeriod] = useState<'AM' | 'PM'>(time.period)
-  const [endDate, setEndDate] = useState(parsed.end ? toDateOnly(parsed.end) : '')
+  const [state, dispatch] = useReducer(dateRangeCadenceReducer, {
+    startDate: toDateOnly(parsed.start),
+    cadence: durationToCadence(parsed.cadence),
+    triggerHour: time.hour,
+    triggerMinute: time.minute,
+    triggerPeriod: time.period,
+    endDate: parsed.end ? toDateOnly(parsed.end) : '',
+  })
+  const { startDate, cadence, triggerHour, triggerMinute, triggerPeriod, endDate } = state
 
   // Track previous value and last emitted value to detect external changes
   const prevValueRef = useRef(value)
@@ -197,13 +256,17 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
       const parsed = parseRepeatingInterval(value)
       const time = extractTime(parsed.start)
 
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Controlled component pattern requires syncing external value changes
-      setStartDate(toDateOnly(parsed.start))
-      setCadence(durationToCadence(parsed.cadence))
-      setTriggerHour(time.hour)
-      setTriggerMinute(time.minute)
-      setTriggerPeriod(time.period)
-      setEndDate(parsed.end ? toDateOnly(parsed.end) : '')
+      dispatch({
+        type: 'INIT_FROM_VALUE',
+        payload: {
+          startDate: toDateOnly(parsed.start),
+          cadence: durationToCadence(parsed.cadence),
+          hour: time.hour,
+          minute: time.minute,
+          period: time.period,
+          endDate: parsed.end ? toDateOnly(parsed.end) : '',
+        },
+      })
     }
     prevValueRef.current = value
   }, [value])
@@ -249,7 +312,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
             id="cadence-start"
             type="date"
             value={startDate}
-            onChange={(_event, value) => setStartDate(value)}
+            onChange={(_event, value) => dispatch({ type: 'SET_START_DATE', payload: value })}
             aria-label="Start Date"
           />
         </FormGroup>
@@ -261,7 +324,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
           <FormSelect
             id="cadence-select"
             value={cadence}
-            onChange={(_event, value) => setCadence(value as CadenceValue)}
+            onChange={(_event, value) => dispatch({ type: 'SET_CADENCE', payload: value as CadenceValue })}
             aria-label="Cadence"
             validated={error ? 'error' : 'default'}
           >
@@ -283,7 +346,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
                   value={String(triggerHour)}
                   onChange={(_event, value) => {
                     const val = Number.parseInt(value) || 1
-                    setTriggerHour(Math.max(1, Math.min(12, val)))
+                    dispatch({ type: 'SET_TRIGGER_HOUR', payload: Math.max(1, Math.min(12, val)) })
                   }}
                   min={1}
                   max={12}
@@ -300,7 +363,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
                   value={String(triggerMinute).padStart(2, '0')}
                   onChange={(_event, value) => {
                     const val = Number.parseInt(value) || 0
-                    setTriggerMinute(Math.max(0, Math.min(59, val)))
+                    dispatch({ type: 'SET_TRIGGER_MINUTE', payload: Math.max(0, Math.min(59, val)) })
                   }}
                   min={0}
                   max={59}
@@ -311,7 +374,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
               <FlexItem>
                 <FormSelect
                   value={triggerPeriod}
-                  onChange={(_event, value) => setTriggerPeriod(value as 'AM' | 'PM')}
+                  onChange={(_event, value) => dispatch({ type: 'SET_TRIGGER_PERIOD', payload: value as 'AM' | 'PM' })}
                   aria-label="Period"
                   validated={error ? 'error' : 'default'}
                   style={{ width: '80px' }}
@@ -332,7 +395,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
             id="cadence-end"
             type="date"
             value={endDate}
-            onChange={(_event, value) => setEndDate(value)}
+            onChange={(_event, value) => dispatch({ type: 'SET_END_DATE', payload: value })}
             placeholder="Never ends"
             aria-label="End Date"
           />

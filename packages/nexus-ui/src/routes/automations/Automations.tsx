@@ -15,7 +15,7 @@ import {
 import { RhUiListIcon, RhUiEditFillIcon, RhUiPlayFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useState } from 'react'
+import { useReducer } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
@@ -37,8 +37,63 @@ import { getDateField } from '../../utils/getDateField'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
+interface AutomationsState {
+  cursor: string | null
+  confirmDialogOpen: boolean
+  deleteDialogOpen: boolean
+  selectedWorkflow: Workflow | null
+  workflowToDelete: Workflow | null
+}
+
+type AutomationsAction =
+  | { type: 'SET_CURSOR'; payload: string | null }
+  | { type: 'SET_CONFIRM_DIALOG'; payload: boolean }
+  | { type: 'SET_DELETE_DIALOG'; payload: boolean }
+  | { type: 'SET_SELECTED_WORKFLOW'; payload: Workflow | null }
+  | { type: 'SET_WORKFLOW_TO_DELETE'; payload: Workflow | null }
+  | { type: 'OPEN_CONFIRM_DIALOG'; payload: Workflow }
+  | { type: 'OPEN_DELETE_DIALOG'; payload: Workflow }
+  | { type: 'CLOSE_DIALOGS' }
+
+function automationsReducer(state: AutomationsState, action: AutomationsAction): AutomationsState {
+  switch (action.type) {
+    case 'SET_CURSOR':
+      return { ...state, cursor: action.payload }
+    case 'SET_CONFIRM_DIALOG':
+      return { ...state, confirmDialogOpen: action.payload }
+    case 'SET_DELETE_DIALOG':
+      return { ...state, deleteDialogOpen: action.payload }
+    case 'SET_SELECTED_WORKFLOW':
+      return { ...state, selectedWorkflow: action.payload }
+    case 'SET_WORKFLOW_TO_DELETE':
+      return { ...state, workflowToDelete: action.payload }
+    case 'OPEN_CONFIRM_DIALOG':
+      return { ...state, selectedWorkflow: action.payload, confirmDialogOpen: true }
+    case 'OPEN_DELETE_DIALOG':
+      return { ...state, workflowToDelete: action.payload, deleteDialogOpen: true }
+    case 'CLOSE_DIALOGS':
+      return {
+        ...state,
+        confirmDialogOpen: false,
+        deleteDialogOpen: false,
+        selectedWorkflow: null,
+        workflowToDelete: null,
+      }
+    default:
+      return state
+  }
+}
+
 export default function Automations() {
-  const [cursor, setCursor] = useState<string | null>(null)
+  const [state, dispatch] = useReducer(automationsReducer, {
+    cursor: null,
+    confirmDialogOpen: false,
+    deleteDialogOpen: false,
+    selectedWorkflow: null,
+    workflowToDelete: null,
+  })
+  const { cursor, confirmDialogOpen, deleteDialogOpen, selectedWorkflow, workflowToDelete } = state
+
   const workflowsQuery = workflowClient.useQuery('get', '/workflows', {
     params: {
       query: {
@@ -52,10 +107,6 @@ export default function Automations() {
   const { mutate: executeAutomation } = workflowClient.useMutation('post', '/executions')
   const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflowId}')
   const { showSuccess, showError } = useAlerts()
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
-  const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(null)
   const [, setLocation] = useLocation()
 
   const { search, setSearch, items: automations } = useFuse<Workflow>(workflows, [{ name: 'name' }])
@@ -91,8 +142,8 @@ export default function Automations() {
           )
         },
         onSettled: () => {
-          setDeleteDialogOpen(false)
-          setWorkflowToDelete(null)
+          dispatch({ type: 'SET_DELETE_DIALOG', payload: false })
+          dispatch({ type: 'SET_WORKFLOW_TO_DELETE', payload: null })
         },
       }
     )
@@ -108,8 +159,7 @@ export default function Automations() {
     {
       title: <IconLabel icon={<RhUiPlayFillIcon />}>Run automation</IconLabel>,
       onClick: () => {
-        setSelectedWorkflow(workflow)
-        setConfirmDialogOpen(true)
+        dispatch({ type: 'OPEN_CONFIRM_DIALOG', payload: workflow })
       },
     },
     {
@@ -124,8 +174,7 @@ export default function Automations() {
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete automation</IconLabel>,
       onClick: () => {
-        setWorkflowToDelete(workflow)
-        setDeleteDialogOpen(true)
+        dispatch({ type: 'OPEN_DELETE_DIALOG', payload: workflow })
       },
     },
   ]
@@ -185,8 +234,8 @@ export default function Automations() {
             ),
             prev: workflowsQuery.data?.prev ?? null,
             next: workflowsQuery.data?.next ?? null,
-            onPrev: () => setCursor(workflowsQuery.data?.prev ?? null),
-            onNext: () => setCursor(workflowsQuery.data?.next ?? null),
+            onPrev: () => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.prev ?? null }),
+            onNext: () => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.next ?? null }),
           }}
         >
           <Thead>
@@ -232,7 +281,11 @@ export default function Automations() {
           </Tbody>
         </ScrollableTableContainer>
       )}
-      <Modal isOpen={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} variant="small">
+      <Modal
+        isOpen={confirmDialogOpen}
+        onClose={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}
+        variant="small"
+      >
         <ModalHeader title={`Run ${selectedWorkflow?.name}?`} />
         <ModalBody>
           You are about to manually run this automation. This action will start the automation immediately, bypassing
@@ -245,19 +298,19 @@ export default function Automations() {
               if (selectedWorkflow) {
                 handleRunAutomation(selectedWorkflow)
               }
-              setConfirmDialogOpen(false)
+              dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
             }}
           >
             Run now
           </Button>
-          <Button variant="link" onClick={() => setConfirmDialogOpen(false)}>
+          <Button variant="link" onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}>
             Cancel
           </Button>
         </ModalFooter>
       </Modal>
       <Modal
         isOpen={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
+        onClose={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
         variant="medium"
         aria-labelledby="delete-automation-modal-title"
         aria-describedby="delete-automation-modal-body"
@@ -280,7 +333,11 @@ export default function Automations() {
           </Stack>
         </ModalBody>
         <ModalFooter>
-          <Button key="cancel" variant="secondary" onClick={() => setDeleteDialogOpen(false)}>
+          <Button
+            key="cancel"
+            variant="secondary"
+            onClick={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
+          >
             Cancel
           </Button>
           <Button key="delete" variant="danger" onClick={handleDeleteAutomation}>

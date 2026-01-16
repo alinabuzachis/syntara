@@ -25,7 +25,7 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { ConnectedIcon, DisconnectedIcon, ExclamationCircleIcon, SyncAltIcon } from '@patternfly/react-icons'
-import { useCallback, useState } from 'react'
+import { useCallback, useReducer } from 'react'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
@@ -93,7 +93,7 @@ function ConnectionStatusBadge({ state }: { state: ConnectionState }) {
 
   const colorMap = {
     green: 'green',
-    yellow: 'gold',
+    yellow: 'yellow',
     red: 'red',
     gray: 'grey',
   } as const
@@ -136,9 +136,32 @@ function MessageList({ messages, maxHeight = '200px' }: { messages: string[]; ma
 // Coffee Channel Demo
 // ============================================================================
 
+interface CoffeeDemoState {
+  input: string
+  messages: string[]
+}
+
+type CoffeeDemoAction =
+  | { type: 'SET_INPUT'; payload: string }
+  | { type: 'ADD_MESSAGE'; payload: string }
+  | { type: 'CLEAR_INPUT' }
+
+function coffeeDemoReducer(state: CoffeeDemoState, action: CoffeeDemoAction): CoffeeDemoState {
+  switch (action.type) {
+    case 'SET_INPUT':
+      return { ...state, input: action.payload }
+    case 'ADD_MESSAGE':
+      return { ...state, messages: [...state.messages, action.payload] }
+    case 'CLEAR_INPUT':
+      return { ...state, input: '' }
+    default:
+      return state
+  }
+}
+
 function CoffeeDemo() {
-  const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<string[]>([])
+  const [state, dispatch] = useReducer(coffeeDemoReducer, { input: '', messages: [] })
+  const { input, messages } = state
 
   const { sendRaw, isConnected, connectionState, connect, disconnect } = useWebSocket<CoffeeResponse>(
     WebSocketChannel.Coffee,
@@ -149,7 +172,7 @@ function CoffeeDemo() {
         // Backend sends raw response: { output: "..." }
         const output = (msg as unknown as CoffeeResponse).output || msg.payload?.output
         if (output) {
-          setMessages((prev) => [...prev, `[${timestamp}] ☕ ${output}`])
+          dispatch({ type: 'ADD_MESSAGE', payload: `[${timestamp}] ☕ ${output}` })
         }
       },
     }
@@ -159,8 +182,8 @@ function CoffeeDemo() {
     if (input.trim() && isConnected) {
       // Backend expects raw format: { input: "..." }
       sendRaw({ input: input.trim() })
-      setMessages((prev) => [...prev, `[${new Date().toLocaleTimeString()}] → Sent: "${input}"`])
-      setInput('')
+      dispatch({ type: 'ADD_MESSAGE', payload: `[${new Date().toLocaleTimeString()}] → Sent: "${input}"` })
+      dispatch({ type: 'CLEAR_INPUT' })
     }
   }, [input, isConnected, sendRaw])
 
@@ -191,7 +214,7 @@ function CoffeeDemo() {
               <FlexItem grow={{ default: 'grow' }}>
                 <TextInput
                   value={input}
-                  onChange={(_e, val) => setInput(val)}
+                  onChange={(_e, val) => dispatch({ type: 'SET_INPUT', payload: val })}
                   placeholder="Type something (e.g., 'hi')"
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                   isDisabled={!isConnected}
@@ -228,9 +251,32 @@ function CoffeeDemo() {
 // Chat Channel Demo
 // ============================================================================
 
+interface ChatDemoState {
+  message: string
+  messages: string[]
+}
+
+type ChatDemoAction =
+  | { type: 'SET_MESSAGE'; payload: string }
+  | { type: 'ADD_MESSAGE'; payload: string }
+  | { type: 'CLEAR_MESSAGE' }
+
+function chatDemoReducer(state: ChatDemoState, action: ChatDemoAction): ChatDemoState {
+  switch (action.type) {
+    case 'SET_MESSAGE':
+      return { ...state, message: action.payload }
+    case 'ADD_MESSAGE':
+      return { ...state, messages: [...state.messages, action.payload] }
+    case 'CLEAR_MESSAGE':
+      return { ...state, message: '' }
+    default:
+      return state
+  }
+}
+
 function ChatDemo() {
-  const [message, setMessage] = useState('')
-  const [messages, setMessages] = useState<string[]>([])
+  const [state, dispatch] = useReducer(chatDemoReducer, { message: '', messages: [] })
+  const { message, messages } = state
 
   const { sendRaw, isConnected, connectionState, connect, disconnect } = useWebSocket<ChatResponse>(
     WebSocketChannel.Chat,
@@ -244,7 +290,7 @@ function ChatDemo() {
         const msgType = response.type || msg.payload?.type
         if (reply) {
           const icon = msgType === 'random' ? '🤖' : '💬'
-          setMessages((prev) => [...prev, `[${timestamp}] ${icon} ${reply}`])
+          dispatch({ type: 'ADD_MESSAGE', payload: `[${timestamp}] ${icon} ${reply}` })
         }
       },
     }
@@ -254,8 +300,8 @@ function ChatDemo() {
     if (message.trim() && isConnected) {
       // Backend expects raw format: { message: "..." }
       sendRaw({ message: message.trim() })
-      setMessages((prev) => [...prev, `[${new Date().toLocaleTimeString()}] → You: ${message}`])
-      setMessage('')
+      dispatch({ type: 'ADD_MESSAGE', payload: `[${new Date().toLocaleTimeString()}] → You: ${message}` })
+      dispatch({ type: 'CLEAR_MESSAGE' })
     }
   }, [message, isConnected, sendRaw])
 
@@ -286,7 +332,7 @@ function ChatDemo() {
               <FlexItem grow={{ default: 'grow' }}>
                 <TextInput
                   value={message}
-                  onChange={(_e, val) => setMessage(val)}
+                  onChange={(_e, val) => dispatch({ type: 'SET_MESSAGE', payload: val })}
                   placeholder="Type a message..."
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                   isDisabled={!isConnected}
@@ -323,11 +369,51 @@ function ChatDemo() {
 // Agent Events Channel Demo
 // ============================================================================
 
+interface AgentEventsDemoState {
+  messages: string[]
+  subscriptions: Set<string>
+  pendingLog: boolean
+  pendingProgress: boolean
+}
+
+type AgentEventsDemoAction =
+  | { type: 'ADD_MESSAGE'; payload: string }
+  | { type: 'ADD_SUBSCRIPTION'; payload: string }
+  | { type: 'REMOVE_SUBSCRIPTION'; payload: string }
+  | { type: 'SET_PENDING_LOG'; payload: boolean }
+  | { type: 'SET_PENDING_PROGRESS'; payload: boolean }
+
+function agentEventsDemoReducer(state: AgentEventsDemoState, action: AgentEventsDemoAction): AgentEventsDemoState {
+  switch (action.type) {
+    case 'ADD_MESSAGE':
+      return { ...state, messages: [...state.messages, action.payload] }
+    case 'ADD_SUBSCRIPTION': {
+      const newSubscriptions = new Set(state.subscriptions)
+      newSubscriptions.add(action.payload)
+      return { ...state, subscriptions: newSubscriptions }
+    }
+    case 'REMOVE_SUBSCRIPTION': {
+      const newSubscriptions = new Set(state.subscriptions)
+      newSubscriptions.delete(action.payload)
+      return { ...state, subscriptions: newSubscriptions }
+    }
+    case 'SET_PENDING_LOG':
+      return { ...state, pendingLog: action.payload }
+    case 'SET_PENDING_PROGRESS':
+      return { ...state, pendingProgress: action.payload }
+    default:
+      return state
+  }
+}
+
 function AgentEventsDemo() {
-  const [messages, setMessages] = useState<string[]>([])
-  const [subscriptions, setSubscriptions] = useState<Set<string>>(new Set())
-  const [pendingLog, setPendingLog] = useState(false)
-  const [pendingProgress, setPendingProgress] = useState(false)
+  const [state, dispatch] = useReducer(agentEventsDemoReducer, {
+    messages: [],
+    subscriptions: new Set<string>(),
+    pendingLog: false,
+    pendingProgress: false,
+  })
+  const { messages, subscriptions, pendingLog, pendingProgress } = state
 
   const { sendRaw, isConnected, connectionState, connect, disconnect } = useWebSocket<AgentEvent | AgentEventsResponse>(
     WebSocketChannel.AgentEvents,
@@ -342,21 +428,16 @@ function AgentEventsDemo() {
         // Handle subscription confirmation
         if ('status' in payload && payload.status === 'success') {
           const response = payload as AgentEventsResponse
-          setMessages((prev) => [...prev, `[${timestamp}] ✅ ${response.action}: ${response.groups.join(', ')}`])
+          dispatch({
+            type: 'ADD_MESSAGE',
+            payload: `[${timestamp}] ✅ ${response.action}: ${response.groups.join(', ')}`,
+          })
 
           // Update subscription state
           if (response.action === 'subscribe') {
-            setSubscriptions((prev) => {
-              const next = new Set(prev)
-              response.groups.forEach((g) => next.add(g))
-              return next
-            })
+            response.groups.forEach((g) => dispatch({ type: 'ADD_SUBSCRIPTION', payload: g }))
           } else {
-            setSubscriptions((prev) => {
-              const next = new Set(prev)
-              response.groups.forEach((g) => next.delete(g))
-              return next
-            })
+            response.groups.forEach((g) => dispatch({ type: 'REMOVE_SUBSCRIPTION', payload: g }))
           }
           return
         }
@@ -375,7 +456,7 @@ function AgentEventsDemo() {
           }
           line += ` ${event.message}`
 
-          setMessages((prev) => [...prev, line])
+          dispatch({ type: 'ADD_MESSAGE', payload: line })
         }
       },
     }
@@ -389,8 +470,8 @@ function AgentEventsDemo() {
       // Backend expects raw format: { action: "...", groups: [...] }
       sendRaw({ action, groups: [group] })
 
-      if (group === 'log') setPendingLog(false)
-      if (group === 'progress') setPendingProgress(false)
+      if (group === 'log') dispatch({ type: 'SET_PENDING_LOG', payload: false })
+      if (group === 'progress') dispatch({ type: 'SET_PENDING_PROGRESS', payload: false })
     },
     [isConnected, sendRaw]
   )
@@ -435,7 +516,7 @@ function AgentEventsDemo() {
               isChecked={subscriptions.has('log') || pendingLog}
               isDisabled={!isConnected}
               onChange={(_e, checked) => {
-                setPendingLog(checked)
+                dispatch({ type: 'SET_PENDING_LOG', payload: checked })
                 handleSubscribe('log', checked)
               }}
             />
@@ -447,7 +528,7 @@ function AgentEventsDemo() {
               isChecked={subscriptions.has('progress') || pendingProgress}
               isDisabled={!isConnected}
               onChange={(_e, checked) => {
-                setPendingProgress(checked)
+                dispatch({ type: 'SET_PENDING_PROGRESS', payload: checked })
                 handleSubscribe('progress', checked)
               }}
             />
@@ -469,8 +550,26 @@ function AgentEventsDemo() {
 // Tokens Channel Demo (Receive-only)
 // ============================================================================
 
+interface TokensDemoState {
+  tokens: string[]
+}
+
+type TokensDemoAction = { type: 'ADD_TOKEN'; payload: string } | { type: 'CLEAR_TOKENS' }
+
+function tokensDemoReducer(state: TokensDemoState, action: TokensDemoAction): TokensDemoState {
+  switch (action.type) {
+    case 'ADD_TOKEN':
+      return { ...state, tokens: [...state.tokens, action.payload] }
+    case 'CLEAR_TOKENS':
+      return { ...state, tokens: [] }
+    default:
+      return state
+  }
+}
+
 function TokensDemo() {
-  const [tokens, setTokens] = useState<string[]>([])
+  const [state, dispatch] = useReducer(tokensDemoReducer, { tokens: [] })
+  const { tokens } = state
 
   const { isConnected, connectionState, connect, disconnect } = useWebSocket<TokenMessage>(WebSocketChannel.Tokens, {
     autoConnect: false,
@@ -481,7 +580,7 @@ function TokensDemo() {
       const sequence = data.sequence ?? msg.payload?.sequence
       if (token !== undefined) {
         const timestamp = new Date().toLocaleTimeString()
-        setTokens((prev) => [...prev, `[${timestamp}] #${sequence}: ${token}`])
+        dispatch({ type: 'ADD_TOKEN', payload: `[${timestamp}] #${sequence}: ${token}` })
       }
     },
   })
@@ -520,7 +619,7 @@ function TokensDemo() {
             )}
           </FlexItem>
           <FlexItem>
-            <Button variant="link" onClick={() => setTokens([])}>
+            <Button variant="link" onClick={() => dispatch({ type: 'CLEAR_TOKENS' })}>
               Clear
             </Button>
           </FlexItem>

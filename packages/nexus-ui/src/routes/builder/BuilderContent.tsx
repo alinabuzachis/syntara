@@ -34,7 +34,7 @@ import {
 } from '@patternfly/react-icons'
 import { useQueryClient, type Query } from '@tanstack/react-query'
 import { useReactFlow, type Node } from '@xyflow/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
@@ -100,6 +100,214 @@ function isWorkflowQuery(query: Query): boolean {
   )
 }
 
+// State interface for useReducer
+interface BuilderState {
+  confirmDialogOpen: boolean
+  deleteDialogOpen: boolean
+  detailsOpen: boolean
+  historyCardOpen: boolean
+  isKebabOpen: boolean
+  addNodePanelOpen: boolean
+  selectedNode: Node<NodeType['data']> | null
+  sourceNodeId: string | null
+  targetNodeId: string | null
+  edgeIdToReplace: string | null
+  sourceHandle: string | undefined
+  targetHandle: string | undefined
+  replacementNodeId: string | null
+  workflowName: string
+  workflowDescription: string
+  isEnabled: boolean
+}
+
+// Action types for reducer
+type BuilderAction =
+  | { type: 'SET_CONFIRM_DIALOG'; payload: boolean }
+  | { type: 'SET_DELETE_DIALOG'; payload: boolean }
+  | { type: 'SET_DETAILS_OPEN'; payload: boolean }
+  | { type: 'TOGGLE_DETAILS' }
+  | { type: 'SET_HISTORY_CARD_OPEN'; payload: boolean }
+  | { type: 'TOGGLE_HISTORY' }
+  | { type: 'SET_KEBAB_OPEN'; payload: boolean }
+  | { type: 'SET_ADD_NODE_PANEL'; payload: boolean }
+  | { type: 'SET_SELECTED_NODE'; payload: Node<NodeType['data']> | null }
+  | { type: 'SET_SOURCE_NODE_ID'; payload: string | null }
+  | { type: 'SET_TARGET_NODE_ID'; payload: string | null }
+  | { type: 'SET_EDGE_ID_TO_REPLACE'; payload: string | null }
+  | { type: 'SET_SOURCE_HANDLE'; payload: string | undefined }
+  | { type: 'SET_TARGET_HANDLE'; payload: string | undefined }
+  | { type: 'SET_REPLACEMENT_NODE_ID'; payload: string | null }
+  | { type: 'SET_WORKFLOW_NAME'; payload: string }
+  | { type: 'SET_WORKFLOW_DESCRIPTION'; payload: string }
+  | { type: 'SET_IS_ENABLED'; payload: boolean }
+  | {
+      type: 'OPEN_ADD_NODE_FROM_EDGE'
+      payload: { sourceId: string; targetId?: string; edgeId?: string; handle?: string; targetHandle?: string }
+    }
+  | { type: 'OPEN_ADD_NODE_PANEL'; payload: { sourceNodeId: string | null; replacementNodeId: string | null } }
+  | { type: 'CLOSE_ADD_NODE_PANEL' }
+  | { type: 'CLOSE_OTHER_PANELS' }
+  | { type: 'NODE_CLICK'; payload: { node: Node<NodeType['data']>; isGeneric: boolean } }
+  | { type: 'CLEAR_SELECTED_IF_DELETED'; payload: string[] }
+  | { type: 'INIT_WORKFLOW'; payload: { name: string; description: string; isEnabled: boolean } }
+
+// Reducer function
+function builderReducer(state: BuilderState, action: BuilderAction): BuilderState {
+  switch (action.type) {
+    case 'SET_CONFIRM_DIALOG':
+      return { ...state, confirmDialogOpen: action.payload }
+    case 'SET_DELETE_DIALOG':
+      return { ...state, deleteDialogOpen: action.payload }
+    case 'SET_DETAILS_OPEN':
+      return { ...state, detailsOpen: action.payload }
+    case 'TOGGLE_DETAILS':
+      return {
+        ...state,
+        detailsOpen: !state.detailsOpen,
+        addNodePanelOpen: !state.detailsOpen ? false : state.addNodePanelOpen,
+        historyCardOpen: !state.detailsOpen ? false : state.historyCardOpen,
+        selectedNode: !state.detailsOpen ? null : state.selectedNode,
+      }
+    case 'SET_HISTORY_CARD_OPEN':
+      return { ...state, historyCardOpen: action.payload }
+    case 'TOGGLE_HISTORY':
+      return {
+        ...state,
+        historyCardOpen: !state.historyCardOpen,
+        addNodePanelOpen: !state.historyCardOpen ? false : state.addNodePanelOpen,
+        detailsOpen: !state.historyCardOpen ? false : state.detailsOpen,
+        selectedNode: !state.historyCardOpen ? null : state.selectedNode,
+      }
+    case 'SET_KEBAB_OPEN':
+      return { ...state, isKebabOpen: action.payload }
+    case 'SET_ADD_NODE_PANEL':
+      return { ...state, addNodePanelOpen: action.payload }
+    case 'SET_SELECTED_NODE':
+      return { ...state, selectedNode: action.payload }
+    case 'SET_SOURCE_NODE_ID':
+      return { ...state, sourceNodeId: action.payload }
+    case 'SET_TARGET_NODE_ID':
+      return { ...state, targetNodeId: action.payload }
+    case 'SET_EDGE_ID_TO_REPLACE':
+      return { ...state, edgeIdToReplace: action.payload }
+    case 'SET_SOURCE_HANDLE':
+      return { ...state, sourceHandle: action.payload }
+    case 'SET_TARGET_HANDLE':
+      return { ...state, targetHandle: action.payload }
+    case 'SET_REPLACEMENT_NODE_ID':
+      return { ...state, replacementNodeId: action.payload }
+    case 'SET_WORKFLOW_NAME':
+      return { ...state, workflowName: action.payload }
+    case 'SET_WORKFLOW_DESCRIPTION':
+      return { ...state, workflowDescription: action.payload }
+    case 'SET_IS_ENABLED':
+      return { ...state, isEnabled: action.payload }
+    case 'OPEN_ADD_NODE_FROM_EDGE':
+      return {
+        ...state,
+        selectedNode: null,
+        detailsOpen: false,
+        historyCardOpen: false,
+        sourceNodeId: action.payload.sourceId,
+        targetNodeId: action.payload.targetId || null,
+        edgeIdToReplace: action.payload.edgeId || null,
+        sourceHandle: action.payload.handle || undefined,
+        targetHandle: action.payload.targetHandle,
+        replacementNodeId: null,
+        addNodePanelOpen: true,
+      }
+    case 'OPEN_ADD_NODE_PANEL':
+      return {
+        ...state,
+        selectedNode: null,
+        detailsOpen: false,
+        historyCardOpen: false,
+        sourceNodeId: action.payload.sourceNodeId,
+        targetNodeId: null,
+        edgeIdToReplace: null,
+        sourceHandle: undefined,
+        targetHandle: undefined,
+        replacementNodeId: action.payload.replacementNodeId,
+        addNodePanelOpen: true,
+      }
+    case 'CLOSE_ADD_NODE_PANEL':
+      return {
+        ...state,
+        addNodePanelOpen: false,
+        sourceNodeId: null,
+        targetNodeId: null,
+        edgeIdToReplace: null,
+        sourceHandle: undefined,
+        targetHandle: undefined,
+        replacementNodeId: null,
+      }
+    case 'CLOSE_OTHER_PANELS':
+      return {
+        ...state,
+        selectedNode: null,
+        detailsOpen: false,
+        historyCardOpen: false,
+      }
+    case 'NODE_CLICK':
+      if (action.payload.isGeneric) {
+        return {
+          ...state,
+          selectedNode: null,
+          detailsOpen: false,
+          historyCardOpen: false,
+          sourceNodeId: null,
+          replacementNodeId: action.payload.node.id,
+          addNodePanelOpen: true,
+        }
+      } else {
+        return {
+          ...state,
+          selectedNode: action.payload.node,
+          addNodePanelOpen: false,
+          detailsOpen: false,
+          historyCardOpen: false,
+          replacementNodeId: null,
+        }
+      }
+    case 'CLEAR_SELECTED_IF_DELETED':
+      if (state.selectedNode && action.payload.includes(state.selectedNode.id)) {
+        return { ...state, selectedNode: null }
+      }
+      return state
+    case 'INIT_WORKFLOW':
+      return {
+        ...state,
+        workflowName: action.payload.name,
+        workflowDescription: action.payload.description,
+        isEnabled: action.payload.isEnabled,
+      }
+    default:
+      return state
+  }
+}
+
+// Initial state factory
+function getInitialState(): BuilderState {
+  return {
+    confirmDialogOpen: false,
+    deleteDialogOpen: false,
+    detailsOpen: false,
+    historyCardOpen: false,
+    isKebabOpen: false,
+    addNodePanelOpen: false,
+    selectedNode: null,
+    sourceNodeId: null,
+    targetNodeId: null,
+    edgeIdToReplace: null,
+    sourceHandle: undefined,
+    targetHandle: undefined,
+    replacementNodeId: null,
+    workflowName: 'New Workflow',
+    workflowDescription: 'New Workflow',
+    isEnabled: false,
+  }
+}
+
 export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId } = props
   const [, setLocation] = useLocation()
@@ -116,22 +324,25 @@ export function BuilderContent(props: BuilderContentProps) {
   } = useWorkflowStore()
   const { registerSaveHandler, unregisterSaveHandler } = useUnsavedChanges()
 
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [detailsOpen, setDetailsOpen] = useState(false)
-  const [historyCardOpen, setHistoryCardOpen] = useState(false)
-  const [isKebabOpen, setIsKebabOpen] = useState(false)
-  const [addNodePanelOpen, setAddNodePanelOpen] = useState(false)
-  const [selectedNode, setSelectedNode] = useState<Node<NodeType['data']> | null>(null)
-  const [sourceNodeId, setSourceNodeId] = useState<string | null>(null)
-  const [targetNodeId, setTargetNodeId] = useState<string | null>(null)
-  const [edgeIdToReplace, setEdgeIdToReplace] = useState<string | null>(null)
-  const [sourceHandle, setSourceHandle] = useState<string | undefined>(undefined)
-  const [targetHandle, setTargetHandle] = useState<string | undefined>(undefined)
-  const [replacementNodeId, setReplacementNodeId] = useState<string | null>(null)
-  const [workflowName, setWorkflowName] = useState('New Workflow')
-  const [workflowDescription, setWorkflowDescription] = useState('New Workflow')
-  const [isEnabled, setIsEnabled] = useState(false)
+  const [state, dispatch] = useReducer(builderReducer, getInitialState())
+  const {
+    confirmDialogOpen,
+    deleteDialogOpen,
+    detailsOpen,
+    historyCardOpen,
+    isKebabOpen,
+    addNodePanelOpen,
+    selectedNode,
+    sourceNodeId,
+    targetNodeId,
+    edgeIdToReplace,
+    sourceHandle,
+    targetHandle,
+    replacementNodeId,
+    workflowName,
+    workflowDescription,
+    isEnabled,
+  } = state
 
   const expandAllEvent = useMemo(() => new EventTarget(), [])
   const collapseAllEvent = useMemo(() => new EventTarget(), [])
@@ -180,9 +391,10 @@ export function BuilderContent(props: BuilderContentProps) {
       queueMicrotask(() => {
         // Use atomic operation for consistency
         loadWorkflowWithEdges(newWorkflow, [])
-        setWorkflowName('New Workflow')
-        setWorkflowDescription('New Workflow')
-        setIsEnabled(false)
+        dispatch({
+          type: 'INIT_WORKFLOW',
+          payload: { name: 'New Workflow', description: 'New Workflow', isEnabled: false },
+        })
         // No need for markClean - loadWorkflowWithEdges sets isDirty: false
       })
     } else if (
@@ -253,9 +465,14 @@ export function BuilderContent(props: BuilderContentProps) {
         // This prevents race conditions where BuilderFlow renders with workflow but no edges
         // Note: loadWorkflowWithEdges already sets isDirty to false
         loadWorkflowWithEdges(flattenedWorkflow, generatedEdges)
-        setWorkflowName(workflow.name)
-        setWorkflowDescription(workflow.description ?? workflow.name ?? 'New Workflow')
-        setIsEnabled(workflow.is_enabled ?? false)
+        dispatch({
+          type: 'INIT_WORKFLOW',
+          payload: {
+            name: workflow.name,
+            description: workflow.description ?? workflow.name ?? 'New Workflow',
+            isEnabled: workflow.is_enabled ?? false,
+          },
+        })
         hasLoadedRef.current = true
       })
     }
@@ -265,9 +482,14 @@ export function BuilderContent(props: BuilderContentProps) {
   useEffect(() => {
     if (workflow && !isNew) {
       queueMicrotask(() => {
-        setWorkflowName(workflow.name)
-        setWorkflowDescription(workflow.description ?? workflow.name ?? 'New Workflow')
-        setIsEnabled(workflow.is_enabled ?? false)
+        dispatch({
+          type: 'INIT_WORKFLOW',
+          payload: {
+            name: workflow.name,
+            description: workflow.description ?? workflow.name ?? 'New Workflow',
+            isEnabled: workflow.is_enabled ?? false,
+          },
+        })
       })
     }
   }, [workflow, isNew])
@@ -437,11 +659,11 @@ export function BuilderContent(props: BuilderContentProps) {
       {
         onSuccess: () => {
           showSuccess(`Successfully started automation "${workflowName}"`, 'Automation Started')
-          setConfirmDialogOpen(false)
+          dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
         },
         onError: (error) => {
           showError(`Failed to start automation "${workflowName}": ${getErrorMessage(error)}`, 'Automation Failed')
-          setConfirmDialogOpen(false)
+          dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
         },
       }
     )
@@ -455,40 +677,29 @@ export function BuilderContent(props: BuilderContentProps) {
       {
         onSuccess: () => {
           showSuccess(`Successfully deleted automation "${workflowName}"`, 'Automation Deleted')
-          setDeleteDialogOpen(false)
+          dispatch({ type: 'SET_DELETE_DIALOG', payload: false })
           // Navigate to new workflow page to start fresh
           setLocation('/automation-builder/new')
         },
         onError: (error) => {
           showError(`Failed to delete automation "${workflowName}": ${getErrorMessage(error)}`, 'Delete Failed')
-          setDeleteDialogOpen(false)
+          dispatch({ type: 'SET_DELETE_DIALOG', payload: false })
         },
       }
     )
   }, [workflow, workflowName, deleteWorkflow, showSuccess, showError, setLocation])
 
   const handleToggleDetails = useCallback(() => {
-    setDetailsOpen((prev) => {
-      const newState = !prev
-      if (newState) {
-        // Close other panels when opening details
-        setAddNodePanelOpen(false)
-        setHistoryCardOpen(false)
-        setSelectedNode(null)
-        reactFlowInstance.setNodes((nodes) => nodes.map((node) => ({ ...node, selected: false })))
-      }
-      return newState
-    })
-  }, [reactFlowInstance])
+    dispatch({ type: 'TOGGLE_DETAILS' })
+    if (!detailsOpen) {
+      // When opening details, deselect all nodes in React Flow
+      reactFlowInstance.setNodes((nodes) => nodes.map((node) => ({ ...node, selected: false })))
+    }
+  }, [reactFlowInstance, detailsOpen])
 
   const handleToggleHistory = useCallback(() => {
-    const newHistoryState = !historyCardOpen
-    setHistoryCardOpen(newHistoryState)
-    if (newHistoryState) {
-      // Close other panels when opening history
-      setAddNodePanelOpen(false)
-      setDetailsOpen(false)
-      setSelectedNode(null)
+    dispatch({ type: 'TOGGLE_HISTORY' })
+    if (!historyCardOpen) {
       void executionsQuery.refetch()
     }
   }, [historyCardOpen, executionsQuery])
@@ -498,32 +709,12 @@ export function BuilderContent(props: BuilderContentProps) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isGeneric = (node.data as any).metadata?.__isGeneric === true
 
-    if (isGeneric) {
-      // For generic nodes, open AddNodePanel in replacement mode
-      setSelectedNode(null)
-      setDetailsOpen(false)
-      setHistoryCardOpen(false)
-      setSourceNodeId(null) // Clear sourceNodeId
-      setReplacementNodeId(node.id) // Set the node to be replaced
-      setAddNodePanelOpen(true)
-    } else {
-      // For regular nodes, show node details panel
-      setSelectedNode(node)
-      setAddNodePanelOpen(false)
-      setDetailsOpen(false)
-      setHistoryCardOpen(false)
-      setReplacementNodeId(null) // Clear replacementNodeId
-    }
+    dispatch({ type: 'NODE_CLICK', payload: { node, isGeneric } })
   }, [])
 
   // Memoized callback for adding nodes from edges
   const handleAddNodeFromEdge = useCallback(
     (sourceId: string, targetId?: string, edgeId?: string, handle?: string) => {
-      // Close other panels when opening add node panel
-      setSelectedNode(null)
-      setDetailsOpen(false)
-      setHistoryCardOpen(false)
-
       // If we have an edgeId, look up the edge to get its targetHandle
       let edgeTargetHandle: string | undefined = undefined
       if (edgeId && reactFlowInstance) {
@@ -531,26 +722,17 @@ export function BuilderContent(props: BuilderContentProps) {
         edgeTargetHandle = edge?.targetHandle ?? undefined
       }
 
-      // Set up add node panel state
-      setSourceNodeId(sourceId)
-      setTargetNodeId(targetId || null)
-      setEdgeIdToReplace(edgeId || null)
-      setSourceHandle(handle || undefined)
-      setTargetHandle(edgeTargetHandle)
-      setReplacementNodeId(null) // Clear replacement mode
-      setAddNodePanelOpen(true)
+      dispatch({
+        type: 'OPEN_ADD_NODE_FROM_EDGE',
+        payload: { sourceId, targetId, edgeId, handle, targetHandle: edgeTargetHandle },
+      })
     },
     [reactFlowInstance]
   )
 
   const handleNodesDeleted = useCallback((deletedNodeIds: string[]) => {
     // Close the details panel if the selected node was deleted
-    setSelectedNode((current) => {
-      if (current && deletedNodeIds.includes(current.id)) {
-        return null
-      }
-      return current
-    })
+    dispatch({ type: 'CLEAR_SELECTED_IF_DELETED', payload: deletedNodeIds })
   }, [])
 
   // Handle browser navigation (beforeunload) - warn when closing tab with unsaved changes
@@ -579,7 +761,7 @@ export function BuilderContent(props: BuilderContentProps) {
                   type="text"
                   value={workflowName}
                   onChange={(_event, value) => {
-                    setWorkflowName(value)
+                    dispatch({ type: 'SET_WORKFLOW_NAME', payload: value })
                     markDirty()
                   }}
                   placeholder="Workflow name"
@@ -589,17 +771,7 @@ export function BuilderContent(props: BuilderContentProps) {
               <Button
                 variant="plain"
                 onClick={() => {
-                  // Close other panels when opening add node panel
-                  setSelectedNode(null)
-                  setDetailsOpen(false)
-                  setHistoryCardOpen(false)
-                  // Set up add node panel state
-                  setSourceNodeId(null) // No source node when adding from header
-                  setTargetNodeId(null)
-                  setEdgeIdToReplace(null)
-                  setSourceHandle(undefined)
-                  setTargetHandle(undefined)
-                  setAddNodePanelOpen(true)
+                  dispatch({ type: 'OPEN_ADD_NODE_PANEL', payload: { sourceNodeId: null, replacementNodeId: null } })
                 }}
                 icon={
                   <Icon isInline>
@@ -616,7 +788,7 @@ export function BuilderContent(props: BuilderContentProps) {
                   <Divider orientation={{ default: 'vertical' }} />
                   <Button
                     variant="plain"
-                    onClick={() => setConfirmDialogOpen(true)}
+                    onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true })}
                     icon={
                       <Icon isInline>
                         <RhUiPlayFillIcon />
@@ -681,7 +853,7 @@ export function BuilderContent(props: BuilderContentProps) {
                   <Switch
                     isChecked={isEnabled}
                     onChange={(_event, checked) => {
-                      setIsEnabled(checked)
+                      dispatch({ type: 'SET_IS_ENABLED', payload: checked })
                       markDirty()
                     }}
                     label={isEnabled ? 'Enabled' : 'Disabled'}
@@ -694,13 +866,13 @@ export function BuilderContent(props: BuilderContentProps) {
                   <Divider orientation={{ default: 'vertical' }} />
                   <Dropdown
                     isOpen={isKebabOpen}
-                    onOpenChange={(isOpen) => setIsKebabOpen(isOpen)}
+                    onOpenChange={(isOpen) => dispatch({ type: 'SET_KEBAB_OPEN', payload: isOpen })}
                     popperProps={{ position: 'right' }}
                     toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
                       <MenuToggle
                         ref={toggleRef}
                         variant="plain"
-                        onClick={() => setIsKebabOpen(!isKebabOpen)}
+                        onClick={() => dispatch({ type: 'SET_KEBAB_OPEN', payload: !isKebabOpen })}
                         isExpanded={isKebabOpen}
                         aria-label="Automation actions"
                       >
@@ -711,8 +883,8 @@ export function BuilderContent(props: BuilderContentProps) {
                     <DropdownList>
                       <DropdownItem
                         onClick={() => {
-                          setDeleteDialogOpen(true)
-                          setIsKebabOpen(false)
+                          dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
+                          dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
                         }}
                         isDanger
                       >
@@ -783,13 +955,7 @@ export function BuilderContent(props: BuilderContentProps) {
                 <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
                   <AddNodePanel
                     onClose={() => {
-                      setAddNodePanelOpen(false)
-                      setSourceNodeId(null)
-                      setTargetNodeId(null)
-                      setEdgeIdToReplace(null)
-                      setSourceHandle(undefined)
-                      setTargetHandle(undefined)
-                      setReplacementNodeId(null)
+                      dispatch({ type: 'CLOSE_ADD_NODE_PANEL' })
                     }}
                     onNodeSelect={showSuccess}
                     onNodeError={showError}
@@ -797,13 +963,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     replacementNodeId={replacementNodeId}
                     onNodeReplaced={(nodeId) => {
                       // Close add node panel first
-                      setAddNodePanelOpen(false)
-                      setReplacementNodeId(null)
-                      setSourceNodeId(null)
-                      setTargetNodeId(null)
-                      setEdgeIdToReplace(null)
-                      setSourceHandle(undefined)
-                      setTargetHandle(undefined)
+                      dispatch({ type: 'CLOSE_ADD_NODE_PANEL' })
 
                       // Wait for React Flow to update with the new node data after replacement
                       // We need to poll because the update goes through: Zustand → BuilderFlow useMemo → useNodeUpdates → React Flow
@@ -823,7 +983,7 @@ export function BuilderContent(props: BuilderContentProps) {
 
                         if (updatedNode && !isStillGeneric) {
                           // Node has been updated, select it to open the edit form
-                          setSelectedNode(updatedNode)
+                          dispatch({ type: 'SET_SELECTED_NODE', payload: updatedNode })
                         } else if (attempts < maxAttempts) {
                           attempts++
                           setTimeout(checkAndSelect, 50)
@@ -950,7 +1110,7 @@ export function BuilderContent(props: BuilderContentProps) {
                 <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
                   <AutomationHistoryCard
                     executions={executionsQuery.data?.resources ?? []}
-                    onClose={() => setHistoryCardOpen(false)}
+                    onClose={() => dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })}
                   />
                 </FlexItem>
               )}
@@ -962,21 +1122,25 @@ export function BuilderContent(props: BuilderContentProps) {
                     workflowName={workflowName}
                     workflowDescription={workflowDescription}
                     onNameChange={(name) => {
-                      setWorkflowName(name)
+                      dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
                       markDirty()
                     }}
                     onDescriptionChange={(desc) => {
-                      setWorkflowDescription(desc)
+                      dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: desc })
                       markDirty()
                     }}
-                    onClose={() => setDetailsOpen(false)}
+                    onClose={() => dispatch({ type: 'SET_DETAILS_OPEN', payload: false })}
                   />
                 </FlexItem>
               )}
 
               {selectedNode && (
                 <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-                  <NodeDetailsPanel key={selectedNode.id} node={selectedNode} onClose={() => setSelectedNode(null)} />
+                  <NodeDetailsPanel
+                    key={selectedNode.id}
+                    node={selectedNode}
+                    onClose={() => dispatch({ type: 'SET_SELECTED_NODE', payload: null })}
+                  />
                 </FlexItem>
               )}
             </Flex>
@@ -985,7 +1149,7 @@ export function BuilderContent(props: BuilderContentProps) {
 
         <Modal
           isOpen={confirmDialogOpen}
-          onClose={() => setConfirmDialogOpen(false)}
+          onClose={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}
           variant="small"
           aria-labelledby="run-workflow-modal-title"
           aria-describedby="run-workflow-modal-description"
@@ -996,7 +1160,7 @@ export function BuilderContent(props: BuilderContentProps) {
             its normal trigger conditions.
           </ModalBody>
           <ModalFooter>
-            <Button variant="link" onClick={() => setConfirmDialogOpen(false)}>
+            <Button variant="link" onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}>
               Cancel
             </Button>
             <Button variant="primary" onClick={handleRunAutomation}>
@@ -1006,7 +1170,7 @@ export function BuilderContent(props: BuilderContentProps) {
         </Modal>
         <Modal
           isOpen={deleteDialogOpen}
-          onClose={() => setDeleteDialogOpen(false)}
+          onClose={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
           variant="medium"
           aria-labelledby="delete-automation-modal-title"
           aria-describedby="delete-automation-modal-body"
@@ -1029,7 +1193,11 @@ export function BuilderContent(props: BuilderContentProps) {
             </Stack>
           </ModalBody>
           <ModalFooter>
-            <Button key="cancel" variant="secondary" onClick={() => setDeleteDialogOpen(false)}>
+            <Button
+              key="cancel"
+              variant="secondary"
+              onClick={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
+            >
               Cancel
             </Button>
             <Button key="delete" variant="danger" onClick={handleDeleteAutomation}>
