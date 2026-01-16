@@ -414,3 +414,149 @@ class TestOrchestrationServiceLogging:
             ]
             assert len(completion_calls) == 1
             assert str(invocation_id) in str(completion_calls[0])
+
+
+class TestToolEventDataModels:
+    """Test ToolCallEventData and ToolResultEventData models."""
+
+    def test_tool_call_event_data_serialization(self) -> None:
+        """Test that ToolCallEventData serializes correctly with to_dict()."""
+        from nexus.agent_orchestrator.models.streaming_events import ToolCallEventData
+
+        # Arrange
+        tool_call = ToolCallEventData(
+            tool_name="calculate_sum",
+            tool_input={"a": 5, "b": 3},
+        )
+
+        # Act
+        result = tool_call.to_dict()
+
+        # Assert
+        assert result == {"tool_name": "calculate_sum", "tool_input": {"a": 5, "b": 3}}
+        assert isinstance(result["tool_name"], str)
+        assert isinstance(result["tool_input"], dict)
+
+    def test_tool_result_event_data_serialization(self) -> None:
+        """Test that ToolResultEventData serializes correctly with to_dict()."""
+        from nexus.agent_orchestrator.models.streaming_events import ToolResultEventData
+
+        # Arrange
+        tool_result = ToolResultEventData(
+            tool_name="calculate_sum",
+            tool_output='{"result": 8}',
+        )
+
+        # Act
+        result = tool_result.to_dict()
+
+        # Assert
+        assert result == {"tool_name": "calculate_sum", "tool_output": '{"result": 8}'}
+        assert isinstance(result["tool_name"], str)
+        assert isinstance(result["tool_output"], str)
+
+
+class TestToolEventProcessing:
+    """Test tool event processing methods in OrchestrationService."""
+
+    @pytest.mark.asyncio
+    async def test_process_tool_start_event_publishes_correctly(self) -> None:
+        """Test that _process_tool_start_event extracts data and publishes tool_call event."""
+        # Arrange
+        mock_llm = AsyncMock()
+        mock_context_manager = MagicMock()
+        service = OrchestrationService(mock_llm, mock_context_manager)
+
+        invocation_id = uuid4()
+        stream_id = "test-stream-id"
+        mock_client = AsyncMock()
+
+        # Simulate LangGraph on_tool_start event
+        tool_start_event = {
+            "event": "on_tool_start",
+            "name": "calculate_sum",
+            "data": {"input": {"a": 5, "b": 3}},
+        }
+
+        # Act
+        await service._process_tool_start_event(tool_start_event, invocation_id, stream_id, mock_client)
+
+        # Assert
+        mock_client.publish.assert_called_once()
+        call_args = mock_client.publish.call_args[0]
+        assert call_args[0] == stream_id
+
+        published_event = call_args[1]
+        assert published_event["event_type"] == "tool_call"
+        assert published_event["invocation_id"] == str(invocation_id)
+        assert "timestamp" in published_event
+        assert published_event["data"]["tool_name"] == "calculate_sum"
+        assert published_event["data"]["tool_input"] == {"a": 5, "b": 3}
+
+    @pytest.mark.asyncio
+    async def test_process_tool_end_event_with_raw_string_output(self) -> None:
+        """Test that _process_tool_end_event handles raw string output correctly."""
+        # Arrange
+        mock_llm = AsyncMock()
+        mock_context_manager = MagicMock()
+        service = OrchestrationService(mock_llm, mock_context_manager)
+
+        invocation_id = uuid4()
+        stream_id = "test-stream-id"
+        mock_client = AsyncMock()
+
+        # Simulate LangGraph on_tool_end event with raw string output
+        tool_end_event = {
+            "event": "on_tool_end",
+            "name": "calculate_sum",
+            "data": {"output": '{"result": 8}'},
+        }
+
+        # Act
+        await service._process_tool_end_event(tool_end_event, invocation_id, stream_id, mock_client)
+
+        # Assert
+        mock_client.publish.assert_called_once()
+        call_args = mock_client.publish.call_args[0]
+        assert call_args[0] == stream_id
+
+        published_event = call_args[1]
+        assert published_event["event_type"] == "tool_result"
+        assert published_event["invocation_id"] == str(invocation_id)
+        assert published_event["data"]["tool_name"] == "calculate_sum"
+        assert published_event["data"]["tool_output"] == '{"result": 8}'
+
+    @pytest.mark.asyncio
+    async def test_process_tool_end_event_with_toolmessage_object(self) -> None:
+        """Test that _process_tool_end_event extracts content from ToolMessage objects."""
+        # Arrange
+        mock_llm = AsyncMock()
+        mock_context_manager = MagicMock()
+        service = OrchestrationService(mock_llm, mock_context_manager)
+
+        invocation_id = uuid4()
+        stream_id = "test-stream-id"
+        mock_client = AsyncMock()
+
+        # Simulate LangGraph on_tool_end event with ToolMessage-like object
+        mock_tool_message = MagicMock()
+        mock_tool_message.content = '{"operation": "sum", "result": 8}'
+
+        tool_end_event = {
+            "event": "on_tool_end",
+            "name": "calculate_sum",
+            "data": {"output": mock_tool_message},
+        }
+
+        # Act
+        await service._process_tool_end_event(tool_end_event, invocation_id, stream_id, mock_client)
+
+        # Assert
+        mock_client.publish.assert_called_once()
+        call_args = mock_client.publish.call_args[0]
+
+        published_event = call_args[1]
+        assert published_event["event_type"] == "tool_result"
+        assert published_event["data"]["tool_name"] == "calculate_sum"
+        # Should extract .content from ToolMessage object
+        assert published_event["data"]["tool_output"] == '{"operation": "sum", "result": 8}'

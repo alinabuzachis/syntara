@@ -525,3 +525,86 @@ class TestToolExecutionFailureRetryWorkflow:
             assert "Persistent failure on attempt 4" in refresh_error, (
                 f"Tool refresh_error should indicate reason for failure, got: {refresh_error}"
             )
+
+
+class TestToolEventWebSocketStreaming:
+    """Integration test for tool event streaming via WebSocket/Valkey.
+
+    Validates that tool_call and tool_result events are published to the
+    Valkey stream during tool execution, enabling real-time WebSocket streaming.
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("mock_mcp_provider_for_testing")
+    async def test_tool_events_published_to_valkey_stream(
+        self, auth_client_with_tool_aware_mocked_llm: AsyncClient
+    ) -> None:
+        """Test that tool_call and tool_result events appear in the Valkey stream.
+
+        1. Create invocation with tool-requiring prompt
+        2. Wait for completion
+        3. Verify tool_call and tool_result events were published to stream
+        """
+        from nexus.core.valkey.stream import StreamClient
+
+        # Set up ToolProvider with calculator tool
+        await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
+
+        # Verify tools are available
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
+        assert tools_response.status_code == 200
+        tool_names = [t["name"] for t in tools_response.json()["resources"]]
+        assert "mock_calculator" in tool_names
+
+        # Create invocation that triggers calculator tool
+        invocation_data = {
+            "prompt": "Use the calculator to add 5 and 3.",
+            "session_id": "test-tool-events-stream-session",
+        }
+
+        create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)
+        assert create_response.status_code == 202
+        invocation_id = create_response.json()["id"]
+
+        # Wait for invocation to complete
+        async with wait_for_invocation_execution(
+            auth_client_with_tool_aware_mocked_llm, invocation_id, max_wait_time=15.0
+        ) as completed_invocation:
+            assert completed_invocation is not None
+            assert completed_invocation["status"] == "completed"
+
+        # Read events from Valkey stream and verify tool events were published
+        stream_id = f"invocation:{invocation_id}:events"
+        events: list[dict[str, Any]] = []
+
+        async with StreamClient() as client:
+            async for event in client.events(stream_id, start_id="0-0"):
+                events.append(event)
+                # Stop after completion event
+                if event.get("event_type") == "completion":
+                    break
+
+        # Verify we received the expected event types
+        event_types = [e.get("event_type") for e in events]
+
+        # Must have tool_call event (tool execution started)
+        assert "tool_call" in event_types, f"Expected tool_call event in stream, got: {event_types}"
+
+        # Must have tool_result event (tool execution completed)
+        assert "tool_result" in event_types, f"Expected tool_result event in stream, got: {event_types}"
+
+        # Must have completion event
+        assert "completion" in event_types, f"Expected completion event in stream, got: {event_types}"
+
+        # Verify tool_call event structure
+        tool_call_event = next(e for e in events if e.get("event_type") == "tool_call")
+        assert tool_call_event["data"]["tool_name"] == "mock_calculator"
+        assert "tool_input" in tool_call_event["data"]
+        assert tool_call_event["data"]["tool_input"] == {"a": 5, "b": 3}
+
+        # Verify tool_result event structure
+        tool_result_event = next(e for e in events if e.get("event_type") == "tool_result")
+        assert tool_result_event["data"]["tool_name"] == "mock_calculator"
+        assert "tool_output" in tool_result_event["data"]
+        # Tool output should contain the result (8)
+        assert "8" in tool_result_event["data"]["tool_output"]

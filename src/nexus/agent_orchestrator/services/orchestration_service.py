@@ -27,7 +27,12 @@ from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.context_manager.planner import ContextManagerPlanner
 from nexus.agent_orchestrator.models.agent_response import GenericAgentResponse
 from nexus.agent_orchestrator.models.agent_state import AgentState, AgentStateFactory
-from nexus.agent_orchestrator.models.streaming_events import CompletionEventData, DeltaEventData
+from nexus.agent_orchestrator.models.streaming_events import (
+    CompletionEventData,
+    DeltaEventData,
+    ToolCallEventData,
+    ToolResultEventData,
+)
 from nexus.agent_orchestrator.services.error_handler import classify_streaming_error
 from nexus.agent_orchestrator.services.streaming_service import get_invocation_stream_id
 from nexus.agent_orchestrator.tool_manager import ToolSynchronizer
@@ -297,26 +302,106 @@ class OrchestrationService:
             client: StreamClient for publishing events
 
         """
-        # Filter for LLM streaming events
         event_type = event.get("event")
-        if event_type == "on_chat_model_stream":
-            data = event.get("data")
-            if isinstance(data, dict):
-                chunk = data.get("chunk")
-                if chunk is not None:
-                    content = chunk.content if hasattr(chunk, "content") else None
 
-                    if content:
-                        # Publish delta event to Valkey
-                        delta_data = DeltaEventData(delta=content)
-                        delta_event = {
-                            "event_type": "delta",
-                            "invocation_id": str(invocation_id),
-                            "timestamp": datetime.now(UTC).isoformat(),
-                            "data": delta_data.to_dict(),
-                        }
-                        await client.publish(stream_id, delta_event)
-                        logger.debug("Published delta event (invocation_id=%s)", invocation_id)
+        # Handle LLM streaming events
+        if event_type == "on_chat_model_stream":
+            await self._process_chat_stream_event(event, invocation_id, stream_id, client)
+
+        # Handle tool start events
+        elif event_type == "on_tool_start":
+            await self._process_tool_start_event(event, invocation_id, stream_id, client)
+
+        # Handle tool end events
+        elif event_type == "on_tool_end":
+            await self._process_tool_end_event(event, invocation_id, stream_id, client)
+
+    async def _process_chat_stream_event(
+        self, event: dict[str, Any], invocation_id: UUID, stream_id: str, client: StreamClient
+    ) -> None:
+        """Process LLM chat model streaming event.
+
+        Args:
+            event: Event dictionary from astream_events()
+            invocation_id: Invocation UUID
+            stream_id: Valkey stream ID
+            client: StreamClient for publishing events
+
+        """
+        data = event.get("data")
+        if isinstance(data, dict):
+            chunk = data.get("chunk")
+            if chunk is not None:
+                content = chunk.content if hasattr(chunk, "content") else None
+
+                if content:
+                    # Publish delta event to Valkey
+                    delta_data = DeltaEventData(delta=content)
+                    delta_event = {
+                        "event_type": "delta",
+                        "invocation_id": str(invocation_id),
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "data": delta_data.to_dict(),
+                    }
+                    await client.publish(stream_id, delta_event)
+                    logger.debug("Published delta event (invocation_id=%s)", invocation_id)
+
+    async def _process_tool_start_event(
+        self, event: dict[str, Any], invocation_id: UUID, stream_id: str, client: StreamClient
+    ) -> None:
+        """Process tool execution start event.
+
+        Args:
+            event: Event dictionary from astream_events()
+            invocation_id: Invocation UUID
+            stream_id: Valkey stream ID
+            client: StreamClient for publishing events
+
+        """
+        tool_name = event.get("name", "unknown")
+        data = event.get("data", {})
+        tool_input = data.get("input", {}) if isinstance(data, dict) else {}
+
+        logger.info("Tool call started: %s (invocation_id=%s)", tool_name, invocation_id)
+
+        tool_call_data = ToolCallEventData(tool_name=tool_name, tool_input=tool_input)
+        tool_call_event = {
+            "event_type": "tool_call",
+            "invocation_id": str(invocation_id),
+            "timestamp": datetime.now(UTC).isoformat(),
+            "data": tool_call_data.to_dict(),
+        }
+        await client.publish(stream_id, tool_call_event)
+
+    async def _process_tool_end_event(
+        self, event: dict[str, Any], invocation_id: UUID, stream_id: str, client: StreamClient
+    ) -> None:
+        """Process tool execution end event.
+
+        Args:
+            event: Event dictionary from astream_events()
+            invocation_id: Invocation UUID
+            stream_id: Valkey stream ID
+            client: StreamClient for publishing events
+
+        """
+        tool_name = event.get("name", "unknown")
+        data = event.get("data", {})
+
+        # Extract tool output - handle both raw strings and ToolMessage objects
+        raw_output = data.get("output", "") if isinstance(data, dict) else ""
+        tool_output = str(raw_output.content) if hasattr(raw_output, "content") else str(raw_output)
+
+        logger.info("Tool call completed: %s (invocation_id=%s)", tool_name, invocation_id)
+
+        tool_result_data = ToolResultEventData(tool_name=tool_name, tool_output=tool_output)
+        tool_result_event = {
+            "event_type": "tool_result",
+            "invocation_id": str(invocation_id),
+            "timestamp": datetime.now(UTC).isoformat(),
+            "data": tool_result_data.to_dict(),
+        }
+        await client.publish(stream_id, tool_result_event)
 
     async def _publish_completion_event(self, invocation_id: UUID, stream_id: str, client: StreamClient) -> None:
         """Publish completion event to Valkey.

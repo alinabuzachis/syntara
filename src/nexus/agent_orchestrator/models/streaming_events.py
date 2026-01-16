@@ -114,3 +114,88 @@ class CompletionEventData(SQLModel):
 
         """
         return {}
+
+
+class ToolCallEventData(SQLModel):
+    """Data payload for tool call start events.
+
+    Indicates that the LLM has requested a tool call and execution is starting.
+
+    Attributes:
+        tool_name: Name of the tool being called
+        tool_input: Input arguments passed to the tool
+
+    """
+
+    tool_name: str = Field(
+        description="Name of the tool being called",
+        min_length=1,
+        examples=["calculator", "weather_lookup"],
+    )
+    tool_input: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Input arguments passed to the tool",
+        examples=[{"a": 5, "b": 3}, {"city": "London"}],
+    )
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        from_attributes=True,
+        validate_by_name=True,
+        json_schema_extra={
+            "examples": [
+                {"tool_name": "calculator", "tool_input": {"a": 5, "b": 3}},
+                {"tool_name": "weather_lookup", "tool_input": {"city": "London"}},
+            ]
+        },
+    )  # type: ignore[assignment]
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert ToolCallEventData to dictionary for API/WebSocket response body.
+
+        Returns:
+            Dict representation with all fields
+
+        """
+        return self.model_dump()
+
+
+class ToolResultEventData(SQLModel):
+    """Data payload for tool execution result events.
+
+    Contains the result of a tool execution.
+
+    Attributes:
+        tool_name: Name of the tool that was executed
+        tool_output: Output/result from the tool execution
+
+    """
+
+    tool_name: str = Field(
+        description="Name of the tool that was executed",
+        min_length=1,
+        examples=["calculator", "weather_lookup"],
+    )
+    tool_output: str = Field(
+        description="Output/result from the tool execution",
+        examples=["8", "Sunny, 22°C"],
+    )
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        from_attributes=True,
+        validate_by_name=True,
+        json_schema_extra={
+            "examples": [
+                {"tool_name": "calculator", "tool_output": "8"},
+                {"tool_name": "weather_lookup", "tool_output": "Sunny, 22°C"},
+            ]
+        },
+    )  # type: ignore[assignment]
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert ToolResultEventData to dictionary for API/WebSocket response body.
+
+        Returns:
+            Dict representation with all fields
+
+        """
+        return self.model_dump()
