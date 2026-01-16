@@ -48,7 +48,7 @@ class TestToolProviderDiscovery:
     ) -> None:
         """Test successful retrieval of all tool providers."""
         # Mock successful API response
-        respx.get("http://test-api/api/v1/tool-providers").mock(
+        respx.get("http://test-api/api/v1/tool_manager/tool_providers").mock(
             return_value=httpx.Response(
                 200, json={"resources": [sample_provider_response], "total_count": 1, "next": None}
             )
@@ -68,7 +68,7 @@ class TestToolProviderDiscovery:
     async def test_get_all_tool_providers_no_filter(self, client: ToolManagerClient) -> None:
         """Test that all providers are requested without enabled filter."""
         # Mock API response
-        respx.get("http://test-api/api/v1/tool-providers").mock(
+        respx.get("http://test-api/api/v1/tool_manager/tool_providers").mock(
             return_value=httpx.Response(200, json={"resources": [], "total_count": 0})
         )
 
@@ -81,7 +81,7 @@ class TestToolProviderDiscovery:
     @respx.mock
     async def test_get_all_tool_providers_empty_response(self, client: ToolManagerClient) -> None:
         """Test handling of empty provider list."""
-        respx.get("http://test-api/api/v1/tool-providers").mock(
+        respx.get("http://test-api/api/v1/tool_manager/tool_providers").mock(
             return_value=httpx.Response(200, json={"resources": [], "total_count": 0})
         )
 
@@ -93,7 +93,7 @@ class TestToolProviderDiscovery:
     @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tool_providers_api_error(self, client: ToolManagerClient) -> None:
         """Test handling of API errors during provider discovery."""
-        respx.get("http://test-api/api/v1/tool-providers").mock(
+        respx.get("http://test-api/api/v1/tool_manager/tool_providers").mock(
             return_value=httpx.Response(500, text="Internal server error")
         )
 
@@ -104,7 +104,9 @@ class TestToolProviderDiscovery:
     @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tool_providers_timeout(self, client: ToolManagerClient) -> None:
         """Test handling of timeout during provider discovery."""
-        respx.get("http://test-api/api/v1/tool-providers").mock(side_effect=httpx.TimeoutException("Request timeout"))
+        respx.get("http://test-api/api/v1/tool_manager/tool_providers").mock(
+            side_effect=httpx.TimeoutException("Request timeout")
+        )
 
         with pytest.raises(httpx.TimeoutException):
             await client.get_all_tool_providers()
@@ -113,7 +115,9 @@ class TestToolProviderDiscovery:
     @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tool_providers_network_error(self, client: ToolManagerClient) -> None:
         """Test handling of network errors during provider discovery."""
-        respx.get("http://test-api/api/v1/tool-providers").mock(side_effect=httpx.ConnectError("Connection failed"))
+        respx.get("http://test-api/api/v1/tool_manager/tool_providers").mock(
+            side_effect=httpx.ConnectError("Connection failed")
+        )
 
         with pytest.raises(httpx.ConnectError):
             await client.get_all_tool_providers()
@@ -157,7 +161,7 @@ class TestToolProviderDiscovery:
             {"resources": providers_page2, "total_count": 2, "next": None},
         ]
 
-        with mock_paginated_api(r".*tool-providers.*", pages):
+        with mock_paginated_api(r".*tool_providers.*", pages):
             providers = await client.get_all_tool_providers()
 
         assert len(providers) == 2

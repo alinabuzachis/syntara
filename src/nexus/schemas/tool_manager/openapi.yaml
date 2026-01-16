@@ -6,7 +6,7 @@ info:
   version: 1.0.0
 
 servers:
-  - url: /api/v1
+  - url: /api/v1/tool_manager
     description: API server (relative path)
 
 # Reference shared resource schemas
@@ -15,10 +15,199 @@ x-shared-contracts:
     namespace: shared
 
 paths:
-  /tool-providers:
+  /tools:
+    get:
+      summary: List all tools
+      description: Retrieve list of tools from all Tool Providers with filtering
+      operationId: get_tools
+      parameters:
+        - name: status
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            allOf:
+              - type: string
+                description: Exact match of the status. ?status=<status>
+              - type: object
+                properties:
+                  eq:
+                    type: string
+                    description: Exact match of the status. ?status[eq]=<status>
+          description: |
+            Filter tools by status.
+            - Exact match: `status=available`
+        - name: enabled
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter tools by enabled status
+        - name: provider_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter tools by provider ID
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Sort field and direction (e.g., 'name', '-created_at')
+        - name: namespaced_name
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            type: string
+            description: Filter by namespaced name (namespaced_name[contains]=text)
+          description: Filter tools by namespaced name with text matching
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+      responses:
+        '200':
+          description: List of tools
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ToolWithParameters'
+                        maxItems: 100
+                    required:
+                      - resources
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+
+  /tools/{tool_id}:
+    get:
+      summary: Get tool details
+      description: Retrieve detailed information about specific tool
+      operationId: get_tool
+      parameters:
+        - name: tool_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tool details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolWithParameters'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+        '404':
+          description: Tool not found
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+
+    patch:
+      summary: Update tool configuration
+      description: Update tool enablement status and configuration
+      operationId: patch_tool
+      parameters:
+        - name: tool_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/ToolUpdate'
+      responses:
+        '200':
+          description: Tool updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolWithParameters'
+        '400':
+          description: Invalid tool configuration
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+        '404':
+          description: Tool not found
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+
+  /tools/bulk_update:
+    patch:
+      summary: Bulk update tool enablement
+      description: Enable or disable multiple tools at once
+      operationId: bulk_update_tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolBulkUpdate'
+      responses:
+        '200':
+          description: Tools updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolBulkUpdateResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+
+  /tool_providers:
     get:
       summary: List all registered Tool Providers
       description: Retrieve list of all Tool Providers with optional filtering
+      operationId: get_tool_providers
       parameters:
         - name: status
           in: query
@@ -100,6 +289,7 @@ paths:
     post:
       summary: Register new Tool Provider
       description: Register a new external Tool Provider
+      operationId: register_tool_provider
       requestBody:
         required: true
         content:
@@ -132,10 +322,11 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
 
-  /tool-providers/{provider_id}:
+  /tool_providers/{provider_id}:
     get:
       summary: Get Tool Provider details
       description: Retrieve detailed information about specific Tool Provider
+      operationId: get_tool_provider
       parameters:
         - name: provider_id
           in: path
@@ -166,6 +357,7 @@ paths:
     put:
       summary: Update Tool Provider configuration
       description: Update configuration of existing Tool Provider
+      operationId: update_tool_provider
       parameters:
         - name: provider_id
           in: path
@@ -208,6 +400,7 @@ paths:
     patch:
       summary: Partially update Tool Provider configuration
       description: Partially update configuration of existing Tool Provider
+      operationId: patch_tool_provider
       parameters:
         - name: provider_id
           in: path
@@ -250,6 +443,7 @@ paths:
     delete:
       summary: Remove Tool Provider
       description: Remove Tool Provider and all associated tools
+      operationId: delete_tool_provider
       parameters:
         - name: provider_id
           in: path
@@ -273,10 +467,11 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
 
-  /tool-providers/{provider_id}/validate:
+  /tool_providers/{provider_id}/validate:
     post:
       summary: Validate Tool Provider connection
       description: Test connection and validate Tool Provider compatibility
+      operationId: validate_tool_provider
       parameters:
         - name: provider_id
           in: path
@@ -304,10 +499,11 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
 
-  /tool-providers/{provider_id}/refresh-tools:
+  /tool_providers/{provider_id}/refresh_tools:
     post:
       summary: Refresh tools from Tool Provider
       description: Connect to Tool Provider and refresh available tools
+      operationId: refresh_tool_provider
       parameters:
         - name: provider_id
           in: path
@@ -341,12 +537,13 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
 
-  /tool-providers/test:
+  /tool_providers/test:
     post:
       summary: Test Tool Provider definition
       description: |
         Test a Tool Provider definition without saving it to the database.
         Validates the configuration and tests connectivity using the appropriate adapter.
+      operationId: test_tool_provider
       requestBody:
         required: true
         content:
@@ -369,6 +566,131 @@ paths:
 
 components:
   schemas:
+    ToolWithParameters:
+      allOf:
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Resource
+        - type: object
+          properties:
+            provider_id:
+              type: string
+              format: uuid
+              description: UUID of the associated tool provider
+            namespaced_name:
+              type: string
+              maxLength: 200
+              description: Unique namespaced name for the tool
+            enabled:
+              type: boolean
+              default: true
+              description: Whether the tool is enabled
+            status:
+              type: string
+              enum: [available, missing, error]
+              default: available
+              description: Current status of the tool
+            last_executed_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: Timestamp of last execution
+            last_refreshed_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: Timestamp of last refresh from provider
+            refresh_error:
+              type: string
+              nullable: true
+              description: Error message from last refresh attempt
+            parameters:
+              type: array
+              items:
+                $ref: '#/components/schemas/ToolParameter'
+              description: Tool parameters
+          required:
+            - provider_id
+            - namespaced_name
+            - enabled
+            - status
+            - parameters
+
+    ToolParameter:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+        type:
+          type: string
+          enum: [string, number, boolean, object, array]
+        description:
+          type: string
+        required:
+          type: boolean
+        default_value:
+          type: object
+        example_value:
+          type: object
+      required:
+        - id
+        - name
+        - type
+        - description
+        - required
+
+    ToolUpdate:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        status:
+          type: string
+          enum: [available, missing, error]
+          description: Current status of the tool
+        refresh_error:
+          type: string
+          nullable: true
+          description: Error message from last refresh attempt
+
+    ToolBulkUpdate:
+      type: object
+      properties:
+        tool_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 50
+          minItems: 1
+          description: List of tool UUIDs to update (max 50)
+        enabled:
+          type: boolean
+          description: Enable/disable the tools
+      required:
+        - tool_ids
+        - enabled
+
+    ToolBulkUpdateResponse:
+      type: object
+      properties:
+        updated_count:
+          type: integer
+          description: Number of tools successfully updated
+        skipped_count:
+          type: integer
+          description: Number of tools skipped (already in target state)
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when bulk update completed
+      required:
+        - updated_count
+        - skipped_count
+        - updated_at
+
     ToolProviderWithConfiguration:
       allOf:
         - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Resource

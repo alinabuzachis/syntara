@@ -1,4 +1,4 @@
-"""Contract tests for GET /api/v1/tools/{tool_id} endpoint.
+"""Contract tests for GET /api/v1/tool_manager/tools/{tool_id} endpoint.
 
 Tests tool retrieval, 404 handling, and response format.
 """
@@ -18,7 +18,7 @@ class TestToolsGetContract:
     @pytest.mark.asyncio
     async def test_get_tool_success_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
         """Test successful tool retrieval returns 200."""
-        response = await base_client.get(f"/api/v1/tools/{test_tool.id}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{test_tool.id}")
 
         # Contract: Must return 200 OK for existing tool
         assert response.status_code == 200
@@ -40,7 +40,7 @@ class TestToolsGetContract:
     @pytest.mark.asyncio
     async def test_get_tool_all_fields_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
         """Test response includes all required fields."""
-        response = await base_client.get(f"/api/v1/tools/{test_tool.id}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{test_tool.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -86,7 +86,7 @@ class TestToolsGetContract:
     async def test_get_tool_not_found_contract(self, base_client: AsyncClient) -> None:
         """Test tool retrieval with non-existent ID returns 404."""
         non_existent_id = uuid4()
-        response = await base_client.get(f"/api/v1/tools/{non_existent_id}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{non_existent_id}")
 
         # Contract: Must return 404 Not Found for non-existent tool
         assert response.status_code == 404
@@ -100,7 +100,7 @@ class TestToolsGetContract:
     async def test_get_tool_invalid_uuid_contract(self, base_client: AsyncClient) -> None:
         """Test tool retrieval with invalid UUID format returns 422."""
         invalid_uuid = "not-a-valid-uuid"
-        response = await base_client.get(f"/api/v1/tools/{invalid_uuid}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{invalid_uuid}")
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID
         assert response.status_code == 422
@@ -112,7 +112,7 @@ class TestToolsGetContract:
     @pytest.mark.asyncio
     async def test_get_tool_status_values_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
         """Test tool status field contains valid enum values."""
-        response = await base_client.get(f"/api/v1/tools/{test_tool.id}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{test_tool.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -125,7 +125,7 @@ class TestToolsGetContract:
     @pytest.mark.asyncio
     async def test_get_tool_datetime_format_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
         """Test datetime fields follow ISO format."""
-        response = await base_client.get(f"/api/v1/tools/{test_tool.id}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{test_tool.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -146,7 +146,7 @@ class TestToolsGetContract:
     @pytest.mark.asyncio
     async def test_get_tool_uuid_format_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
         """Test UUID fields are properly formatted."""
-        response = await base_client.get(f"/api/v1/tools/{test_tool.id}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{test_tool.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -168,7 +168,7 @@ class TestToolsGetContract:
     @pytest.mark.asyncio
     async def test_get_tool_namespaced_name_format_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
         """Test namespaced_name follows expected format."""
-        response = await base_client.get(f"/api/v1/tools/{test_tool.id}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{test_tool.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -189,7 +189,7 @@ class TestToolsGetContract:
     @pytest.mark.asyncio
     async def test_get_tool_with_parameters_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
         """Test tool with parameters includes parameter data."""
-        response = await base_client.get(f"/api/v1/tools/{test_tool.id}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{test_tool.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -204,7 +204,7 @@ class TestToolsGetContract:
     @pytest.mark.asyncio
     async def test_get_tool_response_content_type_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
         """Test response has correct content type."""
-        response = await base_client.get(f"/api/v1/tools/{test_tool.id}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{test_tool.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -215,7 +215,7 @@ class TestToolsGetContract:
     @pytest.mark.asyncio
     async def test_get_tool_consistent_data_contract(self, base_client: AsyncClient, test_tool: Tool) -> None:
         """Test retrieved data is consistent with stored data."""
-        response = await base_client.get(f"/api/v1/tools/{test_tool.id}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{test_tool.id}")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -244,7 +244,7 @@ class TestToolsGetContract:
         calculator_tool = next(tool for tool in tools_with_params if tool.name == "Calculator Tool")
 
         # Make HTTP request to get specific tool - this is end-to-end testing
-        response = await base_client.get(f"/api/v1/tools/{calculator_tool.id}")
+        response = await base_client.get(f"/api/v1/tool_manager/tools/{calculator_tool.id}")
 
         # Verify successful response
         assert response.status_code == 200

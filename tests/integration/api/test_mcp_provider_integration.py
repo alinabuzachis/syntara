@@ -19,7 +19,7 @@ class TestMCPProviderIntegration:
 
     async def _create_and_verify_provider(self, base_client: AsyncClient, provider_data: dict[str, Any]) -> str:
         """Create provider and verify initial state."""
-        create_response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201, f"Provider creation failed: {create_response.text}"
 
         provider_data_response = create_response.json()
@@ -35,14 +35,14 @@ class TestMCPProviderIntegration:
 
     async def _validate_and_verify_provider(self, base_client: AsyncClient, provider_id: str) -> None:
         """Validate provider and verify status transition."""
-        validate_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/validate")
+        validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
         assert validate_response.status_code == 200, f"Provider validation failed: {validate_response.text}"
 
         validation_result = validate_response.json()
         assert validation_result["valid"] is True, f"Provider validation failed: {validation_result.get('error')}"
 
         # Verify provider status changed to available
-        get_provider_response = await base_client.get(f"/api/v1/tool-providers/{provider_id}")
+        get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
         assert get_provider_response.status_code == 200
 
         provider_status_data = get_provider_response.json()
@@ -54,14 +54,14 @@ class TestMCPProviderIntegration:
 
     async def _refresh_and_verify_tools(self, base_client: AsyncClient, provider_id: str) -> list[dict[str, Any]]:
         """Refresh tools and return discovered tools."""
-        refresh_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/refresh-tools")
+        refresh_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools")
         assert refresh_response.status_code == 200, f"Tool refresh failed: {refresh_response.text}"
 
         refresh_result = refresh_response.json()
         assert refresh_result["refreshed_count"] > 0, "Expected tools to be discovered"
 
         # Query tools for this provider
-        tools_response = await base_client.get("/api/v1/tools", params={"provider_id[eq]": provider_id})
+        tools_response = await base_client.get("/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id})
         assert tools_response.status_code == 200, f"Tools query failed: {tools_response.text}"
 
         tools_data = tools_response.json()
@@ -100,7 +100,7 @@ class TestMCPProviderIntegration:
         sum_tool = next((t for t in tools if t["name"] == "calculate_sum"), None)
         assert sum_tool is not None, "calculate_sum tool not found"
 
-        tool_detail_response = await base_client.get(f"/api/v1/tools/{sum_tool['id']}")
+        tool_detail_response = await base_client.get(f"/api/v1/tool_manager/tools/{sum_tool['id']}")
         assert tool_detail_response.status_code == 200
 
         tool_detail = tool_detail_response.json()
@@ -108,7 +108,7 @@ class TestMCPProviderIntegration:
 
     async def _verify_final_provider_state(self, base_client: AsyncClient, provider_id: str) -> None:
         """Verify final provider state after integration test."""
-        final_provider_response = await base_client.get(f"/api/v1/tool-providers/{provider_id}")
+        final_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
         assert final_provider_response.status_code == 200
 
         final_provider_data = final_provider_response.json()
@@ -179,7 +179,7 @@ class TestMCPProviderIntegration:
         }
 
         # Create the provider (should succeed with validating status)
-        create_response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201, f"Provider creation failed: {create_response.text}"
 
         provider_data_response = create_response.json()
@@ -187,7 +187,7 @@ class TestMCPProviderIntegration:
         assert provider_data_response["status"] == "validating"
 
         # Step 2: Validate the provider (expecting failure due to unreachable server)
-        validate_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/validate")
+        validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
         assert validate_response.status_code == 200, f"Validation request failed: {validate_response.text}"
 
         validation_result = validate_response.json()
@@ -195,7 +195,7 @@ class TestMCPProviderIntegration:
         assert "error" in validation_result
 
         # Step 3: Check provider status - should be in error state
-        get_provider_response = await base_client.get(f"/api/v1/tool-providers/{provider_id}")
+        get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
         assert get_provider_response.status_code == 200
 
         provider_status = get_provider_response.json()
@@ -203,7 +203,7 @@ class TestMCPProviderIntegration:
         assert provider_status["validation_error"] is not None
 
         # Step 4: Verify no tools were created for failed provider
-        tools_response = await base_client.get("/api/v1/tools", params={"provider_id[eq]": provider_id})
+        tools_response = await base_client.get("/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id})
         assert tools_response.status_code == 200
 
         tools_data = tools_response.json()
@@ -242,28 +242,32 @@ class TestMCPProviderIntegration:
                 },
             }
 
-            create_response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+            create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
             assert create_response.status_code == 201
 
             provider_id = create_response.json()["id"]
             assert create_response.json()["status"] == "validating"
 
             # Step 2: Validate the provider
-            validate_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/validate")
+            validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
             assert validate_response.status_code == 200
 
             validation_result = validate_response.json()
             assert validation_result["valid"] is True
 
             # Step 3: Refresh tools to discover and persist them
-            refresh_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/refresh-tools")
+            refresh_response = await base_client.post(
+                f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools"
+            )
             assert refresh_response.status_code == 200
 
             refresh_result = refresh_response.json()
             assert refresh_result["refreshed_count"] > 0
 
             # Step 4: Get tools
-            tools_response = await base_client.get("/api/v1/tools", params={"provider_id[eq]": provider_id})
+            tools_response = await base_client.get(
+                "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
+            )
             assert tools_response.status_code == 200
 
             tools = tools_response.json()["resources"]
@@ -274,7 +278,7 @@ class TestMCPProviderIntegration:
             assert sum_tool is not None
 
             # Step 6: Get tool details to verify parameters were persisted
-            tool_detail_response = await base_client.get(f"/api/v1/tools/{sum_tool['id']}")
+            tool_detail_response = await base_client.get(f"/api/v1/tool_manager/tools/{sum_tool['id']}")
             assert tool_detail_response.status_code == 200
 
             tool_detail = tool_detail_response.json()
@@ -318,21 +322,21 @@ class TestMCPProviderIntegration:
                 },
             }
 
-            create_response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+            create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
             assert create_response.status_code == 201
 
             provider_id = create_response.json()["id"]
             assert create_response.json()["status"] == "validating"
 
             # Step 2: Validate the provider (proves factory created MCPProvider successfully)
-            validate_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/validate")
+            validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
             assert validate_response.status_code == 200
 
             validation_result = validate_response.json()
             assert validation_result["valid"] is True
 
             # Step 3: Verify provider status is now available
-            get_provider_response = await base_client.get(f"/api/v1/tool-providers/{provider_id}")
+            get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
             assert get_provider_response.status_code == 200
 
             provider = get_provider_response.json()
@@ -340,14 +344,18 @@ class TestMCPProviderIntegration:
             assert provider["configuration"]["provider_type"] == "mcp"
 
             # Step 4: Refresh tools to discover them
-            refresh_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/refresh-tools")
+            refresh_response = await base_client.post(
+                f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools"
+            )
             assert refresh_response.status_code == 200
 
             refresh_result = refresh_response.json()
             assert refresh_result["refreshed_count"] > 0
 
             # Step 5: Verify tools were discovered (proves MCPProvider methods worked)
-            tools_response = await base_client.get("/api/v1/tools", params={"provider_id[eq]": provider_id})
+            tools_response = await base_client.get(
+                "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
+            )
             assert tools_response.status_code == 200
 
             tools = tools_response.json()["resources"]

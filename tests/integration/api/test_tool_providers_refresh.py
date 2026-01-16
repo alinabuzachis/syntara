@@ -1,4 +1,4 @@
-"""Contract tests for POST /api/v1/tool-providers/{provider_id}/refresh-tools endpoint.
+"""Contract tests for POST /api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools endpoint.
 
 Tests tool discovery and refresh functionality.
 """
@@ -23,7 +23,7 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
 
         response = await base_client_with_provider_factory.post(
-            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/refresh_tools"
         )
 
         # Contract: Must return 200 OK for successful refresh
@@ -47,7 +47,7 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
 
         response = await base_client_with_provider_factory.post(
-            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/refresh_tools"
         )
 
         # Contract: Must return 200 OK
@@ -71,7 +71,7 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
 
         response = await base_client_with_provider_factory.post(
-            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/refresh_tools"
         )
 
         # Contract: Must return 200 OK
@@ -95,7 +95,7 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
 
         response = await base_client_with_provider_factory.post(
-            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/refresh_tools"
         )
 
         # Contract: Must return 400 Bad Request for refresh failure
@@ -110,7 +110,9 @@ class TestToolProvidersRefreshContract:
         """Test 404 error for non-existent provider."""
         provider_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await base_client_with_provider_factory.post(f"/api/v1/tool-providers/{provider_id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools"
+        )
 
         # Contract: Must return 404 Not Found
         assert response.status_code == 404
@@ -130,7 +132,7 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
 
         response = await base_client_with_provider_factory.post(
-            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/refresh_tools"
         )
 
         # Contract: Must return 400 for unavailable provider
@@ -149,7 +151,7 @@ class TestToolProvidersRefreshContract:
         # test_tool_provider starts with VALIDATING status by default
         # This should fail because only AVAILABLE providers can be refreshed
         response = await base_client_with_provider_factory.post(
-            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/refresh_tools"
         )
 
         # Contract: Must return 400 for non-available provider
@@ -171,7 +173,7 @@ class TestToolProvidersRefreshContract:
         await test_db_session.commit()
 
         response = await base_client_with_provider_factory.post(
-            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/refresh_tools"
         )
 
         # Contract: Must return 200 OK
@@ -188,7 +190,9 @@ class TestToolProvidersRefreshContract:
         """Test 422 error for invalid UUID format."""
         invalid_id = "not-a-uuid"
 
-        response = await base_client_with_provider_factory.post(f"/api/v1/tool-providers/{invalid_id}/refresh-tools")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool_manager/tool_providers/{invalid_id}/refresh_tools"
+        )
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID
         assert response.status_code == 422
@@ -205,7 +209,7 @@ class TestToolProvidersRefreshContract:
 
         # This test ensures the API can handle concurrent refresh operations
         response = await base_client_with_provider_factory.post(
-            f"/api/v1/tool-providers/{test_tool_provider.id}/refresh-tools"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/refresh_tools"
         )
 
         # Contract: Must return 200 OK for valid refresh

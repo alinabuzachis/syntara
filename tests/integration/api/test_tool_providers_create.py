@@ -1,4 +1,4 @@
-"""Contract tests for POST /api/v1/tool-providers endpoint.
+"""Contract tests for POST /api/v1/tool_manager/tool_providers endpoint.
 
 Tests provider registration, validation, and conflict handling.
 """
@@ -27,7 +27,9 @@ class TestToolProvidersCreateContract:
             },
         }
 
-        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
 
         # Contract: Must return 201 Created
         assert response.status_code == 201
@@ -59,7 +61,9 @@ class TestToolProvidersCreateContract:
             },
         }
 
-        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
 
         # Contract: Must return 201 Created
         assert response.status_code == 201
@@ -90,10 +94,14 @@ class TestToolProvidersCreateContract:
         }
 
         # Create first provider
-        response1 = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+        response1 = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
 
         # Attempt to create duplicate
-        response2 = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+        response2 = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
 
         # Contract: First creation must succeed
         assert response1.status_code == 201
@@ -112,7 +120,9 @@ class TestToolProvidersCreateContract:
         """Test validation error for missing configuration."""
         provider_data = {"name": "missing-config-test"}
 
-        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
 
         # Contract: Must return 422 Unprocessable Entity
         assert response.status_code == 422
@@ -131,7 +141,9 @@ class TestToolProvidersCreateContract:
             "configuration": {"base_url": "https://example.com/mcp", "api_key": "test-key"},
         }
 
-        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
 
         # Contract: Must return 422 Unprocessable Entity
         assert response.status_code == 422
@@ -145,7 +157,7 @@ class TestToolProvidersCreateContract:
     async def test_create_provider_invalid_json_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test 422 error for invalid JSON."""
         response = await base_client_with_provider_factory.post(
-            "/api/v1/tool-providers", json={}, headers={"Content-Type": "application/json"}
+            "/api/v1/tool_manager/tool_providers", json={}, headers={"Content-Type": "application/json"}
         )
 
         # Contract: Must return 422 Unprocessable Entity
@@ -161,7 +173,9 @@ class TestToolProvidersCreateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
         }
 
-        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
 
         # Contract: Must return 201 Created
         assert response.status_code == 201
@@ -184,7 +198,9 @@ class TestToolProvidersCreateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
         }
 
-        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
 
         # Contract: Must return 201 Created
         assert response.status_code == 201
@@ -215,7 +231,9 @@ class TestToolProvidersCreateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
         }
 
-        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
 
         # Contract: Must return 400 Bad Request for non-name-conflict IntegrityError
         assert response.status_code == 400
@@ -235,7 +253,9 @@ class TestToolProvidersCreateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
         }
 
-        response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+        response = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
 
         # Contract: Must return 201 Created
         assert response.status_code == 201

@@ -1,4 +1,4 @@
-"""Contract tests for POST /api/v1/tool-providers/{provider_id}/validate endpoint.
+"""Contract tests for POST /api/v1/tool_manager/tool_providers/{provider_id}/validate endpoint.
 
 Tests provider connection validation and status updates.
 """
@@ -27,11 +27,15 @@ class TestToolProvidersValidateContract:
             "configuration": {"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         }
 
-        create_response = await base_client_with_provider_factory.post("/api/v1/tool-providers", json=provider_data)
+        create_response = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
         assert create_response.status_code == 201
         provider_id = create_response.json()["id"]
 
-        response = await base_client_with_provider_factory.post(f"/api/v1/tool-providers/{provider_id}/validate")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool_manager/tool_providers/{provider_id}/validate"
+        )
 
         # Contract: Must return 200 OK for successful validation
         assert response.status_code == 200
@@ -47,7 +51,7 @@ class TestToolProvidersValidateContract:
     ) -> None:
         """Test response includes all required validation fields."""
         response = await base_client_with_provider_factory.post(
-            f"/api/v1/tool-providers/{test_tool_provider.id}/validate"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/validate"
         )
 
         # Contract: Must return 200 OK
@@ -81,7 +85,7 @@ class TestToolProvidersValidateContract:
             )
 
             response = await base_client_with_provider_factory.post(
-                f"/api/v1/tool-providers/{test_tool_provider.id}/validate"
+                f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/validate"
             )
 
         # Contract: Must return 200 with validation result showing failure
@@ -97,7 +101,9 @@ class TestToolProvidersValidateContract:
         """Test 404 error for non-existent provider."""
         provider_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await base_client_with_provider_factory.post(f"/api/v1/tool-providers/{provider_id}/validate")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool_manager/tool_providers/{provider_id}/validate"
+        )
 
         # Contract: Must return 404 Not Found
         assert response.status_code == 404
@@ -113,12 +119,14 @@ class TestToolProvidersValidateContract:
         """Test provider status is updated after validation."""
         # Validate the provider
         validate_response = await base_client_with_provider_factory.post(
-            f"/api/v1/tool-providers/{test_tool_provider.id}/validate"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/validate"
         )
         assert validate_response.status_code == 200
 
         # Check provider status was updated
-        get_response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        get_response = await base_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
         assert get_response.status_code == 200
 
         provider_data = get_response.json()
@@ -150,7 +158,7 @@ class TestToolProvidersValidateContract:
 
             # Validate the provider (expecting failure)
             validate_response = await base_client_with_provider_factory.post(
-                f"/api/v1/tool-providers/{test_tool_provider.id}/validate"
+                f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/validate"
             )
 
         assert validate_response.status_code == 200
@@ -160,7 +168,9 @@ class TestToolProvidersValidateContract:
         assert validation_data["valid"] is False
 
         # Check provider status was updated to error
-        get_response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        get_response = await base_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
         assert get_response.status_code == 200
 
         provider_data = get_response.json()
@@ -173,7 +183,7 @@ class TestToolProvidersValidateContract:
     ) -> None:
         """Test validated_at timestamp format."""
         response = await base_client_with_provider_factory.post(
-            f"/api/v1/tool-providers/{test_tool_provider.id}/validate"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/validate"
         )
 
         # Contract: Must return 200 OK
@@ -193,7 +203,9 @@ class TestToolProvidersValidateContract:
         """Test 422 Unprocessable Entity error for invalid UUID format."""
         invalid_id = "not-a-uuid"
 
-        response = await base_client_with_provider_factory.post(f"/api/v1/tool-providers/{invalid_id}/validate")
+        response = await base_client_with_provider_factory.post(
+            f"/api/v1/tool_manager/tool_providers/{invalid_id}/validate"
+        )
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID
         assert response.status_code == 422

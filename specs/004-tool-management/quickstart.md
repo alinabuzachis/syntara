@@ -16,7 +16,7 @@ This quickstart guide demonstrates the key workflows for Tool Provider Integrati
 
 ```bash
 # Step 1: Register a new MCP Tool Provider with SSE protocol
-curl -X POST http://localhost:8000/api/v1/tool-providers \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tool_providers \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <admin-token>" \
   -d '{
@@ -34,7 +34,7 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
 
 # Step 2: Validate provider connection
 PROVIDER_ID=$(echo $RESPONSE | jq -r '.id')
-curl -X POST http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID/validate \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tool_providers/$PROVIDER_ID/validate \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with validation results
@@ -46,7 +46,7 @@ curl -X POST http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID/validate \
 
 ```bash
 # Step 1: Register MCP Tool Provider with Streaming HTTP protocol
-curl -X POST http://localhost:8000/api/v1/tool-providers \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tool_providers \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <admin-token>" \
   -d '{
@@ -65,14 +65,14 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
 STREAMING_PROVIDER_ID=$(echo $RESPONSE | jq -r '.id')
 
 # Step 2: Test protocol negotiation and fallback
-curl -X POST http://localhost:8000/api/v1/tool-providers/$STREAMING_PROVIDER_ID/validate \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tool_providers/$STREAMING_PROVIDER_ID/validate \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with validation results showing negotiated protocol
 # Verify: System successfully negotiates Streaming HTTP or falls back to SSE
 
 # Step 3: Test tool refresh with Streaming HTTP
-curl -X POST http://localhost:8000/api/v1/tool-providers/$STREAMING_PROVIDER_ID/refresh-tools \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tool_providers/$STREAMING_PROVIDER_ID/refresh_tools \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with refreshed tools using Streaming HTTP transport
@@ -80,9 +80,9 @@ curl -X POST http://localhost:8000/api/v1/tool-providers/$STREAMING_PROVIDER_ID/
 
 # Step 4: Test concurrent operations with mixed protocols
 # Simultaneously refresh tools from both SSE and Streaming HTTP providers
-curl -X POST http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID/refresh-tools \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tool_providers/$PROVIDER_ID/refresh_tools \
   -H "Authorization: Bearer <admin-token>" &
-curl -X POST http://localhost:8000/api/v1/tool-providers/$STREAMING_PROVIDER_ID/refresh-tools \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tool_providers/$STREAMING_PROVIDER_ID/refresh_tools \
   -H "Authorization: Bearer <admin-token>" &
 wait
 
@@ -95,14 +95,14 @@ wait
 
 ```bash
 # Step 1: Refresh tools from registered provider
-curl -X POST http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID/refresh-tools \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tool_providers/$PROVIDER_ID/refresh_tools \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with refresh counts
 # Verify: refreshed_count > 0 for test provider with tools
 
 # Step 2: List refreshed tools
-curl -X GET "http://localhost:8000/api/v1/tools?provider_id[eq]=$PROVIDER_ID" \
+curl -X GET "http://localhost:8000/api/v1/tool_manager/tools?provider_id[eq]=$PROVIDER_ID" \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with list of tools
@@ -110,7 +110,7 @@ curl -X GET "http://localhost:8000/api/v1/tools?provider_id[eq]=$PROVIDER_ID" \
 
 # Step 3: Get Tool details with parameters
 TOOL_ID=$(echo $TOOLS_RESPONSE | jq -r '.resources[0].id')
-curl -X GET http://localhost:8000/api/v1/tools/$TOOL_ID \
+curl -X GET http://localhost:8000/api/v1/tool_manager/tools/$TOOL_ID \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with detailed Tool information including parameters
@@ -122,7 +122,7 @@ curl -X GET http://localhost:8000/api/v1/tools/$TOOL_ID \
 
 ```bash
 # Step 1: Disable a Tool
-curl -X PATCH http://localhost:8000/api/v1/tools/$TOOL_ID \
+curl -X PATCH http://localhost:8000/api/v1/tool_manager/tools/$TOOL_ID \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <admin-token>" \
   -d '{"enabled": false}'
@@ -131,14 +131,14 @@ curl -X PATCH http://localhost:8000/api/v1/tools/$TOOL_ID \
 # Verify: enabled field is false, but Tool still exists
 
 # Step 2: List enabled Tools for selection
-curl -X GET http://localhost:8000/api/v1/tools?enabled[eq]=true&status[eq]=available \
+curl -X GET http://localhost:8000/api/v1/tool_manager/tools?enabled[eq]=true&status[eq]=available \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with list excluding disabled Tool
 # Verify: Tool must be both enabled=true AND status=available to be usable
 
 # Step 3: Re-enable the Tool
-curl -X PATCH http://localhost:8000/api/v1/tools/$TOOL_ID \
+curl -X PATCH http://localhost:8000/api/v1/tool_manager/tools/$TOOL_ID \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <admin-token>" \
   -d '{"enabled": true}'
@@ -168,7 +168,7 @@ curl -X POST http://localhost:8000/api/v1/rate-limits \
 
 # Step 2: Test rate limit enforcement (simulate multiple requests)
 for i in {1..12}; do
-  curl -X POST http://localhost:8000/api/v1/tools/$TOOL_ID/execute \
+  curl -X POST http://localhost:8000/api/v1/tool_manager/tools/$TOOL_ID/execute \
     -H "Authorization: Bearer <user-token>" \
     -d '{"parameters": {}}' &
 done
@@ -183,7 +183,7 @@ wait
 
 ```bash
 # Step 1: Execute Tool to generate metrics
-curl -X POST http://localhost:8000/api/v1/tools/$TOOL_ID/execute \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tools/$TOOL_ID/execute \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <user-token>" \
   -d '{"parameters": {"input": "test"}}'
@@ -211,7 +211,7 @@ curl -X GET "http://localhost:8000/api/v1/metrics/executions?tool_id[eq]=$TOOL_I
 
 ```bash
 # Step 1: Update provider configuration using PUT (complete replacement)
-curl -X PUT http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
+curl -X PUT http://localhost:8000/api/v1/tool_manager/tool_providers/$PROVIDER_ID \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <admin-token>" \
   -d '{
@@ -229,7 +229,7 @@ curl -X PUT http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
 # Verify: All configuration fields are replaced
 
 # Step 2: Partially update provider using PATCH
-curl -X PATCH http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
+curl -X PATCH http://localhost:8000/api/v1/tool_manager/tool_providers/$PROVIDER_ID \
   -H "Content-Type: application/merge-patch+json" \
   -H "Authorization: Bearer <admin-token>" \
   -d '{
@@ -244,7 +244,7 @@ curl -X PATCH http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
 # Verify: Only specified fields updated, others preserved
 
 # Step 3: Disable provider with minimal PATCH
-curl -X PATCH http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
+curl -X PATCH http://localhost:8000/api/v1/tool_manager/tool_providers/$PROVIDER_ID \
   -H "Content-Type: application/merge-patch+json" \
   -H "Authorization: Bearer <admin-token>" \
   -d '{"enabled": false}'
@@ -258,7 +258,7 @@ curl -X PATCH http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
 
 ```bash
 # Step 1: List all providers
-curl -X GET http://localhost:8000/api/v1/tool-providers \
+curl -X GET http://localhost:8000/api/v1/tool_manager/tool_providers \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with provider list including test provider
@@ -266,14 +266,14 @@ curl -X GET http://localhost:8000/api/v1/tool-providers \
 
 # Step 2: Simulate Tool removal from Tool Provider (stop Tool service)
 # Then refresh Tool metadata
-curl -X POST http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID/refresh-tools \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tool_providers/$PROVIDER_ID/refresh_tools \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with disabled_count > 0 if tools were removed
 # Verify: Missing tools are automatically disabled and marked as "missing"
 
 # Step 3: Remove provider completely
-curl -X DELETE http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
+curl -X DELETE http://localhost:8000/api/v1/tool_manager/tool_providers/$PROVIDER_ID \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 204 No Content
@@ -285,7 +285,7 @@ curl -X DELETE http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
 
 ```bash
 # Step 1: Test invalid provider registration
-curl -X POST http://localhost:8000/api/v1/tool-providers \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tool_providers \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <admin-token>" \
   -d '{
@@ -301,7 +301,7 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
 # Verify: Provider status becomes "error" with clear validation_error message
 
 # Step 2: Test duplicate provider name
-curl -X POST http://localhost:8000/api/v1/tool-providers \
+curl -X POST http://localhost:8000/api/v1/tool_manager/tool_providers \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <admin-token>" \
   -d '{
@@ -322,13 +322,13 @@ curl -X POST http://localhost:8000/api/v1/tool-providers \
 
 ```bash
 # Step 1: Filter providers by status and created date range
-curl -X GET "http://localhost:8000/api/v1/tool-providers?status[eq]=available&created_at[gte]=2025-01-01" \
+curl -X GET "http://localhost:8000/api/v1/tool_manager/tool_providers?status[eq]=available&created_at[gte]=2025-01-01" \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with providers matching status and date criteria
 
 # Step 2: Search tools by name pattern and filter by status and enabled state
-curl -X GET "http://localhost:8000/api/v1/tools?name[contains]=search&status[eq]=available&enabled[eq]=true" \
+curl -X GET "http://localhost:8000/api/v1/tool_manager/tools?name[contains]=search&status[eq]=available&enabled[eq]=true" \
   -H "Authorization: Bearer <admin-token>"
 
 # Expected: 200 OK with tools containing "search" in name that are available
@@ -373,7 +373,7 @@ curl -X GET "http://localhost:8000/api/v1/rate-limits?target_type[eq]=tool&enabl
 
 ```bash
 # Remove test data after validation
-curl -X DELETE http://localhost:8000/api/v1/tool-providers/$PROVIDER_ID \
+curl -X DELETE http://localhost:8000/api/v1/tool_manager/tool_providers/$PROVIDER_ID \
   -H "Authorization: Bearer <admin-token>"
 
 # Verify: Clean removal without data corruption

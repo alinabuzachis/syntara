@@ -1,4 +1,4 @@
-"""Contract tests for DELETE /api/v1/tool-providers/{provider_id} endpoint.
+"""Contract tests for DELETE /api/v1/tool_manager/tool_providers/{provider_id} endpoint.
 
 Tests soft delete functionality and cascade behavior.
 """
@@ -17,7 +17,7 @@ class TestToolProvidersDeleteContract:
         """Test 404 error for non-existent provider."""
         provider_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await base_client_with_provider_factory.delete(f"/api/v1/tool-providers/{provider_id}")
+        response = await base_client_with_provider_factory.delete(f"/api/v1/tool_manager/tool_providers/{provider_id}")
 
         # Contract: Must return 404 Not Found
         assert response.status_code == 404
@@ -31,7 +31,7 @@ class TestToolProvidersDeleteContract:
         """Test 400 error for invalid UUID format."""
         invalid_id = "not-a-uuid"
 
-        response = await base_client_with_provider_factory.delete(f"/api/v1/tool-providers/{invalid_id}")
+        response = await base_client_with_provider_factory.delete(f"/api/v1/tool_manager/tool_providers/{invalid_id}")
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID format
         assert response.status_code == 422
@@ -50,7 +50,7 @@ class TestToolProvidersDeleteContract:
         """
         # Delete the provider
         delete_response = await base_client_with_provider_factory.delete(
-            f"/api/v1/tool-providers/{test_tool_provider.id}"
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
         )
 
         # Contract: Must return 204 No Content
@@ -60,11 +60,13 @@ class TestToolProvidersDeleteContract:
         assert len(delete_response.content) == 0
 
         # Verify provider is not accessible via GET
-        get_response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        get_response = await base_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
         assert get_response.status_code == 404
 
         # Verify provider is not in list
-        list_response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
+        list_response = await base_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
         assert list_response.status_code == 200
         data = list_response.json()
         provider_ids = [p["id"] for p in data["resources"]]
@@ -79,11 +81,15 @@ class TestToolProvidersDeleteContract:
     ) -> None:
         """Test delete operation is idempotent for already deleted providers."""
         # First deletion
-        response1 = await base_client_with_provider_factory.delete(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response1 = await base_client_with_provider_factory.delete(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
         assert response1.status_code == 204
 
         # Second deletion attempt
-        response2 = await base_client_with_provider_factory.delete(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response2 = await base_client_with_provider_factory.delete(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
 
         # Contract: Second deletion should return 404 (not found)
         assert response2.status_code == 404

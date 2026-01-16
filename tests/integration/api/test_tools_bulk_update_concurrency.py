@@ -92,12 +92,12 @@ class TestToolsConcurrency:
         # Define concurrent bulk update operations on different tools
         async def bulk_update_group1() -> Response:
             return await concurrency_client.patch(
-                "/api/v1/tools/bulk-update", json={"tool_ids": tool_ids_group1, "enabled": False}
+                "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids_group1, "enabled": False}
             )
 
         async def bulk_update_group2() -> Response:
             return await concurrency_client.patch(
-                "/api/v1/tools/bulk-update", json={"tool_ids": tool_ids_group2, "enabled": False}
+                "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids_group2, "enabled": False}
             )
 
         start_time = time.time()
@@ -125,7 +125,7 @@ class TestToolsConcurrency:
             assert data["skipped_count"] == 0  # No tools should be skipped
 
         # GET all tools to verify final enabled states
-        get_response = await concurrency_client.get("/api/v1/tools")
+        get_response = await concurrency_client.get("/api/v1/tool_manager/tools")
         assert get_response.status_code == 200
 
         tools_data = get_response.json()
@@ -145,7 +145,7 @@ class TestToolsConcurrency:
         tools_to_update = simple_tools_for_concurrency
 
         async def update_tool(tool: Tool, *, enabled: bool) -> Response:
-            return await concurrency_client.patch(f"/api/v1/tools/{tool.id}", json={"enabled": enabled})
+            return await concurrency_client.patch(f"/api/v1/tool_manager/tools/{tool.id}", json={"enabled": enabled})
 
         # Create concurrent update tasks
         tasks = [update_tool(tool, enabled=i % 2 == 0) for i, tool in enumerate(tools_to_update)]
@@ -179,7 +179,7 @@ class TestToolsConcurrency:
             assert data["enabled"] == expected_enabled, f"Tool {data['id']} should have enabled={expected_enabled}"
 
         # GET all tools to verify final enabled states
-        get_response = await concurrency_client.get("/api/v1/tools")
+        get_response = await concurrency_client.get("/api/v1/tool_manager/tools")
         assert get_response.status_code == 200
 
         tools_data = get_response.json()

@@ -1,4 +1,4 @@
-"""Contract tests for PATCH /api/v1/tool-providers/{provider_id} endpoint.
+"""Contract tests for PATCH /api/v1/tool_manager/tool_providers/{provider_id} endpoint.
 
 Tests partial update functionality.
 """
@@ -24,7 +24,7 @@ class TestToolProvidersPatchContract:
         patch_data = {"description": "Partially updated description", "enabled": False}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -53,7 +53,7 @@ class TestToolProvidersPatchContract:
         patch_data = {"enabled": False}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -88,7 +88,7 @@ class TestToolProvidersPatchContract:
         }
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -121,7 +121,7 @@ class TestToolProvidersPatchContract:
         }
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -141,7 +141,7 @@ class TestToolProvidersPatchContract:
         patch_data = {"enabled": False}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{provider_id}",
+            f"/api/v1/tool_manager/tool_providers/{provider_id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -157,7 +157,7 @@ class TestToolProvidersPatchContract:
         patch_data = {"enabled": False}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -186,7 +186,7 @@ class TestToolProvidersPatchContract:
         patch_data: dict[str, str] = {}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -218,7 +218,7 @@ class TestToolProvidersPatchContract:
             "configuration": {"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         }
         create_response = await base_client_with_provider_factory.post(
-            "/api/v1/tool-providers", json=conflicting_provider_data
+            "/api/v1/tool_manager/tool_providers", json=conflicting_provider_data
         )
         assert create_response.status_code == 201
 
@@ -226,7 +226,7 @@ class TestToolProvidersPatchContract:
         patch_data = {"name": "existing-provider-name"}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -252,7 +252,7 @@ class TestToolProvidersPatchContract:
         patch_data = {"description": "Updated description"}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -273,7 +273,7 @@ class TestToolProvidersPatchContract:
         # First, set the provider's enabled status to False
         patch_data_disable = {"enabled": False}
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data_disable,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -291,7 +291,7 @@ class TestToolProvidersPatchContract:
         }
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data_no_enabled,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -309,7 +309,7 @@ class TestToolProvidersPatchContract:
         # Now enable the provider and test again
         patch_data_enable = {"enabled": True}
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data_enable,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -320,7 +320,7 @@ class TestToolProvidersPatchContract:
         patch_data_no_enabled_2 = {"description": "Another update without enabled field"}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data_no_enabled_2,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -341,7 +341,7 @@ class TestToolProvidersPatchContract:
         patch_data = {"status": "error"}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -371,7 +371,7 @@ class TestToolProvidersPatchContract:
         patch_data = {"validation_error": error_message}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -396,7 +396,7 @@ class TestToolProvidersPatchContract:
         patch_data = {"status": "error", "validation_error": error_message}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -423,7 +423,7 @@ class TestToolProvidersPatchContract:
             patch_data = {"status": status}
 
             response = await base_client_with_provider_factory.patch(
-                f"/api/v1/tool-providers/{test_tool_provider.id}",
+                f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
                 json=patch_data,
                 headers={"Content-Type": "application/merge-patch+json"},
             )
@@ -443,7 +443,7 @@ class TestToolProvidersPatchContract:
         patch_data = {"status": "invalid_status"}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -465,7 +465,7 @@ class TestToolProvidersPatchContract:
         error_message = "Some validation error"
         patch_data = {"validation_error": error_message}
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -475,7 +475,7 @@ class TestToolProvidersPatchContract:
         # Now clear it by setting to null
         patch_data_clear = {"validation_error": None}
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data_clear,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -495,7 +495,7 @@ class TestToolProvidersPatchContract:
         # First, set both status and validation_error
         initial_patch = {"status": "error", "validation_error": "Initial error message"}
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=initial_patch,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -507,7 +507,7 @@ class TestToolProvidersPatchContract:
         # Now patch without status or validation_error fields
         patch_other_fields = {"description": "Updated description only"}
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_other_fields,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -530,7 +530,7 @@ class TestToolProvidersPatchContract:
         patch_data = {"status": "error", "enabled": False, "validation_error": "Provider failed validation"}
 
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=patch_data,
             headers={"Content-Type": "application/merge-patch+json"},
         )
@@ -547,7 +547,7 @@ class TestToolProvidersPatchContract:
         # Test recovery: set status back to available and enabled to True
         recovery_patch = {"status": "available", "enabled": True, "validation_error": None}
         response = await base_client_with_provider_factory.patch(
-            f"/api/v1/tool-providers/{test_tool_provider.id}",
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}",
             json=recovery_patch,
             headers={"Content-Type": "application/merge-patch+json"},
         )

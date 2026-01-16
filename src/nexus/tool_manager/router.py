@@ -1,7 +1,7 @@
 """Tool Provider API endpoints."""
 
 import logging
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -15,10 +15,17 @@ from nexus.tool_manager.lib.exceptions import (
     ProviderError,
     ProviderNameConflictError,
     ProviderNotFoundError,
+    ToolNotFoundError,
     ValidationError,
 )
 from nexus.tool_manager.lib.providers import ProviderFactory, get_provider_factory
-from nexus.tool_manager.models import ToolProviderListParams
+from nexus.tool_manager.models import ToolListParams, ToolProviderListParams
+from nexus.tool_manager.models.tool import (
+    ToolListResponse,
+    ToolUpdate,
+    ToolWithParameters,
+)
+from nexus.tool_manager.models.tool_bulk_update import ToolBulkUpdate
 from nexus.tool_manager.models.tool_provider import (
     ToolProviderCreate,
     ToolProviderListResponse,
@@ -28,14 +35,192 @@ from nexus.tool_manager.models.tool_provider import (
 from nexus.tool_manager.models.tool_provider_refresh_result import ToolProviderRefreshResult
 from nexus.tool_manager.models.tool_provider_validation_result import ToolProviderValidationResult
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
+from nexus.tool_manager.services.tool_service import ToolService
 
-router = APIRouter(prefix="/tool-providers", tags=["tool-providers"])
+router = APIRouter(prefix="/tool_manager", tags=["tools", "tool_providers"])
 
 logger = logging.getLogger(__name__)
 
 
-@router.get("")
-async def list_tool_providers(
+@router.get("/tools")
+async def get_tools(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    params: Annotated[ToolListParams, Query()],
+) -> ToolListResponse:
+    """List tools with filtering, sorting, and pagination.
+
+    Supports filtering using query parameters with standard operators:
+    - name: Filter by tool name (name=tool_name, name[contains]=text)
+    - enabled: Filter by enabled status (enabled=true|false)
+    - status: Filter by tool status (status=available|missing|error)
+    - provider_id: Filter by provider ID (provider_id=uuid)
+    - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
+    - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+    Uses cursor-based pagination for scalability and consistency.
+
+    Args:
+        request: FastAPI request object containing query parameters
+        db: Database session
+        current_user: Current authenticated user
+        params: Query parameters for pagination and filtering
+
+    Returns:
+        ToolListResponse with tools, pagination metadata, and optional total
+
+    """
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
+    # For now, allowing all authenticated users
+
+    service = ToolService(db, current_user)
+
+    try:
+        return await service.list_tools(
+            limit=params.limit,
+            cursor=params.cursor,
+            sort=params.sort,
+            query_params_items=request.query_params.items(),
+            include_total=params.include_total,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e)) from e
+    except Exception as e:
+        logger.exception("Unexpected error listing tools", exc_info=e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error listing tools"
+        ) from e
+
+
+@router.get("/tools/{tool_id}")
+async def get_tool(
+    tool_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ToolWithParameters:
+    """Get tool details by ID.
+
+    Returns detailed information about a specific tool including
+    parameters, status, and metadata.
+
+    Args:
+        tool_id: UUID of the tool to retrieve
+        db: Database session
+        current_user: Authenticated user (admin access required)
+
+    Returns:
+        ToolWithParameters instance with full details
+
+    Raises:
+        HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
+
+    """
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
+    # For now, allowing all authenticated users
+
+    service = ToolService(db, current_user)
+
+    try:
+        return await service.get_tool_detail(tool_id)
+
+    except ToolNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
+    except Exception as e:
+        logger.exception("Unexpected error getting tool details", exc_info=e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error getting tool details"
+        ) from e
+
+
+@router.patch("/tools/bulk_update")
+async def bulk_update_tools(
+    bulk_update: ToolBulkUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict[str, Any]:
+    """Bulk update tool status (enable/disable multiple tools).
+
+    Updates the status of multiple tools in a single operation.
+    Only admin-controllable status changes are allowed (available/disabled).
+
+    Args:
+        bulk_update: Bulk update request with tool IDs and status
+        db: Database session
+        current_user: Authenticated user (admin access required)
+
+    Returns:
+        Dictionary with update statistics and timestamp
+
+    Raises:
+        HTTPException: 400 for validation errors, 403 for auth
+
+    """
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
+    # For now, allowing all authenticated users
+
+    service = ToolService(db, current_user)
+
+    try:
+        return await service.bulk_update_tools(bulk_update.tool_ids, enabled=bulk_update.enabled)
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
+    except Exception as e:
+        logger.exception("Unexpected error bulk updating tools", exc_info=e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error bulk updating tools"
+        ) from e
+
+
+@router.patch("/tools/{tool_id}")
+async def patch_tool(
+    tool_id: UUID,
+    tool_update: ToolUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ToolWithParameters:
+    """Update tool status (enable/disable).
+
+    Updates the tool's status to enable or disable it for use.
+    Only admin-controllable status changes are allowed (available/disabled).
+
+    Args:
+        tool_id: UUID of the tool to update
+        tool_update: Tool update data with status
+        db: Database session
+        current_user: Authenticated user (admin access required)
+
+    Returns:
+        Updated Tool instance
+
+    Raises:
+        HTTPException: 400 for validation errors, 404 if not found, 403 for auth
+
+    """
+    # TODO(manstis): Implement proper admin role checking: AAP-56797
+    # For now, allowing all authenticated users
+
+    service = ToolService(db, current_user)
+
+    try:
+        return await service.update_tool(
+            tool_id,
+            tool_update,
+        )
+
+    except ToolNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
+    except Exception as e:
+        logger.exception("Unexpected error updating tool", exc_info=e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error updating tool"
+        ) from e
+
+
+@router.get("/tool_providers")
+async def get_tool_providers(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -86,8 +271,8 @@ async def list_tool_providers(
         ) from e
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-async def create_tool_provider(
+@router.post("/tool_providers", status_code=status.HTTP_201_CREATED)
+async def register_tool_provider(
     provider_create: ToolProviderCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -131,7 +316,7 @@ async def create_tool_provider(
         ) from e
 
 
-@router.get("/{provider_id}")
+@router.get("/tool_providers/{provider_id}")
 async def get_tool_provider(
     provider_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -172,7 +357,7 @@ async def get_tool_provider(
         ) from e
 
 
-@router.put("/{provider_id}")
+@router.put("/tool_providers/{provider_id}")
 async def update_tool_provider(
     provider_id: UUID,
     provider_update: ToolProviderCreate,
@@ -219,7 +404,7 @@ async def update_tool_provider(
         ) from e
 
 
-@router.patch("/{provider_id}")
+@router.patch("/tool_providers/{provider_id}")
 async def patch_tool_provider(
     provider_id: UUID,
     provider_patch: ToolProviderPatch,
@@ -268,7 +453,7 @@ async def patch_tool_provider(
         ) from e
 
 
-@router.delete("/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/tool_providers/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_tool_provider(
     provider_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -306,7 +491,7 @@ async def delete_tool_provider(
         ) from e
 
 
-@router.post("/{provider_id}/validate")
+@router.post("/tool_providers/{provider_id}/validate")
 async def validate_tool_provider(
     provider_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -347,8 +532,8 @@ async def validate_tool_provider(
         ) from e
 
 
-@router.post("/test")
-async def validate_tool_provider_definition(
+@router.post("/tool_providers/test")
+async def test_tool_provider(
     provider_create: ToolProviderCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -387,8 +572,8 @@ async def validate_tool_provider_definition(
         ) from e
 
 
-@router.post("/{provider_id}/refresh-tools")
-async def refresh_provider_tools(
+@router.post("/tool_providers/{provider_id}/refresh_tools")
+async def refresh_tool_provider(
     provider_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],

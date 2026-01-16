@@ -22,6 +22,12 @@ This approach mirrors the successful workflow engine implementation pattern, ena
 - Keyset pagination with bracket filter notation for efficient queries
 - Comprehensive metrics collection and rate limiting system
 
+**Current Implementation Status (January 2026):**
+- ✅ **API Consolidation Complete**: Separate `/tools` and `/tool-providers` APIs unified under `/tool_manager` namespace
+- ✅ **Schema Consolidation**: Multiple OpenAPI specifications consolidated into single `openapi.yaml`
+- ✅ **Endpoint Migration**: All endpoints now use underscore convention (e.g., `/tool_providers` instead of `/tool-providers`)
+- ✅ **Router Unification**: Consolidated from separate routers into single `tool_manager/router.py`
+
 ## Project Infrastructure
 - **Package Namespace**: `nexus.tool_manager`
 - **Source Directory**: `./src/nexus/tool_manager/`
@@ -30,7 +36,7 @@ This approach mirrors the successful workflow engine implementation pattern, ena
 - **Models**: `./src/nexus/tool_manager/models/`
 - **Lib/Shared**: `./src/nexus/tool_manager/lib/`
 - **Tests Root**: `./tests/`
-- **OpenAPI Schemas**: `./src/nexus/schemas/tool_management/`
+- **OpenAPI Schemas**: `./src/nexus/schemas/tool_manager/` (**Updated**: Consolidated from `tool_management`)
 
 **Existing Tooling**:
 - Linting: ruff

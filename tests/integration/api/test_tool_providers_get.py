@@ -1,4 +1,4 @@
-"""Contract tests for GET /api/v1/tool-providers/{provider_id} endpoint.
+"""Contract tests for GET /api/v1/tool_manager/tool_providers/{provider_id} endpoint.
 
 Tests provider retrieval, 404 handling, and response format.
 """
@@ -17,7 +17,9 @@ class TestToolProvidersGetContract:
         self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test successful provider retrieval returns 200."""
-        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
 
         # Contract: Must return 200 OK for existing provider
         assert response.status_code == 200
@@ -38,7 +40,9 @@ class TestToolProvidersGetContract:
         self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test response includes all required fields."""
-        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -67,7 +71,9 @@ class TestToolProvidersGetContract:
         self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test response includes last_validated_at field."""
-        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -84,7 +90,7 @@ class TestToolProvidersGetContract:
         """Test 404 error for non-existent provider."""
         provider_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{provider_id}")
+        response = await base_client_with_provider_factory.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
 
         # Contract: Must return 404 Not Found
         assert response.status_code == 404
@@ -98,7 +104,7 @@ class TestToolProvidersGetContract:
         """Test 400 error for invalid UUID format."""
         invalid_id = "not-a-uuid"
 
-        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{invalid_id}")
+        response = await base_client_with_provider_factory.get(f"/api/v1/tool_manager/tool_providers/{invalid_id}")
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID format
         assert response.status_code == 422
@@ -112,7 +118,9 @@ class TestToolProvidersGetContract:
         self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test configuration field format in response."""
-        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -131,7 +139,9 @@ class TestToolProvidersGetContract:
         self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test status field contains valid values."""
-        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -147,7 +157,9 @@ class TestToolProvidersGetContract:
         self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test timestamp fields are properly formatted."""
-        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -174,7 +186,9 @@ class TestToolProvidersGetContract:
         proper deserialization and type safety for API consumers.
         """
         # Make HTTP request to get specific provider - this is end-to-end testing
-        response = await base_client_with_provider_factory.get(f"/api/v1/tool-providers/{test_tool_provider.id}")
+        response = await base_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
 
         # Verify successful response
         assert response.status_code == 200

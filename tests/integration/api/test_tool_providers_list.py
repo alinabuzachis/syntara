@@ -1,4 +1,4 @@
-"""Contract tests for GET /api/v1/tool-providers endpoint.
+"""Contract tests for GET /api/v1/tool_manager/tool_providers endpoint.
 
 Tests keyset pagination, bracket filter notation, and OpenAPI schema compliance.
 """
@@ -18,8 +18,8 @@ class TestToolProvidersListContract:
         self,
         base_client_with_provider_factory: AsyncClient,
     ) -> None:
-        """Test basic GET /api/v1/tool-providers returns 200."""
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
+        """Test basic GET /api/v1/tool_manager/tool_providers returns 200."""
+        response = await base_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -49,7 +49,9 @@ class TestToolProvidersListContract:
     ) -> None:
         """Test pagination parameters are accepted and response format is correct."""
         # Test with limit smaller than total count to ensure pagination works
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"limit": "3"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool_manager/tool_providers", params={"limit": "3"}
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -70,7 +72,7 @@ class TestToolProvidersListContract:
         # Test pagination with cursor
         if data["next"]:
             next_response = await base_client_with_provider_factory.get(
-                "/api/v1/tool-providers", params={"limit": "3", "cursor": data["next"]}
+                "/api/v1/tool_manager/tool_providers", params={"limit": "3", "cursor": data["next"]}
             )
             assert next_response.status_code == 200
             next_data = next_response.json()
@@ -90,7 +92,9 @@ class TestToolProvidersListContract:
     ) -> None:
         """Test bracket filter notation is accepted."""
         # Test filtering by enabled status
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"enabled[eq]": "true"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true"}
+        )
         assert response.status_code == 200
         data = response.json()
         assert "resources" in data
@@ -104,7 +108,7 @@ class TestToolProvidersListContract:
 
         # Test filtering by provider type in configuration
         mcp_response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"configuration.provider_type[eq]": "mcp"}
+            "/api/v1/tool_manager/tool_providers", params={"configuration.provider_type[eq]": "mcp"}
         )
         assert mcp_response.status_code == 200
         mcp_data = mcp_response.json()
@@ -118,7 +122,7 @@ class TestToolProvidersListContract:
 
         # Test name contains filter
         alpha_response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"name[contains]": "Alpha"}
+            "/api/v1/tool_manager/tool_providers", params={"name[contains]": "Alpha"}
         )
         assert alpha_response.status_code == 200
         alpha_data = alpha_response.json()
@@ -133,7 +137,7 @@ class TestToolProvidersListContract:
     ) -> None:
         """Test include_total parameter returns total count."""
         response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"include_total": "true"}
+            "/api/v1/tool_manager/tool_providers", params={"include_total": "true"}
         )
 
         # Contract: Must return 200 OK
@@ -152,7 +156,7 @@ class TestToolProvidersListContract:
         base_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test response matches OpenAPI specification schema."""
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
+        response = await base_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -194,7 +198,9 @@ class TestToolProvidersListContract:
     ) -> None:
         """Test validation of query parameters."""
         # Test with invalid limit parameter
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"limit": "invalid"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool_manager/tool_providers", params={"limit": "invalid"}
+        )
 
         # Contract: Must return 422 Unprocessable Entity for invalid parameters
         assert response.status_code == 422
@@ -202,7 +208,7 @@ class TestToolProvidersListContract:
     @pytest.mark.asyncio
     async def test_list_providers_empty_result_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
         """Test response format when no providers exist."""
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
+        response = await base_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
 
         # Contract: Must return 200 even for empty results
         assert response.status_code == 200
@@ -219,7 +225,9 @@ class TestToolProvidersListContract:
         base_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test cursor token format in response."""
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"limit": "1"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool_manager/tool_providers", params={"limit": "1"}
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -244,7 +252,9 @@ class TestToolProvidersListContract:
     ) -> None:
         """Test sorting providers by name."""
         # Test ascending sort
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"sort": "name"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool_manager/tool_providers", params={"sort": "name"}
+        )
         assert response.status_code == 200
 
         data = response.json()
@@ -257,7 +267,9 @@ class TestToolProvidersListContract:
         assert names[-1] == "Gamma Provider"  # Last alphabetically
 
         # Test descending sort
-        desc_response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"sort": "-name"})
+        desc_response = await base_client_with_provider_factory.get(
+            "/api/v1/tool_manager/tool_providers", params={"sort": "-name"}
+        )
         assert desc_response.status_code == 200
 
         desc_data = desc_response.json()
@@ -271,7 +283,9 @@ class TestToolProvidersListContract:
         base_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test sorting providers by creation date."""
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"sort": "created_at"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool_manager/tool_providers", params={"sort": "created_at"}
+        )
         assert response.status_code == 200
 
         data = response.json()
@@ -280,7 +294,7 @@ class TestToolProvidersListContract:
 
         # Test descending sort (newest first)
         desc_response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"sort": "-created_at"}
+            "/api/v1/tool_manager/tool_providers", params={"sort": "-created_at"}
         )
         assert desc_response.status_code == 200
 
@@ -297,7 +311,7 @@ class TestToolProvidersListContract:
         """Test combining filters and sorting."""
         # Filter enabled providers and sort by name
         response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "true", "sort": "name"}
+            "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true", "sort": "name"}
         )
         assert response.status_code == 200
 
@@ -320,7 +334,7 @@ class TestToolProvidersListContract:
         """Test combining filters and sorting."""
         # Filter enabled providers and sort by name
         response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "false", "sort": "-name"}
+            "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "false", "sort": "-name"}
         )
         assert response.status_code == 200
 
@@ -343,7 +357,8 @@ class TestToolProvidersListContract:
         """Test filtering by multiple criteria."""
         # Filter enabled MCP providers
         response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "true", "configuration.provider_type[eq]": "mcp"}
+            "/api/v1/tool_manager/tool_providers",
+            params={"enabled[eq]": "true", "configuration.provider_type[eq]": "mcp"},
         )
         assert response.status_code == 200
 
@@ -364,7 +379,7 @@ class TestToolProvidersListContract:
         """Test pagination works correctly with filters."""
         # Get enabled providers with pagination
         response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "true", "limit": "2"}
+            "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true", "limit": "2"}
         )
         assert response.status_code == 200
 
@@ -378,7 +393,7 @@ class TestToolProvidersListContract:
 
         # Get next page
         next_response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "true", "limit": "2", "cursor": data["next"]}
+            "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true", "limit": "2", "cursor": data["next"]}
         )
         assert next_response.status_code == 200
 
@@ -394,22 +409,26 @@ class TestToolProvidersListContract:
     ) -> None:
         """Test edge cases and boundary conditions."""
         # Test with limit = 0 (should return error)
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"limit": "0"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool_manager/tool_providers", params={"limit": "0"}
+        )
         assert response.status_code == 422  # Validation error
 
         # Test with very large limit (should be capped)
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers", params={"limit": "1000"})
+        response = await base_client_with_provider_factory.get(
+            "/api/v1/tool_manager/tool_providers", params={"limit": "1000"}
+        )
         assert response.status_code in [200, 422]  # Either capped or validation error
 
         # Test with invalid cursor
         response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"cursor": "invalid-cursor"}
+            "/api/v1/tool_manager/tool_providers", params={"cursor": "invalid-cursor"}
         )
         assert response.status_code in [200, 422]  # Either ignored or validation error
 
         # Test with invalid sort field
         response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"sort": "invalid_field"}
+            "/api/v1/tool_manager/tool_providers", params={"sort": "invalid_field"}
         )
         assert response.status_code in [200, 422]  # Either ignored or validation error
 
@@ -422,7 +441,7 @@ class TestToolProvidersListContract:
         """Test filtering that returns no results."""
         # Filter for non-existent provider type
         response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"configuration.provider_type[eq]": "nonexistent"}
+            "/api/v1/tool_manager/tool_providers", params={"configuration.provider_type[eq]": "nonexistent"}
         )
         assert response.status_code == 200
 
@@ -446,7 +465,7 @@ class TestToolProvidersListContract:
         """Test filtering by nested configuration properties."""
         # Filter MCP providers by base_url containing 'alpha'
         response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers",
+            "/api/v1/tool_manager/tool_providers",
             params={"configuration.provider_type[eq]": "mcp", "description[contains]": "First"},
         )
         assert response.status_code == 200
@@ -465,7 +484,7 @@ class TestToolProvidersListContract:
         """Test include_total works correctly with filters."""
         # Get total for all providers
         all_response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"include_total": "true"}
+            "/api/v1/tool_manager/tool_providers", params={"include_total": "true"}
         )
         assert all_response.status_code == 200
         all_data = all_response.json()
@@ -473,7 +492,7 @@ class TestToolProvidersListContract:
 
         # Get total for enabled providers only
         enabled_response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "true", "include_total": "true"}
+            "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true", "include_total": "true"}
         )
         assert enabled_response.status_code == 200
         enabled_data = enabled_response.json()
@@ -481,7 +500,7 @@ class TestToolProvidersListContract:
 
         # Total should be accurate even with pagination
         paginated_response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "true", "include_total": "true", "limit": "2"}
+            "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true", "include_total": "true", "limit": "2"}
         )
         assert paginated_response.status_code == 200
         paginated_data = paginated_response.json()
@@ -497,7 +516,7 @@ class TestToolProvidersListContract:
         """Test filtering with invalid ProviderStatus enum value returns 400."""
         # Filter with invalid status value
         response = await base_client_with_provider_factory.get(
-            "/api/v1/tool-providers", params={"status[eq]": "nonexistent"}
+            "/api/v1/tool_manager/tool_providers", params={"status[eq]": "nonexistent"}
         )
 
         # Contract: Must return 422 Unprocessable Entity for invalid enum value
@@ -522,7 +541,7 @@ class TestToolProvidersListContract:
         proper deserialization and type safety for API consumers.
         """
         # Make HTTP request to list providers - this is end-to-end testing
-        response = await base_client_with_provider_factory.get("/api/v1/tool-providers")
+        response = await base_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
 
         # Verify successful response
         assert response.status_code == 200

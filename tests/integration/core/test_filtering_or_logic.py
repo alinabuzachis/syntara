@@ -106,7 +106,7 @@ class TestFilteringORLogic:
         base_client: AsyncClient,
     ) -> None:
         """Test filtering on a single field with single value."""
-        response = await base_client.get("/api/v1/tool-providers", params={"enabled[eq]": "true"})
+        response = await base_client.get("/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true"})
 
         assert response.status_code == 200
         data = response.json()
@@ -131,7 +131,8 @@ class TestFilteringORLogic:
     ) -> None:
         """Test filtering on multiple fields using AND logic."""
         response = await base_client.get(
-            "/api/v1/tool-providers", params={"enabled[eq]": "true", "description[contains]": "Development"}
+            "/api/v1/tool_manager/tool_providers",
+            params={"enabled[eq]": "true", "description[contains]": "Development"},
         )
 
         assert response.status_code == 200
@@ -157,7 +158,9 @@ class TestFilteringORLogic:
         base_client: AsyncClient,
     ) -> None:
         """Test filtering on a single field using OR logic (comma-separated values)."""
-        response = await base_client.get("/api/v1/tool-providers", params={"name[contains]": "Service,Provider"})
+        response = await base_client.get(
+            "/api/v1/tool_manager/tool_providers", params={"name[contains]": "Service,Provider"}
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -189,7 +192,7 @@ class TestFilteringORLogic:
     ) -> None:
         """Test filtering with one field using OR and another using AND."""
         response = await base_client.get(
-            "/api/v1/tool-providers",
+            "/api/v1/tool_manager/tool_providers",
             params={
                 "name[contains]": "Service,Delta",  # OR logic within this field
                 "enabled[eq]": "true",  # AND logic between fields
@@ -221,7 +224,7 @@ class TestFilteringORLogic:
     ) -> None:
         """Test filtering with multiple fields each using OR logic."""
         response = await base_client.get(
-            "/api/v1/tool-providers",
+            "/api/v1/tool_manager/tool_providers",
             params={
                 "name[contains]": "Alpha,Echo",  # OR within field
                 "description[contains]": "Development,Production",  # OR within field, AND between fields

@@ -1,4 +1,4 @@
-"""Contract tests for PUT /api/v1/tool-providers/{provider_id} endpoint.
+"""Contract tests for PUT /api/v1/tool_manager/tool_providers/{provider_id} endpoint.
 
 Tests complete provider configuration replacement.
 """
@@ -28,7 +28,7 @@ class TestToolProvidersUpdateContract:
         }
 
         response = await base_client_with_provider_factory.put(
-            f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}", json=update_data
         )
 
         # Contract: Must return 200 OK
@@ -55,7 +55,7 @@ class TestToolProvidersUpdateContract:
         }
 
         response = await base_client_with_provider_factory.put(
-            f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}", json=update_data
         )
 
         # Contract: Must return 200 OK
@@ -76,7 +76,7 @@ class TestToolProvidersUpdateContract:
         }
 
         response = await base_client_with_provider_factory.put(
-            f"/api/v1/tool-providers/{test_tool_provider.id}", json=invalid_data
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}", json=invalid_data
         )
 
         # Contract: Must return 422 Unprocessable Entity for missing required fields
@@ -101,7 +101,7 @@ class TestToolProvidersUpdateContract:
         }
 
         response = await base_client_with_provider_factory.put(
-            f"/api/v1/tool-providers/{test_tool_provider.id}", json=invalid_data
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}", json=invalid_data
         )
 
         # Contract: Must return 422 Unprocessable Entity for invalid configuration
@@ -122,7 +122,7 @@ class TestToolProvidersUpdateContract:
         }
 
         response = await base_client_with_provider_factory.put(
-            f"/api/v1/tool-providers/{provider_id}", json=update_data
+            f"/api/v1/tool_manager/tool_providers/{provider_id}", json=update_data
         )
 
         # Contract: Must return 404 Not Found
@@ -139,7 +139,7 @@ class TestToolProvidersUpdateContract:
             "configuration": {"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
         }
         create_response = await base_client_with_provider_factory.post(
-            "/api/v1/tool-providers", json=conflicting_provider_data
+            "/api/v1/tool_manager/tool_providers", json=conflicting_provider_data
         )
         assert create_response.status_code == 201
 
@@ -150,7 +150,7 @@ class TestToolProvidersUpdateContract:
         }
 
         response = await base_client_with_provider_factory.put(
-            f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}", json=update_data
         )
 
         # Contract: Must return 409 Conflict for duplicate name
@@ -165,7 +165,9 @@ class TestToolProvidersUpdateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
         }
 
-        response = await base_client_with_provider_factory.put(f"/api/v1/tool-providers/{invalid_id}", json=update_data)
+        response = await base_client_with_provider_factory.put(
+            f"/api/v1/tool_manager/tool_providers/{invalid_id}", json=update_data
+        )
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID
         assert response.status_code == 422
@@ -181,7 +183,7 @@ class TestToolProvidersUpdateContract:
         }
 
         response = await base_client_with_provider_factory.put(
-            f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}", json=update_data
         )
 
         # Contract: Must return 200 OK
@@ -209,7 +211,7 @@ class TestToolProvidersUpdateContract:
         }
 
         response = await base_client_with_provider_factory.put(
-            f"/api/v1/tool-providers/{test_tool_provider.id}", json=update_data
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}", json=update_data
         )
 
         # Contract: Must return 200 OK

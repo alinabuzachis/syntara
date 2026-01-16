@@ -15,8 +15,8 @@ class TestMalformedCursorHandling:
     @pytest.mark.parametrize(
         "endpoint",
         [
-            "/api/v1/tool-providers",
-            "/api/v1/tools",
+            "/api/v1/tool_manager/tool_providers",
+            "/api/v1/tool_manager/tools",
             "/api/v1/workflows",
             "/api/v1/executions",
             "/api/v1/invocations",

@@ -39,14 +39,15 @@ Backend API for administrators to register and manage external tool providers (M
 
 **Tech Stack**: FastAPI, PostgreSQL, SQLAlchemy 2.0, Valkey
 **Frontend**: Separate repository
+**Current Status**: Implemented and consolidated under `/tool_manager` API namespace
 
 ## Implementation Architecture
 
 ```mermaid
 graph TB
-    subgraph "🌐 API Layer"
+    subgraph "🌐 API Layer (/api/v1/tool_manager)"
         direction TB
-        API[REST API endpoints]
+        API[Unified REST API endpoints]
         AUTH[Admin Authentication]
         VALID[Input Validation]
     end
@@ -278,7 +279,7 @@ sequenceDiagram
 
     Note over Admin, ExtProv: Tool Provider Registration Flow
 
-    Admin->>+API: POST /api/v1/tool-providers
+    Admin->>+API: POST /api/v1/tool_manager/tool_providers
     API->>+Auth: Validate admin credentials
     Auth-->>-API: Admin authorized
 
@@ -301,7 +302,7 @@ sequenceDiagram
 
     Note over Admin, ExtProv: Tool Refresh Flow
 
-    Admin->>+API: POST /api/v1/tool-providers/{id}/refresh-tools
+    Admin->>+API: POST /api/v1/tool_manager/tool_providers/{id}/refresh_tools
     API->>+Auth: Validate admin credentials
     Auth-->>-API: Admin authorized
 
@@ -426,16 +427,16 @@ classDiagram
 - **Extensibility**: New provider types (gRPC, GraphQL, etc.) can be added without modifying core
 - **MCP as Example**: MCP is ONE implementation, not the only one
 
-**File Structure:**
+**File Structure (Current Implementation):**
 ```
-src/nexus/tool_manager/lib/
-├── tool_core.py              # Generic tool management (provider-agnostic)
-└── providers/
-    ├── base.py               # ToolProviderAdapter Protocol/ABC
-    ├── factory.py            # ProviderFactory (type routing)
-    ├── mcp_provider.py       # MCP implementation (uses MCP SDK)
-    ├── python_provider.py    # Python function provider
-    └── rest_api_provider.py  # REST API provider
+src/nexus/tool_manager/
+├── router.py                 # Unified API router (consolidates tools + tool_providers)
+├── models/                   # SQLModel data models
+├── services/                 # Business logic services
+└── lib/
+    ├── providers/            # Provider implementations
+    ├── exceptions.py         # Domain exceptions
+    └── interfaces.py         # Provider interfaces
 ```
 
 ## Technical Context
@@ -501,11 +502,13 @@ src/nexus/
     ├── auth/              # Authentication and authorization
     ├── db/                # Database connection and session management
     ├── models/            # API models
-    ├── schemas/           # Request/response schemas
-    ├── services/          # API service layer (direct database access)
     ├── utils/             # Utility functions
     ├── validators/        # Input validation
     └── workflows/         # Temporal workflow definitions
+
+schemas/tool_manager/          # Consolidated OpenAPI specifications
+├── openapi.yaml               # Unified tool management API spec
+└── metrics.yaml               # Tool metrics API spec
 
 tests/
 ├── unit/

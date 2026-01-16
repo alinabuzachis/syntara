@@ -90,7 +90,7 @@ class TestErrorReporting:
         mock_response = _create_mock_tool_response(
             tool_id=tool_id, status="error", refresh_error="Connection timeout during execution"
         )
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             return_value=httpx.Response(200, json=mock_response)
         )
 
@@ -101,7 +101,7 @@ class TestErrorReporting:
         # Verify the request was made with correct data
         request = respx.calls.last.request
         assert request.method == "PATCH"
-        assert f"/tools/{tool_id}" in str(request.url)
+        assert f"/tool_manager/tools/{tool_id}" in str(request.url)
 
         # Check request body contains status and refresh_error
         request_data = request.content.decode()
@@ -114,7 +114,7 @@ class TestErrorReporting:
         tool_id = uuid4()
 
         mock_response = _create_mock_tool_response(tool_id=tool_id, status="available", refresh_error=None)
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             return_value=httpx.Response(200, json=mock_response)
         )
 
@@ -133,7 +133,7 @@ class TestErrorReporting:
         tool_id = uuid4()
 
         mock_response = _create_mock_tool_response(tool_id=tool_id, status="missing", enabled=False)
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             return_value=httpx.Response(200, json=mock_response)
         )
 
@@ -153,7 +153,7 @@ class TestErrorReporting:
         mock_response = _create_mock_tool_response(
             tool_id=tool_id, status="error", refresh_error="Tool execution failed", enabled=False
         )
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             return_value=httpx.Response(200, json=mock_response)
         )
 
@@ -171,7 +171,7 @@ class TestErrorReporting:
         """Test handling of tool not found error."""
         tool_id = uuid4()
 
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             return_value=httpx.Response(
                 404,
                 json={
@@ -196,7 +196,7 @@ class TestErrorReporting:
         """Test handling of API errors during status update."""
         tool_id = uuid4()
 
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             return_value=httpx.Response(500, text="Internal server error")
         )
 
@@ -213,7 +213,7 @@ class TestErrorReporting:
         """Test handling of timeout during status update."""
         tool_id = uuid4()
 
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             side_effect=httpx.TimeoutException("Request timeout")
         )
 
@@ -228,7 +228,9 @@ class TestErrorReporting:
         """Test handling of network errors during status update."""
         tool_id = uuid4()
 
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(side_effect=httpx.ConnectError("Connection failed"))
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
+            side_effect=httpx.ConnectError("Connection failed")
+        )
 
         with pytest.raises(httpx.ConnectError):
             await client.update_tool_status(
@@ -240,7 +242,7 @@ class TestErrorReporting:
         """Test handling of validation errors during status update."""
         tool_id = uuid4()
 
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             return_value=httpx.Response(
                 400,
                 json={
@@ -266,7 +268,7 @@ class TestErrorReporting:
         long_error = "A" * 5000  # Very long error message
 
         mock_response = _create_mock_tool_response(tool_id=tool_id, status="error", refresh_error=long_error)
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             return_value=httpx.Response(200, json=mock_response)
         )
 
@@ -281,7 +283,7 @@ class TestErrorReporting:
         """Test handling of concurrent status updates."""
         tool_id = uuid4()
 
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             return_value=httpx.Response(
                 409,
                 json={
@@ -306,7 +308,7 @@ class TestErrorReporting:
         tool_id = uuid4()
 
         mock_response = _create_mock_tool_response(tool_id=tool_id, status="available", refresh_error=None)
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             return_value=httpx.Response(200, json=mock_response)
         )
 
@@ -327,7 +329,7 @@ class TestErrorReporting:
         mock_response = _create_mock_tool_provider_response(
             provider_id=provider_id, status="error", validation_error="Connection timeout during validation"
         )
-        respx.patch(f"http://test-api/api/v1/tool-providers/{provider_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tool_providers/{provider_id}").mock(
             return_value=httpx.Response(200, json=mock_response)
         )
 
@@ -340,7 +342,7 @@ class TestErrorReporting:
         # Verify the request was made with correct data
         request = respx.calls.last.request
         assert request.method == "PATCH"
-        assert f"/tool-providers/{provider_id}" in str(request.url)
+        assert f"/tool_manager/tool_providers/{provider_id}" in str(request.url)
 
         # Check request body contains status and validation_error
         request_data = request.content.decode()
@@ -355,7 +357,7 @@ class TestErrorReporting:
         mock_response = _create_mock_tool_provider_response(
             provider_id=provider_id, status="available", validation_error=None
         )
-        respx.patch(f"http://test-api/api/v1/tool-providers/{provider_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tool_providers/{provider_id}").mock(
             return_value=httpx.Response(200, json=mock_response)
         )
 
@@ -377,7 +379,7 @@ class TestErrorReporting:
         mock_response = _create_mock_tool_provider_response(
             provider_id=provider_id, status="error", validation_error="Provider validation failed", enabled=False
         )
-        respx.patch(f"http://test-api/api/v1/tool-providers/{provider_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tool_providers/{provider_id}").mock(
             return_value=httpx.Response(200, json=mock_response)
         )
 
@@ -397,7 +399,7 @@ class TestErrorReporting:
         """Test handling of provider not found error."""
         provider_id = uuid4()
 
-        respx.patch(f"http://test-api/api/v1/tool-providers/{provider_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tool_providers/{provider_id}").mock(
             return_value=httpx.Response(
                 404,
                 json={
@@ -422,7 +424,7 @@ class TestErrorReporting:
         """Test handling of API errors during provider status update."""
         provider_id = uuid4()
 
-        respx.patch(f"http://test-api/api/v1/tool-providers/{provider_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tool_providers/{provider_id}").mock(
             return_value=httpx.Response(500, text="Internal server error")
         )
 
@@ -441,7 +443,7 @@ class TestErrorReporting:
         mock_response = _create_mock_tool_response(
             tool_id=tool_id, status="available", refresh_error=None, enabled=True
         )
-        respx.patch(f"http://test-api/api/v1/tools/{tool_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tools/{tool_id}").mock(
             return_value=httpx.Response(200, json=mock_response)
         )
 
@@ -462,7 +464,7 @@ class TestErrorReporting:
         mock_response = _create_mock_tool_provider_response(
             provider_id=provider_id, status="available", validation_error=None, enabled=True
         )
-        respx.patch(f"http://test-api/api/v1/tool-providers/{provider_id}").mock(
+        respx.patch(f"http://test-api/api/v1/tool_manager/tool_providers/{provider_id}").mock(
             return_value=httpx.Response(200, json=mock_response)
         )
 

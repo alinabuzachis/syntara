@@ -77,7 +77,7 @@ class TestOrchestrationServiceGetTools:
         }
 
         # Create provider
-        create_response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201
         provider = create_response.json()
         provider_id = provider["id"]
@@ -134,14 +134,14 @@ class TestOrchestrationServiceGetTools:
         invocation_id = uuid4()
 
         # Log test setup information for debugging
-        provider_list_response = await base_client.get("/api/v1/tool-providers")
+        provider_list_response = await base_client.get("/api/v1/tool_manager/tool_providers")
         providers = provider_list_response.json()["resources"]
         logger.info("All providers: %s", providers)
 
         enabled_providers = [p for p in providers if p["enabled"]]
         logger.info("Enabled providers: %s", enabled_providers)
 
-        tools_response = await base_client.get("/api/v1/tools")
+        tools_response = await base_client.get("/api/v1/tool_manager/tools")
         tools = tools_response.json()["resources"]
         enabled_tools = [t for t in tools if t["enabled"]]
         logger.info("Enabled tools: %s", enabled_tools)
@@ -170,7 +170,7 @@ class TestOrchestrationServiceGetTools:
             assert mock_mcp_instance.get_tools.called, "get_tools should have been called"
 
             # Verify that the enabled tool was marked as MISSING
-            tool_response = await base_client.get(f"/api/v1/tools/{enabled_tool_id}")
+            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{enabled_tool_id}")
             assert tool_response.status_code == 200
             enabled_tool = tool_response.json()
 
@@ -179,7 +179,7 @@ class TestOrchestrationServiceGetTools:
             assert enabled_tool["enabled"] is False
 
             # Verify that the disabled tool remains unchanged (not processed by sync)
-            tool_response = await base_client.get(f"/api/v1/tools/{disabled_tool_id}")
+            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{disabled_tool_id}")
             assert tool_response.status_code == 200
             disabled_tool = tool_response.json()
 
@@ -225,7 +225,7 @@ class TestOrchestrationServiceGetTools:
             assert result_tools[0] is mock_enabled_tool
 
             # Verify that the enabled tool remains available and enabled
-            tool_response = await base_client.get(f"/api/v1/tools/{enabled_tool_id}")
+            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{enabled_tool_id}")
             assert tool_response.status_code == 200
             enabled_tool = tool_response.json()
 
@@ -234,7 +234,7 @@ class TestOrchestrationServiceGetTools:
             assert enabled_tool["refresh_error"] is None
 
             # Verify that the disabled tool remains unchanged
-            tool_response = await base_client.get(f"/api/v1/tools/{disabled_tool_id}")
+            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{disabled_tool_id}")
             assert tool_response.status_code == 200
             disabled_tool = tool_response.json()
 
@@ -263,7 +263,7 @@ class TestOrchestrationServiceGetTools:
             },
         }
 
-        create_response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201
         provider = create_response.json()
         provider_id = provider["id"]
@@ -317,7 +317,7 @@ class TestOrchestrationServiceGetTools:
             assert isinstance(result_tools, list)  # May be empty on first run after re-enablement
 
             # Verify the tool was re-enabled in the database
-            tool_response = await base_client.get(f"/api/v1/tools/{missing_tool.id}")
+            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{missing_tool.id}")
             assert tool_response.status_code == 200
             recovered_tool = tool_response.json()
 
@@ -348,7 +348,7 @@ class TestOrchestrationServiceGetTools:
             },
         }
 
-        create_response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201
         provider = create_response.json()
         provider_id = provider["id"]
@@ -396,7 +396,7 @@ class TestOrchestrationServiceGetTools:
             assert result_tools == []
 
             # Verify the provider was marked as ERROR
-            provider_response = await base_client.get(f"/api/v1/tool-providers/{provider_id}")
+            provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
             assert provider_response.status_code == 200
             updated_provider = provider_response.json()
 
@@ -405,7 +405,7 @@ class TestOrchestrationServiceGetTools:
             assert "Connection/timeout error" in updated_provider["validation_error"]
 
             # Tool should be marked as MISSING since provider failed
-            tool_response = await base_client.get(f"/api/v1/tools/{provider_tool.id}")
+            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{provider_tool.id}")
             assert tool_response.status_code == 200
             affected_tool = tool_response.json()
 
@@ -432,7 +432,7 @@ class TestOrchestrationServiceGetTools:
             },
         }
 
-        create_response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201
         provider = create_response.json()
         provider_id = provider["id"]
@@ -486,7 +486,7 @@ class TestOrchestrationServiceGetTools:
             assert result_tools[0] is mock_provider_tool
 
             # Verify the provider was re-enabled
-            provider_response = await base_client.get(f"/api/v1/tool-providers/{provider_id}")
+            provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
             assert provider_response.status_code == 200
             recovered_provider = provider_response.json()
 

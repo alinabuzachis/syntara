@@ -1,4 +1,4 @@
-"""Contract tests for PATCH /api/v1/tools/bulk-update endpoint.
+"""Contract tests for PATCH /api/v1/tool_manager/tools/bulk_update endpoint.
 
 Tests bulk tool status updates, validation, and response format.
 """
@@ -34,7 +34,9 @@ class TestToolsBulkUpdateContract:
         """Test successful bulk disable returns 200."""
         tool_ids = [str(tool.id) for tool in multiple_tools_for_bulk[:2]]
 
-        response = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False})
+        response = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
+        )
 
         # Contract: Must return 200 OK for successful bulk update
         assert response.status_code == 200
@@ -57,7 +59,9 @@ class TestToolsBulkUpdateContract:
         # Use the disabled tool
         tool_ids = [str(multiple_tools_for_bulk[2].id)]
 
-        response = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": True})
+        response = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": True}
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -76,7 +80,9 @@ class TestToolsBulkUpdateContract:
         nonexistent_ids = [str(uuid4()), str(uuid4())]
         tool_ids = [existing_id, *nonexistent_ids]
 
-        response = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False})
+        response = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
+        )
 
         # Contract: Must return 200 OK (partial success)
         assert response.status_code == 200
@@ -89,7 +95,9 @@ class TestToolsBulkUpdateContract:
     @pytest.mark.asyncio
     async def ***REMOVED***(self, base_client: AsyncClient) -> None:
         """Test bulk update with empty tool_ids list returns 400."""
-        response = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": [], "enabled": False})
+        response = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": [], "enabled": False}
+        )
 
         # Contract: Must return 422 Unprocessable Entity for validation failure
         assert response.status_code == 422
@@ -106,7 +114,9 @@ class TestToolsBulkUpdateContract:
         # Create list of 51 tool IDs
         tool_ids = [str(uuid4()) for _ in range(51)]
 
-        response = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False})
+        response = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
+        )
 
         # Contract: Must return 422 Unprocessable Entity for validation failure
         assert response.status_code == 422
@@ -122,7 +132,7 @@ class TestToolsBulkUpdateContract:
         """Test bulk update with missing required fields returns 422."""
         # Missing status field
         response = await base_client.patch(
-            "/api/v1/tools/bulk-update",
+            "/api/v1/tool_manager/tools/bulk_update",
             json={
                 "tool_ids": [str(uuid4())]
                 # Missing enabled
@@ -134,7 +144,7 @@ class TestToolsBulkUpdateContract:
 
         # Missing tool_ids field
         response = await base_client.patch(
-            "/api/v1/tools/bulk-update",
+            "/api/v1/tool_manager/tools/bulk_update",
             json={
                 "enabled": False
                 # Missing tool_ids
@@ -148,7 +158,8 @@ class TestToolsBulkUpdateContract:
     async def test_bulk_update_invalid_uuid_format_contract(self, base_client: AsyncClient) -> None:
         """Test bulk update with invalid UUID format returns 422."""
         response = await base_client.patch(
-            "/api/v1/tools/bulk-update", json={"tool_ids": ["not-a-valid-uuid", "also-invalid"], "enabled": False}
+            "/api/v1/tool_manager/tools/bulk_update",
+            json={"tool_ids": ["not-a-valid-uuid", "also-invalid"], "enabled": False},
         )
 
         # Contract: Must return 422 for invalid UUID format
@@ -161,7 +172,9 @@ class TestToolsBulkUpdateContract:
         """Test bulk update response has correct format."""
         tool_ids = [str(tool.id) for tool in multiple_tools_for_bulk[:2]]
 
-        response = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False})
+        response = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -183,11 +196,15 @@ class TestToolsBulkUpdateContract:
         tool_ids = [str(multiple_tools_for_bulk[0].id)]
 
         # First update
-        response1 = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False})
+        response1 = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
+        )
         assert response1.status_code == 200
 
         # Second update with same status
-        response2 = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False})
+        response2 = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
+        )
 
         # Contract: Should succeed even if already in target state
         assert response2.status_code == 200
@@ -203,7 +220,7 @@ class TestToolsBulkUpdateContract:
 
         # Test with incorrect case
         response = await base_client.patch(
-            "/api/v1/tools/bulk-update",
+            "/api/v1/tool_manager/tools/bulk_update",
             json={
                 "tool_ids": tool_ids,
                 "enabled": "FALSE",
@@ -217,7 +234,9 @@ class TestToolsBulkUpdateContract:
     async def test_bulk_update_invalid_json_contract(self, base_client: AsyncClient) -> None:
         """Test bulk update with invalid JSON returns 422."""
         response = await base_client.patch(
-            "/api/v1/tools/bulk-update", content="invalid json", headers={"Content-Type": "application/json"}
+            "/api/v1/tool_manager/tools/bulk_update",
+            content="invalid json",
+            headers={"Content-Type": "application/json"},
         )
 
         # Contract: Must return 422 for invalid JSON
@@ -230,7 +249,9 @@ class TestToolsBulkUpdateContract:
         """Test response has correct content type."""
         tool_ids = [str(multiple_tools_for_bulk[0].id)]
 
-        response = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False})
+        response = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
+        )
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -248,7 +269,9 @@ class TestToolsBulkUpdateContract:
         additional_ids = [str(uuid4()) for _ in range(50 - len(existing_ids))]
         tool_ids = existing_ids + additional_ids
 
-        response = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False})
+        response = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
+        )
 
         # Contract: Should accept exactly 50 tools
         assert response.status_code == 200
@@ -266,7 +289,8 @@ class TestToolsBulkUpdateContract:
         tool_ids = [str(multiple_tools_for_bulk[0].id)]
 
         response = await base_client.patch(
-            "/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False, "unknown_field": "value"}
+            "/api/v1/tool_manager/tools/bulk_update",
+            json={"tool_ids": tool_ids, "enabled": False, "unknown_field": "value"},
         )
 
         # Contract: Should either accept (ignoring unknown fields) or reject
@@ -285,7 +309,9 @@ class TestToolsBulkUpdateContract:
         tool_id = str(multiple_tools_for_bulk[0].id)
         tool_ids = [tool_id, tool_id, tool_id]  # Same ID repeated
 
-        response = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False})
+        response = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
+        )
 
         # Contract: Should handle duplicates gracefully
         assert response.status_code == 200
@@ -335,7 +361,9 @@ class TestToolsBulkUpdateContract:
         # Attempt to update both soft-deleted and active tool
         tool_ids = [str(soft_deleted_tool.id), str(active_tool.id)]
 
-        response = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False})
+        response = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
+        )
 
         # Contract: Should succeed but skip soft-deleted tools
         assert response.status_code == 200
@@ -352,7 +380,7 @@ class TestToolsBulkUpdateContract:
         nonexistent_tool_ids = [str(uuid4()), str(uuid4()), str(uuid4())]
 
         response = await base_client.patch(
-            "/api/v1/tools/bulk-update", json={"tool_ids": nonexistent_tool_ids, "enabled": False}
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": nonexistent_tool_ids, "enabled": False}
         )
 
         # Contract: Should succeed but skip all non-existent tools
@@ -404,7 +432,9 @@ class TestToolsBulkUpdateContract:
             active_tool_id,  # Duplicate active tool
         ]
 
-        response = await base_client.patch("/api/v1/tools/bulk-update", json={"tool_ids": tool_ids, "enabled": False})
+        response = await base_client.patch(
+            "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
+        )
 
         # Contract: Should handle all scenarios gracefully
         assert response.status_code == 200

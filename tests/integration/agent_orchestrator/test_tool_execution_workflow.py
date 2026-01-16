@@ -140,18 +140,18 @@ async def _create_tool_provider(base_client: AsyncClient) -> str:
     }
 
     # Create provider
-    create_response = await base_client.post("/api/v1/tool-providers", json=provider_data)
+    create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
     assert create_response.status_code == 201
 
     provider_id = create_response.json()["id"]
 
     # Validate provider
-    validate_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/validate")
+    validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
     assert validate_response.status_code == 200
     assert validate_response.json()["valid"] is True
 
     # Refresh tools
-    refresh_response = await base_client.post(f"/api/v1/tool-providers/{provider_id}/refresh-tools")
+    refresh_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools")
     assert refresh_response.status_code == 200
     assert refresh_response.json()["refreshed_count"] > 0
 
@@ -177,7 +177,7 @@ class TestToolExecutionWorkflow:
         await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
 
         # Verify tools are available before creating invocation
-        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
         assert tools_response.status_code == 200
         tools_data = tools_response.json()
         available_tools = tools_data["resources"]
@@ -240,7 +240,7 @@ class TestToolExecutionWorkflow:
         await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
 
         # Verify tools are available
-        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
         assert tools_response.status_code == 200
         tools_data = tools_response.json()
         available_tools = tools_data["resources"]
@@ -324,7 +324,7 @@ class TestToolExecutionWorkflow:
 
         # Get tools and disable them
         tools_response = await auth_client_with_tool_aware_mocked_llm.get(
-            "/api/v1/tools", params={"provider_id[eq]": provider_id}
+            "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
         )
         assert tools_response.status_code == 200
 
@@ -334,7 +334,7 @@ class TestToolExecutionWorkflow:
         # Disable first tool
         tool_id = tools[0]["id"]
         disable_response = await auth_client_with_tool_aware_mocked_llm.patch(
-            f"/api/v1/tools/{tool_id}", json={"enabled": False}
+            f"/api/v1/tool_manager/tools/{tool_id}", json={"enabled": False}
         )
         assert disable_response.status_code == 200
 
@@ -374,7 +374,7 @@ class TestToolExecutionFailureRetryWorkflow:
         await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
 
         # Verify retry tools are available
-        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
         assert tools_response.status_code == 200
         tools_data = tools_response.json()
         available_tools = tools_data["resources"]
@@ -422,7 +422,7 @@ class TestToolExecutionFailureRetryWorkflow:
         await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
 
         # Verify network tool is available
-        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
         assert tools_response.status_code == 200
         tools_data = tools_response.json()
         available_tools = tools_data["resources"]
@@ -471,7 +471,7 @@ class TestToolExecutionFailureRetryWorkflow:
 
         # Verify failing tool is available and enabled initially
         tools_response = await auth_client_with_tool_aware_mocked_llm.get(
-            "/api/v1/tools", params={"provider_id[eq]": provider_id}
+            "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
         )
         assert tools_response.status_code == 200
         tools_data = tools_response.json()
