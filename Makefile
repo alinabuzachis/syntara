@@ -84,9 +84,14 @@ test-performance: check-deps ## Run performance tests only (excluded from defaul
 	uv run pytest tests/performance/ -v --run-performance
 
 .PHONY: test-coverage
-test-coverage: check-deps ## Run tests with coverage report
+test-coverage: check-deps ## Run tests with coverage report (XML)
 	@echo "🧪 Running tests with coverage..."
-	uv run pytest tests/ -n auto -m "not mcp" --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --cov-report=xml --junitxml=pytest-results.xml
+	uv run pytest tests/ -n auto -m "not mcp" --cov=src --cov-report=xml --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml
+
+.PHONY: test-coverage-report
+test-coverage-report: check-deps ## Run tests with coverage report (HTML)
+	@echo "🧪 Running tests with coverage..."
+	uv run pytest tests/ -n auto -m "not mcp" --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml
 
 .PHONY: test-fast
 test-fast: check-deps ## Run tests with fail-fast and short traceback
