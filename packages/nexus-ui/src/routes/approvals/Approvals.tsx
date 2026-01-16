@@ -1,15 +1,13 @@
-import type { Approval, ApprovalStatus } from '@ansible/nexus-contracts'
+import type { Approval } from '@ansible/nexus-contracts'
 import {
   CompassPanel,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
-  Label,
   SearchInput,
   StackItem,
 } from '@patternfly/react-core'
-import { RhUiDislikeFillIcon, RhUiLikeFillIcon, RhUiWarningFillIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ExpandableRowContent } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
@@ -24,6 +22,7 @@ import { LinkCell } from '../../components/table/LinkCell'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useFuse } from '../../hooks/useFuse'
 
+import { ApprovalStatusBadges } from './approvalUtils'
 import { mockApprovals } from './mockApprovals'
 
 type ApprovalWithDetails = Approval & {
@@ -33,43 +32,60 @@ type ApprovalWithDetails = Approval & {
   workflowId?: string
 }
 
-// Extended status type to include 'cancelled' which is in the spec but may not be in contracts yet
-type ExtendedApprovalStatus = ApprovalStatus | 'cancelled'
-
-const statusMap: Record<ExtendedApprovalStatus, 'info' | 'success' | 'danger' | 'warning'> = {
-  pending: 'warning',
-  approved: 'success',
-  rejected: 'danger',
-  expired: 'warning',
-  cancelled: 'info',
-}
-
-const statusIcons: Record<ExtendedApprovalStatus, React.ComponentType<{ className?: string }>> = {
-  pending: RhUiWarningFillIcon,
-  approved: RhUiLikeFillIcon,
-  rejected: RhUiDislikeFillIcon,
-  expired: RhUiWarningFillIcon,
-  cancelled: RhUiWarningFillIcon,
-}
-
-function ApprovalStatusBadges({ approval }: { approval: ApprovalWithDetails }) {
-  if (!approval.status) {
-    return null
-  }
-
-  const IconComponent = statusIcons[approval.status]
-  const capitalizedStatus = approval.status.charAt(0).toUpperCase() + approval.status.slice(1)
-
-  return (
-    <Label variant="outline" status={statusMap[approval.status]} icon={<IconComponent />}>
-      {capitalizedStatus}
-    </Label>
-  )
-}
-
 type SortColumn = 'approvalName' | 'automationName' | 'requested_at' | 'decided_at' | 'status'
 // 'approvalType' removed for RH1 - may be added back later
 type SortDirection = 'asc' | 'desc'
+
+const getApprovalDetails = (approval: ApprovalWithDetails) => ({
+  approvalName: approval.name || approval.id,
+  automationName: approval.workflow_context?.workflow_name || 'Unknown',
+  workflowId: approval.workflow_context?.workflow_version_id,
+})
+
+const getDecidedInfo = (approval: ApprovalWithDetails) => ({
+  decidedAt: approval.decided_at,
+  decidedBy: approval.decided_by,
+})
+
+const getSortValue = (approval: ApprovalWithDetails, sortColumn: SortColumn) => {
+  switch (sortColumn) {
+    case 'approvalName':
+      return approval.approvalName || approval.id
+    // case 'approvalType': // Removed for RH1
+    //   return approval.approvalType || ''
+    case 'automationName':
+      return approval.automationName || ''
+    case 'requested_at':
+      // Use createdAt from BaseResource (represents when approval was requested)
+      return approval.createdAt ? new Date(approval.createdAt).getTime() : 0
+    case 'decided_at': {
+      const { decidedAt } = getDecidedInfo(approval)
+      return decidedAt ? new Date(decidedAt).getTime() : undefined
+    }
+    case 'status':
+      return approval.status || ''
+  }
+}
+
+const DecidedCell = ({ approval }: { approval: ApprovalWithDetails }) => {
+  const { decidedAt, decidedBy } = getDecidedInfo(approval)
+
+  if (!decidedAt) {
+    return <DateCell dateString={null} />
+  }
+
+  return (
+    <>
+      {decidedBy ? (
+        <>
+          <LinkCell href={`/users/${decidedBy.id}`}>{decidedBy.name}</LinkCell>
+          {' at '}
+        </>
+      ) : null}
+      <DateCell dateString={decidedAt} />
+    </>
+  )
+}
 
 // Feature flag: Set to false when backend endpoints are ready
 // Check at runtime to allow testing
@@ -101,19 +117,7 @@ export default function Approvals() {
   const enrichedApprovals = useMemo(() => {
     const approvals = (approvalsData?.resources ?? []) as ApprovalWithDetails[]
     return approvals.map((approval) => {
-      const approvalWithFields = approval as unknown as {
-        name?: string
-        workflow_context?: {
-          workflow_version_id?: string
-          workflow_name?: string
-        }
-      }
-
-      const approvalName = approvalWithFields.name || approval.id
-      const workflowContext = approvalWithFields.workflow_context || {}
-      const automationName = workflowContext.workflow_name || 'Unknown'
-      const workflowId = workflowContext.workflow_version_id
-
+      const { approvalName, automationName, workflowId } = getApprovalDetails(approval)
       return {
         ...approval,
         approvalName,
@@ -134,40 +138,8 @@ export default function Approvals() {
   const sortedApprovals = useMemo(() => {
     const sorted = [...filteredApprovals]
     sorted.sort((a, b) => {
-      let aValue: string | number | undefined
-      let bValue: string | number | undefined
-
-      switch (sortColumn) {
-        case 'approvalName':
-          aValue = a.approvalName || a.id
-          bValue = b.approvalName || b.id
-          break
-        // case 'approvalType': // Removed for RH1
-        //   aValue = a.approvalType || ''
-        //   bValue = b.approvalType || ''
-        //   break
-        case 'automationName':
-          aValue = a.automationName || ''
-          bValue = b.automationName || ''
-          break
-        case 'requested_at':
-          // Use createdAt from BaseResource (represents when approval was requested)
-          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0
-          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0
-          break
-        case 'decided_at': {
-          const aDecidedAt = (a as unknown as { decided_at?: string | null }).decided_at
-          const bDecidedAt = (b as unknown as { decided_at?: string | null }).decided_at
-          // Use undefined for null values - existing comparison logic will sort them to the end
-          aValue = aDecidedAt ? new Date(aDecidedAt).getTime() : undefined
-          bValue = bDecidedAt ? new Date(bDecidedAt).getTime() : undefined
-          break
-        }
-        case 'status':
-          aValue = a.status || ''
-          bValue = b.status || ''
-          break
-      }
+      const aValue = getSortValue(a, sortColumn)
+      const bValue = getSortValue(b, sortColumn)
 
       if (aValue === undefined && bValue === undefined) return 0
       if (aValue === undefined) return 1
@@ -403,50 +375,25 @@ export default function Approvals() {
                       <DateCell dateString={approval.createdAt} />
                     </Td>
                     <Td dataLabel="Actioned on">
-                      {(() => {
-                        const approvalWithFields = approval as unknown as {
-                          decided_at?: string | null
-                          decided_by?: { id: string; name: string } | null
-                        }
-                        const decidedAt = approvalWithFields.decided_at
-                        const decidedBy = approvalWithFields.decided_by
-
-                        if (decidedAt) {
-                          return (
-                            <>
-                              {decidedBy ? (
-                                <>
-                                  <LinkCell href={`/users/${decidedBy.id}`}>{decidedBy.name}</LinkCell>
-                                  {' at '}
-                                </>
-                              ) : null}
-                              <DateCell dateString={decidedAt} />
-                            </>
-                          )
-                        }
-                        return <DateCell dateString={null} />
-                      })()}
+                      <DecidedCell approval={approval} />
                     </Td>
                     <Td dataLabel="Status">
-                      <ApprovalStatusBadges approval={approval} />
+                      <ApprovalStatusBadges status={approval.status} />
                     </Td>
                   </Tr>
                   <Tr key={`${approval.id}-expanded`} isExpanded={isExpanded}>
                     <Td colSpan={6}>
-                      {' '}
                       {/* TODO: revert back to 7 after returning "approval type" column */}
                       <ExpandableRowContent>
-                        <div style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
-                          <DescriptionList>
-                            <DescriptionListGroup>
-                              <DescriptionListTerm>Description</DescriptionListTerm>
-                              <DescriptionListDescription>
-                                {(approval as unknown as { description?: string | null }).description ||
-                                  'No description provided'}
-                              </DescriptionListDescription>
-                            </DescriptionListGroup>
-                          </DescriptionList>
-                        </div>
+                        <DescriptionList>
+                          <DescriptionListGroup>
+                            <DescriptionListTerm>Description</DescriptionListTerm>
+                            <DescriptionListDescription>
+                              {(approval as unknown as { description?: string | null }).description ||
+                                'No description provided'}
+                            </DescriptionListDescription>
+                          </DescriptionListGroup>
+                        </DescriptionList>
                       </ExpandableRowContent>
                     </Td>
                   </Tr>

@@ -1,12 +1,49 @@
-import { CodeBlock as PFCodeBlock, CodeBlockCode } from '@patternfly/react-core'
+import { CodeBlock as PFCodeBlock, CodeBlockAction, CodeBlockCode, ClipboardCopyButton } from '@patternfly/react-core'
+import { useId, useState } from 'react'
 
-export function CodeBlock(props: { children?: React.ReactNode; jsonObject?: object; noMaxHeight?: boolean }) {
+export function CodeBlock(props: {
+  children?: React.ReactNode
+  jsonObject?: object
+  noMaxHeight?: boolean
+  enableCopy?: boolean
+  fillHeight?: boolean
+}) {
   const codeContent = props.children ?? (props.jsonObject && JSON.stringify(props.jsonObject, undefined, 2))
+  const copyText =
+    typeof codeContent === 'string'
+      ? codeContent
+      : props.jsonObject
+        ? JSON.stringify(props.jsonObject, undefined, 2)
+        : ''
+  const copyButtonId = useId()
+  const [isCopied, setIsCopied] = useState(false)
+
+  const handleCopy = () => {
+    if (!copyText || !navigator.clipboard?.writeText) return
+    void navigator.clipboard.writeText(copyText).then(
+      () => {
+        setIsCopied(true)
+        window.setTimeout(() => setIsCopied(false), 2000)
+      },
+      () => {
+        setIsCopied(true)
+        window.setTimeout(() => setIsCopied(false), 2000)
+      }
+    )
+  }
+
+  const copyAction = props.enableCopy ? (
+    <CodeBlockAction>
+      <ClipboardCopyButton variant="plain" id={copyButtonId} aria-label="Copy to clipboard" onClick={handleCopy}>
+        {isCopied ? 'Copied to clipboard' : 'Copy to clipboard'}
+      </ClipboardCopyButton>
+    </CodeBlockAction>
+  ) : undefined
 
   if (props.noMaxHeight) {
     // When noMaxHeight is true, render without scrollable container to allow parent scrolling
     return (
-      <PFCodeBlock>
+      <PFCodeBlock actions={copyAction}>
         <CodeBlockCode>{codeContent}</CodeBlockCode>
       </PFCodeBlock>
     )
@@ -15,12 +52,13 @@ export function CodeBlock(props: { children?: React.ReactNode; jsonObject?: obje
   return (
     <div
       style={{
-        maxHeight: '24rem',
+        maxHeight: props.fillHeight ? 'none' : '24rem',
+        height: props.fillHeight ? '100%' : undefined,
         overflowY: 'auto',
         overflowX: 'hidden',
       }}
     >
-      <PFCodeBlock>
+      <PFCodeBlock actions={copyAction}>
         <CodeBlockCode>{codeContent}</CodeBlockCode>
       </PFCodeBlock>
     </div>

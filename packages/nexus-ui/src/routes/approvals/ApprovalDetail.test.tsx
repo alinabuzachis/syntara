@@ -1,7 +1,8 @@
 import type { Approval } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { useParams } from 'wouter'
+import { useLocation, useParams } from 'wouter'
 
 import { workflowClient } from '../../client'
 
@@ -16,6 +17,7 @@ vi.mock('../../client', () => ({
 
 // Mock wouter
 vi.mock('wouter', () => ({
+  useLocation: vi.fn(),
   useParams: vi.fn(),
 }))
 
@@ -66,6 +68,7 @@ describe('ApprovalDetail Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useParams).mockReturnValue({ approvalId: '550e8400-e29b-41d4-a716-446655440001' })
+    vi.mocked(useLocation).mockReturnValue(['/', vi.fn()])
     // Disable mock approvals in tests so we can test with mocked query data
     vi.stubEnv('VITE_USE_MOCK_APPROVALS', 'false')
   })
@@ -86,8 +89,9 @@ describe('ApprovalDetail Component', () => {
     render(<ApprovalDetail />)
 
     expect(screen.getByText('Test Approval')).toBeInTheDocument()
-    expect(screen.getByText('Approval detail page placeholder')).toBeInTheDocument()
-    expect(screen.getByText(/Approval ID: 550e8400-e29b-41d4-a716-446655440001/)).toBeInTheDocument()
+    expect(screen.getByText('Approval type')).toBeInTheDocument()
+    expect(screen.getByText('Automation')).toBeInTheDocument()
+    expect(screen.getByText('Approval initiated')).toBeInTheDocument()
   })
 
   it('displays approval name in header', () => {
@@ -97,14 +101,6 @@ describe('ApprovalDetail Component', () => {
 
     // The approval name should be in the page header
     expect(screen.getByText('Test Approval')).toBeInTheDocument()
-  })
-
-  it('displays approval ID', () => {
-    mockApprovalQuery(mockApproval)
-
-    render(<ApprovalDetail />)
-
-    expect(screen.getByText(/Approval ID: 550e8400-e29b-41d4-a716-446655440001/)).toBeInTheDocument()
   })
 
   it('displays approval JSON data', () => {
@@ -180,12 +176,36 @@ describe('ApprovalDetail Component', () => {
     expect(screen.getByText('550e8400-e29b-41d4-a716-446655440002')).toBeInTheDocument()
   })
 
-  it('handles missing approval data gracefully', () => {
-    mockApprovalQuery(null)
+  it('shows approve/reject actions for pending approvals', () => {
+    mockApprovalQuery(mockApproval)
 
     render(<ApprovalDetail />)
 
-    expect(screen.getByText(/Approval ID: 550e8400-e29b-41d4-a716-446655440001/)).toBeInTheDocument()
-    expect(screen.getByText('Approval detail page placeholder')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument()
+  })
+
+  it('requires notes before enabling submit', async () => {
+    mockApprovalQuery(mockApproval)
+
+    render(<ApprovalDetail />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    const submitButton = screen.getByRole('button', { name: 'Submit' })
+    expect(submitButton).toBeDisabled()
+
+    await userEvent.type(screen.getByRole('textbox'), 'Looks good')
+    expect(submitButton).toBeEnabled()
+  })
+
+  it('shows status and notes for non-pending approvals', () => {
+    const approvedApproval = { ...mockApproval, status: 'approved', decision_notes: 'Approved after review' }
+    mockApprovalQuery(approvedApproval as Approval)
+
+    render(<ApprovalDetail />)
+
+    expect(screen.getByText('Approved')).toBeInTheDocument()
+    expect(screen.getByText('Approval notes')).toBeInTheDocument()
+    expect(screen.getByText('Approved after review')).toBeInTheDocument()
   })
 })

@@ -1142,7 +1142,29 @@ export interface components {
        * @description User assigned to review this approval
        */
       approver_id?: string
+      /** @description Parent workflow execution ID */
+      execution_id?: string
+      /** @description Activity ID from workflow definition */
+      approval_node_id?: string
+      /** @description Display name for the approval request */
+      name?: string
+      /** @description Detailed context/prompt for approvers */
+      description?: string | null
       status?: components['schemas']['ApprovalStatus']
+      /** @description When this request expires (null = no timeout) */
+      timeout_at?: string | null
+      /** @description First activity that executes if approved */
+      next_step_approved?: components['schemas']['ActivitySummary']
+      /** @description First activity that executes if rejected (null if path ends workflow) */
+      next_step_rejected?: components['schemas']['ActivitySummary'] | null
+      /** @description Workflow context for approvers */
+      workflow_context?: components['schemas']['WorkflowContext']
+      /** @description User who made the decision (captures name at decision time) */
+      decided_by?: components['schemas']['UserReference'] | null
+      /** @description When decision was made */
+      decided_at?: string | null
+      /** @description Notes provided with the decision */
+      decision_notes?: string | null
       /** @description Data presented for approval */
       request_data?: Record<string, never>
       /** @description Approver's response including reason and comments */
@@ -1180,7 +1202,59 @@ export interface components {
      * @description Current state of a human approval request
      * @enum {string}
      */
-    ApprovalStatus: 'pending' | 'approved' | 'rejected' | 'expired'
+    ApprovalStatus: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
+    /**
+     * Activity Summary
+     * @description Summary of a workflow activity for display in approval context
+     */
+    ActivitySummary: {
+      /** @description Activity ID from workflow definition */
+      id: string
+      /** @description Human-readable activity name */
+      name: string
+      /** @description Activity type (task, approval, parallel, etc.) */
+      type: string
+      /** @description Optional activity description if available */
+      description?: string | null
+    }
+    /**
+     * Previous Step Context
+     * @description The activity that immediately preceded this approval node
+     */
+    PreviousStepContext: {
+      /** @description Activity ID from workflow definition */
+      id: string
+      /** @description Human-readable activity name */
+      name: string
+      /** @description Activity type (task, approval, parallel, etc.) */
+      type: string
+      /** @description Output from the activity (structure varies per activity type) */
+      output?: Record<string, unknown> | null
+    }
+    /**
+     * Workflow Context
+     * @description Essential context for approvers to make a decision
+     */
+    WorkflowContext: {
+      /** @description ID of the workflow version being executed */
+      workflow_version_id: string
+      /** @description Name of the workflow */
+      workflow_name: string
+      /** @description Original workflow input parameters */
+      inputs: Record<string, unknown>
+      /** @description Previous step context */
+      previous_step?: components['schemas']['PreviousStepContext']
+    }
+    /**
+     * User Reference
+     * @description Minimal user identification for embedding in other resources
+     */
+    UserReference: {
+      /** @description User's unique identifier */
+      id: string
+      /** @description User's display name at time of action */
+      name: string
+    }
     /**
      * Create Workflow Request
      * @description Request payload for creating a new workflow from workflow definition
@@ -1891,7 +1965,7 @@ export interface components {
       triggers?: components['schemas']['manualTrigger'][]
       /** @description Input parameter definitions for the workflow */
       inputs?: {
-        [key: string]: definitions['parameter']
+        [key: string]: Record<string, unknown>
       }
       /** @description Workflow-level variables that can be referenced throughout the workflow */
       variables?: {

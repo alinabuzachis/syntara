@@ -226,6 +226,16 @@ describe('Approvals Component', () => {
     expect(screen.getByText('Another Workflow')).toBeInTheDocument()
   })
 
+  it('renders approval status badges', () => {
+    mockApprovalsQuery(mockApprovals)
+
+    render(<Approvals />)
+
+    expect(screen.getByText('Pending')).toBeInTheDocument()
+    expect(screen.getByText('Approved')).toBeInTheDocument()
+    expect(screen.getByText('Rejected')).toBeInTheDocument()
+  })
+
   it('shows empty state when no approvals', () => {
     mockApprovalsQuery([])
 
