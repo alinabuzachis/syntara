@@ -58,7 +58,7 @@ async def get_temporal_execution_service() -> TemporalExecutionService | None:
         return None
 
 
-async def get_execution_service(
+def get_execution_service(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     temporal_service: Annotated[

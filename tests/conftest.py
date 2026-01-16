@@ -573,8 +573,6 @@ async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> As
         yield test_db_session
 
     session_app.dependency_overrides[get_db] = override_get_db
-    # Store test session factory for background tasks
-    session_app.state.test_session_factory = override_get_db
 
     async with AsyncClient(
         transport=ASGITransport(app=session_app),
@@ -583,9 +581,6 @@ async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> As
         yield client
 
     session_app.dependency_overrides.clear()
-    # Clean up test session factory
-    if hasattr(session_app.state, "test_session_factory"):
-        delattr(session_app.state, "test_session_factory")
 
 
 @pytest_asyncio.fixture

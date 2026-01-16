@@ -36,6 +36,7 @@ from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.agent_orchestrator.services import InvocationService
 from nexus.api.auth import get_current_user
 from nexus.api.db import get_db
+from nexus.api.v1.utils import create_session_factory_from_request
 from nexus.core.models import User
 from nexus.files.validators import (
     ValidationError as FileValidationError,
@@ -43,6 +44,54 @@ from nexus.files.validators import (
 
 router = APIRouter(prefix="/invocations", tags=["Invocation"])
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Dependency Injection Providers
+# ============================================================================
+
+
+def get_invocation_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> InvocationService:
+    """Dependency provider for InvocationService.
+
+    FastAPI will call this function automatically, injecting all dependencies.
+    This centralizes InvocationService creation for endpoints that don't need
+    background tasks or custom session factories.
+
+    Args:
+        db: Database session
+        current_user: Current authenticated user
+
+    Returns:
+        InvocationService configured with database session and user
+
+    """
+    return InvocationService(db, current_user)
+
+
+def get_invocation_service_with_background_tasks(
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    request: Request,
+) -> InvocationService:
+    """Dependency provider for InvocationService with background tasks.
+
+    Args:
+        background_tasks: FastAPI background tasks for document conversion
+        db: Database session (injected by FastAPI)
+        current_user: Current authenticated user
+        request: FastAPI request object (contains app with dependency overrides)
+
+    Returns:
+        InvocationService configured with all necessary dependencies
+
+    """
+    session_factory = create_session_factory_from_request(request)
+    return InvocationService(db, current_user, background_tasks, session_factory=session_factory)
 
 
 def _validate_multipart_required_fields(prompt: str | None, session_id: str | None) -> tuple[str, str]:
@@ -76,9 +125,7 @@ def _validate_multipart_required_fields(prompt: str | None, session_id: str | No
 )
 async def invoke_agent(
     request: Request,
-    background_tasks: BackgroundTasks,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[InvocationService, Depends(get_invocation_service_with_background_tasks)],
     request_body: Annotated[InvocationCreateRequest | None, Body()] = None,
     prompt: Annotated[str | None, Form()] = None,
     session_id: Annotated[str | None, Form()] = None,
@@ -93,9 +140,7 @@ async def invoke_agent(
 
     Args:
         request: FastAPI request object (for determining content type)
-        background_tasks: FastAPI background tasks for document conversion
-        db: Database session (dependency injected)
-        current_user: Current authenticated user
+        service: Invocation service (with background tasks support)
         request_body: JSON request body (for application/json)
         prompt: Prompt field (for multipart/form-data)
         session_id: Session ID field (for multipart/form-data)
@@ -163,11 +208,6 @@ async def invoke_agent(
                 detail="Request must be either application/json or multipart/form-data",
             )
 
-        # Check if we're in test mode and have a test session factory
-        # Background tasks need to use the same database session as the main test.
-        # In tests, conftest.py sets app.state.test_session_factory to the test DB session factory.
-        session_factory = getattr(request.app.state, "test_session_factory", None) or get_db
-        service = InvocationService(db, current_user, background_tasks, session_factory=session_factory)
         return await service.create_invocation(
             prompt=final_prompt,
             session_id=final_session_id,
@@ -219,8 +259,7 @@ async def invoke_agent(
 )
 async def list_invocations(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[InvocationService, Depends(get_invocation_service)],
     params: Annotated[InvocationListParams, Query()],
 ) -> InvocationListResponse:
     """List invocations with filtering, sorting, and pagination.
@@ -238,8 +277,7 @@ async def list_invocations(
 
     Args:
         request: FastAPI request object containing query parameters
-        db: Database session
-        current_user: Current authenticated user
+        service: Invocation service
         params: Query parameters for pagination and filtering
 
     Returns:
@@ -247,8 +285,6 @@ async def list_invocations(
 
     """
     try:
-        service = InvocationService(db, current_user)
-
         return await service.list_invocations(
             limit=params.limit,
             cursor=params.cursor,
@@ -294,8 +330,7 @@ async def get_invocation(
             description="UUID of the invocation to retrieve",
         ),
     ],
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[InvocationService, Depends(get_invocation_service)],
 ) -> Invocation:
     """Get invocation details including result.
 
@@ -304,8 +339,7 @@ async def get_invocation(
 
     Args:
         invocation_id: UUID of the invocation
-        db: Database session (dependency injected)
-        current_user: Current authenticated user
+        service: Invocation service
 
     Returns:
         Full invocation details including:
@@ -334,7 +368,6 @@ async def get_invocation(
 
     # Retrieve invocation from database
     try:
-        service = InvocationService(db, current_user)
         invocation = await service.get_invocation(uuid_obj)
     except Exception as e:
         logger.exception("Unexpected error retrieving invocation %s", invocation_id)
@@ -369,16 +402,14 @@ async def cancel_invocation(
         ),
     ],
     request_body: InvocationCancelRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[InvocationService, Depends(get_invocation_service)],
 ) -> InvocationCancelResponse:
     """Cancel a running or pending invocation.
 
     Args:
         invocation_id: UUID of the invocation to cancel
         request_body: Request containing optional cancellation reason
-        db: Database session (dependency injected)
-        current_user: Current authenticated user
+        service: Invocation service
 
     Returns:
         InvocationCancelResponse indicating success or failure
@@ -398,7 +429,6 @@ async def cancel_invocation(
 
     # Attempt cancellation
     try:
-        service = InvocationService(db, current_user)
         result = await service.cancel_invocation(uuid_obj, request_body.reason)
 
         if result == CancellationResult.SUCCESS:

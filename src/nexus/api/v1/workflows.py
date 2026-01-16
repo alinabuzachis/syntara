@@ -30,18 +30,41 @@ from nexus.workflows.services import WorkflowService
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
+# ============================================================================
+# Dependency Injection Providers
+# ============================================================================
+
+
+def get_workflow_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> WorkflowService:
+    """Dependency provider for WorkflowService.
+
+    FastAPI will call this function automatically, injecting all dependencies.
+    This centralizes WorkflowService creation across all endpoints.
+
+    Args:
+        db: Database session
+        current_user: Current authenticated user
+
+    Returns:
+        WorkflowService configured with database session and user
+
+    """
+    return WorkflowService(db, current_user)
+
+
 @router.post("", response_model=WorkflowRead, status_code=status.HTTP_201_CREATED)
 async def create_workflow(
     request: WorkflowCreate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
 ) -> Workflow:
     """Create a new workflow with initial version.
 
     Args:
         request: Workflow creation request
-        db: Database session
-        current_user: Current authenticated user
+        service: Workflow service
 
     Returns:
         Created workflow
@@ -50,8 +73,6 @@ async def create_workflow(
         HTTPException: 400 if validation fails or name already exists
 
     """
-    service = WorkflowService(db, current_user)
-
     try:
         workflow, _ = await service.create_workflow(
             name=request.name,
@@ -76,8 +97,7 @@ async def create_workflow(
 @router.get("")
 async def list_workflows(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
     params: Annotated[WorkflowListParams, Query()],
 ) -> WorkflowListResponse:
     """List workflows with filtering, sorting, and pagination.
@@ -91,16 +111,13 @@ async def list_workflows(
 
     Args:
         request: FastAPI request object containing query parameters
-        db: Database session
-        current_user: Current authenticated user
+        service: Workflow service
         params: Query parameters for pagination and filtering
 
     Returns:
         WorkflowListResponse with workflows, pagination metadata, and optional total
 
     """
-    service = WorkflowService(db, current_user)
-
     try:
         return await service.list_workflows_cursor(
             limit=params.limit,
@@ -119,15 +136,13 @@ async def list_workflows(
 @router.get("/{workflow_id}")
 async def get_workflow(
     workflow_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
 ) -> WorkflowReadWithVersion:
     """Get a workflow by ID including its current active version.
 
     Args:
         workflow_id: Workflow UUID
-        db: Database session
-        current_user: Current authenticated user
+        service: Workflow service
 
     Returns:
         Workflow with current version data
@@ -136,8 +151,6 @@ async def get_workflow(
         HTTPException: 404 if workflow not found or deleted
 
     """
-    service = WorkflowService(db, current_user)
-
     try:
         workflow, current_version = await service.get_workflow_with_version(workflow_id)
     except WorkflowNotFoundError as e:
@@ -174,8 +187,7 @@ async def get_workflow(
 async def update_workflow(
     workflow_id: UUID,
     request: WorkflowUpdate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
 ) -> WorkflowReadWithVersion:
     """Update workflow.
 
@@ -187,8 +199,7 @@ async def update_workflow(
     Args:
         workflow_id: Workflow UUID
         request: Update request
-        db: Database session
-        current_user: Current user
+        service: Workflow service
 
     Returns:
         Updated workflow with current version data
@@ -197,8 +208,6 @@ async def update_workflow(
         HTTPException: 404 if workflow not found, 400 for validation errors
 
     """
-    service = WorkflowService(db, current_user)
-
     try:
         workflow, current_version = await service.update_workflow(
             workflow_id=workflow_id,
@@ -252,22 +261,18 @@ async def update_workflow(
 @router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_workflow(
     workflow_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
 ) -> None:
     """Soft delete a workflow.
 
     Args:
         workflow_id: Workflow UUID
-        db: Database session
-        current_user: Current user
+        service: Workflow service
 
     Raises:
         HTTPException: 404 if workflow not found
 
     """
-    service = WorkflowService(db, current_user)
-
     try:
         await service.delete_workflow(workflow_id)
     except WorkflowNotFoundError as e:

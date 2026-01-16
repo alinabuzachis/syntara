@@ -42,11 +42,57 @@ router = APIRouter(prefix="/tool_manager", tags=["tools", "tool_providers"])
 logger = logging.getLogger(__name__)
 
 
+# ============================================================================
+# Dependency Injection Providers
+# ============================================================================
+
+
+def get_tool_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ToolService:
+    """Dependency provider for ToolService.
+
+    FastAPI will call this function automatically, injecting all dependencies.
+    This centralizes ToolService creation across all endpoints.
+
+    Args:
+        db: Database session
+        current_user: Current authenticated user
+
+    Returns:
+        ToolService configured with database session and user
+
+    """
+    return ToolService(db, current_user)
+
+
+def get_tool_provider_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    provider_factory: Annotated[ProviderFactory, Depends(get_provider_factory)],
+) -> ToolProviderService:
+    """Dependency provider for ToolProviderService.
+
+    FastAPI will call this function automatically, injecting all dependencies.
+    This centralizes ToolProviderService creation across all endpoints.
+
+    Args:
+        db: Database session
+        current_user: Current authenticated user
+        provider_factory: Provider factory
+
+    Returns:
+        ToolProviderService configured with database session, user, and provider factory
+
+    """
+    return ToolProviderService(db, current_user, provider_factory)
+
+
 @router.get("/tools")
 async def get_tools(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ToolService, Depends(get_tool_service)],
     params: Annotated[ToolListParams, Query()],
 ) -> ToolListResponse:
     """List tools with filtering, sorting, and pagination.
@@ -63,8 +109,7 @@ async def get_tools(
 
     Args:
         request: FastAPI request object containing query parameters
-        db: Database session
-        current_user: Current authenticated user
+        service: Tool service
         params: Query parameters for pagination and filtering
 
     Returns:
@@ -73,8 +118,6 @@ async def get_tools(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolService(db, current_user)
 
     try:
         return await service.list_tools(
@@ -96,8 +139,7 @@ async def get_tools(
 @router.get("/tools/{tool_id}")
 async def get_tool(
     tool_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ToolService, Depends(get_tool_service)],
 ) -> ToolWithParameters:
     """Get tool details by ID.
 
@@ -106,8 +148,7 @@ async def get_tool(
 
     Args:
         tool_id: UUID of the tool to retrieve
-        db: Database session
-        current_user: Authenticated user (admin access required)
+        service: Tool service
 
     Returns:
         ToolWithParameters instance with full details
@@ -118,8 +159,6 @@ async def get_tool(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolService(db, current_user)
 
     try:
         return await service.get_tool_detail(tool_id)
@@ -136,8 +175,7 @@ async def get_tool(
 @router.patch("/tools/bulk_update")
 async def bulk_update_tools(
     bulk_update: ToolBulkUpdate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ToolService, Depends(get_tool_service)],
 ) -> dict[str, Any]:
     """Bulk update tool status (enable/disable multiple tools).
 
@@ -146,8 +184,7 @@ async def bulk_update_tools(
 
     Args:
         bulk_update: Bulk update request with tool IDs and status
-        db: Database session
-        current_user: Authenticated user (admin access required)
+        service: Tool service
 
     Returns:
         Dictionary with update statistics and timestamp
@@ -158,8 +195,6 @@ async def bulk_update_tools(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolService(db, current_user)
 
     try:
         return await service.bulk_update_tools(bulk_update.tool_ids, enabled=bulk_update.enabled)
@@ -176,8 +211,7 @@ async def bulk_update_tools(
 async def patch_tool(
     tool_id: UUID,
     tool_update: ToolUpdate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ToolService, Depends(get_tool_service)],
 ) -> ToolWithParameters:
     """Update tool status (enable/disable).
 
@@ -187,8 +221,7 @@ async def patch_tool(
     Args:
         tool_id: UUID of the tool to update
         tool_update: Tool update data with status
-        db: Database session
-        current_user: Authenticated user (admin access required)
+        service: Tool service
 
     Returns:
         Updated Tool instance
@@ -199,8 +232,6 @@ async def patch_tool(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolService(db, current_user)
 
     try:
         return await service.update_tool(
@@ -222,9 +253,7 @@ async def patch_tool(
 @router.get("/tool_providers")
 async def get_tool_providers(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    provider_factory: Annotated[ProviderFactory, Depends(get_provider_factory)],
+    service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
     params: Annotated[ToolProviderListParams, Query()],
 ) -> ToolProviderListResponse:
     """List tool providers with filtering, sorting, and pagination.
@@ -240,9 +269,7 @@ async def get_tool_providers(
 
     Args:
         request: FastAPI request object containing query parameters
-        db: Database session
-        current_user: Current authenticated user
-        provider_factory: Tool Provider factory
+        service: Tool provider service
         params: Query parameters for pagination and filtering
 
     Returns:
@@ -251,8 +278,6 @@ async def get_tool_providers(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolProviderService(db, current_user, provider_factory)
 
     try:
         return await service.list_providers(
@@ -274,9 +299,7 @@ async def get_tool_providers(
 @router.post("/tool_providers", status_code=status.HTTP_201_CREATED)
 async def register_tool_provider(
     provider_create: ToolProviderCreate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    provider_factory: Annotated[ProviderFactory, Depends(get_provider_factory)],
+    service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
 ) -> ToolProviderWithConfiguration:
     """Register a new Tool Provider.
 
@@ -285,9 +308,7 @@ async def register_tool_provider(
 
     Args:
         provider_create: Provider configuration and metadata
-        db: Database session
-        current_user: Authenticated user (admin access required)
-        provider_factory: Tool Provider factory
+        service: Tool provider service
 
     Returns:
         Created ToolProvider instance
@@ -298,8 +319,6 @@ async def register_tool_provider(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolProviderService(db, current_user, provider_factory)
 
     try:
         return await service.create_provider(provider_create)
@@ -319,9 +338,7 @@ async def register_tool_provider(
 @router.get("/tool_providers/{provider_id}")
 async def get_tool_provider(
     provider_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    provider_factory: Annotated[ProviderFactory, Depends(get_provider_factory)],
+    service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
 ) -> ToolProviderWithConfiguration:
     """Get Tool Provider details by ID.
 
@@ -330,9 +347,7 @@ async def get_tool_provider(
 
     Args:
         provider_id: UUID of the provider to retrieve
-        db: Database session
-        current_user: Authenticated user (admin access required)
-        provider_factory: Tool Provider factory
+        service: Tool provider service
 
     Returns:
         ToolProvider instance with full details
@@ -343,8 +358,6 @@ async def get_tool_provider(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolProviderService(db, current_user, provider_factory)
 
     try:
         return await service.get_provider(provider_id)
@@ -361,9 +374,7 @@ async def get_tool_provider(
 async def update_tool_provider(
     provider_id: UUID,
     provider_update: ToolProviderCreate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    provider_factory: Annotated[ProviderFactory, Depends(get_provider_factory)],
+    service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
 ) -> ToolProviderWithConfiguration:
     """Update Tool Provider configuration (complete replacement).
 
@@ -373,9 +384,7 @@ async def update_tool_provider(
     Args:
         provider_id: UUID of the provider to update
         provider_update: New provider configuration
-        db: Database session
-        current_user: Authenticated user (admin access required)
-        provider_factory: Tool Provider factory
+        service: Tool provider service
 
     Returns:
         Updated ToolProvider instance
@@ -386,8 +395,6 @@ async def update_tool_provider(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolProviderService(db, current_user, provider_factory)
 
     try:
         return await service.update_provider(provider_id, provider_update)
@@ -408,9 +415,7 @@ async def update_tool_provider(
 async def patch_tool_provider(
     provider_id: UUID,
     provider_patch: ToolProviderPatch,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    provider_factory: Annotated[ProviderFactory, Depends(get_provider_factory)],
+    service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
 ) -> ToolProviderWithConfiguration:
     """Patch Tool Provider.
 
@@ -420,9 +425,7 @@ async def patch_tool_provider(
     Args:
         provider_id: UUID of the provider to patch
         provider_patch: Partial update data
-        db: Database session
-        current_user: Authenticated user (admin access required)
-        provider_factory: Tool Provider factory
+        service: Tool provider service
 
     Returns:
         Updated ToolProvider instance
@@ -433,8 +436,6 @@ async def patch_tool_provider(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolProviderService(db, current_user, provider_factory)
 
     try:
         return await service.patch_provider(provider_id, provider_patch)
@@ -456,9 +457,7 @@ async def patch_tool_provider(
 @router.delete("/tool_providers/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_tool_provider(
     provider_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    provider_factory: Annotated[ProviderFactory, Depends(get_provider_factory)],
+    service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
 ) -> None:
     """Remove Tool Provider and all associated tools.
 
@@ -467,9 +466,7 @@ async def delete_tool_provider(
 
     Args:
         provider_id: UUID of the provider to delete
-        db: Database session
-        current_user: Authenticated user (admin access required)
-        provider_factory: Tool Provider factory
+        service: Tool provider service
 
     Raises:
         HTTPException: 404 if provider not found, 403 for auth
@@ -477,8 +474,6 @@ async def delete_tool_provider(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolProviderService(db, current_user, provider_factory)
 
     try:
         await service.delete_provider(provider_id)
@@ -494,9 +489,7 @@ async def delete_tool_provider(
 @router.post("/tool_providers/{provider_id}/validate")
 async def validate_tool_provider(
     provider_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    provider_factory: Annotated[ProviderFactory, Depends(get_provider_factory)],
+    service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
 ) -> ToolProviderValidationResult:
     """Validate Tool Provider connection and capabilities.
 
@@ -505,9 +498,7 @@ async def validate_tool_provider(
 
     Args:
         provider_id: UUID of the provider to validate
-        db: Database session
-        current_user: Authenticated user (admin access required)
-        provider_factory: Tool Provider factory
+        service: Tool provider service
 
     Returns:
         Validation result with status and capability details (always 200)
@@ -518,8 +509,6 @@ async def validate_tool_provider(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolProviderService(db, current_user, provider_factory)
 
     try:
         return await service.validate_provider(provider_id)
@@ -535,9 +524,7 @@ async def validate_tool_provider(
 @router.post("/tool_providers/test")
 async def test_tool_provider(
     provider_create: ToolProviderCreate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    provider_factory: Annotated[ProviderFactory, Depends(get_provider_factory)],
+    service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
 ) -> ToolProviderValidationResult:
     """Test Tool Provider definition without saving to database.
 
@@ -546,9 +533,7 @@ async def test_tool_provider(
 
     Args:
         provider_create: Provider configuration to test
-        db: Database session (used for adapter resolution)
-        current_user: Authenticated user (admin access required)
-        provider_factory: Tool Provider factory
+        service: Tool provider service
 
     Returns:
         ToolProviderValidationResult with test results (always 200)
@@ -559,8 +544,6 @@ async def test_tool_provider(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolProviderService(db, current_user, provider_factory)
 
     try:
         return await service.validate_provider_definition(provider_create)
@@ -575,9 +558,7 @@ async def test_tool_provider(
 @router.post("/tool_providers/{provider_id}/refresh_tools")
 async def refresh_tool_provider(
     provider_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    provider_factory: Annotated[ProviderFactory, Depends(get_provider_factory)],
+    service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
 ) -> ToolProviderRefreshResult:
     """Refresh tools from Tool Provider.
 
@@ -586,9 +567,7 @@ async def refresh_tool_provider(
 
     Args:
         provider_id: UUID of the provider to refresh
-        db: Database session
-        current_user: Authenticated user (admin access required)
-        provider_factory: Tool Provider factory
+        service: Tool provider service
 
     Returns:
         Refresh statistics including counts and timestamp
@@ -599,8 +578,6 @@ async def refresh_tool_provider(
     """
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
-
-    service = ToolProviderService(db, current_user, provider_factory)
 
     try:
         return await service.refresh_tools(provider_id)
