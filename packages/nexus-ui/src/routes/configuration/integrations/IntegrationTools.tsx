@@ -37,7 +37,7 @@ export default function IntegrationTools() {
   const { showAlert } = useAlerts()
   const [cursor, setCursor] = useState<string | null>(null)
 
-  const integrationQuery = toolProvidersClient.useQuery('get', '/tool-providers/{provider_id}', {
+  const integrationQuery = toolProvidersClient.useQuery('get', '/tool_providers/{provider_id}', {
     params: { path: { provider_id } },
   })
   const provider = integrationQuery.data!
@@ -52,10 +52,10 @@ export default function IntegrationTools() {
       },
     },
   })
-  const { mutate: updateTools } = toolsClient.useMutation('patch', '/tools/bulk-update')
+  const { mutate: updateTools } = toolsClient.useMutation('patch', '/tools/bulk_update')
   const { mutate: refreshTools } = toolProvidersClient.useMutation(
     'post',
-    '/tool-providers/{provider_id}/refresh-tools'
+    '/tool_providers/{provider_id}/refresh_tools'
   )
 
   const handleRefreshTools = () => {

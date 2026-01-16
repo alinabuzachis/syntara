@@ -24,14 +24,14 @@ import { toolProvidersClient } from '../../../../client'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 
 export function IntegrationForm() {
-  const { mutate: createIntegration } = toolProvidersClient.useMutation('post', '/tool-providers')
+  const { mutate: createIntegration } = toolProvidersClient.useMutation('post', '/tool_providers')
   const { mutate: validateIntegration } = toolProvidersClient.useMutation(
     'post',
-    '/tool-providers/{provider_id}/validate'
+    '/tool_providers/{provider_id}/validate'
   )
   const { mutate: refreshTools } = toolProvidersClient.useMutation(
     'post',
-    '/tool-providers/{provider_id}/refresh-tools'
+    '/tool_providers/{provider_id}/refresh_tools'
   )
 
   const { control, handleSubmit, setError } = useForm<ToolProvider>({

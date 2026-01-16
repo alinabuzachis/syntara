@@ -52,7 +52,7 @@ describe('IntegrationForm Component', () => {
 
     // Mock the mutation hooks - return different mutate functions for each endpoint
     vi.mocked(toolProvidersClient.useMutation).mockImplementation(((method: string, endpoint: string) => {
-      if (endpoint === '/tool-providers') {
+      if (endpoint === '/tool_providers') {
         return {
           mutate: mockCreateMutate,
           isPending: false,
@@ -71,7 +71,7 @@ describe('IntegrationForm Component', () => {
           status: 'idle',
           isPaused: false,
         }
-      } else if (endpoint === '/tool-providers/{provider_id}/validate') {
+      } else if (endpoint === '/tool_providers/{provider_id}/validate') {
         return {
           mutate: mockValidateMutate,
           isPending: false,
@@ -90,7 +90,7 @@ describe('IntegrationForm Component', () => {
           status: 'idle',
           isPaused: false,
         }
-      } else if (endpoint === '/tool-providers/{provider_id}/refresh-tools') {
+      } else if (endpoint === '/tool_providers/{provider_id}/refresh_tools') {
         return {
           mutate: mockRefreshMutate,
           isPending: false,

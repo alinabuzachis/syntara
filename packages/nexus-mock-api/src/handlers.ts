@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import type * as ToolsAPI from '@ansible/nexus-contracts/src/tools.js'
+import type * as ToolManagerAPI from '@ansible/nexus-contracts/src/tool-manager.js'
 import type * as WorkflowAPI from '@ansible/nexus-contracts/src/workflow-api.js'
 import type { ToolProvider, WorkflowsResponse, Tool, Execution } from '@ansible/nexus-contracts'
 import { providers } from './resources/providers'
@@ -9,7 +9,7 @@ import { executions } from './resources/executions'
 import { approvals } from './resources/approvals'
 
 // Define response types based on API contract
-type ToolsResponse = ToolsAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
+type ToolsResponse = ToolManagerAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
 type ToolProvidersResponse = {
   resources: ToolProvider[]
   limit: number
@@ -69,7 +69,7 @@ function paginate<T>(items: T[], cursor: string | null, limit: number, includeTo
 }
 
 export const handlers = [
-  http.get('/api/v1/tool-providers', () => {
+  http.get('/api/v1/tool_manager/tool_providers', () => {
     const body: ToolProvidersResponse = {
       resources: providers,
       limit: 20,
@@ -77,7 +77,7 @@ export const handlers = [
     }
     return HttpResponse.json(body)
   }),
-  http.post('/api/v1/tool-providers', async (req) => {
+  http.post('/api/v1/tool_manager/tool_providers', async (req) => {
     const newToolProvider = (await req.request.json()) as ToolProvider
     newToolProvider.id = (providers.length + 1).toString()
     newToolProvider.status = 'available'
@@ -103,7 +103,7 @@ export const handlers = [
     return HttpResponse.json(newToolProvider, { status: 201 })
   }),
 
-  http.get('/api/v1/tool-providers/:provider_id', (request) => {
+  http.get('/api/v1/tool_manager/tool_providers/:provider_id', (request) => {
     const providerId = request?.params?.provider_id
     const providerList = providers
 
@@ -112,7 +112,7 @@ export const handlers = [
     return HttpResponse.json(body)
   }),
 
-  http.get('/api/v1/tools', ({ request }) => {
+  http.get('/api/v1/tool_manager/tools', ({ request }) => {
     const url = new URL(request.url)
     const provider_id = url.searchParams.get('provider_id')
     const cursor = url.searchParams.get('cursor')
@@ -124,7 +124,7 @@ export const handlers = [
     return HttpResponse.json(body)
   }),
 
-  http.patch('/api/v1/tools/bulk-update', async (req) => {
+  http.patch('/api/v1/tool_manager/tools/bulk_update', async (req) => {
     const reqData = (await req.request.json()) as { tool_ids?: string[]; enabled?: boolean }
     if (reqData?.tool_ids && reqData?.tool_ids?.length > 0) {
       tools.forEach((tool) => {

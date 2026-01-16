@@ -75,7 +75,7 @@ function StatusLabel({ status }: { status: string }) {
 export default function Integrations() {
   const [, navigate] = useLocation()
   const [cursor, setCursor] = useState<string | null>(null)
-  const query = toolProvidersClient.useQuery('get', '/tool-providers', {
+  const query = toolProvidersClient.useQuery('get', '/tool_providers', {
     params: {
       query: {
         cursor: cursor ?? undefined,
@@ -93,8 +93,8 @@ export default function Integrations() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [providerToDelete, setProviderToDelete] = useState<ToolProvider | null>(null)
 
-  const { mutate: validateProvider } = toolProvidersClient.useMutation('post', '/tool-providers/{provider_id}/validate')
-  const { mutate: deleteProvider } = toolProvidersClient.useMutation('delete', '/tool-providers/{provider_id}')
+  const { mutate: validateProvider } = toolProvidersClient.useMutation('post', '/tool_providers/{provider_id}/validate')
+  const { mutate: deleteProvider } = toolProvidersClient.useMutation('delete', '/tool_providers/{provider_id}')
 
   const handleValidate = () => {
     if (!providerToValidate) return

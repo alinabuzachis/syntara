@@ -55,14 +55,14 @@ flowchart TB
 
 ### The Generation Process
 
-Types are generated from three separate OpenAPI specs in the backend repository:
+Types are generated from OpenAPI specs in the backend repository:
 
 ```mermaid
 flowchart LR
     subgraph Backend["syntara-orchestration/syntara repo"]
         W[workflow-api.yaml]
-        T[tools.yaml]
-        TP[tool-providers.yaml]
+        TM[tool_manager/openapi.yaml]
+        F[files-api.yaml]
     end
 
     subgraph Gen["Generation Process"]
@@ -72,17 +72,17 @@ flowchart LR
 
     subgraph Output["Generated Types"]
         WT[workflow-api.ts]
-        TT[tools.ts]
-        TPT[tool-providers.ts]
+        TMT[tool-manager.ts]
+        FT[files-api.ts]
     end
 
     W --> Clone
-    T --> Clone
-    TP --> Clone
+    TM --> Clone
+    F --> Clone
     Clone --> OT
     OT --> WT
-    OT --> TT
-    OT --> TPT
+    OT --> TMT
+    OT --> FT
 ```
 
 ### How to Regenerate Types
@@ -105,13 +105,13 @@ npm run gen
 
 ### Location of Files
 
-```
+```text
 packages/nexus-contracts/
 ├── package.json           # Generation scripts
 └── src/
     ├── workflow-api.ts    # Generated workflow types
-    ├── tools.ts           # Generated tool types
-    ├── tool-providers.ts  # Generated provider types
+    ├── tool-manager.ts    # Generated tool manager types (unified tools & providers)
+    ├── files-api.ts       # Generated files API types
     └── index.ts           # Exports all types
 ```
 
@@ -121,12 +121,12 @@ packages/nexus-contracts/
 
 ### Client Creation
 
-The UI creates three separate API clients using the generated types:
+The UI creates API clients using the generated types:
 
 ```typescript
 // packages/nexus-ui/src/client.tsx
 
-import type { ToolProvidersAPI, ToolsAPI, WorkflowAPI } from '@ansible/nexus-contracts'
+import type { FilesAPI, ToolManagerAPI, WorkflowAPI } from '@ansible/nexus-contracts'
 import createFetchClient from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 
@@ -136,17 +136,21 @@ const workflowFetchClient = createFetchClient<WorkflowAPI.paths>({
 })
 export const workflowClient = createClient(workflowFetchClient)
 
-// Tools API client
-const toolsFetchClient = createFetchClient<ToolsAPI.paths>({
-  baseUrl: '/api/v1/',
+// Tool Manager API client (unified tools & providers)
+const toolManagerFetchClient = createFetchClient<ToolManagerAPI.paths>({
+  baseUrl: '/api/v1/tool_manager/',
 })
-export const toolsClient = createClient(toolsFetchClient)
+export const toolManagerClient = createClient(toolManagerFetchClient)
 
-// Tool Providers API client
-const toolProvidersFetchClient = createFetchClient<ToolProvidersAPI.paths>({
+// Legacy clients for backward compatibility - both use the unified tool manager API
+export const toolsClient = toolManagerClient
+export const toolProvidersClient = toolManagerClient
+
+// Files API client
+const filesFetchClient = createFetchClient<FilesAPI.paths>({
   baseUrl: '/api/v1/',
 })
-export const toolProvidersClient = createClient(toolProvidersFetchClient)
+export const filesClient = createClient(filesFetchClient)
 ```
 
 ### Type Safety Benefits

@@ -485,11 +485,15 @@ mutation.mutate({ body: workflowPayload })
 
 ### Available clients
 
-| Client                | Used for               |
-| --------------------- | ---------------------- |
-| `workflowClient`      | Workflows, executions  |
-| `toolsClient`         | Tools                  |
-| `toolProvidersClient` | Integrations/providers |
+| Client                | Used for                                     |
+| --------------------- | -------------------------------------------- |
+| `workflowClient`      | Workflows, executions                        |
+| `toolManagerClient`   | Tool manager (tools & providers unified API) |
+| `toolsClient`         | Legacy alias for `toolManagerClient`         |
+| `toolProvidersClient` | Legacy alias for `toolManagerClient`         |
+| `filesClient`         | File uploads and management                  |
+
+**Note:** `toolsClient` and `toolProvidersClient` are backward compatibility aliases that both point to `toolManagerClient`, which uses the unified `/api/v1/tool_manager/` API endpoints.
 
 ### Where does the backend URL come from?
 
