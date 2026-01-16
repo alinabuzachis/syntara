@@ -458,7 +458,7 @@ tests/
 - GET /workflows/{id} returns workflow with current active version data
 - WorkflowVersion entities are read-only (managed automatically by system)
 - Version history tracking and basic YAML validation
-- Database migrations with Alembic (setup as subpackage at `/src/nexus/api/alembic/`)
+- Database migrations with Alembic (setup as subpackage at `/src/nexus/core/alembic/`)
 - OpenAPI contract specification and contract tests
 - 80%+ test coverage (unit tests + integration tests), <200ms API response time
 - Alembic migrations must run automatically on `make dev`

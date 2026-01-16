@@ -271,7 +271,7 @@ def _get_alembic_config(db_url: str) -> Config:
     alembic_cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
     alembic_cfg.set_main_option(
         "script_location",
-        str(PROJECT_ROOT / "src" / "nexus" / "api" / "alembic"),
+        str(PROJECT_ROOT / "src" / "nexus" / "core" / "alembic"),
     )
     alembic_cfg.set_main_option("sqlalchemy.url", db_url)
     return alembic_cfg

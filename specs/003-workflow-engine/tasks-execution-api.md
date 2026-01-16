@@ -259,7 +259,7 @@ graph TB
   - Foreign key cascades: execution (SET NULL), user (SET NULL) to preserve audit logs
 
 - [X] **T055** Create Alembic migration for Execution, ActivityExecution, Approval, AuditLog tables
-  - File: `src/nexus_api/alembic/versions/4514e2328cd3_create_execution_table.py`
+  - File: `src/nexus/core/alembic/versions/4514e2328cd3_create_execution_table.py`
   - Generate: `alembic revision --autogenerate -m "create execution tables"`
   - Verify: All fields, relationships, constraints, indexes created
   - Include: GIN indexes on JSONB labels, check constraints for timestamps and status

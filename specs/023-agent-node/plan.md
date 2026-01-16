@@ -199,7 +199,7 @@ src/nexus/api/v1/
 ├── files.py                      # NEW: Standalone file upload endpoint
 └── invocation.py                 # MODIFY: Accept file_ids in request, remove file_metadata from response
 
-src/nexus/api/alembic/versions/
+src/nexus/core/alembic/versions/
 └── xxxx_add_file_metadata_table.py  # NEW: Alembic migration for FileMetadata
 
 src/nexus/files/                  # NEW: Top-level component for file management
