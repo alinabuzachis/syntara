@@ -1519,6 +1519,93 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 
 
 # ============================================================================
+# Workflow Executions Fixtures
+# ============================================================================
+
+
+class ExecutionsFactory:
+    """Factory class for creating test executions with configurable properties."""
+
+    def __init__(self, session: AsyncSession, workflow: Workflow, user: User) -> None:
+        """Initialize the ExecutionsFactory with database session and required entities.
+
+        Args:
+            session: AsyncSession for database operations
+            workflow: Workflow instance to associate with created executions
+            user: User instance to set as creator of executions
+
+        """
+        self.session = session
+        self.workflow = workflow
+        self.user = user
+
+    async def create_executions(
+        self,
+        count: int,
+        status: ExecutionStatus = ExecutionStatus.PENDING,
+        labels: dict[str, str] | None = None,
+    ) -> list[Execution]:
+        """Create multiple test executions.
+
+        Args:
+            count: Number of executions to create
+            status: Status for all executions (default: PENDING)
+            labels: Labels to apply to all executions (optional)
+
+        Returns:
+            List of created Execution objects
+
+        """
+        # Get the workflow version ID by querying WorkflowVersion
+        result = await self.session.exec(
+            select(WorkflowVersion.id).where(
+                WorkflowVersion.workflow_id == self.workflow.id,
+                WorkflowVersion.version == self.workflow.current_version,
+            )
+        )
+        version_id = result.one()
+
+        executions = [
+            Execution(
+                workflow_id=self.workflow.id,
+                workflow_version_id=version_id,
+                temporal_workflow_id=f"exec-{uuid4()}",
+                status=status,
+                created_by=self.user.id,
+                input_data={},
+                labels=labels or {},
+            )
+            for _ in range(count)
+        ]
+        self.session.add_all(executions)
+        await self.session.commit()
+        return executions
+
+
+@pytest_asyncio.fixture
+async def executions_factory(
+    test_db_session: AsyncSession, test_workflow: Workflow, test_user: User
+) -> ExecutionsFactory:
+    """Create a factory fixture for multiple test executions with configurable properties.
+
+    Returns an ExecutionsFactory instance that can create executions with various
+    configurations for different test scenarios.
+
+    Usage:
+        # Create executions with default settings
+        executions = await executions_factory.create_executions(count=3)
+
+        # Create executions with specific status and labels
+        executions = await executions_factory.create_executions(
+            count=5,
+            status=ExecutionStatus.RUNNING,
+            labels={"environment": "production", "team": "backend"}
+        )
+    """
+    return ExecutionsFactory(test_db_session, test_workflow, test_user)
+
+
+# ============================================================================
 # Mock Fixtures
 # ============================================================================
 

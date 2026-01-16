@@ -4,65 +4,11 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
-from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.workflows.models import Execution, Workflow, WorkflowVersion
+from nexus.workflows.models import Workflow
 from nexus.workflows.models.execution import ExecutionStatus
-
-# ============================================================================
-# Helper Functions
-# ============================================================================
-
-
-async def create_executions(
-    session: AsyncSession,
-    workflow: Workflow,
-    user: User,
-    count: int,
-    status: ExecutionStatus = ExecutionStatus.PENDING,
-    labels: dict[str, str] | None = None,
-) -> list[Execution]:
-    """Create multiple test executions.
-
-    Args:
-        session: Database session
-        workflow: Workflow to create executions for
-        user: User who created executions
-        count: Number of executions to create
-        status: Status for all executions (default: PENDING)
-        labels: Labels to apply to all executions (optional)
-
-    Returns:
-        List of created Execution objects
-
-    """
-    # Get the workflow version ID by querying WorkflowVersion
-    result = await session.exec(
-        select(WorkflowVersion.id).where(
-            WorkflowVersion.workflow_id == workflow.id,
-            WorkflowVersion.version == workflow.current_version,
-        )
-    )
-    version_id = result.one()
-
-    executions = [
-        Execution(
-            workflow_id=workflow.id,
-            workflow_version_id=version_id,
-            temporal_workflow_id=f"exec-{uuid.uuid4()}",
-            status=status,
-            created_by=user.id,
-            input_data={},
-            labels=labels or {},
-        )
-        for _ in range(count)
-    ]
-    session.add_all(executions)
-    await session.commit()
-    return executions
-
+from tests.conftest import ExecutionsFactory
 
 # ============================================================================
 # Tests
@@ -72,13 +18,11 @@ async def create_executions(
 @pytest.mark.asyncio
 async def test_list_executions_success(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
-    test_user: User,
-    test_workflow: Workflow,
+    executions_factory: ExecutionsFactory,
 ) -> None:
     """Test successful listing of all executions."""
     # Create multiple executions
-    await create_executions(test_db_session, test_workflow, test_user, count=3)
+    await executions_factory.create_executions(count=3)
 
     response = await auth_client.get("/api/v1/executions")
 
@@ -95,12 +39,10 @@ async def test_list_executions_success(
 @pytest.mark.asyncio
 async def test_list_executions_with_include_total(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
-    test_user: User,
-    test_workflow: Workflow,
+    executions_factory: ExecutionsFactory,
 ) -> None:
     """Test listing executions with total count."""
-    await create_executions(test_db_session, test_workflow, test_user, count=5)
+    await executions_factory.create_executions(count=5)
 
     response = await auth_client.get("/api/v1/executions?include_total=true")
 
@@ -114,12 +56,11 @@ async def test_list_executions_with_include_total(
 @pytest.mark.asyncio
 async def test_list_executions_filter_by_workflow_id(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
-    test_user: User,
     test_workflow: Workflow,
+    executions_factory: ExecutionsFactory,
 ) -> None:
     """Test filtering executions by workflow_id."""
-    await create_executions(test_db_session, test_workflow, test_user, count=2)
+    await executions_factory.create_executions(count=2)
 
     response = await auth_client.get(f"/api/v1/executions?workflow_id={test_workflow.id}")
 
@@ -133,14 +74,12 @@ async def test_list_executions_filter_by_workflow_id(
 @pytest.mark.asyncio
 async def test_list_executions_filter_by_status(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
-    test_user: User,
-    test_workflow: Workflow,
+    executions_factory: ExecutionsFactory,
 ) -> None:
     """Test filtering executions by status."""
     # Create executions with different statuses
-    await create_executions(test_db_session, test_workflow, test_user, count=2, status=ExecutionStatus.PENDING)
-    await create_executions(test_db_session, test_workflow, test_user, count=2, status=ExecutionStatus.RUNNING)
+    await executions_factory.create_executions(count=2, status=ExecutionStatus.PENDING)
+    await executions_factory.create_executions(count=2, status=ExecutionStatus.RUNNING)
 
     response = await auth_client.get("/api/v1/executions?status=pending")
 
@@ -154,12 +93,11 @@ async def test_list_executions_filter_by_status(
 @pytest.mark.asyncio
 async def test_list_executions_filter_by_created_by(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
     test_user: User,
-    test_workflow: Workflow,
+    executions_factory: ExecutionsFactory,
 ) -> None:
     """Test filtering executions by created_by (user who created execution)."""
-    await create_executions(test_db_session, test_workflow, test_user, count=2)
+    await executions_factory.create_executions(count=2)
 
     response = await auth_client.get(f"/api/v1/executions?created_by={test_user.id}")
 
@@ -173,23 +111,15 @@ async def test_list_executions_filter_by_created_by(
 @pytest.mark.asyncio
 async def test_list_executions_with_label_filtering(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
-    test_user: User,
-    test_workflow: Workflow,
+    executions_factory: ExecutionsFactory,
 ) -> None:
     """Test filtering executions by labels using JSONB containment."""
     # Create executions with different labels
-    await create_executions(
-        test_db_session,
-        test_workflow,
-        test_user,
+    await executions_factory.create_executions(
         count=2,
         labels={"environment": "production", "team": "backend"},
     )
-    await create_executions(
-        test_db_session,
-        test_workflow,
-        test_user,
+    await executions_factory.create_executions(
         count=2,
         labels={"environment": "staging"},
     )
@@ -207,12 +137,10 @@ async def test_list_executions_with_label_filtering(
 @pytest.mark.asyncio
 async def test_list_executions_pagination_with_limit(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
-    test_user: User,
-    test_workflow: Workflow,
+    executions_factory: ExecutionsFactory,
 ) -> None:
     """Test pagination with limit parameter."""
-    await create_executions(test_db_session, test_workflow, test_user, count=10)
+    await executions_factory.create_executions(count=10)
 
     response = await auth_client.get("/api/v1/executions?limit=3")
 
@@ -224,12 +152,10 @@ async def test_list_executions_pagination_with_limit(
 @pytest.mark.asyncio
 async def test_list_executions_pagination_with_cursor(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
-    test_user: User,
-    test_workflow: Workflow,
+    executions_factory: ExecutionsFactory,
 ) -> None:
     """Test cursor-based pagination."""
-    await create_executions(test_db_session, test_workflow, test_user, count=10)
+    await executions_factory.create_executions(count=10)
 
     # Get first page
     response = await auth_client.get("/api/v1/executions?limit=3")
@@ -250,12 +176,10 @@ async def test_list_executions_pagination_with_cursor(
 @pytest.mark.asyncio
 async def test_list_executions_sorting(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
-    test_user: User,
-    test_workflow: Workflow,
+    executions_factory: ExecutionsFactory,
 ) -> None:
     """Test sorting executions by created_at."""
-    await create_executions(test_db_session, test_workflow, test_user, count=5)
+    await executions_factory.create_executions(count=5)
 
     # Sort descending (newest first)
     response = await auth_client.get("/api/v1/executions?sort=-created_at&limit=5")
@@ -271,8 +195,6 @@ async def test_list_executions_sorting(
 @pytest.mark.asyncio
 async def test_list_executions_empty(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
-    test_user: User,
 ) -> None:
     """Test listing executions when none exist for a workflow."""
     # Use a non-existent workflow_id to ensure empty result
@@ -288,23 +210,16 @@ async def test_list_executions_empty(
 @pytest.mark.asyncio
 async def test_list_executions_multiple_filters(
     auth_client: AsyncClient,
-    test_db_session: AsyncSession,
-    test_user: User,
     test_workflow: Workflow,
+    executions_factory: ExecutionsFactory,
 ) -> None:
     """Test combining multiple filters (AND logic)."""
-    await create_executions(
-        test_db_session,
-        test_workflow,
-        test_user,
+    await executions_factory.create_executions(
         count=2,
         status=ExecutionStatus.PENDING,
         labels={"environment": "production"},
     )
-    await create_executions(
-        test_db_session,
-        test_workflow,
-        test_user,
+    await executions_factory.create_executions(
         count=2,
         status=ExecutionStatus.RUNNING,
         labels={"environment": "production"},
