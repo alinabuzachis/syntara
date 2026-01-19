@@ -259,6 +259,7 @@ class WebSocketStreamingHandler:
         lifecycle_conn_id = lifecycle_manager.add_connection(
             channel="invocations",
             client_ip=client_ip,
+            websocket=websocket,
             resource_id=str(invocation_id),
             metadata={"replay_count": replay_count, "last_event_id": last_event_id},
         )
@@ -307,17 +308,7 @@ class WebSocketStreamingHandler:
                     block_ms=1000,
                     count=10,
                 ):
-                    # Send event to WebSocket client
                     await websocket.send_json(event)
-
-                    # Update ping timestamp - sending events indicates connection is alive
-                    # This works in conjunction with the ping/pong monitoring started by endpoint_factory
-                    lifecycle_manager.update_ping(lifecycle_conn_id)
-
-                    # Update metadata with last event ID
-                    event_id = event.get("event_id")
-                    if event_id:
-                        lifecycle_manager.update_metadata(lifecycle_conn_id, "last_event_id", event_id)
 
                     event_type = event.get("event_type")
                     logger.debug("Sent %s event to %s", event_type, conn_id)

@@ -61,7 +61,8 @@ class TestWebSocketConnectionLifecycleManager:
         yield
         manager.clear_all()
 
-    def test_cleanup_stale_connections(self) -> None:
+    @pytest.mark.asyncio
+    async def test_cleanup_stale_connections(self) -> None:
         """Test cleanup removes stale connections but keeps fresh ones."""
         manager = WebSocketConnectionLifecycleManager()
 
@@ -85,12 +86,43 @@ class TestWebSocketConnectionLifecycleManager:
             stale_info.last_ping_at = time.time() - 200  # 200 seconds ago
 
         # Cleanup stale connections
-        removed = manager.cleanup_stale_connections()
+        removed = await manager.cleanup_stale_connections()
 
         # Verify stale removed, fresh kept
         assert removed == 1
         assert manager.get_connection(fresh_conn_id) is not None
         assert manager.get_connection(stale_conn_id) is None
+
+    @pytest.mark.asyncio
+    async def test_cleanup_stale_connections_closes_websocket(self) -> None:
+        """Test that cleanup actually closes the WebSocket connection."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        manager = WebSocketConnectionLifecycleManager()
+
+        # Create mock WebSocket
+        mock_websocket = MagicMock()
+        mock_websocket.close = AsyncMock()
+
+        # Add connection with WebSocket
+        conn_id = manager.add_connection(
+            channel="test",
+            client_ip="192.168.1.1",
+            websocket=mock_websocket,
+        )
+
+        # Make it stale
+        conn_info = manager.get_connection(conn_id)
+        if conn_info:
+            conn_info.last_ping_at = time.time() - 200  # 200 seconds ago
+
+        # Cleanup
+        removed = await manager.cleanup_stale_connections()
+
+        # Verify WebSocket.close() was called with correct parameters
+        assert removed == 1
+        mock_websocket.close.assert_called_once_with(code=1001, reason="Connection timeout")
+        assert manager.get_connection(conn_id) is None
 
     def test_multiple_clients_same_resource(self) -> None:
         """Test multiple clients can track the same resource."""
@@ -304,7 +336,8 @@ class TestPingTimestampUpdates:
         assert updated_info is not None
         assert updated_info.is_active is True
 
-    def test_update_ping_prevents_stale_cleanup(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_ping_prevents_stale_cleanup(self) -> None:
         """Test that updating ping prevents connection from being marked stale."""
         manager = WebSocketConnectionLifecycleManager()
 
@@ -315,11 +348,11 @@ class TestPingTimestampUpdates:
 
         # Update ping regularly to keep connection alive
         for _ in range(3):
-            time.sleep(0.05)
+            await asyncio.sleep(0.05)
             manager.update_ping(conn_id)
 
         # Run cleanup
-        cleaned = manager.cleanup_stale_connections()
+        cleaned = await manager.cleanup_stale_connections()
 
         # Connection should NOT be cleaned up
         assert cleaned == 0

@@ -9,8 +9,11 @@ import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID, uuid4
+
+if TYPE_CHECKING:
+    from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +35,7 @@ class WebSocketConnectionInfo:
         connection_id: Unique identifier for the connection
         channel: WebSocket channel/endpoint name
         client_ip: Client IP address
+        websocket: WebSocket connection object (for closing stale connections)
         resource_id: Optional ID of the resource being accessed (e.g., invocation_id, session_id)
         user_agent: Client user agent string (optional)
         connected_at: Timestamp when connection was established
@@ -45,6 +49,7 @@ class WebSocketConnectionInfo:
     connection_id: UUID
     channel: str
     client_ip: str
+    websocket: "WebSocket | None" = None
     resource_id: str | None = None
     user_agent: str | None = None
     connected_at: float = field(default_factory=time.time)
@@ -158,6 +163,7 @@ class WebSocketConnectionLifecycleManager:
         self,
         channel: str,
         client_ip: str,
+        websocket: "WebSocket | None" = None,
         resource_id: str | None = None,
         user_agent: str | None = None,
         metadata: dict[str, Any] | None = None,
@@ -167,6 +173,7 @@ class WebSocketConnectionLifecycleManager:
         Args:
             channel: WebSocket channel/endpoint name
             client_ip: Client IP address
+            websocket: WebSocket connection object (optional, can be set later)
             resource_id: Optional resource ID (e.g., invocation_id, session_id)
             user_agent: Client user agent string (optional)
             metadata: Optional metadata dict
@@ -181,6 +188,7 @@ class WebSocketConnectionLifecycleManager:
             connection_id=connection_id,
             channel=channel,
             client_ip=client_ip,
+            websocket=websocket,
             resource_id=resource_id,
             user_agent=user_agent,
             metadata=metadata or {},
@@ -365,8 +373,10 @@ class WebSocketConnectionLifecycleManager:
         """
         return len(self._channel_connections.get(channel, set()))
 
-    def cleanup_stale_connections(self) -> int:
+    async def cleanup_stale_connections(self) -> int:
         """Clean up connections that haven't sent ping in timeout period.
+
+        Closes the WebSocket connection and removes from tracking.
 
         Returns:
             Number of connections cleaned up
@@ -376,9 +386,18 @@ class WebSocketConnectionLifecycleManager:
 
         for connection_id, connection in self._connections.items():
             if not connection.check_health(self.PING_TIMEOUT_SECONDS):
-                stale_connections.append(connection_id)
+                stale_connections.append((connection_id, connection))
 
-        for connection_id in stale_connections:
+        for connection_id, connection in stale_connections:
+            # Close the WebSocket connection if available
+            if connection.websocket:
+                try:
+                    await connection.websocket.close(code=1001, reason="Connection timeout")
+                    logger.debug("Closed stale WebSocket connection %s", connection_id)
+                except Exception:
+                    logger.exception("Error closing stale WebSocket connection %s", connection_id)
+
+            # Remove from lifecycle manager tracking
             self.remove_connection(connection_id, reason="timeout")
 
         if stale_connections:
@@ -394,7 +413,7 @@ class WebSocketConnectionLifecycleManager:
         while True:
             try:
                 # Cleanup stale connections
-                cleaned = self.cleanup_stale_connections()
+                cleaned = await self.cleanup_stale_connections()
 
                 # Log metrics
                 active_count = self.get_active_connection_count()

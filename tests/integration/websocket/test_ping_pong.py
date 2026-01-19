@@ -121,7 +121,8 @@ class TestWebSocketPingPongIntegration:
             # Restore original interval
             manager.PING_INTERVAL_SECONDS = original_interval
 
-    def test_stale_connection_cleanup_logic(self) -> None:
+    @pytest.mark.asyncio
+    async def test_stale_connection_cleanup_logic(self) -> None:
         """Test that cleanup_stale_connections removes stale connections.
 
         This tests the cleanup logic directly without relying on the
@@ -155,7 +156,7 @@ class TestWebSocketPingPongIntegration:
         assert manager.get_connection(fresh_conn_id) is not None
 
         # Run cleanup manually
-        cleaned = manager.cleanup_stale_connections()
+        cleaned = await manager.cleanup_stale_connections()
 
         # Stale connection should be removed, fresh one kept
         assert cleaned == 1

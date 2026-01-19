@@ -749,7 +749,9 @@ def _get_client_address(websocket: WebSocket) -> str:
     return f"{client_host}:{client_port}"
 
 
-async def _send_periodic_pings(websocket: WebSocket, connection_id: str, channel_name: str) -> None:
+async def _send_periodic_pings(
+    websocket: WebSocket, connection_id: str, lifecycle_conn_id: uuid.UUID, channel_name: str
+) -> None:
     """Send WebSocket ping frames periodically to keep connection alive.
 
     Sends ping frames every 30 seconds. The client's WebSocket library
@@ -759,6 +761,7 @@ async def _send_periodic_pings(websocket: WebSocket, connection_id: str, channel
     Args:
         websocket: WebSocket connection
         connection_id: Connection ID for logging
+        lifecycle_conn_id: Lifecycle manager connection ID for ping tracking
         channel_name: Channel name for logging
 
     """
@@ -770,6 +773,14 @@ async def _send_periodic_pings(websocket: WebSocket, connection_id: str, channel
         try:
             # Send WebSocket ping frame (protocol-level, not application message)
             await websocket.send({"type": "websocket.ping"})
+
+            # Update lifecycle manager timestamp on successful send.
+            # Note: This is optimistic - we don't explicitly verify pong reception.
+            # If the connection is truly dead (client not sending pongs), TCP will
+            # detect this within 30-120s and the next send() will fail, at which
+            # point the ping loop exits and cleanup will remove the stale connection.
+            lifecycle_manager.update_ping(lifecycle_conn_id)
+
             logger.debug(
                 "Sent ping to channel '%s', connection '%s'",
                 channel_name,
@@ -1035,13 +1046,16 @@ def create_websocket_endpoint(
         lifecycle_conn_id = lifecycle_manager.add_connection(
             channel=channel_name,
             client_ip=client_address,
+            websocket=websocket,
             metadata={"component": component_name},
         )
         lifecycle_manager.activate_connection(lifecycle_conn_id)
         _connection_id_context.set(connection_id_str)
 
         # Start periodic ping task to monitor connection health
-        ping_task = asyncio.create_task(_send_periodic_pings(websocket, connection_id_str, channel_name))
+        ping_task = asyncio.create_task(
+            _send_periodic_pings(websocket, connection_id_str, lifecycle_conn_id, channel_name)
+        )
         logger.debug("Started ping task for channel '%s', connection '%s'", channel_name, connection_id_str)
 
         # Start background task if on_connect handler exists
