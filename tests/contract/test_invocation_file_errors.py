@@ -212,13 +212,13 @@ async def test_llm_not_configured_returns_503(auth_client: AsyncClient, test_use
     - message: "OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
     """
     # Arrange - Mock get_openrouter_llm to raise LLMConfigurationError
-    # Error message must match schema example in agent-orchestrator-api.yaml
+    # Error message must match schema example in openapi.yaml
     error_message = (
         "NEXUS_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
     )
 
     with patch(
-        "nexus.api.v1.invocation.get_openrouter_llm",
+        "nexus.invocations.router.get_openrouter_llm",
         side_effect=LLMConfigurationError(error_message),
     ):
         # Act
@@ -234,7 +234,7 @@ async def test_llm_not_configured_returns_503(auth_client: AsyncClient, test_use
     assert response.status_code == 503
     error_data = response.json()
 
-    # Exact match with schema example from agent-orchestrator-api.yaml
+    # Exact match with schema example from openapi.yaml
     assert error_data == {
         "error": "service_unavailable",
         "message": error_message,

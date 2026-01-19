@@ -7,7 +7,7 @@ These tests validate contract compliance with the OpenAPI schema:
 - Response includes file_ids array in context_data (AAP-60780)
 - FileMetadata is stored in database, not exposed in API response
 
-Contract matches schemas/agent_orchestrator/agent-orchestrator-api.yaml
+Contract matches schemas/agent_orchestrator/openapi.yaml
 
 NOTE: With AAP-60780 refactoring, context_data no longer contains file_metadata.
 Instead, it contains file_ids (UUIDs) when files are uploaded.

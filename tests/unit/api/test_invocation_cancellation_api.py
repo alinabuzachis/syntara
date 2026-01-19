@@ -1,6 +1,6 @@
 """Unit tests for invocation cancellation API endpoint."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -11,7 +11,7 @@ from nexus.agent_orchestrator.models.request import (
     CancellationResult,
     InvocationCancelRequest,
 )
-from nexus.api.v1.invocation import cancel_invocation
+from nexus.invocations.router import cancel_invocation
 
 
 class TestInvocationCancellationAPI:
@@ -23,8 +23,10 @@ class TestInvocationCancellationAPI:
         invocation_id = uuid4()
         request = InvocationCancelRequest(reason="Test cancellation")
 
-        mock_service = AsyncMock()
-        mock_service.cancel_invocation.return_value = CancellationResult.SUCCESS
+        with patch("nexus.invocations.router.InvocationService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.cancel_invocation.return_value = CancellationResult.SUCCESS
+            mock_service_class.return_value = mock_service
 
         response = await cancel_invocation(
             invocation_id=str(invocation_id),
@@ -41,8 +43,10 @@ class TestInvocationCancellationAPI:
         invocation_id = uuid4()
         request = InvocationCancelRequest(reason="Test cancellation")
 
-        mock_service = AsyncMock()
-        mock_service.cancel_invocation.return_value = CancellationResult.NOT_FOUND
+        with patch("nexus.invocations.router.InvocationService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.cancel_invocation.return_value = CancellationResult.NOT_FOUND
+            mock_service_class.return_value = mock_service
 
         with pytest.raises(HTTPException) as exc_info:
             await cancel_invocation(
@@ -59,8 +63,10 @@ class TestInvocationCancellationAPI:
         invocation_id = uuid4()
         request = InvocationCancelRequest(reason="Test cancellation")
 
-        mock_service = AsyncMock()
-        mock_service.cancel_invocation.return_value = CancellationResult.NOT_CANCELLABLE
+        with patch("nexus.invocations.router.InvocationService") as mock_service_class:
+            mock_service = AsyncMock()
+            mock_service.cancel_invocation.return_value = CancellationResult.NOT_CANCELLABLE
+            mock_service_class.return_value = mock_service
 
         # Mock get_invocation for the error case
         mock_invocation = Invocation(

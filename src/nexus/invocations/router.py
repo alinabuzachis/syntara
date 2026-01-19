@@ -45,6 +45,7 @@ from nexus.files.validators import (
 router = APIRouter(prefix="/invocations", tags=["Invocation"])
 logger = logging.getLogger(__name__)
 
+INTERNAL_SERVER_ERROR: str = "Internal server error"
 
 # ============================================================================
 # Dependency Injection Providers
@@ -123,7 +124,7 @@ def _validate_multipart_required_fields(prompt: str | None, session_id: str | No
     description="Accept async agent invocation request and return invocation ID immediately. "
     "Supports both application/json and multipart/form-data with optional file uploads.",
 )
-async def invoke_agent(
+async def create_invocation(
     request: Request,
     service: Annotated[InvocationService, Depends(get_invocation_service_with_background_tasks)],
     request_body: Annotated[InvocationCreateRequest | None, Body()] = None,
@@ -237,7 +238,7 @@ async def invoke_agent(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
-    except (OSError, PermissionError) as e:
+    except OSError as e:
         # Storage failures (disk full, permission denied, I/O errors) - 500 Internal Server Error
         logger.exception("File storage error creating invocation")
         raise HTTPException(
@@ -248,7 +249,7 @@ async def invoke_agent(
         logger.exception("Unexpected error creating invocation")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
+            detail=INTERNAL_SERVER_ERROR,
         ) from e
 
 
@@ -305,7 +306,7 @@ async def list_invocations(
         logger.exception("Unexpected error listing invocations")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
+            detail=INTERNAL_SERVER_ERROR,
         ) from e
 
 
@@ -373,7 +374,7 @@ async def get_invocation(
         logger.exception("Unexpected error retrieving invocation %s", invocation_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
+            detail=INTERNAL_SERVER_ERROR,
         ) from e
 
     # Check if invocation exists
@@ -465,5 +466,5 @@ async def cancel_invocation(
         logger.exception("Unexpected error cancelling invocation %s", invocation_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
+            detail=INTERNAL_SERVER_ERROR,
         ) from e

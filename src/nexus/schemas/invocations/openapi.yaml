@@ -43,7 +43,7 @@ paths:
 
         Connect to WS /ws/invocations/{id} to monitor progress and receive results via WebSocket.
 
-      operationId: createInvocation
+      operationId: create_invocation
       tags:
         - Invocation
       requestBody:
@@ -174,7 +174,7 @@ paths:
         - Cursor-based pagination with `cursor` and `limit` parameters
         - Optionally includes total count with `include_total=true`
 
-      operationId: listInvocations
+      operationId: list_invocations
       tags:
         - Invocation
       parameters:
@@ -246,7 +246,7 @@ paths:
         '500':
           $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
 
-  /invocations/{invocationId}:
+  /invocations/{invocation_id}:
     get:
       summary: Get Invocation Details (Testing/Debug)
       description: |
@@ -264,14 +264,14 @@ paths:
         - Manual testing of agent integrations
 
         **Production Alternative:**
-        Use the WebSocket endpoint at `/ws/invocations/{invocationId}` for real-time
+        Use the WebSocket endpoint at `/ws/invocations/{invocation_id}` for real-time
         progress updates and results.
 
-      operationId: getInvocation
+      operationId: get_invocation
       tags:
         - Invocation
       parameters:
-        - name: invocationId
+        - name: invocation_id
           in: path
           required: true
           description: UUID of the invocation to retrieve
@@ -378,163 +378,7 @@ paths:
         '500':
           $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
 
-  /ws/invocations/{invocationId}:
-    get:
-      summary: Stream progress events (WebSocket)
-      description: |
-        WebSocket endpoint for real-time bidirectional progress updates.
-
-        **Connection:** Upgrade HTTP connection to WebSocket using standard WebSocket handshake.
-
-        **Server→Client Event Types:**
-        - progress: Agent is making progress
-        - log: Agent log message
-        - status_change: Invocation status changed
-        - message: Agent requesting clarification or providing update
-        - completion: Agent completed successfully
-        - error: Agent encountered error
-
-        **Message Format:** All messages are JSON objects matching the ProgressEvent schema.
-
-        **Connection Management:**
-        - Ping/pong frames sent automatically for health monitoring
-        - Connection closes gracefully on completion
-        - Client should implement reconnection with exponential backoff
-
-        **Note:** This is a WebSocket endpoint. OpenAPI 3.0 has limited WebSocket support - see implementation for full WebSocket protocol details.
-
-      operationId: streamProgressWebSocket
-      tags:
-        - Invocation
-      parameters:
-        - name: invocationId
-          in: path
-          required: true
-          description: Invocation ID from POST /invocations response
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '101':
-          description: Switching Protocols - WebSocket connection established
-        '404':
-          $ref: ../base/shared-resources.openapi.yaml#/components/responses/NotFoundError
-        '400':
-          description: WebSocket upgrade failed
-          content:
-            application/json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
-      x-websocket-messages:
-        description: WebSocket message examples
-        examples:
-          progressMessage:
-            summary: Progress event
-            value:
-              eventType: progress
-              invocationId: 550e8400-e29b-41d4-a716-446655440000
-              timestamp: '2025-10-21T10:30:01Z'
-              data:
-                phase: tool_assessment
-                message: Evaluating deployment tools
-                progressPercentage: 45
-              sequenceNumber: 5
-          completionMessage:
-            summary: Completion event
-            value:
-              eventType: completion
-              invocationId: 550e8400-e29b-41d4-a716-446655440000
-              timestamp: '2025-10-21T10:30:15Z'
-              data:
-                resultType: workflow
-                workflowId: wf-abc123
-                workflowUrl: /workflows/wf-abc123
-              sequenceNumber: 42
-
-  /invocations/{invocationId}/message:
-    post:
-      summary: Send message to running agent
-      description: |
-        Inject a message into a running agent invocation's conversation.
-        Enables interactive multi-turn conversations for clarifications and guidance.
-
-        Message is added to conversation history and agent resumes processing with new context.
-
-      operationId: sendMessage
-      tags:
-        - Interaction
-      parameters:
-        - name: invocationId
-          in: path
-          required: true
-          description: Invocation ID of running agent
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MessageRequest'
-            example:
-              message: Use blue-green deployment strategy instead
-              context:
-                deploymentStrategy: blue-green
-      responses:
-        '202':
-          description: Message accepted for processing
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageResponse'
-              example:
-                invocationId: 550e8400-e29b-41d4-a716-446655440000
-                messageId: 770e8400-e29b-41d4-a716-446655440002
-                status: accepted
-                acknowledgedAt: '2025-10-21T10:35:00Z'
-        '400':
-          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ValidationError
-        '404':
-          $ref: ../base/shared-resources.openapi.yaml#/components/responses/NotFoundError
-
-  /invocations/{invocationId}/pause:
-    post:
-      summary: Pause running agent
-      description: |
-        Pause a running agent invocation. Agent saves current state to checkpoint and enters paused state.
-        Agent can be resumed via POST /invocations/{id}/message (resume with message) or explicitly resumed.
-
-      operationId: pauseAgent
-      tags:
-        - Control
-      parameters:
-        - name: invocationId
-          in: path
-          required: true
-          description: Invocation ID of running agent
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Pause signal acknowledged
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ControlResponse'
-              example:
-                invocationId: 550e8400-e29b-41d4-a716-446655440000
-                action: pause
-                status: acknowledged
-                currentState: paused
-                acknowledgedAt: '2025-10-21T10:35:00Z'
-        '400':
-          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ValidationError
-        '404':
-          $ref: ../base/shared-resources.openapi.yaml#/components/responses/NotFoundError
-
-  /invocations/{invocationId}/cancel:
+  /invocations/{invocation_id}/cancel:
     post:
       summary: Cancel Invocation
       description: |
@@ -543,11 +387,11 @@ paths:
         Cancellation is irreversible - invocation cannot be resumed after cancellation.
         Agent performs cleanup and transitions to cancelled state with optional reason tracking.
 
-      operationId: cancelInvocation
+      operationId: cancel_invocation
       tags:
         - Control
       parameters:
-        - name: invocationId
+        - name: invocation_id
           in: path
           required: true
           description: UUID of the invocation to cancel

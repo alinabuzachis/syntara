@@ -332,7 +332,7 @@ graph LR
    - Validation rules for file metadata array (max 10 files, configurable)
    - Storage requirements analysis (~200 bytes per file, max ~2KB for 10 files per invocation)
 
-2. ✅ **OpenAPI Schema** ([src/nexus/schemas/agent_orchestrator/agent-orchestrator-api.yaml](../../src/nexus/schemas/agent_orchestrator/agent-orchestrator-api.yaml)):
+2. ✅ **OpenAPI Schema** ([src/nexus/schemas/invocations/openapi.yaml](../../src/nexus/schemas/invocations/openapi.yaml)):
    - Moved from `specs/002-agent-orchestrator/contracts/` to constitutional location
    - Created `InvocationRequestWithFile` schema extending `InvocationRequest` via `allOf`
    - Updated POST /invocations to accept both `application/json` and `multipart/form-data`

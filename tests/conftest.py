@@ -477,7 +477,7 @@ def mock_openrouter_llm() -> Generator[MagicMock, None, None]:
     # AND patch OrchestrationService._get_tools to avoid slow tool synchronization retry logic
     with (
         patch(
-            "nexus.api.v1.invocation.get_openrouter_llm",
+            "nexus.invocations.router.get_openrouter_llm",
             return_value=mock_llm,
         ),
         patch(

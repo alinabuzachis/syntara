@@ -165,7 +165,7 @@ def mock_tool_aware_llm() -> Generator[MagicMock, None, None]:
     # Patch LLM locations but DO NOT patch _get_tools (we want real tool discovery)
     with (
         patch(
-            "nexus.api.v1.invocation.get_openrouter_llm",
+            "nexus.invocations.router.get_openrouter_llm",
             return_value=mock_llm,
         ),
         patch(

@@ -14,7 +14,7 @@ async def test_invoke_returns_503_when_openrouter_not_configured(
     auth_client: AsyncClient,
 ) -> None:
     """Test that POST /api/v1/invocations returns 503 when OpenRouter API key is not configured."""
-    with patch("nexus.api.v1.invocation.get_openrouter_llm") as mock_get_llm:
+    with patch("nexus.invocations.router.get_openrouter_llm") as mock_get_llm:
         mock_get_llm.side_effect = LLMConfigurationError(
             "NEXUS_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
         )
