@@ -13,7 +13,7 @@ Tests the complete workflow management lifecycle:
 import pytest
 from httpx import AsyncClient
 
-from tests.helpers.workflow_fixtures import (
+from tests.helpers.workflow import (
     create_minimal_workflow_definition,
     create_workflow_definition_with_activities,
 )

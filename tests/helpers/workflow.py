@@ -1,6 +1,14 @@
 """Test fixtures and helpers for workflow tests."""
 
 from typing import Any
+from uuid import uuid4
+
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from nexus.core.models import User
+from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.models.execution import Execution, ExecutionStatus
 
 
 def create_minimal_workflow_definition(
@@ -82,3 +90,62 @@ def create_workflow_definition_with_activities(
         "triggers": [{"type": "manual"}],
         "workflow": {"activities": activities},
     }
+
+
+class ExecutionsFactory:
+    """Factory class for creating test executions with configurable properties."""
+
+    def __init__(self, session: AsyncSession, workflow: Workflow, user: User) -> None:
+        """Initialize the ExecutionsFactory with database session and required entities.
+
+        Args:
+            session: AsyncSession for database operations
+            workflow: Workflow instance to associate with created executions
+            user: User instance to set as creator of executions
+
+        """
+        self.session = session
+        self.workflow = workflow
+        self.user = user
+
+    async def create_executions(
+        self,
+        count: int,
+        status: ExecutionStatus = ExecutionStatus.PENDING,
+        labels: dict[str, str] | None = None,
+    ) -> list[Execution]:
+        """Create multiple test executions.
+
+        Args:
+            count: Number of executions to create
+            status: Status for all executions (default: PENDING)
+            labels: Labels to apply to all executions (optional)
+
+        Returns:
+            List of created Execution objects
+
+        """
+        # Get the workflow version ID by querying WorkflowVersion
+        result = await self.session.exec(
+            select(WorkflowVersion.id).where(
+                WorkflowVersion.workflow_id == self.workflow.id,
+                WorkflowVersion.version == self.workflow.current_version,
+            )
+        )
+        version_id = result.one()
+
+        executions = [
+            Execution(
+                workflow_id=self.workflow.id,
+                workflow_version_id=version_id,
+                temporal_workflow_id=f"exec-{uuid4()}",
+                status=status,
+                created_by=self.user.id,
+                input_data={},
+                labels=labels or {},
+            )
+            for _ in range(count)
+        ]
+        self.session.add_all(executions)
+        await self.session.commit()
+        return executions

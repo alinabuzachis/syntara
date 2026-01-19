@@ -7,7 +7,7 @@ Tests MUST FAIL before implementation (TDD approach).
 import pytest
 from httpx import AsyncClient
 
-from tests.helpers import create_minimal_workflow_definition, create_workflow_definition_with_activities
+from tests.helpers.workflow import create_minimal_workflow_definition, create_workflow_definition_with_activities
 
 
 @pytest.mark.asyncio

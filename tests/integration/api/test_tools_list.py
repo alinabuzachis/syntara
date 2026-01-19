@@ -12,7 +12,7 @@ from httpx import AsyncClient
 from nexus.tool_manager.models import Tool
 
 if TYPE_CHECKING:
-    from tests.conftest import ToolFactory
+    from tests.helpers.tool_manager import ToolFactory
 
 
 @pytest_asyncio.fixture

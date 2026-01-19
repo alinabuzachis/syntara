@@ -16,7 +16,7 @@ from nexus.core.models import User
 from nexus.core.utils.cursor import decode_cursor
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.services import WorkflowService
-from tests.helpers import create_minimal_workflow_definition
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 if TYPE_CHECKING:
     from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowDefinition

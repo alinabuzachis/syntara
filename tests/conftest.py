@@ -11,7 +11,6 @@ import logging
 import os
 import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
-from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -44,8 +43,7 @@ from nexus.core.config import get_settings
 from nexus.core.models import User, UserRole
 from nexus.files.models import FileMetadata
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
-from nexus.tool_manager.models import Tool, ToolProvider, ToolStatus
-from nexus.tool_manager.models.tool import ToolParameter, ToolParameterType
+from nexus.tool_manager.models import Tool, ToolProvider
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
@@ -55,6 +53,8 @@ from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
 from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 from tests.fixtures.mock_mcp_provider import MockMCPProvider
+from tests.helpers.tool_manager import ToolFactory
+from tests.helpers.workflow import ExecutionsFactory
 
 # Ensure models are registered with SQLModel metadata
 _ = (Invocation, User, Workflow, WorkflowVersion, Execution, FileMetadata)
@@ -89,104 +89,32 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(skip_performance)
 
 
-# Test database configuration
-TEST_DB_USER = os.getenv("NEXUS_DB_USER", "admin")
-TEST_DB_PASSWORD = os.getenv("NEXUS_DB_PASSWORD", "admin")
-TEST_DB_HOST = os.getenv("NEXUS_DB_HOST", "localhost")
-TEST_DB_PORT = os.getenv("NEXUS_DB_PORT", "5432")
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Clean up lock files after test session completes.
 
+    This hook runs after all tests have finished, cleaning up lock files
+    created by pytest-xdist workers during parallel test execution.
 
-# ============================================================================
-# Test Utilities
-# ============================================================================
-
-
-@asynccontextmanager
-async def wait_for_invocation_execution(
-    client: AsyncClient, invocation_id: str, max_wait_time: float = 5.0, wait_interval: float = 0.1
-) -> AsyncGenerator[dict[str, Any] | None, None]:
-    """Context manager that waits for an invocation to start execution.
-
-    This ensures that tests can treat invocation creation as if it were synchronous,
-    even though execution happens in background tasks.
+    Only cleans up worker lock files (nexus_router_discovery_gw*.lock),
+    preserving the main lock file for non-parallel test runs.
 
     Args:
-        client: The HTTP client to use for polling
-        invocation_id: The ID of the invocation to monitor
-        max_wait_time: Maximum time to wait in seconds (default: 5.0)
-        wait_interval: How often to check in seconds (default: 0.1)
-
-    Yields:
-        The final invocation data after execution has started or timeout
+        session: pytest session object
+        exitstatus: pytest exit status
 
     """
-    elapsed_time = 0.0
-    final_data: dict[str, Any] | None = None
+    temp_dir = Path(tempfile.gettempdir())
+    lock_pattern = "nexus_router_discovery_gw*.lock"
 
-    while elapsed_time < max_wait_time:
-        # Check the current status of the invocation
-        status_response = await client.get(f"/api/v1/invocations/{invocation_id}")
-        if status_response.status_code == 200:
-            status_data = status_response.json()
-            if status_data["status"] in ["completed", "failed"]:
-                final_data = status_data
-                break
-
-        await asyncio.sleep(wait_interval)
-        elapsed_time += wait_interval
-
-    # If we didn't get execution state, get the current state for testing
-    if final_data is None:
-        status_response = await client.get(f"/api/v1/invocations/{invocation_id}")
-        if status_response.status_code == 200:
-            final_data = status_response.json()
-
-    yield final_data
-
-
-@asynccontextmanager
-async def wait_for_tool_status(
-    client: AsyncClient, tool_id: str, expected_status: str, max_wait_time: float = 10.0, wait_interval: float = 0.2
-) -> AsyncGenerator[dict[str, Any] | None, None]:
-    """Context manager that waits for a tool to reach a specific status.
-
-    This is useful for testing scenarios where tools may be automatically disabled
-    or their status changes due to background processes.
-
-    Args:
-        client: The HTTP client to use for polling
-        tool_id: The ID of the tool to monitor
-        expected_status: The status to wait for (e.g., "error", "active")
-        max_wait_time: Maximum time to wait in seconds (default: 10.0)
-        wait_interval: How often to check in seconds (default: 0.2)
-
-    Yields:
-        The final tool data after status change or timeout
-
-    """
-    elapsed_time = 0.0
-    final_data: dict[str, Any] | None = None
-
-    while elapsed_time < max_wait_time:
-        # Check the current status of the tool
-        status_response = await client.get(f"/api/v1/tool_manager/tools/{tool_id}")
-        if status_response.status_code == 200:
-            status_data = status_response.json()
-            if status_data.get("status") == expected_status:
-                final_data = status_data
-                break
-
-        await asyncio.sleep(wait_interval)
-        elapsed_time += wait_interval
-
-    # If we didn't get the expected status, get the current state for testing
-    if final_data is None:
-        status_response = await client.get(f"/api/v1/tool_manager/tools/{tool_id}")
-        if status_response.status_code == 200:
-            final_data = status_response.json()
-
-    yield final_data
+    for lock_file in temp_dir.glob(lock_pattern):
+        try:
+            lock_file.unlink()
+            logger.debug("Cleaned up test lock file: %s", lock_file)
+        except FileNotFoundError:
+            # File already deleted, ignore
+            pass
+        except OSError as e:
+            logger.warning("Failed to clean up lock file %s: %s", lock_file, e)
 
 
 @pytest.fixture(scope="session")
@@ -245,6 +173,13 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 # ============================================================================
 # Database Fixtures
 # ============================================================================
+
+# Test database configuration
+TEST_DB_USER = os.getenv("NEXUS_DB_USER", "admin")
+TEST_DB_PASSWORD = os.getenv("NEXUS_DB_PASSWORD", "admin")
+TEST_DB_HOST = os.getenv("NEXUS_DB_HOST", "localhost")
+TEST_DB_PORT = os.getenv("NEXUS_DB_PORT", "5432")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def get_test_database_url(worker_id: str = "master") -> str:
@@ -1039,293 +974,6 @@ def disabled_retry_settings() -> Generator[None, None, None]:
 # ============================================================================
 
 
-class ToolFactory:
-    """Factory class for creating test tools with configurable properties."""
-
-    def __init__(self, session: AsyncSession, provider: ToolProvider, user: User) -> None:
-        """Initialize the ToolFactory with database session and required entities.
-
-        Args:
-            session: AsyncSession for database operations
-            provider: ToolProvider instance to associate with created tools
-            user: User instance to set as creator/updater of tools
-
-        """
-        self.session = session
-        self.provider = provider
-        self.user = user
-
-    async def create_tools(
-        self,
-        count: int,
-        name_prefix: str = "Test Tool",
-        namespace_prefix: str = "test",
-        statuses: list[ToolStatus] | None = None,
-        enabled_states: list[bool] | None = None,
-        descriptions: list[str] | None = None,
-    ) -> list[Tool]:
-        """Create multiple tools with configurable properties.
-
-        Args:
-            count: Number of tools to create
-            name_prefix: Prefix for tool names (will be followed by numbers)
-            namespace_prefix: Prefix for namespaced names
-            statuses: List of statuses to cycle through (defaults to AVAILABLE)
-            enabled_states: List of enabled states to cycle through (defaults to True)
-            descriptions: List of descriptions to cycle through (defaults to generic descriptions)
-
-        Returns:
-            List of created Tool objects
-
-        """
-        if statuses is None:
-            statuses = [ToolStatus.AVAILABLE]
-        if enabled_states is None:
-            enabled_states = [True]
-        if descriptions is None:
-            descriptions = [f"{name_prefix} for testing"]
-
-        tools = []
-        for i in range(count):
-            status = statuses[i % len(statuses)]
-            enabled = enabled_states[i % len(enabled_states)]
-            description = descriptions[i % len(descriptions)]
-
-            tool = Tool(
-                provider_id=self.provider.id,
-                name=f"{name_prefix} {i + 1}",
-                description=description,
-                namespaced_name=f"{namespace_prefix}::{name_prefix.lower().replace(' ', '_')}_{i + 1}",
-                enabled=enabled,
-                status=status,
-                created_by=self.user.id,
-                updated_by=self.user.id,
-            )
-            tools.append(tool)
-            self.session.add(tool)
-
-        await self.session.commit()
-
-        for tool in tools:
-            await self.session.refresh(tool)
-
-        return tools
-
-    async def create_bulk_tools(self, count: int = 3) -> list[Tool]:
-        """Create tools suitable for bulk update testing."""
-        return await self.create_tools(
-            count=count,
-            name_prefix="Bulk Test Tool",
-            namespace_prefix="test",
-            statuses=[ToolStatus.AVAILABLE],
-            enabled_states=[True, True, False],  # Mix of enabled states for testing
-        )
-
-    async def create_concurrency_tools(self, count: int = 6) -> list[Tool]:
-        """Create tools suitable for concurrency testing."""
-        return await self.create_tools(
-            count=count,
-            name_prefix="Concurrency Tool",
-            namespace_prefix="test",
-            statuses=[ToolStatus.AVAILABLE],
-            enabled_states=[True],  # All enabled for concurrency tests
-        )
-
-    async def create_list_tools(self) -> list[Tool]:
-        """Create tools suitable for list/filter testing with varied properties."""
-        # Predefined set of tools with specific names and properties for list testing
-        tool_configs = [
-            ("Alpha Tool", "test::alpha_tool", True, ToolStatus.AVAILABLE, "First tool for testing"),
-            ("Beta Tool", "test::beta_tool", False, ToolStatus.ERROR, "Second tool for testing"),
-            ("Gamma Tool", "test::gamma_tool", True, ToolStatus.AVAILABLE, "Third tool for testing"),
-            ("Delta Tool", "test::delta_tool", False, ToolStatus.ERROR, "Fourth tool for testing"),
-            ("Echo Tool", "test::echo_tool", False, ToolStatus.MISSING, "Fifth tool for testing"),
-            ("Foxtrot Tool", "test::foxtrot_tool", True, ToolStatus.AVAILABLE, "Sixth tool for testing"),
-        ]
-
-        tools = []
-        for name, namespaced_name, enabled, status, description in tool_configs:
-            tool = Tool(
-                provider_id=self.provider.id,
-                name=name,
-                description=description,
-                namespaced_name=namespaced_name,
-                enabled=enabled,
-                status=status,
-                created_by=self.user.id,
-                updated_by=self.user.id,
-            )
-            tools.append(tool)
-            self.session.add(tool)
-
-        await self.session.commit()
-
-        for tool in tools:
-            await self.session.refresh(tool)
-
-        return tools
-
-    async def create_tools_with_parameters(self) -> list[Tool]:
-        """Create tools with parameters for testing eager loading scenarios.
-
-        Creates a variety of tools each with multiple parameters to test:
-        - Eager loading of parameters in list operations
-        - Parameter serialization in API responses
-        - N+1 query prevention
-
-        Returns:
-            List of Tool objects with associated ToolParameter objects
-
-        """
-        # Define tools with their parameters
-        tool_configs = [
-            {
-                "name": "Calculator Tool",
-                "namespaced_name": "test::calculator_tool",
-                "description": "Mathematical calculator with multiple parameter types",
-                "enabled": True,
-                "status": ToolStatus.AVAILABLE,
-                "parameters": [
-                    {
-                        "name": "operation",
-                        "type": ToolParameterType.STRING,
-                        "description": "Mathematical operation to perform",
-                        "required": True,
-                    },
-                    {
-                        "name": "operand_a",
-                        "type": ToolParameterType.NUMBER,
-                        "description": "First number for calculation",
-                        "required": True,
-                    },
-                    {
-                        "name": "operand_b",
-                        "type": ToolParameterType.NUMBER,
-                        "description": "Second number for calculation",
-                        "required": True,
-                    },
-                    {
-                        "name": "precision",
-                        "type": ToolParameterType.NUMBER,
-                        "description": "Decimal precision for result",
-                        "required": False,
-                        "default_value": {"value": 2},
-                    },
-                ],
-            },
-            {
-                "name": "Text Processor Tool",
-                "namespaced_name": "test::text_processor_tool",
-                "description": "Text processing tool with string and boolean parameters",
-                "enabled": True,
-                "status": ToolStatus.AVAILABLE,
-                "parameters": [
-                    {
-                        "name": "input_text",
-                        "type": ToolParameterType.STRING,
-                        "description": "Text to process",
-                        "required": True,
-                    },
-                    {
-                        "name": "case_sensitive",
-                        "type": ToolParameterType.BOOLEAN,
-                        "description": "Whether processing should be case sensitive",
-                        "required": False,
-                        "default_value": {"value": False},
-                    },
-                    {
-                        "name": "max_length",
-                        "type": ToolParameterType.NUMBER,
-                        "description": "Maximum length of processed text",
-                        "required": False,
-                        "default_value": {"value": 1000},
-                    },
-                ],
-            },
-            {
-                "name": "Data Export Tool",
-                "namespaced_name": "test::data_export_tool",
-                "description": "Tool for exporting data with complex parameters",
-                "enabled": False,
-                "status": ToolStatus.ERROR,
-                "parameters": [
-                    {
-                        "name": "export_format",
-                        "type": ToolParameterType.STRING,
-                        "description": "Format for data export (json, csv, xml)",
-                        "required": True,
-                    },
-                    {
-                        "name": "include_headers",
-                        "type": ToolParameterType.BOOLEAN,
-                        "description": "Whether to include column headers",
-                        "required": False,
-                        "default_value": {"value": True},
-                    },
-                    {
-                        "name": "compression_level",
-                        "type": ToolParameterType.NUMBER,
-                        "description": "Compression level (0-9)",
-                        "required": False,
-                    },
-                    {
-                        "name": "metadata",
-                        "type": ToolParameterType.OBJECT,
-                        "description": "Additional metadata for export",
-                        "required": False,
-                        "example_value": {"author": "test", "version": "1.0"},
-                    },
-                    {
-                        "name": "filters",
-                        "type": ToolParameterType.ARRAY,
-                        "description": "Array of filters to apply",
-                        "required": False,
-                        "example_value": {"filters": ["active", "recent"]},
-                    },
-                ],
-            },
-        ]
-
-        tools = []
-        for tool_config in tool_configs:
-            # Create the tool
-            tool = Tool(
-                provider_id=self.provider.id,
-                name=tool_config["name"],
-                description=tool_config["description"],
-                namespaced_name=tool_config["namespaced_name"],
-                enabled=tool_config["enabled"],
-                status=tool_config["status"],
-                created_by=self.user.id,
-                updated_by=self.user.id,
-            )
-            tools.append(tool)
-            self.session.add(tool)
-
-        # Create parameters for each tool
-        for tool, tool_config in zip(tools, tool_configs, strict=True):
-            for param_config in tool_config["parameters"]:  # type: ignore[attr-defined]
-                parameter = ToolParameter(
-                    tool_id=tool.id,
-                    name=param_config["name"],
-                    type=param_config["type"],
-                    description=param_config["description"],
-                    required=param_config["required"],
-                    default_value=param_config.get("default_value"),
-                    example_value=param_config.get("example_value"),
-                )
-                self.session.add(parameter)
-
-        # Commit all changes
-        await self.session.commit()
-
-        # Refresh tools to get updated relationships
-        for tool in tools:
-            await self.session.refresh(tool)
-
-        return tools
-
-
 @pytest_asyncio.fixture
 async def test_tool_provider(test_db_session: AsyncSession, test_user: User) -> "ToolProvider":
     """Create a test Tool Provider.
@@ -1485,96 +1133,9 @@ async def test_tool_provider_service(
     return ToolProviderService(test_db_session, test_user, test_provider_factory)
 
 
-def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
-    """Clean up lock files after test session completes.
-
-    This hook runs after all tests have finished, cleaning up lock files
-    created by pytest-xdist workers during parallel test execution.
-
-    Only cleans up worker lock files (nexus_router_discovery_gw*.lock),
-    preserving the main lock file for non-parallel test runs.
-
-    Args:
-        session: pytest session object
-        exitstatus: pytest exit status
-
-    """
-    temp_dir = Path(tempfile.gettempdir())
-    lock_pattern = "nexus_router_discovery_gw*.lock"
-
-    for lock_file in temp_dir.glob(lock_pattern):
-        try:
-            lock_file.unlink()
-            logger.debug("Cleaned up test lock file: %s", lock_file)
-        except FileNotFoundError:
-            # File already deleted, ignore
-            pass
-        except OSError as e:
-            logger.warning("Failed to clean up lock file %s: %s", lock_file, e)
-
-
 # ============================================================================
 # Workflow Executions Fixtures
 # ============================================================================
-
-
-class ExecutionsFactory:
-    """Factory class for creating test executions with configurable properties."""
-
-    def __init__(self, session: AsyncSession, workflow: Workflow, user: User) -> None:
-        """Initialize the ExecutionsFactory with database session and required entities.
-
-        Args:
-            session: AsyncSession for database operations
-            workflow: Workflow instance to associate with created executions
-            user: User instance to set as creator of executions
-
-        """
-        self.session = session
-        self.workflow = workflow
-        self.user = user
-
-    async def create_executions(
-        self,
-        count: int,
-        status: ExecutionStatus = ExecutionStatus.PENDING,
-        labels: dict[str, str] | None = None,
-    ) -> list[Execution]:
-        """Create multiple test executions.
-
-        Args:
-            count: Number of executions to create
-            status: Status for all executions (default: PENDING)
-            labels: Labels to apply to all executions (optional)
-
-        Returns:
-            List of created Execution objects
-
-        """
-        # Get the workflow version ID by querying WorkflowVersion
-        result = await self.session.exec(
-            select(WorkflowVersion.id).where(
-                WorkflowVersion.workflow_id == self.workflow.id,
-                WorkflowVersion.version == self.workflow.current_version,
-            )
-        )
-        version_id = result.one()
-
-        executions = [
-            Execution(
-                workflow_id=self.workflow.id,
-                workflow_version_id=version_id,
-                temporal_workflow_id=f"exec-{uuid4()}",
-                status=status,
-                created_by=self.user.id,
-                input_data={},
-                labels=labels or {},
-            )
-            for _ in range(count)
-        ]
-        self.session.add_all(executions)
-        await self.session.commit()
-        return executions
 
 
 @pytest_asyncio.fixture

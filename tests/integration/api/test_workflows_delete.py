@@ -10,7 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.workflows.models import Workflow
-from tests.helpers import create_minimal_workflow_definition
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio

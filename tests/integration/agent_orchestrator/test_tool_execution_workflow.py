@@ -17,7 +17,8 @@ from langchain_core.tools import tool
 
 from nexus.tool_manager.lib.providers.mcp import MCPProvider
 from nexus.tool_manager.models import ToolProviderValidationResult
-from tests.conftest import wait_for_invocation_execution, wait_for_tool_status
+from tests.helpers.invocations import wait_for_invocation_execution
+from tests.helpers.tool_manager import wait_for_tool_status
 
 
 @pytest.fixture(autouse=True)

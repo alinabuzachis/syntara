@@ -23,7 +23,7 @@ from nexus.files.document_conversion.converters.pdf_converter import (
 from nexus.files.document_conversion.converters.text_converter import (
     TextConverter,
 )
-from tests.conftest import wait_for_invocation_execution
+from tests.helpers.invocations import wait_for_invocation_execution
 
 # Test fixtures directory
 FIXTURES_DIR = Path(__file__).parent.parent.parent.parent.parent.parent / "fixtures" / "files"

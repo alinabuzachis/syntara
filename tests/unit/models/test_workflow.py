@@ -20,7 +20,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.workflows.models import Workflow, WorkflowVersion
-from tests.helpers.workflow_fixtures import create_minimal_workflow_definition
+from tests.helpers.workflow import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio

@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 
 from nexus.agent_orchestrator.exceptions import LLMConfigurationError
-from tests.conftest import wait_for_invocation_execution
+from tests.helpers.invocations import wait_for_invocation_execution
 
 
 @pytest.mark.asyncio

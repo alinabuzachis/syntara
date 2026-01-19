@@ -8,7 +8,7 @@ import pytest
 from httpx import AsyncClient
 
 from nexus.core.models import User
-from tests.conftest import wait_for_invocation_execution
+from tests.helpers.invocations import wait_for_invocation_execution
 
 
 class TestContextEnhancedInvocations:

@@ -9,7 +9,7 @@ from uuid import UUID
 import pytest
 from httpx import AsyncClient
 
-from tests.conftest import wait_for_invocation_execution
+from tests.helpers.invocations import wait_for_invocation_execution
 
 
 class TestGenericQueryFlow:

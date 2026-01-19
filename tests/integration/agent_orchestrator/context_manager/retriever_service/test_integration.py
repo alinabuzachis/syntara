@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from langchain_core.messages import AIMessage
 
-from tests.conftest import wait_for_invocation_execution
+from tests.helpers.invocations import wait_for_invocation_execution
 
 # Test fixtures directory
 FIXTURES_DIR = Path(__file__).parent.parent.parent.parent.parent / "fixtures" / "files"

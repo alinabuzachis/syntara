@@ -12,7 +12,7 @@ from httpx import AsyncClient
 from nexus.agent_orchestrator.context_manager import ContextManagerPlanner
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
 from nexus.core.models import User
-from tests.conftest import wait_for_invocation_execution
+from tests.helpers.invocations import wait_for_invocation_execution
 
 
 class TestContextQualityMetrics:
