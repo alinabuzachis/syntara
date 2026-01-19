@@ -375,7 +375,16 @@ paths:
   /executions/{executionId}:
     get:
       summary: Get execution
-      description: Retrieve details of a specific execution.
+      description: |
+        Retrieve details of a specific execution with optional includes.
+
+        **Include Parameters**:
+        - `workflow_definition`: Include the workflow definition from the executed version (for building visualization graph)
+        - `activities`: Include the list of activities with their current status (for completed executions or fallback)
+
+        **Usage**:
+        - Normal request: `GET /executions/{id}` - returns execution without optional fields
+        - Visualization: `GET /executions/{id}?include=workflow_definition&include=activities` - for building graph and checking execution status
       parameters:
         - name: executionId
           in: path
@@ -383,9 +392,24 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: include
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [workflow_definition, activities]
+          style: form
+          explode: true
+          description: |
+            Optional fields to include in the response.
+            - `workflow_definition`: Include workflow definition for graph building
+            - `activities`: Include activities list with current status
+          example: [workflow_definition, activities]
       responses:
         '200':
-          description: Execution details
+          description: Execution details with optional includes
           content:
             application/json:
               schema:

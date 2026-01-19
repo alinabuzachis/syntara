@@ -114,54 +114,8 @@ servers:
 defaultContentType: application/json
 
 channels:
-  executionUpdates:
-    address: /executions/{executionId}
-    title: Single Execution Updates (v1)
-    description: |
-      Real-time updates for a specific workflow execution.
-
-      **API Version**: v1
-      **Connection URL**: `ws://localhost:8000/api/v1/ws/executions/{executionId}`
-
-      **Connection Flow**:
-      1. Client opens WebSocket connection with JWT authentication
-      2. Server sends connection acknowledgment with session_id and version info
-      3. Server streams execution updates as they occur
-      4. Client can send control commands (pause, resume, cancel)
-
-      **Version Negotiation**:
-      - Client can specify preferred API version via `api_version` query parameter
-      - Server responds with actual version used in connection_ack message
-      - All subsequent messages include `api_version` field
-
-      **Reconnection**:
-      - Use session_id and last_event_id query parameters to resume
-      - Server replays missed events from last_event_id onward
-      - Version remains consistent within a session
-    parameters:
-      executionId:
-        $ref: '#/components/parameters/executionId'
-      sessionId:
-        $ref: '#/components/parameters/sessionId'
-      lastEventId:
-        $ref: '#/components/parameters/lastEventId'
-      apiVersion:
-        $ref: '#/components/parameters/apiVersion'
-    messages:
-      connectionAck:
-        $ref: '#/components/messages/connectionAck'
-      executionUpdate:
-        $ref: '#/components/messages/executionUpdate'
-      activityUpdate:
-        $ref: '#/components/messages/activityUpdate'
-      errorNotification:
-        $ref: '#/components/messages/errorNotification'
-      pauseCommand:
-        $ref: '#/components/messages/pauseCommand'
-      resumeCommand:
-        $ref: '#/components/messages/resumeCommand'
-      cancelCommand:
-        $ref: '#/components/messages/cancelCommand'
+  # Note: Single execution visualization is handled by websocket-execution-streaming.yaml
+  # with the executionUpdates channel at /executions/{executionId}
 
   allExecutions:
     address: /executions
@@ -236,27 +190,7 @@ channels:
         $ref: '#/components/messages/approvalNotification'
 
 operations:
-  # Single Execution Channel Operations
-  receiveExecutionUpdates:
-    action: receive
-    channel:
-      $ref: '#/channels/executionUpdates'
-    summary: Receive real-time updates for a specific execution
-    messages:
-      - $ref: '#/channels/executionUpdates/messages/connectionAck'
-      - $ref: '#/channels/executionUpdates/messages/executionUpdate'
-      - $ref: '#/channels/executionUpdates/messages/activityUpdate'
-      - $ref: '#/channels/executionUpdates/messages/errorNotification'
-
-  sendExecutionCommands:
-    action: send
-    channel:
-      $ref: '#/channels/executionUpdates'
-    summary: Send control commands for execution management
-    messages:
-      - $ref: '#/channels/executionUpdates/messages/pauseCommand'
-      - $ref: '#/channels/executionUpdates/messages/resumeCommand'
-      - $ref: '#/channels/executionUpdates/messages/cancelCommand'
+  # Note: Single execution operations are defined in websocket-execution-streaming.yaml
 
   # All Executions Channel Operations
   receiveAllExecutionUpdates:

@@ -48,6 +48,38 @@ components:
                   type: string
                   nullable: true
 
+    ActivityData:
+      type: object
+      title: Activity Data
+      description: Activity data for execution response when include=activities is requested
+      required:
+        - activity_id
+        - status
+      properties:
+        activity_id:
+          type: string
+          description: Activity ID from workflow definition
+          example: process_data
+        status:
+          $ref: "#/components/schemas/ActivityStatus"
+        error_details:
+          type: string
+          nullable: true
+          description: Error message if status is failed
+          example: Connection timeout to external service
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When activity started execution
+          example: '2025-12-10T15:00:10Z'
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When activity completed
+          example: '2025-12-10T15:00:15Z'
+
     Execution:
       allOf:
         - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
@@ -59,6 +91,10 @@ components:
               type: string
               format: uuid
               description: ID of the workflow being executed
+            workflow_version_id:
+              type: string
+              format: uuid
+              description: ID of the workflow version being executed
             temporal_workflow_id:
               type: string
               description: Temporal workflow execution ID
@@ -98,6 +134,22 @@ components:
                   iteration:
                     type: integer
                     nullable: true
+            workflow_definition:
+              type: object
+              nullable: true
+              description: |
+                Workflow definition from the executed version.
+                Only included when requested via ?include=workflow_definition query parameter.
+                Used for building visualization graph.
+            activities:
+              type: array
+              nullable: true
+              description: |
+                List of activities with their current status.
+                Only included when requested via ?include=activities query parameter.
+                Used for visualization of completed executions or as fallback.
+              items:
+                $ref: "#/components/schemas/ActivityData"
 
     ActivityExecution:
       allOf:
@@ -163,7 +215,7 @@ components:
       type: string
       title: Activity Status
       description: Current state of an individual activity execution
-      enum: [pending, running, completed, failed, retrying]
+      enum: [pending, running, completed, failed, retrying, skipped, cancelled]
 
     # NOTE: ApprovalStatus is defined in ../approvals/approvals-api.yaml
 
