@@ -101,7 +101,7 @@ export function formatTime(isoString: string): string {
 
 /**
  * Format ISO 8601 interval string to human-readable description
- * Example: "Starts Jan 1, 2026 at 12:00 AM, Repeats weekly, Ends Feb 6, 2026"
+ * Example: "Starts Jan 1, 2026 at 12:00 AM\nRepeats weekly\nEnds Feb 6, 2026"
  */
 export function formatIntervalDescription(interval: string): string {
   const parsed = parseRepeatingInterval(interval)
@@ -115,11 +115,8 @@ export function formatIntervalDescription(interval: string): string {
   const parts: string[] = []
 
   if (startDate) {
-    parts.push(`Starts ${startDate}`)
-  }
-
-  if (startTime) {
-    parts.push(`at ${startTime}`)
+    const startLine = startTime ? `Starts ${startDate} at ${startTime}` : `Starts ${startDate}`
+    parts.push(startLine)
   }
 
   if (cadence !== 'Does not repeat') {
@@ -130,7 +127,7 @@ export function formatIntervalDescription(interval: string): string {
     parts.push(`Ends ${endDate}`)
   }
 
-  return parts.join(', ')
+  return parts.join('\n')
 }
 
 /**

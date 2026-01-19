@@ -1,6 +1,7 @@
+import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { FlexItem, Content, ContentVariants, Title, TitleSizes } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
-import type { WorkflowAPI } from 'nexus-contracts'
+import type { CSSProperties } from 'react'
 
 import { parseTriggerLabel } from '../../../../utils/triggerFormatting'
 
@@ -19,6 +20,11 @@ export type TriggerNode = { type: 'trigger' } & Node<{
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   const metadata = nodeMetadata.trigger
   const Icon = metadata.icon!
+  const triggerStyle: CSSProperties = {
+    borderTopLeftRadius: '75px',
+    borderBottomLeftRadius: '75px',
+    paddingLeft: '25px',
+  }
 
   // Extract trigger index from node id (format: trigger-0, trigger-1, etc.)
   const triggerIndex = Number.parseInt(props.id.split('-')[1])
@@ -29,7 +35,12 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   })
 
   return (
-    <NodeComponent disableTarget={metadata.disableTarget} className={metadata.className} nodeProps={props}>
+    <NodeComponent
+      disableTarget={metadata.disableTarget}
+      className={metadata.className}
+      nodeProps={props}
+      style={triggerStyle}
+    >
       <TriggerNodeDetails node={props.data} icon={<Icon />} menuActions={menuActions} />
     </NodeComponent>
   )
@@ -47,7 +58,6 @@ export function TriggerNodeDetails(
 ) {
   const nodeData = props.node
   const { type, details } = parseTriggerLabel(nodeData.label)
-
   return (
     <>
       <NodeHeader>
@@ -64,7 +74,11 @@ export function TriggerNodeDetails(
           <Title headingLevel="h3" size={TitleSizes.md}>
             {type}
           </Title>
-          {details && <Content component={ContentVariants.small}>{details}</Content>}
+          {details && (
+            <Content component={ContentVariants.small} style={{ whiteSpace: 'pre-line' }}>
+              {details}
+            </Content>
+          )}
           {type === 'Manual' && !details && <Content component={ContentVariants.small}>Manual trigger</Content>}
         </div>
       </NodeBody>
