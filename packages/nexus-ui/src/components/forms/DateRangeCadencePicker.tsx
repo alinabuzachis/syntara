@@ -399,7 +399,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
             placeholder="Never ends"
             aria-label="End Date"
           />
-          {!endDate && <FormHelperText>(Never ends)</FormHelperText>}
+          <FormHelperText>If this field is left empty, the schedule will not have an end date.</FormHelperText>
         </FormGroup>
       </StackItem>
     </Stack>
