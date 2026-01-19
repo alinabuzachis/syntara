@@ -1,5 +1,7 @@
 """Unit tests for router discovery system."""
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -152,19 +154,21 @@ class TestRegisterRouters:
 class TestDiscoverAndRegisterRouters:
     """Tests for discover_and_register_routers function."""
 
-    def test_discover_and_register_uses_configuration(self) -> None:
+    def test_discover_and_register_uses_configuration(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that function uses configuration from settings."""
         app = FastAPI()
 
         with (
             patch("nexus.core.router_discovery.discover_routers") as mock_discover,
             patch("nexus.core.router_discovery.register_routers"),
-            patch("nexus.core.router_discovery.get_settings") as mock_settings,
+            override_settings(
+                router_exclude_modules="core,utils",
+                openapi_validation_enabled=False,
+            ),
         ):
-            # Configure mock settings
-            mock_settings.return_value.router_exclude_modules = "core,utils"
-            mock_settings.return_value.openapi_validation_enabled = False
-
             mock_discover.return_value = []
 
             discover_and_register_routers(

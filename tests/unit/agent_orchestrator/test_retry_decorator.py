@@ -8,8 +8,10 @@ They validate error classification, backoff calculation, and retry behavior.
 
 import asyncio
 import time
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import httpx
@@ -293,13 +295,11 @@ class TestRetryDecorator:
     """
 
     @pytest.mark.asyncio
-    async def test_successful_retry_after_transient_error(self) -> None:
+    async def test_successful_retry_after_transient_error(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that decorator retries and succeeds after transient error."""
-        settings = AdapterRetrySettings(
-            adapter_max_retries=3,
-            adapter_initial_backoff_seconds=0.1,  # Fast for testing
-        )
-
         call_count = 0
 
         @retry_with_backoff
@@ -317,19 +317,20 @@ class TestRetryDecorator:
                 )
             return "success"
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings):
+        with override_settings(
+            adapter_max_retries=3,
+            adapter_initial_backoff_seconds=0.1,
+        ):
             result = await mock_llm_call(invocation_id=uuid4())
             assert result == "success"
             assert call_count == 2  # Initial + 1 retry
 
     @pytest.mark.asyncio
-    async def test_failure_after_max_retries_exhausted(self) -> None:
+    async def test_failure_after_max_retries_exhausted(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that decorator fails after max retries exhausted."""
-        settings = AdapterRetrySettings(
-            adapter_max_retries=3,
-            adapter_initial_backoff_seconds=0.1,
-        )
-
         call_count = 0
 
         @retry_with_backoff
@@ -344,16 +345,20 @@ class TestRetryDecorator:
                 body=None,
             )
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings):
+        with override_settings(
+            adapter_max_retries=3,
+            adapter_initial_backoff_seconds=0.1,
+        ):
             with pytest.raises(openai.APIStatusError):
                 await mock_llm_call(invocation_id=uuid4())
             assert call_count == 4  # Initial + 3 retries
 
     @pytest.mark.asyncio
-    async def test_non_retryable_error_fails_immediately(self) -> None:
+    async def test_non_retryable_error_fails_immediately(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that non-retryable errors fail without retry."""
-        settings = AdapterRetrySettings(adapter_max_retries=3)
-
         call_count = 0
 
         @retry_with_backoff
@@ -366,19 +371,17 @@ class TestRetryDecorator:
                 body=None,
             )
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings):
+        with override_settings(adapter_max_retries=3):
             with pytest.raises(openai.AuthenticationError):
                 await mock_llm_call(invocation_id=uuid4())
             assert call_count == 1  # No retries
 
     @pytest.mark.asyncio
-    async def test_rate_limit_error_retryable(self) -> None:
+    async def test_rate_limit_error_retryable(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that rate limit errors are retryable."""
-        settings = AdapterRetrySettings(
-            adapter_max_retries=3,
-            adapter_initial_backoff_seconds=0.1,
-        )
-
         call_count = 0
 
         @retry_with_backoff
@@ -393,19 +396,20 @@ class TestRetryDecorator:
                 )
             return "success"
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings):
+        with override_settings(
+            adapter_max_retries=3,
+            adapter_initial_backoff_seconds=0.1,
+        ):
             result = await mock_llm_call(invocation_id=uuid4())
             assert result == "success"
             assert call_count == 2
 
     @pytest.mark.asyncio
-    async def test_exponential_backoff_delays(self) -> None:
+    async def test_exponential_backoff_delays(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that delays follow exponential backoff pattern."""
-        settings = AdapterRetrySettings(
-            adapter_max_retries=3,
-            adapter_initial_backoff_seconds=0.1,
-            adapter_backoff_growth_factor=2.0,
-        )
 
         @retry_with_backoff
         async def mock_llm_call(invocation_id: UUID, **kwargs: Any) -> str:
@@ -421,7 +425,11 @@ class TestRetryDecorator:
 
         start_time = time.time()
         with (
-            patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings),
+            override_settings(
+                adapter_max_retries=3,
+                adapter_initial_backoff_seconds=0.1,
+                adapter_backoff_growth_factor=2.0,
+            ),
             pytest.raises(openai.APIStatusError),
         ):
             await mock_llm_call(invocation_id=uuid4())
@@ -432,10 +440,11 @@ class TestRetryDecorator:
         assert 0.5 <= elapsed <= 1.0
 
     @pytest.mark.asyncio
-    async def test_max_retries_zero_disables_retry(self) -> None:
+    async def test_max_retries_zero_disables_retry(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that max_retries=0 disables retry behavior."""
-        settings = AdapterRetrySettings(adapter_max_retries=0)
-
         call_count = 0
 
         @retry_with_backoff
@@ -450,19 +459,17 @@ class TestRetryDecorator:
                 body=None,
             )
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings):
+        with override_settings(adapter_max_retries=0):
             with pytest.raises(openai.APIStatusError):
                 await mock_llm_call(invocation_id=uuid4())
             assert call_count == 1  # No retries
 
     @pytest.mark.asyncio
-    async def test_concurrent_requests_isolated_state(self) -> None:
+    async def test_concurrent_requests_isolated_state(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that concurrent requests maintain independent retry state."""
-        settings = AdapterRetrySettings(
-            adapter_max_retries=3,
-            adapter_initial_backoff_seconds=0.1,
-        )
-
         call_counts = {"a": 0, "b": 0, "c": 0}
 
         @retry_with_backoff
@@ -491,7 +498,10 @@ class TestRetryDecorator:
                 )
             return f"success_{request_id}"
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings):
+        with override_settings(
+            adapter_max_retries=3,
+            adapter_initial_backoff_seconds=0.1,
+        ):
             results = await asyncio.gather(
                 mock_llm_call(invocation_id=uuid4(), request_id="a"),
                 mock_llm_call(invocation_id=uuid4(), request_id="b"),
@@ -512,13 +522,11 @@ class TestRetryDecorator:
             assert call_counts["c"] == 4
 
     @pytest.mark.asyncio
-    async def test_backoff_interruption_handling(self) -> None:
+    async def test_backoff_interruption_handling(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that interruption during backoff is handled correctly."""
-        settings = AdapterRetrySettings(
-            adapter_max_retries=3,
-            adapter_initial_backoff_seconds=10.0,  # Long delay
-        )
-
         call_count = 0
 
         @retry_with_backoff
@@ -537,7 +545,10 @@ class TestRetryDecorator:
             await asyncio.sleep(0.5)  # Cancel after 0.5s
             task.cancel()
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings):
+        with override_settings(
+            adapter_max_retries=3,
+            adapter_initial_backoff_seconds=10.0,
+        ):
             task = asyncio.create_task(mock_llm_call(invocation_id=uuid4()))
             cancel_task = asyncio.create_task(cancel_after_delay())
 
@@ -555,13 +566,11 @@ class TestRetryDecorator:
             assert call_count >= 1
 
     @pytest.mark.asyncio
-    async def test_error_type_changes_between_attempts(self) -> None:
+    async def test_error_type_changes_between_attempts(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that retry continues when error type changes between attempts."""
-        settings = AdapterRetrySettings(
-            adapter_max_retries=3,
-            adapter_initial_backoff_seconds=0.1,
-        )
-
         call_count = 0
         errors = [503, 500, 502]  # Different server errors
 
@@ -580,20 +589,20 @@ class TestRetryDecorator:
             call_count += 1
             return "success"
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings):
+        with override_settings(
+            adapter_max_retries=3,
+            adapter_initial_backoff_seconds=0.1,
+        ):
             result = await mock_llm_call(invocation_id=uuid4())
             assert result == "success"
             assert call_count == 4  # 3 errors + 1 success
 
     @pytest.mark.asyncio
-    async def test_per_attempt_timeout_enforcement(self) -> None:
+    async def test_per_attempt_timeout_enforcement(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that timeout applies independently to each attempt."""
-        settings = AdapterRetrySettings(
-            adapter_max_retries=3,
-            adapter_initial_backoff_seconds=0.1,
-            adapter_request_timeout_seconds=0.5,  # 0.5s per attempt
-        )
-
         call_count = 0
 
         @retry_with_backoff
@@ -605,7 +614,11 @@ class TestRetryDecorator:
 
         start_time = time.time()
         with (
-            patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings),
+            override_settings(
+                adapter_max_retries=3,
+                adapter_initial_backoff_seconds=0.1,
+                adapter_request_timeout_seconds=0.5,
+            ),
             pytest.raises((asyncio.TimeoutError, openai.APIStatusError)),
         ):
             await mock_llm_call(invocation_id=uuid4())
@@ -617,13 +630,11 @@ class TestRetryDecorator:
         assert 2.0 <= elapsed <= 4.0
 
     @pytest.mark.asyncio
-    async def test_httpx_fallback_exceptions(self) -> None:
+    async def test_httpx_fallback_exceptions(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that httpx exceptions are handled as fallback."""
-        settings = AdapterRetrySettings(
-            adapter_max_retries=3,
-            adapter_initial_backoff_seconds=0.1,
-        )
-
         call_count = 0
 
         @retry_with_backoff
@@ -634,24 +645,25 @@ class TestRetryDecorator:
                 raise httpx.ConnectError(message="Connection failed")
             return "success"
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings):
+        with override_settings(
+            adapter_max_retries=3,
+            adapter_initial_backoff_seconds=0.1,
+        ):
             result = await mock_llm_call(invocation_id=uuid4())
             assert result == "success"
             assert call_count == 2  # Initial + 1 retry
 
     @pytest.mark.asyncio
-    async def test_instance_method_with_state_dict(self) -> None:
+    async def test_instance_method_with_state_dict(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that decorator correctly extracts invocation_id from instance method.
 
         This tests the real-world scenario where @retry_with_backoff wraps an
         instance method like GenericAgent._execute(self, state: AgentState).
         In this case, args[0] is 'self' and args[1] is the state dict.
         """
-        settings = AdapterRetrySettings(
-            adapter_max_retries=3,
-            adapter_initial_backoff_seconds=0.1,
-        )
-
         call_count = 0
         test_invocation_id = uuid4()
 
@@ -674,24 +686,25 @@ class TestRetryDecorator:
         agent = MockAgent()
         state = {"invocation_id": test_invocation_id, "prompt": "test"}
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings):
+        with override_settings(
+            adapter_max_retries=3,
+            adapter_initial_backoff_seconds=0.1,
+        ):
             result = await agent._execute(state)
             assert result == "success"
             assert call_count == 2  # Initial + 1 retry
 
     @pytest.mark.asyncio
-    async def test_instance_method_logging_includes_invocation_id(self) -> None:
+    async def test_instance_method_logging_includes_invocation_id(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that instance method retry logging includes invocation_id.
 
         Verifies that when retrying an instance method, the decorator correctly
         extracts invocation_id from the state dict in args[1] and includes it
         in log messages.
         """
-        settings = AdapterRetrySettings(
-            adapter_max_retries=3,
-            adapter_initial_backoff_seconds=0.1,
-        )
-
         call_count = 0
         test_invocation_id = uuid4()
 
@@ -713,7 +726,10 @@ class TestRetryDecorator:
         agent = MockAgent()
         state = {"invocation_id": test_invocation_id, "prompt": "test"}
 
-        with patch("nexus.agent_orchestrator.utils.retry.get_settings", return_value=settings):
+        with override_settings(
+            adapter_max_retries=3,
+            adapter_initial_backoff_seconds=0.1,
+        ):
             await agent._execute(state)
 
         assert call_count == 2

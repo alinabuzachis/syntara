@@ -10,13 +10,14 @@ Tests AAP job template execution including:
 - Error handling
 """
 
-from collections.abc import Generator
+from collections.abc import Callable, Generator
+from contextlib import AbstractContextManager
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 
 from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
     AAPJobExecutionError,
@@ -76,51 +77,47 @@ def create_successful_job_mocks(
     }
 
 
-def create_mock_settings(
+def build_aap_settings_overrides(
     base_url: str = "https://aap.example.com",
     token: str | None = TEST_TOKEN,
     username: str | None = None,
     password: str | None = None,
     poll_interval: float = 0.01,
     timeout: int = 30,
-) -> MagicMock:
-    """Helper to create mock AAP settings."""
-    mock_settings = MagicMock()
-    mock_settings.aap_base_url = base_url
+) -> dict[str, object]:
+    """Helper to build AAP settings overrides."""
+    overrides: dict[str, object] = {
+        "aap_base_url": base_url,
+        "aap_poll_interval_seconds": poll_interval,
+        "aap_timeout_seconds": timeout,
+    }
 
     if token:
-        mock_settings.aap_token = MagicMock()
-        mock_settings.aap_token.get_secret_value.return_value = token
-        mock_settings.aap_username = None
-        mock_settings.aap_password = None
+        overrides["aap_token"] = SecretStr(token)
+        overrides["aap_username"] = None
+        overrides["aap_password"] = None
     else:
-        mock_settings.aap_token = None
-        mock_settings.aap_username = username
-        if password:
-            mock_settings.aap_password = MagicMock()
-            mock_settings.aap_password.get_secret_value.return_value = password
-        else:
-            mock_settings.aap_password = None
+        overrides["aap_token"] = None
+        overrides["aap_username"] = username
+        overrides["aap_password"] = SecretStr(password) if password else None
 
-    mock_settings.aap_poll_interval_seconds = poll_interval
-    mock_settings.aap_timeout_seconds = timeout
-    return mock_settings
+    return overrides
 
 
 @pytest.fixture
-def mock_aap_settings() -> MagicMock:
-    """Mock AAP settings for testing."""
-    return create_mock_settings()
+def aap_settings_overrides() -> dict[str, object]:
+    """Default AAP settings overrides for tests."""
+    return build_aap_settings_overrides()
 
 
 @pytest.fixture
-def mock_activity_context(mock_aap_settings: MagicMock) -> Generator[None, None, None]:
+def mock_activity_context(
+    override_settings: Callable[..., AbstractContextManager[object]],
+    aap_settings_overrides: dict[str, object],
+) -> Generator[None, None, None]:
     """Mock common activity context (settings, is_cancelled, heartbeat)."""
     with (
-        patch(
-            "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-            return_value=mock_aap_settings,
-        ),
+        override_settings(**aap_settings_overrides),
         patch("temporalio.activity.is_cancelled", return_value=False),
         patch("temporalio.activity.heartbeat"),
     ):
@@ -279,7 +276,12 @@ class TestAAPJobTemplateHeartbeat:
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
-    async def test_heartbeat_sent_during_polling(self, mock_is_cancelled: object, mock_aap_settings: MagicMock) -> None:  # noqa: ARG002
+    async def test_heartbeat_sent_during_polling(
+        self,
+        mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
+        aap_settings_overrides: dict[str, object],
+    ) -> None:
         """Test activity sends heartbeats during polling loop."""
         # Mock responses - multiple polling iterations (running → running → successful)
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
@@ -291,10 +293,7 @@ class TestAAPJobTemplateHeartbeat:
         mock_heartbeat = MagicMock()
 
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_aap_settings,
-            ),
+            override_settings(**aap_settings_overrides),
             patch("temporalio.activity.heartbeat", mock_heartbeat),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
@@ -326,7 +325,8 @@ class TestAAPJobTemplateCancellation:
     async def test_cancel_aap_job_when_activity_cancelled(
         self,
         mock_heartbeat: object,  # noqa: ARG002
-        mock_aap_settings: MagicMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+        aap_settings_overrides: dict[str, object],
     ) -> None:
         """Test AAP job is cancelled when activity is cancelled."""
         from temporalio.exceptions import CancelledError
@@ -339,10 +339,7 @@ class TestAAPJobTemplateCancellation:
         mock_is_cancelled = MagicMock(side_effect=[False, True])
 
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_aap_settings,
-            ),
+            override_settings(**aap_settings_overrides),
             patch("temporalio.activity.is_cancelled", mock_is_cancelled),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
             patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=running_response),
@@ -365,13 +362,14 @@ class TestAAPJobTemplateErrorHandling:
     """Test error handling."""
 
     @pytest.mark.asyncio
-    async def test_launch_failure_authentication_error(self, mock_aap_settings) -> None:
+    async def test_launch_failure_authentication_error(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+        aap_settings_overrides: dict[str, object],
+    ) -> None:
         """Test job launch fails with authentication error."""
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_aap_settings,
-            ),
+            override_settings(**aap_settings_overrides),
             patch(
                 "httpx.AsyncClient.post",
                 new_callable=AsyncMock,
@@ -388,13 +386,14 @@ class TestAAPJobTemplateErrorHandling:
                 await execute_aap_job_template_activity(activity_config, {})
 
     @pytest.mark.asyncio
-    async def test_launch_failure_template_not_found(self, mock_aap_settings) -> None:
+    async def test_launch_failure_template_not_found(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+        aap_settings_overrides: dict[str, object],
+    ) -> None:
         """Test job launch fails with 404 template not found."""
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_aap_settings,
-            ),
+            override_settings(**aap_settings_overrides),
             patch(
                 "httpx.AsyncClient.post",
                 new_callable=AsyncMock,
@@ -411,13 +410,14 @@ class TestAAPJobTemplateErrorHandling:
                 await execute_aap_job_template_activity(activity_config, {})
 
     @pytest.mark.asyncio
-    async def test_network_connection_error(self, mock_aap_settings) -> None:
+    async def test_network_connection_error(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+        aap_settings_overrides: dict[str, object],
+    ) -> None:
         """Test network connection failure."""
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_aap_settings,
-            ),
+            override_settings(**aap_settings_overrides),
             patch(
                 "httpx.AsyncClient.post",
                 new_callable=AsyncMock,
@@ -448,7 +448,8 @@ class TestAAPJobTemplateTimeout:
         self,
         mock_heartbeat: object,  # noqa: ARG002
         mock_is_cancelled: object,  # noqa: ARG002
-        mock_aap_settings: MagicMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+        aap_settings_overrides: dict[str, object],
     ) -> None:
         """Test job execution timeout is enforced during polling."""
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
@@ -470,10 +471,7 @@ class TestAAPJobTemplateTimeout:
             return value
 
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_aap_settings,
-            ),
+            override_settings(**aap_settings_overrides),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=running_response),
             patch("time.time", side_effect=mock_time),
@@ -496,7 +494,8 @@ class TestAAPJobTemplateTimeout:
         self,
         mock_heartbeat: object,  # noqa: ARG002
         mock_is_cancelled: object,  # noqa: ARG002
-        mock_aap_settings: MagicMock,
+        override_settings: Callable[..., AbstractContextManager[object]],
+        aap_settings_overrides: dict[str, object],
     ) -> None:
         """Test job completes successfully when it finishes before timeout."""
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
@@ -515,10 +514,7 @@ class TestAAPJobTemplateTimeout:
             return current
 
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_aap_settings,
-            ),
+            override_settings(**aap_settings_overrides),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
             patch("time.time", side_effect=mock_time),
@@ -560,20 +556,18 @@ class TestAAPJobTemplateAuthentication:
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
-    async def test_token_authentication(self, mock_is_cancelled: object) -> None:  # noqa: ARG002
+    async def test_token_authentication(
+        self,
+        mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test AAP token authentication is used."""
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
         status_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
         output_response = create_http_response(200, text="")
 
-        # Mock settings with token auth
-        mock_settings = create_mock_settings(token=TEST_TOKEN_123)
-
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_settings,
-            ),
+            override_settings(**build_aap_settings_overrides(token=TEST_TOKEN_123)),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):
@@ -589,19 +583,19 @@ class TestAAPJobTemplateAuthentication:
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
-    async def test_basic_authentication(self, mock_is_cancelled: object) -> None:  # noqa: ARG002
+    async def test_basic_authentication(
+        self,
+        mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test AAP basic authentication is used."""
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
         status_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
         output_response = create_http_response(200, text="")
 
-        # Mock settings with basic auth
-        mock_settings = create_mock_settings(token=None, username=TEST_USERNAME, password=TEST_PASSWORD)
-
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_settings,
+            override_settings(
+                **build_aap_settings_overrides(token=None, username=TEST_USERNAME, password=TEST_PASSWORD)
             ),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
@@ -617,19 +611,17 @@ class TestAAPJobTemplateAuthentication:
             assert isinstance(mock_post.call_args.kwargs["auth"], httpx.BasicAuth)
 
     @pytest.mark.asyncio
-    async def test_aap_activity_resolves_config_templates(self) -> None:
+    async def test_aap_activity_resolves_config_templates(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test AAP activity resolves ${input.job_template_id} and ${input.verbosity} in config."""
-        mock_settings = create_mock_settings()
-
         launch_response = create_http_response(201, {"id": 123, "url": "/api/v2/jobs/123/"})
         status_response = create_http_response(200, {"id": 123, "status": "successful", "artifacts": {}})
         output_response = create_http_response(200, text="SUCCESS")
 
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_settings,
-            ),
+            override_settings(**build_aap_settings_overrides()),
             patch("temporalio.activity.is_cancelled", return_value=False),
             patch("temporalio.activity.heartbeat"),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response) as mock_post,
@@ -663,19 +655,16 @@ class TestAAPJobTemplateNameBasedReference:
         self,
         mock_heartbeat: object,  # noqa: ARG002
         mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test successful job execution using name-based reference."""
         mocks = create_successful_job_mocks(job_id=123, output_text="PLAY [Deploy] ok")
-        mock_settings = create_mock_settings()
 
         # Mock lookup response
         lookup_response = create_http_response(200, {"count": 1, "results": [{"id": 42, "name": "Deploy App"}]})
 
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_settings,
-            ),
+            override_settings(**build_aap_settings_overrides()),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):
@@ -710,18 +699,14 @@ class TestAAPJobTemplateNameBasedReference:
         self,
         mock_heartbeat: object,  # noqa: ARG002
         mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test error when template lookup returns no results."""
-        mock_settings = create_mock_settings()
-
         # Mock lookup response with no results
         lookup_response = create_http_response(200, {"count": 0, "results": []})
 
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_settings,
-            ),
+            override_settings(**build_aap_settings_overrides()),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=lookup_response),
         ):
             activity_config = build_activity_config(
@@ -739,10 +724,9 @@ class TestAAPJobTemplateNameBasedReference:
         self,
         mock_heartbeat: object,  # noqa: ARG002
         mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test error when template lookup returns multiple results."""
-        mock_settings = create_mock_settings()
-
         # Mock lookup response with multiple results
         lookup_response = create_http_response(
             200,
@@ -756,10 +740,7 @@ class TestAAPJobTemplateNameBasedReference:
         )
 
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_settings,
-            ),
+            override_settings(**build_aap_settings_overrides()),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=lookup_response),
         ):
             activity_config = build_activity_config(
@@ -843,19 +824,16 @@ class TestAAPJobTemplateNameBasedReference:
         self,
         mock_heartbeat: object,  # noqa: ARG002
         mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test expression resolution works with name-based references."""
         mocks = create_successful_job_mocks(job_id=888, output_text="")
-        mock_settings = create_mock_settings()
 
         # Mock lookup response
         lookup_response = create_http_response(200, {"count": 1, "results": [{"id": 55, "name": "Dynamic Template"}]})
 
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_settings,
-            ),
+            override_settings(**build_aap_settings_overrides()),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):
@@ -890,17 +868,13 @@ class TestAAPJobTemplateNameBasedReference:
         self,
         mock_heartbeat: object,  # noqa: ARG002
         mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test that ID-based references still work (backwards compatibility)."""
         mocks = create_successful_job_mocks(job_id=999, output_text="")
 
-        mock_settings = create_mock_settings()
-
         with (
-            patch(
-                "nexus.workflows.workflow_engine.activities.aap_job_template_activity.get_settings",
-                return_value=mock_settings,
-            ),
+            override_settings(**build_aap_settings_overrides()),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
             patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
         ):

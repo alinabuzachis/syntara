@@ -6,6 +6,8 @@ These tests validate:
 - Error message lists supported formats
 """
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -14,13 +16,14 @@ import pytest
 if TYPE_CHECKING:
     from fastapi import UploadFile
 
-from nexus.core.config import Settings
 from nexus.files import FileManager
 from nexus.files.validators import ValidationError
 
 
 @pytest.mark.asyncio
-async def test_validates_mime_type_using_python_magic() -> None:
+async def test_validates_mime_type_using_python_magic(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test that MIME type detection uses python-magic.
 
     Validates:
@@ -38,10 +41,7 @@ async def test_validates_mime_type_using_python_magic() -> None:
     with patch("magic.from_buffer") as mock_magic:
         mock_magic.return_value = "application/pdf"
 
-        custom_settings = Settings()
-        custom_settings.file_upload_allowed_mime_types = ["application/pdf", "text/plain"]
-
-        with patch("nexus.files.file_manager.get_settings", return_value=custom_settings):
+        with override_settings(file_upload_allowed_mime_types=["application/pdf", "text/plain"]):
             file_manager = FileManager()
 
             # Act
@@ -54,7 +54,9 @@ async def test_validates_mime_type_using_python_magic() -> None:
 
 
 @pytest.mark.asyncio
-async def test_rejects_unsupported_mime_types() -> None:
+async def test_rejects_unsupported_mime_types(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test that unsupported MIME types are rejected.
 
     Validates:
@@ -72,14 +74,13 @@ async def test_rejects_unsupported_mime_types() -> None:
     with patch("magic.from_buffer") as mock_magic:
         mock_magic.return_value = "image/png"
 
-        custom_settings = Settings()
-        custom_settings.file_upload_allowed_mime_types = [
-            "application/pdf",
-            "text/plain",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ]
-
-        with patch("nexus.files.file_manager.get_settings", return_value=custom_settings):
+        with override_settings(
+            file_upload_allowed_mime_types=[
+                "application/pdf",
+                "text/plain",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ]
+        ):
             file_manager = FileManager()
 
             # Act & Assert
@@ -94,7 +95,9 @@ async def test_rejects_unsupported_mime_types() -> None:
 
 
 @pytest.mark.asyncio
-async def test_error_message_lists_supported_formats() -> None:
+async def test_error_message_lists_supported_formats(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test that error message lists supported formats.
 
     Validates:
@@ -112,10 +115,7 @@ async def test_error_message_lists_supported_formats() -> None:
     with patch("magic.from_buffer") as mock_magic:
         mock_magic.return_value = "video/mp4"
 
-        custom_settings = Settings()
-        custom_settings.file_upload_allowed_mime_types = ["application/pdf", "text/plain"]
-
-        with patch("nexus.files.file_manager.get_settings", return_value=custom_settings):
+        with override_settings(file_upload_allowed_mime_types=["application/pdf", "text/plain"]):
             file_manager = FileManager()
 
             # Act & Assert
@@ -131,7 +131,9 @@ async def test_error_message_lists_supported_formats() -> None:
 
 
 @pytest.mark.asyncio
-async def test_accepts_pdf_mime_type() -> None:
+async def test_accepts_pdf_mime_type(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test that application/pdf is accepted.
 
     Validates:
@@ -149,10 +151,7 @@ async def test_accepts_pdf_mime_type() -> None:
     with patch("magic.from_buffer") as mock_magic:
         mock_magic.return_value = "application/pdf"
 
-        custom_settings = Settings()
-        custom_settings.file_upload_allowed_mime_types = ["application/pdf"]
-
-        with patch("nexus.files.file_manager.get_settings", return_value=custom_settings):
+        with override_settings(file_upload_allowed_mime_types=["application/pdf"]):
             file_manager = FileManager()
 
             # Act
@@ -164,7 +163,9 @@ async def test_accepts_pdf_mime_type() -> None:
 
 
 @pytest.mark.asyncio
-async def test_accepts_docx_mime_type() -> None:
+async def test_accepts_docx_mime_type(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test that DOCX MIME type is accepted.
 
     Validates:
@@ -181,13 +182,12 @@ async def test_accepts_docx_mime_type() -> None:
     with patch("magic.from_buffer") as mock_magic:
         mock_magic.return_value = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
-        custom_settings = Settings()
-        custom_settings.file_upload_allowed_mime_types = [
-            "application/pdf",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ]
-
-        with patch("nexus.files.file_manager.get_settings", return_value=custom_settings):
+        with override_settings(
+            file_upload_allowed_mime_types=[
+                "application/pdf",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ]
+        ):
             file_manager = FileManager()
 
             # Act
@@ -199,7 +199,9 @@ async def test_accepts_docx_mime_type() -> None:
 
 
 @pytest.mark.asyncio
-async def test_accepts_text_plain_mime_type() -> None:
+async def test_accepts_text_plain_mime_type(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test that text/plain is accepted.
 
     Validates:
@@ -214,10 +216,7 @@ async def test_accepts_text_plain_mime_type() -> None:
     mock_file.read = AsyncMock(return_value=b"Plain text content")
     mock_file.seek = AsyncMock()
 
-    custom_settings = Settings()
-    custom_settings.file_upload_allowed_mime_types = ["text/plain"]
-
-    with patch("nexus.files.file_manager.get_settings", return_value=custom_settings):
+    with override_settings(file_upload_allowed_mime_types=["text/plain"]):
         file_manager = FileManager()
 
         # Act
@@ -229,7 +228,9 @@ async def test_accepts_text_plain_mime_type() -> None:
 
 
 @pytest.mark.asyncio
-async def test_validates_mime_type_for_each_file() -> None:
+async def test_validates_mime_type_for_each_file(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test that MIME type is validated for each file independently.
 
     Validates:
@@ -270,10 +271,7 @@ async def test_validates_mime_type_for_each_file() -> None:
         # Return different MIME types for different files based on call order
         mock_magic.side_effect = ["text/plain", "text/plain", "image/png"]
 
-        custom_settings = Settings()
-        custom_settings.file_upload_allowed_mime_types = ["application/pdf", "text/plain"]
-
-        with patch("nexus.files.file_manager.get_settings", return_value=custom_settings):
+        with override_settings(file_upload_allowed_mime_types=["application/pdf", "text/plain"]):
             file_manager = FileManager()
 
             # Act & Assert
@@ -287,7 +285,9 @@ async def test_validates_mime_type_for_each_file() -> None:
 
 
 @pytest.mark.asyncio
-async def test_configurable_allowed_mime_types() -> None:
+async def test_configurable_allowed_mime_types(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test that allowed MIME types are configurable.
 
     Validates:
@@ -305,10 +305,7 @@ async def test_configurable_allowed_mime_types() -> None:
     with patch("magic.from_buffer") as mock_magic:
         mock_magic.return_value = "text/plain"
 
-        custom_settings = Settings()
-        custom_settings.file_upload_allowed_mime_types = ["application/pdf"]  # TXT not allowed
-
-        with patch("nexus.files.file_manager.get_settings", return_value=custom_settings):
+        with override_settings(file_upload_allowed_mime_types=["application/pdf"]):
             file_manager = FileManager()
 
             # Act & Assert

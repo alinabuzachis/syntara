@@ -5,6 +5,8 @@ These tests validate:
 - Error message includes actual and max size
 """
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -13,7 +15,6 @@ import pytest
 if TYPE_CHECKING:
     from fastapi import UploadFile
 
-from nexus.core.config import Settings
 from nexus.files import FileManager
 from nexus.files.validators import ValidationError
 
@@ -190,7 +191,9 @@ async def test_validates_each_file_size_independently() -> None:
 
 
 @pytest.mark.asyncio
-async def test_configurable_max_size_limit() -> None:
+async def test_configurable_max_size_limit(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test that max_size_mb limit is configurable.
 
     Validates:
@@ -207,10 +210,7 @@ async def test_configurable_max_size_limit() -> None:
     mock_file.read = AsyncMock(return_value=content)
     mock_file.seek = AsyncMock()
 
-    custom_settings = Settings()
-    custom_settings.file_upload_max_size_mb = 5
-
-    with patch("nexus.files.file_manager.get_settings", return_value=custom_settings):
+    with override_settings(file_upload_max_size_mb=5):
         file_manager = FileManager()
 
         # Act & Assert

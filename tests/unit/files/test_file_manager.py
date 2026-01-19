@@ -12,6 +12,8 @@ These tests validate:
 
 import asyncio
 import tempfile as tf
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -20,7 +22,6 @@ import pytest
 if TYPE_CHECKING:
     from fastapi import UploadFile
 
-from nexus.core.config import Settings
 from nexus.files import FileManager
 from nexus.files.models import FileStatus
 
@@ -115,7 +116,9 @@ async def test_async_io_used_for_file_operations() -> None:
 
 
 @pytest.mark.asyncio
-async def test_storage_exception_on_disk_full() -> None:
+async def test_storage_exception_on_disk_full(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test storage exception raised when disk is full.
 
     Validates:
@@ -130,11 +133,7 @@ async def test_storage_exception_on_disk_full() -> None:
     mock_file.read = AsyncMock(return_value=b"content")
     mock_file.seek = AsyncMock()
 
-    # Mock get_settings to return custom settings with invalid path
-    custom_settings = Settings()
-    custom_settings.file_upload_storage_dir = "/nonexistent/path/that/does/not/exist"
-
-    with patch("nexus.files.file_manager.get_settings", return_value=custom_settings):
+    with override_settings(file_upload_storage_dir="/nonexistent/path/that/does/not/exist"):
         file_manager = FileManager()
 
         # Act & Assert
@@ -170,7 +169,9 @@ async def test_file_upload_events_logged() -> None:
 
 
 @pytest.mark.asyncio
-async def test_storage_failure_detailed_logging() -> None:
+async def test_storage_failure_detailed_logging(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test detailed error logging for storage failures (internal only).
 
     Validates:
@@ -186,13 +187,9 @@ async def test_storage_failure_detailed_logging() -> None:
     mock_file.read = AsyncMock(return_value=b"content")
     mock_file.seek = AsyncMock()
 
-    # Mock get_settings to return custom settings with invalid path
-    custom_settings = Settings()
-    custom_settings.file_upload_storage_dir = "/invalid/path"
-
     with (
         patch("nexus.files.file_manager.logger") as mock_logger,
-        patch("nexus.files.file_manager.get_settings", return_value=custom_settings),
+        override_settings(file_upload_storage_dir="/invalid/path"),
     ):
         file_manager = FileManager()
 
@@ -239,7 +236,9 @@ async def test_multiple_files_saved_successfully() -> None:
 
 
 @pytest.mark.asyncio
-async def test_configurable_storage_directory() -> None:
+async def test_configurable_storage_directory(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
     """Test that storage directory is configurable.
 
     Validates:
@@ -256,11 +255,7 @@ async def test_configurable_storage_directory() -> None:
         mock_file.read = AsyncMock(return_value=b"content")
         mock_file.seek = AsyncMock()
 
-        # Mock get_settings to return custom settings with custom directory
-        custom_settings = Settings()
-        custom_settings.file_upload_storage_dir = custom_dir
-
-        with patch("nexus.files.file_manager.get_settings", return_value=custom_settings):
+        with override_settings(file_upload_storage_dir=custom_dir):
             file_manager = FileManager()
 
             # Act

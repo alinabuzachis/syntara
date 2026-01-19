@@ -5,6 +5,8 @@ Based on Scenario 3 from quickstart.md.
 """
 
 import asyncio
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from unittest.mock import patch
 
 import pytest
@@ -86,6 +88,7 @@ class TestContextErrorHandling:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
+        override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test graceful handling of Context Manager timeouts.
 
@@ -99,11 +102,8 @@ class TestContextErrorHandling:
 
         with (
             patch.object(ContextManagerPlanner, "plan_request", side_effect=slow_plan_request),
-            patch("nexus.core.config.get_settings") as mock_get_settings,
+            override_settings(context_manager_request_timeout_seconds=3),
         ):
-            # Mock settings to use a short timeout to avoid long test runs
-            mock_settings = mock_get_settings.return_value
-            mock_settings.context_manager_request_timeout_seconds = 3
             prompt = "Test timeout handling"
             session_id = "timeout-test"
 

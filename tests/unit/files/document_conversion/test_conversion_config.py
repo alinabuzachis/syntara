@@ -1,8 +1,9 @@
 """Test for ConversionConfig model validation and behavior."""
 
 import tempfile
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -59,43 +60,33 @@ class TestConversionConfigValidation:
 class TestConversionConfigSystemIntegration:
     """Test ConversionConfig integration with system configuration."""
 
-    @patch("nexus.files.document_conversion.models.conversion_config.get_settings")
-    def test_from_settings_creates_valid_config(self, mock_get_settings) -> None:
+    def test_from_settings_creates_valid_config(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that from_settings creates a valid configuration from system settings."""
-        # Mock settings object
-        mock_settings = type(
-            "Settings",
-            (),
-            {
-                "document_conversion_timeout_seconds": 25,
-                "document_conversion_overwrite_existing": True,
-                "document_conversion_temp_dir": "/app/tmp/conversions",
-            },
-        )()
-        mock_get_settings.return_value = mock_settings
-
-        config = ConversionConfig.from_settings()
+        with override_settings(
+            document_conversion_timeout_seconds=25,
+            document_conversion_overwrite_existing=True,
+            document_conversion_temp_dir="/app/tmp/conversions",
+        ):
+            config = ConversionConfig.from_settings()
 
         assert config.timeout_seconds == 25
         assert config.overwrite_existing is True
         assert config.temp_dir == "/app/tmp/conversions"
 
-    @patch("nexus.files.document_conversion.models.conversion_config.get_settings")
-    def test_from_settings_respects_timeout_boundaries(self, mock_get_settings) -> None:
+    def test_from_settings_respects_timeout_boundaries(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test that from_settings respects timeout validation boundaries."""
-        # Mock settings with boundary values
-        mock_settings = type(
-            "Settings",
-            (),
-            {
-                "document_conversion_timeout_seconds": 1,  # Minimum valid value
-                "document_conversion_overwrite_existing": False,
-                "document_conversion_temp_dir": tempfile.gettempdir(),
-            },
-        )()
-        mock_get_settings.return_value = mock_settings
-
-        config = ConversionConfig.from_settings()
+        with override_settings(
+            document_conversion_timeout_seconds=1,
+            document_conversion_overwrite_existing=False,
+            document_conversion_temp_dir=tempfile.gettempdir(),
+        ):
+            config = ConversionConfig.from_settings()
 
         assert config.timeout_seconds == 1
 

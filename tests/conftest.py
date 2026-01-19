@@ -11,6 +11,7 @@ import logging
 import os
 import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
+from contextlib import AbstractContextManager, ExitStack, contextmanager
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -39,7 +40,7 @@ from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.api.auth.dependencies import get_current_user
 from nexus.api.db import get_db
 from nexus.api.main import app
-from nexus.core.config import get_settings
+from nexus.core.config import Settings, get_settings
 from nexus.core.models import User, UserRole
 from nexus.files.models import FileMetadata
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
@@ -115,6 +116,40 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
             pass
         except OSError as e:
             logger.warning("Failed to clean up lock file %s: %s", lock_file, e)
+
+
+# ============================================================================
+# Test Utilities
+# ============================================================================
+
+
+@pytest.fixture
+def override_settings() -> Callable[..., AbstractContextManager[object]]:
+    """Fixture in django-style API for temporaly override settings in tests.
+
+    Raises:
+        AttributeError: If setting does not exist.
+
+    Example:
+        def test_meaning_of_life(override_settings):
+            with override_settings(meaning_of_life=42):
+                settings = get_settings()
+                assert settings.meaning_of_life == 42
+
+    """
+
+    @contextmanager
+    def _override(**overrides: object) -> Generator[Settings, None, None]:
+        settings = get_settings()
+        with ExitStack() as stack:
+            for name, value in overrides.items():
+                if not hasattr(settings, name):
+                    msg = f"Setting '{name}' does not exist on Settings object"
+                    raise AttributeError(msg)
+                stack.enter_context(patch.object(settings, name, value))
+            yield settings
+
+    return _override
 
 
 @pytest.fixture(scope="session")
@@ -921,7 +956,9 @@ def load_workflow() -> Callable[[str], Any]:
 
 
 @pytest.fixture
-def fast_retry_settings() -> Generator[None, None, None]:
+def fast_retry_settings(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> Generator[None, None, None]:
     """Configure fast retry settings for agent orchestrator tests.
 
     This fixture applies to tests that need faster retry operations
@@ -931,22 +968,20 @@ def fast_retry_settings() -> Generator[None, None, None]:
     Patches get_settings() to return a Settings object with fast adapter retry values
     while preserving access to all other settings.
     """
-    # Get the real settings instance
-    original_settings = get_settings()
-
-    # Create patches for individual properties on the real settings instance
-    with (
-        patch.object(original_settings, "adapter_max_retries", 3),
-        patch.object(original_settings, "adapter_initial_backoff_seconds", 0.1),
-        patch.object(original_settings, "adapter_backoff_growth_factor", 2.0),
-        patch.object(original_settings, "adapter_max_backoff_seconds", 1.0),
-        patch.object(original_settings, "adapter_request_timeout_seconds", 5.0),
+    with override_settings(
+        adapter_max_retries=3,
+        adapter_initial_backoff_seconds=0.1,
+        adapter_backoff_growth_factor=2.0,
+        adapter_max_backoff_seconds=1.0,
+        adapter_request_timeout_seconds=5.0,
     ):
         yield
 
 
 @pytest.fixture
-def disabled_retry_settings() -> Generator[None, None, None]:
+def disabled_retry_settings(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> Generator[None, None, None]:
     """Configure disabled retry settings for agent orchestrator tests.
 
     This fixture sets adapter retry settings with retries disabled (max_retries=0)
@@ -955,16 +990,12 @@ def disabled_retry_settings() -> Generator[None, None, None]:
     Patches get_settings() to return a Settings object with disabled adapter retry values
     while preserving access to all other settings.
     """
-    # Get the real settings instance
-    original_settings = get_settings()
-
-    # Create patches for individual properties on the real settings instance
-    with (
-        patch.object(original_settings, "adapter_max_retries", 0),
-        patch.object(original_settings, "adapter_initial_backoff_seconds", 1.0),
-        patch.object(original_settings, "adapter_backoff_growth_factor", 2.0),
-        patch.object(original_settings, "adapter_max_backoff_seconds", 10.0),
-        patch.object(original_settings, "adapter_request_timeout_seconds", 30.0),
+    with override_settings(
+        adapter_max_retries=0,
+        adapter_initial_backoff_seconds=1.0,
+        adapter_backoff_growth_factor=2.0,
+        adapter_max_backoff_seconds=10.0,
+        adapter_request_timeout_seconds=30.0,
     ):
         yield
 
