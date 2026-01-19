@@ -90,6 +90,22 @@ class UploadedFileRetriever(DocumentRetriever):
         self.session_context = contextlib.asynccontextmanager(session_factory)
         logger.debug("Initialized UploadedFileRetriever with FileManager and session factory")
 
+    def _format_retrieval_error(self, filenames: list[str] | None = None) -> str:
+        """Format user-friendly retrieval error message.
+
+        Args:
+            filenames: Optional list of filenames to include
+
+        Returns:
+            User-friendly error message without technical details
+
+        """
+        if filenames and len(filenames) == 1:
+            return f"Failed to retrieve file: {filenames[0]}"
+        if filenames and len(filenames) > 1:
+            return f"Failed to retrieve files: {', '.join(filenames)}"
+        return "Failed to retrieve document"
+
     def retrieve_documents(self, invocation_context: dict[str, Any]) -> AsyncIterator[RelevantDocument]:
         """Stream documents from uploaded files in the invocation context.
 
@@ -198,22 +214,26 @@ class UploadedFileRetriever(DocumentRetriever):
         if len(file_metadata_list) != len(file_ids):
             found_ids = {fm.id for fm in file_metadata_list}
             missing_ids = set(file_ids) - found_ids
-            error_msg = f"Files not found in database: {missing_ids}"
-            logger.error(error_msg)
+            logger.error("Files not found in database: %s", missing_ids)
+            error_msg = self._format_retrieval_error()
             raise DocumentRetrievalError(error_msg)
 
         # Validate all files are CONVERTED
-        unconverted = [(fm.id, fm.status) for fm in file_metadata_list if fm.status != FileStatus.CONVERTED]
-        if unconverted:
-            error_msg = f"Cannot retrieve files with non-CONVERTED status: {unconverted}"
-            logger.error(error_msg)
+        unconverted_files = [fm for fm in file_metadata_list if fm.status != FileStatus.CONVERTED]
+        if unconverted_files:
+            unconverted_details = [(fm.id, fm.status) for fm in unconverted_files]
+            unconverted_filenames = [fm.filename for fm in unconverted_files]
+            logger.error("Cannot retrieve files with non-CONVERTED status: %s", unconverted_details)
+            error_msg = self._format_retrieval_error(unconverted_filenames)
             raise DocumentRetrievalError(error_msg)
 
         # Validate all CONVERTED files have converted_content_path
-        missing_paths = [fm.id for fm in file_metadata_list if not fm.converted_content_path]
-        if missing_paths:
-            error_msg = f"Files marked CONVERTED but missing converted_content_path: {missing_paths}"
-            logger.error(error_msg)
+        files_missing_paths = [fm for fm in file_metadata_list if not fm.converted_content_path]
+        if files_missing_paths:
+            missing_path_ids = [fm.id for fm in files_missing_paths]
+            missing_path_filenames = [fm.filename for fm in files_missing_paths]
+            logger.error("Files marked CONVERTED but missing converted_content_path: %s", missing_path_ids)
+            error_msg = self._format_retrieval_error(missing_path_filenames)
             raise DocumentRetrievalError(error_msg)
 
         return file_metadata_list
@@ -258,28 +278,35 @@ class UploadedFileRetriever(DocumentRetriever):
 
         processed_count = 0
         skipped_count = 0
-        error_count = 0
 
-        for completed_task in asyncio.as_completed(tasks):
-            try:
-                document, status = await completed_task
-                if document:
-                    processed_count += 1
-                    yield document
-                elif status == "skipped":
-                    skipped_count += 1
-                elif status == "error":
-                    error_count += 1
-            except Exception:
-                logger.exception("Unexpected error in file processing task")
-                error_count += 1
+        try:
+            for completed_task in asyncio.as_completed(tasks):
+                try:
+                    document, status = await completed_task
+                    if document:
+                        processed_count += 1
+                        yield document
+                    elif status == "skipped":
+                        skipped_count += 1
+                except DocumentRetrievalError:
+                    raise
+                except Exception as e:
+                    logger.exception("Unexpected error in file processing task")
+                    error_msg = "Failed to retrieve document"
+                    raise DocumentRetrievalError(error_msg) from e
 
-        logger.info(
-            "Streaming document retrieval completed: %d processed, %d skipped, %d errors",
-            processed_count,
-            skipped_count,
-            error_count,
-        )
+            logger.info(
+                "Streaming document retrieval completed: %d processed, %d skipped",
+                processed_count,
+                skipped_count,
+            )
+        except Exception:
+            # Cancel all remaining tasks
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
 
     async def _process_single_file(
         self, file_metadata: FileMetadata, semaphore: asyncio.Semaphore
@@ -291,7 +318,10 @@ class UploadedFileRetriever(DocumentRetriever):
             semaphore: Semaphore to limit concurrent file loading operations
 
         Returns:
-            Tuple of (document_or_none, status) where status is 'processed', 'skipped', or 'error'
+            Tuple of (document_or_none, status) where status is 'processed' or 'skipped'
+
+        Raises:
+            DocumentRetrievalError: If file processing fails with user-friendly message
 
         """
         async with semaphore:
@@ -302,7 +332,8 @@ class UploadedFileRetriever(DocumentRetriever):
                         "File %s misses converted_content_path.",
                         file_metadata.id,
                     )
-                    return None, "error"
+                    error_msg = self._format_retrieval_error([file_metadata.filename])
+                    raise DocumentRetrievalError(error_msg)  # noqa: TRY301
 
                 document = await self._load_document_content(
                     file_metadata,
@@ -317,9 +348,12 @@ class UploadedFileRetriever(DocumentRetriever):
                     return document, "processed"
                 return None, "skipped"
 
-            except Exception:
+            except DocumentRetrievalError:
+                raise
+            except Exception as e:
                 logger.exception("Failed to load file content for %s", file_metadata.filename)
-                return None, "error"
+                error_msg = self._format_retrieval_error([file_metadata.filename])
+                raise DocumentRetrievalError(error_msg) from e
 
     async def _load_document_content(
         self, file_metadata: FileMetadata, converted_file_path: str

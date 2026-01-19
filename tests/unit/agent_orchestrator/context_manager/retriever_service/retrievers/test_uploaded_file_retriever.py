@@ -99,8 +99,8 @@ class TestUploadedFileRetriever:
             session_factory=mock_session_factory,
         )
 
-        # Should raise DocumentRetrievalError for unconverted files
-        with pytest.raises(DocumentRetrievalError, match="non-CONVERTED status"):
+        # Should raise DocumentRetrievalError with message including filename
+        with pytest.raises(DocumentRetrievalError, match=r"Failed to retrieve file: pending_document\.pdf"):
             async for _ in retriever.retrieve_documents(invocation_context):
                 pass
 
@@ -131,7 +131,7 @@ class TestUploadedFileRetriever:
             session_factory=mock_session_factory,
         )
 
-        with pytest.raises(DocumentRetrievalError, match="Files not found in database"):
+        with pytest.raises(DocumentRetrievalError, match="Failed to retrieve document"):
             async for _ in retriever.retrieve_documents(invocation_context):
                 pass
 
@@ -201,7 +201,7 @@ class TestUploadedFileRetriever:
 
     @pytest.mark.asyncio
     async def test_handle_missing_converted_file(self, mock_session_factory, mock_file_manager) -> None:
-        """Test handling when converted file doesn't exist on disk."""
+        """Test handling when converted file doesn't exist on disk - should fail fast."""
         file_id = uuid4()
         file_metadata = FileMetadata(
             id=file_id,
@@ -223,9 +223,12 @@ class TestUploadedFileRetriever:
             session_factory=mock_session_factory,
         )
 
-        # Should handle gracefully - returns empty list (errors logged)
-        documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
-        assert len(documents) == 0
+        # Should fail fast with DocumentRetrievalError
+        with pytest.raises(DocumentRetrievalError) as exc_info:
+            async for _ in retriever.retrieve_documents(invocation_context):
+                pass
+
+        assert "Failed to retrieve file: missing_converted.pdf" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_empty_invocation_context(self, mock_session_factory) -> None:

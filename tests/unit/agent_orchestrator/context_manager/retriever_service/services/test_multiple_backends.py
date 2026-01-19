@@ -12,6 +12,7 @@ from uuid import uuid4
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import DocumentRetrievalError
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.document_retriever import DocumentRetriever
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.agent_orchestrator.context_manager.retriever_service.registries.relevancy_registry import RelevancyRegistry
@@ -274,8 +275,8 @@ class TestMultipleStorageBackendCollation:
         assert tech_doc.source_type == "cloud_storage"
 
     @pytest.mark.asyncio
-    async def test_backend_failure_isolation(self) -> None:
-        """Test that failure in one backend doesn't affect others."""
+    async def test_backend_failure_causes_invocation_failure(self) -> None:
+        """Test that failure in any backend causes entire invocation to fail (fail-fast behavior)."""
         # Create working retrievers and one failing retriever
         file_metadata = FileMetadata(
             file_id=str(uuid4()),
@@ -336,17 +337,12 @@ class TestMultipleStorageBackendCollation:
         )
 
         query = "test query"
-        results = await service.retrieve_relevant_documents(invocation_id, query)
 
-        # Should return exactly 1 document from working backend despite failure in other
-        assert len(results) == 1, f"Expected exactly 1 document, got {len(results)}"
+        # With fail-fast behavior, ANY backend failure should fail the entire invocation
+        with pytest.raises(DocumentRetrievalError) as exc_info:
+            await service.retrieve_relevant_documents(invocation_id, query)
 
-        # The single result should be from the working backend (uploaded_file)
-        result = results[0]
-        assert result.source_type == "uploaded_file"
-        assert "working backend" in result.content
-        assert result.file_metadata is not None
-        assert result.file_metadata.filename == "working_doc.pdf"
+        assert "Failed to retrieve document" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_empty_backend_handling(self) -> None:

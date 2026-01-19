@@ -274,23 +274,45 @@ relevancy_registry.register_checker("my_custom", MyCustomChecker, custom_config)
 
 ## Error Handling
 
-The framework uses domain-specific exceptions for different error types:
+The framework uses domain-specific exceptions with different handling strategies:
 
 ```python
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import (
     RetrieverServiceError,      # General service errors
-    DocumentRetrievalError,     # Document retrieval failures  
-    RelevancyCheckError,        # Relevancy checking failures
+    DocumentRetrievalError,     # Document retrieval failures (fail-fast)
+    RelevancyCheckError,        # Relevancy checking failures (graceful degradation)
     ConfigurationError,         # Configuration issues
     RegistryError               # Registry operation failures
 )
 
 try:
     documents = await service.retrieve_relevant_documents(invocation_id, prompt)
+except DocumentRetrievalError as e:
+    # Document retrieval errors fail the invocation immediately
+    # Error message is user-friendly without technical details
+    logger.error(f"Failed to retrieve documents: {e}")
+    # Invocation should be marked as failed
 except RetrieverServiceError as e:
-    logger.error(f"Retrieval failed: {e}")
-    # Handle gracefully, perhaps return cached results
+    logger.error(f"Service error: {e}")
+    # Handle other service-level errors
 ```
+
+### Error Handling Strategy
+
+The framework distinguishes between two types of errors:
+
+**Retrieval Errors (Fail-Fast)**:
+- **Definition**: ANY exception during document retrieval (files not found, not converted, I/O errors, storage unavailable)
+- **Behavior**: Immediately fail the invocation with `DocumentRetrievalError`
+- **User Experience**: User-friendly error message, optionally including affected filenames
+- **Examples**: "Failed to retrieve file: document.pdf" or "Failed to retrieve document"
+- **Technical Details**: Never exposed to users (no exception types, stack traces, or internal IDs)
+
+**Scoring Errors (Graceful Degradation)**:
+- **Definition**: Exceptions during relevancy checking or scoring operations
+- **Behavior**: Use default score (0.5) and continue processing, try keyword-based fallback first
+- **User Experience**: Documents returned with default scores, system logs warning
+- **Examples**: LLM timeout, scoring algorithm failure, network issues during relevancy checking
 
 ## Performance Considerations
 
@@ -299,7 +321,8 @@ except RetrieverServiceError as e:
 The framework processes documents using async/await patterns for optimal performance:
 
 - Documents are processed concurrently where possible
-- Graceful error handling ensures partial failures don't stop processing
+- Fail-fast error handling for retrieval errors prevents incomplete results
+- Graceful degradation for scoring errors ensures availability
 - Service uses dependency injection for efficient resource management
 
 ### Async Operations

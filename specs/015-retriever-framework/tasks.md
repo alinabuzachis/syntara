@@ -289,7 +289,7 @@ src/nexus/agent_orchestrator/context_manager/retriever_service/
 2. **Strategy Pattern**: Pluggable relevancy checking algorithms with fallback
 3. **Composition**: FileManager used as dependency, not inheritance
 4. **Dependency Injection**: Service dependencies injected via constructors
-5. **Domain Exceptions**: Service-level error handling with graceful fallback
+5. **Domain Exceptions**: Service-level error handling with fail-fast for retrieval errors, graceful fallback for scoring errors
 
 ## Validation Checklist
 *GATE: Checked before task completion*
@@ -322,8 +322,8 @@ src/nexus/agent_orchestrator/context_manager/retriever_service/
 - ✅ Configuration management with validation
 - ✅ Integration with existing FileManager and OpenRouter systems
 - ✅ Comprehensive test coverage (unit, integration, edge cases)
-- ✅ Error handling with graceful LLM fallback
-- ✅ Performance optimization utilities
+- ✅ Error handling: fail-fast for retrieval errors, graceful fallback for scoring errors
+- ✅ Performance optimization utilities with proper task cancellation
 - ✅ Migration from old stub implementation
 - ✅ Updated service integrations and imports
 

@@ -14,7 +14,10 @@ from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import RetrieverServiceError
+from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import (
+    DocumentRetrievalError,
+    RetrieverServiceError,
+)
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces import RelevancyChecker
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
     RelevancyConfiguration,
@@ -99,6 +102,23 @@ class RetrieverService:
             len(self.relevancy_registry.list_checkers()),
         )
 
+    def _ensure_user_friendly_error(self, error: Exception) -> DocumentRetrievalError:
+        """Wrap any retrieval error in user-friendly DocumentRetrievalError.
+
+        Individual retrievers can provide detailed messages,
+        but if they raise raw exceptions, this wraps them generically.
+
+        Args:
+            error: The exception that occurred during retrieval
+
+        Returns:
+            DocumentRetrievalError
+
+        """
+        if isinstance(error, DocumentRetrievalError):
+            return error
+        return DocumentRetrievalError("Failed to retrieve document")
+
     async def retrieve_relevant_documents(self, invocation_id: UUID | None, prompt: str) -> list[RelevantDocument]:
         """Retrieve and rank relevant documents for the given invocation and prompt.
 
@@ -163,10 +183,14 @@ class RetrieverService:
                 logger.info("Document retrieval completed: %d relevant documents returned", len(ranked_documents))
                 return ranked_documents
 
+            except DocumentRetrievalError:
+                raise
             except Exception:
                 logger.exception("Failed during document retrieval")
                 return []
 
+        except DocumentRetrievalError:
+            raise
         except Exception as e:
             logger.exception("Critical failure in document retrieval for invocation %s", invocation_id)
             error_msg = f"Document retrieval failed for invocation {invocation_id}: {e!s}"
@@ -280,8 +304,12 @@ class RetrieverService:
             for stream in retriever_streams:
                 async for document in stream:
                     yield document
-        except Exception:
+        except DocumentRetrievalError:
+            raise
+        except Exception as e:
             logger.exception("Error in stream merging")
+            user_friendly_error = self._ensure_user_friendly_error(e)
+            raise user_friendly_error from e
 
     async def _process_retriever_stream(
         self,
@@ -319,8 +347,10 @@ class RetrieverService:
 
             logger.debug("Completed stream from %s: %d documents processed", retriever_name, document_count)
 
-        except Exception:
-            logger.exception("Failed to process stream from %s", retriever_name)
+        except Exception as e:
+            logger.exception("Document retrieval failed from %s", retriever_name)
+            user_friendly_error = self._ensure_user_friendly_error(e)
+            raise user_friendly_error from e
 
     async def _score_document_with_fallback(
         self,

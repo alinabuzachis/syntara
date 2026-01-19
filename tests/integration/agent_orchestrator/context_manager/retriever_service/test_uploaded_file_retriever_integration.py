@@ -114,18 +114,18 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
         invocation_context = {CONTEXT_KEY_FILE_IDS: [str(file_id)]}
 
         # CONVERTED status requires converted_content_path
-        with pytest.raises(DocumentRetrievalError, match="missing converted_content_path"):
+        with pytest.raises(DocumentRetrievalError, match=r"Failed to retrieve file: broken_file\.txt"):
             async for _ in retriever.retrieve_documents(invocation_context):
                 pass
 
     @pytest.mark.asyncio
     async def test_real_file_io_error_handling(self, test_db_session: AsyncSession, test_user, tmp_path: Path) -> None:
-        """Test handling of real file I/O errors.
+        """Test handling of real file I/O errors with fail-fast behavior.
 
         This validates:
         - Real file system operations
-        - Missing files on disk
-        - Exception propagation
+        - Missing files on disk cause immediate failure
+        - User-friendly error messages
         """
         file_id = uuid4()
         non_existent_path = tmp_path / "does_not_exist.txt"
@@ -155,9 +155,9 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
 
         invocation_context = {CONTEXT_KEY_FILE_IDS: [str(file_id)]}
 
-        documents = [doc async for doc in retriever.retrieve_documents(invocation_context)]
-
-        assert len(documents) == 0
+        with pytest.raises(DocumentRetrievalError, match=r"Failed to retrieve file: missing_file\.txt"):
+            async for _ in retriever.retrieve_documents(invocation_context):
+                pass
 
     @pytest.mark.asyncio
     async def test_exception_propagation_through_service_stack(self, test_db_session: AsyncSession, test_user) -> None:
@@ -166,8 +166,8 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
         This validates:
         - Real service instantiation
         - Real database queries
-        - Real exception propagation
-        - "Best effort" approach works correctly
+        - Real exception propagation with fail-fast behavior
+        - User-friendly error messages
         """
         invalid_file_id = uuid4()  # File doesn't exist in database
         invocation = Invocation(
@@ -185,12 +185,13 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
 
         retriever_service = get_retriever_service(session_factory)
 
-        # Call retrieve_relevant_documents - should handle missing files gracefully
-        documents = await retriever_service.retrieve_relevant_documents(invocation.id, "Test query")
+        # Call retrieve_relevant_documents - should fail fast with DocumentRetrievalError
+        with pytest.raises(DocumentRetrievalError) as exc_info:
+            await retriever_service.retrieve_relevant_documents(invocation.id, "Test query")
 
-        assert isinstance(documents, list)
-        # May be empty if file not found, or may have documents from other retrievers
-        # The key is that it doesn't raise an exception
+        error_message = str(exc_info.value)
+        assert "Failed to retrieve document" in error_message
+        assert str(invalid_file_id) not in error_message
 
     @pytest.mark.asyncio
     async def test_multiple_files_mixed_conversion_states(
@@ -253,12 +254,17 @@ class TestUploadedFileRetrieverRealDatabaseIntegration:
             session_factory=session_gen,
         )
 
-        # Test 1: Request all 3 files - should raise error
+        # Test 1: Request all 3 files - should raise error with message including all failed filenames
         invocation_context_all = {CONTEXT_KEY_FILE_IDS: [str(file_id_1), str(file_id_2), str(file_id_3)]}
 
-        with pytest.raises(DocumentRetrievalError, match="non-CONVERTED status"):
+        with pytest.raises(DocumentRetrievalError) as exc_info:
             async for _ in retriever.retrieve_documents(invocation_context_all):
                 pass
+
+        error_message = str(exc_info.value)
+        assert "Failed to retrieve files:" in error_message
+        assert "pending.txt" in error_message
+        assert "failed.txt" in error_message
 
         # Test 2: Request only converted file - should succeed
         invocation_context_converted = {CONTEXT_KEY_FILE_IDS: [str(file_id_1)]}

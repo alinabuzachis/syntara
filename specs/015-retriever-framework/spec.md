@@ -27,10 +27,10 @@ When an AI agent processes an invocation, the system needs to retrieve relevant 
 4. **Given** a new storage backend is added to the system, **When** files are stored using that backend, **Then** the RetrieverService can retrieve documents from the new backend without code changes
 
 ### Edge Cases
-- What happens when no documents are available from any registered retriever?
-- How does the system handle when the LLM relevancy checker is unavailable or returns errors? (Resolved: Fallback to keyword-based relevancy checking)
-- What occurs when a storage backend becomes unavailable (network timeout, service down, authentication failure)?
-- How does the system behave when document content cannot be loaded from storage due to permission or corruption issues?
+- What happens when no documents are available from any registered retriever? → System returns empty list
+- How does the system handle when the LLM relevancy checker is unavailable or returns errors? → Fallback to keyword-based relevancy checking with default score (0.5)
+- What occurs when a storage backend becomes unavailable (network timeout, service down, authentication failure)? → Invocation fails immediately with user-friendly error message
+- How does the system behave when document content cannot be loaded from storage due to permission or corruption issues? → Invocation fails immediately with user-friendly error message
 
 ## Requirements
 
@@ -41,12 +41,14 @@ When an AI agent processes an invocation, the system needs to retrieve relevant 
 - **FR-004**: System MUST implement an LLM-based relevancy checker using OpenRouter configuration
 - **FR-005**: Service MUST accept an invocation_id and user prompt as input to load context dynamically for document retrieval
 - **FR-006**: System MUST return ranked relevant documents based on relevancy scoring with complete document content
-- **FR-007**: Service MUST handle cases where no files are available or relevancy checking fails by returning appropriate error responses and triggering fallback mechanisms
+- **FR-007**: Service MUST distinguish between retrieval errors (which fail invocations immediately) and scoring errors (which trigger fallback mechanisms with default scores)
 - **FR-008**: System MUST allow future addition of new retriever types without modifying existing code
 - **FR-009**: System MUST allow future addition of new relevancy checker algorithms without breaking changes
 - **FR-010**: System MUST implement keyword-based fallback relevancy checker for LLM failures
 - **FR-011**: System MUST support global configuration of comprehensive tuning parameters per relevancy checker type including similarity thresholds (TBD), maximum result count (TBD), ranking weights (TBD), algorithm-specific parameters (Top-k, Top-p for matching - values TBD), grounding parameters for reference relevance (TBD), recency weighting (TBD), and maximal marginal relevance settings (TBD)
 - **FR-012**: Service MUST use ALL registered DocumentRetrievers to collate documents from all available sources, not select retrievers based on FileMetadata or other contextual information
+- **FR-013**: System MUST fail invocations immediately when ANY document retrieval error occurs (fail-fast behavior)
+- **FR-014**: System MUST provide user-friendly error messages for retrieval failures without exposing technical details
 
 ## Clarifications
 
@@ -159,6 +161,27 @@ graph TB
     style DOC fill:#e8f5e8
     style RCF fill:#fff3cd
 ```
+
+### Error Handling Strategy
+
+The system distinguishes between two types of errors during document retrieval and processing:
+
+**Retrieval Errors** (ANY exception from document retrieval):
+- **Definition**: Occur when documents cannot be loaded for any reason
+- **Examples**: Files not found, files not converted, I/O errors, storage unavailable, permission denied, missing converted content paths
+- **Behavior**: **Fail-fast** - Immediately fail the invocation
+- **User Experience**: User sees generic error with filename when available (e.g., "Failed to retrieve file: document.pdf") or "Failed to retrieve document" when filename unavailable
+- **Technical Details**: Never exposed to users (no exception types, stack traces, or internal IDs)
+
+**Scoring Errors** (exceptions during relevancy checking/scoring):
+- **Definition**: Occur during relevancy checking or scoring operations
+- **Examples**: LLM timeout, scoring algorithm failure, network issues during relevancy checking
+- **Behavior**: **Graceful degradation** - Use default score (0.5) and continue processing
+- **User Experience**: Documents are returned with default scores; system logs warning but continues
+- **Fallback**: Keyword-based relevancy checker is attempted before using default score
+
+**Consistency Boundary**:
+The RetrieverService creates a consistency boundary that ensures all retrieval errors are wrapped in user-friendly messages before surfacing to users. Individual retrievers can provide detailed user-friendly messages (e.g., with specific filenames), but if they raise raw technical exceptions (IOError, PermissionError, etc.), the service wraps them generically as "Failed to retrieve document".
 
 ---
 
