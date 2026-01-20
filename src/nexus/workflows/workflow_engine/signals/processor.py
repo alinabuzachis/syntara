@@ -8,8 +8,13 @@ import contextlib
 from typing import Any
 
 from temporalio import workflow
+from temporalio.exceptions import ApplicationError
 
-from nexus.workflows.workflow_engine.activities.common import ActivityExecutionError
+from nexus.workflows.workflow_engine.activities.common import (
+    DEFAULT_RETRYABLE_ERROR_CODES,
+    ActivityExecutionError,
+    extract_error_code,
+)
 
 
 class WorkflowSignalProcessor:
@@ -24,19 +29,31 @@ class WorkflowSignalProcessor:
     """
 
     @staticmethod
-    def process_signal(signal_data: dict[str, Any], activity_id: str, execution_id: str) -> dict[str, Any]:
+    def process_signal(
+        signal_data: dict[str, Any],
+        activity_id: str,
+        execution_id: str,
+        retry_policy_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Process activity signal and handle both success and failure cases.
+
+        Uses a whitelist approach for error code retry decisions (aligned with Kubernetes patterns).
+        Only error codes in the retryableErrors list will be retried.
 
         Args:
             signal_data: The signal data from the activity (contains status, result, or error)
             activity_id: ID of the activity that sent the signal
             execution_id: Workflow execution ID for logging
+            retry_policy_config: Activity's retry policy configuration (optional)
+                Should contain 'retryableErrors' (list[int]) - whitelist of codes to retry
+                Defaults to [408, 429, 500, 502, 503, 504] if not specified
 
         Returns:
             Signal data for successful signals (status="completed")
 
         Raises:
-            ActivityExecutionError: If signal indicates failure (status="failed")
+            ApplicationError: If signal indicates non-retryable failure (error code not in whitelist)
+            ActivityExecutionError: If signal indicates retryable failure (error code in whitelist)
 
         """
         signal_status = signal_data.get("status")
@@ -60,6 +77,32 @@ class WorkflowSignalProcessor:
                 )
 
             msg = f"{error_type}: {error_message}"
+
+            # Extract error code from message (works for HTTP status codes AND exit codes)
+            error_code = extract_error_code(error_message)
+
+            # Get retryable error codes from retry policy config (whitelist approach)
+            # Default: common transient server errors that should be retried
+            retryable_codes: list[int] = DEFAULT_RETRYABLE_ERROR_CODES
+            if retry_policy_config:
+                config_codes = retry_policy_config.get("retryableErrors")
+                if config_codes is not None:
+                    retryable_codes = config_codes
+
+            # Determine if error is retryable based on whitelist
+            # - If no error code extracted: non-retryable (fail fast)
+            # - If error code NOT in whitelist: non-retryable
+            # - If error code IN whitelist: retryable
+            is_retryable = error_code in retryable_codes if error_code else False
+
+            if not is_retryable:
+                # Non-retryable error - raise ApplicationError to tell Temporal not to retry
+                raise ApplicationError(
+                    msg,
+                    type=f"ErrorCode{error_code}" if error_code else error_type,
+                    non_retryable=True,
+                )
+            # Retryable error - raise normal exception so workflow may retry
             raise ActivityExecutionError(msg)
 
         # Success case - return signal data for output mapping

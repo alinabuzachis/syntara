@@ -217,7 +217,7 @@ async def test_list_execution_activities_with_nested_activity_definition(
             "maxAttempts": 3,
             "backoff": "exponential",
             "initialInterval": "PT2S",
-            "retryableErrors": ["NETWORK_ERROR", "TIMEOUT"],
+            "retryableErrors": [500, 503, 504],
         },
     }
 
@@ -244,7 +244,10 @@ async def test_list_execution_activities_with_nested_activity_definition(
     assert returned_def == complex_def
     assert returned_def["task"]["config"]["method"] == "GET"
     assert returned_def["retryPolicy"]["maxAttempts"] == 3
-    assert len(returned_def["retryPolicy"]["retryableErrors"]) == 2
+    assert len(returned_def["retryPolicy"]["retryableErrors"]) == 3
+    assert 500 in returned_def["retryPolicy"]["retryableErrors"]
+    assert 503 in returned_def["retryPolicy"]["retryableErrors"]
+    assert 504 in returned_def["retryPolicy"]["retryableErrors"]
 
 
 @pytest.mark.asyncio

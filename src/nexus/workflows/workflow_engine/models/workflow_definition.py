@@ -116,8 +116,12 @@ class RetryPolicy(TemplateAwareBaseModel):
     multiplier: float | None = Field(default=2.0, ge=1.0, le=10.0, description="Multiplier for exponential backoff")
     initial_interval: int = Field(default=1, ge=1, description="Initial interval in seconds", alias="initialInterval")
     max_interval: int | None = Field(default=None, ge=1, description="Maximum interval in seconds", alias="maxInterval")
-    retryable_errors: list[str] | None = Field(
-        default=None, description="List of error types or codes that should trigger retry", alias="retryableErrors"
+    retryable_errors: list[int] | None = Field(
+        default=None,
+        description="HTTP status codes or exit codes that should trigger retry (whitelist). "
+        "If not specified, defaults to common transient server errors (5xx codes, 429). "
+        "Examples: [500, 502, 503, 504] for server errors, [2, 3] for specific exit codes",
+        alias="retryableErrors",
     )
 
 

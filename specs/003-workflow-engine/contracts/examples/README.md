@@ -131,6 +131,56 @@ This directory contains example workflow definitions that demonstrate the capabi
 
 ---
 
+## ⚠️ Important Notice: Deprecated Retry Error Syntax
+
+**Some examples in this directory use an outdated syntax** for the `retryableErrors` field that is **no longer functional**.
+
+### Legacy Syntax (Deprecated - Not Functional)
+
+Examples `01-simple-sequential.yaml`, `04-looping.yaml`, and `06-error-handling-joins.yaml` contain:
+
+```yaml
+retryPolicy:
+  retryableErrors:
+    - NETWORK_ERROR      # ❌ String-based error types (never worked)
+    - TIMEOUT           # ❌ String-based error types (never worked)
+    - RATE_LIMIT        # ❌ String-based error types (never worked)
+```
+
+**Status**: This syntax was never implemented and has no effect on retry behavior.
+
+### Current Syntax (Functional)
+
+The current workflow engine uses **integer error codes** with a whitelist approach:
+
+```yaml
+retryPolicy:
+  retryableErrors:
+    - 408  # ✅ Request Timeout (HTTP status code)
+    - 429  # ✅ Too Many Requests (HTTP status code)
+    - 500  # ✅ Internal Server Error (HTTP status code)
+    - 503  # ✅ Service Unavailable (HTTP status code)
+```
+
+Or use defaults by omitting the field:
+```yaml
+retryPolicy:
+  maxAttempts: 3
+  backoff: exponential
+  # retryableErrors not specified - uses defaults: [408, 429, 500, 502, 503, 504]
+```
+
+### Migration Resources
+
+For production workflows, please refer to:
+- [Migration Guide](../../../../../docs/migrations/retryable-errors-string-to-int.md) - How to migrate from string to integer error codes
+- [Retry Policies](../../../../../docs/workflow-engine/retry-policies.md) - Complete retry policy documentation
+- [Workflow Definition Guide](../../../../../docs/workflow-engine/workflow-definition-guide.md) - Examples with current syntax
+
+These example files are kept unchanged for historical reference. The deprecated `retryableErrors` values can be ignored or updated to use integer codes when adapting these examples.
+
+---
+
 ## Validating Examples
 
 To validate these examples against the schema, you can use a JSON Schema validator with YAML support:

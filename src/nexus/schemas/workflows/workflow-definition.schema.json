@@ -928,11 +928,20 @@
         },
         "retryableErrors": {
           "type": "array",
-          "description": "List of error types or codes that should trigger retry",
+          "description": "HTTP status codes or exit codes that should trigger retry (whitelist approach). If not specified, defaults to: [408, 429, 500, 502, 503, 504]. Supported code types: HTTP status codes (e.g., 500, 503) and process exit codes (e.g., 2, 3). Only errors with codes in this list will be retried - all other errors fail immediately. Use empty array [] to disable retries for all errors.",
           "items": {
-            "type": "string"
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 599,
+            "description": "Error code: HTTP status code (100-599) or process exit code (1-255)"
           },
-          "examples": [["TIMEOUT", "NETWORK_ERROR", "RATE_LIMIT"]]
+          "examples": [
+            [500, 502, 503, 504],
+            [429, 500, 503],
+            [2, 3],
+            [408, 429, 500, 502, 503, 504]
+          ],
+          "default": [408, 429, 500, 502, 503, 504]
         }
       },
       "additionalProperties": false

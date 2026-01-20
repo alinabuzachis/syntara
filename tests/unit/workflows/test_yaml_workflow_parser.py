@@ -479,8 +479,9 @@ workflow:
       maxInterval: 10
       backoff: exponential
       retryableErrors:
-      - TimeoutError
-      - NetworkError
+      - 500  # Internal Server Error
+      - 503  # Service Unavailable
+      - 504  # Gateway Timeout
     task:
       executor: script
       config:
@@ -496,7 +497,9 @@ workflow:
         assert activity.retry_policy.max_interval == 10  # 10 seconds
         assert activity.retry_policy.backoff == "exponential"
         assert activity.retry_policy.retryable_errors is not None
-        assert "TimeoutError" in activity.retry_policy.retryable_errors
+        assert 500 in activity.retry_policy.retryable_errors
+        assert 503 in activity.retry_policy.retryable_errors
+        assert 504 in activity.retry_policy.retryable_errors
 
     def test_parse_activity_with_approval(self) -> None:
         """Test parsing activity with approval requirement."""

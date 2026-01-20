@@ -4,8 +4,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
-from nexus.workflows.workflow_engine.activities.common import ActivityExecutionError
+from nexus.workflows.workflow_engine.activities.common import (
+    ActivityExecutionError,
+)
 from nexus.workflows.workflow_engine.signals.processor import WorkflowSignalProcessor
 
 
@@ -60,9 +63,9 @@ class TestWorkflowSignalProcessorProcessSignal:
         assert result == signal_data
         assert result["result"]["content"]["answer"] == "42"
 
-    def test_process_signal_failure_raises_activity_execution_error(self) -> None:
-        """Test that failed signal raises ActivityExecutionError."""
-        # Arrange
+    def test_process_signal_failure_raises_application_error_for_non_retryable(self) -> None:
+        """Test that failed signal without retryable error code raises ApplicationError."""
+        # Arrange - no error code in message, defaults to non-retryable
         signal_data = {
             "id": "invocation-error",
             "status": "failed",
@@ -73,49 +76,52 @@ class TestWorkflowSignalProcessorProcessSignal:
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
-        # Act & Assert
-        with pytest.raises(ActivityExecutionError) as exc_info:
+        # Act & Assert - no error code extracted, should be non-retryable
+        with pytest.raises(ApplicationError) as exc_info:
             WorkflowSignalProcessor.process_signal(signal_data, "api_call", "exec-123")
 
+        assert exc_info.value.non_retryable is True
         assert "AuthenticationError" in str(exc_info.value)
         assert "API key is invalid" in str(exc_info.value)
 
     def test_process_signal_failure_with_minimal_error_info(self) -> None:
         """Test that failed signal with minimal error info uses defaults."""
-        # Arrange
+        # Arrange - no error code, should be non-retryable
         signal_data = {
             "id": "invocation-minimal",
             "status": "failed",
             "error": {},  # Empty error dict
         }
 
-        # Act & Assert
-        with pytest.raises(ActivityExecutionError) as exc_info:
+        # Act & Assert - no error code, should be non-retryable
+        with pytest.raises(ApplicationError) as exc_info:
             WorkflowSignalProcessor.process_signal(signal_data, "task_minimal", "exec-minimal")
 
         # Should use default message and type
+        assert exc_info.value.non_retryable is True
         assert "UnknownError" in str(exc_info.value)
         assert "Agent execution failed" in str(exc_info.value)
 
     def test_process_signal_failure_without_error_dict(self) -> None:
         """Test that failed signal without error dict uses defaults."""
-        # Arrange
+        # Arrange - no error code, should be non-retryable
         signal_data = {
             "id": "invocation-no-error",
             "status": "failed",
             # No 'error' key at all
         }
 
-        # Act & Assert
-        with pytest.raises(ActivityExecutionError) as exc_info:
+        # Act & Assert - no error code, should be non-retryable
+        with pytest.raises(ApplicationError) as exc_info:
             WorkflowSignalProcessor.process_signal(signal_data, "task_no_error", "exec-no-error")
 
+        assert exc_info.value.non_retryable is True
         assert "UnknownError" in str(exc_info.value)
         assert "Agent execution failed" in str(exc_info.value)
 
     def test_process_signal_failure_preserves_error_type(self) -> None:
         """Test that error type is preserved in the raised exception."""
-        # Arrange
+        # Arrange - errors without codes are non-retryable
         error_types = ["ValueError", "TimeoutError", "LLMConfigurationError", "NetworkError"]
 
         for error_type in error_types:
@@ -127,10 +133,11 @@ class TestWorkflowSignalProcessorProcessSignal:
                 },
             }
 
-            # Act & Assert
-            with pytest.raises(ActivityExecutionError) as exc_info:
+            # Act & Assert - no error code, should be non-retryable
+            with pytest.raises(ApplicationError) as exc_info:
                 WorkflowSignalProcessor.process_signal(signal_data, "test_activity", "test_exec")
 
+            assert exc_info.value.non_retryable is True
             assert error_type in str(exc_info.value)
             assert f"Test {error_type} occurred" in str(exc_info.value)
 
@@ -192,7 +199,7 @@ class TestWorkflowSignalProcessorProcessSignal:
 
     def test_process_signal_failure_with_complex_error_message(self) -> None:
         """Test that complex error messages are preserved correctly."""
-        # Arrange
+        # Arrange - no error code, should be non-retryable
         complex_message = """
         Multiple errors occurred:
         1. Connection timeout after 30s
@@ -207,11 +214,12 @@ class TestWorkflowSignalProcessorProcessSignal:
             },
         }
 
-        # Act & Assert
-        with pytest.raises(ActivityExecutionError) as exc_info:
+        # Act & Assert - no error code, should be non-retryable
+        with pytest.raises(ApplicationError) as exc_info:
             WorkflowSignalProcessor.process_signal(signal_data, "complex_task", "exec_complex")
 
         error_message = str(exc_info.value)
+        assert exc_info.value.non_retryable is True
         assert "CompositeError" in error_message
         assert "Connection timeout" in error_message
         assert "Retry limit exceeded" in error_message
@@ -226,3 +234,133 @@ class TestWorkflowSignalProcessorProcessSignal:
 
         # Assert - should return empty dict (status is None/missing, treated as success)
         assert result == {}
+
+
+class TestWorkflowSignalProcessorRetryableErrors:
+    """Tests for retryable error codes (whitelist approach)."""
+
+    def test_retryable_error_code_raises_activity_execution_error(self) -> None:
+        """Test that error codes in the retryable list raise ActivityExecutionError."""
+        # Arrange - 500 is in default retryable codes
+        signal_data = {
+            "status": "failed",
+            "error": {
+                "message": "Error code: 500 - Internal Server Error",
+                "error_type": "ServerError",
+            },
+        }
+
+        # Act & Assert - should raise ActivityExecutionError (retryable)
+        with pytest.raises(ActivityExecutionError) as exc_info:
+            WorkflowSignalProcessor.process_signal(signal_data, "api_call", "exec-123")
+
+        assert "ServerError" in str(exc_info.value)
+        assert "Internal Server Error" in str(exc_info.value)
+
+    def test_non_retryable_error_code_raises_application_error(self) -> None:
+        """Test that error codes NOT in the retryable list raise ApplicationError."""
+        # Arrange - 400 is NOT in default retryable codes
+        signal_data = {
+            "status": "failed",
+            "error": {
+                "message": "Error code: 400 - Bad Request",
+                "error_type": "ValidationError",
+            },
+        }
+
+        # Act & Assert - should raise ApplicationError (non-retryable)
+        with pytest.raises(ApplicationError) as exc_info:
+            WorkflowSignalProcessor.process_signal(signal_data, "api_call", "exec-123")
+
+        assert exc_info.value.non_retryable is True
+        assert "ValidationError" in str(exc_info.value)
+
+    def test_custom_retryable_codes_from_config(self) -> None:
+        """Test that custom retryable codes can be specified in retry policy config."""
+        # Arrange - custom config with only exit code 2 as retryable
+        retry_config = {"retryableErrors": [2, 3]}
+        signal_data = {
+            "status": "failed",
+            "error": {
+                "message": "Exit code: 2",
+                "error_type": "ProcessError",
+            },
+        }
+
+        # Act & Assert - exit code 2 should be retryable
+        with pytest.raises(ActivityExecutionError) as exc_info:
+            WorkflowSignalProcessor.process_signal(signal_data, "script_task", "exec-123", retry_config)
+
+        assert "ProcessError" in str(exc_info.value)
+
+    def test_custom_retryable_codes_non_retryable(self) -> None:
+        """Test that codes not in custom retryable list are non-retryable."""
+        # Arrange - custom config with only exit code 2 as retryable
+        retry_config = {"retryableErrors": [2, 3]}
+        signal_data = {
+            "status": "failed",
+            "error": {
+                "message": "Exit code: 127 - Command not found",
+                "error_type": "ProcessError",
+            },
+        }
+
+        # Act & Assert - exit code 127 not in custom list, should be non-retryable
+        with pytest.raises(ApplicationError) as exc_info:
+            WorkflowSignalProcessor.process_signal(signal_data, "script_task", "exec-123", retry_config)
+
+        assert exc_info.value.non_retryable is True
+        assert "ProcessError" in str(exc_info.value)
+
+    def test_error_without_code_is_non_retryable(self) -> None:
+        """Test that errors without extractable code are non-retryable (fail fast)."""
+        # Arrange - error message with no code
+        signal_data = {
+            "status": "failed",
+            "error": {
+                "message": "Connection refused",
+                "error_type": "NetworkError",
+            },
+        }
+
+        # Act & Assert - no code extracted, should be non-retryable
+        with pytest.raises(ApplicationError) as exc_info:
+            WorkflowSignalProcessor.process_signal(signal_data, "api_call", "exec-123")
+
+        assert exc_info.value.non_retryable is True
+        assert "NetworkError" in str(exc_info.value)
+
+    def test_rate_limit_error_is_retryable(self) -> None:
+        """Test that 429 rate limit errors are retryable by default."""
+        # Arrange - 429 is in default retryable codes
+        signal_data = {
+            "status": "failed",
+            "error": {
+                "message": "Error code: 429 - Too Many Requests",
+                "error_type": "RateLimitError",
+            },
+        }
+
+        # Act & Assert - should be retryable
+        with pytest.raises(ActivityExecutionError) as exc_info:
+            WorkflowSignalProcessor.process_signal(signal_data, "api_call", "exec-123")
+
+        assert "RateLimitError" in str(exc_info.value)
+
+    def test_unauthorized_error_is_non_retryable(self) -> None:
+        """Test that 401 unauthorized errors are non-retryable."""
+        # Arrange - 401 is NOT in default retryable codes
+        signal_data = {
+            "status": "failed",
+            "error": {
+                "message": "Error code: 401 - Unauthorized",
+                "error_type": "AuthError",
+            },
+        }
+
+        # Act & Assert - should be non-retryable
+        with pytest.raises(ApplicationError) as exc_info:
+            WorkflowSignalProcessor.process_signal(signal_data, "api_call", "exec-123")
+
+        assert exc_info.value.non_retryable is True
+        assert "AuthError" in str(exc_info.value)

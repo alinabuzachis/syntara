@@ -6,10 +6,21 @@ This module provides shared functionality for all activity types including:
 - Base exception classes
 """
 
+import re
 from datetime import timedelta
 from typing import Any
 
 from temporalio.common import RetryPolicy
+
+# Default retryable error codes (whitelist approach - aligned with Kubernetes retry patterns)
+# These are transient errors that typically resolve with retries
+# 408: Request Timeout - Client timeout, often transient
+# 429: Too Many Requests - Rate limiting, should retry with backoff
+# 500: Internal Server Error - Temporary server issue
+# 502: Bad Gateway - Upstream server error, often transient
+# 503: Service Unavailable - Service temporarily down
+# 504: Gateway Timeout - Upstream timeout, often transient
+DEFAULT_RETRYABLE_ERROR_CODES = [408, 429, 500, 502, 503, 504]
 
 
 class ActivityExecutionError(Exception):
@@ -20,6 +31,47 @@ class ActivityExecutionError(Exception):
 
     Subclasses should explicitly declare their attributes for type safety.
     """
+
+
+def extract_error_code(error_message: str) -> int | None:
+    """Extract numeric error code from error message.
+
+    Works for both HTTP status codes and process exit codes.
+    Context-aware: the same number can represent different error types
+    depending on the executor (HTTP status code vs exit code).
+
+    Args:
+        error_message: Error message from activity execution.
+            Expected patterns:
+            - HTTP status codes: "Error code: 401", "status code: 404"
+            - Exit codes: "Exit code: 127", "exited with code 1"
+            - Generic: "code: 500", "code=404", "code': 401"
+
+    Returns:
+        Extracted numeric error code, or None if no code found.
+
+    Examples:
+        >>> extract_error_code("Error code: 401 - {'error': {'message': 'User not found.'}}")
+        401
+        >>> extract_error_code("Script exited with code 127")
+        127
+        >>> extract_error_code("Connection failed")
+        None
+
+    """
+    # Patterns to match various error code formats
+    patterns = [
+        r"(?:status|error|exit)\s*code[:\s=]+(\d+)",  # status code: 401, exit code: 127
+        r"code[:\s='\"]+(\d+)",  # code: 500, code=404, code': 401
+        r"exited\s+with\s+(?:code\s+)?(\d+)",  # exited with code 1, exited with 127
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, error_message, re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+
+    return None
 
 
 def build_retry_policy(retry_config: dict[str, Any] | None) -> RetryPolicy | None:

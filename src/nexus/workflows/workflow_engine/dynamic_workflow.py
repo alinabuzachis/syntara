@@ -68,6 +68,7 @@ class DynamicWorkflow:
         self.expression_resolver: ExpressionResolver
         self.workflow_state: JsonDict = {}
         self._activity_signals: dict[str, list[dict[str, Any]]] = {}
+        self._activity_retry_policies: dict[str, dict[str, Any] | None] = {}
 
     @workflow.signal
     async def activity_signal(
@@ -428,15 +429,19 @@ class DynamicWorkflow:
             activity_config["metadata"]["execution_id"] = execution_id
             activity_config["metadata"]["activity_id"] = activity.id
 
+            # Extract and store retry policy configuration for signal processing
+            retry_policy_config = (
+                activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
+            )
+            self._activity_retry_policies[activity.id] = retry_policy_config
+
             # Execute agentic activity - this returns immediately with activity metadata
             activity_result = await workflow.execute_activity(
                 execute_agentic_activity,
                 args=[activity_config, task_inputs],
                 activity_id=activity.id,
                 start_to_close_timeout=activity_timeout,
-                retry_policy=build_retry_policy(
-                    activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
-                ),
+                retry_policy=build_retry_policy(retry_policy_config),
             )
 
             invocation_id = activity_result.get("invocation_id")
@@ -494,7 +499,9 @@ class DynamicWorkflow:
             )
 
             # Process signal (handles both success and failure)
-            result = WorkflowSignalProcessor.process_signal(signal_data, activity.id, execution_id)
+            # Retrieve the retry policy config for this activity to determine non-retryable errors
+            retry_policy_config = self._activity_retry_policies.get(activity.id)
+            result = WorkflowSignalProcessor.process_signal(signal_data, activity.id, execution_id, retry_policy_config)
 
             # Process output mappings if defined
             if activity.task.outputs:
