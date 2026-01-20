@@ -219,3 +219,6 @@ worktrees/
 
 # Gemini
 .gemini/
+
+# Local agents file
+AGENTS.local.md
