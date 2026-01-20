@@ -56,20 +56,22 @@ npm start
 For how the UI is structured, see these comprehensive guides:
 
 - [`docs/architecture.md`](docs/architecture.md) - Main architecture guide covering routing, state management, and the workflow builder
-- [`docs/data-flow.md`](docs/data-flow.md) - **NEW!** Deep dive into OpenAPI contract generation, type-safe API clients, and workflow transformations (nested ↔ flat)
+- [`docs/data-flow.md`](docs/data-flow.md) - Deep dive into OpenAPI contract generation, type-safe API clients, and workflow transformations (nested ↔ flat)
 - [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Workflow store details, state management patterns, and best practices
 - [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - WebSocket infrastructure, multi-channel architecture, and real-time features
+- [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - **NEW!** Execution visualizer WebSocket protocol, endpoints, and data structures
 
 ### Quick Navigation by Task
 
-| Working on...                | Read this section                                                                                           |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| **API integration**          | [`docs/data-flow.md`](docs/data-flow.md) - OpenAPI contract generation and type-safe clients                |
-| **Workflow transformations** | [`docs/data-flow.md`](docs/data-flow.md) - Nested to flat conversions with diagrams                         |
-| **Node registry**            | [`docs/architecture.md`](docs/architecture.md) - "How registerAllNodes() auto-discovers nodes"              |
-| **Builder internals**        | [`docs/architecture.md`](docs/architecture.md) - "Builder internals (advanced)" section                     |
-| **State management**         | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Complete Zustand guide                     |
-| **WebSocket / real-time**    | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - Multi-channel WebSocket infrastructure |
+| Working on...                  | Read this section                                                                                                            |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| **API integration**            | [`docs/data-flow.md`](docs/data-flow.md) - OpenAPI contract generation and type-safe clients                                 |
+| **Workflow transformations**   | [`docs/data-flow.md`](docs/data-flow.md) - Nested to flat conversions with diagrams                                          |
+| **Node registry**              | [`docs/architecture.md`](docs/architecture.md) - "How registerAllNodes() auto-discovers nodes"                               |
+| **Builder internals**          | [`docs/architecture.md`](docs/architecture.md) - "Builder internals (advanced)" section                                      |
+| **State management**           | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Complete Zustand guide                                      |
+| **WebSocket / real-time**      | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - Multi-channel WebSocket infrastructure                  |
+| **Execution visualization** 🆕 | [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - WebSocket protocol, endpoints, data specs |
 
 ### Component Development Guidelines
 
