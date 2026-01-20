@@ -1,93 +1,210 @@
 """Integration test for RetrieverService with agent invocation workflow."""
 
+import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from uuid import UUID, uuid4
 
 import pytest
-from langchain_core.messages import AIMessage
 
+from nexus.agent_orchestrator.models import Invocation
+from nexus.agent_orchestrator.services.streaming_service import get_invocation_stream_id
+from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
+from nexus.core.valkey.stream import StreamClient
+from nexus.files.models import FileMetadata
 from tests.helpers.invocations import wait_for_invocation_execution
+
+pytestmark = pytest.mark.integration
 
 # Test fixtures directory
 FIXTURES_DIR = Path(__file__).parent.parent.parent.parent.parent / "fixtures" / "files"
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("mock_relevancy_checker")
 async def test_retriever_service_integration_with_agent_invocation(
     auth_client_with_mocked_llm, test_user, mock_openrouter_llm
 ) -> None:
-    """Test RetrieverService integration with agent invocation workflow.
+    """Test complete file upload -> invocation -> agent execution flow.
 
-    This integration test verifies end-to-end document retrieval flow:
     1. File uploaded via invocations API
-    2. File converted and stored in database as FileMetadata
-    3. RetrieverService called by ContextManagerPlanner
-    4. UploadedFileRetriever queries FileManager for documents
-    5. Retrieved documents included in agent context
-    6. Agent LLM receives context with file content
-
-    The test mocks LLM responses to ensure deterministic behavior without real LLM calls.
+    2. File IDs returned in context_data
+    3. Invocation executes and completes successfully
+    4. Agent LLM is invoked with the prompt
     """
-    # Mock LLM responses for both relevancy checking and final agent response
-    with (
-        patch(
-            "nexus.agent_orchestrator.context_manager.retriever_service.checkers.llm_relevancy_checker.get_openrouter_llm"
-        ) as mock_get_checker_llm,
-    ):
-        # Mock the LLMRelevancyChecker LLM to return high relevancy scores
-        mock_checker_llm_instance = AsyncMock()
-        mock_checker_llm_instance.ainvoke.return_value = AIMessage(
-            content=(
-                "Relevancy Score: 0.85\n\n"
-                "This document contains highly relevant information about machine learning algorithms."
-            )
+    text_file_path = FIXTURES_DIR / "sample.txt"
+    assert text_file_path.exists(), f"Test text file not found at {text_file_path}"
+
+    with text_file_path.open("rb") as text_file:
+        files = {"files": ("machine_learning_guide.txt", text_file, "text/plain")}
+        data = {
+            "prompt": "What are the key machine learning algorithms I should know about?",
+            "session_id": f"retriever-integration-test-{uuid4().hex[:8]}",
+        }
+
+        response = await auth_client_with_mocked_llm.post(
+            "/api/v1/invocations",
+            data=data,
+            files=files,
         )
-        mock_get_checker_llm.return_value = mock_checker_llm_instance
 
-        # Load test text file with machine learning content
-        text_file_path = FIXTURES_DIR / "sample.txt"
-        assert text_file_path.exists(), f"Test text file not found at {text_file_path}"
+    assert response.status_code == 202, f"Expected 202, got {response.status_code}: {response.text}"
+    invocation_data = response.json()
+    assert "id" in invocation_data
+    invocation_id = invocation_data["id"]
 
-        # Create multipart form data with document upload
-        with text_file_path.open("rb") as text_file:
-            files = {"files": ("machine_learning_guide.txt", text_file, "text/plain")}
-            data = {
-                "prompt": "What are the key machine learning algorithms I should know about?",
-                "session_id": "retriever-integration-test",
-            }
+    assert CONTEXT_KEY in invocation_data
+    assert CONTEXT_KEY_FILE_IDS in invocation_data[CONTEXT_KEY]
+    file_ids = invocation_data[CONTEXT_KEY][CONTEXT_KEY_FILE_IDS]
+    assert len(file_ids) == 1
 
-            # POST invocation with document
-            response = await auth_client_with_mocked_llm.post(
-                "/api/v1/invocations",
-                data=data,
-                files=files,
-            )
+    async with wait_for_invocation_execution(
+        auth_client_with_mocked_llm, invocation_id, max_wait_time=30.0
+    ) as final_data:
+        assert final_data is not None
+        assert final_data["status"] == "completed"
 
-            assert response.status_code == 202, f"Expected 202, got {response.status_code}: {response.text}"
-            invocation_data = response.json()
-            assert "id" in invocation_data
-            invocation_id = invocation_data["id"]
+        bound_llm = mock_openrouter_llm.bind_tools.return_value
+        bound_llm.ainvoke.assert_called()
+        agent_call_args = bound_llm.ainvoke.call_args[0][0]
+        messages_str = str(agent_call_args)
+        assert "What are the key machine learning algorithms I should know about?" in messages_str
 
-            # Wait for execution to complete
-            async with wait_for_invocation_execution(
-                auth_client_with_mocked_llm, invocation_id, max_wait_time=30.0
-            ) as final_data:
-                # Verify execution completed
-                assert final_data is not None
-                assert final_data["status"] == "completed"
 
-                # Verify agent LLM with bound tools was executed
-                # GenericAgent calls llm.bind_tools() so we need to check the bound LLM
-                bound_llm = mock_openrouter_llm.bind_tools.return_value
-                bound_llm.ainvoke.assert_called()
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("mock_relevancy_checker")
+async def test_file_upload_with_streaming_events(auth_client_with_mocked_llm, test_user, mock_openrouter_llm) -> None:
+    """Test complete flow: upload files -> execute -> response streams via Valkey.
 
-                # Verify the agent received the original prompt
-                agent_call_args = bound_llm.ainvoke.call_args[0][0]
-                messages_str = str(agent_call_args)
-                assert "What are the key machine learning algorithms I should know about?" in messages_str
+    Verifies that file upload invocations produce streaming events
+    that can be consumed via WebSocket.
 
-                # Verify LLMRelevancyChecker was invoked with the document
-                # (This confirms RetrieverService was called and documents were retrieved)
-                if mock_checker_llm_instance.ainvoke.called:
-                    # At least one document was scored for relevancy
-                    assert mock_checker_llm_instance.ainvoke.call_count > 0
+    Flow tested:
+    1. Upload file via invocations API
+    2. Invocation executes with file context
+    3. Streaming events (delta, completion) are published to Valkey
+    4. Events can be read back from the stream
+    """
+    text_file_path = FIXTURES_DIR / "sample.txt"
+    assert text_file_path.exists()
+
+    with text_file_path.open("rb") as text_file:
+        files = {"files": ("test_document.txt", text_file, "text/plain")}
+        data = {
+            "prompt": "Summarize this document",
+            "session_id": f"streaming-integration-test-{uuid4().hex[:8]}",
+        }
+
+        response = await auth_client_with_mocked_llm.post(
+            "/api/v1/invocations",
+            data=data,
+            files=files,
+        )
+
+        assert response.status_code == 202
+        invocation_data = response.json()
+        invocation_id = invocation_data["id"]
+
+        async with wait_for_invocation_execution(
+            auth_client_with_mocked_llm, invocation_id, max_wait_time=30.0
+        ) as final_data:
+            assert final_data is not None
+            assert final_data["status"] == "completed"
+
+            stream_id = get_invocation_stream_id(UUID(invocation_id))
+
+            async with StreamClient() as client:
+                info = await client.info(stream_id)
+
+                assert info["exists"] is True, "Invocation stream should exist in Valkey"
+                assert info["length"] > 0, "Stream should contain events"
+
+                events: list[dict[str, object]] = []
+                try:
+                    async with asyncio.timeout(10.0):
+                        async for event in client.events(stream_id, start_id="0-0"):
+                            events.append(event)
+                            if event.get("event_type") == "completion":
+                                break
+                except TimeoutError:
+                    pytest.fail(
+                        f"Timed out waiting for completion event. "
+                        f"Received {len(events)} events: {[e.get('event_type') for e in events]}"
+                    )
+
+                event_types = [e.get("event_type") for e in events]
+                assert "completion" in event_types, f"Expected 'completion' event in stream. Got: {event_types}"
+
+                completion_event = next(e for e in events if e.get("event_type") == "completion")
+                assert completion_event["invocation_id"] == invocation_id
+                assert "timestamp" in completion_event
+
+
+@pytest.mark.asyncio
+async def test_invocation_with_invalid_file_id_fails_gracefully(auth_client_with_mocked_llm, test_user) -> None:
+    """Test that invoking with an invalid file_id fails gracefully.
+
+    Verifies graceful error handling when file_id doesn't exist.
+    """
+    data = {
+        "prompt": "Process this file",
+        "session_id": f"invalid-file-test-{uuid4().hex[:8]}",
+        "context_data": '{"file_ids": ["00000000-0000-0000-0000-000000000000"]}',
+    }
+
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations",
+        data=data,
+    )
+
+    assert response.status_code == 400, f"Expected 400 for invalid file_id, got {response.status_code}"
+
+    error_data = response.json()
+    assert "detail" in error_data or "title" in error_data, "Error response should follow RFC 9457 format"
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("mock_relevancy_checker")
+async def test_file_upload_creates_db_records(auth_client_with_mocked_llm, test_user, test_db_session) -> None:
+    """Verify file upload creates FileMetadata records in the database."""
+    text_file_path = FIXTURES_DIR / "sample.txt"
+    assert text_file_path.exists()
+
+    with text_file_path.open("rb") as text_file:
+        files = {"files": ("test_file.txt", text_file, "text/plain")}
+        data = {"prompt": "Test prompt", "session_id": f"db-record-test-{uuid4().hex[:8]}"}
+
+        response = await auth_client_with_mocked_llm.post("/api/v1/invocations", data=data, files=files)
+
+        assert response.status_code == 202
+        invocation_data = response.json()
+
+        file_ids = invocation_data[CONTEXT_KEY][CONTEXT_KEY_FILE_IDS]
+        assert len(file_ids) == 1
+
+        file_metadata = await test_db_session.get(FileMetadata, UUID(file_ids[0]))
+
+        assert file_metadata is not None
+        assert file_metadata.filename == "test_file.txt"
+        assert file_metadata.mime_type == "text/plain"
+        assert file_metadata.size_bytes > 0
+        assert file_metadata.file_path is not None
+
+
+@pytest.mark.asyncio
+async def ***REMOVED***(auth_client_with_mocked_llm, test_user, test_db_session) -> None:
+    """Verify callback_url in context_data is preserved in invocation."""
+    callback_url = "http://example.com/executions/123/activities/456/signal"
+    data = {
+        "prompt": "Test prompt",
+        "session_id": f"callback-test-{uuid4().hex[:8]}",
+        "context_data": f'{{"callback_url": "{callback_url}"}}',
+    }
+
+    response = await auth_client_with_mocked_llm.post("/api/v1/invocations", data=data)
+    assert response.status_code == 202
+
+    invocation_id = response.json()["id"]
+    invocation = await test_db_session.get(Invocation, UUID(invocation_id))
+    assert invocation is not None
+    assert invocation.context_data is not None
+    assert invocation.context_data.get("callback_url") == callback_url

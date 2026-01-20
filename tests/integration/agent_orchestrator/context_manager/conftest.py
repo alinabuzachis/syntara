@@ -1,6 +1,10 @@
 """Shared fixtures for context_manager integration tests."""
 
+from collections.abc import Generator
+from unittest.mock import AsyncMock, patch
+
 import pytest
+from langchain_core.messages import AIMessage
 
 from nexus.agent_orchestrator.token_manager.models import UserTokenConfig
 
@@ -39,3 +43,15 @@ async def test_user_low_token_config(test_db_session, test_user) -> UserTokenCon
     test_db_session.add(config)
     await test_db_session.commit()
     return config
+
+
+@pytest.fixture
+def mock_relevancy_checker() -> Generator[AsyncMock, None, None]:
+    """Mock LLMRelevancyChecker to return high relevancy scores."""
+    with patch(
+        "nexus.agent_orchestrator.context_manager.retriever_service.checkers.llm_relevancy_checker.get_openrouter_llm"
+    ) as mock_get_checker_llm:
+        mock_llm = AsyncMock()
+        mock_llm.ainvoke.return_value = AIMessage(content="Relevancy Score: 0.85\n\nHighly relevant document.")
+        mock_get_checker_llm.return_value = mock_llm
+        yield mock_llm
