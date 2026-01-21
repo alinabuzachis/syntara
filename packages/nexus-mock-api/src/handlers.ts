@@ -335,4 +335,23 @@ export const handlers = [
       total_failed: results.filter((r) => !r.success).length,
     })
   }),
+
+  // File upload mock handler
+  http.post('/api/v1/files', async ({ request }) => {
+    const formData = await request.formData()
+    const files = formData.getAll('files') as File[]
+
+    const fileResponses = files.map((file) => ({
+      file_id: crypto.randomUUID(),
+      filename: file.name,
+      size_bytes: file.size,
+      mime_type: file.type || 'application/octet-stream',
+      status: 'pending_conversion',
+    }))
+
+    return HttpResponse.json({
+      file_ids: fileResponses.map((f) => f.file_id),
+      files: fileResponses,
+    })
+  }),
 ]
