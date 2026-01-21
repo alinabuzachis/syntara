@@ -82,7 +82,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
           <TextInput {...register('inventory')} id="aap-inventory" type="number" placeholder="456" />
           <FormHelperText>
             <HelperText>
-              <HelperTextItem>Optional: Override default inventory</HelperTextItem>
+              <HelperTextItem>Override default inventory</HelperTextItem>
             </HelperText>
           </FormHelperText>
         </FormGroup>
@@ -92,7 +92,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
           <TextInput {...register('credentials')} id="aap-credentials" placeholder="1,2,3" type="text" />
           <FormHelperText>
             <HelperText>
-              <HelperTextItem>Optional: Comma-separated credential IDs</HelperTextItem>
+              <HelperTextItem>Comma-separated credential IDs</HelperTextItem>
             </HelperText>
           </FormHelperText>
         </FormGroup>
@@ -119,7 +119,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
                   {jsonError}
                 </HelperTextItem>
               ) : (
-                <HelperTextItem>Optional: Extra variables to pass to the job (JSON object)</HelperTextItem>
+                <HelperTextItem>Extra variables to pass to the job (JSON object)</HelperTextItem>
               )}
             </HelperText>
           </FormHelperText>
@@ -130,7 +130,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
           <TextInput {...register('limit')} id="aap-limit" placeholder="webservers:dbservers" type="text" />
           <FormHelperText>
             <HelperText>
-              <HelperTextItem>Optional: Limit job execution to specific hosts</HelperTextItem>
+              <HelperTextItem>Limit job execution to specific hosts</HelperTextItem>
             </HelperText>
           </FormHelperText>
         </FormGroup>
@@ -140,7 +140,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
           <TextInput {...register('tags')} id="aap-tags" placeholder="install,configure" type="text" />
           <FormHelperText>
             <HelperText>
-              <HelperTextItem>Optional: Ansible tags to run (comma-separated)</HelperTextItem>
+              <HelperTextItem>Ansible tags to run (comma-separated)</HelperTextItem>
             </HelperText>
           </FormHelperText>
         </FormGroup>
@@ -150,7 +150,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
           <TextInput {...register('skipTags')} id="aap-skipTags" placeholder="testing,debug" type="text" />
           <FormHelperText>
             <HelperText>
-              <HelperTextItem>Optional: Ansible tags to skip (comma-separated)</HelperTextItem>
+              <HelperTextItem>Ansible tags to skip (comma-separated)</HelperTextItem>
             </HelperText>
           </FormHelperText>
         </FormGroup>
@@ -179,7 +179,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
           />
           <FormHelperText>
             <HelperText>
-              <HelperTextItem>Optional: Job verbosity level (0-5)</HelperTextItem>
+              <HelperTextItem>Job verbosity level (0-5)</HelperTextItem>
             </HelperText>
           </FormHelperText>
         </FormGroup>

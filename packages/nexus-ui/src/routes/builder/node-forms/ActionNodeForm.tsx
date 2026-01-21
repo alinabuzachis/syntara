@@ -166,7 +166,7 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
               <TextArea {...register('parameters')} id="action-parameters" placeholder='{"key": "value"}' rows={3} />
               <FormHelperText>
                 <HelperText>
-                  <HelperTextItem>Optional: Define inputs for this task</HelperTextItem>
+                  <HelperTextItem>Define inputs for this task</HelperTextItem>
                 </HelperText>
               </FormHelperText>
             </FormGroup>
