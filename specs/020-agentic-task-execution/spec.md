@@ -60,7 +60,7 @@ The Agent Orchestrator needs to access and utilize tools from the Tool Manager d
 - Q: What are the expected performance and scale requirements for tool discovery and execution? → A: All performance metrics are a future concern and not part of this feature
 
 ### Session 2025-12-19
-- Q: The current tasks assume custom tool adaptation, but your vision uses LangChain's native MCP support. This requires clarification on the Tool Manager's interface: → A: ToolProviders already have MCP server URLs in their MCPConfiguration - LangChain MCP client connects directly to existing ToolProvider MCP servers
+- Q: The current tasks assume custom tool adaptation, but your vision uses LangChain's native MCP support. This requires clarification on the Tool Manager's interface: → A: ToolProviders already have MCP server URLs in their MCPConfiguration - ToolSynchronizer connects directly to existing ToolProvider MCP servers
 
 ### Clarification Taxonomy Resolution
 
@@ -108,34 +108,69 @@ graph TD
 sequenceDiagram
     participant User
     participant AgentOrchestrator as Agent Orchestrator
+    participant ToolSynchronizer as ToolSynchronizer
     participant TMClient as ToolManagerClient
     participant TMAPI as Tool Manager REST API
     participant MCPServers as ToolProvider MCP Servers
-    participant LangChainMCP as LangChain MCP Client
     participant LangGraph as LangGraph StateGraph
+    participant ToolNode as ToolNode with Wrappers
     participant ToolExecution as Tool Execution
 
     User->>AgentOrchestrator: Submit any prompt
-    AgentOrchestrator->>TMClient: Query ALL available tools
-    TMClient->>TMAPI: GET /tool-providers (enabled=true)
-    TMAPI-->>TMClient: List of ToolProviders with MCP URLs
-    TMClient->>TMAPI: GET /tools (enabled=true)
-    TMAPI-->>TMClient: List of available Tools with enabled status
-    TMClient-->>AgentOrchestrator: Tool metadata + MCP server URLs
+    AgentOrchestrator->>ToolSynchronizer: synchronize_tools()
 
-    AgentOrchestrator->>LangChainMCP: Connect to ToolProvider MCP servers
-    LangChainMCP->>MCPServers: get_tools() via MCP protocol
-    MCPServers-->>LangChainMCP: MCP tool definitions
-    LangChainMCP-->>AgentOrchestrator: LangGraph BaseTools (filtered by enabled status)
+    Note over ToolSynchronizer: Tool Availability Checking & Validation
+    ToolSynchronizer->>TMClient: get_all_tool_providers()
+    TMClient->>TMAPI: GET /tool-providers
+    TMAPI-->>TMClient: All ToolProviders (enabled & disabled)
+    ToolSynchronizer->>TMClient: get_all_tools()
+    TMClient->>TMAPI: GET /tools
+    TMAPI-->>TMClient: All Tools (enabled & disabled)
 
-    AgentOrchestrator->>LangGraph: Initialize StateGraph with tools and prompt
+    ToolSynchronizer->>MCPServers: Check provider connectivity
+    alt Provider Available
+        MCPServers-->>ToolSynchronizer: Provider tools available
+        Note over ToolSynchronizer: Re-enable if previously disabled ERROR provider
+        ToolSynchronizer->>TMClient: update_tool_provider_status(AVAILABLE)
+    else Provider Unavailable
+        MCPServers-->>ToolSynchronizer: Connection failed
+        Note over ToolSynchronizer: Disable provider if enabled
+        ToolSynchronizer->>TMClient: update_tool_provider_status(ERROR)
+    end
+
+    Note over ToolSynchronizer: Update tool availability status
+    ToolSynchronizer->>TMClient: update_tool_status(missing tools → MISSING)
+    ToolSynchronizer->>TMClient: update_tool_status(recovered tools → AVAILABLE)
+
+    ToolSynchronizer-->>AgentOrchestrator: Filtered & enhanced BaseTools
+
+    AgentOrchestrator->>LangGraph: Initialize StateGraph with validated tools and prompt
 
     LangGraph->>LangGraph: Tool selection based on prompt
 
     alt Tool execution required
-        LangGraph->>ToolExecution: Execute selected tool with arguments
-        ToolExecution-->>LangGraph: Tool execution result
-        LangGraph->>LangGraph: Continue processing with tool results
+        LangGraph->>ToolNode: Execute selected tool with arguments
+        Note over ToolNode: Tool Execution with Retry & Failure Handling
+
+        loop Retry up to 3 times
+            ToolNode->>ToolExecution: Attempt tool execution
+            alt Tool Success
+                ToolExecution-->>ToolNode: Tool result
+                ToolNode-->>LangGraph: Successful tool result
+            else Tool Failure
+                ToolExecution-->>ToolNode: Execution error
+                alt Retries Remaining
+                    Note over ToolNode: Exponential backoff retry
+                else Max Retries Exceeded
+                    Note over ToolNode: Disable tool after persistent failure
+                    ToolNode->>TMClient: update_tool_status(tool_id, ERROR, error_message)
+                    TMClient->>TMAPI: PATCH /tools/{tool_id} (enabled=false, status=ERROR)
+                    ToolNode-->>LangGraph: Structured error response
+                end
+            end
+        end
+
+        LangGraph->>LangGraph: Continue processing with tool results/errors
     else No tool needed
         LangGraph->>LangGraph: Process with general capabilities
     end
@@ -143,9 +178,9 @@ sequenceDiagram
     LangGraph-->>AgentOrchestrator: Final response
     AgentOrchestrator-->>User: Structured response with tool results
 
-    Note over TMClient,TMAPI: Error handling for API failures
-    Note over LangChainMCP,MCPServers: Direct MCP connection to existing servers
-    Note over ToolExecution: Timeout and validation handling
+    Note over TMClient,TMAPI: Retry with exponential backoff for API failures
+    Note over ToolSynchronizer: Comprehensive tool availability validation before execution
+    Note over ToolNode: Automatic tool disable on persistent execution failures
 ```
 
 ---

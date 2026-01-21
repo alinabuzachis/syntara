@@ -148,13 +148,13 @@
 ### Decision: Filter BaseTools by Tool.enabled field after MCP retrieval
 **Rationale**:
 - ToolManagerClient provides Tool.enabled metadata for filtering decisions
-- LangChain MCP client retrieves all BaseTools from ToolProvider MCP servers
+- ToolSynchronizer retrieves all BaseTools from ToolProvider MCP servers
 - Filter BaseTools list based on corresponding Tool.enabled field from REST API
 - Maintains clean separation: MCP for tool retrieval, REST API for enablement status
 
 **Implementation approach**:
 - Tool Manager Client fetches ToolProviders (with MCP URLs) and Tools (with enabled status)
-- LangChain MCP Client connects to ToolProvider MCP server URLs to get all BaseTools
+- ToolSynchronizer connects to ToolProvider MCP server URLs to get all BaseTools
 - Filter BaseTools array by matching against Tool.enabled field from REST API response
 - Provide filtered BaseTools list to LangGraph StateGraph
 

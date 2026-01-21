@@ -31,7 +31,7 @@
 - Phase 3-4: Implementation execution (manual or via tools)
 
 ## Summary
-Integrate Tool Manager with Agent Orchestrator to enable dynamic tool discovery and execution through LangGraph StateGraph. The orchestrator will retrieve enabled ToolProviders (with MCP server URLs from MCPConfiguration) and enabled Tools via REST API, use LangChain's native MCP client to connect to ToolProvider MCP servers to retrieve BaseTools, filter BaseTools by enabled Tool status, and provide filtered tools to LangGraph StateGraph for LLM-based tool selection and execution during agent invocations.
+Integrate Tool Manager with Agent Orchestrator to enable dynamic tool discovery and execution through LangGraph StateGraph. The orchestrator will retrieve enabled ToolProviders (with MCP server URLs from MCPConfiguration) and enabled Tools via REST API, use ToolSynchronizer to connect to ToolProvider MCP servers to retrieve BaseTools, filter BaseTools by enabled Tool status, and provide filtered tools to LangGraph StateGraph for LLM-based tool selection and execution during agent invocations.
 
 ## Implementation Plan Architecture
 
@@ -47,7 +47,7 @@ flowchart TD
         TM[Tool Manager REST API]
         CLIENT[Tool Manager Client]
         MCP_SERVERS[ToolProvider MCP Servers]
-        LMCP[LangChain MCP Client]
+        TS[ToolSynchronizer]
         AO[Agent Orchestrator]
         LG[LangGraph StateGraph]
     end
@@ -67,10 +67,10 @@ flowchart TD
     %% System Flow
     TM --> CLIENT
     CLIENT --> AO
-    AO --> LMCP
-    LMCP --> MCP_SERVERS
-    MCP_SERVERS --> LMCP
-    LMCP --> AO
+    AO --> TS
+    TS --> MCP_SERVERS
+    MCP_SERVERS --> TS
+    TS --> AO
     AO --> LG
     AO --> CLIENT
 
@@ -88,10 +88,10 @@ flowchart TD
     %% Data Flow Labels
     TM -.->|"ToolProviderWithConfiguration<br/>ToolWithParameters"| CLIENT
     CLIENT -.->|"ToolWithParameters + MCP URLs"| AO
-    AO -.->|"Connect to MCP URLs"| LMCP
-    LMCP -.->|"MCP Protocol"| MCP_SERVERS
-    MCP_SERVERS -.->|"BaseTool[]"| LMCP
-    LMCP -.->|"BaseTool[] (filtered)"| AO
+    AO -.->|"Connect to MCP URLs"| TS
+    TS -.->|"MCP Protocol"| MCP_SERVERS
+    MCP_SERVERS -.->|"BaseTool[]"| TS
+    TS -.->|"BaseTool[] (filtered)"| AO
     AO -.->|"Filtered BaseTools"| LG
     AO -.->|"Error Reporting"| CLIENT
     CLIENT -.->|"refresh_error"| TM
@@ -263,7 +263,7 @@ ios/ or android/
 
 **Section 2 - AAP-60416: Agent Orchestrator Integration**  
 - Tool discovery integration tasks via ToolManagerClient
-- LangChain native MCP client integration tasks to connect to ToolProvider MCP servers
+- ToolSynchronizer integration tasks to connect to ToolProvider MCP servers
 - Tool filtering by enabled status tasks (filter BaseTools by Tool.enabled field)
 - Client library integration into orchestrator tasks
 - Runtime tool enablement checking tasks
