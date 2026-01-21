@@ -50,10 +50,13 @@ export function IntegrationForm() {
           validateIntegration(
             { params: { path: { provider_id: providerId } } },
             {
-              onError: handleError({
-                title: 'Integration created, but validation failed',
-                context: toolProvider.name ? `Integration "${toolProvider.name}"` : undefined,
-              }),
+              onError: (error) => {
+                handleError({
+                  title: 'Integration created, but validation failed',
+                  context: toolProvider.name ? `Integration "${toolProvider.name}"` : undefined,
+                })(error)
+                navigate(AppRoute.Configuration.Integrations.Root)
+              },
               onSuccess: () => {
                 refreshTools(
                   { params: { path: { provider_id: providerId } } },
@@ -62,7 +65,7 @@ export function IntegrationForm() {
                       title: 'Integration created, but refreshing tools failed',
                       context: toolProvider.name ? `Integration "${toolProvider.name}"` : undefined,
                     }),
-                    onSuccess: () => navigate(AppRoute.Configuration.Integrations.Root),
+                    onSettled: () => navigate(AppRoute.Configuration.Integrations.Root),
                   }
                 )
               },

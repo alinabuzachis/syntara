@@ -229,8 +229,8 @@ describe('IntegrationForm Component', () => {
 
       // Setup refresh mutation to call onSettled callback
       mockRefreshMutate.mockImplementation((variables, options) => {
-        if (options?.onSuccess) {
-          options.onSuccess()
+        if (options?.onSettled) {
+          options.onSettled()
         }
       })
 
@@ -257,7 +257,7 @@ describe('IntegrationForm Component', () => {
         // Verify refresh-tools was called with the provider ID
         expect(mockRefreshMutate).toHaveBeenCalledWith(
           { params: { path: { provider_id: mockProviderId } } },
-          expect.objectContaining({ onSuccess: expect.any(Function) })
+          expect.objectContaining({ onSettled: expect.any(Function) })
         )
       })
     })
@@ -281,8 +281,8 @@ describe('IntegrationForm Component', () => {
       })
 
       mockRefreshMutate.mockImplementation((variables, options) => {
-        if (options?.onSuccess) {
-          options.onSuccess()
+        if (options?.onSettled) {
+          options.onSettled()
         }
       })
 

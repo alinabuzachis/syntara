@@ -63,6 +63,7 @@ export default function IntegrationTools() {
       { params: { path: { provider_id } } },
       {
         onSuccess: () => {
+          setRefreshDialogOpen(false)
           showAlert({
             title: 'Tools refreshed',
             description: `Tools for "${provider.name}" have been refreshed successfully.`,
@@ -72,6 +73,7 @@ export default function IntegrationTools() {
           void query.refetch()
         },
         onError: (error) => {
+          setRefreshDialogOpen(false)
           showAlert({
             title: 'Refresh failed',
             description: `Failed to refresh tools for "${provider.name}": ${getErrorMessage(error)}`,
