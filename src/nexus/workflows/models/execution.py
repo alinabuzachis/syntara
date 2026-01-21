@@ -17,11 +17,18 @@ from sqlmodel import CheckConstraint, Column, DateTime, Field, Index, Relationsh
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import ResourcesResponse, SoftDeletableResource, UserOwnedResource
 from nexus.core.utils.sqlmodel import postgres_enum_column
+from nexus.workflows.models.activity_execution import ActivityExecution
 
 if TYPE_CHECKING:
-    from nexus.workflows.models.activity_execution import ActivityExecution
     from nexus.workflows.models.workflow import Workflow
     from nexus.workflows.models.workflow_version import WorkflowVersion
+
+
+class ExecutionInclude(str, Enum):
+    """Valid include values for execution endpoints."""
+
+    WORKFLOW_DEFINITION = "workflow_definition"
+    ACTIVITIES = "activities"
 
 
 class ExecutionStatus(str, Enum):
@@ -174,7 +181,7 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         sa_relationship_kwargs={"foreign_keys": "[Execution.workflow_version_id]"},
     )
 
-    activities: list["ActivityExecution"] = Relationship(back_populates="execution")
+    activities: list[ActivityExecution] = Relationship(back_populates="execution")
 
     # Note: creator and updater relationships inherited from UserOwnedResource
     # creator = User who started the execution (created_by)
@@ -231,6 +238,16 @@ class CurrentActivity(SQLModel):
     iteration: int | None = Field(None, description="Iteration number for loops")
 
 
+class ActivityData(SQLModel):
+    """Activity data for execution response."""
+
+    activity_id: str
+    status: str
+    error_details: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+
+
 class ExecutionRead(SQLModel):
     """Schema for execution response (GET /executions/{id}).
 
@@ -257,6 +274,20 @@ class ExecutionRead(SQLModel):
     )
     deleted_at: datetime | None = None
     deleted_by: UUID | None = None
+
+    # Optional: Only populated when ?include=workflow_definition
+    workflow_definition: dict[str, Any] | None = Field(
+        default=None,
+        description="Workflow definition from the executed version. "
+        "Only included when requested via ?include=workflow_definition query parameter.",
+    )
+
+    # Optional: Only populated when ?include=activities
+    activities: list[ActivityData] | None = Field(
+        default=None,
+        description="List of activities with their current status. "
+        "Only included when requested via ?include=activities query parameter.",
+    )
 
 
 # ============================================================================

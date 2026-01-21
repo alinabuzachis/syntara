@@ -396,17 +396,11 @@ paths:
           in: query
           required: false
           schema:
-            type: array
-            items:
-              type: string
-              enum: [workflow_definition, activities]
-          style: form
-          explode: true
+            type: string
           description: |
-            Optional fields to include in the response.
-            - `workflow_definition`: Include workflow definition for graph building
-            - `activities`: Include activities list with current status
-          example: [workflow_definition, activities]
+            Comma-separated list of related data to include in the response.
+            Valid values: workflow_definition, activities
+          example: workflow_definition,activities
       responses:
         '200':
           description: Execution details with optional includes

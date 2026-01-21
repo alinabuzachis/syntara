@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import yaml
+from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -22,8 +23,15 @@ from nexus.workflows.exceptions import (
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
+from nexus.workflows.models import ExecutionInclude
 from nexus.workflows.models.activity_execution import ActivityExecution
-from nexus.workflows.models.execution import Execution, ExecutionListResponse, ExecutionRead, ExecutionStatus
+from nexus.workflows.models.execution import (
+    ActivityData,
+    Execution,
+    ExecutionListResponse,
+    ExecutionRead,
+    ExecutionStatus,
+)
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.utils.temporal import sync_execution_status_from_temporal
@@ -35,9 +43,50 @@ logger = logging.getLogger(__name__)
 class ExecutionsConvertResourceMixin(ConvertResourceMixin):
     """Execution-specific resource conversion to ExecutionRead format."""
 
+    def __init__(self, include: set[ExecutionInclude] | None = None) -> None:
+        """Initialize ExecutionsConvertResourceMixin with optional include parameter."""
+        super().__init__()
+        self.include = include
+
     def convert_resource(self, resource: Execution) -> ExecutionRead:  # type: ignore[override]
         """Convert Execution to ExecutionRead format."""
-        return ExecutionRead.model_validate(resource)
+        result = ExecutionRead(
+            id=resource.id,
+            workflow_id=resource.workflow_id,
+            workflow_version_id=resource.workflow_version_id,
+            temporal_workflow_id=resource.temporal_workflow_id,
+            status=resource.status,
+            created_by=resource.created_by,
+            created_at=resource.created_at,
+            completed_at=resource.completed_at,
+            updated_at=resource.updated_at,
+            updated_by=resource.updated_by,
+            input_data=resource.input_data,
+            error_details=resource.error_details,
+            labels=resource.labels,
+            deleted_at=resource.deleted_at,
+            deleted_by=resource.deleted_by,
+        )
+
+        if self.include and len(self.include) > 0:
+            # Only include workflow_definition if explicitly requested
+            if ExecutionInclude.WORKFLOW_DEFINITION in self.include:
+                result.workflow_definition = resource.workflow_version.workflow_definition
+
+            # Only include activities if explicitly requested
+            if ExecutionInclude.ACTIVITIES in self.include:
+                result.activities = [
+                    ActivityData(
+                        activity_id=activity.activity_name,
+                        status=activity.status.value if activity.status else "unknown",
+                        error_details=activity.error_details,
+                        started_at=activity.started_at,
+                        completed_at=activity.completed_at,
+                    )
+                    for activity in resource.activities
+                ]
+
+        return result
 
 
 class ExecutionsPostProcessingMixin(PostProcessingMixin):
@@ -103,7 +152,7 @@ class ExecutionService(BaseService):
         self,
         workflow_id: UUID,
         input_data: dict[str, Any],
-    ) -> Execution:
+    ) -> ExecutionRead:
         """Create and start a new workflow execution.
 
         This follows a two-phase creation process:
@@ -204,9 +253,9 @@ class ExecutionService(BaseService):
             execution.temporal_workflow_id,
         )
 
-        return execution
+        return self.convert_resource_mixin.convert_resource(execution)  # type: ignore[no-any-return]
 
-    async def get_execution(self, execution_id: UUID) -> Execution:
+    async def get_execution(self, execution_id: UUID, *, include: set[ExecutionInclude] | None = None) -> ExecutionRead:
         """Get an execution by ID.
 
         Always syncs execution status from Temporal before returning to ensure
@@ -214,17 +263,29 @@ class ExecutionService(BaseService):
 
         Args:
             execution_id: Execution ID
+            include: Optional set of related data to include (workflow_definition, activities)
 
         Returns:
-            Execution object with current status from Temporal
+            ExecutionRead object with current status from Temporal
 
         Raises:
             ExecutionNotFoundError: If execution not found
 
         """
-        result = await self.session.exec(
-            select(Execution).where(Execution.id == execution_id).where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
-        )
+        # Build query with conditional eager loading based on include parameter
+        query = select(Execution).where(Execution.id == execution_id).where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
+
+        # Eagerly load workflow_version if workflow_definition is requested
+        if include and ExecutionInclude.WORKFLOW_DEFINITION in include:
+            # Type ignore needed for SQLAlchemy/SQLModel relationship typing
+            query = query.options(selectinload(Execution.workflow_version))  # type: ignore[arg-type]
+
+        # Eagerly load activities if activities is requested
+        if include and ExecutionInclude.ACTIVITIES in include:
+            # Type ignore needed for SQLAlchemy/SQLModel relationship typing
+            query = query.options(selectinload(Execution.activities))  # type: ignore[arg-type]
+
+        result = await self.session.exec(query)
         execution = result.one_or_none()
 
         if execution is None:
@@ -236,7 +297,9 @@ class ExecutionService(BaseService):
                 execution, self.temporal_service, session=self.session, persist=True
             )
 
-        return execution
+        # We need to use an "include"-aware instance of ExecutionsConvertResourceMixin
+        mixin: ExecutionsConvertResourceMixin = ExecutionsConvertResourceMixin(include)
+        return mixin.convert_resource(execution)
 
     async def list_executions(
         self,

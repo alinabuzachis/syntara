@@ -133,7 +133,7 @@ The following backend components have been implemented in commit 19adab46:
 
 ### Phase B2: REST API Extension (TODO)
 
-- [ ] **B007** Extend ExecutionRead schema with optional workflow_definition and activities
+- [X] **B007** Extend ExecutionRead schema with optional workflow_definition and activities
   - File: `src/nexus/workflows/models/execution.py`
   - Add `ActivityData` model: activity_id, status, error_details, started_at, completed_at
   - Add optional `workflow_definition: dict[str, Any] | None` field to `ExecutionRead`

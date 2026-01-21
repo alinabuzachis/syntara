@@ -16,7 +16,7 @@ Usage:
 """
 
 from .activity_execution import ActivityExecution, ActivityStatus
-from .execution import Execution, ExecutionListResponse, ExecutionStatus
+from .execution import Execution, ExecutionInclude, ExecutionListResponse, ExecutionStatus
 from .query_params import ExecutionListParams, WorkflowListParams
 from .signal import ActivitySignalPayload, SignalResponse
 from .workflow import (
@@ -34,6 +34,7 @@ __all__ = [
     "ActivitySignalPayload",
     "ActivityStatus",
     "Execution",
+    "ExecutionInclude",
     "ExecutionListParams",
     "ExecutionListResponse",
     "ExecutionStatus",

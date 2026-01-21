@@ -20,11 +20,11 @@ from nexus.workflows.exceptions import (
 from nexus.workflows.models import ActivitySignalPayload, ExecutionListParams, SignalResponse
 from nexus.workflows.models.activity_execution import ActivityExecution
 from nexus.workflows.models.execution import (
-    Execution,
     ExecutionCreate,
     ExecutionListResponse,
     ExecutionRead,
 )
+from nexus.workflows.models.query_params import ExecutionIncludeParams
 from nexus.workflows.services import ExecutionService
 from nexus.workflows.workflow_engine.services.temporal_execution_service import (
     TemporalExecutionService,
@@ -124,12 +124,12 @@ async def list_executions(
         ) from e
 
 
-@router.post("", response_model=ExecutionRead, status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def create_execution(
     request: ExecutionCreate,
     service: Annotated[ExecutionService, Depends(get_execution_service)],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> Execution:
+) -> ExecutionRead:
     """Create and start a new workflow execution.
 
     This endpoint follows a two-phase creation process:
@@ -160,10 +160,12 @@ async def create_execution(
     )
 
     try:
-        return await service.create_execution(
+        execution: ExecutionRead = await service.create_execution(
             workflow_id=request.workflow_id,
             input_data=request.input_data,
         )
+        return execution
+
     except WorkflowNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -182,15 +184,17 @@ async def create_execution(
         ) from e
 
 
-@router.get("/{execution_id}", response_model=ExecutionRead)
+@router.get("/{execution_id}")
 async def get_execution(
     execution_id: UUID,
+    include_params: Annotated[ExecutionIncludeParams, Query()],
     service: Annotated[ExecutionService, Depends(get_execution_service)],
-) -> Execution:
+) -> ExecutionRead:
     """Get an execution by ID.
 
     Args:
         execution_id: Execution ID
+        include_params: Include parameters (validated by Pydantic)
         service: Execution service (injected by FastAPI)
 
     Returns:
@@ -201,7 +205,9 @@ async def get_execution(
 
     """
     try:
-        return await service.get_execution(execution_id)
+        include_set = include_params.get_include_set()
+        return await service.get_execution(execution_id, include=include_set)
+
     except ExecutionNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

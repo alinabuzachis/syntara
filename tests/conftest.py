@@ -12,7 +12,7 @@ import os
 import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -46,7 +46,7 @@ from nexus.files.models import FileMetadata
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
 from nexus.tool_manager.models import Tool, ToolProvider
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
-from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.models import ActivityExecution, ActivityStatus, Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
@@ -631,12 +631,45 @@ async def test_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
 
 
 @pytest_asyncio.fixture
-async def test_workflow(test_db_session: AsyncSession, test_user: "User") -> "Workflow":
+async def test_workflow_definition() -> dict[str, Any]:
+    """Create a test workflow definition."""
+    return {
+        "schemaVersion": "1.0.0",
+        "version": 1,
+        "metadata": {
+            "name": "test-workflow",
+            "description": "Test workflow",
+        },
+        "triggers": [
+            {
+                "type": "manual",
+            }
+        ],
+        "workflow": {
+            "activities": [
+                {
+                    "id": "test_activity",
+                    "name": "test_activity",
+                    "type": "task",
+                    "executor": "script",
+                    "language": "bash",
+                    "script": "echo 'test'",
+                }
+            ],
+        },
+    }
+
+
+@pytest_asyncio.fixture
+async def test_workflow(
+    test_db_session: AsyncSession, test_user: "User", test_workflow_definition: dict[str, Any]
+) -> "Workflow":
     """Create a test workflow with version.
 
     Args:
         test_db_session: Test database session
         test_user: Test user
+        test_workflow_definition: Test Workflow definition
 
     Returns:
         Workflow: Test workflow instance
@@ -655,31 +688,7 @@ async def test_workflow(test_db_session: AsyncSession, test_user: "User") -> "Wo
         workflow_id=workflow.id,
         version=1,
         schema_version="1.0.0",
-        workflow_definition={
-            "schemaVersion": "1.0.0",
-            "version": 1,
-            "metadata": {
-                "name": "test-workflow",
-                "description": "Test workflow",
-            },
-            "triggers": [
-                {
-                    "type": "manual",
-                }
-            ],
-            "workflow": {
-                "activities": [
-                    {
-                        "id": "test_activity",
-                        "name": "test_activity",
-                        "type": "task",
-                        "executor": "script",
-                        "language": "bash",
-                        "script": "echo 'test'",
-                    }
-                ],
-            },
-        },
+        workflow_definition=test_workflow_definition,
         created_by=test_user.id,
     )
     test_db_session.add(version)
@@ -720,6 +729,54 @@ async def test_execution(test_db_session: AsyncSession, test_user: "User", test_
     test_db_session.add(execution)
     await test_db_session.commit()
     return execution
+
+
+@pytest_asyncio.fixture
+async def test_activity_definition() -> dict[str, Any]:
+    """Create a test workflow activity definition."""
+    return {
+        "id": "test_activity",
+        "type": "task",
+        "task": {"executor": "script", "config": {"code": "print('test')"}},
+    }
+
+
+@pytest_asyncio.fixture
+async def test_activity(
+    test_db_session: AsyncSession, test_execution: Execution, test_activity_definition: dict[str, Any]
+) -> "ActivityExecution":
+    """Create a test workflow activity.
+
+    Args:
+        test_db_session: Test database session
+        test_execution: Test Execution
+        test_activity_definition: Test ActivityExecution definition
+
+    Returns:
+        ActivityExecution: Test workflow instance
+
+    """
+    now = datetime.now(UTC)
+
+    activity = ActivityExecution(
+        execution_id=test_execution.id,
+        activity_name=test_activity_definition.get("id"),
+        temporal_activity_id="temporal-123",
+        status=ActivityStatus.COMPLETED,
+        activity_definition=test_activity_definition,
+        labels={"environment": "test"},
+        started_at=now,
+        completed_at=now,
+        input_data={"param": "value"},
+        output_data={"result": "success"},
+        error_details=None,
+        retry_count=0,
+        iteration=None,
+    )
+
+    test_db_session.add(activity)
+    await test_db_session.commit()
+    return activity
 
 
 @pytest_asyncio.fixture

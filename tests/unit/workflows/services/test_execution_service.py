@@ -193,7 +193,7 @@ class TestCreateExecution:
         )
 
         # Verify
-        assert isinstance(result, Execution)
+        assert isinstance(result, ExecutionRead)
         assert result.id == temporal_execution_id
         assert result.workflow_id == workflow_id
         assert result.workflow_version_id == version_id
@@ -315,42 +315,31 @@ class TestGetExecution:
     """Test get_execution method."""
 
     @pytest.mark.asyncio
-    async def test_get_execution_success_without_temporal(self) -> None:
+    async def test_get_execution_success_without_temporal(self, test_execution: Execution) -> None:
         """Test successfully retrieving an execution without Temporal sync."""
         mock_session = Mock(spec=AsyncSession)
 
-        execution_id = uuid4()
-        execution = Mock(spec=Execution)
-        execution.id = execution_id
-
         mock_result = Mock()
-        mock_result.one_or_none = Mock(return_value=execution)
+        mock_result.one_or_none = Mock(return_value=test_execution)
         mock_session.exec = AsyncMock(return_value=mock_result)
 
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
-        result = await service.get_execution(execution_id)
+        result = await service.get_execution(test_execution.id)
 
-        assert result is execution
+        assert isinstance(result, ExecutionRead)
         mock_session.exec.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_get_execution_success_with_temporal_sync(self) -> None:
+    async def test_get_execution_success_with_temporal_sync(self, test_execution: Execution) -> None:
         """Test retrieving execution syncs status from Temporal."""
         mock_session = Mock(spec=AsyncSession)
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
 
-        execution_id = uuid4()
-        execution = Mock(spec=Execution)
-        execution.id = execution_id
-        execution.status = ExecutionStatus.RUNNING
-        execution.temporal_workflow_id = "exec-123"
-        execution.created_at = datetime.now(UTC)
-
         mock_result = Mock()
-        mock_result.one_or_none = Mock(return_value=execution)
+        mock_result.one_or_none = Mock(return_value=test_execution)
         mock_session.exec = AsyncMock(return_value=mock_result)
 
         # Mock Temporal service
@@ -363,9 +352,9 @@ class TestGetExecution:
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=mock_temporal)
 
-        result = await service.get_execution(execution_id)
+        result = await service.get_execution(test_execution.id)
 
-        assert result is execution
+        assert isinstance(result, ExecutionRead)
         # Verify status was synced from Temporal
         mock_temporal.get_workflow_status.assert_awaited_once()
         mock_session.commit.assert_awaited_once()
@@ -839,18 +828,14 @@ class TestGetExecutionActivities:
     """Test get_execution_activities method."""
 
     @pytest.mark.asyncio
-    async def test_get_execution_activities_no_temporal(self) -> None:
+    async def test_get_execution_activities_no_temporal(self, test_execution: Execution) -> None:
         """Test getting activities returns empty list when Temporal is unavailable."""
         mock_session = Mock(spec=AsyncSession)
         mock_user = Mock(spec=User)
 
-        execution_id = uuid4()
-        execution = Mock(spec=Execution)
-        execution.id = execution_id
-
         # Mock get_execution query (first exec call)
         mock_execution_result = Mock()
-        mock_execution_result.one_or_none = Mock(return_value=execution)
+        mock_execution_result.one_or_none = Mock(return_value=test_execution)
 
         # Mock activities query (second exec call)
         mock_activities_result = Mock()
@@ -861,7 +846,7 @@ class TestGetExecutionActivities:
 
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
-        result = await service.get_execution_activities(execution_id)
+        result = await service.get_execution_activities(test_execution.id)
 
         assert result == []
 
@@ -886,16 +871,9 @@ class TestGetExecutionActivities:
         assert exc_info.value.execution_id == execution_id
 
     @pytest.mark.asyncio
-    async def test_get_execution_activities_success(self) -> None:
+    async def test_get_execution_activities_success(self, test_execution: Execution) -> None:
         """Test successfully getting activities from database."""
         mock_session = Mock(spec=AsyncSession)
-
-        execution_id = uuid4()
-        execution = Mock(spec=Execution)
-        execution.id = execution_id
-        execution.status = ExecutionStatus.RUNNING
-        execution.temporal_workflow_id = "exec-123"
-        execution.created_at = datetime.now(UTC)
 
         activity = Mock()
         activity.id = uuid4()
@@ -905,7 +883,7 @@ class TestGetExecutionActivities:
         activity.retry_count = 0
 
         mock_execution_result = Mock()
-        mock_execution_result.one_or_none = Mock(return_value=execution)
+        mock_execution_result.one_or_none = Mock(return_value=test_execution)
         mock_activities_result = Mock()
         mock_activities_result.all = Mock(return_value=[activity])
 
@@ -914,7 +892,7 @@ class TestGetExecutionActivities:
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
-        result = await service.get_execution_activities(execution_id)
+        result = await service.get_execution_activities(test_execution.id)
 
         assert len(result) == 1
         assert result[0].activity_name == "activity-1"
@@ -923,16 +901,9 @@ class TestGetExecutionActivities:
         assert result[0].retry_count == 0
 
     @pytest.mark.asyncio
-    async def test_get_execution_activities_incremental_sync(self) -> None:
+    async def test_get_execution_activities_incremental_sync(self, test_execution: Execution) -> None:
         """Test getting multiple activities from database."""
         mock_session = Mock(spec=AsyncSession)
-
-        execution_id = uuid4()
-        execution = Mock(spec=Execution)
-        execution.id = execution_id
-        execution.status = ExecutionStatus.RUNNING
-        execution.temporal_workflow_id = "exec-123"
-        execution.created_at = datetime.now(UTC)
 
         activity1 = Mock()
         activity1.id = uuid4()
@@ -947,7 +918,7 @@ class TestGetExecutionActivities:
         activity2.status = ActivityStatus.RUNNING
 
         mock_execution_result = Mock()
-        mock_execution_result.one_or_none = Mock(return_value=execution)
+        mock_execution_result.one_or_none = Mock(return_value=test_execution)
         mock_activities_result = Mock()
         mock_activities_result.all = Mock(return_value=[activity1, activity2])
 
@@ -956,7 +927,7 @@ class TestGetExecutionActivities:
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
-        result = await service.get_execution_activities(execution_id)
+        result = await service.get_execution_activities(test_execution.id)
 
         assert len(result) == 2
         assert result[0].activity_name == "activity-1"
