@@ -12,7 +12,7 @@ import {
   Stack,
   StackItem,
 } from '@patternfly/react-core'
-import { RhUiListIcon, RhUiEditFillIcon, RhUiPlayFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiListIcon, RhUiEditFillIcon, RhUiPlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useReducer } from 'react'
@@ -157,7 +157,7 @@ export default function Automations() {
       },
     },
     {
-      title: <IconLabel icon={<RhUiPlayFillIcon />}>Run automation</IconLabel>,
+      title: <IconLabel icon={<RhUiPlayIcon />}>Run automation</IconLabel>,
       onClick: () => {
         dispatch({ type: 'OPEN_CONFIRM_DIALOG', payload: workflow })
       },

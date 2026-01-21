@@ -2,7 +2,8 @@ import {
   RhUiRobotIcon,
   RhUiBranchFillIcon,
   RhUiCodeIcon,
-  RhUiPlayFillIcon,
+  RhUiCalendarIcon,
+  RhUiPlayIcon,
   RhUiPlugFillIcon,
   RhUiServerFillIcon,
   RhUiSyncIcon,
@@ -24,7 +25,13 @@ export interface NodeMetadata {
 
 export const nodeMetadata: Record<string, NodeMetadata> = {
   trigger: {
-    icon: RhUiPlayFillIcon,
+    icon: RhUiPlayIcon,
+    label: 'Trigger',
+    disableTarget: true,
+    expandable: false,
+  },
+  scheduledTrigger: {
+    icon: RhUiCalendarIcon,
     label: 'Trigger',
     disableTarget: true,
     expandable: false,

@@ -18,7 +18,8 @@ export type TriggerNode = { type: 'trigger' } & Node<{
 }>
 
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
-  const metadata = nodeMetadata.trigger
+  const { type: triggerType, details: triggerDetails } = parseTriggerLabel(props.data.label)
+  const metadata = triggerType === 'Scheduled' ? nodeMetadata.scheduledTrigger : nodeMetadata.trigger
   const Icon = metadata.icon!
   const triggerStyle: CSSProperties = {
     borderTopLeftRadius: '75px',
@@ -41,7 +42,13 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
       nodeProps={props}
       style={triggerStyle}
     >
-      <TriggerNodeDetails node={props.data} icon={<Icon />} menuActions={menuActions} />
+      <TriggerNodeDetails
+        node={props.data}
+        icon={<Icon />}
+        menuActions={menuActions}
+        triggerType={triggerType}
+        triggerDetails={triggerDetails}
+      />
     </NodeComponent>
   )
 }
@@ -54,10 +61,10 @@ export function TriggerNodeDetails(
     }
     icon?: React.ReactNode
     menuActions?: ReturnType<typeof useNodeMenuActions>
+    triggerType: string
+    triggerDetails: string | null
   }>
 ) {
-  const nodeData = props.node
-  const { type, details } = parseTriggerLabel(nodeData.label)
   return (
     <>
       <NodeHeader>
@@ -72,14 +79,16 @@ export function TriggerNodeDetails(
       <NodeBody>
         <div>
           <Title headingLevel="h3" size={TitleSizes.md}>
-            {type}
+            {props.triggerType}
           </Title>
-          {details && (
+          {props.triggerDetails && (
             <Content component={ContentVariants.small} style={{ whiteSpace: 'pre-line' }}>
-              {details}
+              {props.triggerDetails}
             </Content>
           )}
-          {type === 'Manual' && !details && <Content component={ContentVariants.small}>Manual trigger</Content>}
+          {props.triggerType === 'Manual' && !props.triggerDetails && (
+            <Content component={ContentVariants.small}>Manual trigger</Content>
+          )}
         </div>
       </NodeBody>
     </>

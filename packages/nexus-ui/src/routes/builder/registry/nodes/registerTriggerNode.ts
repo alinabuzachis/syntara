@@ -1,4 +1,4 @@
-import { RhUiPlayFillIcon } from '@patternfly/react-icons'
+import { RhUiPlayIcon } from '@patternfly/react-icons'
 
 import {
   createEventTrigger,
@@ -20,7 +20,7 @@ export default function registerTriggerNode() {
       {
         id: 'trigger',
         label: 'Triggers',
-        icon: RhUiPlayFillIcon,
+        icon: RhUiPlayIcon,
         category: 'trigger',
         description: 'Start workflow execution with manual, scheduled, or event triggers',
         keywords: ['start', 'begin', 'manual', 'schedule', 'event', 'webhook'],

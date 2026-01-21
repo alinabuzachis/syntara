@@ -24,7 +24,7 @@ import {
   Tooltip,
 } from '@patternfly/react-core'
 import {
-  RhUiPlayFillIcon,
+  RhUiPlayIcon,
   RhUiHistoryIcon,
   RhUiCodeIcon,
   RhUiSaveFillIcon,
@@ -791,7 +791,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true })}
                     icon={
                       <Icon isInline>
-                        <RhUiPlayFillIcon />
+                        <RhUiPlayIcon />
                       </Icon>
                     }
                     iconPosition="start"

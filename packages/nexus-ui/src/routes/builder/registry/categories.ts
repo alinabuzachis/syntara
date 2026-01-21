@@ -2,7 +2,7 @@ import {
   RhUiRobotIcon,
   RhUiBranchFillIcon,
   RhUiElectricityFillIcon,
-  RhUiPlayFillIcon,
+  RhUiPlayIcon,
   UserCheckIcon,
 } from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
@@ -51,7 +51,7 @@ export const CATEGORY_METADATA: Record<NodeCategory, CategoryMetadata> = {
   trigger: {
     id: NodeCategories.TRIGGER,
     label: 'Triggers',
-    icon: RhUiPlayFillIcon,
+    icon: RhUiPlayIcon,
     description: 'Start workflow execution with manual, scheduled, or event triggers',
     order: 1,
     color: 'blue',
