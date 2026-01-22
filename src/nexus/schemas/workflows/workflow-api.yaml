@@ -123,6 +123,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error (e.g., invalid label types)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /workflows/{workflowId}:
     get:

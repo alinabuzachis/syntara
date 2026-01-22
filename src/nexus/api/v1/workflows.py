@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import ValidationError as PydanticValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.auth import get_current_user
@@ -90,6 +91,11 @@ async def create_workflow(
     except WorkflowNameConflictError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+    except PydanticValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(e),
         ) from e
 

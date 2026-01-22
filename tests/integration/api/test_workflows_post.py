@@ -194,3 +194,30 @@ async def test_post_workflow_with_labels(base_client: AsyncClient) -> None:
     assert "labels" in data
     assert data["labels"]["environment"] == "test"
     assert data["labels"]["team"] == "engineering"
+
+
+@pytest.mark.asyncio
+async def test_post_workflow_with_labels_not_strings(base_client: AsyncClient) -> None:
+    """Test creating a workflow with non-string labels.
+
+    Expected: 422 Unprocessable
+    """
+    workflow_with_labels = {
+        "name": "labeled-workflow",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="labeled-workflow",
+            description="Workflow with labels",
+        ),
+        "labels": {
+            "valid": "value1",
+            "invalid": 1,
+        },
+    }
+
+    response = await base_client.post("/api/v1/workflows", json=workflow_with_labels)
+
+    assert response.status_code == 422
+    data = response.json()
+    assert "detail" in data
+    assert "validation error for Workflow" in data["detail"]
+    assert "labels value for key 'invalid' must be a string" in data["detail"]
