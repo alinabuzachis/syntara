@@ -9,6 +9,8 @@ import {
 import { RhUiUploadIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 
+import { generateUUID } from '../../utils/generateUUID'
+
 import { FileUploadItem, type FileUploadItemProps } from './FileUploadItem'
 
 export interface UploadedFile {
@@ -122,7 +124,7 @@ export function FileUpload({
     const reUploadNames = droppedFiles.filter((file) => currentFileNames.includes(file.name)).map((f) => f.name)
 
     const newFiles: UploadedFile[] = droppedFiles.map((file) => ({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       file,
       progress: 0,
       status: 'pending' as const,

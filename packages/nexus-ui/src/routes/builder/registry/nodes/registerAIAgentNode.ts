@@ -1,6 +1,7 @@
 import { RhUiRobotIcon } from '@patternfly/react-icons'
 
 import { createAgenticActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
+import { generateActivityId } from '../../../../utils/generateUUID'
 import { AIAgentNodeForm } from '../../node-forms/AIAgentNodeForm'
 import type { AIAgentFormData } from '../../node-forms/AIAgentNodeForm'
 import { parseToolsString } from '../../utils/agentHelpers'
@@ -24,7 +25,7 @@ export default function registerAIAgentNode() {
     onSubmit: (data, onSuccess, onError) => {
       try {
         // Generate unique activity ID
-        const activityId = `activity_${crypto.randomUUID().replace(/-/g, '_')}`
+        const activityId = generateActivityId()
 
         // Parse comma-separated tools into array
         const toolsArray = parseToolsString(data.tools)

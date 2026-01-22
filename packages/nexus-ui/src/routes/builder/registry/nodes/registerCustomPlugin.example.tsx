@@ -26,6 +26,7 @@ import {
 import { RhUiNotificationIcon } from '@patternfly/react-icons'
 
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore'
+import { generateActivityId } from '../../../../utils/generateUUID'
 import { NodeRegistry } from '../NodeRegistry'
 import type { BaseNodeFormProps } from '../NodeRegistry'
 
@@ -84,7 +85,7 @@ export function registerNotificationNode() {
         // Create your custom activity based on form data
         const activity = {
           type: 'task' as const,
-          id: `notification_${crypto.randomUUID().replace(/-/g, '_')}`,
+          id: generateActivityId('notification'),
           name: data.name,
           task: {
             executor: 'notification' as any, // You might need to extend the API types

@@ -1,6 +1,7 @@
 import { RhUiElectricityFillIcon } from '@patternfly/react-icons'
 
 import { createApiActivity, createScriptActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
+import { generateActivityId } from '../../../../utils/generateUUID'
 import type { ActionFormData } from '../../hooks/useNodeCreation'
 import { ActionNodeForm } from '../../node-forms/ActionNodeForm'
 import { NodeRegistry } from '../NodeRegistry'
@@ -21,7 +22,7 @@ export default function registerActionNode() {
     onSubmit: (data, onSuccess, onError) => {
       try {
         // Generate unique activity ID
-        const activityId = `activity_${crypto.randomUUID().replace(/-/g, '_')}`
+        const activityId = generateActivityId()
 
         let activity
 

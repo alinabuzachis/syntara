@@ -13,9 +13,11 @@
     "@mswjs/http-middleware": "^0.10.3",
     "js-yaml": "^4.1.0",
     "msw": "^2.11.6",
-    "tsx": "^4.20.6"
+    "tsx": "^4.20.6",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "@types/js-yaml": "^4.0.9"
+    "@types/js-yaml": "^4.0.9",
+    "@types/uuid": "^10.0.0"
   }
 }

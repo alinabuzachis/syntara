@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw'
+import { v4 as uuidv4 } from 'uuid'
 import type * as ToolManagerAPI from '@ansible/nexus-contracts/src/tool-manager.js'
 import type * as WorkflowAPI from '@ansible/nexus-contracts/src/workflow-api.js'
 import type { ToolProvider, WorkflowsResponse, Tool, Execution } from '@ansible/nexus-contracts'
@@ -342,7 +343,7 @@ export const handlers = [
     const files = formData.getAll('files') as File[]
 
     const fileResponses = files.map((file) => ({
-      file_id: crypto.randomUUID(),
+      file_id: uuidv4(),
       filename: file.name,
       size_bytes: file.size,
       mime_type: file.type || 'application/octet-stream',

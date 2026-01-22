@@ -8,6 +8,7 @@ import {
   createScriptActivity,
   useWorkflowStoreActions,
 } from '../../../stores/useWorkflowStore'
+import { generateActivityId } from '../../../utils/generateUUID'
 
 export interface TriggerFormData {
   name: string
@@ -65,7 +66,7 @@ export function useNodeCreation(onSuccess: () => void) {
     (data: ActionFormData) => {
       // Generate a unique ID for the activity that matches pattern ^[a-zA-Z_][a-zA-Z0-9_]*$
       // Convert UUID to valid identifier by removing dashes and prefixing with 'activity_'
-      const activityId = `activity_${crypto.randomUUID().replace(/-/g, '_')}`
+      const activityId = generateActivityId()
 
       let activity
 

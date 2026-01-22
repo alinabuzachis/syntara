@@ -1,5 +1,6 @@
 import type { Activity } from '@ansible/nexus-contracts'
 
+import { generateUUID } from '../../../../utils/generateUUID'
 import type { EdgeConnection } from '../workflowTransform'
 
 import { validateApprovalConnections } from './rules/validateApprovalConnections'
@@ -72,7 +73,7 @@ export function validateWorkflow(activities: Activity[], edges: EdgeConnection[]
       // eslint-disable-next-line no-console
       console.error('Validation rule failed:', error)
       errors.push({
-        id: `rule-error-${crypto.randomUUID()}`,
+        id: `rule-error-${generateUUID()}`,
         severity: 'error',
         rule: 'internal',
         message: 'An internal validation error occurred. Please try again or contact support.',

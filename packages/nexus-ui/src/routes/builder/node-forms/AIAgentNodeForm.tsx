@@ -5,6 +5,7 @@ import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-fo
 
 import { FileUpload, type UploadedFile } from '../../../components/file-upload'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
+import { generateUUID } from '../../../utils/generateUUID'
 
 import { ActivityNameField } from './shared/ActivityNameField'
 import { FormSubmitButton } from './shared/FormSubmitButton'
@@ -51,7 +52,7 @@ function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) 
 
     // Create file entries with uploading status
     const newFiles: UploadedFile[] = files.map((file) => ({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       file,
       progress: 0,
       status: 'uploading' as const,

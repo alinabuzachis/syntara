@@ -1,6 +1,7 @@
 import { RhUiAddCircleFillIcon } from '@patternfly/react-icons'
 
 import { createGenericActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
+import { generateActivityId } from '../../../../utils/generateUUID'
 import { GenericNodeForm } from '../../node-forms/GenericNodeForm'
 import { NodeRegistry } from '../NodeRegistry'
 
@@ -23,7 +24,7 @@ export default function registerGenericNode() {
     onSubmit: (data, onSuccess, onError) => {
       try {
         // Generate unique activity ID
-        const activityId = `activity_${crypto.randomUUID().replace(/-/g, '_')}`
+        const activityId = generateActivityId()
 
         // Create generic placeholder activity
         const activity = createGenericActivity(activityId, 'New Node')

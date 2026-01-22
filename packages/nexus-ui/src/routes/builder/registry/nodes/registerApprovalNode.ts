@@ -1,6 +1,7 @@
 import { UserCheckIcon } from '@patternfly/react-icons'
 
 import { createApprovalActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
+import { generateActivityId } from '../../../../utils/generateUUID'
 import type { ApprovalFormSubmitData } from '../../node-forms/ApprovalNodeForm'
 import { ApprovalNodeForm } from '../../node-forms/ApprovalNodeForm'
 import { NodeRegistry } from '../NodeRegistry'
@@ -23,7 +24,7 @@ export default function registerApprovalNode() {
     onSubmit: (data, onSuccess, onError) => {
       try {
         // Generate unique activity ID
-        const activityId = `activity_${crypto.randomUUID().replace(/-/g, '_')}`
+        const activityId = generateActivityId()
 
         // Create approval activity with workflow store helper
         const activity = createApprovalActivity(
