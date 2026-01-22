@@ -37,7 +37,7 @@ channels:
         $ref: '#/components/messages/StreamingEvent'
     parameters:
       invocation_id:
-        $ref: '#/components/parameters/invocation_id_param'
+        $ref: '#/components/parameters/invocationIdParam'
       replay_count:
         $ref: '#/components/parameters/replayCountParam'
       last_event_id:
@@ -182,7 +182,7 @@ components:
       additionalProperties: false
 
   parameters:
-    invocation_id_param:
+    invocationIdParam:
       name: invocation_id
       in: path
       required: true

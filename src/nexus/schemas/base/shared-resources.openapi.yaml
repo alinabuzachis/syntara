@@ -14,7 +14,7 @@ info:
     - Label filtering with key-value pairs
 
     ## Naming Conventions
-    - **Schema properties**: camelCase (e.g., `createdAt`, `userName`)
+    - **Schema properties**: snake_case (e.g., `created_at`, `user_name`)
     - **Query parameters**: snake_case (e.g., `created_at`, `user_name`)
     - **Python code**: snake_case (PEP 8)
 
@@ -33,8 +33,8 @@ components:
       description: Foundational schema for all API resources with system-managed metadata
       required:
         - id
-        - createdAt
-        - updatedAt
+        - created_at
+        - updated_at
       properties:
         id:
           type: string
@@ -43,14 +43,14 @@ components:
           title: Resource ID
           description: Unique identifier for the resource
           example: 550e8400-e29b-41d4-a716-446655440000
-        createdAt:
+        created_at:
           type: string
           format: date-time
           readOnly: true
           title: Created At
           description: Timestamp when resource was created
           example: '2025-10-09T12:00:00Z'
-        updatedAt:
+        updated_at:
           type: string
           format: date-time
           readOnly: true
@@ -100,7 +100,7 @@ components:
           title: Soft Deletable Resource
           description: Extension of BaseResource supporting soft deletion tracking
           properties:
-            deletedAt:
+            deleted_at:
               type: string
               format: date-time
               nullable: true
@@ -108,7 +108,7 @@ components:
               title: Deleted At
               description: Timestamp when resource was soft deleted
               example: '2025-10-09T14:00:00Z'
-            deletedBy:
+            deleted_by:
               type: string
               format: uuid
               nullable: true
@@ -124,16 +124,16 @@ components:
           title: User Owned Resource
           description: Extension of BaseResource tracking resource ownership and modifications
           required:
-            - createdBy
+            - created_by
           properties:
-            createdBy:
+            created_by:
               type: string
               format: uuid
               readOnly: true
               title: Created By
               description: User who created the resource
               example: 770e8400-e29b-41d4-a716-446655440000
-            updatedBy:
+            updated_by:
               type: string
               format: uuid
               nullable: true
@@ -153,22 +153,22 @@ components:
         - System metadata (from BaseResource): id, timestamps, labels
         - Naming (from NamedResource): name, description
         - Soft deletion (from SoftDeletableResource): deletedAt, deletedBy
-        - Ownership (from UserOwnedResource): createdBy, updatedBy
+        - Ownership (from UserOwnedResource): created_by, updated_by
 
         This is the recommended base schema for most API resources.
       example:
         id: 550e8400-e29b-41d4-a716-446655440000
-        createdAt: '2025-10-09T12:00:00Z'
-        updatedAt: '2025-10-09T12:30:00Z'
+        created_at: '2025-10-09T12:00:00Z'
+        updated_at: '2025-10-09T12:30:00Z'
         labels:
           environment: production
           region: us-east-1
         name: Authentication Service
         description: Handles user authentication and authorization
-        deletedAt:
-        deletedBy:
-        createdBy: 770e8400-e29b-41d4-a716-446655440000
-        updatedBy: 880e8400-e29b-41d4-a716-446655440000
+        deleted_at:
+        deleted_by:
+        created_by: 770e8400-e29b-41d4-a716-446655440000
+        updated_by: 880e8400-e29b-41d4-a716-446655440000
 
     Error:
       type: object

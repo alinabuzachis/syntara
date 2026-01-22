@@ -57,17 +57,17 @@ paths:
                 summary: Workflow generation request
                 value:
                   prompt: Create a workflow to deploy customer service app to production with health checks
-                  createdBy: 550e8400-e29b-41d4-a716-446655440000
-                  sessionId: session-001
-                  contextData:
+                  created_by: 550e8400-e29b-41d4-a716-446655440000
+                  session_id: session-001
+                  context_data:
                     environment: production
                     app_id: customer-svc
               toolAnalysis:
                 summary: Tool analysis request
                 value:
                   prompt: What tools are available for deployment?
-                  createdBy: 550e8400-e29b-41d4-a716-446655440000
-                  sessionId: session-002
+                  created_by: 550e8400-e29b-41d4-a716-446655440000
+                  session_id: session-002
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/InvocationRequestWithFile'
@@ -87,23 +87,23 @@ paths:
                   value:
                     id: 550e8400-e29b-41d4-a716-446655440000
                     prompt: Create a workflow to deploy customer service app
-                    createdBy: 770e8400-e29b-41d4-a716-446655440000
-                    updatedBy:
-                    sessionId: session-001
+                    created_by: 770e8400-e29b-41d4-a716-446655440000
+                    updated_by:
+                    session_id: session-001
                     status: running
-                    createdAt: '2025-10-21T10:30:00Z'
-                    updatedAt: '2025-10-21T10:30:00Z'
-                    startedAt:
-                    completedAt:
+                    created_at: '2025-10-21T10:30:00Z'
+                    updated_at: '2025-10-21T10:30:00Z'
+                    started_at:
+                    completed_at:
                     labels:
                       environment: production
                       team: platform
-                    contextData:
+                    context_data:
                       app_id: customer-svc
                       region: us-east-1
                     result:
-                    errorMessage:
-                    checkpointData:
+                    error_message:
+                    checkpoint_data:
         '400':
           description: Bad Request - Validation or file processing error
           content:
@@ -203,41 +203,41 @@ paths:
                     resources:
                       - id: 550e8400-e29b-41d4-a716-446655440000
                         prompt: Deploy app to production
-                        createdBy: 770e8400-e29b-41d4-a716-446655440000
-                        updatedBy:
-                        sessionId: session-001
+                        created_by: 770e8400-e29b-41d4-a716-446655440000
+                        updated_by:
+                        session_id: session-001
                         status: running
-                        createdAt: '2025-10-21T10:30:00Z'
-                        updatedAt: '2025-10-21T10:30:00Z'
-                        startedAt: '2025-10-21T10:30:01Z'
-                        completedAt:
+                        created_at: '2025-10-21T10:30:00Z'
+                        updated_at: '2025-10-21T10:30:00Z'
+                        started_at: '2025-10-21T10:30:01Z'
+                        completed_at:
                         labels:
                           environment: production
                           team: platform
-                        contextData:
+                        context_data:
                           environment: production
                           app_id: customer-svc
                         result:
-                        errorMessage:
-                        checkpointData:
+                        error_message:
+                        checkpoint_data:
                       - id: 660e8400-e29b-41d4-a716-446655440001
                         prompt: Analyze metrics
-                        createdBy: 770e8400-e29b-41d4-a716-446655440000
-                        updatedBy:
-                        sessionId: session-002
+                        created_by: 770e8400-e29b-41d4-a716-446655440000
+                        updated_by:
+                        session_id: session-002
                         status: completed
-                        createdAt: '2025-10-21T09:00:00Z'
-                        updatedAt: '2025-10-21T09:05:00Z'
-                        startedAt: '2025-10-21T09:00:01Z'
-                        completedAt: '2025-10-21T09:05:00Z'
+                        created_at: '2025-10-21T09:00:00Z'
+                        updated_at: '2025-10-21T09:05:00Z'
+                        started_at: '2025-10-21T09:00:01Z'
+                        completed_at: '2025-10-21T09:05:00Z'
                         labels:
                           environment: staging
-                        contextData: {}
+                        context_data: {}
                         result:
-                          workflowId: wf-123
+                          workflow_id: wf-123
                           status: success
-                        errorMessage:
-                        checkpointData:
+                        error_message:
+                        checkpoint_data:
                     next: eyJpZCI6IjY2MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMSJ9
                     prev:
                     total: 42
@@ -292,17 +292,17 @@ paths:
                   value:
                     id: 550e8400-e29b-41d4-a716-446655440000
                     prompt: What deployment tools are available?
-                    createdBy: 770e8400-e29b-41d4-a716-446655440000
-                    updatedBy:
-                    sessionId: test-session-123
+                    created_by: 770e8400-e29b-41d4-a716-446655440000
+                    updated_by:
+                    session_id: test-session-123
                     status: completed
-                    createdAt: '2025-10-21T10:00:00Z'
-                    updatedAt: '2025-10-21T10:00:05Z'
-                    startedAt: '2025-10-21T10:00:01Z'
-                    completedAt: '2025-10-21T10:00:05Z'
+                    created_at: '2025-10-21T10:00:00Z'
+                    updated_at: '2025-10-21T10:00:05Z'
+                    started_at: '2025-10-21T10:00:01Z'
+                    completed_at: '2025-10-21T10:00:05Z'
                     labels:
                       environment: development
-                    contextData:
+                    context_data:
                       user_context: testing
                     result:
                       type: answer
@@ -319,43 +319,43 @@ paths:
                           - source: tools-inventory.yaml
                             relevance: 0.7
                         context_applied: true
-                    errorMessage:
-                    checkpointData:
+                    error_message:
+                    checkpoint_data:
                 runningInvocation:
                   summary: Running invocation (not yet completed)
                   value:
                     id: 660e8400-e29b-41d4-a716-446655440001
                     prompt: Analyze production metrics
-                    createdBy: 770e8400-e29b-41d4-a716-446655440000
-                    updatedBy:
-                    sessionId: test-session-456
+                    created_by: 770e8400-e29b-41d4-a716-446655440000
+                    updated_by:
+                    session_id: test-session-456
                     status: running
-                    createdAt: '2025-10-21T10:30:00Z'
-                    updatedAt: '2025-10-21T10:30:00Z'
-                    startedAt: '2025-10-21T10:30:01Z'
-                    completedAt:
+                    created_at: '2025-10-21T10:30:00Z'
+                    updated_at: '2025-10-21T10:30:00Z'
+                    started_at: '2025-10-21T10:30:01Z'
+                    completed_at:
                     labels: {}
-                    contextData: {}
+                    context_data: {}
                     result:
-                    errorMessage:
-                    checkpointData:
+                    error_message:
+                    checkpoint_data:
                 failedInvocation:
                   summary: Failed invocation with error
                   value:
                     id: 770e8400-e29b-41d4-a716-446655440002
                     prompt: Invalid query
-                    createdBy: 770e8400-e29b-41d4-a716-446655440000
-                    updatedBy:
-                    sessionId: test-session-789
+                    created_by: 770e8400-e29b-41d4-a716-446655440000
+                    updated_by:
+                    session_id: test-session-789
                     status: failed
-                    createdAt: '2025-10-21T11:00:00Z'
-                    updatedAt: '2025-10-21T11:00:02Z'
-                    startedAt: '2025-10-21T11:00:01Z'
-                    completedAt: '2025-10-21T11:00:02Z'
+                    created_at: '2025-10-21T11:00:00Z'
+                    updated_at: '2025-10-21T11:00:02Z'
+                    started_at: '2025-10-21T11:00:01Z'
+                    completed_at: '2025-10-21T11:00:02Z'
                     labels: {}
-                    contextData: {}
+                    context_data: {}
                     result:
-                    errorMessage: GenericAgent not configured. Set NEXUS_OPENROUTER_API_KEY environment variable.
+                    error_message: GenericAgent not configured. Set NEXUS_OPENROUTER_API_KEY environment variable.
                     checkpointData:
         '400':
           description: Invalid UUID format
@@ -600,10 +600,10 @@ components:
 
             Invocations track the execution state, results, and metadata for agent requests.
 
-            Extends UserOwnedResource to inherit: id, createdAt, updatedAt, createdBy, updatedBy, labels.
+            Extends UserOwnedResource to inherit: id, created_at, updated_at, created_by, updated_by, labels.
           required:
             - prompt
-            - sessionId
+            - session_id
             - status
           properties:
             prompt:
@@ -613,7 +613,7 @@ components:
               title: Prompt
               description: Natural language request describing desired automation task
               example: Deploy customer service app to production
-            sessionId:
+            session_id:
               type: string
               maxLength: 255
               title: Session ID
@@ -621,7 +621,7 @@ components:
               example: session-001
             status:
               $ref: '#/components/schemas/InvocationStatus'
-            startedAt:
+            started_at:
               type: string
               format: date-time
               nullable: true
@@ -629,7 +629,7 @@ components:
               title: Started At
               description: When agent started processing
               example: '2025-10-21T10:30:01Z'
-            completedAt:
+            completed_at:
               type: string
               format: date-time
               nullable: true
@@ -637,7 +637,7 @@ components:
               title: Completed At
               description: When agent completed or failed
               example: '2025-10-21T10:35:00Z'
-            contextData:
+            context_data:
               type: object
               default: {}
               title: Context Data
@@ -733,14 +733,14 @@ components:
                     - source: deployment-tools.md
                       relevance: 0.9
                   context_applied: true
-            errorMessage:
+            error_message:
               type: string
               nullable: true
               maxLength: 2000
               title: Error Message
               description: Error message if invocation failed
               example: Tool execution timeout
-            checkpointData:
+            checkpoint_data:
               type: object
               nullable: true
               title: Checkpoint Data
@@ -756,8 +756,8 @@ components:
       description: Request body for creating a new invocation
       required:
         - prompt
-        - createdBy
-        - sessionId
+        - created_by
+        - session_id
       properties:
         prompt:
           type: string
@@ -766,18 +766,18 @@ components:
           title: Prompt
           description: Natural language request describing desired automation task
           example: Create a workflow to deploy customer service app
-        createdBy:
+        created_by:
           type: string
           format: uuid
           title: Created By
           description: User identifier for authentication and policy evaluation
           example: 550e8400-e29b-41d4-a716-446655440000
-        sessionId:
+        session_id:
           type: string
           title: Session ID
           description: Session identifier for grouping related invocations
           example: session-001
-        contextData:
+        context_data:
           type: object
           default: {}
           title: Context Data
@@ -846,18 +846,18 @@ components:
       title: Message Response
       description: Response after sending message to agent
       required:
-        - invocationId
-        - messageId
+        - invocation_id
+        - message_id
         - status
-        - acknowledgedAt
+        - acknowledged_at
       properties:
-        invocationId:
+        invocation_id:
           type: string
           format: uuid
           title: Invocation ID
           description: Invocation ID that received the message
           example: 550e8400-e29b-41d4-a716-446655440000
-        messageId:
+        message_id:
           type: string
           format: uuid
           title: Message ID
@@ -869,7 +869,7 @@ components:
           title: Status
           description: Whether message was accepted for processing
           example: accepted
-        acknowledgedAt:
+        acknowledged_at:
           type: string
           format: date-time
           title: Acknowledged At
@@ -887,18 +887,18 @@ components:
       title: Progress Event
       description: WebSocket progress event from agent
       required:
-        - eventType
-        - invocationId
+        - event_type
+        - invocation_id
         - timestamp
         - data
       properties:
-        eventType:
+        event_type:
           type: string
           enum: [progress, log, status_change, message, completion, error]
           title: Event Type
           description: Type of progress event
           example: progress
-        invocationId:
+        invocation_id:
           type: string
           format: uuid
           title: Invocation ID
@@ -919,7 +919,7 @@ components:
             phase: tool_assessment
             message: Evaluating deployment tools
             progressPercentage: 45
-        sequenceNumber:
+        sequence_number:
           type: integer
           title: Sequence Number
           description: Sequence number for event ordering
@@ -930,13 +930,13 @@ components:
       title: Control Response
       description: Response after sending control signal to agent
       required:
-        - invocationId
+        - invocation_id
         - action
         - status
-        - currentState
-        - acknowledgedAt
+        - current_state
+        - acknowledged_at
       properties:
-        invocationId:
+        invocation_id:
           type: string
           format: uuid
           title: Invocation ID
@@ -954,13 +954,13 @@ components:
           title: Status
           description: Control signal processing status
           example: acknowledged
-        currentState:
+        current_state:
           type: string
           enum: [running, paused, cancelled, completed]
           title: Current State
           description: Current invocation state after control signal
           example: paused
-        acknowledgedAt:
+        acknowledged_at:
           type: string
           format: date-time
           title: Acknowledged At

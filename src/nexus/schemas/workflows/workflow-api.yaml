@@ -130,12 +130,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /workflows/{workflowId}:
+  /workflows/{workflow_id}:
     get:
       summary: Get workflow
       description: Retrieve a specific workflow by ID including its current active version. Returns workflow metadata along with the version specified by current_version field.
       parameters:
-        - name: workflowId
+        - name: workflow_id
           in: path
           required: true
           schema:
@@ -161,7 +161,7 @@ paths:
         - Metadata only (name, description, is_enabled, labels): Updates without creating new version
         - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
       parameters:
-        - name: workflowId
+        - name: workflow_id
           in: path
           required: true
           schema:
@@ -202,7 +202,7 @@ paths:
       summary: Delete workflow (soft delete)
       description: Soft delete a workflow by setting deleted_at and deleted_by fields. The workflow remains in the database for audit purposes but is excluded from normal queries.
       parameters:
-        - name: workflowId
+        - name: workflow_id
           in: path
           required: true
           schema:
@@ -224,7 +224,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /workflows/{workflowId}/versions:
+  /workflows/{workflow_id}/versions:
     get:
       summary: List workflow versions
       description: |
@@ -232,7 +232,7 @@ paths:
         WorkflowVersion entities are read-only and managed automatically by the system.
         Versions are ordered by version number descending (newest first) by default.
       parameters:
-        - name: workflowId
+        - name: workflow_id
           in: path
           required: true
           schema:
@@ -267,12 +267,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /workflows/{workflowId}/versions/{version}:
+  /workflows/{workflow_id}/versions/{version}:
     get:
       summary: Get workflow version
       description: Retrieve a specific version of a workflow by version number. Returns the complete workflow definition for that version.
       parameters:
-        - name: workflowId
+        - name: workflow_id
           in: path
           required: true
           schema:
@@ -384,7 +384,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /executions/{executionId}:
+  /executions/{execution_id}:
     get:
       summary: Get execution
       description: |
@@ -398,7 +398,7 @@ paths:
         - Normal request: `GET /executions/{id}` - returns execution without optional fields
         - Visualization: `GET /executions/{id}?include=workflow_definition&include=activities` - for building graph and checking execution status
       parameters:
-        - name: executionId
+        - name: execution_id
           in: path
           required: true
           schema:
@@ -430,7 +430,7 @@ paths:
       summary: Control execution
       description: Pause, resume, or cancel a workflow execution
       parameters:
-        - name: executionId
+        - name: execution_id
           in: path
           required: true
           schema:
@@ -456,13 +456,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /executions/{executionId}/activities:
+  /executions/{execution_id}/activities:
     get:
       summary: List activity executions
       description: |
         Retrieve activity executions for a workflow execution with cursor-based pagination.
       parameters:
-        - name: executionId
+        - name: execution_id
           in: path
           required: true
           schema:
@@ -497,7 +497,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /executions/{executionId}/signals/approval-decision:
+  /executions/{execution_id}/signals/approval-decision:
     post:
       summary: Signal approval decision to workflow
       description: |
@@ -514,7 +514,7 @@ paths:
       tags:
         - Executions
       parameters:
-        - name: executionId
+        - name: execution_id
           in: path
           required: true
           schema:

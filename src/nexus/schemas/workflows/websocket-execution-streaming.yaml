@@ -32,7 +32,7 @@ info:
 
     **Initial Connection (Running Execution):**
     1. Client loads workflow structure via `GET /executions/{id}?include=workflow_definition`
-    2. Client connects to `/ws/workflows/v1/executions/{executionId}?replay=0`
+    2. Client connects to `/ws/workflows/v1/executions/{execution_id}?replay=0`
     3. Server reads from Valkey Stream `execution:{id}:events` starting from beginning
     4. Server sends `ExecutionSnapshotMessage` with type="initial_snapshot" (first message)
     5. Server sends `ActivityPatchMessage` for subsequent activity updates (JSON Patch format)
@@ -48,7 +48,7 @@ info:
     2. Client renders final state from execution.activities (no WebSocket connection needed)
 
     **Reconnection:**
-    1. Client reconnects to `/ws/workflows/v1/executions/{executionId}?replay=<last_event_id>`
+    1. Client reconnects to `/ws/workflows/v1/executions/{execution_id}?replay=<last_event_id>`
     2. Server reads from Valkey Stream starting from that event_id
     3. Client receives missed `ActivityPatchMessage` events
     4. Server resumes live streaming
@@ -87,12 +87,12 @@ defaultContentType: application/json
 
 channels:
   activityUpdates:
-    address: /executions/{executionId}
+    address: /executions/{execution_id}
     title: Activity Status Updates
     description: |
       Real-time activity status updates for a specific workflow execution.
 
-      **Connection URL**: `ws://localhost:8000/ws/workflows/v1/executions/{executionId}?replay=<event_id>`
+      **Connection URL**: `ws://localhost:8000/ws/workflows/v1/executions/{execution_id}?replay=<event_id>`
 
       **Initial State (Valkey Streams Replay)**:
       Client connects with `replay=0` to receive full execution state:
@@ -125,7 +125,7 @@ channels:
       When execution status is completed/failed/cancelled, UI should fetch via REST
       (`GET /executions/{id}?include=activities`) and skip WebSocket connection.
     parameters:
-      executionId:
+      execution_id:
         $ref: '#/components/parameters/executionId'
       replay:
         $ref: '#/components/parameters/replay'

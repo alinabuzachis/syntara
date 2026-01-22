@@ -115,7 +115,7 @@ defaultContentType: application/json
 
 channels:
   # Note: Single execution visualization is handled by websocket-execution-streaming.yaml
-  # with the executionUpdates channel at /executions/{executionId}
+  # with the executionUpdates channel at /executions/{execution_id}
 
   allExecutions:
     address: /executions
@@ -138,11 +138,11 @@ channels:
       - Subscription filters are version-specific
       - Server maintains separate subscription sets per API version
     parameters:
-      sessionId:
+      session_id:
         $ref: '#/components/parameters/sessionId'
-      lastEventId:
+      last_event_id:
         $ref: '#/components/parameters/lastEventId'
-      apiVersion:
+      api_version:
         $ref: '#/components/parameters/apiVersion'
     messages:
       connectionAck:
@@ -177,11 +177,11 @@ channels:
       - Approval format consistent across v1.x versions
       - Version-specific filtering and response formats
     parameters:
-      sessionId:
+      session_id:
         $ref: '#/components/parameters/sessionId'
-      lastEventId:
+      last_event_id:
         $ref: '#/components/parameters/lastEventId'
-      apiVersion:
+      api_version:
         $ref: '#/components/parameters/apiVersion'
     messages:
       connectionAck:

@@ -117,7 +117,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /approvals/{approvalId}:
+  /approvals/{approval_id}:
     get:
       summary: Get approval request
       description: |
@@ -131,7 +131,7 @@ paths:
       tags:
         - Approvals
       parameters:
-        - name: approvalId
+        - name: approval_id
           in: path
           required: true
           schema:
@@ -168,7 +168,7 @@ paths:
       tags:
         - Approvals
       parameters:
-        - name: approvalId
+        - name: approval_id
           in: path
           required: true
           schema:

@@ -1,7 +1,7 @@
 """Request schemas for invocation API endpoints.
 
 Defines Pydantic models for API request validation with proper field aliasing
-to support camelCase API contracts while maintaining snake_case internally.
+to support snake_case API contracts while maintaining backward compatibility.
 """
 
 from enum import Enum
@@ -22,8 +22,8 @@ class InvocationCreateRequest(SQLModel, populate_by_name=True):
     """Request schema for creating a new invocation.
 
     Supports multiple field name formats:
-    - camelCase (API contract): sessionId, contextData
-    - snake_case (internal): session_id, context_data
+    - snake_case (API contract): session_id, context_data
+    - camelCase (backward compatibility): sessionId, contextData
 
     Note: created_by is automatically set from authenticated user context.
     """
@@ -36,14 +36,14 @@ class InvocationCreateRequest(SQLModel, populate_by_name=True):
 
     session_id: str = Field(
         validation_alias=AliasChoices("sessionId", "session_id"),
-        serialization_alias="sessionId",
+        serialization_alias="session_id",
         description="Session identifier for grouping related invocations",
     )
 
     context_data: dict[str, object] = Field(
         default_factory=dict,
         validation_alias=AliasChoices("contextData", "context_data"),
-        serialization_alias="contextData",
+        serialization_alias="context_data",
         description=(
             "Optional additional context for the request. "
             "Use 'file_ids' (array of UUID strings) to reference uploaded files."
