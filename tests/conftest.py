@@ -1284,3 +1284,23 @@ def mock_compressor() -> AsyncMock:
 
     """
     return AsyncMock()
+
+
+@pytest.fixture
+def mock_websocket() -> MagicMock:
+    """Create a mock WebSocket for testing.
+
+    This fixture provides a MagicMock configured for WebSocket testing,
+    useful for testing WebSocket handlers and streaming services.
+
+    Returns:
+        MagicMock: A mock WebSocket instance with client info and app state.
+
+    """
+    websocket = MagicMock()
+    websocket.send_json = AsyncMock()
+    websocket.close = AsyncMock()
+    websocket.client.host = "127.0.0.1"
+    websocket.client.port = 12345
+    websocket.app.state = MagicMock()
+    return websocket

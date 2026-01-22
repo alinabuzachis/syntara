@@ -10,17 +10,6 @@ from nexus.core.websocket.close_codes import UNSUPPORTED_DATA
 
 
 @pytest.fixture
-def mock_websocket() -> MagicMock:
-    """Create a mock WebSocket for testing."""
-    websocket = MagicMock()
-    websocket.close = AsyncMock()
-    websocket.app.state = MagicMock()
-    websocket.client.host = "127.0.0.1"
-    websocket.client.port = 12345
-    return websocket
-
-
-@pytest.fixture
 def mock_streaming_service() -> MagicMock:
     """Create a mock streaming service."""
     service = MagicMock()
