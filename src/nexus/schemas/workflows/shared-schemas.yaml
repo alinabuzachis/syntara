@@ -299,27 +299,13 @@ components:
           type: string
         description:
           type: string
+          maxLength: 2000
         workflow_definition:
           $ref: ./workflow-definition.schema.json
         is_enabled:
           type: boolean
           default: true
           description: Enable workflow for execution (defaults to true if not specified)
-
-    UpdateWorkflowRequest:
-      type: object
-      title: Update Workflow Request
-      description: Request payload for full workflow replacement creating a new version
-      required:
-        - workflow_definition
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-        workflow_definition:
-          $ref: ./workflow-definition.schema.json
-          description: New workflow definition (creates new version)
 
     PatchWorkflowRequest:
       type: object
@@ -337,6 +323,7 @@ components:
           description: Update workflow name (metadata only, no version created)
         description:
           type: string
+          maxLength: 2000
           description: Update workflow description (metadata only, no version created)
         is_enabled:
           type: boolean

@@ -11,6 +11,7 @@ from uuid import UUID
 from pydantic import ConfigDict
 from sqlmodel import Field, Index, Relationship, SQLModel, text
 
+from nexus.core.constants import FieldLimits
 from nexus.core.models.base import Resource, ResourcesResponse
 
 if TYPE_CHECKING:
@@ -133,7 +134,9 @@ class WorkflowBase(SQLModel):
     """Base schema with shared workflow fields (used for inheritance)."""
 
     name: str = Field(..., min_length=1, max_length=255, description="Workflow name")
-    description: str | None = Field(None, description="Workflow description")
+    description: str | None = Field(
+        None, max_length=FieldLimits.DESCRIPTION_MAX_LENGTH, description="Workflow description"
+    )
     labels: dict[str, Any] = Field(default_factory=dict, description="Workflow labels")
 
 
@@ -155,7 +158,9 @@ class WorkflowUpdate(SQLModel):
     """
 
     name: str | None = Field(None, min_length=1, max_length=255, description="Update workflow name")
-    description: str | None = Field(None, description="Update workflow description")
+    description: str | None = Field(
+        None, max_length=FieldLimits.DESCRIPTION_MAX_LENGTH, description="Update workflow description"
+    )
     labels: dict[str, Any] | None = Field(None, description="Update workflow labels")
     is_enabled: bool | None = Field(None, description="Enable/disable workflow")
     workflow_definition: Any | None = Field(None, description="New workflow definition (auto-creates version)")

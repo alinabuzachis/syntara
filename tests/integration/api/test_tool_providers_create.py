@@ -48,6 +48,37 @@ class TestToolProvidersCreateContract:
         assert data["status"] == "validating"
 
     @pytest.mark.asyncio
+    async def test_create_provider_with_long_description(self, base_client_with_provider_factory: AsyncClient) -> None:
+        """Test successful provider registration returns 422."""
+        provider_data = {
+            "name": "test-mcp-provider",
+            "description": "=" * 2001,
+            "configuration": {
+                "provider_type": "mcp",
+                "base_url": "http://localhost:8000/mcp",
+                "api_key": "api-key",
+            },
+        }
+
+        response = await base_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
+
+        # Contract: Must return 422 Unprocessable
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+        assert isinstance(data["detail"], list)
+        details: list[Any] = data["detail"]
+        assert len(details) == 1
+        assert isinstance(details[0], dict)
+        result: dict[str, Any] = details[0]
+        assert "loc" in result
+        assert result.get("loc") == ["body", "description"]
+        assert "msg" in result
+        assert "String should have at most 2000 characters" in result.get("msg", "")
+
+    @pytest.mark.asyncio
     async def test_create_provider_without_api_key_success_contract(
         self, base_client_with_provider_factory: AsyncClient
     ) -> None:

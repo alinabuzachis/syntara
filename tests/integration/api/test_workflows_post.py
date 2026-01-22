@@ -4,6 +4,8 @@ These tests verify the API contract for creating workflows.
 Tests MUST FAIL before implementation (TDD approach).
 """
 
+from typing import Any
+
 import pytest
 from httpx import AsyncClient
 
@@ -221,3 +223,34 @@ async def test_post_workflow_with_labels_not_strings(base_client: AsyncClient) -
     assert "detail" in data
     assert "validation error for Workflow" in data["detail"]
     assert "labels value for key 'invalid' must be a string" in data["detail"]
+
+
+@pytest.mark.asyncio
+async def ***REMOVED***(base_client: AsyncClient) -> None:
+    """Test creating a workflow with a long description. The field limit is 2,000 characters.
+
+    Expected: 422 Unprocessable
+    """
+    workflow_with_labels = {
+        "name": "labeled-workflow",
+        "description": "=" * 2001,
+        "workflow_definition": create_minimal_workflow_definition(
+            name="labeled-workflow",
+            description="Workflow with labels",
+        ),
+    }
+
+    response = await base_client.post("/api/v1/workflows", json=workflow_with_labels)
+
+    assert response.status_code == 422
+    data = response.json()
+    assert "detail" in data
+    assert isinstance(data["detail"], list)
+    details: list[Any] = data["detail"]
+    assert len(details) == 1
+    assert isinstance(details[0], dict)
+    result: dict[str, Any] = details[0]
+    assert "loc" in result
+    assert result.get("loc") == ["body", "description"]
+    assert "msg" in result
+    assert "String should have at most 2000 characters" in result.get("msg", "")
