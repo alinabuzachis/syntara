@@ -575,11 +575,30 @@ export interface paths {
     }
     /**
      * Get execution
-     * @description Retrieve details of a specific execution.
+     * @description Retrieve details of a specific execution with optional includes.
+     *
+     *     **Include Parameters**:
+     *     - `workflow_definition`: Include the workflow definition from the executed version (for building visualization graph)
+     *     - `activities`: Include the list of activities with their current status (for completed executions or fallback)
+     *
+     *     **Usage**:
+     *     - Normal request: `GET /executions/{id}` - returns execution without optional fields
+     *     - Visualization: `GET /executions/{id}?include=workflow_definition&include=activities` - for building graph and checking execution status
      */
     get: {
       parameters: {
-        query?: never
+        query?: {
+          /**
+           * @description Optional fields to include in the response.
+           *     - `workflow_definition`: Include workflow definition for graph building
+           *     - `activities`: Include activities list with current status
+           * @example [
+           *       "workflow_definition",
+           *       "activities"
+           *     ]
+           */
+          include?: ('workflow_definition' | 'activities')[]
+        }
         header?: never
         path: {
           executionId: string
@@ -588,7 +607,7 @@ export interface paths {
       }
       requestBody?: never
       responses: {
-        /** @description Execution details */
+        /** @description Execution details with optional includes */
         200: {
           headers: {
             [name: string]: unknown
@@ -730,168 +749,59 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/approvals': {
+  '/executions/{executionId}/signals/approval-decision': {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    /**
-     * List pending approvals
-     * @description Retrieve approvals for the current user with filtering, sorting, and cursor-based pagination.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /**
-           * @description Filter approvals by status.
-           *     - Exact match: `status=pending`
-           *     - Multiple values: `status[in]=pending,approved`
-           */
-          status?: components['schemas']['ApprovalStatus'] & {
-            /** @description Match any of the comma-separated values. ?status[in]=<val1,val2> */
-            in?: string
-          }
-          /** @description Filter by activity execution ID */
-          activity_execution_id?: string
-          /**
-           * @description Number of resources to return per page
-           * @example 20
-           */
-          limit?: components['parameters']['limitParam']
-          /**
-           * @description Opaque cursor for pagination (from previous response)
-           * @example eyJpZCI6InV1aWQifQ
-           */
-          cursor?: components['parameters']['cursorParam']
-          /**
-           * @description Whether to include total count in response (may impact performance)
-           * @example true
-           */
-          include_total?: components['parameters']['includeTotalParam']
-          /**
-           * @description Sort order for resources.
-           *     - Ascending: `field` (e.g., `name`)
-           *     - Descending: `-field` (e.g., `-created_at`)
-           * @example -created_at
-           */
-          sort?: components['parameters']['sortParam']
-          created_at?: components['parameters']['createdAtFilterParam']
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of approvals */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['ResourcesResponseBase'] & {
-              resources: components['schemas']['Approval'][]
-            }
-          }
-        }
-      }
-    }
+    get?: never
     put?: never
-    post?: never
+    /**
+     * Signal approval decision to workflow
+     * @description Send an approval decision signal to a running workflow execution.
+     *
+     *     This endpoint is called by the approvals component (via WorkflowAPIClient)
+     *     to notify a paused workflow that an approval decision has been made.
+     *     The workflow will resume on either the approved or rejected path based
+     *     on the decision.
+     *
+     *     The signal is durable - if the workflow is temporarily unavailable,
+     *     the signal will be delivered when it becomes available again.
+     */
+    post: operations['signalApprovalDecision']
     delete?: never
     options?: never
     head?: never
     patch?: never
     trace?: never
   }
-  '/approvals/{approvalId}': {
+  '/executions/{execution_id}/activities/{activity_id}/signal': {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    /**
-     * Get approval
-     * @description Retrieve details of a specific approval request.
-     */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          approvalId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Approval details */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Approval']
-          }
-        }
-        /** @description Approval not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
+    get?: never
     put?: never
-    post?: never
+    /**
+     * Send signal to activity in workflow
+     * @description Send a signal to a specific activity within a running workflow execution.
+     *
+     *     This endpoint allows external systems to send arbitrary signals to
+     *     activities that are waiting for external events. The activity must be
+     *     designed to handle signals via the workflow's signal handler.
+     *
+     *     The signal is durable - if the workflow is temporarily unavailable,
+     *     the signal will be delivered when it becomes available again.
+     */
+    post: operations['signalActivity']
     delete?: never
     options?: never
     head?: never
-    /**
-     * Respond to approval
-     * @description Approve or reject an approval request
-     */
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          approvalId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['ApprovalResponseRequest']
-        }
-      }
-      responses: {
-        /** @description Approval response recorded */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Approval']
-          }
-        }
-        /** @description Approval not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
+    patch?: never
     trace?: never
   }
 }
@@ -1068,6 +978,11 @@ export interface components {
        * @description ID of the workflow being executed
        */
       workflow_id?: string
+      /**
+       * Format: uuid
+       * @description ID of the workflow version being executed
+       */
+      workflow_version_id?: string
       /** @description Temporal workflow execution ID */
       temporal_workflow_id?: string
       status?: components['schemas']['ExecutionStatus']
@@ -1096,6 +1011,18 @@ export interface components {
         temporal_activity_id?: string
         iteration?: number | null
       }[]
+      /**
+       * @description Workflow definition from the executed version.
+       *     Only included when requested via ?include=workflow_definition query parameter.
+       *     Used for building visualization graph.
+       */
+      workflow_definition?: Record<string, never> | null
+      /**
+       * @description List of activities with their current status.
+       *     Only included when requested via ?include=activities query parameter.
+       *     Used for visualization of completed executions or as fallback.
+       */
+      activities?: components['schemas']['ActivityData'][] | null
     }
     ActivityExecution: components['schemas']['BaseResource'] & {
       /**
@@ -1131,60 +1058,6 @@ export interface components {
       /** @description Iteration number if activity is within a loop (0-indexed) */
       iteration?: number | null
     }
-    Approval: components['schemas']['BaseResource'] & {
-      /**
-       * Format: uuid
-       * @description Activity requiring approval
-       */
-      activity_execution_id?: string
-      /**
-       * Format: uuid
-       * @description User assigned to review this approval
-       */
-      approver_id?: string
-      /** @description Parent workflow execution ID */
-      execution_id?: string
-      /** @description Activity ID from workflow definition */
-      approval_node_id?: string
-      /** @description Display name for the approval request */
-      name?: string
-      /** @description Detailed context/prompt for approvers */
-      description?: string | null
-      status?: components['schemas']['ApprovalStatus']
-      /** @description When this request expires (null = no timeout) */
-      timeout_at?: string | null
-      /** @description First activity that executes if approved */
-      next_step_approved?: components['schemas']['ActivitySummary']
-      /** @description First activity that executes if rejected (null if path ends workflow) */
-      next_step_rejected?: components['schemas']['ActivitySummary'] | null
-      /** @description Workflow context for approvers */
-      workflow_context?: components['schemas']['WorkflowContext']
-      /** @description User who made the decision (captures name at decision time) */
-      decided_by?: components['schemas']['UserReference'] | null
-      /** @description When decision was made */
-      decided_at?: string | null
-      /** @description Notes provided with the decision */
-      decision_notes?: string | null
-      /** @description Data presented for approval */
-      request_data?: Record<string, never>
-      /** @description Approver's response including reason and comments */
-      response_data?: Record<string, never> | null
-      /**
-       * Format: date-time
-       * @description When approval was requested
-       */
-      requested_at?: string
-      /**
-       * Format: date-time
-       * @description When approver responded
-       */
-      responded_at?: string | null
-      /**
-       * Format: date-time
-       * @description Approval timeout deadline
-       */
-      expires_at?: string | null
-    }
     /**
      * Execution Status
      * @description Current state of a workflow execution lifecycle
@@ -1196,65 +1069,7 @@ export interface components {
      * @description Current state of an individual activity execution
      * @enum {string}
      */
-    ActivityStatus: 'pending' | 'running' | 'completed' | 'failed' | 'retrying'
-    /**
-     * Approval Status
-     * @description Current state of a human approval request
-     * @enum {string}
-     */
-    ApprovalStatus: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
-    /**
-     * Activity Summary
-     * @description Summary of a workflow activity for display in approval context
-     */
-    ActivitySummary: {
-      /** @description Activity ID from workflow definition */
-      id: string
-      /** @description Human-readable activity name */
-      name: string
-      /** @description Activity type (task, approval, parallel, etc.) */
-      type: string
-      /** @description Optional activity description if available */
-      description?: string | null
-    }
-    /**
-     * Previous Step Context
-     * @description The activity that immediately preceded this approval node
-     */
-    PreviousStepContext: {
-      /** @description Activity ID from workflow definition */
-      id: string
-      /** @description Human-readable activity name */
-      name: string
-      /** @description Activity type (task, approval, parallel, etc.) */
-      type: string
-      /** @description Output from the activity (structure varies per activity type) */
-      output?: Record<string, unknown> | null
-    }
-    /**
-     * Workflow Context
-     * @description Essential context for approvers to make a decision
-     */
-    WorkflowContext: {
-      /** @description ID of the workflow version being executed */
-      workflow_version_id: string
-      /** @description Name of the workflow */
-      workflow_name: string
-      /** @description Original workflow input parameters */
-      inputs: Record<string, unknown>
-      /** @description Previous step context */
-      previous_step?: components['schemas']['PreviousStepContext']
-    }
-    /**
-     * User Reference
-     * @description Minimal user identification for embedding in other resources
-     */
-    UserReference: {
-      /** @description User's unique identifier */
-      id: string
-      /** @description User's display name at time of action */
-      name: string
-    }
+    ActivityStatus: 'pending' | 'running' | 'completed' | 'failed' | 'retrying' | 'skipped' | 'cancelled'
     /**
      * Create Workflow Request
      * @description Request payload for creating a new workflow from workflow definition
@@ -1316,16 +1131,6 @@ export interface components {
       action: 'pause' | 'resume' | 'cancel'
     }
     /**
-     * Approval Response Request
-     * @description Request payload for approver to approve or reject an approval request with reason
-     */
-    ApprovalResponseRequest: {
-      /** @enum {string} */
-      status: 'approved' | 'rejected'
-      /** @description Approver's response including reason, comments, and any additional structured data */
-      response_data: Record<string, never>
-    }
-    /**
      * Activity Type
      * @description Definition of an available activity executor type with its configuration schema
      */
@@ -1335,7 +1140,7 @@ export interface components {
        * @example agentic
        * @enum {string}
        */
-      type: 'agentic' | 'connector' | 'script' | 'api'
+      type: 'agentic' | 'connector' | 'script' | 'api' | 'approval'
       /**
        * @description Human-readable name of the executor type
        * @example Agentic Tool Execution
@@ -1407,6 +1212,61 @@ export interface components {
         /** @description Example configuration object */
         config?: Record<string, never>
       }[]
+    }
+    /**
+     * Approval Decision Signal
+     * @description Signal payload for notifying a workflow of an approval decision.
+     *     Sent by the approvals component when a user approves or rejects a request.
+     */
+    ApprovalDecisionSignal: {
+      /**
+       * Format: uuid
+       * @description ID of the approval request that was decided
+       */
+      approval_id: string
+      /** @description Activity ID of the approval node in the workflow definition */
+      approval_node_id: string
+      /**
+       * @description Decision status from the approvals component.
+       * @enum {string}
+       */
+      status: 'approved' | 'rejected'
+      /** @description Optional notes provided with the decision */
+      notes?: string | null
+    }
+    /**
+     * Signal Response
+     * @description Response confirming a signal was sent to a workflow
+     */
+    SignalResponse: {
+      /**
+       * @description Confirmation that the signal was successfully sent
+       * @enum {string}
+       */
+      status: 'signal_sent'
+      /** @description Human-readable confirmation message */
+      message?: string
+    }
+    /**
+     * Activity Signal Payload
+     * @description Generic signal payload for sending arbitrary data to a specific activity
+     *     within a running workflow execution.
+     */
+    ActivitySignalPayload: {
+      /**
+       * @description Arbitrary JSON data to send to the activity. The structure depends
+       *     on what the activity expects to receive.
+       * @example {
+       *       "action": "resume",
+       *       "status": "completed",
+       *       "result": {
+       *         "value": 42
+       *       }
+       *     }
+       */
+      signal_data: {
+        [key: string]: unknown
+      }
     }
     /**
      * Error Response
@@ -1774,6 +1634,7 @@ export interface components {
       | components['schemas']['conditionActivity']
       | components['schemas']['loopActivity']
       | components['schemas']['convergeActivity']
+      | components['schemas']['approvalActivity']
     parallelActivity: {
       /** @constant */
       type: 'parallel'
@@ -1924,6 +1785,23 @@ export interface components {
        */
       type: 'converge'
     })
+    /** @description Human approval node - pauses branch execution until approved or rejected */
+    approvalActivity: {
+      /** @constant */
+      type: 'approval'
+      /** @description Detailed context/prompt for approvers explaining what they are approving */
+      description?: string
+      /** @description Activities to execute when approval is granted */
+      onApproved: components['schemas']['activity'][]
+      /** @description Activities to execute when approval is rejected or expires */
+      onRejected?: components['schemas']['activity'][]
+    } & (components['schemas']['baseActivity'] & {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'approval'
+    })
     /**
      * Workflow Definition Schema
      * @description JSON Schema for workflow YAML definitions in the Nexus Workflow Engine
@@ -1965,7 +1843,7 @@ export interface components {
       triggers?: components['schemas']['manualTrigger'][]
       /** @description Input parameter definitions for the workflow */
       inputs?: {
-        [key: string]: Record<string, unknown>
+        [key: string]: definitions['parameter']
       }
       /** @description Workflow-level variables that can be referenced throughout the workflow */
       variables?: {
@@ -1989,6 +1867,35 @@ export interface components {
         /** @description List of activities to execute in the workflow */
         activities: components['schemas']['activity'][]
       }
+    }
+    /**
+     * Activity Data
+     * @description Activity data for execution response when include=activities is requested
+     */
+    ActivityData: {
+      /**
+       * @description Activity ID from workflow definition
+       * @example process_data
+       */
+      activity_id: string
+      status: components['schemas']['ActivityStatus']
+      /**
+       * @description Error message if status is failed
+       * @example Connection timeout to external service
+       */
+      error_details?: string | null
+      /**
+       * Format: date-time
+       * @description When activity started execution
+       * @example 2025-12-10T15:00:10Z
+       */
+      started_at?: string | null
+      /**
+       * Format: date-time
+       * @description When activity completed
+       * @example 2025-12-10T15:00:15Z
+       */
+      completed_at?: string | null
     }
   }
   responses: never
@@ -2141,4 +2048,109 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  signalApprovalDecision: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Execution ID of the workflow awaiting approval */
+        executionId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ApprovalDecisionSignal']
+      }
+    }
+    responses: {
+      /** @description Signal sent successfully */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SignalResponse']
+        }
+      }
+      /** @description Execution not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /**
+       * @description Execution is not in a state that can receive approval signals
+       *     (e.g., already completed, cancelled, or not waiting for approval)
+       */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+    }
+  }
+  signalActivity: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Execution ID of the running workflow */
+        execution_id: string
+        /** @description Activity ID from the workflow definition */
+        activity_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ActivitySignalPayload']
+      }
+    }
+    responses: {
+      /** @description Signal sent successfully */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SignalResponse']
+        }
+      }
+      /** @description Execution not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description Failed to send signal */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description Temporal workflow engine unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+    }
+  }
+}

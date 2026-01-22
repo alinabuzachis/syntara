@@ -1,0 +1,484 @@
+/**
+ * Execution Store Tests
+ *
+ * Comprehensive tests for execution visualization store
+ */
+
+import { describe, it, expect, beforeEach } from 'vitest'
+
+import type { Execution } from '../execution/types'
+
+import {
+  useExecutionStore,
+  selectExecutionId,
+  selectVisualization,
+  selectActivityStatus,
+  selectActivityError,
+  selectConnectionState,
+  selectIsComplete,
+  selectLastEventId,
+  selectError,
+  selectIsLoaded,
+} from './useExecutionStore'
+
+// ============================================================================
+// Test Helpers
+// ============================================================================
+
+function createMockExecution(overrides?: Partial<Execution>): Execution {
+  return {
+    id: 'exec-123',
+    createdAt: '2025-12-10T15:00:00Z',
+    updatedAt: '2025-12-10T15:00:00Z',
+    workflow_id: 'workflow-456',
+    workflow_version_id: 'version-789',
+    status: 'running',
+    started_at: '2025-12-10T15:00:05Z',
+    completed_at: null,
+    workflow_definition: { workflow: { activities: [] } },
+    activities: [
+      {
+        activity_id: 'fetch_data',
+        status: 'completed',
+        error_details: null,
+        started_at: '2025-12-10T15:00:05Z',
+        completed_at: '2025-12-10T15:00:10Z',
+      },
+      {
+        activity_id: 'process_data',
+        status: 'running',
+        error_details: null,
+        started_at: '2025-12-10T15:00:10Z',
+        completed_at: null,
+      },
+      {
+        activity_id: 'send_notification',
+        status: 'pending',
+        error_details: null,
+        started_at: null,
+        completed_at: null,
+      },
+    ],
+    ...overrides,
+  } as Execution
+}
+
+// ============================================================================
+// Store Tests
+// ============================================================================
+
+describe('useExecutionStore', () => {
+  beforeEach(() => {
+    // Reset store before each test
+    useExecutionStore.getState().reset()
+  })
+
+  describe('initial state', () => {
+    it('has correct initial state', () => {
+      const state = useExecutionStore.getState()
+
+      expect(state.executionId).toBeNull()
+      expect(state.visualization).toBeNull()
+      expect(state.activityStates.size).toBe(0)
+      expect(state.activityErrors.size).toBe(0)
+      expect(state.isConnected).toBe(false)
+      expect(state.isStale).toBe(false)
+      expect(state.isComplete).toBe(false)
+      expect(state.lastEventId).toBeNull()
+      expect(state.error).toBeNull()
+    })
+  })
+
+  describe('setExecution', () => {
+    it('sets execution data correctly', () => {
+      const execution = createMockExecution()
+
+      useExecutionStore.getState().setExecution(execution)
+
+      const state = useExecutionStore.getState()
+      expect(state.executionId).toBe('exec-123')
+      expect(state.visualization).not.toBeNull()
+      expect(state.visualization?.executionId).toBe('exec-123')
+      expect(state.visualization?.workflowId).toBe('workflow-456')
+      expect(state.visualization?.status).toBe('running')
+    })
+
+    it('builds activity state map from execution', () => {
+      const execution = createMockExecution()
+
+      useExecutionStore.getState().setExecution(execution)
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.size).toBe(3)
+      expect(state.activityStates.get('fetch_data')).toBe('success')
+      expect(state.activityStates.get('process_data')).toBe('running')
+      expect(state.activityStates.get('send_notification')).toBe('pending')
+    })
+
+    it('maps completed status to success', () => {
+      const execution = createMockExecution()
+
+      useExecutionStore.getState().setExecution(execution)
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.get('fetch_data')).toBe('success')
+    })
+
+    it('extracts activity errors', () => {
+      const execution = createMockExecution({
+        activities: [
+          {
+            activity_id: 'failed_task',
+            status: 'failed',
+            error_details: 'Connection timeout',
+            started_at: '2025-12-10T15:00:05Z',
+            completed_at: '2025-12-10T15:00:10Z',
+          },
+        ],
+      } as Partial<Execution>)
+
+      useExecutionStore.getState().setExecution(execution)
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.get('failed_task')).toBe('error')
+      expect(state.activityErrors.get('failed_task')).toBe('Connection timeout')
+    })
+
+    it('handles execution without activities', () => {
+      const execution = createMockExecution({
+        activities: [],
+      } as Partial<Execution>)
+
+      useExecutionStore.getState().setExecution(execution)
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.size).toBe(0)
+      expect(state.activityErrors.size).toBe(0)
+    })
+
+    it('clears previous error on successful load', () => {
+      useExecutionStore.getState().setError(new Error('Previous error'))
+
+      const execution = createMockExecution()
+      useExecutionStore.getState().setExecution(execution)
+
+      const state = useExecutionStore.getState()
+      expect(state.error).toBeNull()
+    })
+
+    it('updates visualization with workflow definition', () => {
+      const execution = createMockExecution({
+        workflow_definition: { workflow: { activities: [{ id: 'task1' }] } },
+      } as unknown as Partial<Execution>)
+
+      useExecutionStore.getState().setExecution(execution)
+
+      const state = useExecutionStore.getState()
+      expect(state.visualization?.workflowDefinition).toEqual({
+        workflow: { activities: [{ id: 'task1' }] },
+      })
+    })
+  })
+
+  describe('applyPatch', () => {
+    beforeEach(() => {
+      const execution = createMockExecution()
+      useExecutionStore.getState().setExecution(execution)
+    })
+
+    it('applies status change patch', () => {
+      useExecutionStore.getState().applyPatch(
+        [
+          {
+            op: 'replace',
+            path: '/activities/process_data/status',
+            value: 'completed',
+          },
+        ],
+        '1691431234568-0'
+      )
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.get('process_data')).toBe('success')
+      expect(state.lastEventId).toBe('1691431234568-0')
+    })
+
+    it('applies multiple patches', () => {
+      useExecutionStore.getState().applyPatch(
+        [
+          {
+            op: 'replace',
+            path: '/activities/process_data/status',
+            value: 'failed',
+          },
+          {
+            op: 'add',
+            path: '/activities/process_data/error_details',
+            value: 'Connection timeout',
+          },
+        ],
+        '1691431234568-1'
+      )
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.get('process_data')).toBe('error')
+      expect(state.activityErrors.get('process_data')).toBe('Connection timeout')
+    })
+
+    it('handles patch for new activity', () => {
+      useExecutionStore.getState().applyPatch(
+        [
+          {
+            op: 'add',
+            path: '/activities/new_activity/status',
+            value: 'running',
+          },
+        ],
+        '1691431234568-2'
+      )
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.get('new_activity')).toBe('running')
+    })
+
+    it('does not update when no execution loaded', () => {
+      useExecutionStore.getState().reset()
+
+      useExecutionStore.getState().applyPatch(
+        [
+          {
+            op: 'replace',
+            path: '/activities/task/status',
+            value: 'completed',
+          },
+        ],
+        '1691431234568-3'
+      )
+
+      const state = useExecutionStore.getState()
+      expect(state.visualization).toBeNull()
+    })
+
+    it('sets error on invalid patch', () => {
+      useExecutionStore.getState().applyPatch(
+        [
+          {
+            op: 'replace',
+            path: '/invalid/path',
+            value: 'value',
+          },
+        ],
+        '1691431234568-4'
+      )
+
+      const state = useExecutionStore.getState()
+      expect(state.error).not.toBeNull()
+      expect(state.error?.message).toContain('Invalid activity path format')
+    })
+
+    it('updates last event ID even on error', () => {
+      const initialEventId = useExecutionStore.getState().lastEventId
+
+      useExecutionStore.getState().applyPatch(
+        [
+          {
+            op: 'replace',
+            path: '/invalid/path',
+            value: 'value',
+          },
+        ],
+        '1691431234568-5'
+      )
+
+      // Event ID should not be updated on error
+      const state = useExecutionStore.getState()
+      expect(state.lastEventId).toBe(initialEventId)
+    })
+  })
+
+  describe('setComplete', () => {
+    it('marks execution as complete', () => {
+      useExecutionStore.getState().setComplete(true)
+
+      const state = useExecutionStore.getState()
+      expect(state.isComplete).toBe(true)
+    })
+
+    it('can unmark execution as complete', () => {
+      useExecutionStore.getState().setComplete(true)
+      useExecutionStore.getState().setComplete(false)
+
+      const state = useExecutionStore.getState()
+      expect(state.isComplete).toBe(false)
+    })
+  })
+
+  describe('setConnectionState', () => {
+    it('sets connection state', () => {
+      useExecutionStore.getState().setConnectionState(true, false)
+
+      const state = useExecutionStore.getState()
+      expect(state.isConnected).toBe(true)
+      expect(state.isStale).toBe(false)
+    })
+
+    it('sets stale state', () => {
+      useExecutionStore.getState().setConnectionState(false, true)
+
+      const state = useExecutionStore.getState()
+      expect(state.isConnected).toBe(false)
+      expect(state.isStale).toBe(true)
+    })
+  })
+
+  describe('setLastEventId', () => {
+    it('sets last event ID', () => {
+      useExecutionStore.getState().setLastEventId('1691431234567-0')
+
+      const state = useExecutionStore.getState()
+      expect(state.lastEventId).toBe('1691431234567-0')
+    })
+
+    it('updates last event ID', () => {
+      useExecutionStore.getState().setLastEventId('1691431234567-0')
+      useExecutionStore.getState().setLastEventId('1691431234567-1')
+
+      const state = useExecutionStore.getState()
+      expect(state.lastEventId).toBe('1691431234567-1')
+    })
+  })
+
+  describe('setError', () => {
+    it('sets error', () => {
+      const error = new Error('Test error')
+      useExecutionStore.getState().setError(error)
+
+      const state = useExecutionStore.getState()
+      expect(state.error).toBe(error)
+    })
+
+    it('clears error', () => {
+      useExecutionStore.getState().setError(new Error('Test error'))
+      useExecutionStore.getState().setError(null)
+
+      const state = useExecutionStore.getState()
+      expect(state.error).toBeNull()
+    })
+  })
+
+  describe('reset', () => {
+    it('resets to initial state', () => {
+      const execution = createMockExecution()
+      useExecutionStore.getState().setExecution(execution)
+      useExecutionStore.getState().setConnectionState(true, false)
+      useExecutionStore.getState().setComplete(true)
+      useExecutionStore.getState().setLastEventId('1691431234567-0')
+      useExecutionStore.getState().setError(new Error('Test error'))
+
+      useExecutionStore.getState().reset()
+
+      const state = useExecutionStore.getState()
+      expect(state.executionId).toBeNull()
+      expect(state.visualization).toBeNull()
+      expect(state.activityStates.size).toBe(0)
+      expect(state.activityErrors.size).toBe(0)
+      expect(state.isConnected).toBe(false)
+      expect(state.isStale).toBe(false)
+      expect(state.isComplete).toBe(false)
+      expect(state.lastEventId).toBeNull()
+      expect(state.error).toBeNull()
+    })
+  })
+
+  // ============================================================================
+  // Selector Tests
+  // ============================================================================
+
+  describe('selectors', () => {
+    beforeEach(() => {
+      const execution = createMockExecution()
+      useExecutionStore.getState().setExecution(execution)
+    })
+
+    it('selectExecutionId returns execution ID', () => {
+      const executionId = selectExecutionId(useExecutionStore.getState())
+      expect(executionId).toBe('exec-123')
+    })
+
+    it('selectVisualization returns visualization', () => {
+      const visualization = selectVisualization(useExecutionStore.getState())
+      expect(visualization).not.toBeNull()
+      expect(visualization?.executionId).toBe('exec-123')
+    })
+
+    it('selectActivityStatus returns activity status', () => {
+      const status = selectActivityStatus('fetch_data')(useExecutionStore.getState())
+      expect(status).toBe('success')
+    })
+
+    it('selectActivityStatus returns undefined for unknown activity', () => {
+      const status = selectActivityStatus('unknown')(useExecutionStore.getState())
+      expect(status).toBeUndefined()
+    })
+
+    it('selectActivityError returns error', () => {
+      const execution = createMockExecution({
+        activities: [
+          {
+            activity_id: 'failed_task',
+            status: 'failed',
+            error_details: 'Connection timeout',
+            started_at: '2025-12-10T15:00:05Z',
+            completed_at: '2025-12-10T15:00:10Z',
+          },
+        ],
+      } as Partial<Execution>)
+      useExecutionStore.getState().setExecution(execution)
+
+      const error = selectActivityError('failed_task')(useExecutionStore.getState())
+      expect(error).toBe('Connection timeout')
+    })
+
+    it('selectConnectionState returns connection state', () => {
+      useExecutionStore.getState().setConnectionState(true, false)
+
+      const connectionState = selectConnectionState(useExecutionStore.getState())
+      expect(connectionState.isConnected).toBe(true)
+      expect(connectionState.isStale).toBe(false)
+    })
+
+    it('selectIsComplete returns completion state', () => {
+      useExecutionStore.getState().setComplete(true)
+
+      const isComplete = selectIsComplete(useExecutionStore.getState())
+      expect(isComplete).toBe(true)
+    })
+
+    it('selectLastEventId returns last event ID', () => {
+      useExecutionStore.getState().setLastEventId('1691431234567-0')
+
+      const lastEventId = selectLastEventId(useExecutionStore.getState())
+      expect(lastEventId).toBe('1691431234567-0')
+    })
+
+    it('selectError returns error', () => {
+      const error = new Error('Test error')
+      useExecutionStore.getState().setError(error)
+
+      const stateError = selectError(useExecutionStore.getState())
+      expect(stateError).toBe(error)
+    })
+
+    it('selectIsLoaded returns true when execution loaded', () => {
+      const isLoaded = selectIsLoaded(useExecutionStore.getState())
+      expect(isLoaded).toBe(true)
+    })
+
+    it('selectIsLoaded returns false when no execution', () => {
+      useExecutionStore.getState().reset()
+
+      const isLoaded = selectIsLoaded(useExecutionStore.getState())
+      expect(isLoaded).toBe(false)
+    })
+  })
+})

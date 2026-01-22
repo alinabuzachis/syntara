@@ -69,6 +69,5 @@ export const executorMetadata: Record<string, { icon: ComponentType<{ className?
   api: { icon: RhUiServerFillIcon, label: 'REST Api' },
   connector: { icon: RhUiPlugFillIcon, label: 'Connector' },
   aap_job_template: { icon: AnsibleIcon, label: 'AAP Job' },
-  aap: { icon: AnsibleIcon, label: 'AAP Job' }, // Ansible Automation Platform (alternative key)
   approval: { icon: UserCheckIcon, label: 'Approval' }, // Human approval gate
 }

@@ -1,0 +1,461 @@
+/**
+ * Execution Data Hook Tests
+ *
+ * Tests for REST API fetching hook with integration to execution store
+ */
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { renderHook, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+import { workflowClient } from '../../../client'
+import type { Execution } from '../execution/types'
+import { useExecutionStore } from '../stores/useExecutionStore'
+
+import { useExecutionData, useShouldStreamExecution } from './useExecutionData'
+
+// ============================================================================
+// Mock Setup
+// ============================================================================
+
+vi.mock('../../../client', () => ({
+  workflowClient: {
+    useQuery: vi.fn(),
+  },
+}))
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+})
+
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+)
+
+// ============================================================================
+// Test Helpers
+// ============================================================================
+
+function createMockExecution(overrides?: Partial<Execution>): Execution {
+  return {
+    id: 'exec-123',
+    createdAt: '2025-12-10T15:00:00Z',
+    updatedAt: '2025-12-10T15:00:00Z',
+    workflow_id: 'workflow-456',
+    workflow_version_id: 'version-789',
+    status: 'running',
+    started_at: '2025-12-10T15:00:05Z',
+    completed_at: null,
+    workflow_definition: { workflow: { activities: [] } },
+    activities: [
+      {
+        activity_id: 'fetch_data',
+        status: 'completed',
+        error_details: null,
+        started_at: '2025-12-10T15:00:05Z',
+        completed_at: '2025-12-10T15:00:10Z',
+      },
+    ],
+    ...overrides,
+  } as Execution
+}
+
+// ============================================================================
+// useExecutionData Tests
+// ============================================================================
+
+describe('useExecutionData', () => {
+  beforeEach(() => {
+    useExecutionStore.getState().reset()
+    vi.clearAllMocks()
+  })
+
+  it('fetches execution data successfully', async () => {
+    const mockExecution = createMockExecution()
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    const { result } = renderHook(() => useExecutionData('exec-123'), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(mockExecution)
+    })
+
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.isSuccess).toBe(true)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('requests correct API endpoint with includes', () => {
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: null,
+      isLoading: true,
+      isSuccess: false,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    renderHook(() => useExecutionData('exec-123'), { wrapper })
+
+    expect(workflowClient.useQuery).toHaveBeenCalledWith(
+      'get',
+      '/executions/{executionId}',
+      {
+        params: {
+          path: {
+            executionId: 'exec-123',
+          },
+          query: {
+            include: ['workflow_definition', 'activities'],
+          },
+        },
+      },
+      {
+        enabled: true,
+      }
+    )
+  })
+
+  it('auto-loads data into store by default', async () => {
+    const mockExecution = createMockExecution()
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    renderHook(() => useExecutionData('exec-123'), { wrapper })
+
+    await waitFor(() => {
+      const storeState = useExecutionStore.getState()
+      expect(storeState.executionId).toBe('exec-123')
+      expect(storeState.visualization).not.toBeNull()
+    })
+  })
+
+  it('does not auto-load when autoLoad is false', async () => {
+    const mockExecution = createMockExecution()
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    renderHook(() => useExecutionData('exec-123', { autoLoad: false }), { wrapper })
+
+    await waitFor(() => {
+      const storeState = useExecutionStore.getState()
+      expect(storeState.executionId).toBeNull()
+      expect(storeState.visualization).toBeNull()
+    })
+  })
+
+  it('does not fetch when enabled is false', () => {
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: null,
+      isLoading: false,
+      isSuccess: false,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    renderHook(() => useExecutionData('exec-123', { enabled: false }), { wrapper })
+
+    expect(workflowClient.useQuery).toHaveBeenCalledWith(
+      'get',
+      '/executions/{executionId}',
+      expect.anything(),
+      expect.objectContaining({
+        enabled: false,
+      })
+    )
+  })
+
+  it('handles loading state', () => {
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: null,
+      isLoading: true,
+      isSuccess: false,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    const { result } = renderHook(() => useExecutionData('exec-123'), { wrapper })
+
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.data).toBeNull()
+  })
+
+  it('handles error state', async () => {
+    const mockError = new Error('Failed to fetch execution')
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: null,
+      isLoading: false,
+      isSuccess: false,
+      error: mockError,
+      refetch: vi.fn(),
+    } as never)
+
+    const { result } = renderHook(() => useExecutionData('exec-123'), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.error).toEqual(mockError)
+    })
+
+    // Error should be set in store
+    const storeState = useExecutionStore.getState()
+    expect(storeState.error).toEqual(mockError)
+  })
+
+  it('provides refetch function', () => {
+    const mockRefetch = vi.fn()
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: null,
+      isLoading: false,
+      isSuccess: false,
+      error: null,
+      refetch: mockRefetch,
+    } as never)
+
+    const { result } = renderHook(() => useExecutionData('exec-123'), { wrapper })
+
+    result.current.refetch()
+
+    expect(mockRefetch).toHaveBeenCalled()
+  })
+
+  it('clears store error on successful load', async () => {
+    // Set initial error
+    useExecutionStore.getState().setError(new Error('Previous error'))
+
+    const mockExecution = createMockExecution()
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    renderHook(() => useExecutionData('exec-123'), { wrapper })
+
+    await waitFor(() => {
+      const storeState = useExecutionStore.getState()
+      expect(storeState.error).toBeNull()
+    })
+  })
+
+  it('handles execution with complete workflow definition', async () => {
+    const mockExecution = createMockExecution({
+      workflow_definition: {
+        workflow: {
+          activities: [
+            { id: 'task1', type: 'task' },
+            { id: 'task2', type: 'task' },
+          ],
+        },
+      },
+    } as unknown as Partial<Execution>)
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    renderHook(() => useExecutionData('exec-123'), { wrapper })
+
+    await waitFor(() => {
+      const storeState = useExecutionStore.getState()
+      expect(storeState.visualization?.workflowDefinition).toEqual(mockExecution.workflow_definition)
+    })
+  })
+
+  it('handles execution with multiple activities', async () => {
+    const mockExecution = createMockExecution({
+      activities: [
+        {
+          activity_id: 'fetch_data',
+          status: 'completed',
+          error_details: null,
+          started_at: '2025-12-10T15:00:05Z',
+          completed_at: '2025-12-10T15:00:10Z',
+        },
+        {
+          activity_id: 'process_data',
+          status: 'running',
+          error_details: null,
+          started_at: '2025-12-10T15:00:10Z',
+          completed_at: null,
+        },
+        {
+          activity_id: 'send_notification',
+          status: 'pending',
+          error_details: null,
+          started_at: null,
+          completed_at: null,
+        },
+      ],
+    } as Partial<Execution>)
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    renderHook(() => useExecutionData('exec-123'), { wrapper })
+
+    await waitFor(() => {
+      const storeState = useExecutionStore.getState()
+      expect(storeState.activityStates.size).toBe(3)
+      expect(storeState.activityStates.get('fetch_data')).toBe('success')
+      expect(storeState.activityStates.get('process_data')).toBe('running')
+      expect(storeState.activityStates.get('send_notification')).toBe('pending')
+    })
+  })
+})
+
+// ============================================================================
+// useShouldStreamExecution Tests
+// ============================================================================
+
+describe('useShouldStreamExecution', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns false when data not loaded', () => {
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: null,
+      isLoading: true,
+      isSuccess: false,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    const { result } = renderHook(() => useShouldStreamExecution('exec-123'), { wrapper })
+
+    expect(result.current).toBe(false)
+  })
+
+  it('returns true for running execution', () => {
+    const mockExecution = createMockExecution({ status: 'running' } as Partial<Execution>)
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    const { result } = renderHook(() => useShouldStreamExecution('exec-123'), { wrapper })
+
+    expect(result.current).toBe(true)
+  })
+
+  it('returns true for pending execution', () => {
+    const mockExecution = createMockExecution({ status: 'pending' } as Partial<Execution>)
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    const { result } = renderHook(() => useShouldStreamExecution('exec-123'), { wrapper })
+
+    expect(result.current).toBe(true)
+  })
+
+  it('returns true for paused execution', () => {
+    const mockExecution = createMockExecution({ status: 'paused' } as Partial<Execution>)
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    const { result } = renderHook(() => useShouldStreamExecution('exec-123'), { wrapper })
+
+    expect(result.current).toBe(true)
+  })
+
+  it('returns false for completed execution', () => {
+    const mockExecution = createMockExecution({ status: 'completed' } as Partial<Execution>)
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    const { result } = renderHook(() => useShouldStreamExecution('exec-123'), { wrapper })
+
+    expect(result.current).toBe(false)
+  })
+
+  it('returns false for failed execution', () => {
+    const mockExecution = createMockExecution({ status: 'failed' } as Partial<Execution>)
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    const { result } = renderHook(() => useShouldStreamExecution('exec-123'), { wrapper })
+
+    expect(result.current).toBe(false)
+  })
+
+  it('returns false for cancelled execution', () => {
+    const mockExecution = createMockExecution({ status: 'cancelled' } as Partial<Execution>)
+
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: mockExecution,
+      isLoading: false,
+      isSuccess: true,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    const { result } = renderHook(() => useShouldStreamExecution('exec-123'), { wrapper })
+
+    expect(result.current).toBe(false)
+  })
+})
