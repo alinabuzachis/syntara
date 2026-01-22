@@ -123,6 +123,36 @@ async def test_patch_workflow_labels(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_patch_workflow_labels_not_strings(base_client: AsyncClient) -> None:
+    """Test updating workflow with non-string labels.
+
+    Expected: 422 Unprocessable
+    """
+    workflow = {
+        "name": "labeled-workflow",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="labeled",
+            description="Labeled workflow",
+            activity_id="task1",
+        ),
+        "labels": {"env": "dev"},
+    }
+
+    create_response = await base_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+
+    # Update labels
+    update_data = {"labels": {"env": 1}}
+    response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+
+    assert response.status_code == 422
+    data = response.json()
+    assert "detail" in data
+    assert "validation error for Workflow" in data["detail"]
+    assert "labels value for key 'env' must be a string" in data["detail"]
+
+
+@pytest.mark.asyncio
 async def test_patch_workflow_updates_timestamp(base_client: AsyncClient) -> None:
     """Test that PATCH updates the updated_at timestamp.
 
