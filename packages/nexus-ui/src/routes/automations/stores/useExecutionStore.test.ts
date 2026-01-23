@@ -110,9 +110,24 @@ describe('useExecutionStore', () => {
 
       const state = useExecutionStore.getState()
       expect(state.activityStates.size).toBe(3)
-      expect(state.activityStates.get('fetch_data')).toBe('success')
-      expect(state.activityStates.get('process_data')).toBe('running')
-      expect(state.activityStates.get('send_notification')).toBe('pending')
+      expect(state.activityStates.get('fetch_data')?.status).toBe('success')
+      expect(state.activityStates.get('process_data')?.status).toBe('running')
+      expect(state.activityStates.get('send_notification')?.status).toBe('pending')
+    })
+
+    it('stores full ActivityState objects', () => {
+      const execution = createMockExecution()
+
+      useExecutionStore.getState().setExecution(execution)
+
+      const state = useExecutionStore.getState()
+      const fetchDataState = state.activityStates.get('fetch_data')
+      expect(fetchDataState).toBeDefined()
+      expect(fetchDataState?.activityId).toBe('fetch_data')
+      expect(fetchDataState?.status).toBe('success')
+      expect(fetchDataState?.startedAt).toBe('2025-12-10T15:00:05Z')
+      expect(fetchDataState?.completedAt).toBe('2025-12-10T15:00:10Z')
+      expect(fetchDataState?.errorDetails).toBeNull()
     })
 
     it('maps completed status to success', () => {
@@ -121,7 +136,7 @@ describe('useExecutionStore', () => {
       useExecutionStore.getState().setExecution(execution)
 
       const state = useExecutionStore.getState()
-      expect(state.activityStates.get('fetch_data')).toBe('success')
+      expect(state.activityStates.get('fetch_data')?.status).toBe('success')
     })
 
     it('extracts activity errors', () => {
@@ -140,7 +155,7 @@ describe('useExecutionStore', () => {
       useExecutionStore.getState().setExecution(execution)
 
       const state = useExecutionStore.getState()
-      expect(state.activityStates.get('failed_task')).toBe('error')
+      expect(state.activityStates.get('failed_task')?.status).toBe('error')
       expect(state.activityErrors.get('failed_task')).toBe('Connection timeout')
     })
 
@@ -180,119 +195,60 @@ describe('useExecutionStore', () => {
     })
   })
 
-  describe('applyPatch', () => {
-    beforeEach(() => {
-      const execution = createMockExecution()
-      useExecutionStore.getState().setExecution(execution)
-    })
-
-    it('applies status change patch', () => {
-      useExecutionStore.getState().applyPatch(
-        [
-          {
-            op: 'replace',
-            path: '/activities/process_data/status',
-            value: 'completed',
-          },
-        ],
-        '1691431234568-0'
-      )
-
-      const state = useExecutionStore.getState()
-      expect(state.activityStates.get('process_data')).toBe('success')
-      expect(state.lastEventId).toBe('1691431234568-0')
-    })
-
-    it('applies multiple patches', () => {
-      useExecutionStore.getState().applyPatch(
-        [
-          {
-            op: 'replace',
-            path: '/activities/process_data/status',
-            value: 'failed',
-          },
-          {
-            op: 'add',
-            path: '/activities/process_data/error_details',
-            value: 'Connection timeout',
-          },
-        ],
-        '1691431234568-1'
-      )
+  describe('setActivityExecutions', () => {
+    it('converts ActivityExecution array to ActivityState map', () => {
+      useExecutionStore.getState().setActivityExecutions([
+        {
+          activity_id: 'task1',
+          status: 'completed',
+          error_details: null,
+          started_at: '2025-12-10T15:00:05Z',
+          completed_at: '2025-12-10T15:00:10Z',
+        },
+        {
+          activity_id: 'task2',
+          status: 'running',
+          error_details: null,
+          started_at: '2025-12-10T15:00:10Z',
+          completed_at: null,
+        },
+      ])
 
       const state = useExecutionStore.getState()
-      expect(state.activityStates.get('process_data')).toBe('error')
-      expect(state.activityErrors.get('process_data')).toBe('Connection timeout')
+      expect(state.activityStates.size).toBe(2)
+      expect(state.activityStates.get('task1')?.status).toBe('completed')
+      expect(state.activityStates.get('task2')?.status).toBe('running')
     })
 
-    it('handles patch for new activity', () => {
-      useExecutionStore.getState().applyPatch(
-        [
-          {
-            op: 'add',
-            path: '/activities/new_activity/status',
-            value: 'running',
-          },
-        ],
-        '1691431234568-2'
-      )
+    it('preserves original ActivityStatus for badge compatibility', () => {
+      useExecutionStore.getState().setActivityExecutions([
+        {
+          activity_id: 'task1',
+          status: 'completed',
+          error_details: null,
+          started_at: '2025-12-10T15:00:05Z',
+          completed_at: '2025-12-10T15:00:10Z',
+        },
+      ])
 
       const state = useExecutionStore.getState()
-      expect(state.activityStates.get('new_activity')).toBe('running')
+      // Should preserve 'completed' not map to 'success' for builder overlay
+      expect(state.activityStates.get('task1')?.status).toBe('completed')
     })
 
-    it('does not update when no execution loaded', () => {
-      useExecutionStore.getState().reset()
-
-      useExecutionStore.getState().applyPatch(
-        [
-          {
-            op: 'replace',
-            path: '/activities/task/status',
-            value: 'completed',
-          },
-        ],
-        '1691431234568-3'
-      )
+    it('extracts errors from activity executions', () => {
+      useExecutionStore.getState().setActivityExecutions([
+        {
+          activity_id: 'failed_task',
+          status: 'failed',
+          error_details: 'Connection timeout',
+          started_at: '2025-12-10T15:00:05Z',
+          completed_at: '2025-12-10T15:00:10Z',
+        },
+      ])
 
       const state = useExecutionStore.getState()
-      expect(state.visualization).toBeNull()
-    })
-
-    it('sets error on invalid patch', () => {
-      useExecutionStore.getState().applyPatch(
-        [
-          {
-            op: 'replace',
-            path: '/invalid/path',
-            value: 'value',
-          },
-        ],
-        '1691431234568-4'
-      )
-
-      const state = useExecutionStore.getState()
-      expect(state.error).not.toBeNull()
-      expect(state.error?.message).toContain('Invalid activity path format')
-    })
-
-    it('updates last event ID even on error', () => {
-      const initialEventId = useExecutionStore.getState().lastEventId
-
-      useExecutionStore.getState().applyPatch(
-        [
-          {
-            op: 'replace',
-            path: '/invalid/path',
-            value: 'value',
-          },
-        ],
-        '1691431234568-5'
-      )
-
-      // Event ID should not be updated on error
-      const state = useExecutionStore.getState()
-      expect(state.lastEventId).toBe(initialEventId)
+      expect(state.activityErrors.get('failed_task')).toBe('Connection timeout')
     })
   })
 

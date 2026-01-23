@@ -40,8 +40,26 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
     nodeType: MenuNodeType.ACTIVITY,
   })
 
+  // Extract execution state if present
+  const executionState = (props.data as Record<string, unknown>).__executionState as
+    | {
+        status: string
+        started_at?: string
+        completed_at?: string
+        error_details?: string
+        retry_count?: number
+      }
+    | undefined
+
+  const showExecutionBadge = !!(props.data as Record<string, unknown>).metadata?.__showExecutionBadge
+
   return (
-    <NodeComponent className={metadata.className} nodeProps={props}>
+    <NodeComponent
+      className={metadata.className}
+      nodeProps={props}
+      executionState={executionState}
+      showExecutionBadge={showExecutionBadge}
+    >
       <TaskActivityDetails data={props.data} menuActions={menuActions} />
     </NodeComponent>
   )

@@ -27,8 +27,25 @@ export function GenericNodeComponent(props: NodeProps<GenericNode>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reverseHandles = (props.data as any).metadata?.__reverseHandles as boolean | undefined
 
+  // Extract execution state if present
+  const executionState = (props.data as Record<string, unknown>).__executionState as
+    | {
+        status: string
+        started_at?: string
+        completed_at?: string
+        error_details?: string
+        retry_count?: number
+      }
+    | undefined
+
   return (
-    <NodeComponent nodeProps={props} reverseHandles={reverseHandles} hasDashedBorder collapsible={false}>
+    <NodeComponent
+      nodeProps={props}
+      reverseHandles={reverseHandles}
+      hasDashedBorder
+      executionState={executionState}
+      collapsible={false}
+    >
       <StandardNodeHeader
         icon={<RhUiSettingsIcon />}
         title={showTitle ? 'Click to configure' : undefined}

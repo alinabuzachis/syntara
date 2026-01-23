@@ -55,6 +55,9 @@ export type EdgeType = {
   data?: {
     onAddNode?: (sourceNodeId: string, targetNodeId: string, edgeId: string) => void
     onButtonClick?: () => void
+    isActive?: boolean
+    isPending?: boolean
+    executionStatus?: 'passed' | 'pending'
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any
   }

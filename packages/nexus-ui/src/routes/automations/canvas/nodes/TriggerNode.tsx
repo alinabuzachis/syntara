@@ -35,6 +35,17 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
     triggerIndex,
   })
 
+  // Extract execution state if present
+  const executionState = (props.data as Record<string, unknown>).__executionState as
+    | {
+        status: string
+        started_at?: string
+        completed_at?: string
+        error_details?: string
+        retry_count?: number
+      }
+    | undefined
+
   return (
     <NodeComponent
       disableTarget={metadata.disableTarget}
@@ -42,6 +53,8 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
       nodeProps={props}
       style={triggerStyle}
       collapsible={false}
+      executionState={executionState}
+      showExecutionBadge={false}
     >
       <TriggerNodeDetails
         node={props.data}

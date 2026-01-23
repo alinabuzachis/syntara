@@ -54,6 +54,10 @@ describe('deriveEdgeStatus', () => {
     it('returns passed for cancelled status', () => {
       expect(deriveEdgeStatus('cancelled')).toBe('passed')
     })
+
+    it('returns passed for completed status', () => {
+      expect(deriveEdgeStatus('completed')).toBe('passed')
+    })
   })
 
   describe('pending statuses', () => {
@@ -111,6 +115,14 @@ describe('useEdgeStatus', () => {
 
   it('returns passed for cancelled source', () => {
     const execution = createMockExecution([{ id: 'task1', status: 'cancelled' }])
+    useExecutionStore.getState().setExecution(execution)
+
+    const { result } = renderHook(() => useEdgeStatus('task1'))
+    expect(result.current).toBe('passed')
+  })
+
+  it('returns passed for completed source', () => {
+    const execution = createMockExecution([{ id: 'task1', status: 'completed' }])
     useExecutionStore.getState().setExecution(execution)
 
     const { result } = renderHook(() => useEdgeStatus('task1'))
@@ -278,6 +290,7 @@ describe('useEdgeStatuses', () => {
       { id: 'send_notification', status: 'pending' },
       { id: 'log_error', status: 'error' },
       { id: 'cleanup', status: 'cancelled' },
+      { id: 'finalize', status: 'completed' },
     ])
     useExecutionStore.getState().setExecution(execution)
 
@@ -287,6 +300,7 @@ describe('useEdgeStatuses', () => {
       { id: 'edge3', source: 'send_notification' }, // pending -> pending
       { id: 'edge4', source: 'log_error' }, // error -> passed
       { id: 'edge5', source: 'cleanup' }, // cancelled -> passed
+      { id: 'edge6', source: 'finalize' }, // completed -> passed
     ]
 
     const { result } = renderHook(() => useEdgeStatuses(edges))
@@ -296,6 +310,7 @@ describe('useEdgeStatuses', () => {
     expect(result.current.get('edge3')).toBe('pending')
     expect(result.current.get('edge4')).toBe('passed')
     expect(result.current.get('edge5')).toBe('passed')
+    expect(result.current.get('edge6')).toBe('passed')
   })
 
   it('maintains referential equality when activities unchanged', () => {

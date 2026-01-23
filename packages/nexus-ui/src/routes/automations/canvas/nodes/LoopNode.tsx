@@ -18,6 +18,17 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
     nodeType: MenuNodeType.ACTIVITY,
   })
 
+  // Extract execution state if present
+  const executionState = (props.data as Record<string, unknown>).__executionState as
+    | {
+        status: string
+        started_at?: string
+        completed_at?: string
+        error_details?: string
+        retry_count?: number
+      }
+    | undefined
+
   return (
     <NodeComponent
       className={metadata.className}
@@ -25,6 +36,7 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
       enableEnd={metadata.enableEnd}
       enableStart={metadata.enableStart}
       nodeProps={props}
+      executionState={executionState}
     >
       <StandardNodeHeader
         icon={<Icon />}

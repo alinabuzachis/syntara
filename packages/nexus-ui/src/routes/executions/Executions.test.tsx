@@ -201,7 +201,7 @@ describe('Executions Component', () => {
     expect(screen.getByText('Run history for My Test Workflow')).toBeInTheDocument()
   })
 
-  it('execution ID links navigate to workflow builder with showHistory=true', async () => {
+  it('execution ID links navigate to execution detail page', async () => {
     mockExecutionsQuery(mockExecutions)
     const mockSetLocation = vi.fn()
     vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
@@ -214,7 +214,7 @@ describe('Executions Component', () => {
     expect(executionIdButton).toBeInTheDocument()
 
     await user.click(executionIdButton!)
-    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1?showHistory=true')
+    expect(mockSetLocation).toHaveBeenCalledWith('/executions/123e4567-e89b-12d3-a456-426614174000')
   })
 
   it('workflow ID links navigate to workflow builder', async () => {
@@ -233,7 +233,7 @@ describe('Executions Component', () => {
     expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1')
   })
 
-  it('all execution IDs navigate to their respective workflows with showHistory=true', async () => {
+  it('all execution IDs navigate to their respective execution detail pages', async () => {
     mockExecutionsQuery(mockExecutions)
     const mockSetLocation = vi.fn()
     vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
@@ -241,18 +241,18 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    // Verify all execution ID links navigate to the correct workflow builder routes
+    // Verify all execution ID links navigate to the correct execution detail routes
     const execution1Button = screen.getByText('123e4567-e89b-12d3-a456-426614174000').closest('button')
     await user.click(execution1Button!)
-    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1?showHistory=true')
+    expect(mockSetLocation).toHaveBeenCalledWith('/executions/123e4567-e89b-12d3-a456-426614174000')
 
     const execution2Button = screen.getByText('223e4567-e89b-12d3-a456-426614174001').closest('button')
     await user.click(execution2Button!)
-    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-2?showHistory=true')
+    expect(mockSetLocation).toHaveBeenCalledWith('/executions/223e4567-e89b-12d3-a456-426614174001')
 
     const execution3Button = screen.getByText('323e4567-e89b-12d3-a456-426614174002').closest('button')
     await user.click(execution3Button!)
-    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-3?showHistory=true')
+    expect(mockSetLocation).toHaveBeenCalledWith('/executions/323e4567-e89b-12d3-a456-426614174002')
   })
 
   it('all workflow IDs navigate to their respective workflow builders', async () => {

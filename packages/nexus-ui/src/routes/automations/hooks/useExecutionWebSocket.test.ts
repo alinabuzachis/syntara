@@ -222,8 +222,8 @@ describe('useExecutionWebSocket', () => {
       })
 
       const storeState = useExecutionStore.getState()
-      expect(storeState.activityStates.get('fetch_data')).toBe('success')
-      expect(storeState.activityStates.get('process_data')).toBe('running')
+      expect(storeState.activityStates.get('fetch_data')?.status).toBe('success')
+      expect(storeState.activityStates.get('process_data')?.status).toBe('running')
     })
   })
 
@@ -245,7 +245,7 @@ describe('useExecutionWebSocket', () => {
       })
 
       const storeState = useExecutionStore.getState()
-      expect(storeState.activityStates.get('process_data')).toBe('success')
+      expect(storeState.activityStates.get('process_data')?.status).toBe('success')
     })
 
     it('updates last event ID', () => {
@@ -282,8 +282,8 @@ describe('useExecutionWebSocket', () => {
       })
 
       const storeState = useExecutionStore.getState()
-      expect(storeState.activityStates.get('process_data')).toBe('success')
-      expect(storeState.activityStates.get('fetch_data')).toBe('error')
+      expect(storeState.activityStates.get('process_data')?.status).toBe('success')
+      expect(storeState.activityStates.get('fetch_data')?.status).toBe('error')
       expect(storeState.activityErrors.get('fetch_data')).toBe('Connection timeout')
     })
   })
@@ -425,7 +425,7 @@ describe('useExecutionWebSocket', () => {
       })
 
       let storeState = useExecutionStore.getState()
-      expect(storeState.activityStates.get('process_data')).toBe('running')
+      expect(storeState.activityStates.get('process_data')?.status).toBe('running')
 
       // 2. Activity patch
       act(() => {
@@ -433,7 +433,7 @@ describe('useExecutionWebSocket', () => {
       })
 
       storeState = useExecutionStore.getState()
-      expect(storeState.activityStates.get('process_data')).toBe('success')
+      expect(storeState.activityStates.get('process_data')?.status).toBe('success')
 
       // 3. Final snapshot
       act(() => {
@@ -485,8 +485,8 @@ describe('useExecutionWebSocket', () => {
       })
 
       const storeState = useExecutionStore.getState()
-      expect(storeState.activityStates.get('process_data')).toBe('success')
-      expect(storeState.activityStates.get('send_notification')).toBe('success')
+      expect(storeState.activityStates.get('process_data')?.status).toBe('success')
+      expect(storeState.activityStates.get('send_notification')?.status).toBe('success')
       expect(storeState.lastEventId).toBe('1691431234568-2')
     })
   })

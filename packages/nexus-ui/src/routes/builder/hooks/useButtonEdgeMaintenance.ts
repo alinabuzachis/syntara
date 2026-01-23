@@ -71,6 +71,7 @@ interface UseButtonEdgeMaintenanceOptions {
   pendingEdge: { sourceNodeId: string; sourceHandle?: string; x: number; y: number } | null
   setNodes: React.Dispatch<React.SetStateAction<NodeType[]>>
   setEdges: React.Dispatch<React.SetStateAction<EdgeType[]>>
+  executionStatus: string | null
 }
 
 /**
@@ -79,6 +80,7 @@ interface UseButtonEdgeMaintenanceOptions {
  * - Removes button edges from nodes with outgoing edges
  * - Manages placeholder nodes for button edge targets
  * - Updates node classes for proper styling
+ * - Skips all button edge logic when in execution view mode
  */
 export function useButtonEdgeMaintenance({
   nodes,
@@ -90,6 +92,7 @@ export function useButtonEdgeMaintenance({
   pendingEdge,
   setNodes,
   setEdges,
+  executionStatus,
 }: UseButtonEdgeMaintenanceOptions) {
   // Memoize real node IDs (excluding placeholders and pending targets) to use as stable dependency
   const realNodeIds = useMemo(() => {
@@ -132,7 +135,8 @@ export function useButtonEdgeMaintenance({
 
   // Maintain button edges: add to nodes without outgoing edges, remove from nodes with outgoing edges
   useEffect(() => {
-    if (!isInitialized) {
+    // Skip button edge creation when in execution view mode
+    if (!isInitialized || executionStatus) {
       return
     }
 
@@ -588,6 +592,7 @@ export function useButtonEdgeMaintenance({
     onAddNodeFromEdge,
     activeEdgeButtonNodeId,
     activeEdgeButtonHandle,
+    executionStatus,
   ])
 
   // Return memoized values that might be useful

@@ -1,23 +1,64 @@
 /**
- * Execution Visualization Store
+ * Execution Store
  *
- * Zustand store for managing execution visualization state including:
- * - Execution data and workflow definition
- * - Activity states and errors
+ * Zustand store for managing execution visualization state:
+ * - Execution visualization with WebSocket streaming
+ * - Activity states and errors (unified data model)
  * - WebSocket connection status
  * - Event replay for reconnection
+ *
+ * Used by the ExecutionDetail page (/executions/{id}) to display execution
+ * details with real-time updates via WebSocket or REST API fallback.
  */
 
+import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { create } from 'zustand'
 
-import type { Execution, ExecutionVisualization, ExecutionStoreState, JsonPatchOperation } from '../execution/types'
+import type { Execution, ExecutionVisualization, JsonPatchOperation, ActivityState } from '../execution/types'
 import { applyJsonPatch, buildActivityStateMap, extractActivityMaps } from '../execution/utils/activityState'
+
+// ============================================================================
+// Type Imports
+// ============================================================================
+
+type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
+
+// ============================================================================
+// Store State
+// ============================================================================
+
+interface ExecutionStoreState {
+  // === Execution Visualization (WebSocket streaming) ===
+  /** Current execution being visualized/streamed */
+  executionId: string | null
+  /** Full execution visualization data */
+  visualization: ExecutionVisualization | null
+  /** Activity states keyed by activity_id (UNIFIED - stores full ActivityState objects) */
+  activityStates: Map<string, ActivityState>
+  /** Activity errors keyed by activity_id (for quick error lookups) */
+  activityErrors: Map<string, string>
+
+  // === WebSocket State ===
+  /** WebSocket connection state */
+  isConnected: boolean
+  /** Whether connection is stale (disconnected but reconnecting) */
+  isStale: boolean
+  /** Whether execution is complete (final_snapshot received) */
+  isComplete: boolean
+  /** Last event ID received (for replay on reconnection) */
+  lastEventId: string | null
+
+  // === Error State ===
+  /** Error state */
+  error: Error | null
+}
 
 // ============================================================================
 // Store Actions
 // ============================================================================
 
 interface ExecutionStoreActions {
+  // === Execution Visualization Actions ===
   /**
    * Set execution data from REST API or WebSocket snapshot
    * Initializes or updates the complete execution state
@@ -51,8 +92,17 @@ interface ExecutionStoreActions {
    */
   setError: (error: Error | null) => void
 
+  // === ExecutionDetail Page Actions ===
   /**
-   * Reset store to initial state
+   * Set activity executions for ExecutionDetail page (auto-converts to ActivityState)
+   * Converts ActivityExecution from API to internal ActivityState model
+   * Used by ExecutionDetailsPanel when loading execution data via REST API
+   */
+  setActivityExecutions: (activities: ActivityExecution[]) => void
+
+  // === Reset ===
+  /**
+   * Reset entire store to initial state
    * Used when switching between executions or unmounting
    */
   reset: () => void
@@ -65,18 +115,71 @@ interface ExecutionStoreActions {
 type ExecutionStore = ExecutionStoreState & ExecutionStoreActions
 
 // ============================================================================
+// Adapter Functions
+// ============================================================================
+
+/**
+ * Convert API ActivityExecution to internal ActivityState
+ * Used by ExecutionDetailsPanel when loading execution data via REST API
+ *
+ * NOTE: We preserve the original ActivityStatus (not mapped to NodeStatus)
+ * because the ExecutionStatusBadge component expects the original API status values.
+ */
+function activityExecutionToState(exec: ActivityExecution): ActivityState {
+  return {
+    activityId: exec.activity_id,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    status: exec.status as any, // Preserve original ActivityStatus for badge compatibility
+    errorDetails: exec.error_details,
+    startedAt: exec.started_at,
+    completedAt: exec.completed_at,
+  }
+}
+
+/**
+ * Convert array of ActivityExecution to maps for fast lookup
+ * Used by ExecutionDetailsPanel's setActivityExecutions action
+ */
+function buildActivityMapsFromExecutions(
+  activities: ActivityExecution[]
+): [Map<string, ActivityState>, Map<string, string>] {
+  const activityStates = new Map<string, ActivityState>()
+  const activityErrors = new Map<string, string>()
+
+  activities.forEach((activity) => {
+    if (activity.activity_id) {
+      // Convert to full ActivityState
+      const activityState = activityExecutionToState(activity)
+      activityStates.set(activity.activity_id, activityState)
+
+      // Store error if present
+      if (activity.error_details) {
+        activityErrors.set(activity.activity_id, activity.error_details)
+      }
+    }
+  })
+
+  return [activityStates, activityErrors]
+}
+
+// ============================================================================
 // Initial State
 // ============================================================================
 
 const initialState: ExecutionStoreState = {
+  // Execution Visualization
   executionId: null,
   visualization: null,
   activityStates: new Map(),
   activityErrors: new Map(),
+
+  // WebSocket State
   isConnected: false,
   isStale: false,
   isComplete: false,
   lastEventId: null,
+
+  // Error State
   error: null,
 }
 
@@ -84,16 +187,40 @@ const initialState: ExecutionStoreState = {
 // Store Implementation
 // ============================================================================
 
+/**
+ * Execution Store Implementation
+ *
+ * Supports execution visualization for the ExecutionDetail page (/executions/{id}).
+ *
+ * **Data Population:**
+ * - Primary: setExecution() via WebSocket initial_snapshot for real-time streaming
+ * - Fallback: setActivityExecutions() via REST API (ExecutionDetailsPanel)
+ *
+ * **Data Flow:**
+ * 1. REST API: GET /executions/{id}?include=workflow_definition,activities
+ *    → Initial load via setActivityExecutions() (ExecutionDetailsPanel)
+ * 2. WebSocket (optional): Connect to streaming endpoint for running executions
+ *    → initial_snapshot: Full state via setExecution()
+ *    → activity_patch: Incremental updates via applyPatch()
+ *    → final_snapshot: Execution complete, refetch REST data
+ * 3. Canvas: BuilderFlow/ExecutionViewContent subscribe to activityStates
+ *    → Node badges update automatically when state changes
+ *
+ * **Note:** If both setExecution() and setActivityExecutions() are called,
+ * last write wins (both update the same activityStates map).
+ */
 export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   ...initialState,
+
+  // === Execution Visualization Actions ===
 
   setExecution: (execution: Execution) => {
     // Build activity state map from execution data
     const activities = execution.activities || []
     const activityStateMap = buildActivityStateMap(activities)
 
-    // Extract status and error maps for fast lookup
-    const [activityStates, activityErrors] = extractActivityMaps(activityStateMap)
+    // Extract error map for fast lookups (activityStates will be the full map)
+    const [, activityErrors] = extractActivityMaps(activityStateMap)
 
     // Build visualization object
     const visualization: ExecutionVisualization = {
@@ -102,7 +229,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       status: execution.status || 'pending',
       workflowDefinition: execution.workflow_definition,
       activities: activityStateMap,
-      createdAt: execution.createdAt,
+      createdAt: execution.created_at,
       startedAt: execution.started_at,
       completedAt: execution.completed_at,
     }
@@ -110,7 +237,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     set({
       executionId: execution.id,
       visualization,
-      activityStates,
+      activityStates: activityStateMap, // Store full ActivityState objects
       activityErrors,
       error: null,
     })
@@ -133,8 +260,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       const activityArray = Array.from(activitiesCopy.values())
       applyJsonPatch(activitiesCopy, ops, activityArray)
 
-      // Extract updated maps
-      const [activityStates, activityErrors] = extractActivityMaps(activitiesCopy)
+      // Extract error map (activityStates will be the full map)
+      const [, activityErrors] = extractActivityMaps(activitiesCopy)
 
       // Update visualization with new activities
       const updatedVisualization: ExecutionVisualization = {
@@ -144,7 +271,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
       set({
         visualization: updatedVisualization,
-        activityStates,
+        activityStates: activitiesCopy, // Store full ActivityState objects
         activityErrors,
         lastEventId: eventId,
         error: null,
@@ -176,6 +303,20 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     set({ error })
   },
 
+  // === ExecutionDetail Page Actions ===
+
+  setActivityExecutions: (activities: ActivityExecution[]) => {
+    // Convert ActivityExecution[] to activity state maps
+    const [activityStates, activityErrors] = buildActivityMapsFromExecutions(activities)
+
+    set({
+      activityStates,
+      activityErrors,
+    })
+  },
+
+  // === Reset ===
+
   reset: () => {
     set({
       ...initialState,
@@ -191,7 +332,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 // ============================================================================
 
 /**
- * Select execution ID
+ * Select execution ID (for visualization/streaming)
  */
 export const selectExecutionId = (state: ExecutionStore) => state.executionId
 
@@ -201,10 +342,16 @@ export const selectExecutionId = (state: ExecutionStore) => state.executionId
 export const selectVisualization = (state: ExecutionStore) => state.visualization
 
 /**
- * Select activity state by ID
+ * Select activity state by ID (returns full ActivityState object)
+ */
+export const selectActivityState = (activityId: string) => (state: ExecutionStore) =>
+  state.activityStates.get(activityId)
+
+/**
+ * Select activity status by ID (returns just the NodeStatus)
  */
 export const selectActivityStatus = (activityId: string) => (state: ExecutionStore) =>
-  state.activityStates.get(activityId)
+  state.activityStates.get(activityId)?.status
 
 /**
  * Select activity error by ID
@@ -249,3 +396,83 @@ export const selectError = (state: ExecutionStore) => state.error
  * Select whether execution is loaded
  */
 export const selectIsLoaded = (state: ExecutionStore) => state.visualization !== null
+
+// ============================================================================
+// Action Accessors - Use these to access actions without subscribing to state
+// ============================================================================
+// Zustand best practice: When you only need to call actions (not read state),
+// use getState() to avoid unnecessary re-renders.
+//
+// Example:
+//   const { setExecution, reset } = useExecutionStoreActions()
+//   // Component won't re-render when execution changes
+// ============================================================================
+
+/**
+ * Get all store actions without subscribing to state changes.
+ * Use this when you only need to dispatch actions from event handlers.
+ *
+ * @example
+ * const { setExecution, setActivityExecutions } = useExecutionStoreActions()
+ * const handleLoad = () => setExecution(executionData)
+ */
+export const useExecutionStoreActions = () => {
+  const state = useExecutionStore.getState()
+  return {
+    // Visualization Actions
+    setExecution: state.setExecution,
+    applyPatch: state.applyPatch,
+    setComplete: state.setComplete,
+    setConnectionState: state.setConnectionState,
+    setLastEventId: state.setLastEventId,
+    setError: state.setError,
+
+    // ExecutionDetail Page Actions
+    setActivityExecutions: state.setActivityExecutions,
+
+    // Reset
+    reset: state.reset,
+  }
+}
+
+/**
+ * Type for execution store action accessors (useful for typing event handlers).
+ */
+export type ExecutionStoreActionAccessors = ReturnType<typeof useExecutionStoreActions>
+
+// ============================================================================
+// Custom Hooks - Recommended way to access store state
+// ============================================================================
+// These hooks provide controlled access to specific state slices.
+// Prefer using these over direct store access for better encapsulation.
+// ============================================================================
+
+/** Hook to get execution ID (for visualization) */
+export const useExecutionId = () => useExecutionStore(selectExecutionId)
+
+/** Hook to get visualization data */
+export const useVisualization = () => useExecutionStore(selectVisualization)
+
+/** Hook to get all activity states */
+export const useActivityStates = () => useExecutionStore(selectAllActivityStates)
+
+/** Hook to get all activity errors */
+export const useActivityErrors = () => useExecutionStore(selectAllActivityErrors)
+
+/** Hook to get WebSocket connection state */
+export const useConnectionState = () => useExecutionStore(selectConnectionState)
+
+/** Hook to check if execution is complete */
+export const useIsComplete = () => useExecutionStore(selectIsComplete)
+
+/** Hook to get error state */
+export const useExecutionError = () => useExecutionStore(selectError)
+
+/** Hook to check if execution is loaded */
+export const useIsLoaded = () => useExecutionStore(selectIsLoaded)
+
+/** Hook to get activity status by ID */
+export const useActivityStatus = (activityId: string) => useExecutionStore(selectActivityStatus(activityId))
+
+/** Hook to get activity error by ID */
+export const useActivityError = (activityId: string) => useExecutionStore(selectActivityError(activityId))

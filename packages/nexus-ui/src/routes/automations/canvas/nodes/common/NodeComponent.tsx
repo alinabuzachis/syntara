@@ -2,9 +2,19 @@ import { CompassPanel } from '@patternfly/react-core'
 import { Handle, type NodeProps, Position, useReactFlow } from '@xyflow/react'
 import React, { useEffect, useRef, useState } from 'react'
 
+import { ExecutionStatusBadge } from '../../../../builder/components/ExecutionStatusBadge'
+
 import { targetHandleStyle, sourceHandleStyle } from './handleStyle'
 import { NodeExpandedAllContext } from './NodeExpandedAllContext'
 import { NodeExpandedContext } from './NodeExpandedContext'
+
+interface ExecutionState {
+  status: string
+  started_at?: string
+  completed_at?: string
+  error_details?: string
+  retry_count?: number
+}
 
 export function NodeComponent(props: {
   children: React.ReactNode
@@ -19,6 +29,8 @@ export function NodeComponent(props: {
   onClick?: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void
   nodeProps: NodeProps
   collapsible?: boolean
+  executionState?: ExecutionState
+  showExecutionBadge?: boolean
 }) {
   const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
   const expandedContext = useState(true)
@@ -78,7 +90,7 @@ export function NodeComponent(props: {
         className={props.className}
         onClick={props.onClick}
         style={{
-          overflow: 'hidden', // Clip handles to create semicircle effect
+          overflow: 'visible', // Allow execution badge to overflow outside node
           cursor: props.onClick || props.hasDashedBorder ? 'pointer' : undefined,
           width: 'max-content', // Allow node to size based on content
           minWidth: props.nodeProps.type === 'trigger' ? '180px' : '240px', // Minimum width for consistency
@@ -113,6 +125,12 @@ export function NodeComponent(props: {
         tabIndex={props.onClick ? 0 : undefined}
       >
         {props.children}
+        {props.showExecutionBadge !== false && props.executionState && (
+          <ExecutionStatusBadge
+            status={props.executionState?.status ?? 'pending'}
+            retryCount={props.executionState?.retry_count}
+          />
+        )}
         {!props.disableTarget && (
           <Handle
             type="target"

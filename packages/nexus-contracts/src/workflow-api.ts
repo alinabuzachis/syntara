@@ -162,6 +162,15 @@ export interface paths {
             'application/json': components['schemas']['Error']
           }
         }
+        /** @description Validation error (e.g., invalid label types) */
+        422: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
       }
     }
     delete?: never
@@ -170,7 +179,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/workflows/{workflowId}': {
+  '/workflows/{workflow_id}': {
     parameters: {
       query?: never
       header?: never
@@ -186,7 +195,7 @@ export interface paths {
         query?: never
         header?: never
         path: {
-          workflowId: string
+          workflow_id: string
         }
         cookie?: never
       }
@@ -223,7 +232,7 @@ export interface paths {
         query?: never
         header?: never
         path: {
-          workflowId: string
+          workflow_id: string
         }
         cookie?: never
       }
@@ -269,7 +278,7 @@ export interface paths {
         query?: never
         header?: never
         path: {
-          workflowId: string
+          workflow_id: string
         }
         cookie?: never
       }
@@ -306,11 +315,20 @@ export interface paths {
             'application/json': components['schemas']['Error']
           }
         }
+        /** @description Validation error (e.g., invalid label types) */
+        422: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            'application/json': components['schemas']['Error']
+          }
+        }
       }
     }
     trace?: never
   }
-  '/workflows/{workflowId}/versions': {
+  '/workflows/{workflow_id}/versions': {
     parameters: {
       query?: never
       header?: never
@@ -352,7 +370,7 @@ export interface paths {
         }
         header?: never
         path: {
-          workflowId: string
+          workflow_id: string
         }
         cookie?: never
       }
@@ -388,7 +406,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/workflows/{workflowId}/versions/{version}': {
+  '/workflows/{workflow_id}/versions/{version}': {
     parameters: {
       query?: never
       header?: never
@@ -404,7 +422,7 @@ export interface paths {
         query?: never
         header?: never
         path: {
-          workflowId: string
+          workflow_id: string
           /** @description Version number to retrieve */
           version: number
         }
@@ -566,7 +584,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/executions/{executionId}': {
+  '/executions/{execution_id}': {
     parameters: {
       query?: never
       header?: never
@@ -589,19 +607,15 @@ export interface paths {
       parameters: {
         query?: {
           /**
-           * @description Optional fields to include in the response.
-           *     - `workflow_definition`: Include workflow definition for graph building
-           *     - `activities`: Include activities list with current status
-           * @example [
-           *       "workflow_definition",
-           *       "activities"
-           *     ]
+           * @description Comma-separated list of related data to include in the response.
+           *     Valid values: workflow_definition, activities
+           * @example workflow_definition,activities
            */
-          include?: ('workflow_definition' | 'activities')[]
+          include?: string
         }
         header?: never
         path: {
-          executionId: string
+          execution_id: string
         }
         cookie?: never
       }
@@ -641,7 +655,7 @@ export interface paths {
         query?: never
         header?: never
         path: {
-          executionId: string
+          execution_id: string
         }
         cookie?: never
       }
@@ -673,7 +687,7 @@ export interface paths {
     }
     trace?: never
   }
-  '/executions/{executionId}/activities': {
+  '/executions/{execution_id}/activities': {
     parameters: {
       query?: never
       header?: never
@@ -713,7 +727,7 @@ export interface paths {
         }
         header?: never
         path: {
-          executionId: string
+          execution_id: string
         }
         cookie?: never
       }
@@ -749,7 +763,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/executions/{executionId}/signals/approval-decision': {
+  '/executions/{execution_id}/signals/approval-decision': {
     parameters: {
       query?: never
       header?: never
@@ -826,14 +840,14 @@ export interface components {
        * @description Timestamp when resource was created
        * @example 2025-10-09T12:00:00Z
        */
-      readonly createdAt: string
+      readonly created_at: string
       /**
        * Updated At
        * Format: date-time
        * @description Timestamp when resource was last updated
        * @example 2025-10-09T12:30:00Z
        */
-      readonly updatedAt: string
+      readonly updated_at: string
       /**
        * Labels
        * @description Key-value pairs for resource labeling and filtering
@@ -869,14 +883,14 @@ export interface components {
        * @description Timestamp when resource was soft deleted
        * @example 2025-10-09T14:00:00Z
        */
-      readonly deletedAt?: string | null
+      readonly deleted_at?: string | null
       /**
        * Deleted By
        * Format: uuid
        * @description User who performed the soft delete
        * @example 660e8400-e29b-41d4-a716-446655440000
        */
-      readonly deletedBy?: string | null
+      readonly deleted_by?: string | null
     }
     UserOwnedResource: components['schemas']['BaseResource'] & {
       /**
@@ -885,14 +899,14 @@ export interface components {
        * @description User who created the resource
        * @example 770e8400-e29b-41d4-a716-446655440000
        */
-      readonly createdBy: string
+      readonly created_by: string
       /**
        * Updated By
        * Format: uuid
        * @description User who last updated the resource
        * @example 880e8400-e29b-41d4-a716-446655440000
        */
-      readonly updatedBy?: string | null
+      readonly updated_by?: string | null
     }
     Workflow: components['schemas']['NamedResource'] &
       components['schemas']['SoftDeletableResource'] &
@@ -1393,14 +1407,40 @@ export interface components {
        */
       multiplier?: number
       /**
-       * @description List of error types or codes that should trigger retry
+       * @description HTTP status codes or exit codes that should trigger retry (whitelist approach). If not specified, defaults to: [408, 429, 500, 502, 503, 504]. Supported code types: HTTP status codes (e.g., 500, 503) and process exit codes (e.g., 2, 3). Only errors with codes in this list will be retried - all other errors fail immediately. Use empty array [] to disable retries for all errors.
+       * @default [
+       *       408,
+       *       429,
+       *       500,
+       *       502,
+       *       503,
+       *       504
+       *     ]
        * @example [
-       *       "TIMEOUT",
-       *       "NETWORK_ERROR",
-       *       "RATE_LIMIT"
+       *       500,
+       *       502,
+       *       503,
+       *       504
+       *     ]
+       * @example [
+       *       429,
+       *       500,
+       *       503
+       *     ]
+       * @example [
+       *       2,
+       *       3
+       *     ]
+       * @example [
+       *       408,
+       *       429,
+       *       500,
+       *       502,
+       *       503,
+       *       504
        *     ]
        */
-      retryableErrors?: string[]
+      retryableErrors?: number[]
     }
     /** @description Base properties common to all activity types */
     baseActivity: {
@@ -2055,7 +2095,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Execution ID of the workflow awaiting approval */
-        executionId: string
+        execution_id: string
       }
       cookie?: never
     }

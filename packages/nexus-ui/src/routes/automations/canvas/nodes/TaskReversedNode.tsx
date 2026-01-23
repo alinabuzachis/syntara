@@ -19,8 +19,20 @@ export type TaskReversedNode = { type: 'task-reversed' } & Node<TaskActivity>
 
 export function TaskReversedNodeComponent(props: NodeProps<TaskReversedNode>) {
   const metadata = nodeMetadata.task
+
+  // Extract execution state if present
+  const executionState = (props.data as Record<string, unknown>).__executionState as
+    | {
+        status: string
+        started_at?: string
+        completed_at?: string
+        error_details?: string
+        retry_count?: number
+      }
+    | undefined
+
   return (
-    <NodeComponent className={metadata.className} nodeProps={props} reverseHandles>
+    <NodeComponent className={metadata.className} nodeProps={props} reverseHandles executionState={executionState}>
       <TaskActivityDetails data={props.data} />
     </NodeComponent>
   )

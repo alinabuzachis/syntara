@@ -1,6 +1,6 @@
 import type { EdgeProps, MarkerType } from '@xyflow/react'
 import { BaseEdge } from '@xyflow/react'
-import React from 'react'
+import { useMemo } from 'react'
 
 interface EdgePathProps {
   /** The SVG path string for the edge */
@@ -13,10 +13,11 @@ interface EdgePathProps {
   selected?: boolean
   /** Whether the edge is hovered */
   isEdgeHovered: boolean
-  /** Edge data containing isActive and isPending */
+  /** Edge data containing isActive, isPending, and executionStatus */
   data?: {
     isActive?: boolean
     isPending?: boolean
+    executionStatus?: 'passed' | 'pending'
   }
   /** Mouse enter handler for hover detection */
   onMouseEnter: () => void
@@ -31,10 +32,37 @@ interface EdgePathProps {
 export function EdgePath(props: EdgePathProps) {
   const { edgePath, markerEnd, style, selected, isEdgeHovered, data, onMouseEnter, onMouseLeave } = props
 
-  const strokeColor = selected || isEdgeHovered || data?.isActive ? '#e5e7eb' : '#6b7280'
+  // Determine stroke color and style based on execution status
+  const { strokeColor, strokeOpacity, strokeDasharray } = useMemo(() => {
+    // Execution status takes precedence over interactive states
+    if (data?.executionStatus === 'passed') {
+      return {
+        strokeColor: '#6b7280', // Gray (matches automation builder default)
+        strokeOpacity: 1,
+        strokeDasharray: 'none', // Solid line
+      }
+    } else if (data?.executionStatus === 'pending') {
+      return {
+        strokeColor: '#9ca3af', // Dimmed gray (pending edge)
+        strokeOpacity: 0.4,
+        strokeDasharray: '5,5', // Dashed line
+      }
+    }
+
+    // Fall back to existing interactive state styling
+    const isHighlighted = selected || isEdgeHovered || data?.isActive
+    return {
+      strokeColor: isHighlighted ? '#e5e7eb' : '#6b7280',
+      strokeOpacity: 1,
+      strokeDasharray: 'none',
+    }
+  }, [selected, isEdgeHovered, data?.isActive, data?.executionStatus])
+
   const edgeStyle = {
     ...style,
     stroke: strokeColor,
+    strokeOpacity,
+    strokeDasharray,
     strokeWidth: 2,
     pointerEvents: 'none' as const,
     filter: selected || isEdgeHovered || data?.isActive ? 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))' : 'none',

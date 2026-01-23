@@ -15,8 +15,19 @@ export function ParallelNodeComponent(props: NodeProps<ParallelNode>) {
     nodeType: MenuNodeType.ACTIVITY,
   })
 
+  // Extract execution state if present
+  const executionState = (props.data as Record<string, unknown>).__executionState as
+    | {
+        status: string
+        started_at?: string
+        completed_at?: string
+        error_details?: string
+        retry_count?: number
+      }
+    | undefined
+
   return (
-    <NodeComponent className={metadata.className} nodeProps={props}>
+    <NodeComponent className={metadata.className} nodeProps={props} executionState={executionState}>
       <StandardNodeHeader title={props.data.name} subtitle={metadata.label} menuActions={menuActions} />
     </NodeComponent>
   )

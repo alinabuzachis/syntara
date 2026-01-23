@@ -25,6 +25,7 @@ import { useExecutionStore, selectActivityStatus } from '../stores/useExecutionS
  * - 'success': Source completed successfully
  * - 'error': Source failed (but execution continued)
  * - 'cancelled': Source was cancelled (execution may continue via other paths)
+ * - 'completed': Source finished execution (general completion status)
  *
  * Non-terminal states that mark edge as 'pending':
  * - 'pending': Source not started
@@ -35,7 +36,7 @@ import { useExecutionStore, selectActivityStatus } from '../stores/useExecutionS
  * @returns Edge status derived from source node
  */
 export function deriveEdgeStatus(sourceStatus: NodeStatus): EdgeStatus {
-  const passedStatuses: NodeStatus[] = ['success', 'error', 'cancelled']
+  const passedStatuses: NodeStatus[] = ['success', 'error', 'cancelled', 'completed']
   return passedStatuses.includes(sourceStatus) ? 'passed' : 'pending'
 }
 
@@ -108,7 +109,8 @@ export function useEdgeStatuses(edges: Array<{ id: string; source: string }>): M
     const statusMap = new Map<string, EdgeStatus>()
 
     for (const edge of edges) {
-      const sourceStatus = allActivityStates.get(edge.source)
+      const activityState = allActivityStates.get(edge.source)
+      const sourceStatus = activityState?.status
       const edgeStatus = sourceStatus ? deriveEdgeStatus(sourceStatus) : 'pending'
       statusMap.set(edge.id, edgeStatus)
     }

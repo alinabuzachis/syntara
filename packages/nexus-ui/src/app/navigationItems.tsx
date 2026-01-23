@@ -15,6 +15,7 @@ const Automations = lazy(() => import('../routes/automations/Automations'))
 const BuilderNew = lazy(() => import('../routes/builder/BuilderNew'))
 const BuilderEdit = lazy(() => import('../routes/builder/BuilderEdit'))
 const Executions = lazy(() => import('../routes/executions/Executions'))
+const ExecutionDetail = lazy(() => import('../routes/executions/ExecutionDetail'))
 const IntegrationForm = lazy(() =>
   import('../routes/configuration/integrations/form/IntegrationForm').then((m) => ({ default: m.IntegrationForm }))
 )
@@ -129,6 +130,12 @@ export const navigationItems: INavigationItem[] = [
     label: 'Edit Workflow',
     path: AppRoute.AutomationBuilder.Edit,
     element: <BuilderEdit />,
+    hidden: true,
+  },
+  {
+    label: 'Execution Detail',
+    path: AppRoute.Executions.Execution,
+    element: <ExecutionDetail />,
     hidden: true,
   },
 ]

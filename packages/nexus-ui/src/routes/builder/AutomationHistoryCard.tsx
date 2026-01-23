@@ -21,10 +21,15 @@ type Execution = WorkflowAPI.components['schemas']['Execution']
 interface AutomationHistoryCardProps {
   executions: Execution[]
   onClose: () => void
+  onExecutionSelect: (executionId: string) => void
 }
 
 export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
   const executions = props.executions
+
+  // Debug log component render and data
+  // eslint-disable-next-line no-console
+  console.log('[DEBUG] AutomationHistoryCard rendered with', executions.length, 'executions')
 
   return (
     <CompassPanel
@@ -89,7 +94,24 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
                 {executions.map((execution) => {
                   const date = execution.created_at ? new Date(execution.created_at) : null
                   return (
-                    <tr key={execution.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                    <tr
+                      key={execution.id}
+                      onClick={() => {
+                        // eslint-disable-next-line no-console
+                        console.log('[DEBUG] History card: Execution row clicked:', execution.id)
+                        props.onExecutionSelect(execution.id)
+                      }}
+                      style={{
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }}
+                    >
                       <td
                         style={{
                           paddingTop: 'var(--pf-t--global--spacer--sm)',

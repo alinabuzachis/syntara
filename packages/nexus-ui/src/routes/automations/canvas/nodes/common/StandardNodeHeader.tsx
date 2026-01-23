@@ -1,5 +1,6 @@
 import { Content, Flex, FlexItem } from '@patternfly/react-core'
 
+import { useIsExecutionView } from '../../../../builder/ExecutionViewContext'
 import type { NodeMenuAction } from '../hooks/useNodeMenuActions'
 
 import { NodeExpandToggle } from './NodeExpandToggle'
@@ -25,9 +26,13 @@ interface StandardNodeHeaderProps {
  * - Danger styling for destructive actions (variant: 'danger')
  * - Icons for menu items
  *
+ * The kebab menu is automatically hidden in execution view mode (read-only).
+ *
  * Layout: Icon and kebab menu on first line, title and subtitle on second line below.
  */
 export function StandardNodeHeader(props: Readonly<StandardNodeHeaderProps>) {
+  const isExecutionView = useIsExecutionView()
+
   return (
     <>
       <NodeHeader>
@@ -39,7 +44,7 @@ export function StandardNodeHeader(props: Readonly<StandardNodeHeaderProps>) {
                 <NodeExpandToggle />
               </FlexItem>
             )}
-            {props.menuActions && props.menuActions.length > 0 && (
+            {props.menuActions && props.menuActions.length > 0 && !isExecutionView && (
               <FlexItem>
                 <NodeMenu menuActions={props.menuActions} />
               </FlexItem>

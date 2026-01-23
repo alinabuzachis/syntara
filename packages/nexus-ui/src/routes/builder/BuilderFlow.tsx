@@ -1,4 +1,5 @@
 import type { Activity } from '@ansible/nexus-contracts'
+import { Spinner } from '@patternfly/react-core'
 import {
   applyEdgeChanges,
   applyNodeChanges,
@@ -24,9 +25,51 @@ import {
 import { CanvasControls } from '../automations/canvas/CanvasControls'
 import { edgeTypes } from '../automations/canvas/edges/EdgeType'
 import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
+import type { ActivityState } from '../automations/execution/types'
+import { deriveEdgeStatus } from '../automations/hooks/useEdgeStatus'
+import { useExecutionStore } from '../automations/stores/useExecutionStore'
 
 // Type helper for activity data with optional metadata
 type ActivityWithMetadata = Activity & { metadata?: Record<string, unknown> }
+
+/**
+ * Enriches activity data with execution state for visualization
+ * @param activity - The activity to enrich
+ * @param executionStatus - Current execution status (if in execution view)
+ * @param activityStates - Map of activity states from execution store
+ * @returns Activity data with execution metadata and state attached
+ */
+function enrichActivityWithExecutionState(
+  activity: Activity,
+  executionStatus: string | null | undefined,
+  activityStates: Map<string, ActivityState>
+): ActivityWithMetadata {
+  if (!executionStatus) {
+    return activity
+  }
+
+  // Add execution badge flag
+  let enrichedActivity: ActivityWithMetadata = {
+    ...activity,
+    metadata: { ...(activity as ActivityWithMetadata).metadata, __showExecutionBadge: true },
+  }
+
+  // Add execution state from execution store if available
+  const activityState = activityStates.get(activity.id)
+  if (activityState) {
+    enrichedActivity = {
+      ...enrichedActivity,
+      __executionState: {
+        status: activityState.status,
+        started_at: activityState.startedAt ?? undefined,
+        completed_at: activityState.completedAt ?? undefined,
+        error_details: activityState.errorDetails ?? undefined,
+      },
+    } as ActivityWithMetadata
+  }
+
+  return enrichedActivity
+}
 
 import { ButtonEdge } from './edges/ButtonEdge'
 import { DefaultEdge } from './edges/DefaultEdge'
@@ -81,6 +124,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     activeEdgeButtonNodeId,
     activeEdgeButtonHandle,
     activeEdgeId,
+    executionStatus,
     onNodeClick,
     onAddNodeFromEdge,
     onNodesDeleted,
@@ -99,6 +143,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const reactFlowInstance = useReactFlow()
   const { fitView, getViewport, screenToFlowPosition, updateNode } = reactFlowInstance
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Get activity states from execution store (for execution view edge styling)
+  const activityStates = useExecutionStore((state) => state.activityStates)
 
   // Track pending edge that was dragged to canvas
   const [pendingEdge, setPendingEdge] = useState<PendingEdge | null>(null)
@@ -135,26 +182,29 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     // Create nodes for converge, condition, and loop activities first (needed for loop-back detection)
     activities.forEach((activity: Activity) => {
+      // Enrich activity with execution state if in execution view
+      const activityData = enrichActivityWithExecutionState(activity, executionStatus, activityStates)
+
       if (activity.type === 'converge') {
         nodes.push({
           id: activity.id,
           type: 'converge',
           position: { x: 0, y: 0 },
-          data: activity,
+          data: activityData,
         })
       } else if (activity.type === 'condition') {
         nodes.push({
           id: activity.id,
           type: 'condition',
           position: { x: 0, y: 0 },
-          data: activity,
+          data: activityData,
         })
       } else if (activity.type === 'loop') {
         nodes.push({
           id: activity.id,
           type: 'loop',
           position: { x: 0, y: 0 },
-          data: activity,
+          data: activityData,
         })
       }
     })
@@ -176,6 +226,35 @@ export function BuilderFlow(props: BuilderFlowProps) {
           edgeType = 'loopOutgoing'
         }
 
+        // Derive edge status from source and target node activity states (for execution view)
+        // Edge is 'passed' (solid) if either source OR target is completed
+        let edgeExecutionStatus: 'passed' | 'pending' | undefined
+        if (executionStatus) {
+          // Trigger nodes (e.g., "trigger-0") are always considered "passed"
+          const isSourceTrigger = edge.source.startsWith('trigger-')
+          const isTargetTrigger = edge.target.startsWith('trigger-')
+
+          const sourceActivityState = activityStates.get(edge.source)
+          const targetActivityState = activityStates.get(edge.target)
+
+          // Check if source is completed (passed) - triggers are always passed
+          const sourceStatus = isSourceTrigger
+            ? 'passed'
+            : sourceActivityState
+              ? deriveEdgeStatus(sourceActivityState.status)
+              : 'pending'
+
+          // Check if target is completed (passed) - triggers are always passed
+          const targetStatus = isTargetTrigger
+            ? 'passed'
+            : targetActivityState
+              ? deriveEdgeStatus(targetActivityState.status)
+              : 'pending'
+
+          // Edge is 'passed' if either source OR target is completed
+          edgeExecutionStatus = sourceStatus === 'passed' || targetStatus === 'passed' ? 'passed' : 'pending'
+        }
+
         const restoredEdge: EdgeType = {
           id: edge.id,
           source: edge.source,
@@ -186,6 +265,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
           markerEnd,
           data: {
             onAddNode: onAddNodeFromEdge,
+            // Add execution status for styling in execution view
+            executionStatus: edgeExecutionStatus,
           },
         }
         edges.push(restoredEdge)
@@ -235,11 +316,14 @@ export function BuilderFlow(props: BuilderFlowProps) {
         nodeType = 'approval'
       }
 
+      // Enrich activity with execution state if in execution view
+      const activityData = enrichActivityWithExecutionState(activity, executionStatus, activityStates)
+
       nodes.push({
         id: activity.id,
         type: nodeType,
         position,
-        data: activity,
+        data: activityData,
       })
     })
 
@@ -283,8 +367,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
     // We DON'T depend on storedEdges directly to avoid infinite loops from edge synchronization.
     // We depend on activities and storedEdges directly to detect changes.
     // We DON'T depend on currentWorkflow directly - we use workflowVersion to detect workflow changes.
+    // We also depend on activityStates and executionStatus to update edges when execution state changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workflowVersion, triggersCount, activities, storedEdges, onAddNodeFromEdge])
+  }, [workflowVersion, triggersCount, activities, storedEdges, onAddNodeFromEdge, activityStates, executionStatus])
 
   // CRITICAL FIX: Use controlled state instead of useNodesState/useEdgesState
   // React Flow's hooks reset state when initialNodes/initialEdges change
@@ -551,6 +636,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   })
 
   // Use custom hook to maintain button edges on nodes
+  // Skip button edges in execution view mode
   useButtonEdgeMaintenance({
     nodes,
     edges,
@@ -561,6 +647,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     pendingEdge,
     setNodes,
     setEdges,
+    executionStatus: executionStatus ?? null,
   })
 
   // Use custom hook to manage edge active states
@@ -610,8 +697,21 @@ export function BuilderFlow(props: BuilderFlowProps) {
       style={{
         width: '100%',
         height: '100%',
+        position: 'relative',
       }}
     >
+      {executionStatus === 'running' && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '16px',
+            left: '16px',
+            zIndex: 1000,
+          }}
+        >
+          <Spinner size="xl" style={{ '--pf-v6-c-spinner--Color': '#ff006e' } as React.CSSProperties} />
+        </div>
+      )}
       <ReactFlow<NodeType, EdgeType>
         nodes={nodes}
         edges={edgesToRender}

@@ -380,14 +380,14 @@ export interface components {
        * @description Timestamp when resource was created
        * @example 2025-10-09T12:00:00Z
        */
-      readonly createdAt: string
+      readonly created_at: string
       /**
        * Updated At
        * Format: date-time
        * @description Timestamp when resource was last updated
        * @example 2025-10-09T12:30:00Z
        */
-      readonly updatedAt: string
+      readonly updated_at: string
       /**
        * Labels
        * @description Key-value pairs for resource labeling and filtering
@@ -423,14 +423,14 @@ export interface components {
        * @description Timestamp when resource was soft deleted
        * @example 2025-10-09T14:00:00Z
        */
-      readonly deletedAt?: string | null
+      readonly deleted_at?: string | null
       /**
        * Deleted By
        * Format: uuid
        * @description User who performed the soft delete
        * @example 660e8400-e29b-41d4-a716-446655440000
        */
-      readonly deletedBy?: string | null
+      readonly deleted_by?: string | null
     }
     UserOwnedResource: components['schemas']['BaseResource'] & {
       /**
@@ -439,14 +439,14 @@ export interface components {
        * @description User who created the resource
        * @example 770e8400-e29b-41d4-a716-446655440000
        */
-      readonly createdBy: string
+      readonly created_by: string
       /**
        * Updated By
        * Format: uuid
        * @description User who last updated the resource
        * @example 880e8400-e29b-41d4-a716-446655440000
        */
-      readonly updatedBy?: string | null
+      readonly updated_by?: string | null
     }
     /**
      * Resource
@@ -454,23 +454,23 @@ export interface components {
      *     - System metadata (from BaseResource): id, timestamps, labels
      *     - Naming (from NamedResource): name, description
      *     - Soft deletion (from SoftDeletableResource): deletedAt, deletedBy
-     *     - Ownership (from UserOwnedResource): createdBy, updatedBy
+     *     - Ownership (from UserOwnedResource): created_by, updated_by
      *
      *     This is the recommended base schema for most API resources.
      * @example {
      *       "id": "550e8400-e29b-41d4-a716-446655440000",
-     *       "createdAt": "2025-10-09T12:00:00Z",
-     *       "updatedAt": "2025-10-09T12:30:00Z",
+     *       "created_at": "2025-10-09T12:00:00Z",
+     *       "updated_at": "2025-10-09T12:30:00Z",
      *       "labels": {
      *         "environment": "production",
      *         "region": "us-east-1"
      *       },
      *       "name": "Authentication Service",
      *       "description": "Handles user authentication and authorization",
-     *       "deletedAt": null,
-     *       "deletedBy": null,
-     *       "createdBy": "770e8400-e29b-41d4-a716-446655440000",
-     *       "updatedBy": "880e8400-e29b-41d4-a716-446655440000"
+     *       "deleted_at": null,
+     *       "deleted_by": null,
+     *       "created_by": "770e8400-e29b-41d4-a716-446655440000",
+     *       "updated_by": "880e8400-e29b-41d4-a716-446655440000"
      *     }
      */
     Resource: components['schemas']['NamedResource'] &

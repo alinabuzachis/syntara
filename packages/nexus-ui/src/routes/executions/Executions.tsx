@@ -54,7 +54,7 @@ export default function Executions() {
     return (
       <AppPage>
         <AppPageHeader
-          title={workflowIdFilter && workflowQuery.data ? `Run history for ${workflowQuery.data.name}` : 'Run history'}
+          title={workflowIdFilter && workflowQuery.data ? `Run history for ${workflowQuery.data?.name}` : 'Run history'}
         />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel isFullHeight>{queryState}</CompassPanel>
@@ -125,7 +125,7 @@ export default function Executions() {
             {filteredExecutions.map((execution) => (
               <Tr key={execution.id}>
                 <Td dataLabel="Execution ID" modifier="nowrap" style={{ minWidth: '250px', width: '250px' }}>
-                  <LinkCell href={`/automation-builder/${execution.workflow_id}?showHistory=true`}>
+                  <LinkCell href={`/executions/${execution.id}`}>
                     <code style={{ fontSize: 'var(--pf-t--global--font-size--sm)' }}>{execution.id}</code>
                   </LinkCell>
                 </Td>

@@ -25,8 +25,27 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
   const Icon = executorMeta?.icon
   const taskExecutor = executorMeta?.label || 'Approval'
 
+  // Extract execution state if present
+  const executionState = (props.data as Record<string, unknown>).__executionState as
+    | {
+        status: string
+        started_at?: string
+        completed_at?: string
+        error_details?: string
+        retry_count?: number
+      }
+    | undefined
+
+  const showExecutionBadge = !!(props.data as Record<string, unknown>).metadata?.__showExecutionBadge
+
   return (
-    <NodeComponent className={metadata.className} nodeProps={props} disableSource>
+    <NodeComponent
+      className={metadata.className}
+      nodeProps={props}
+      disableSource
+      executionState={executionState}
+      showExecutionBadge={showExecutionBadge}
+    >
       <>
         <StandardNodeHeader
           icon={Icon ? <Icon /> : undefined}

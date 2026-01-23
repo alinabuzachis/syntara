@@ -118,7 +118,7 @@ export function LoopBackEdge(props: BaseEdgeProps) {
         onMouseLeave={handleEdgeMouseLeave}
       />
       <EdgeLabel labelX={labelX} labelY={labelY} label={label} />
-      {(isHovered || data?.isActive) && !data?.isPending && (
+      {(isHovered || data?.isActive) && !data?.isPending && !data?.executionStatus && (
         <EdgeActions
           labelX={labelX}
           labelY={labelY}

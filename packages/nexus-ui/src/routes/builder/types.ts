@@ -18,6 +18,8 @@ export interface BuilderFlowProps {
   activeEdgeButtonHandle?: string | null
   /** ID of the currently active edge */
   activeEdgeId?: string | null
+  /** Execution status for showing loading indicator */
+  executionStatus?: string | null
   /** Handler for node click events */
   onNodeClick?: NodeMouseHandler<NodeType>
   /** Handler for adding a node from an edge */

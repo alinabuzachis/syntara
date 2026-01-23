@@ -22,8 +22,19 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
     nodeType: MenuNodeType.ACTIVITY,
   })
 
+  // Extract execution state if present
+  const executionState = (props.data as Record<string, unknown>).__executionState as
+    | {
+        status: string
+        started_at?: string
+        completed_at?: string
+        error_details?: string
+        retry_count?: number
+      }
+    | undefined
+
   return (
-    <NodeComponent className={metadata.className} nodeProps={props} disableSource>
+    <NodeComponent className={metadata.className} nodeProps={props} disableSource executionState={executionState}>
       <ConditionNodeDetails
         conditionActivity={props.data}
         icon={
@@ -50,6 +61,7 @@ export function ConditionNodeDetails(props: {
   menuActions?: ReturnType<typeof useNodeMenuActions>
 }) {
   const metadata = nodeMetadata.condition
+
   return (
     <>
       <StandardNodeHeader
