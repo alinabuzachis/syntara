@@ -176,7 +176,7 @@ graph TB
 ### Configuration System Implementation
 - [X] T018 [P] Global configuration manager in `src/nexus/agent_orchestrator/context_manager/retriever_service/config/configuration_manager.py`
 - [X] T019 [P] Configuration validation and parameter loading in `src/nexus/agent_orchestrator/context_manager/retriever_service/config/parameter_validator.py`
-- [X] T020 [P] Settings integration with existing `src/nexus/core/config.py` patterns
+- [X] T020 [P] Settings integration with existing `src/nexus/core/config/base.py` patterns
 
 ### Concrete Implementations
 - [X] T021 [P] UploadedFileRetriever implementation in `src/nexus/agent_orchestrator/context_manager/retriever_service/retrievers/uploaded_file_retriever.py`
@@ -282,7 +282,7 @@ src/nexus/agent_orchestrator/context_manager/retriever_service/
 - **FileManager**: Used internally by UploadedFileRetriever via `get_retriever_for_file()` and `load_file()`
 - **OpenRouter**: Integrated via existing `get_openrouter_llm()` for LLM relevancy checking
 - **Invocation Context**: Retrieved from database to extract `file_metadata` and other context
-- **Configuration**: Leverages existing `src/nexus/core/config.py` patterns for settings management
+- **Configuration**: Leverages existing `src/nexus/core/config/base.py` patterns for settings management
 
 ### Key Design Patterns
 1. **Registry Pattern**: Extensible retriever and checker registration

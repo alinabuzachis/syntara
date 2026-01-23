@@ -44,7 +44,7 @@ Hardcoded configuration values for MVP scaffolding (non-SQLModel).
 - **Performance**: `request_timeout_seconds`, `max_concurrent_requests`
 
 **Access Pattern**:
-- Centralized in `config.py` module
+- Centralized in `base.py` module
 - Immutable defaults (copied, not referenced)
 - Specific getters for commonly used values
 

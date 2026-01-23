@@ -15,7 +15,7 @@ This feature introduces retry and recovery mechanisms for LLM adapter operations
 
 **Type**: Pydantic BaseSettings (not a database model)
 
-**Location**: `src/nexus/core/config.py`
+**Location**: `src/nexus/core/config/base.py`
 
 **Fields**:
 | Field | Type | Default | Validation | Description |
@@ -46,7 +46,7 @@ This feature introduces retry and recovery mechanisms for LLM adapter operations
 
 **Access Pattern**:
 ```python
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 settings = get_settings()
 max_retries = settings.adapter_max_retries

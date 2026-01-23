@@ -12,7 +12,7 @@ from langchain_openai import ChatOpenAI
 
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.token_manager.services import TokenCalculator
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 logger = logging.getLogger(__name__)
 

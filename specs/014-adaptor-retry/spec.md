@@ -234,14 +234,14 @@ The following requirements assume LLM usage in context creation and are **NOT AP
 
 ### Pattern Decision
 
-Retry configuration MUST be implemented using **Pydantic Settings with environment variables**, following the established pattern in the codebase (`src/nexus/core/config.py`). Configuration is read-only at application startup and changes require application restart.
+Retry configuration MUST be implemented using **Pydantic Settings with environment variables**, following the established pattern in the codebase (`src/nexus/core/config/base.py`). Configuration is read-only at application startup and changes require application restart.
 
 ### Rationale
 
 Investigation of the codebase configuration patterns revealed:
 
 1. **No API endpoints exist for configuration** - All configuration in the Nexus codebase is handled via environment variables, not through REST APIs
-2. **Pydantic Settings is the standard pattern** - The `Settings` class in `src/nexus/core/config.py` uses `BaseSettings` with composition for modular configuration (e.g., `OpenRouterSettings`, `FileUploadSettings`)
+2. **Pydantic Settings is the standard pattern** - The `Settings` class in `src/nexus/core/config/base.py` uses `BaseSettings` with composition for modular configuration (e.g., `OpenRouterSettings`, `FileUploadSettings`)
 3. **Environment variable naming convention** - All application settings use the `NEXUS_` prefix (e.g., `NEXUS_DB_HOST`, `NEXUS_API_PORT`)
 4. **Read-only configuration** - Configuration is loaded once at application startup using `@lru_cache` on `get_settings()`
 
@@ -249,7 +249,7 @@ Investigation of the codebase configuration patterns revealed:
 
 - **DO NOT** create API endpoints (GET/POST/PATCH) for retry configuration
 - **DO NOT** create database tables for retry configuration
-- **DO** add an `AdapterRetrySettings` class inheriting from `BaseSettings` in `src/nexus/core/config.py`
+- **DO** add an `AdapterRetrySettings` class inheriting from `BaseSettings` in `src/nexus/core/config/base.py`
 - **DO** compose `AdapterRetrySettings` into the main `Settings` class
 - **DO** use environment variables with the `NEXUS_ADAPTER_` prefix:
   - `NEXUS_ADAPTER_MAX_RETRIES` (default: 3)
@@ -263,7 +263,7 @@ Investigation of the codebase configuration patterns revealed:
 Retry logic should access configuration through dependency injection:
 
 ```python
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 settings = get_settings()
 # Note: Field names include 'adapter_' prefix following existing pattern

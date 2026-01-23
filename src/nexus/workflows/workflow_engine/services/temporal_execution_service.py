@@ -13,7 +13,7 @@ from temporalio.api.enums.v1 import EventType
 from temporalio.client import Client, WorkflowHandle, WorkflowHistoryEventFilterType
 from temporalio.exceptions import TemporalError
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 from nexus.workflows.utils.datetime import ensure_timezone_aware
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models.responses import (

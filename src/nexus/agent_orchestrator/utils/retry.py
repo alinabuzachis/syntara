@@ -16,7 +16,7 @@ from typing import Any, TypeVar
 import httpx
 import openai
 
-from nexus.core.config import AdapterRetrySettings, get_settings
+from nexus.core.config.base import AdapterRetrySettings, get_settings
 
 # HTTP status code constants for error classification
 _HTTP_STATUS_MIN_SERVER_ERROR = 500

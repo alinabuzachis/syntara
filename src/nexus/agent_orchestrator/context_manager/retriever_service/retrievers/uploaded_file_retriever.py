@@ -17,8 +17,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import DocumentRetrievalError
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.document_retriever import DocumentRetriever
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
-from nexus.api.db.session import get_db
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
+from nexus.core.database.session import get_db
 from nexus.files import FileManager, FileMetadata, get_file_manager
 from nexus.files.models import FileStatus
 

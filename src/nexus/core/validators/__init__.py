@@ -1,6 +1,6 @@
 """Validators for workflow definitions and requests."""
 
-from nexus.api.validators.workflow_definition import (
+from nexus.core.validators.workflow_definition import (
     ValidationError,
     WorkflowDefinitionValidationResult,
     WorkflowDefinitionValidator,

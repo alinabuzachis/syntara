@@ -16,9 +16,9 @@ from fastapi.responses import JSONResponse
 from sqlmodel import text
 
 from nexus.api.constants import API_V1_PATH_PREFIX
-from nexus.api.db import get_db
 from nexus.api.v1.websocket import build_websocket_router
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
+from nexus.core.database.session import get_db
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 

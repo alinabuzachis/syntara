@@ -10,7 +10,7 @@ However, the values themselves are deterministic constants that don't change dur
 workflow execution, making them safe for workflow use.
 """
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 # Clear cached settings so re-imports pick up any environment changes
 get_settings.cache_clear()

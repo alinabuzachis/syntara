@@ -32,8 +32,8 @@ from nexus.agent_orchestrator.context_manager.retriever_service.registries.retri
     get_retriever_registry,
 )
 from nexus.agent_orchestrator.models import Invocation
-from nexus.api.db.session import get_db
 from nexus.core.constants import RetrieverServiceDefaults
+from nexus.core.database.session import get_db
 
 logger = logging.getLogger(__name__)
 

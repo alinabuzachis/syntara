@@ -7,7 +7,7 @@ configuration system.
 
 from pydantic import BaseModel, Field
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 
 class ConversionConfig(BaseModel):

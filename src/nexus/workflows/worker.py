@@ -20,7 +20,7 @@ import logging
 import signal
 import sys
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 from nexus.workflows.workflow_engine.services.temporal_worker import start_worker, stop_worker
 
 # Configure logging using centralized settings

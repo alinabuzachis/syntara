@@ -6,7 +6,7 @@ from typing import Any, cast
 from fastapi import Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.api.db import get_db
+from nexus.core.database.session import get_db
 from nexus.workflows.models import WorkflowVersion
 
 

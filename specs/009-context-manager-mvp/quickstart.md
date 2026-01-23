@@ -208,7 +208,7 @@ This quickstart validates that the Context Manager MVP scaffolding successfully 
 1. **Import Errors**: Ensure `uv sync` completed successfully
 2. **Test Failures**: Run `pytest tests/unit/agent_orchestrator/context_manager/ -v` for detailed output
 3. **Logging Issues**: Verify logging configuration and handler setup
-4. **Configuration Problems**: Check default values in `config.py`
+4. **Configuration Problems**: Check default values in `base.py`
 
 ### Debugging Commands
 

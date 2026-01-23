@@ -8,7 +8,7 @@ which offers:
 - IDE autocomplete support
 
 Usage:
-    from nexus.core.config import get_settings
+    from nexus.core.config.base import get_settings
 
     settings = get_settings()
     llm = get_openrouter_llm(api_key=settings.openrouter_api_key)

@@ -487,6 +487,8 @@ specs/[###-feature]/
 # Backend API Service
 src/nexus/
 ├── core/
+│   ├── database/         # Database management
+│   │   └── migrations/   # Database migrations
 │   └── models/
 │       └── base/           # Shared base models (Resource, BaseResource)
 ├── tool_manager/
@@ -497,7 +499,6 @@ src/nexus/
 │       ├── interfaces.py   # Provider interfaces and protocols
 │       └── exceptions.py   # Tool manager exceptions
 └── api/
-    ├── alembic/           # Database migrations
     ├── v1/                # FastAPI v1 routers and endpoints
     ├── auth/              # Authentication and authorization
     ├── db/                # Database connection and session management

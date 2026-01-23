@@ -12,7 +12,7 @@ from uuid import UUID
 from sqlmodel import select
 from temporalio import activity
 
-from nexus.api.db import AsyncSessionLocal
+from nexus.core.database.session import AsyncSessionLocal
 from nexus.workflows.models.execution import Execution
 
 # Import directly from registry module file to avoid triggering services/__init__.py

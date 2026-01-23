@@ -14,7 +14,7 @@ from collections.abc import Generator
 
 import pytest
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 
 @pytest.fixture
@@ -90,7 +90,7 @@ class TestConstantsModuleLoading:
 
         from nexus.workflows.workflow_engine import constants
 
-        # Verify defaults (from config.py)
+        # Verify defaults (from base.py)
         assert constants.MAX_LOOP_ITERATIONS == 10000
         assert constants.DEFAULT_SCRIPT_TIMEOUT_SECONDS == 300
         assert constants.DEFAULT_AGENTIC_TIMEOUT_SECONDS == 300

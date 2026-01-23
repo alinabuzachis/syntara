@@ -272,7 +272,7 @@ During implementation, we made the following adjustments from the original task 
 ### Configuration
 
 - [X] **T029** Add file upload settings to configuration
-  - Path: `src/nexus/core/config.py` (MODIFIED)
+  - Path: `src/nexus/core/config/base.py` (MODIFIED)
   - Added `file_upload_max_size_mb: int = 10`
   - Added `file_upload_max_files: int = 10`
   - Added `file_upload_storage_dir: str` (uses tempfile.gettempdir() default)

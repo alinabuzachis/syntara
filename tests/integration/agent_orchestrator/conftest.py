@@ -11,7 +11,7 @@ from httpx import ASGITransport, AsyncClient
 from langchain_core.messages import AIMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nexus.api.db.session import get_db
+from nexus.core.database.session import get_db
 from nexus.core.models import User
 
 

@@ -10,7 +10,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.exceptions impor
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
     RelevancyConfiguration,
 )
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 logger = logging.getLogger(__name__)
 

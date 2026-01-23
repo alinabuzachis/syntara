@@ -617,12 +617,12 @@ class MetricsRecorder:
 **Purpose**: Metrics subsystem configuration.
 
 > **Note**: All configuration MUST be added to the centralized configuration file at
-> `src/nexus/core/config.py`, following the existing pattern of composable settings classes.
+> `src/nexus/core/config/base.py`, following the existing pattern of composable settings classes.
 > See existing examples like `RetrieverServiceSettings`, `AdapterRetrySettings`, etc.
 
 **Definition**:
 ```python
-# File: src/nexus/core/config.py (add to existing file)
+# File: src/nexus/core/base.py (add to existing file)
 from pydantic import Field
 from pydantic_settings import BaseSettings
 

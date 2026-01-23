@@ -46,7 +46,7 @@
   - Create `.env.example` with `NEXUS_OPENROUTER_API_KEY=your_key_here`
   - Create `.env.example` with `NEXUS_OPENROUTER_MODEL=anthropic/claude-3.5-sonnet`
   - Create `.env.example` with `NEXUS_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1`
-  - Document LangChain OpenRouter configuration in `src/nexus/api/config.py` or similar
+  - Document LangChain OpenRouter configuration in `src/nexus/core/config/base.py` or similar
   - Add validation for required environment variables
   - Document that OpenRouter uses OpenAI-compatible API format
 
@@ -58,7 +58,7 @@
 - [x] **T008** Integration tests - End-to-end API functionality for information queries
 
 - [x] **T011** GenericAgentResponse schema - SQLModel-based response structure
-- [x] **T012** OpenRouter configuration - Created config.py in src/nexus/core/ for LLM configuration management
+- [x] **T012** OpenRouter configuration - Created base.py in src/nexus/core/config for LLM configuration management
 - [x] **T013** GenericAgent implementation - LangChain with OpenRouter integration
 
 ## Current Status

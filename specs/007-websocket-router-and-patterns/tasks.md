@@ -59,7 +59,7 @@ Flow:
   - Ensure websockets client library for testing
   - Verify pytest-asyncio for async tests
 
-- [X] **T002** [P] Create WebSocket configuration in `src/nexus/core/config.py`:
+- [X] **T002** [P] Create WebSocket configuration in `src/nexus/core/config/base.py`:
   ```python
   WEBSOCKET_MAX_MESSAGE_SIZE = 1048576  # 1MB
   WEBSOCKET_MAX_CONNECTIONS = 100

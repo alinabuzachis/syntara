@@ -24,8 +24,8 @@ from pydantic import BaseModel, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.auth import get_current_user
-from nexus.api.db import get_db
 from nexus.api.v1.utils import create_session_factory_from_request
+from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.files import FileManager, get_file_manager
 from nexus.files.document_conversion.tasks import DocumentConversionTask

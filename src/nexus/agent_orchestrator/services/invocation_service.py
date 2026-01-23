@@ -25,8 +25,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.agent_orchestrator.executor import InvocationExecutor, get_invocation_executor
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
 from nexus.agent_orchestrator.models.request import CancellationResult
-from nexus.api.db.session import get_db
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
+from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.files import FileManager, FileMetadata, get_file_manager

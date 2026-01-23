@@ -23,7 +23,7 @@ from nexus.agent_orchestrator.utils.retry import (
     is_retryable_error,
     retry_with_backoff,
 )
-from nexus.core.config import AdapterRetrySettings
+from nexus.core.config.base import AdapterRetrySettings
 
 
 class TestErrorClassification:

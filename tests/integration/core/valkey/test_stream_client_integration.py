@@ -25,7 +25,7 @@ import pytest
 import pytest_asyncio
 import valkey.asyncio as valkey
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 from nexus.core.valkey.stream import StreamClient
 
 # ============================================================================

@@ -9,7 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.service import RPCError
 
 from nexus.api.auth import get_current_user
-from nexus.api.db import get_db
+from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,

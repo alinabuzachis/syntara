@@ -18,7 +18,7 @@ from langgraph.types import Command
 
 from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 from nexus.agent_orchestrator.utils import retry_with_backoff
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 from nexus.tool_manager.models.tool import ToolStatus
 
 logger = logging.getLogger(__name__)

@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pytest
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 from nexus.workflows.utils.url import generate_activity_signal_url, get_api_base_url
 
 

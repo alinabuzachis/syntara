@@ -18,7 +18,7 @@ import httpx
 from temporalio import activity
 from temporalio.exceptions import CancelledError
 
-from nexus.core.config import Settings, get_settings
+from nexus.core.config.base import Settings, get_settings
 from nexus.workflows.utils.template_resolution import resolve_config_templates
 from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
 

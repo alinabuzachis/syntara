@@ -38,9 +38,9 @@ from temporalio.worker import Worker
 
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.api.auth.dependencies import get_current_user
-from nexus.api.db import get_db
 from nexus.api.main import app
-from nexus.core.config import Settings, get_settings
+from nexus.core.config.base import Settings, get_settings
+from nexus.core.database.session import get_db
 from nexus.core.models import User, UserRole
 from nexus.files.models import FileMetadata
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
@@ -241,7 +241,7 @@ def _get_alembic_config(db_url: str) -> Config:
     alembic_cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
     alembic_cfg.set_main_option(
         "script_location",
-        str(PROJECT_ROOT / "src" / "nexus" / "core" / "alembic"),
+        str(PROJECT_ROOT / "src" / "nexus" / "core" / "database" / "migrations"),
     )
     alembic_cfg.set_main_option("sqlalchemy.url", db_url)
     return alembic_cfg

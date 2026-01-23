@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.auth import get_current_user
-from nexus.api.db import get_db
+from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.tool_manager.lib.exceptions import (
     ProviderError,

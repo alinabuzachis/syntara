@@ -157,7 +157,7 @@ graph TB
     - `src/nexus/metrics/recorder.py`
     - `src/nexus/metrics/store.py`
     - `src/nexus/metrics/prometheus.py`
-    - `src/nexus/core/config.py` (add MetricsSettings)
+    - `src/nexus/core/config/base.py` (add MetricsSettings)
     - `src/nexus/metrics/instrumentation.py`
     - `src/nexus/metrics/router.py`
     - `src/nexus/schemas/metrics/openapi.yaml`
@@ -415,9 +415,9 @@ graph TB
   - Verify: All component metrics recorded correctly
 
 - [ ] **T028** [P] Add MetricsSettings to centralized config
-  - File: `src/nexus/core/config.py`
+  - File: `src/nexus/core/config/base.py`
   - Implementation (from data-model.md):
-    - Add MetricsSettings class to existing config.py
+    - Add MetricsSettings class to existing base.py
     - Add to Settings class inheritance chain
     - Environment variable support (NEXUS_METRICS_*)
     - Retention, max records, enable/disable toggles

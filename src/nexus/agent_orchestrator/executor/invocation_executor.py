@@ -14,8 +14,8 @@ from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_ll
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
-from nexus.api.db.session import get_db
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
+from nexus.core.database.session import get_db
 from nexus.files import FileManager, FileStatus, get_file_manager
 
 logger = logging.getLogger(__name__)

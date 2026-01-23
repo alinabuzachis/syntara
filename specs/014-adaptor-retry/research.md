@@ -76,7 +76,7 @@ nexus → langchain-openai (direct) → openai==2.7.1 (transitive) → httpx (tr
 
 ### 3. Configuration Management Pattern
 
-**Decision**: Pydantic Settings with environment variables (following existing pattern in src/nexus/core/config.py)
+**Decision**: Pydantic Settings with environment variables (following existing pattern in src/nexus/core/config/base.py)
 
 **Rationale**:
 - Existing codebase uses Pydantic Settings (OpenRouterSettings, FileUploadSettings)
@@ -286,7 +286,7 @@ tests/integration/agent_orchestrator/test_generic_agent_retry.py
 - respx for HTTP mocking in tests
 
 **Key Components**:
-1. `AdapterRetrySettings` class in `src/nexus/core/config.py`
+1. `AdapterRetrySettings` class in `src/nexus/core/config/base.py`
 2. Retry decorator in `src/nexus/agent_orchestrator/utils/retry.py`
 3. Apply decorator to `GenericAgent.execute()` and context creation calls
 4. Unit tests and integration tests

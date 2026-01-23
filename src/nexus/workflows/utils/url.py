@@ -6,7 +6,7 @@ particularly useful for activities that need to provide callback URLs to externa
 
 from uuid import UUID
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 
 def get_api_base_url() -> str:

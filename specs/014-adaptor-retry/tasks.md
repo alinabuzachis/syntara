@@ -89,7 +89,7 @@ graph TD
 
 ## Phase 3.1: Configuration
 
-- [ ] **T001** Add AdapterRetrySettings to `src/nexus/core/config.py`
+- [ ] **T001** Add AdapterRetrySettings to `src/nexus/core/config/base.py`
   - Add new class `AdapterRetrySettings(BaseSettings)` with fields:
     - `adapter_max_retries: int = Field(default=3, ge=0)` - 0 disables retries
     - `adapter_initial_backoff_seconds: float = Field(default=1.0, gt=0)`

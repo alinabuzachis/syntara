@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, FastAPI
 from filelock import FileLock
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 if TYPE_CHECKING:
     from collections.abc import Callable

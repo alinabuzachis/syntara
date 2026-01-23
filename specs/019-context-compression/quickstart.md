@@ -386,7 +386,7 @@ asyncio.run(test_llm_failure())
 
 3. **Verify Settings**:
    ```python
-   from nexus.core.config import get_settings
+   from nexus.core.config.base import get_settings
 
    settings = get_settings()
    print(f"Compression temperature: {settings.context_manager_compression_temperature}")

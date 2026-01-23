@@ -7,7 +7,7 @@ import pytest
 
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.exceptions import LLMConfigurationError
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 
 @pytest.fixture(autouse=True)

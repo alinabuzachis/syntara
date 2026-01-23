@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 # Create async engine with connection pooling
 engine = create_async_engine(

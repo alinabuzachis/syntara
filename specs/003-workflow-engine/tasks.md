@@ -188,11 +188,11 @@ graph TB
   - Verify: `uv pip list | grep -E "fastapi|sqlalchemy|alembic"`
 
 - [X] **T002** Configure Alembic for database migrations
-  - Files: `alembic.ini`, `src/nexus/core/alembic/env.py`, `src/nexus/core/alembic/versions/`
-  - Initialize: `alembic init src/nexus/core/alembic` (Alembic setup as subpackage within nexus.api)
+  - Files: `alembic.ini`, `src/nexus/core/database/migrations/env.py`, `src/nexus/core/database/migrations/versions/`
+  - Initialize: `alembic init src/nexus/core/database/migrations` (Alembic setup as subpackage within nexus.api)
   - Configure async PostgreSQL connection string support
   - Set up auto-import of models for migration generation
-  - Update `alembic.ini` to point to `src/nexus/core/alembic` directory
+  - Update `alembic.ini` to point to `src/nexus/core/database/migrations` directory
 
 - [X] **T003** Create database session management with async support
   - File: `src/nexus/api/db/session.py`
@@ -287,7 +287,7 @@ graph TB
   - Indexes: (workflow_id, version) unique, (workflow_id, created_at)
 
 - [X] **** Create Alembic migration for User, Workflow, WorkflowVersion tables
-  - File: `src/nexus/core/alembic/versions/001_create_workflow_tables.py`
+  - File: `src/nexus/core/database/migrations/versions/001_create_workflow_tables.py`
   - Generate: `alembic revision --autogenerate -m "create workflow tables"`
   - Verify: All fields, relationships, constraints, indexes created
   - Include: GIN indexes on JSONB labels, soft delete check constraints

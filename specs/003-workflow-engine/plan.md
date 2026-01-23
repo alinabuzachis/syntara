@@ -358,12 +358,12 @@ specs/[###-feature]/
 src/
 └── nexus/
     ├── api/             # FastAPI REST service (DB access, API endpoints)
-    │   ├── alembic/         # Database migrations
     │   ├── v1/              # API v1 endpoint routers
     │   ├── auth/            # Authentication utilities
-    │   ├── db/              # Database session management
     │   └── validators/      # Request validators
     ├── core/            # Core shared models and utilities
+    │   ├── database/         # Database management
+    │   │   └── migrations/   # Database migrations
     │   ├── models/          # Shared database models (User, base classes)
     │   └── utils/           # Shared utilities (pagination, cursor, etc.)
     ├── workflows/       # Temporal workflow engine package
@@ -458,7 +458,7 @@ tests/
 - GET /workflows/{id} returns workflow with current active version data
 - WorkflowVersion entities are read-only (managed automatically by system)
 - Version history tracking and basic YAML validation
-- Database migrations with Alembic (setup as subpackage at `/src/nexus/core/alembic/`)
+- Database migrations with Alembic (setup as subpackage at `/src/nexus/core/database/migrations/`)
 - OpenAPI contract specification and contract tests
 - 80%+ test coverage (unit tests + integration tests), <200ms API response time
 - Alembic migrations must run automatically on `make dev`

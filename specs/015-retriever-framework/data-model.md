@@ -28,7 +28,7 @@
 - References existing `FileMetadata` from `Invocation.context_data`
 
 ### 2. RelevancyConfiguration  
-**Purpose**: Configuration container for relevancy checker tuning parameters (from `src/nexus/core/config.py`)
+**Purpose**: Configuration container for relevancy checker tuning parameters (from `src/nexus/core/config/base.py`)
 
 **Fields**:
 - `checker_type: str` - Type of relevancy checker ("llm", "keyword", "semantic")
@@ -51,7 +51,7 @@
 - `max_results`: TBD
 - `recency_weight`: TBD
 
-**Storage**: Defined in `src/nexus/core/config.py` as Pydantic settings model, not database table
+**Storage**: Defined in `src/nexus/core/config/base.py` as Pydantic settings model, not database table
 
 ### 3. DocumentRetriever (Abstract Base)
 **Purpose**: Interface for retrieving documents from different storage backends
@@ -204,7 +204,7 @@ graph TB
 ## Storage Considerations
 
 ### Configuration Management
-- `RelevancyConfiguration`: Managed through `src/nexus/core/config.py` as Pydantic settings model
+- `RelevancyConfiguration`: Managed through `src/nexus/core/config/base.py` as Pydantic settings model
 - Configuration loaded from environment variables and config files
 - No database persistence required for configuration at this stage
 

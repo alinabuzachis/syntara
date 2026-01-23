@@ -13,7 +13,7 @@ from typing import Protocol, cast
 import magic
 from fastapi import UploadFile
 
-from nexus.core.config import Settings
+from nexus.core.config.base import Settings
 from nexus.core.constants import MIME_TYPE_DETECTION_MIN_BYTES
 
 logger = logging.getLogger(__name__)

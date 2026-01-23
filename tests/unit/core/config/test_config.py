@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from nexus.core.config import Settings
+from nexus.core.config.base import Settings
 
 
 def test_settings_requires_nexus_prefix(monkeypatch: object) -> None:
@@ -447,7 +447,7 @@ class TestRetrieverServiceSettings:
 
 def test_custom_env_file_path(monkeypatch, tmp_path) -> None:
     """Ensure NEXUS_ENV_FILE_PATH is honored when loading settings."""
-    from nexus.core import config as config_module
+    from nexus.core.config import base as config_module
 
     env_file = tmp_path / "custom.env"
     env_file.write_text("NEXUS_OPENROUTER_MODEL=custom-model")

@@ -43,7 +43,7 @@ import valkey.asyncio as valkey
 from valkey.exceptions import ConnectionError as ValkeyConnectionError
 from valkey.exceptions import ResponseError
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 logger = logging.getLogger(__name__)
 

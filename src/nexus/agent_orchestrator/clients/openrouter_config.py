@@ -9,7 +9,7 @@ import logging
 from langchain_openai import ChatOpenAI
 
 from nexus.agent_orchestrator.exceptions import LLMConfigurationError
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 logger = logging.getLogger(__name__)
 

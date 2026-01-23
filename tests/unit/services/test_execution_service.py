@@ -10,7 +10,7 @@ from uuid import UUID
 
 import pytest
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 from nexus.workflows.workflow_engine.services.temporal_execution_service import (
     TemporalExecutionService,
     create_temporal_execution_service,

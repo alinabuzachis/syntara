@@ -12,8 +12,8 @@ from functools import lru_cache
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from nexus.api.db import AsyncSessionLocal
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
+from nexus.core.database.session import AsyncSessionLocal
 from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
     execute_aap_job_template_activity,
 )

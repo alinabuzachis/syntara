@@ -125,7 +125,8 @@ erDiagram
 ```
 src/nexus/
 ├── core/
-│   └── config.py               # ADD: MetricsSettings class (per centralized config)
+│   └── config
+│       └── base.py             # ADD: MetricsSettings class (per centralized config)
 ├── metrics/                    # NEW: Metrics subsystem
 │   ├── __init__.py
 │   ├── router.py               # NEW: /api/v1/metrics endpoints (Router Discovery Framework)
@@ -264,7 +265,7 @@ nexus_cache_misses_total 234
 - Define `MetricType` enum and `MetricRecord` SQLModel (per Nexus patterns)
 - Implement `MetricsRecorder` class with async recording
 - Context manager for timing (`with recorder.time("llm_duration"):`)
-- Add `MetricsSettings` to `src/nexus/core/config.py`
+- Add `MetricsSettings` to `src/nexus/core/config/base.py`
 - Unit tests with 80%+ coverage
 
 **Ticket 2: Metrics Store and REST API** - 5 points

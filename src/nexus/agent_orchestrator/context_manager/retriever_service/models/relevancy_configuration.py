@@ -17,7 +17,7 @@ class RelevancyConfiguration(BaseModel):
 
     Uses Pydantic BaseModel (not SQLModel) since:
     - Configuration is loaded from settings (not database table)
-    - Managed through src/nexus/core/config.py patterns
+    - Managed through src/nexus/core/base.py patterns
     - Used for algorithm parameter passing, not API schemas
 
     Attributes:

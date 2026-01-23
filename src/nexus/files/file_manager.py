@@ -16,7 +16,7 @@ from fastapi import UploadFile
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 from nexus.files import storage, utils, validators
 from nexus.files.models import FileMetadata, FileStatus
 from nexus.files.retrievers.base import BaseRetriever

@@ -22,7 +22,7 @@ from nexus.agent_orchestrator.tool_manager.types import (
     NamespacedBaseTool,
     ToolDiscoveryResult,
 )
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
 from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProviderWithConfiguration

@@ -40,7 +40,7 @@ This feature adds retry and recovery mechanisms to the LLM adapter (GenericAgent
 graph TB
     subgraph "Configuration Layer"
         ENV[Environment Variables<br/>NEXUS_ADAPTER_*]
-        Settings[AdapterRetrySettings<br/>Pydantic BaseSettings<br/>src/nexus/core/config.py]
+        Settings[AdapterRetrySettings<br/>Pydantic BaseSettings<br/>src/nexus/core/config/base.py]
         ENV -->|loaded at startup| Settings
     end
 
@@ -310,7 +310,7 @@ ios/ or android/
 
 **Specific Task Categories**:
 1. **Configuration** (1 task):
-   - Add AdapterRetrySettings to src/nexus/core/config.py
+   - Add AdapterRetrySettings to src/nexus/core/config/base.py
 
 2. **Core Retry Logic** (3-4 tasks):
    - Implement retry decorator with exponential backoff

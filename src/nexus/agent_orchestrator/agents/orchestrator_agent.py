@@ -14,7 +14,7 @@ from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.context_manager.planner import ContextManagerPlanner
 from nexus.agent_orchestrator.exceptions import ContextIntegrationError
 from nexus.agent_orchestrator.models.agent_state import AgentState
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 logger = logging.getLogger(__name__)
 

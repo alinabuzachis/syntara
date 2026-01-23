@@ -33,7 +33,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 from nexus.core.models.user import User, UserRole
 
 # Configure logging

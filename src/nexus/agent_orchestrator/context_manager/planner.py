@@ -17,8 +17,8 @@ from nexus.agent_orchestrator.exceptions import InvocationCancelledError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.agent_orchestrator.token_manager import TokenValidationService
 from nexus.api.auth import get_current_user
-from nexus.api.db.session import get_db
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
+from nexus.core.database.session import get_db
 
 from .assembler_service import AssemblerService
 from .compressor import CompressorService, get_compressor_service

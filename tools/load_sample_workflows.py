@@ -18,8 +18,8 @@ from uuid import uuid4
 from sqlmodel import select
 
 from nexus.api.auth.dependencies import get_current_user  # type: ignore[import-untyped]
-from nexus.api.db import AsyncSessionLocal  # type: ignore[import-untyped]
-from nexus.api.validators import WorkflowDefinitionValidator  # type: ignore[import-untyped]
+from nexus.core.database.session import AsyncSessionLocal  # type: ignore[import-untyped]
+from nexus.core.validators import WorkflowDefinitionValidator  # type: ignore[import-untyped]
 from nexus.workflows.models import Workflow, WorkflowVersion  # type: ignore[import-untyped]
 from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml  # type: ignore[import-untyped]
 

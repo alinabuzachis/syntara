@@ -8,10 +8,10 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.auth import get_current_user
-from nexus.api.db import get_db
 from nexus.api.v1.utils import deserialize_workflow_version
-from nexus.api.validators import ValidationError
+from nexus.core.database.session import get_db
 from nexus.core.models import User
+from nexus.core.validators import ValidationError
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,

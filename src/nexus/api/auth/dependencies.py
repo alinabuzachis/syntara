@@ -7,7 +7,7 @@ from fastapi import Depends
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.api.db import get_db
+from nexus.core.database.session import get_db
 from nexus.core.models import User
 
 

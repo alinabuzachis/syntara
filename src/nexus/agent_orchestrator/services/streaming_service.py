@@ -16,7 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.websockets import WebSocket
 
 from nexus.agent_orchestrator.models.invocation import Invocation, InvocationStatus
-from nexus.api.db.session import AsyncSessionLocal
+from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.models.base.error import ErrorData
 from nexus.core.valkey.stream import StreamClient
 from nexus.core.websocket.base_handler import BaseWebSocketStreamingHandler

@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 from nexus.core.constants import CONTEXT_KEY
 from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorError
 from nexus.workflows.workflow_engine.activities.agentic_activity import AgenticActivityError, execute_agentic_activity

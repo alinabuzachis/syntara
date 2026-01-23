@@ -12,7 +12,7 @@ from nexus.agent_orchestrator.context_manager import (
     AssemblerService,
     CompressorService,
 )
-from nexus.core.config import get_settings
+from nexus.core.config.base import get_settings
 
 
 class TestCompressorService:

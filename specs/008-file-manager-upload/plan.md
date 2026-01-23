@@ -126,7 +126,8 @@ src/nexus/
 │           ├── validators.py                     # NEW: Validation logic (count, size, MIME)
 │           └── storage.py                        # NEW: Storage operations (async file I/O with aiofiles)
 ├── core/
-│   └── config.py                                 # Add file upload settings (MODIFY)
+│   └── config
+│       └── base.py                               # Add file upload settings (MODIFY)
 └── api/
     └── v1/
         └── invocation.py                         # Accept multipart/form-data (MODIFY)

@@ -18,7 +18,7 @@ from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.api.db.session import get_db
+from nexus.core.database.session import get_db
 from nexus.files import FileManager, FileMetadata, get_file_manager
 from nexus.files.document_conversion.services.document_conversion_service import (
     DocumentConversionService,

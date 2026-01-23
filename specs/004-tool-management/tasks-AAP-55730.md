@@ -104,7 +104,7 @@ graph TB
   - Provider validation with status tracking (validating → available/error)
   - Tool refresh from providers with database upsert logic using SQLModel
 
-- [x] T002 Create database migration for tool provider models in src/nexus/core/alembic/versions/
+- [x] T002 Create database migration for tool provider models in src/nexus/core/database/migrations/versions/
   - Create migration for tool_providers table with all SQLModel fields
   - Create migration for tools table with foreign key to tool_providers
   - Create migration for tool_parameters table with foreign key to tools

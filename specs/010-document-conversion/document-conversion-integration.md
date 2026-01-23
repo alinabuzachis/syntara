@@ -27,7 +27,7 @@ The document conversion feature has been fully implemented and integrated with t
 - **Base Class**: DocumentConverter with async interface
 
 ### 4. Configuration & Models
-- **Config**: Centralized in `src/nexus/core/config.py` (DocumentConversionSettings)
+- **Config**: Centralized in `src/nexus/core/config/base.py` (DocumentConversionSettings)
 - **Result Model**: ConversionResult with converted_content field
 - **Database Persistence**: Via Invocation.context_data
 
@@ -77,7 +77,7 @@ FileMetadata updates are persisted through the Invocation model:
 
 ## Configuration
 
-Settings in `src/nexus/core/config.py`:
+Settings in `src/nexus/core/config/base.py`:
 
 ```python
 class DocumentConversionSettings(BaseSettings):

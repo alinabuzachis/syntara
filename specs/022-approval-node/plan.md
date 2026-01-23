@@ -149,11 +149,8 @@ src/nexus/
 │   └── clients/
 │       └── workflow_api_client.py  # Signal workflows
 ├── api/
-│   ├── v1/
-│   │   └── approvals.py          # NEW: /api/v1/approvals endpoints
-│   └── alembic/
-│       └── versions/
-│           └── xxx_add_approval_requests.py  # NEW: Migration
+│   └── v1/
+│       └── approvals.py          # NEW: /api/v1/approvals endpoints
 ├── workflows/
 │   ├── workflow_engine/
 │   │   └── dynamic_workflow.py   # MODIFY: Add approval signal handler
@@ -163,6 +160,10 @@ src/nexus/
 │   └── approvals/
 │       └── approvals-api.yaml    # NEW: OpenAPI specification
 └── core/
+    ├── database/         # Database management
+    │   └── migrations/   # Database migrations
+    │       └── versions/
+    │           └── xxx_add_approval_requests.py  # NEW: Migration
     └── models/
         └── base/                 # Reuse BaseResource
 

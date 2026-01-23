@@ -51,7 +51,7 @@ This document outlines research findings for adding multiple file attachment sup
   file_upload_storage_dir: str = "/tmp"  # Storage directory for uploaded files
   file_upload_allowed_extensions: list[str] = ["pdf", "doc", "docx", "txt", "md"]
   ```
-- **Pattern**: Follows `src/nexus/core/config.py`
+- **Pattern**: Follows `src/nexus/core/config/base.py`
 
 ### Data Model Strategy
 - **Decision**: SQLModel (constitutional requirement)

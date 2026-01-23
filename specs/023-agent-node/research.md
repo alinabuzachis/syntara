@@ -152,7 +152,7 @@ async def save_file(file_content, filename, invocation_id, retriever) -> str:
 
 ### 8. File Upload Configuration
 
-**Location**: `src/nexus/core/config.py`
+**Location**: `src/nexus/core/config/base.py`
 
 **Settings**:
 ```python
