@@ -28,7 +28,7 @@ export function GenericNodeComponent(props: NodeProps<GenericNode>) {
   const reverseHandles = (props.data as any).metadata?.__reverseHandles as boolean | undefined
 
   return (
-    <NodeComponent nodeProps={props} reverseHandles={reverseHandles} hasDashedBorder>
+    <NodeComponent nodeProps={props} reverseHandles={reverseHandles} hasDashedBorder collapsible={false}>
       <StandardNodeHeader
         icon={<RhUiSettingsIcon />}
         title={showTitle ? 'Click to configure' : undefined}

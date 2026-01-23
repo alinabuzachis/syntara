@@ -41,6 +41,7 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
       className={metadata.className}
       nodeProps={props}
       style={triggerStyle}
+      collapsible={false}
     >
       <TriggerNodeDetails
         node={props.data}

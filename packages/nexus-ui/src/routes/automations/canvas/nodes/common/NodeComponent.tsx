@@ -18,13 +18,17 @@ export function NodeComponent(props: {
   hasDashedBorder?: boolean
   onClick?: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void
   nodeProps: NodeProps
+  collapsible?: boolean
 }) {
   const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
   const expandedContext = useState(true)
   const nodeRef = useRef<HTMLDivElement>(null)
   const reactFlowInstance = useReactFlow()
+  const isCollapsible = props.collapsible ?? true
 
   useEffect(() => {
+    if (!isCollapsible) return
+
     const expandListener = () => {
       expandedContext[1](true)
     }
@@ -37,7 +41,7 @@ export function NodeComponent(props: {
       expandAllEvent.removeEventListener('expandAll', expandListener)
       collapseAllEvent.removeEventListener('collapseAll', collapseListener)
     }
-  }, [expandAllEvent, collapseAllEvent, expandedContext])
+  }, [expandAllEvent, collapseAllEvent, expandedContext, isCollapsible])
 
   // Auto-resize node based on content width
   // Extract expanded state to avoid complex dependency expression
