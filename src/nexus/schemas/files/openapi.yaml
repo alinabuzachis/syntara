@@ -52,7 +52,7 @@ paths:
 
         **Security Note:** Internal file paths are never exposed in API responses.
 
-      operationId: uploadFiles
+      operationId: upload_files
       tags:
         - Files
       requestBody:

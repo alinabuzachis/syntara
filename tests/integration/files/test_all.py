@@ -18,6 +18,7 @@ are stored in the FileMetadata database table, not in context_data.
 
 from pathlib import Path
 
+import aiofiles
 import pytest
 from httpx import AsyncClient
 
@@ -36,8 +37,9 @@ async def test_upload_pdf_file(auth_client_with_mocked_llm: AsyncClient, test_us
     - FileMetadata records created in database
     """
     # Arrange
-    with sample_pdf_path.open("rb") as f:
-        files = [("files", ("sample.pdf", f, "application/pdf"))]
+    async with aiofiles.open(sample_pdf_path, "rb") as f:
+        file_content = await f.read()
+        files = [("files", ("sample.pdf", file_content, "application/pdf"))]
         data = {
             "prompt": "Analyze the attached document and summarize key points",
             "session_id": "test-session-001",
@@ -77,9 +79,17 @@ async def test_upload_docx_file(auth_client_with_mocked_llm: AsyncClient, test_u
     - file_ids array in context_data
     """
     # Arrange
-    with sample_docx_path.open("rb") as f:
+    async with aiofiles.open(sample_docx_path, "rb") as f:
+        file_content = await f.read()
         files = [
-            ("files", ("sample.docx", f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+            (
+                "files",
+                (
+                    "sample.docx",
+                    file_content,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ),
+            )
         ]
         data = {
             "prompt": "Extract action items from this document",
@@ -124,8 +134,9 @@ async def test_upload_text_and_markdown(
     import uuid
 
     # Test TXT file
-    with sample_txt_path.open("rb") as f:
-        files = [("files", ("sample.txt", f, "text/plain"))]
+    async with aiofiles.open(sample_txt_path, "rb") as f:
+        file_content = await f.read()
+        files = [("files", ("sample.txt", file_content, "text/plain"))]
         data = {
             "prompt": "Summarize this README",
             "session_id": "test-session-003a",
@@ -145,8 +156,9 @@ async def test_upload_text_and_markdown(
     uuid.UUID(file_ids[0])
 
     # Test MD file
-    with sample_md_path.open("rb") as f:
-        files = [("files", ("sample.md", f, "text/markdown"))]
+    async with aiofiles.open(sample_md_path, "rb") as f:
+        file_content = await f.read()
+        files = [("files", ("sample.md", file_content, "text/markdown"))]
         data = {
             "prompt": "Review this documentation",
             "session_id": "test-session-003b",
@@ -249,8 +261,9 @@ async def test_unsupported_format_error(
     - No invocation created
     """
     # Arrange
-    with sample_image_path.open("rb") as f:
-        files = [("files", ("image.png", f, "image/png"))]
+    async with aiofiles.open(sample_image_path, "rb") as f:
+        file_content = await f.read()
+        files = [("files", ("image.png", file_content, "image/png"))]
         data = {
             "prompt": "Analyze this image",
             "session_id": "test-session-006",
@@ -288,7 +301,8 @@ async def test_too_many_files_error(auth_client_with_mocked_llm: AsyncClient, te
     """
     # Arrange - 15 files (exceeds limit of 10)
     # Reuse the same PDF file content 15 times with different names
-    pdf_content = sample_pdf_path.read_bytes()
+    async with aiofiles.open(sample_pdf_path, "rb") as f:
+        pdf_content = await f.read()
 
     files = [("files", (f"sample{i}.pdf", pdf_content, "application/pdf")) for i in range(1, 16)]
 
@@ -342,30 +356,32 @@ async def test_multiple_files_upload(
     import uuid
 
     # Arrange
-    with (
-        sample_pdf_path.open("rb") as pdf_file,
-        sample_docx_path.open("rb") as docx_file,
-        sample_txt_path.open("rb") as txt_file,
-    ):
-        files = [
-            ("files", ("sample.pdf", pdf_file, "application/pdf")),
-            (
-                "files",
-                ("sample.docx", docx_file, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-            ),
-            ("files", ("sample.txt", txt_file, "text/plain")),
-        ]
-        data = {
-            "prompt": "Analyze all these related documents together",
-            "session_id": "test-session-multi-010",
-        }
+    async with aiofiles.open(sample_pdf_path, "rb") as pdf_file:
+        pdf_content = await pdf_file.read()
+    async with aiofiles.open(sample_docx_path, "rb") as docx_file:
+        docx_content = await docx_file.read()
+    async with aiofiles.open(sample_txt_path, "rb") as txt_file:
+        txt_content = await txt_file.read()
 
-        # Act
-        response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
-            data=data,
-            files=files,
-        )
+    files = [
+        ("files", ("sample.pdf", pdf_content, "application/pdf")),
+        (
+            "files",
+            ("sample.docx", docx_content, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        ),
+        ("files", ("sample.txt", txt_content, "text/plain")),
+    ]
+    data = {
+        "prompt": "Analyze all these related documents together",
+        "session_id": "test-session-multi-010",
+    }
+
+    # Act
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations",
+        data=data,
+        files=files,
+    )
 
     # Assert
     assert response.status_code == 202
@@ -396,8 +412,9 @@ async def test_context_metadata(auth_client_with_mocked_llm: AsyncClient, test_u
     import uuid
 
     # Arrange
-    with sample_pdf_path.open("rb") as f:
-        files = [("files", ("sample.pdf", f, "application/pdf"))]
+    async with aiofiles.open(sample_pdf_path, "rb") as f:
+        file_content = await f.read()
+        files = [("files", ("sample.pdf", file_content, "application/pdf"))]
         data = {
             "prompt": "Summarize the document",
             "session_id": "test-session-011",

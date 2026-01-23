@@ -82,10 +82,11 @@ class TestRetrieverServiceMainFlow:
     """Integration tests for complete RetrieverService flow."""
 
     @pytest.fixture
-    def retriever_registry(self) -> RetrieverRegistry:
+    def retriever_registry(self, mock_file_manager: MagicMock) -> RetrieverRegistry:
         """Provide a clean RetrieverRegistry with test uploaded file retriever registered."""
         registry = RetrieverRegistry()
         registry.register_retriever("uploaded_file", TestUploadedFileRetriever)
+        TestUploadedFileRetriever._test_file_manager = mock_file_manager
         return registry
 
     @pytest.mark.asyncio
@@ -153,7 +154,6 @@ class TestRetrieverServiceMainFlow:
                 file_metadata_2,
                 file_metadata_3,
             ]
-            TestUploadedFileRetriever._test_file_manager = mock_file_manager
 
             # Mock database session and invocation context
             mock_session = MagicMock(spec=AsyncSession)
@@ -260,7 +260,6 @@ class TestRetrieverServiceMainFlow:
                 file_metadata_1,
                 file_metadata_2,
             ]
-            TestUploadedFileRetriever._test_file_manager = mock_file_manager
 
             # Test with high similarity threshold (should filter out irrelevant docs)
             mock_session = MagicMock(spec=AsyncSession)
@@ -346,7 +345,6 @@ class TestRetrieverServiceMainFlow:
             # Set up mock FileManager for TestUploadedFileRetriever
             file_ids = tuple(fm.id for fm in file_metadata_list)
             mock_file_manager._test_file_metadata_store[file_ids] = file_metadata_list
-            TestUploadedFileRetriever._test_file_manager = mock_file_manager
 
             # Test with max_results = 3
             mock_session = MagicMock(spec=AsyncSession)
@@ -519,7 +517,6 @@ class TestRetrieverServiceMainFlow:
             # Set up mock FileManager for TestUploadedFileRetriever
             file_ids = (uploaded_file_metadata.id,)
             mock_file_manager._test_file_metadata_store[file_ids] = [uploaded_file_metadata]
-            TestUploadedFileRetriever._test_file_manager = mock_file_manager
 
             mock_session = MagicMock(spec=AsyncSession)
 

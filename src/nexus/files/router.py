@@ -174,7 +174,7 @@ async def upload_files(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
-    except (OSError, PermissionError) as e:
+    except OSError as e:
         # Storage failures (disk full, permission denied, I/O errors) - 500 Internal Server Error
         logger.exception("File storage error during upload")
         raise HTTPException(
