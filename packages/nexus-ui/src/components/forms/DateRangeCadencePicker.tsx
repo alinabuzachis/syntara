@@ -350,7 +350,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
                   }}
                   min={1}
                   max={12}
-                  style={{ width: '60px', textAlign: 'center' }}
+                  style={{ width: '70px', textAlign: 'center' }}
                   aria-label="Hour"
                 />
               </FlexItem>
