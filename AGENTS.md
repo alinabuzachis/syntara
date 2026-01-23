@@ -54,4 +54,4 @@ Nexus is a distributed multi-agent system that enables coordinated AI agents to 
    - Database schema or migrations are modified
 
 ## Additional context
-Read and load @AGENTS.local.md file for more instructions for AI agents.
+Read and load @AGENTS.local.md file if exists for more instructions for AI agents.
