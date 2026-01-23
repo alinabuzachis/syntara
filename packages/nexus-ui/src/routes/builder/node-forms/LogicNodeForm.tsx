@@ -48,14 +48,14 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
     <Stack hasGutter>
       <ActivityNameField register={register} fieldId="logic-name" />
       <StackItem>
-        <FormGroup label="Logic Type" fieldId="logic-logicType">
+        <FormGroup label="Logic type" fieldId="logic-logicType">
           <Controller
             control={control}
             name="logicType"
             render={({ field }) => (
               <FormSelect
                 id="logic-logicType"
-                aria-label="Logic Type"
+                aria-label="Logic type"
                 value={field.value}
                 onChange={(_event, value) => field.onChange(value)}
               >
@@ -70,7 +70,7 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
 
       {logicType === 'condition' && (
         <StackItem>
-          <FormGroup label="Condition Expression" isRequired fieldId="logic-condition">
+          <FormGroup label="Condition expression" isRequired fieldId="logic-condition">
             <TextArea
               {...register('condition', { required: true })}
               id="logic-condition"
@@ -96,7 +96,7 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
                     value={field.value}
                     onChange={(_event, value) => field.onChange(value)}
                   >
-                    <FormSelectOption value="forEach" label="For Each" />
+                    <FormSelectOption value="forEach" label="For each" />
                     <FormSelectOption value="while" label="While" />
                   </FormSelect>
                 )}
@@ -107,7 +107,7 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
           {type === 'forEach' && (
             <>
               <StackItem>
-                <FormGroup label="Items Expression" isRequired fieldId="logic-items">
+                <FormGroup label="Items expression" isRequired fieldId="logic-items">
                   <TextInput
                     {...register('items', { required: true })}
                     id="logic-items"
@@ -119,7 +119,7 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
               </StackItem>
 
               <StackItem>
-                <FormGroup label="Item Variable" fieldId="logic-itemVariable">
+                <FormGroup label="Item variable" fieldId="logic-itemVariable">
                   <TextInput
                     {...register('itemVariable')}
                     id="logic-itemVariable"
@@ -131,7 +131,7 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
               </StackItem>
 
               <StackItem>
-                <FormGroup label="Index Variable" fieldId="logic-indexVariable">
+                <FormGroup label="Index variable" fieldId="logic-indexVariable">
                   <TextInput
                     {...register('indexVariable')}
                     id="logic-indexVariable"
@@ -147,7 +147,7 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
           {type === 'while' && (
             <>
               <StackItem>
-                <FormGroup label="Condition Expression" isRequired fieldId="logic-condition-while">
+                <FormGroup label="Condition expression" isRequired fieldId="logic-condition-while">
                   <TextArea
                     {...register('condition', { required: true })}
                     id="logic-condition-while"
@@ -159,7 +159,7 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
               </StackItem>
 
               <StackItem>
-                <FormGroup label="Max Iterations" fieldId="logic-maxIterations">
+                <FormGroup label="Max iterations" fieldId="logic-maxIterations">
                   <TextInput
                     {...register('maxIterations', { valueAsNumber: true })}
                     id="logic-maxIterations"
@@ -201,14 +201,14 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
           </StackItem>
 
           <StackItem>
-            <FormGroup label="On Timeout" fieldId="logic-onTimeout">
+            <FormGroup label="On timeout" fieldId="logic-onTimeout">
               <Controller
                 control={control}
                 name="onTimeout"
                 render={({ field }) => (
                   <FormSelect
                     id="logic-onTimeout"
-                    aria-label="On Timeout"
+                    aria-label="On timeout"
                     value={field.value}
                     onChange={(_event, value) => field.onChange(value)}
                   >
@@ -221,14 +221,14 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
           </StackItem>
 
           <StackItem>
-            <FormGroup label="Aggregate Outputs" fieldId="logic-aggregateOutputs">
+            <FormGroup label="Aggregate outputs" fieldId="logic-aggregateOutputs">
               <Controller
                 control={control}
                 name="aggregateOutputs"
                 render={({ field }) => (
                   <FormSelect
                     id="logic-aggregateOutputs"
-                    aria-label="Aggregate Outputs"
+                    aria-label="Aggregate outputs"
                     value={String(field.value ?? true)}
                     onChange={(_event, value) => field.onChange(value === 'true')}
                   >

@@ -122,7 +122,7 @@ describe('ApprovalDetail Component', () => {
 
     render(<ApprovalDetail />)
 
-    expect(screen.getByText('Approval Details')).toBeInTheDocument()
+    expect(screen.getByText('Approval details')).toBeInTheDocument()
     expect(screen.getByTestId('loading-state')).toBeInTheDocument()
   })
 
@@ -131,7 +131,7 @@ describe('ApprovalDetail Component', () => {
 
     render(<ApprovalDetail />)
 
-    expect(screen.getByText('Approval Details')).toBeInTheDocument()
+    expect(screen.getByText('Approval details')).toBeInTheDocument()
     expect(screen.getByText('Error loading approval')).toBeInTheDocument()
   })
 

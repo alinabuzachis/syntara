@@ -46,7 +46,7 @@ describe('AddNodePanel Component', () => {
 
       render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
 
-      expect(screen.getByText('Add Node')).toBeInTheDocument()
+      expect(screen.getByText('Add node')).toBeInTheDocument()
       // The close button exists (SidePanel renders it)
       const buttons = screen.getAllByRole('button')
       expect(buttons.length).toBeGreaterThan(0)
@@ -93,7 +93,7 @@ describe('AddNodePanel Component', () => {
 
       render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
 
-      expect(screen.getByText('Add Node')).toBeInTheDocument()
+      expect(screen.getByText('Add node')).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /action/i })).not.toBeInTheDocument()
     })
   })

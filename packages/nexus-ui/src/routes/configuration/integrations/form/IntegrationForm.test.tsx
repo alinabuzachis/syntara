@@ -118,7 +118,7 @@ describe('IntegrationForm Component', () => {
       const { container } = render(<IntegrationForm />, { wrapper })
 
       // Page header
-      expect(screen.getByText('Configure Integration')).toBeInTheDocument()
+      expect(screen.getByText('Configure integration')).toBeInTheDocument()
 
       // Action buttons
       expect(screen.getByText('Add integration')).toBeInTheDocument()

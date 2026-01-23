@@ -117,8 +117,8 @@ export default function Executions() {
                 Workflow
               </Th>
               <Th>Status</Th>
-              <Th>Created At</Th>
-              <Th>Completed At</Th>
+              <Th>Created at</Th>
+              <Th>Completed at</Th>
             </Tr>
           </Thead>
           <Tbody>
@@ -133,10 +133,10 @@ export default function Executions() {
                   <LinkCell href={`/automation-builder/${execution.workflow_id}`}>{execution.workflow_id}</LinkCell>
                 </Td>
                 <Td dataLabel="Status">{execution.status && <StatusLabel status={execution.status} />}</Td>
-                <Td dataLabel="Created At">
+                <Td dataLabel="Created at">
                   <DateCell dateString={getDateField(execution, 'createdAt')} />
                 </Td>
-                <Td dataLabel="Completed At">
+                <Td dataLabel="Completed at">
                   {execution.completed_at ? (
                     <DateCell dateString={execution.completed_at} />
                   ) : (

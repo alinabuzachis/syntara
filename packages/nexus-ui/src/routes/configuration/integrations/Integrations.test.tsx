@@ -120,7 +120,7 @@ describe('Integrations Component', () => {
       expect(searchInput).toBeInTheDocument()
 
       // Check Add Integration button
-      expect(screen.getByText('Add Integration')).toBeInTheDocument()
+      expect(screen.getByText('Add integration')).toBeInTheDocument()
     })
 
     it('renders integrations in table view by default', () => {
@@ -270,7 +270,7 @@ describe('Integrations Component', () => {
 
       // Check for empty state message
       expect(screen.getByText('No integrations have been configured yet.')).toBeInTheDocument()
-      expect(screen.getByText('Add Integration')).toBeInTheDocument()
+      expect(screen.getByText('Add integration')).toBeInTheDocument()
     })
   })
 

@@ -39,7 +39,7 @@ describe('TriggerNodeForm Component', () => {
     it('renders manual trigger form by default', () => {
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
-      expect(screen.getByLabelText('Trigger Type')).toHaveValue('manual')
+      expect(screen.getByLabelText('Trigger type')).toHaveValue('manual')
       expect(screen.queryByLabelText('Requires Approval')).not.toBeInTheDocument()
     })
 
@@ -63,7 +63,7 @@ describe('TriggerNodeForm Component', () => {
 
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={initialData} />)
 
-      expect(screen.getByLabelText('Trigger Type')).toHaveValue('manual')
+      expect(screen.getByLabelText('Trigger type')).toHaveValue('manual')
     })
   })
 
@@ -72,17 +72,17 @@ describe('TriggerNodeForm Component', () => {
       const user = userEvent.setup()
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
-      await user.selectOptions(screen.getByLabelText('Trigger Type'), 'scheduled')
+      await user.selectOptions(screen.getByLabelText('Trigger type'), 'scheduled')
 
-      expect(screen.getByLabelText('Schedule Type')).toBeInTheDocument()
-      expect(screen.getByLabelText('Schedule Type')).toHaveValue('interval')
+      expect(screen.getByLabelText('Schedule type')).toBeInTheDocument()
+      expect(screen.getByLabelText('Schedule type')).toHaveValue('interval')
     })
 
     it('shows interval picker for interval schedule type', async () => {
       const user = userEvent.setup()
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
-      await user.selectOptions(screen.getByLabelText('Trigger Type'), 'scheduled')
+      await user.selectOptions(screen.getByLabelText('Trigger type'), 'scheduled')
 
       expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
     })
@@ -91,8 +91,8 @@ describe('TriggerNodeForm Component', () => {
       const user = userEvent.setup()
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
-      await user.selectOptions(screen.getByLabelText('Trigger Type'), 'scheduled')
-      await user.selectOptions(screen.getByLabelText('Schedule Type'), 'continuous')
+      await user.selectOptions(screen.getByLabelText('Trigger type'), 'scheduled')
+      await user.selectOptions(screen.getByLabelText('Schedule type'), 'continuous')
 
       expect(screen.queryByTestId('date-range-cadence-picker')).not.toBeInTheDocument()
     })
@@ -101,7 +101,7 @@ describe('TriggerNodeForm Component', () => {
       const user = userEvent.setup()
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
-      await user.selectOptions(screen.getByLabelText('Trigger Type'), 'scheduled')
+      await user.selectOptions(screen.getByLabelText('Trigger type'), 'scheduled')
       await user.type(screen.getByTestId('interval-input'), 'R/2024-01-01T10:00:00Z/P1D')
       await user.click(screen.getByRole('button', { name: 'Add node' }))
 
@@ -116,8 +116,8 @@ describe('TriggerNodeForm Component', () => {
       const user = userEvent.setup()
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
-      await user.selectOptions(screen.getByLabelText('Trigger Type'), 'scheduled')
-      await user.selectOptions(screen.getByLabelText('Schedule Type'), 'continuous')
+      await user.selectOptions(screen.getByLabelText('Trigger type'), 'scheduled')
+      await user.selectOptions(screen.getByLabelText('Schedule type'), 'continuous')
       await user.click(screen.getByRole('button', { name: 'Add node' }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
@@ -136,8 +136,8 @@ describe('TriggerNodeForm Component', () => {
 
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={initialData} />)
 
-      expect(screen.getByLabelText('Trigger Type')).toHaveValue('scheduled')
-      expect(screen.getByLabelText('Schedule Type')).toHaveValue('interval')
+      expect(screen.getByLabelText('Trigger type')).toHaveValue('scheduled')
+      expect(screen.getByLabelText('Schedule type')).toHaveValue('interval')
       expect(screen.getByTestId('interval-input')).toHaveValue('R/2024-01-01T10:00:00Z/P1D')
     })
   })
@@ -161,7 +161,7 @@ describe('TriggerNodeForm Component', () => {
       const user = userEvent.setup()
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
-      await user.selectOptions(screen.getByLabelText('Trigger Type'), 'scheduled')
+      await user.selectOptions(screen.getByLabelText('Trigger type'), 'scheduled')
 
       expect(screen.queryByLabelText('Requires Approval')).not.toBeInTheDocument()
     })
@@ -176,7 +176,7 @@ describe('TriggerNodeForm Component', () => {
 
       render(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={initialData} />)
 
-      await user.selectOptions(screen.getByLabelText('Trigger Type'), 'manual')
+      await user.selectOptions(screen.getByLabelText('Trigger type'), 'manual')
       await user.click(screen.getByRole('button', { name: 'Add node' }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({

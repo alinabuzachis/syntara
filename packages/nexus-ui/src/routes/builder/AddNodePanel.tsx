@@ -195,7 +195,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
                 </FlexItem>
                 <FlexItem>
                   <Title headingLevel="h2" size={TitleSizes.lg}>
-                    Add Node
+                    Add node
                   </Title>
                 </FlexItem>
               </Flex>

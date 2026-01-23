@@ -80,14 +80,14 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
       }}
     >
       <StackItem>
-        <FormGroup label="Action Type" fieldId="action-executor">
+        <FormGroup label="Action type" fieldId="action-executor">
           <Controller
             control={control}
             name="executor"
             render={({ field }) => (
               <FormSelect
                 id="action-executor"
-                aria-label="Action Type"
+                aria-label="Action type"
                 value={field.value}
                 onChange={(_event, value) => field.onChange(value)}
               >

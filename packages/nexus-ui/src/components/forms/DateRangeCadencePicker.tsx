@@ -307,13 +307,13 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
     <Stack hasGutter className={className}>
       {/* Start Date */}
       <StackItem>
-        <FormGroup label="Start Date" fieldId="cadence-start" isRequired={required}>
+        <FormGroup label="Start date" fieldId="cadence-start" isRequired={required}>
           <TextInput
             id="cadence-start"
             type="date"
             value={startDate}
             onChange={(_event, value) => dispatch({ type: 'SET_START_DATE', payload: value })}
-            aria-label="Start Date"
+            aria-label="Start date"
           />
         </FormGroup>
       </StackItem>
@@ -338,7 +338,7 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
       {/* Trigger Time */}
       {showTime && (
         <StackItem>
-          <FormGroup label="Trigger Time" fieldId="trigger-time" isRequired={required}>
+          <FormGroup label="Trigger time" fieldId="trigger-time" isRequired={required}>
             <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapXs' }}>
               <FlexItem>
                 <TextInput
@@ -390,14 +390,14 @@ export function DateRangeCadencePicker(props: DateRangeCadencePickerProps) {
 
       {/* End Date (Optional) */}
       <StackItem>
-        <FormGroup label="End Date" fieldId="cadence-end">
+        <FormGroup label="End date" fieldId="cadence-end">
           <TextInput
             id="cadence-end"
             type="date"
             value={endDate}
             onChange={(_event, value) => dispatch({ type: 'SET_END_DATE', payload: value })}
             placeholder="Never ends"
-            aria-label="End Date"
+            aria-label="End date"
           />
           <FormHelperText>If this field is left empty, the schedule will not have an end date.</FormHelperText>
         </FormGroup>

@@ -120,7 +120,7 @@ export default function ApprovalDetail() {
   if (!USE_MOCK_APPROVALS && queryState) {
     return (
       <AppPage>
-        <AppPageHeader title="Approval Details" />
+        <AppPageHeader title="Approval details" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel isFullHeight>{queryState}</CompassPanel>
         </StackItem>

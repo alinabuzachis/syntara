@@ -302,8 +302,8 @@ function getInitialState(): BuilderState {
     sourceHandle: undefined,
     targetHandle: undefined,
     replacementNodeId: null,
-    workflowName: 'New Workflow',
-    workflowDescription: 'New Workflow',
+    workflowName: 'New workflow',
+    workflowDescription: 'New workflow',
     isEnabled: false,
   }
 }
@@ -381,8 +381,8 @@ export function BuilderContent(props: BuilderContentProps) {
         schemaVersion: '1.0.0',
         version: 1,
         metadata: {
-          name: 'New Workflow',
-          description: 'New Workflow',
+          name: 'New workflow',
+          description: 'New workflow',
         },
         workflow: {
           activities: [],
@@ -393,7 +393,7 @@ export function BuilderContent(props: BuilderContentProps) {
         loadWorkflowWithEdges(newWorkflow, [])
         dispatch({
           type: 'INIT_WORKFLOW',
-          payload: { name: 'New Workflow', description: 'New Workflow', isEnabled: false },
+          payload: { name: 'New workflow', description: 'New workflow', isEnabled: false },
         })
         // No need for markClean - loadWorkflowWithEdges sets isDirty: false
       })
@@ -469,7 +469,7 @@ export function BuilderContent(props: BuilderContentProps) {
           type: 'INIT_WORKFLOW',
           payload: {
             name: workflow.name,
-            description: workflow.description ?? workflow.name ?? 'New Workflow',
+            description: workflow.description ?? workflow.name ?? 'New workflow',
             isEnabled: workflow.is_enabled ?? false,
           },
         })
@@ -486,7 +486,7 @@ export function BuilderContent(props: BuilderContentProps) {
           type: 'INIT_WORKFLOW',
           payload: {
             name: workflow.name,
-            description: workflow.description ?? workflow.name ?? 'New Workflow',
+            description: workflow.description ?? workflow.name ?? 'New workflow',
             isEnabled: workflow.is_enabled ?? false,
           },
         })
@@ -780,7 +780,7 @@ export function BuilderContent(props: BuilderContentProps) {
                 }
                 iconPosition="start"
               >
-                Add Node
+                Add node
               </Button>
 
               {!isNew && workflow?.id && (

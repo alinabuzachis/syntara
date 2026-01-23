@@ -43,7 +43,7 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
                   <RhUiCodeIcon />
                 </Icon>
                 <Title headingLevel="h2" size={TitleSizes.lg}>
-                  Workflow Details
+                  Workflow details
                 </Title>
               </Flex>
             </FlexItem>
@@ -59,14 +59,14 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
         <StackItem>
           <DescriptionList>
             <DescriptionListGroup>
-              <DescriptionListTerm>Workflow Name</DescriptionListTerm>
+              <DescriptionListTerm>Workflow name</DescriptionListTerm>
               <DescriptionListDescription>
                 <TextInput
                   id="workflow-sidepanel-name"
                   type="text"
                   value={props.workflowName}
                   onChange={(_event, value) => props.onNameChange(value)}
-                  aria-label="Workflow Name"
+                  aria-label="Workflow name"
                 />
               </DescriptionListDescription>
             </DescriptionListGroup>
@@ -83,7 +83,7 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
             </DescriptionListGroup>
             {props.workflow.version?.workflow_definition && (
               <DescriptionListGroup>
-                <DescriptionListTerm>Workflow Definition</DescriptionListTerm>
+                <DescriptionListTerm>Workflow definition</DescriptionListTerm>
                 <DescriptionListDescription>
                   <CodeBlock jsonObject={props.workflow.version.workflow_definition} noMaxHeight />
                 </DescriptionListDescription>

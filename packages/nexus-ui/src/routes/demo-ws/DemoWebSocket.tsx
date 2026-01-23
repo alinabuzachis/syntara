@@ -511,7 +511,7 @@ function AgentEventsDemo() {
           </FlexItem>
           <FlexItem>
             <Checkbox
-              label="Log Events"
+              label="Log events"
               id="log-checkbox"
               isChecked={subscriptions.has('log') || pendingLog}
               isDisabled={!isConnected}
@@ -523,7 +523,7 @@ function AgentEventsDemo() {
           </FlexItem>
           <FlexItem>
             <Checkbox
-              label="Progress Events"
+              label="Progress events"
               id="progress-checkbox"
               isChecked={subscriptions.has('progress') || pendingProgress}
               isDisabled={!isConnected}

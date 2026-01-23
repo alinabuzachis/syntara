@@ -46,8 +46,8 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
           <Details>
             <Detail label="Strategy">all</Detail>
             {timeout && <Detail label="Timeout">{formatTimeout(timeout)}</Detail>}
-            <Detail label="On Timeout">{onTimeout}</Detail>
-            <Detail label="Aggregate Outputs">{aggregateOutputs ? 'Yes' : 'No'}</Detail>
+            <Detail label="On timeout">{onTimeout}</Detail>
+            <Detail label="Aggregate outputs">{aggregateOutputs ? 'Yes' : 'No'}</Detail>
           </Details>
         </NodeBody>
       </Flex>

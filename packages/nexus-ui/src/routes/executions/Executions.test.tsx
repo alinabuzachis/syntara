@@ -120,8 +120,8 @@ describe('Executions Component', () => {
     expect(screen.getByText('Execution ID')).toBeInTheDocument()
     expect(screen.getByText('Workflow')).toBeInTheDocument()
     expect(screen.getByText('Status')).toBeInTheDocument()
-    expect(screen.getByText('Created At')).toBeInTheDocument()
-    expect(screen.getByText('Completed At')).toBeInTheDocument()
+    expect(screen.getByText('Created at')).toBeInTheDocument()
+    expect(screen.getByText('Completed at')).toBeInTheDocument()
   })
 
   it('shows loading state', () => {

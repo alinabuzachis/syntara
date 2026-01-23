@@ -258,7 +258,7 @@ export default function Integrations() {
             style={{ width: '250px' }}
           />
           <Button variant="primary" onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}>
-            Add Integration
+            Add integration
           </Button>
           <Dropdown
             isOpen={isViewMenuOpen}

@@ -202,7 +202,7 @@ export default function Automations() {
           style={{ width: '250px' }}
         />
         <Button variant="primary" onClick={() => setLocation('/automation-builder/new')}>
-          Create Automation
+          Create automation
         </Button>
       </AppPageHeader>
       {automations.length === 0 ? (
@@ -214,7 +214,7 @@ export default function Automations() {
               <EmptyStateNoData
                 title="No automations found"
                 description="Create your first automation to get started."
-                buttonText="Create Automation"
+                buttonText="Create automation"
                 addData={() => setLocation('/automation-builder/new')}
               />
             )}
@@ -241,8 +241,8 @@ export default function Automations() {
           <Thead>
             <Tr>
               <Th>Name</Th>
-              <Th>Created At</Th>
-              <Th>Updated At</Th>
+              <Th>Created at</Th>
+              <Th>Updated at</Th>
               <Th>Tags</Th>
               <Th>State</Th>
               <Th screenReaderText="Actions" />
@@ -254,10 +254,10 @@ export default function Automations() {
                 <Td dataLabel="Name">
                   <LinkCell href={`/automation-builder/${workflow.id}`}>{workflow.name}</LinkCell>
                 </Td>
-                <Td dataLabel="Created At">
+                <Td dataLabel="Created at">
                   <DateCell dateString={getDateField(workflow, 'createdAt')} />
                 </Td>
-                <Td dataLabel="Updated At">
+                <Td dataLabel="Updated at">
                   <DateCell dateString={getDateField(workflow, 'updatedAt')} />
                 </Td>
                 <Td dataLabel="Tags">

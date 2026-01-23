@@ -26,14 +26,14 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
   return (
     <Stack hasGutter>
       <StackItem>
-        <FormGroup label="Trigger Type" fieldId="trigger-type">
+        <FormGroup label="Trigger type" fieldId="trigger-type">
           <Controller
             control={control}
             name="triggerType"
             render={({ field }) => (
               <FormSelect
                 id="trigger-type"
-                aria-label="Trigger Type"
+                aria-label="Trigger type"
                 value={field.value}
                 onChange={(_event, value) => field.onChange(value)}
               >
@@ -48,14 +48,14 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
       {triggerType === 'scheduled' && (
         <>
           <StackItem>
-            <FormGroup label="Schedule Type" fieldId="schedule-type">
+            <FormGroup label="Schedule type" fieldId="schedule-type">
               <Controller
                 control={control}
                 name="scheduleType"
                 render={({ field }) => (
                   <FormSelect
                     id="schedule-type"
-                    aria-label="Schedule Type"
+                    aria-label="Schedule type"
                     value={field.value}
                     onChange={(_event, value) => field.onChange(value)}
                   >

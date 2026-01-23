@@ -63,7 +63,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
     <Stack hasGutter>
       <ActivityNameField register={register} fieldId="aap-name" />
       <StackItem>
-        <FormGroup label="Job Template ID" isRequired fieldId="aap-jobTemplateId">
+        <FormGroup label="Job template ID" isRequired fieldId="aap-jobTemplateId">
           <TextInput
             {...register('jobTemplateId', { required: true })}
             id="aap-jobTemplateId"
@@ -98,7 +98,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Extra Variables (JSON)" fieldId="aap-extraVars">
+        <FormGroup label="Extra variables (JSON)" fieldId="aap-extraVars">
           <TextArea
             {...register('extraVars', {
               validate: validateJSON,
@@ -146,7 +146,7 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Skip Tags" fieldId="aap-skipTags">
+        <FormGroup label="Skip tags" fieldId="aap-skipTags">
           <TextInput {...register('skipTags')} id="aap-skipTags" placeholder="testing,debug" type="text" />
           <FormHelperText>
             <HelperText>

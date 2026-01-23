@@ -15,7 +15,7 @@ interface ActivityNameFieldProps<T extends { name: string }> {
 export function ActivityNameField<T extends { name: string }>({
   register,
   fieldId,
-  label = 'Activity Name',
+  label = 'Activity name',
   placeholder = 'Enter activity name',
 }: ActivityNameFieldProps<T>) {
   return (

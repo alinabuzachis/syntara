@@ -82,7 +82,7 @@ export function IntegrationForm() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Configure Integration">
+      <AppPageHeader title="Configure integration">
         <FlexItem grow={{ default: 'grow' }} />
         <Button type="submit" form="integration-form">
           Add integration
