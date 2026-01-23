@@ -120,7 +120,7 @@ graph TB
 
 **Language/Version**: Python 3.12 (YAML for podman-compose configuration)
 **Primary Dependencies**: `podman-compose` (dev dependency), PostgreSQL 17 official image
-**Storage**: PostgreSQL 17 with named volume `nexus_postgres_data` for data persistence
+**Storage**: PostgreSQL 15 with named volume `nexus_postgres_data` for data persistence
 **Testing**: Infrastructure-only setup, no application tests (health checks for validation)
 **Target Platform**: Linux, macOS, Windows (cross-platform container support)
 **Project Type**: single (backend Python FastAPI project with infrastructure setup)

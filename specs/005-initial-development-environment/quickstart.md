@@ -118,7 +118,7 @@ podman ps
 **Container Status Output**:
 ```
 CONTAINER ID   IMAGE         STATUS                   PORTS                    NAMES
-abc123def456   postgres:17   Up 10 seconds (healthy)  0.0.0.0:5432->5432/tcp   nexus-database-1
+abc123def456   postgres:15   Up 10 seconds (healthy)  0.0.0.0:5432->5432/tcp   nexus-database-1
 ```
 
 **Troubleshooting**:

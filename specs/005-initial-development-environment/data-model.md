@@ -18,7 +18,7 @@ Represents the PostgreSQL container definition in docker-compose.yml.
 
 | Attribute | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `image` | string | Yes | `postgres:17` | PostgreSQL official Docker image with version tag |
+| `image` | string | Yes | `postgres:15` | PostgreSQL official Docker image with version tag |
 | `container_name` | string | No | Auto-generated | Container identifier (let compose auto-generate) |
 | `restart` | string | No | `unless-stopped` | Restart policy for container lifecycle |
 | `ports` | list[string] | Yes | `["${NEXUS_DB_PORT:-5432}:5432"]` | Host-to-container port mapping |
@@ -27,7 +27,7 @@ Represents the PostgreSQL container definition in docker-compose.yml.
 | `healthcheck` | HealthCheck | Yes | See HealthCheck entity | Container health monitoring |
 
 ### Validation Rules
-- `image` MUST be `postgres:17` (version pinned per FR-007)
+- `image` MUST be `postgres:15` (version pinned per FR-007)
 - `ports` MUST expose PostgreSQL port 5432 from container
 - `ports` MUST map to `${NEXUS_DB_PORT:-5432}` on host (configurable via environment)
 - `volumes` MUST include named volume for `/var/lib/postgresql/data`
@@ -203,7 +203,7 @@ Represents database connection parameters for application use (future features).
 ```yaml
 services:
   database:  # Container Configuration
-    image: postgres:17
+    image: postgres:15
     environment:  # Environment Configuration
       POSTGRES_USER: ${NEXUS_DB_USER:-admin}
       POSTGRES_PASSWORD: ${NEXUS_DB_PASSWORD:-admin}
@@ -237,7 +237,7 @@ NEXUS_DB_NAME=nexus_api
 ```yaml
 services:
   database:  # Container Configuration (CI variant)
-    image: postgres:17
+    image: postgres:15
     env:  # Environment Configuration (hardcoded)
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin

@@ -1,7 +1,7 @@
 ---
 services:
   database:
-    image: public.ecr.aws/docker/library/postgres:17
+    image: public.ecr.aws/docker/library/postgres:15
     restart: unless-stopped
     ports:
       - ${NEXUS_DB_PORT:-5432}:5432

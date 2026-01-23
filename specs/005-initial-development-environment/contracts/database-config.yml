@@ -1,7 +1,7 @@
 ---
 contract_version: 1.0.0
 feature: initial-development-environment
-created: '2025-10-08'
+created: "2025-10-08"
 status: draft
 
 # Environment Variable Schema
@@ -75,7 +75,7 @@ environment_variables:
 # Container Configuration Schema
 container_configuration:
   image:
-    value: postgres:17
+    value: postgres:15
     immutable: true
     description: PostgreSQL official Docker image version 17
 
@@ -165,7 +165,7 @@ validation_rules:
   - rule_id: VAL-007
     description: PostgreSQL image version must be 17
     severity: error
-    condition: Container image == 'postgres:17'
+    condition: Container image == 'postgres:15'
 
   - rule_id: VAL-008
     description: Health check must use pg_isready
@@ -217,7 +217,7 @@ test_scenarios:
 ci_configuration:
   github_actions:
     service_name: database
-    image: postgres:17
+    image: postgres:15
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
@@ -316,7 +316,7 @@ compliance:
 # Contract Change Log
 changes:
   - version: 1.0.0
-    date: '2025-10-08'
+    date: "2025-10-08"
     author: System
     description: Initial contract definition for database configuration
     breaking: false

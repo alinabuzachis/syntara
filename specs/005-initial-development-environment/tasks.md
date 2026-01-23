@@ -97,7 +97,7 @@ graph TB
   - File: `podman-compose.yml`
   - Content:
     - Service named "database"
-    - Image: `postgres:17`
+    - Image: `postgres:15`
     - Ports: `${NEXUS_DB_PORT:-5432}:5432`
     - Volume: `nexus_postgres_data:/var/lib/postgresql/data`
     - Environment: `POSTGRES_USER=${NEXUS_DB_USER:-admin}`, `POSTGRES_PASSWORD=${NEXUS_DB_PASSWORD:-admin}`, `POSTGRES_DB=${NEXUS_DB_NAME:-nexus_api}`
@@ -177,7 +177,7 @@ graph TB
     ```yaml
     services:
       database:
-        image: postgres:17
+        image: postgres:15
         env:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: admin

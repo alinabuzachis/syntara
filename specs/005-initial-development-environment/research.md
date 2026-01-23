@@ -53,11 +53,11 @@ COMPOSE_CMD := uv run podman-compose
 ## 2. PostgreSQL 17 Official Image Configuration
 
 ### Decision
-Use official `postgres:17` image with environment variables for configuration. No custom Dockerfile, no initialization scripts for this feature (delegated to future migration features).
+Use official `postgres:15` image with environment variables for configuration. No custom Dockerfile, no initialization scripts for this feature (delegated to future migration features).
 
 ### Rationale
 - **Official image**: Maintained by PostgreSQL team, security updates, best practices
-- **Version pinning**: `postgres:17` (not `postgres:17-alpine` for simplicity, not `latest` for reproducibility)
+- **Version pinning**: `postgres:15` (not `postgres:15-alpine` for simplicity, not `latest` for reproducibility)
 - **Environment variables**: POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB match standard PostgreSQL container configuration
 - **Empty database**: No initdb scripts - schema management delegated to future Alembic migration feature
 
@@ -65,7 +65,7 @@ Use official `postgres:17` image with environment variables for configuration. N
 ```yaml
 services:
   database:
-    image: postgres:17
+    image: postgres:15
     environment:
       POSTGRES_USER: ${NEXUS_DB_USER:-admin}
       POSTGRES_PASSWORD: ${NEXUS_DB_PASSWORD:-admin}
@@ -107,7 +107,7 @@ services:
 
 ### References
 - Official PostgreSQL Docker image: https://hub.docker.com/_/postgres
-- PostgreSQL environment variables: https://www.postgresql.org/docs/17/libpq-envars.html
+- PostgreSQL environment variables: https://www.postgresql.org/docs/15/libpq-envars.html
 
 ---
 
@@ -118,7 +118,7 @@ Use GitHub Actions service containers with PostgreSQL 17 image. Configure using 
 
 ### Rationale
 - **Service containers**: Native GitHub Actions feature for database testing
-- **Consistency**: Same image (`postgres:17`), same environment variables, same configuration
+- **Consistency**: Same image (`postgres:15`), same environment variables, same configuration
 - **Health checks**: Automatic wait for database readiness before running tests
 - **Port mapping**: Standard 5432 port accessible from test jobs
 
@@ -126,7 +126,7 @@ Use GitHub Actions service containers with PostgreSQL 17 image. Configure using 
 ```yaml
 services:
   database:
-    image: postgres:17
+    image: postgres:15
     env:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
