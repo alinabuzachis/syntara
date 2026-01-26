@@ -1,9 +1,9 @@
 import { RhUiElectricityFillIcon } from '@patternfly/react-icons'
 
 import { createApiActivity, createScriptActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
-import { generateActivityId } from '../../../../utils/generateUUID'
 import type { ActionFormData } from '../../hooks/useNodeCreation'
 import { ActionNodeForm } from '../../node-forms/ActionNodeForm'
+import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
@@ -21,30 +21,24 @@ export default function registerActionNode() {
     formComponent: ActionNodeForm,
     onSubmit: (data, onSuccess, onError) => {
       try {
-        // Generate unique activity ID
-        const activityId = generateActivityId()
-
-        let activity
-
-        if (data.executor === 'script' && data.language && data.code) {
-          activity = createScriptActivity(
-            activityId,
-            data.name,
-            data.language as 'python' | 'javascript',
-            data.code,
-            data.parameters
-          )
-        } else if (data.executor === 'api' && data.method && data.url) {
-          activity = createApiActivity(
-            activityId,
-            data.name,
-            data.method as 'GET' | 'POST' | 'PUT' | 'DELETE',
-            data.url,
-            data.headers,
-            data.body,
-            data.parameters
-          )
-        }
+        const baseName = data.executor === 'api' ? 'REST Api' : 'Script'
+        const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) => {
+          if (data.executor === 'script' && data.language && data.code) {
+            return createScriptActivity(id, name, data.language as 'python' | 'javascript', data.code, data.parameters)
+          }
+          if (data.executor === 'api' && data.method && data.url) {
+            return createApiActivity(
+              id,
+              name,
+              data.method as 'GET' | 'POST' | 'PUT' | 'DELETE',
+              data.url,
+              data.headers,
+              data.body,
+              data.parameters
+            )
+          }
+          return null
+        })
 
         if (activity) {
           // Set requiresApproval if specified

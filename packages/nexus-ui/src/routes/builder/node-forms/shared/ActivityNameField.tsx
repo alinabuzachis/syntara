@@ -10,7 +10,7 @@ interface ActivityNameFieldProps<T extends { name: string }> {
 
 /**
  * Standardized "Activity Name" field used across most node forms.
- * Always required with consistent placeholder and styling.
+ * Optional by default with consistent placeholder and styling.
  */
 export function ActivityNameField<T extends { name: string }>({
   register,
@@ -20,13 +20,8 @@ export function ActivityNameField<T extends { name: string }>({
 }: ActivityNameFieldProps<T>) {
   return (
     <StackItem>
-      <FormGroup label={label} isRequired fieldId={fieldId}>
-        <TextInput
-          {...register('name' as Path<T>, { required: true })}
-          id={fieldId}
-          placeholder={placeholder}
-          type="text"
-        />
+      <FormGroup label={label} fieldId={fieldId}>
+        <TextInput {...register('name' as Path<T>)} id={fieldId} placeholder={placeholder} type="text" />
       </FormGroup>
     </StackItem>
   )

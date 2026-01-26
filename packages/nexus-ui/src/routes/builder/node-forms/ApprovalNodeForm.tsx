@@ -15,6 +15,7 @@ import {
 import { useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
+import { ActivityNameField } from './shared/ActivityNameField'
 import { FormSubmitButton } from './shared/FormSubmitButton'
 
 // Helper function to break down total seconds into days, hours, minutes, seconds
@@ -112,6 +113,7 @@ function ApprovalFormFields({
 
   return (
     <Stack hasGutter>
+      <ActivityNameField register={register} fieldId="approval-name" label="Approval name" />
       <StackItem>
         <FormGroup label="Usernames to notify" isRequired fieldId="approval-approvers">
           <Controller

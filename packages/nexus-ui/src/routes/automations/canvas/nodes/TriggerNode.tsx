@@ -14,12 +14,14 @@ import { nodeMetadata } from './nodeMetadata'
 
 export type TriggerNode = { type: 'trigger' } & Node<{
   label: string
+  triggerType?: string
   inputs?: WorkflowAPI.components['schemas']['workflow-definition.schema']['inputs']
 }>
 
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   const { type: triggerType, details: triggerDetails } = parseTriggerLabel(props.data.label)
-  const metadata = triggerType === 'Scheduled' ? nodeMetadata.scheduledTrigger : nodeMetadata.trigger
+  const isScheduled = props.data.triggerType === 'scheduled'
+  const metadata = isScheduled ? nodeMetadata.scheduledTrigger : nodeMetadata.trigger
   const Icon = metadata.icon!
   const triggerStyle: CSSProperties = {
     borderTopLeftRadius: '75px',

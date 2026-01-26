@@ -24,10 +24,14 @@ type TaskActivity = Extract<Activity, { type: 'task' }>
  * Create a manual trigger.
  * @param requiresApproval - Whether the trigger requires approval before execution
  */
-export function createManualTrigger(requiresApproval?: boolean): WorkflowAPI.components['schemas']['manualTrigger'] {
+export function createManualTrigger(
+  requiresApproval?: boolean,
+  name?: string
+): WorkflowAPI.components['schemas']['manualTrigger'] & { name?: string } {
   return {
     type: 'manual',
     ...(requiresApproval !== undefined && { requiresApproval }),
+    ...(name ? { name } : {}),
   }
 }
 
@@ -43,7 +47,8 @@ export function createScheduledTrigger(
     cron?: string
     timezone?: string
     interval?: string
-  }
+  },
+  name?: string
 ) {
   if (scheduleType === 'cron' && config.cron) {
     return {
@@ -53,6 +58,7 @@ export function createScheduledTrigger(
         cron: config.cron,
         ...(config.timezone && { timezone: config.timezone }),
       },
+      ...(name ? { name } : {}),
     } as const
   } else if (scheduleType === 'interval' && config.interval) {
     return {
@@ -61,6 +67,7 @@ export function createScheduledTrigger(
         scheduleType: 'interval',
         interval: config.interval,
       },
+      ...(name ? { name } : {}),
     } as const
   } else {
     return {
@@ -69,6 +76,7 @@ export function createScheduledTrigger(
         scheduleType: 'continuous',
         continuous: true,
       },
+      ...(name ? { name } : {}),
     } as const
   }
 }
@@ -80,7 +88,7 @@ export function createScheduledTrigger(
  * @param filter - Optional filter criteria
  * @note This trigger type is not yet in the API schema - using type assertion
  */
-export function createEventTrigger(source: string, eventType: string, filter?: Record<string, unknown>) {
+export function createEventTrigger(source: string, eventType: string, filter?: Record<string, unknown>, name?: string) {
   return {
     type: 'event',
     event: {
@@ -88,6 +96,7 @@ export function createEventTrigger(source: string, eventType: string, filter?: R
       eventType,
       ...(filter && { filter }),
     },
+    ...(name ? { name } : {}),
   } as const
 }
 

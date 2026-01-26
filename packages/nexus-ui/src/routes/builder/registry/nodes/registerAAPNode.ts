@@ -1,9 +1,9 @@
 import AnsibleIcon from '../../../../assets/ansible-automation-platform.svg?react'
 import { createAAPJobTemplateActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
-import { generateActivityId } from '../../../../utils/generateUUID'
 import { AAPNodeForm } from '../../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../../node-forms/AAPNodeForm'
 import { buildAAPConfig, parsePositiveInt } from '../../utils/aapHelpers'
+import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
@@ -21,8 +21,6 @@ export default function registerAAPNode() {
     formComponent: AAPNodeForm,
     onSubmit: (data, onSuccess, onError) => {
       try {
-        const activityId = generateActivityId()
-
         // Parse jobTemplateId (required)
         const jobTemplateId = parsePositiveInt(data.jobTemplateId)
         if (!jobTemplateId) {
@@ -30,7 +28,9 @@ export default function registerAAPNode() {
         }
 
         const config = buildAAPConfig(data)
-        const activity = createAAPJobTemplateActivity(activityId, data.name, jobTemplateId, config)
+        const { activityId, activity } = buildNamedActivity('AAP Job Execution', data.name, (id, name) =>
+          createAAPJobTemplateActivity(id, name, jobTemplateId, config)
+        )
 
         useWorkflowStore.getState().addActivity(activity)
         onSuccess(activityId)

@@ -8,10 +8,10 @@ import {
   createScriptActivity,
   useWorkflowStoreActions,
 } from '../../../stores/useWorkflowStore'
-import { generateActivityId } from '../../../utils/generateUUID'
+import { buildNamedActivity, buildNamedTrigger } from '../utils/nodeCreationHelpers'
 
 export interface TriggerFormData {
-  name: string
+  name?: string
   triggerType: string
   scheduleType?: string
   cron?: string
@@ -40,19 +40,26 @@ export function useNodeCreation(onSuccess: () => void) {
 
   const handleTriggerSubmit = useCallback(
     (data: TriggerFormData) => {
-      let trigger
-
-      if (data.triggerType === 'manual') {
-        trigger = createManualTrigger()
-      } else if (data.triggerType === 'scheduled' && data.scheduleType) {
-        trigger = createScheduledTrigger(data.scheduleType as 'cron' | 'interval' | 'continuous', {
-          cron: data.cron,
-          timezone: data.timezone,
-          interval: data.interval,
-        })
-      } else if (data.triggerType === 'event' && data.eventSource && data.eventType) {
-        trigger = createEventTrigger(data.eventSource, data.eventType)
-      }
+      const { trigger } = buildNamedTrigger('Trigger', data.name, (name) => {
+        if (data.triggerType === 'manual') {
+          return createManualTrigger(undefined, name)
+        }
+        if (data.triggerType === 'scheduled' && data.scheduleType) {
+          return createScheduledTrigger(
+            data.scheduleType as 'cron' | 'interval' | 'continuous',
+            {
+              cron: data.cron,
+              timezone: data.timezone,
+              interval: data.interval,
+            },
+            name
+          )
+        }
+        if (data.triggerType === 'event' && data.eventSource && data.eventType) {
+          return createEventTrigger(data.eventSource, data.eventType, undefined, name)
+        }
+        return null
+      })
 
       if (trigger) {
         addTrigger(trigger)
@@ -64,24 +71,23 @@ export function useNodeCreation(onSuccess: () => void) {
 
   const handleActionSubmit = useCallback(
     (data: ActionFormData) => {
-      // Generate a unique ID for the activity that matches pattern ^[a-zA-Z_][a-zA-Z0-9_]*$
-      // Convert UUID to valid identifier by removing dashes and prefixing with 'activity_'
-      const activityId = generateActivityId()
-
-      let activity
-
-      if (data.executor === 'script' && data.language && data.code) {
-        activity = createScriptActivity(activityId, data.name, data.language as 'python' | 'javascript', data.code)
-      } else if (data.executor === 'api' && data.method && data.url) {
-        activity = createApiActivity(
-          activityId,
-          data.name,
-          data.method as 'GET' | 'POST' | 'PUT' | 'DELETE',
-          data.url,
-          data.headers,
-          data.body
-        )
-      }
+      const baseName = data.executor === 'api' ? 'REST Api' : 'Script'
+      const { activity } = buildNamedActivity(baseName, data.name, (id, name) => {
+        if (data.executor === 'script' && data.language && data.code) {
+          return createScriptActivity(id, name, data.language as 'python' | 'javascript', data.code)
+        }
+        if (data.executor === 'api' && data.method && data.url) {
+          return createApiActivity(
+            id,
+            name,
+            data.method as 'GET' | 'POST' | 'PUT' | 'DELETE',
+            data.url,
+            data.headers,
+            data.body
+          )
+        }
+        return null
+      })
 
       if (activity) {
         addActivity(activity)

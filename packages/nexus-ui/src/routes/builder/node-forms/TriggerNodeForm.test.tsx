@@ -50,6 +50,7 @@ describe('TriggerNodeForm Component', () => {
       await user.click(screen.getByRole('button', { name: 'Add node' }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
+        name: '',
         triggerType: 'manual',
         scheduleType: undefined,
         interval: undefined,
@@ -106,6 +107,7 @@ describe('TriggerNodeForm Component', () => {
       await user.click(screen.getByRole('button', { name: 'Add node' }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
+        name: '',
         triggerType: 'scheduled',
         scheduleType: 'interval',
         interval: 'R/2024-01-01T10:00:00Z/P1D',
@@ -121,6 +123,7 @@ describe('TriggerNodeForm Component', () => {
       await user.click(screen.getByRole('button', { name: 'Add node' }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
+        name: '',
         triggerType: 'scheduled',
         scheduleType: 'continuous',
         interval: undefined,
@@ -180,6 +183,7 @@ describe('TriggerNodeForm Component', () => {
       await user.click(screen.getByRole('button', { name: 'Add node' }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
+        name: '',
         triggerType: 'manual',
         scheduleType: undefined,
         interval: undefined,

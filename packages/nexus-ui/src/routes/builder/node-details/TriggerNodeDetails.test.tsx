@@ -16,17 +16,26 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
   useWorkflowStoreActions: vi.fn(() => ({
     updateTrigger: mockUpdateTrigger,
   })),
-  createManualTrigger: vi.fn(() => ({
+  createManualTrigger: vi.fn((requiresApproval?: boolean, name?: string) => ({
     type: 'manual',
     requiresApproval: false,
+    ...(name ? { name } : {}),
   })),
-  createScheduledTrigger: vi.fn((scheduleType: 'interval' | 'continuous', options?: { interval?: string }) => ({
-    type: 'scheduled',
-    schedule:
-      scheduleType === 'interval'
-        ? { scheduleType: 'interval', interval: options?.interval ?? '' }
-        : { scheduleType: 'continuous' },
-  })),
+  createScheduledTrigger: vi.fn(
+    (scheduleType: 'interval' | 'continuous', options?: { interval?: string }, name?: string) => ({
+      type: 'scheduled',
+      schedule:
+        scheduleType === 'interval'
+          ? { scheduleType: 'interval', interval: options?.interval ?? '' }
+          : { scheduleType: 'continuous' },
+      ...(name ? { name } : {}),
+    })
+  ),
+}))
+
+vi.mock('../utils/nodeNaming', () => ({
+  getNodeDisplayNameForEdit: (baseName: string, requestedName?: string, currentName?: string) =>
+    requestedName ?? currentName ?? baseName,
 }))
 
 // Mock the alerts hook
@@ -75,6 +84,7 @@ describe('TriggerNodeDetails Component', () => {
       const trigger = {
         type: 'manual' as const,
         requiresApproval: false,
+        name: 'Trigger',
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -82,6 +92,7 @@ describe('TriggerNodeDetails Component', () => {
       expect(screen.getByTestId('trigger-node-form')).toBeInTheDocument()
       expect(screen.getByTestId('initial-data')).toHaveTextContent(
         JSON.stringify({
+          name: 'Trigger',
           triggerType: 'manual',
         })
       )
@@ -92,6 +103,7 @@ describe('TriggerNodeDetails Component', () => {
       const trigger = {
         type: 'manual' as const,
         requiresApproval: false,
+        name: 'Trigger',
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -101,6 +113,7 @@ describe('TriggerNodeDetails Component', () => {
       expect(mockUpdateTrigger).toHaveBeenCalledWith(0, {
         type: 'manual',
         requiresApproval: false,
+        name: 'Trigger',
       })
       expect(mockOnClose).toHaveBeenCalledTimes(1)
     })
@@ -114,12 +127,14 @@ describe('TriggerNodeDetails Component', () => {
           scheduleType: 'interval' as const,
           interval: 'R/2024-01-01T10:00:00Z/P1D',
         },
+        name: 'Trigger',
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
 
       expect(screen.getByTestId('initial-data')).toHaveTextContent(
         JSON.stringify({
+          name: 'Trigger',
           triggerType: 'scheduled',
           scheduleType: 'interval',
           interval: 'R/2024-01-01T10:00:00Z/P1D',
@@ -135,6 +150,7 @@ describe('TriggerNodeDetails Component', () => {
           scheduleType: 'interval' as const,
           interval: 'R/2024-01-01T10:00:00Z/P1D',
         },
+        name: 'Trigger',
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={1} onClose={mockOnClose} />)
@@ -147,6 +163,7 @@ describe('TriggerNodeDetails Component', () => {
           scheduleType: 'interval',
           interval: 'R/2024-01-01T10:00:00Z/P1D',
         },
+        name: 'Trigger',
       })
       expect(mockOnClose).toHaveBeenCalledTimes(1)
     })
@@ -159,12 +176,14 @@ describe('TriggerNodeDetails Component', () => {
         schedule: {
           scheduleType: 'continuous' as const,
         },
+        name: 'Trigger',
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
 
       expect(screen.getByTestId('initial-data')).toHaveTextContent(
         JSON.stringify({
+          name: 'Trigger',
           triggerType: 'scheduled',
           scheduleType: 'continuous',
         })
@@ -178,6 +197,7 @@ describe('TriggerNodeDetails Component', () => {
         schedule: {
           scheduleType: 'continuous' as const,
         },
+        name: 'Trigger',
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={2} onClose={mockOnClose} />)
@@ -189,6 +209,7 @@ describe('TriggerNodeDetails Component', () => {
         schedule: {
           scheduleType: 'continuous',
         },
+        name: 'Trigger',
       })
       expect(mockOnClose).toHaveBeenCalledTimes(1)
     })
@@ -199,6 +220,7 @@ describe('TriggerNodeDetails Component', () => {
       const trigger = {
         type: 'manual' as const,
         requiresApproval: false,
+        name: 'Trigger',
       }
 
       // This test just verifies the component renders without errors
@@ -215,6 +237,7 @@ describe('TriggerNodeDetails Component', () => {
       const trigger = {
         type: 'manual' as const,
         requiresApproval: false,
+        name: 'Trigger',
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -229,6 +252,7 @@ describe('TriggerNodeDetails Component', () => {
       const trigger = {
         type: 'manual' as const,
         requiresApproval: false,
+        name: 'Trigger',
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -244,14 +268,17 @@ describe('TriggerNodeDetails Component', () => {
       // Create an event trigger (which is not yet fully implemented)
       const trigger = {
         type: 'event' as const,
+        name: 'Trigger',
       } as {
         type: 'event'
+        name?: string
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
 
       expect(screen.getByTestId('initial-data')).toHaveTextContent(
         JSON.stringify({
+          name: 'Trigger',
           triggerType: 'manual',
         })
       )

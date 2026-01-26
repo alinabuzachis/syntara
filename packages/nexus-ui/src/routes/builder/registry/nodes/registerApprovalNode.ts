@@ -1,9 +1,9 @@
 import { UserCheckIcon } from '@patternfly/react-icons'
 
 import { createApprovalActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
-import { generateActivityId } from '../../../../utils/generateUUID'
 import type { ApprovalFormSubmitData } from '../../node-forms/ApprovalNodeForm'
 import { ApprovalNodeForm } from '../../node-forms/ApprovalNodeForm'
+import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
@@ -23,17 +23,9 @@ export default function registerApprovalNode() {
     enabled: true,
     onSubmit: (data, onSuccess, onError) => {
       try {
-        // Generate unique activity ID
-        const activityId = generateActivityId()
-
         // Create approval activity with workflow store helper
-        const activity = createApprovalActivity(
-          activityId,
-          data.name,
-          data.approvers,
-          data.prompt,
-          data.timeout,
-          data.onTimeout
+        const { activityId, activity } = buildNamedActivity('Approval', data.name, (id, name) =>
+          createApprovalActivity(id, name, data.approvers, data.prompt, data.timeout, data.onTimeout)
         )
 
         // Add to workflow store

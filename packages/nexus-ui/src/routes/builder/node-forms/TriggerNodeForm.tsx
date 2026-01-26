@@ -3,9 +3,11 @@ import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'rea
 
 import { DateRangeCadencePicker } from '../../../components/forms/DateRangeCadencePicker'
 
+import { ActivityNameField } from './shared/ActivityNameField'
 import { FormSubmitButton } from './shared/FormSubmitButton'
 
 export interface TriggerFormData {
+  name?: string
   triggerType: string
   scheduleType?: string
   interval?: string
@@ -19,12 +21,18 @@ interface TriggerNodeFormProps {
 }
 
 function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) {
-  const { control } = useFormContext<TriggerFormData>()
+  const { control, register } = useFormContext<TriggerFormData>()
   const triggerType = useWatch({ control, name: 'triggerType' })
   const scheduleType = useWatch({ control, name: 'scheduleType' })
 
   return (
     <Stack hasGutter>
+      <ActivityNameField
+        register={register}
+        fieldId="trigger-name"
+        label="Trigger name"
+        placeholder="Enter trigger name"
+      />
       <StackItem>
         <FormGroup label="Trigger type" fieldId="trigger-type">
           <Controller
@@ -90,6 +98,7 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
 
 export function TriggerNodeForm(props: TriggerNodeFormProps) {
   const defaultValues: TriggerFormData = {
+    name: '',
     triggerType: 'manual',
     scheduleType: 'interval',
     interval: '',
@@ -102,6 +111,7 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
 
   const handleSubmit = (data: TriggerFormData) => {
     const cleanedData: TriggerFormData = {
+      name: data.name,
       triggerType: data.triggerType,
       scheduleType: data.triggerType === 'scheduled' ? data.scheduleType : undefined,
       interval: data.triggerType === 'scheduled' && data.scheduleType === 'interval' ? data.interval : undefined,

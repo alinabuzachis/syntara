@@ -19,7 +19,7 @@ import {
   selectCurrentWorkflow,
   selectWorkflowVersion,
   selectEdges,
-  selectTriggersCount,
+  selectTriggers,
   selectActivities,
 } from '../../stores/useWorkflowStore'
 import { CanvasControls } from '../automations/canvas/CanvasControls'
@@ -29,8 +29,18 @@ import type { ActivityState } from '../automations/execution/types'
 import { deriveEdgeStatus } from '../automations/hooks/useEdgeStatus'
 import { useExecutionStore } from '../automations/stores/useExecutionStore'
 
-// Type helper for activity data with optional metadata
-type ActivityWithMetadata = Activity & { metadata?: Record<string, unknown> }
+type ExecutionStatePayload = {
+  status: ActivityState['status']
+  started_at?: string
+  completed_at?: string
+  error_details?: string
+}
+
+// Type helper for activity data with optional metadata/execution state
+type ActivityWithMetadata<T extends Activity = Activity> = T & {
+  metadata?: Record<string, unknown>
+  __executionState?: ExecutionStatePayload
+}
 
 /**
  * Enriches activity data with execution state for visualization
@@ -39,20 +49,21 @@ type ActivityWithMetadata = Activity & { metadata?: Record<string, unknown> }
  * @param activityStates - Map of activity states from execution store
  * @returns Activity data with execution metadata and state attached
  */
-function enrichActivityWithExecutionState(
-  activity: Activity,
+function enrichActivityWithExecutionState<T extends Activity>(
+  activity: T,
   executionStatus: string | null | undefined,
   activityStates: Map<string, ActivityState>
-): ActivityWithMetadata {
+): ActivityWithMetadata<T> {
   if (!executionStatus) {
-    return activity
+    return activity as ActivityWithMetadata<T>
   }
 
   // Add execution badge flag
-  let enrichedActivity: ActivityWithMetadata = {
+  const baseMetadata = (activity as ActivityWithMetadata).metadata ?? {}
+  let enrichedActivity = {
     ...activity,
-    metadata: { ...(activity as ActivityWithMetadata).metadata, __showExecutionBadge: true },
-  }
+    metadata: { ...baseMetadata, __showExecutionBadge: true },
+  } as ActivityWithMetadata<T>
 
   // Add execution state from execution store if available
   const activityState = activityStates.get(activity.id)
@@ -65,7 +76,7 @@ function enrichActivityWithExecutionState(
         completed_at: activityState.completedAt ?? undefined,
         error_details: activityState.errorDetails ?? undefined,
       },
-    } as ActivityWithMetadata
+    } as ActivityWithMetadata<T>
   }
 
   return enrichedActivity
@@ -135,7 +146,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const currentWorkflow = useWorkflowStore(selectCurrentWorkflow)
   const storedEdges = useWorkflowStore(selectEdges)
   // Subscribe to triggers array to detect when triggers are added/removed/updated
-  const triggersCount = useWorkflowStore(selectTriggersCount)
+  const triggers = useWorkflowStore(selectTriggers)
   // Subscribe to activities array directly to detect updates to individual activities
   const activities = useWorkflowStore(selectActivities)
   // Access actions without subscribing to state changes
@@ -163,8 +174,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
     const edges: EdgeType[] = []
     const previousIds: string[] = []
 
-    const triggers = currentWorkflow?.triggers || []
-    triggers.forEach((trigger: Trigger, index: number) => {
+    const triggersList = triggers || []
+    triggersList.forEach((trigger: Trigger, index: number) => {
       const triggerId = `trigger-${index}`
       nodes.push({
         id: triggerId,
@@ -172,6 +183,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         position: { x: 0, y: 0 },
         data: {
           label: getTriggerLabel(trigger),
+          triggerType: trigger.type,
           inputs: currentWorkflow?.inputs || {},
         },
       })
@@ -182,10 +194,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     // Create nodes for converge, condition, and loop activities first (needed for loop-back detection)
     activities.forEach((activity: Activity) => {
-      // Enrich activity with execution state if in execution view
-      const activityData = enrichActivityWithExecutionState(activity, executionStatus, activityStates)
-
       if (activity.type === 'converge') {
+        const activityData = enrichActivityWithExecutionState(activity, executionStatus, activityStates)
         nodes.push({
           id: activity.id,
           type: 'converge',
@@ -193,6 +203,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
           data: activityData,
         })
       } else if (activity.type === 'condition') {
+        const activityData = enrichActivityWithExecutionState(activity, executionStatus, activityStates)
         nodes.push({
           id: activity.id,
           type: 'condition',
@@ -200,6 +211,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
           data: activityData,
         })
       } else if (activity.type === 'loop') {
+        const activityData = enrichActivityWithExecutionState(activity, executionStatus, activityStates)
         nodes.push({
           id: activity.id,
           type: 'loop',
@@ -348,7 +360,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     // Dependencies:
     // - workflowVersion: Changes when loading a new workflow (via setWorkflow)
     // - activitiesCount: Changes when activities are added/removed (via addActivity/removeActivity)
-    // - triggersCount: Changes when triggers are added/removed (via addTrigger/removeTrigger)
+    // - triggers: Changes when triggers are added/removed/updated
     // - activities: Changes when individual activities are updated (via updateActivity)
     // - edgesCount: Changes when edges are added/removed (needed for loop node creation with edges)
     // - onAddNodeFromEdge: Callback function (should be stable)
@@ -358,7 +370,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     // We DON'T depend on currentWorkflow directly - we use workflowVersion to detect workflow changes.
     // We also depend on activityStates and executionStatus to update edges when execution state changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workflowVersion, triggersCount, activities, storedEdges, onAddNodeFromEdge, activityStates, executionStatus])
+  }, [workflowVersion, triggers, activities, storedEdges, onAddNodeFromEdge, activityStates, executionStatus])
 
   // CRITICAL FIX: Use controlled state instead of useNodesState/useEdgesState
   // React Flow's hooks reset state when initialNodes/initialEdges change

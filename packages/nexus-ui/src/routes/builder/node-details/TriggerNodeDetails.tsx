@@ -4,11 +4,40 @@ import { useAlerts } from '../../../components/alerts'
 import { createManualTrigger, createScheduledTrigger, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import type { TriggerFormData } from '../node-forms/TriggerNodeForm'
 import { TriggerNodeForm } from '../node-forms/TriggerNodeForm'
+import { getNodeDisplayNameForEdit } from '../utils/nodeNaming'
 
-type Trigger =
-  | WorkflowAPI['components']['schemas']['manualTrigger']
-  | WorkflowAPI['components']['schemas']['scheduledTrigger']
-  | WorkflowAPI['components']['schemas']['eventTrigger']
+type ManualTrigger = WorkflowAPI.components['schemas']['manualTrigger'] & { name?: string }
+
+type ScheduledTrigger = {
+  type: 'scheduled'
+  schedule:
+    | {
+        scheduleType: 'cron'
+        cron: string
+        timezone?: string
+      }
+    | {
+        scheduleType: 'interval'
+        interval: string
+      }
+    | {
+        scheduleType: 'continuous'
+        continuous: true
+      }
+  name?: string
+}
+
+type EventTrigger = {
+  type: 'event'
+  event: {
+    source: string
+    eventType: string
+    filter?: Record<string, unknown>
+  }
+  name?: string
+}
+
+type Trigger = ManualTrigger | ScheduledTrigger | EventTrigger
 
 interface TriggerNodeDetailsProps {
   trigger: Trigger
@@ -25,6 +54,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
   const getInitialData = (): TriggerFormData => {
     if (trigger.type === 'manual') {
       return {
+        name: trigger.name,
         triggerType: 'manual',
       }
     }
@@ -32,6 +62,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
     if (trigger.type === 'scheduled') {
       if (trigger.schedule.scheduleType === 'interval') {
         return {
+          name: trigger.name,
           triggerType: 'scheduled',
           scheduleType: 'interval',
           interval: trigger.schedule.interval,
@@ -40,6 +71,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
 
       if (trigger.schedule.scheduleType === 'continuous') {
         return {
+          name: trigger.name,
           triggerType: 'scheduled',
           scheduleType: 'continuous',
         }
@@ -48,6 +80,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
 
     // Default fallback
     return {
+      name: trigger.name,
       triggerType: 'manual',
     }
   }
@@ -56,12 +89,18 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
     try {
       let updatedTrigger: Trigger
 
+      const name = getNodeDisplayNameForEdit('Trigger', data.name, trigger.name)
+
       if (data.triggerType === 'manual') {
-        updatedTrigger = createManualTrigger()
+        updatedTrigger = createManualTrigger(undefined, name)
       } else if (data.triggerType === 'scheduled') {
-        updatedTrigger = createScheduledTrigger(data.scheduleType as 'interval' | 'continuous', {
-          interval: data.interval,
-        })
+        updatedTrigger = createScheduledTrigger(
+          data.scheduleType as 'interval' | 'continuous',
+          {
+            interval: data.interval,
+          },
+          name
+        )
       } else {
         throw new Error('Invalid trigger type')
       }

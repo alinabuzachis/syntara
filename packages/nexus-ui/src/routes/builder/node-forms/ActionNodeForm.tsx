@@ -101,22 +101,8 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
       </StackItem>
 
       <StackItem>
-        <FormGroup label="Name" isRequired fieldId="action-name">
-          <TextInput
-            {...register('name', { required: 'Name is required' })}
-            id="action-name"
-            placeholder="Enter activity name"
-            type="text"
-          />
-          {errors.name && (
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                  {errors.name.message}
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          )}
+        <FormGroup label="Name" fieldId="action-name">
+          <TextInput {...register('name')} id="action-name" placeholder="Enter activity name" type="text" />
         </FormGroup>
       </StackItem>
 

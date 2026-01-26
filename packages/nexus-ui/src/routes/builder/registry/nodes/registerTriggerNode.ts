@@ -8,6 +8,7 @@ import {
 } from '../../../../stores/useWorkflowStore'
 import type { TriggerFormData } from '../../hooks/useNodeCreation'
 import { TriggerNodeForm } from '../../node-forms/TriggerNodeForm'
+import { buildNamedTrigger } from '../../utils/nodeCreationHelpers'
 import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 
@@ -29,19 +30,26 @@ export default function registerTriggerNode() {
       },
       (data, onSuccess, onError) => {
         try {
-          let trigger
-
-          if (data.triggerType === 'manual') {
-            trigger = createManualTrigger()
-          } else if (data.triggerType === 'scheduled' && data.scheduleType) {
-            trigger = createScheduledTrigger(data.scheduleType as 'cron' | 'interval' | 'continuous', {
-              cron: data.cron,
-              timezone: data.timezone,
-              interval: data.interval,
-            })
-          } else if (data.triggerType === 'event' && data.eventSource && data.eventType) {
-            trigger = createEventTrigger(data.eventSource, data.eventType)
-          }
+          const { trigger } = buildNamedTrigger('Trigger', data.name, (name) => {
+            if (data.triggerType === 'manual') {
+              return createManualTrigger(undefined, name)
+            }
+            if (data.triggerType === 'scheduled' && data.scheduleType) {
+              return createScheduledTrigger(
+                data.scheduleType as 'cron' | 'interval' | 'continuous',
+                {
+                  cron: data.cron,
+                  timezone: data.timezone,
+                  interval: data.interval,
+                },
+                name
+              )
+            }
+            if (data.triggerType === 'event' && data.eventSource && data.eventType) {
+              return createEventTrigger(data.eventSource, data.eventType, undefined, name)
+            }
+            return null
+          })
 
           if (trigger) {
             useWorkflowStore.getState().addTrigger(trigger)

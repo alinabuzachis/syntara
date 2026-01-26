@@ -8,6 +8,7 @@ import {
   useWorkflowStore,
 } from '../../../../stores/useWorkflowStore'
 import { LogicNodeForm } from '../../node-forms/LogicNodeForm'
+import { getNodeDisplayName } from '../../utils/nodeNaming'
 import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 
@@ -58,12 +59,16 @@ export default function registerLogicNode() {
 
           let activity
 
+          const baseName =
+            data.logicType === 'condition' ? 'Condition' : data.logicType === 'loop' ? 'Loop' : 'Converge'
+          const name = getNodeDisplayName(baseName, data.name)
+
           if (data.logicType === 'condition') {
             if (!data.condition) {
               onError('Condition expression is required')
               return
             }
-            activity = createConditionActivity(activityId, data.name, data.condition)
+            activity = createConditionActivity(activityId, name, data.condition)
           } else if (data.logicType === 'loop') {
             const loopType = data.type as 'forEach' | 'while'
 
@@ -76,7 +81,7 @@ export default function registerLogicNode() {
               return
             }
 
-            activity = createLoopActivity(activityId, data.name, loopType, {
+            activity = createLoopActivity(activityId, name, loopType, {
               items: data.items,
               condition: data.condition,
               maxIterations: data.maxIterations,
@@ -86,9 +91,10 @@ export default function registerLogicNode() {
 
             // Create a generic placeholder node for the loop body with custom message
             const genericNodeId = `task_${Date.now()}_${generateSecureRandomId()}`
+            const genericName = getNodeDisplayName('Generic Node')
             const genericActivity = createGenericActivity(
               genericNodeId,
-              '', // No name
+              genericName,
               'Replace this node to complete the loop' // Custom message
             )
 
@@ -120,7 +126,7 @@ export default function registerLogicNode() {
             onSuccess(activityId)
             return
           } else if (data.logicType === 'converge') {
-            activity = createConvergeActivity(activityId, data.name, {
+            activity = createConvergeActivity(activityId, name, {
               timeout: data.timeout,
               onTimeout: data.onTimeout,
               aggregateOutputs: data.aggregateOutputs,

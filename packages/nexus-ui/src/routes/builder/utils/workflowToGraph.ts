@@ -2,7 +2,7 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { MarkerType } from '@xyflow/react'
 
 // Type aliases from API contracts
-type ManualTrigger = WorkflowAPI.components['schemas']['manualTrigger']
+type ManualTrigger = WorkflowAPI.components['schemas']['manualTrigger'] & { name?: string }
 
 // Custom trigger types (not yet in API schema but used in the codebase)
 type ScheduledTrigger = {
@@ -21,6 +21,7 @@ type ScheduledTrigger = {
         scheduleType: 'continuous'
         continuous: true
       }
+  name?: string
 }
 
 type EventTrigger = {
@@ -30,6 +31,7 @@ type EventTrigger = {
     eventType: string
     filter?: Record<string, unknown>
   }
+  name?: string
 }
 
 export type Trigger = ManualTrigger | ScheduledTrigger | EventTrigger
@@ -91,20 +93,28 @@ export function extractTaskActivities(activities: Activity[]): TaskActivity[] {
  * Generates a human-readable label for a trigger based on its type and configuration
  */
 export function getTriggerLabel(trigger: Trigger): string {
+  const displayName = trigger.name?.trim() || 'Trigger'
+  let details: string | null = null
+
   switch (trigger.type) {
     case 'manual':
-      return trigger.requiresApproval ? 'Manual (Requires Approval)' : 'Manual'
+      details = trigger.requiresApproval ? 'Manual - Requires Approval' : 'Manual'
+      break
     case 'scheduled':
       if (trigger.schedule.scheduleType === 'cron') {
-        return `Scheduled (Cron: ${trigger.schedule.cron})`
+        details = `Cron: ${trigger.schedule.cron}`
       } else if (trigger.schedule.scheduleType === 'interval') {
-        return `Scheduled (Interval: ${trigger.schedule.interval})`
+        details = `Interval: ${trigger.schedule.interval}`
       } else {
-        return 'Scheduled (Continuous)'
+        details = 'Continuous'
       }
+      break
     case 'event':
-      return `Event (${trigger.event.source}: ${trigger.event.eventType})`
+      details = `Event: ${trigger.event.source}/${trigger.event.eventType}`
+      break
     default:
-      return 'Unknown Trigger'
+      details = null
   }
+
+  return details ? `${displayName} (${details})` : displayName
 }
