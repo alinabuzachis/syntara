@@ -7,9 +7,58 @@ A distributed multi-agent system. Nexus enables coordinated AI agents to work to
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-## Documentation
+## Architecture
 
-For architectural decisions and design rationale, see [decision-records.md](decision-records.md).
+Nexus is built with Python 3.12, FastAPI, SQLModel, and PostgreSQL.
+
+The system follows a domain-driven design with automatic router discovery and standardized patterns.
+
+### Key Technologies
+
+- [**Python 3.12**](https://www.python.org/) - Strict version requirement  
+- [**FastAPI**](https://fastapi.tiangolo.com/) - Web framework with automatic OpenAPI generation
+- [**SQLModel**](https://sqlmodel.tiangolo.com/) - Unified data modeling (combines Pydantic + SQLAlchemy)
+- [**PostgreSQL 15**](https://www.postgresql.org/) - Primary database with async support
+- [**Temporal**](https://temporal.io/) - Workflow orchestration engine for reliable multi-step task coordination
+- [**uv**](https://docs.astral.sh/uv/) - Package management and execution
+- [**Alembic**](https://alembic.sqlalchemy.org/) - Database migrations
+
+### Project Structure
+
+```
+src/
+└── nexus/
+    ├── agent_orchestrator/    # Agent lifecycle management and request routing
+    ├── api/                   # Legacy FastAPI routes (favour use of "domains")
+    ├── core/                  # Base models, router discovery, database, utilities
+    ├── example/               # Example implementations and WebSocket demos
+    ├── files/                 # File management and document processing
+    ├── invocations/           # Agent invocation tracking and execution
+    ├── schemas/               # OpenAPI schema definitions for all domains
+    ├── tool_manager/          # Tool provider interfaces and configuration
+    ├── workflows/             # Temporal workflow definitions and engine
+    └── ws/                    # WebSocket connection handling
+```
+
+### Domains
+
+Each domain represents a set of related functionality and follows a consistent structure:
+
+**Current domains:**
+- **agent_orchestrator** - Manages agent lifecycle and routing requests to appropriate agents
+- **files** - File management and storage operations
+- **invocations** - Agent invocation tracking and execution history
+- **tool_manager** - Tool provider interfaces and configuration
+- **workflows** - Temporal workflow definitions and execution
+
+```
+src/nexus/{domain}/
+├── router.py              # FastAPI routes (auto-discovered)
+├── models/                # SQLModel classes
+└── services/              # Business logic
+```
+
+**Router Discovery**: Routers in `src/nexus/{domain}/router.py` or `src/nexus/api/v1/{module}.py` are automatically discovered and registered.
 
 ## Developer Workflow
 
@@ -57,8 +106,6 @@ make build-images
 # Start all services (API, UI, Database, Temporal, Worker)
 make run-all
 ```
-
-
 
 **Option 2: Local Development**
 ```bash
@@ -110,6 +157,25 @@ export NEXUS_DATABASE_URL="postgresql+asyncpg://user:pass@host:port/dbname?sslmo
 - **Port conflict**: Copy `.env.example` to `.env` and change `NEXUS_DB_PORT` to another value (e.g., 5433)
 - **Container won't start**: Check the logs in the terminal where `make db-run` is running
 - **Reset everything**: Stop the running database (Ctrl+C), then run `make db-clean`
+
+### Data Modeling with SQLModel
+
+**Important**: Nexus uses SQLModel as the single source of truth for both API schemas and database tables. **Never create separate Pydantic models** - SQLModel serves both purposes.
+
+Most domain models should extend the `Resource` base class:
+
+```python
+from nexus.core.models import Resource
+
+class ToolProvider(Resource, table=True):
+    """Extends Resource with provider-specific fields."""
+    __tablename__ = "tool_providers"
+
+    enabled: bool = Field(default=True)
+    configuration: dict[str, Any] = Field(sa_type=JSONB)
+    # Inherits: id, name, description, timestamps, ownership, labels
+```
+
 
 ### Temporal Workflow Engine Setup
 
@@ -401,26 +467,6 @@ curl 'http://localhost:8000/api/v1/invocations?status=completed'
 | `make format` | Format code |
 | `make init-worktree` | Initialize a new git worktree for parallel development |
 
-### Parallel Development with Worktrees
-
-For parallel development and PR reviews without disrupting your current work, see:
-📖 **[Development with Worktrees Guide](docs/development-with-worktrees.md)**
-
-### Project Structure
-
-```
-src/
-└── nexus/
-    ├── api/             # FastAPI service, Temporal workflows, database models
-    ├── agents/          # Agent implementations (generic, research prototypes, etc.)
-    └── tool_manager/    # Tool provider interfaces, adapters, core domain logic
-
-tests/
-├── integration/
-├── unit/
-└── e2e/
-```
-
 ### Running Tests
 
 **Prerequisites**: PostgreSQL must be running (use `make db-run` in a separate terminal)
@@ -505,3 +551,9 @@ make install
 ```
 
 For more information, run `make help` to see all available commands.
+
+## Further reading
+
+- 📖 **[Developer Getting Started Guide](docs/developer-getting-started.md)** - Architecture deep dive with examples
+- 📖 **[Development with Worktrees Guide](docs/development-with-worktrees.md)** - Parallel development setup
+- 📖 **[Architecture Decision Records](decision-records.md)** - Design rationale and decisions
