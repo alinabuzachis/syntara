@@ -1,5 +1,7 @@
 """Query parameter models for workflow-related endpoints."""
 
+import re
+
 from pydantic import field_validator
 from sqlmodel import Field, SQLModel
 
@@ -67,3 +69,55 @@ class ExecutionIncludeParams(SQLModel):
         requested_include_strings = {item.strip() for item in self.include.split(",")}
         valid_includes = {ExecutionInclude.WORKFLOW_DEFINITION, ExecutionInclude.ACTIVITIES}
         return {item for item in valid_includes if item.value in requested_include_strings}
+
+
+class ExecutionStreamingQueryParams(SQLModel):
+    """Query parameters for execution WebSocket streaming endpoint.
+
+    Validates query parameters for execution event streaming to prevent
+    injection attacks and ensure proper format.
+
+    Attributes:
+        replay: Optional replay parameter for event replay from Valkey Streams.
+               - Not specified (None): Live streaming only (new events after connection)
+               - "0": Replay from beginning (includes initial snapshot)
+               - "<event_id>": Replay from specific Valkey stream ID (e.g., "1691431234567-5")
+
+    """
+
+    replay: str | None = Field(
+        default=None,
+        description="Replay parameter for event replay ('0' or Valkey stream ID)",
+    )
+
+    @field_validator("replay")
+    @classmethod
+    def validate_replay(cls, v: str | None) -> str | None:
+        """Validate replay parameter format.
+
+        Args:
+            v: replay value to validate
+
+        Returns:
+            Validated replay value
+
+        Raises:
+            ValueError: If replay format is invalid
+
+        """
+        if v is None:
+            return v
+
+        # Allow "0" for replay from beginning
+        if v == "0":
+            return v
+
+        # Validate Valkey stream ID format (timestamp-sequence like 1691431234567-42)
+        if not re.match(r"^\d+-\d+$", v):
+            msg = (
+                f"replay must be '0' or Valkey stream ID format 'timestamp-sequence' "
+                f"(e.g., '1691431234567-42'), got: {v}"
+            )
+            raise ValueError(msg)
+
+        return v

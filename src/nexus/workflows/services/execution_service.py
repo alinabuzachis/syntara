@@ -16,25 +16,24 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.core.services import BaseService
-from nexus.core.services.extensions import ConvertResourceMixin, PostProcessingMixin
+from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     TemporalUnavailableError,
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
-from nexus.workflows.models import ExecutionInclude
 from nexus.workflows.models.activity_execution import ActivityExecution
 from nexus.workflows.models.execution import (
     ActivityData,
     Execution,
+    ExecutionInclude,
     ExecutionListResponse,
     ExecutionRead,
     ExecutionStatus,
 )
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
-from nexus.workflows.utils.temporal import sync_execution_status_from_temporal
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 logger = logging.getLogger(__name__)
@@ -89,36 +88,6 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
         return result
 
 
-class ExecutionsPostProcessingMixin(PostProcessingMixin):
-    """Post-processing mixin to sync execution status from Temporal after database queries."""
-
-    def __init__(
-        self,
-        session: AsyncSession,
-        temporal_service: TemporalExecutionService | None = None,
-    ) -> None:
-        """Initialize mixin with database session and temporal service.
-
-        Args:
-            session: Database session for queries
-            temporal_service: Optional Temporal execution service for workflow operations
-
-        """
-        self.session = session
-        self.temporal_service = temporal_service
-
-    async def post_process(self, resources: list[Execution]) -> None:  # type: ignore[override]
-        """Sync execution status from Temporal after database query."""
-        if self.temporal_service is not None:
-            changes = [
-                await sync_execution_status_from_temporal(execution, self.temporal_service, session=None, persist=False)
-                for execution in resources
-            ]
-            # Commit all changes together if any execution status changed
-            if any(changes):
-                await self.session.commit()
-
-
 class ExecutionService(BaseService):
     """Service for execution business logic.
 
@@ -144,7 +113,6 @@ class ExecutionService(BaseService):
             session,
             user,
             convert_resource_mixin=ExecutionsConvertResourceMixin(),
-            post_processing_mixin=ExecutionsPostProcessingMixin(session, temporal_service),
         )
         self.temporal_service = temporal_service
 
@@ -258,15 +226,12 @@ class ExecutionService(BaseService):
     async def get_execution(self, execution_id: UUID, *, include: set[ExecutionInclude] | None = None) -> ExecutionRead:
         """Get an execution by ID.
 
-        Always syncs execution status from Temporal before returning to ensure
-        the returned execution has the most up-to-date status.
-
         Args:
             execution_id: Execution ID
             include: Optional set of related data to include (workflow_definition, activities)
 
         Returns:
-            ExecutionRead object with current status from Temporal
+            ExecutionRead object
 
         Raises:
             ExecutionNotFoundError: If execution not found
@@ -290,12 +255,6 @@ class ExecutionService(BaseService):
 
         if execution is None:
             raise ExecutionNotFoundError(execution_id)
-
-        # Sync status from Temporal if available
-        if self.temporal_service is not None:
-            await sync_execution_status_from_temporal(
-                execution, self.temporal_service, session=self.session, persist=True
-            )
 
         # We need to use an "include"-aware instance of ExecutionsConvertResourceMixin
         mixin: ExecutionsConvertResourceMixin = ExecutionsConvertResourceMixin(include)

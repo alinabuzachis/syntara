@@ -22,15 +22,15 @@ flowchart TB
         B006["B006: ✅ SKIPPED/CANCELLED status"]
     end
 
-    subgraph BACKEND_TODO["🔧 BACKEND - TODO"]
+    subgraph BACKEND_COMPLETE["🔧 BACKEND - COMPLETE ✅"]
         direction TB
-        B007["B007: REST API include=workflow_definition"]
-        B008["B008: Valkey publisher"]
-        B009["B009: Integrate with ActivitySyncService"]
-        B010["B010: WebSocket handler + subscriber"]
-        B011["B011: Message schemas"]
-        B012["B012: Unit tests"]
-        B013["B013: Integration tests"]
+        B007["B007: ✅ REST API include=workflow_definition"]
+        B008["B008: ✅ Valkey publisher"]
+        B009["B009: ✅ Integrate with ActivitySyncService"]
+        B010["B010: ✅ WebSocket handler + subscriber"]
+        B011["B011: ✅ Message schemas"]
+        B012["B012: ✅ Unit tests"]
+        B013["B013: ✅ Integration tests"]
 
         B007 --> F006
         B008 --> B009
@@ -91,6 +91,15 @@ flowchart TB
 
 ## 🔧 BACKEND TASKS (nexus repository)
 
+**STATUS: ALL BACKEND TASKS COMPLETE ✅**
+
+All backend tasks (B001-B013) have been successfully implemented and tested. The system now supports:
+- Real-time activity state streaming via WebSocket with Valkey Streams
+- REST API extension with `?include=workflow_definition` and `?include=activities` parameters
+- Execution status tracking (PENDING → RUNNING → COMPLETED/FAILED/CANCELLED)
+- Event replay support via `replay` query parameter (0, event_id, or none)
+- Comprehensive unit and integration test coverage
+
 ### Phase B1: Activity Sync Infrastructure ✅ Existing
 
 The following backend components have been implemented in commit 19adab46:
@@ -131,102 +140,95 @@ The following backend components have been implemented in commit 19adab46:
   - Added `SKIPPED = "skipped"` to ActivityStatus enum
   - Added `CANCELLED = "cancelled"` to ActivityStatus enum
 
-### Phase B2: REST API Extension (TODO)
+### Phase B2: REST API Extension ✅ COMPLETE
 
-- [X] **B007** Extend ExecutionRead schema with optional workflow_definition and activities
-  - File: `src/nexus/workflows/models/execution.py`
-  - Add `ActivityData` model: activity_id, status, error_details, started_at, completed_at
-  - Add optional `workflow_definition: dict[str, Any] | None` field to `ExecutionRead`
-  - Add optional `activities: list[ActivityData] | None` field to `ExecutionRead`
-  - File: `src/nexus/api/v1/executions.py`
-  - Add `include: list[str] = Query(default=[])` parameter to `get_execution()`
-  - Populate `workflow_definition` when `?include=workflow_definition` is requested
-  - Populate `activities` when `?include=activities` is requested
+- [x] **B007** ✅ Extend ExecutionRead schema with optional workflow_definition and activities
+  - File: `src/nexus/workflows/models/execution.py` ✅
+  - Add `ActivityData` model: activity_id, status, error_details, started_at, completed_at ✅
+  - Add optional `workflow_definition: dict[str, Any] | None` field to `ExecutionRead` ✅
+  - Add optional `activities: list[ActivityData] | None` field to `ExecutionRead` ✅
+  - Add `ExecutionInclude` enum with WORKFLOW_DEFINITION and ACTIVITIES values ✅
+  - File: `src/nexus/api/v1/executions.py` ✅
+  - Add `include_params: ExecutionIncludeParams` parameter to `get_execution()` ✅
+  - File: `src/nexus/workflows/models/query_params.py` ✅
+  - Add `ExecutionIncludeParams` model with validation for include parameter ✅
+  - File: `src/nexus/workflows/services/execution_service.py` ✅
+  - Update `get_execution()` to accept `include` parameter and use eager loading ✅
   - See data-model.md Section 10.2
 
-### Phase B3: Valkey Streams + WebSocket Streaming (TODO)
+### Phase B3: Valkey Streams + WebSocket Streaming ✅ COMPLETE
 
 > **Architecture**: ActivitySyncService runs on Temporal worker, WebSocket connections live on API server(s). Valkey Streams bridge this process boundary and enable event replay.
 
-- [ ] **B008** Create ActivityUpdatePublisher for Valkey Streams
-  - File: `src/nexus/workflows/services/activity_update_publisher.py`
-  - Implement `ActivityUpdatePublisher` class with `publish_activity_patch()` method
-  - Publish to Valkey Stream using XADD: `execution:{execution_id}:events`
-  - Message format: JSON Patch with `{"type": "activity_patch", "execution_id": "...", "event_id": "<valkey-stream-id>", "ops": [...]}`
+- [x] **B008** ✅ Create ActivityUpdatePublisher for Valkey Streams
+  - File: `src/nexus/workflows/services/activity_update_publisher.py` ✅
+  - Implement `ActivityUpdatePublisher` class with `publish_snapshot()` and `publish_activity_patch()` methods ✅
+  - Publish to Valkey Stream using XADD: `execution:{execution_id}:events` ✅
+  - Message format: JSON Patch with `{"type": "activity_patch", "execution_id": "...", "event_id": "<valkey-stream-id>", "ops": [...]}` ✅
   - See quickstart.md Step 2 and data-model.md Section 3.1
 
-- [ ] **B009** Integrate publisher with ActivitySyncService
-  - File: `src/nexus/workflows/workflow_engine/services/activity_sync_service.py`
-  - Add optional `publisher: ActivityUpdatePublisher` parameter to `__init__()`
-  - **Integration point**: After `await session.commit()` (line 416) in `_sync_activities_to_db()`
-  - **Event flow**: All Temporal events flow through `_process_activity_event()` (line 319) → `_sync_activities_to_db()` → **[NEW]** Valkey Streams publish
-  - Build JSON Patch operations for changed activities and publish:
-    ```python
-    if self.publisher:
-        ops = []
-        for activity_data in temp_map.values():
-            # Determine if this is initial state (use op=add) or update (use op=replace)
-            activity_path = f"/activities/{activity_data['activity_id']}"
-            ops.append({
-                "op": "replace",  # or "add" for initial state
-                "path": f"{activity_path}/status",
-                "value": activity_data["status"].value
-            })
-            if activity_data.get("error_details"):
-                ops.append({"op": "add", "path": f"{activity_path}/error_details", "value": activity_data["error_details"]})
-        await self.publisher.publish_activity_patch(execution_id=str(execution_id), ops=ops)
-    ```
-  - Update `activity_sync_registry.py` to inject publisher dependency
+- [x] **B009** ✅ Integrate publisher with ActivitySyncService
+  - File: `src/nexus/workflows/workflow_engine/services/activity_sync_service.py` ✅
+  - Add optional `activity_publisher: ActivityUpdatePublisher` parameter to `__init__()` ✅
+  - **Integration points implemented**: ✅
+    - Publish `initial_snapshot` after activities are first created in `_create_all_activities_upfront()` ✅
+    - Publish `activity_patch` for incremental updates via `_publish_activity_patches()` method ✅
+    - Publish `final_snapshot` when execution reaches terminal state in `_update_execution_status_from_event()` ✅
+  - Track execution status transitions (PENDING → RUNNING, terminal states) ✅
+  - **Implementation note**: Uses jsonpatch library to generate JSON Patch operations from activity state changes
+  - File: `src/nexus/workflows/workflow_engine/services/temporal_worker.py` ✅
+  - Inject publisher dependency into ActivitySyncService ✅
   - See quickstart.md Step 2 and data-model.md Section 9.5
 
-- [ ] **B010** Create WebSocket handler with Valkey Streams consumer
-  - File: `src/nexus/workflows/ws/execution_streaming.py`
-  - Follow auto-discovery convention: `SPEC_PATH`, `handle_{channel}()`, `on_connect_{channel}()`
-  - Implement `handle_activityUpdates()` (dummy for server-to-client channel)
-  - Implement `on_connect_activityUpdates()` with Valkey Streams XREAD consumer
-  - Read from Valkey Stream: `execution:{execution_id}:events`
-  - Support WebSocket query parameter `replay=<event_id>`:
-    - No parameter: Read only new events (BLOCK on stream)
-    - `replay=0`: Read from beginning (send ExecutionSnapshotMessage with type="initial_snapshot" first, then all events)
-    - `replay=<event_id>`: Read from that event_id onwards
-  - Use XREAD with BLOCK for live streaming, without BLOCK for replay
-  - Forward stream messages (JSON Patch format) to WebSocket client
-  - When execution completes, send ExecutionSnapshotMessage with type="final_snapshot" and disconnect
-  - Get `valkey_client` from `websocket.app.state` (injected at startup)
+- [x] **B010** ✅ Create WebSocket handler with Valkey Streams consumer
+  - File: `src/nexus/workflows/ws/execution_streaming.py` ✅
+  - Follow auto-discovery convention: `SPEC_PATH`, `handle_executions()`, `on_connect_executions()` ✅
+  - Implement `handle_executions()` (dummy for server-to-client channel) ✅
+  - Implement `on_connect_executions()` that delegates to ExecutionStreamingService ✅
+  - File: `src/nexus/workflows/services/execution_streaming_service.py` ✅
+  - Implement `WebSocketStreamingHandler` extending `BaseWebSocketStreamingHandler` ✅
+  - Read from Valkey Stream: `execution:{execution_id}:events` ✅
+  - Support WebSocket query parameter `replay=<event_id>`: ✅
+    - No parameter: Read only new events (BLOCK on stream) ✅
+    - `replay=0`: Read from beginning (includes initial snapshot) ✅
+    - `replay=<event_id>`: Read from that event_id onwards ✅
+  - Use XREAD with BLOCK for live streaming, without BLOCK for replay ✅
+  - Forward stream messages (JSON Patch format) to WebSocket client ✅
+  - When execution completes, send final_snapshot and disconnect ✅
+  - **Implementation note**: Follows refactored pattern from AAP-62905 using BaseWebSocketStreamingHandler base class
   - See quickstart.md Step 3 and data-model.md Section 10.3
 
-- [ ] **B011** [P] Create WebSocket message schemas
-  - File: `src/nexus/workflows/schemas/visualization.py`
-  - Create `ExecutionSnapshotMessage`, `JsonPatchOperation`, `ActivityPatchMessage` for WebSocket
-  - `ExecutionSnapshotMessage`: type=Literal["initial_snapshot", "final_snapshot"], execution_id, event_id, execution (reuses Execution schema from shared-schemas.yaml), timestamp
-    - "initial_snapshot": First message when replaying from beginning
-    - "final_snapshot": Last message when execution completes, server disconnects after sending
-  - **IMPORTANT**: `ExecutionSnapshotMessage.execution` uses the same `Execution` schema as REST API, enabling unified UI processing logic
-  - `JsonPatchOperation`: op (add/remove/replace/move/copy/test), path, value, from_
-  - `ActivityPatchMessage`: type="activity_patch", execution_id, event_id (Valkey stream ID), ops[], timestamp
+- [x] **B011** [P] ✅ Create WebSocket message schemas
+  - File: `src/nexus/workflows/models/visualization.py` ✅
+  - Create `ExecutionSnapshotMessage`, `JsonPatchOperation`, `ActivityPatchMessage` for WebSocket ✅
+  - `ExecutionSnapshotMessage`: type=Literal["initial_snapshot", "final_snapshot"], execution_id, event_id, execution, timestamp ✅
+    - "initial_snapshot": First message when replaying from beginning ✅
+    - "final_snapshot": Last message when execution completes, server disconnects after sending ✅
+  - **IMPORTANT**: `ExecutionSnapshotMessage.execution` uses dict[str, Any] serialized from Execution model, enabling unified UI processing logic ✅
+  - `JsonPatchOperation`: op (add/remove/replace/move/copy/test), path, value, from_ ✅
+  - `ActivityPatchMessage`: type="activity_patch", execution_id, event_id (Valkey stream ID), ops[], timestamp ✅
   - Note: Node/edge/graph schemas are frontend-only (built client-side from workflow_definition)
   - See data-model.md Section 3
 
-### Phase B4: Testing
+### Phase B4: Testing ✅ COMPLETE
 
-- [ ] **B012** [P] Unit tests for visualization components
-  - File: `tests/unit/workflows/test_activity_sync_service.py` - Test ActivitySyncService
-  - File: `tests/unit/workflows/test_monitoring_interceptor.py` - Test interceptor
-  - File: `tests/unit/workflows/test_activity_traversal.py` - Test traversal utilities
-  - File: `tests/unit/workflows/test_visualization_schemas.py` - Test schema validation
-  - File: `tests/unit/workflows/test_activity_update_publisher.py` - Test Valkey publisher
-  - File: `tests/unit/workflows/test_execution_streaming.py` - Test WebSocket handler
+- [x] **B012** [P] ✅ Unit tests for visualization components
+  - File: `tests/unit/workflows/workflow_engine/services/test_activity_sync_service.py` ✅ - Test ActivitySyncService with publisher integration
+  - File: `tests/unit/workflows/models/test_visualization.py` ✅ - Test schema validation (ExecutionSnapshotMessage, ActivityPatchMessage, JsonPatchOperation)
+  - File: `tests/unit/workflows/services/test_activity_update_publisher.py` ✅ - Test Valkey publisher (publish_snapshot, publish_activity_patch)
+  - File: `tests/unit/workflows/ws/test_execution_streaming.py` ✅ - Test WebSocket handler (path parsing, query validation)
+  - **Note**: Existing tests for `test_monitoring_interceptor.py` and `test_activity_traversal.py` were already complete from Phase B1
 
-- [ ] **B013** Integration tests for WebSocket streaming
-  - File: `tests/integration/workflows/test_execution_visualization_ws.py`
-  - Test WebSocket connection lifecycle (connect, message, disconnect, reconnect)
-  - Test message types: `initial_snapshot`, `final_snapshot`, `activity_patch` (JSON Patch)
-  - Test `initial_snapshot` message sent first when `replay=0`
-  - Test `final_snapshot` message sent last when execution completes, followed by disconnect
-  - Test activity state changes propagate to connected clients
-  - Test replay parameter: `replay=0`, `replay=<event_id>`, no replay parameter
-  - Test JSON Patch operations: op=add for initial state, op=replace for updates
-  - Test timestamp field in all messages
+- [x] **B013** ✅ Integration tests for WebSocket streaming
+  - File: `tests/integration/workflows/test_execution_websocket_streaming.py` ✅
+  - Test WebSocket connection lifecycle (connect, message, disconnect, reconnect) ✅
+  - Test message types: `initial_snapshot`, `final_snapshot`, `activity_patch` (JSON Patch) ✅
+  - Test `initial_snapshot` message sent first when `replay=0` ✅
+  - Test `final_snapshot` message sent last when execution completes, followed by disconnect ✅
+  - Test activity state changes propagate to connected clients ✅
+  - Test replay parameter: `replay=0`, `replay=<event_id>`, no replay parameter ✅
+  - Test JSON Patch operations: op=add for initial state, op=replace for updates ✅
+  - Test timestamp field in all messages ✅
 
 ---
 
@@ -405,7 +407,7 @@ The following backend components have been implemented in commit 19adab46:
 
 ### Backend Dependencies (B001-B013)
 ```
-✅ Existing (commit 19adab46):
+✅ Phase B1 - Activity Sync Infrastructure (commit 19adab46):
 B001 (ActivitySyncService) - core sync infrastructure
 B002 (MonitoringWorkflowInterceptor) - auto-start monitoring
 B003 (register_activity_monitoring) - registration activity
@@ -413,14 +415,20 @@ B004 (Workflow queries) - get_activity_input/output
 B005 (Activity traversal) - workflow traversal utilities
 B006 (SKIPPED/CANCELLED status) - status enum values
 
-TODO (REST API + Valkey Streams Architecture):
+✅ Phase B2 - REST API Extension:
 B007 (REST API extension) - include=workflow_definition and include=activities query params
+
+✅ Phase B3 - Valkey Streams + WebSocket Streaming:
 B008 (Valkey Streams publisher) - ActivityUpdatePublisher class with JSON Patch
-B009 (Integrate with ActivitySyncService) - requires B008
-B010 (WebSocket handler + XREAD consumer) - requires B009, B011, supports replay parameter
-B011 (Message schemas) [P] - ActivityData, ExecutionData, ExecutionSnapshotMessage, JsonPatchOperation, ActivityPatchMessage
+B009 (Integrate with ActivitySyncService) - publisher integration with snapshots and patches
+B010 (WebSocket handler + XREAD consumer) - ExecutionStreamingService with replay parameter support
+B011 (Message schemas) [P] - ExecutionSnapshotMessage, JsonPatchOperation, ActivityPatchMessage
+
+✅ Phase B4 - Testing:
 B012 (Unit tests) - test publisher, handler, schemas, JSON Patch operations
-B013 (Integration tests) - requires B010, test replay functionality
+B013 (Integration tests) - test WebSocket streaming with replay functionality
+
+ALL BACKEND TASKS COMPLETE ✅
 ```
 
 ### Frontend Dependencies (F001-F018)

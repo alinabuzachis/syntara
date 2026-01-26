@@ -17,9 +17,9 @@ from sqlmodel import CheckConstraint, Column, DateTime, Field, Index, Relationsh
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import ResourcesResponse, SoftDeletableResource, UserOwnedResource
 from nexus.core.utils.sqlmodel import postgres_enum_column
-from nexus.workflows.models.activity_execution import ActivityExecution
 
 if TYPE_CHECKING:
+    from nexus.workflows.models.activity_execution import ActivityExecution
     from nexus.workflows.models.workflow import Workflow
     from nexus.workflows.models.workflow_version import WorkflowVersion
 
@@ -40,6 +40,10 @@ class ExecutionStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+# Terminal execution statuses (execution has finished)
+TERMINAL_EXECUTION_STATUSES = frozenset({ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED})
 
 
 class Execution(UserOwnedResource, SoftDeletableResource, table=True):
@@ -181,7 +185,12 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         sa_relationship_kwargs={"foreign_keys": "[Execution.workflow_version_id]"},
     )
 
-    activities: list[ActivityExecution] = Relationship(back_populates="execution")
+    activities: list["ActivityExecution"] = Relationship(
+        back_populates="execution",
+        sa_relationship_kwargs={
+            "order_by": "[ActivityExecution.created_at, ActivityExecution.activity_name]",
+        },
+    )
 
     # Note: creator and updater relationships inherited from UserOwnedResource
     # creator = User who started the execution (created_by)

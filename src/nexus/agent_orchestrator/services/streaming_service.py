@@ -3,7 +3,6 @@
 Provides WebSocket event streaming from Valkey streams.
 """
 
-import asyncio
 import logging
 from collections.abc import Callable
 from functools import lru_cache
@@ -18,10 +17,9 @@ from starlette.websockets import WebSocket
 from nexus.agent_orchestrator.models.invocation import Invocation, InvocationStatus
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.models.base.error import ErrorData
-from nexus.core.valkey.stream import StreamClient
 from nexus.core.websocket.base_handler import BaseWebSocketStreamingHandler
 from nexus.core.websocket.close_codes import POLICY_VIOLATION
-from nexus.core.websocket.exceptions import EventsExpiredError, StreamingValidationError, WaitForStreamTimeoutError
+from nexus.core.websocket.exceptions import EventsExpiredError, StreamingValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +177,12 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
             )
 
         # Invocation still running - wait for stream to be created
-        await self._wait_for_stream_creation(stream_id, invocation_id, invocation_status)
+        await self._wait_for_stream_creation(
+            stream_id=stream_id,
+            resource_id=str(invocation_id),
+            resource_status=invocation_status.value,
+            resource_type="invocation",
+        )
 
     async def _check_invocation_exists(self, invocation_id: UUID) -> InvocationStatus:
         """Check if invocation exists in database and return its status.
@@ -210,52 +213,6 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
 
             logger.debug("Invocation %s found with status: %s", invocation_id, invocation.status)
             return cast("InvocationStatus", invocation.status)
-
-    async def _wait_for_stream_creation(
-        self,
-        stream_id: str,
-        invocation_id: UUID,
-        invocation_status: InvocationStatus,
-        max_wait_seconds: int = 30,
-    ) -> None:
-        """Wait for stream to be created in Valkey.
-
-        Args:
-            stream_id: Valkey stream ID to wait for
-            invocation_id: UUID of the invocation
-            invocation_status: Current status of the invocation
-            max_wait_seconds: Maximum time to wait for stream creation
-
-        Raises:
-            WaitForStreamTimeoutError: If timeout waiting for stream creation
-
-        """
-        logger.info(
-            "Stream %s does not exist yet, waiting for creation (invocation status: %s)",
-            stream_id,
-            invocation_status.value,
-        )
-
-        wait_interval = 0.5
-        total_waited = 0.0
-
-        async with StreamClient() as client:
-            while total_waited < max_wait_seconds:
-                await asyncio.sleep(wait_interval)
-                total_waited += wait_interval
-
-                info = await client.info(stream_id)
-                if info["exists"]:
-                    logger.info("Stream %s created after %.1fs", stream_id, total_waited)
-                    return
-
-            # Timeout waiting for stream
-            logger.error("Timeout waiting for stream %s to be created", stream_id)
-            raise WaitForStreamTimeoutError(
-                resource_id=str(invocation_id),
-                resource_status=invocation_status.value,
-                resource_type="invocation",
-            )
 
 
 class StreamingService:

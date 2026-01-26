@@ -14,6 +14,7 @@ from temporalio.worker import Worker
 
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
+from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
 from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
     execute_aap_job_template_activity,
 )
@@ -82,10 +83,14 @@ class TemporalWorkerService:
 
             logger.info("Connected to Temporal. Starting worker on queue: %s", self.task_queue)
 
+            # Initialize activity publisher for streaming updates
+            activity_publisher = ActivityUpdatePublisher()
+
             # Initialize activity sync service
             self.activity_sync_service = ActivitySyncService(
                 temporal_client=self.client,
                 session_factory=AsyncSessionLocal,
+                activity_publisher=activity_publisher,
             )
             logger.info("Activity sync service initialized")
 

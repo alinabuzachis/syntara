@@ -48,6 +48,7 @@ from nexus.tool_manager.models import Tool, ToolProvider
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 from nexus.workflows.models import ActivityExecution, ActivityStatus, Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
+from nexus.workflows.services.execution_streaming_service import ExecutionStreamingService
 from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
@@ -826,15 +827,48 @@ async def auth_client_with_mocked_llm(base_client_with_mocked_llm: AsyncClient, 
 
 
 @pytest.fixture
-def sync_test_client() -> Generator[TestClient, None, None]:
-    """Create a synchronous test client.
+def sync_test_client(
+    test_db_session: AsyncSession,
+    test_db_engine: AsyncEngine,
+) -> Generator[TestClient, None, None]:
+    """Create a synchronous test client with DB and streaming overrides.
+
+    Ensures WebSocket handlers (which bypass FastAPI dependencies) use the same
+    test database as HTTP requests by overriding both get_db and the execution
+    streaming service to point at the per-test database engine.
 
     Yields:
         TestClient for synchronous API testing
 
     """
-    with TestClient(app) as client:
-        yield client
+
+    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        yield test_db_session
+
+    previous_get_db = app.dependency_overrides.get(get_db)
+    app.dependency_overrides[get_db] = override_get_db
+
+    session_factory = async_sessionmaker(
+        test_db_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+    previous_streaming_service = getattr(app.state, "execution_streaming_service", None)
+    app.state.execution_streaming_service = ExecutionStreamingService(session_factory=session_factory)
+
+    try:
+        with TestClient(app) as client:
+            yield client
+    finally:
+        if previous_get_db is not None:
+            app.dependency_overrides[get_db] = previous_get_db
+        else:
+            app.dependency_overrides.pop(get_db, None)
+
+        if previous_streaming_service is not None:
+            app.state.execution_streaming_service = previous_streaming_service
+        elif hasattr(app.state, "execution_streaming_service"):
+            delattr(app.state, "execution_streaming_service")
 
 
 # ============================================================================

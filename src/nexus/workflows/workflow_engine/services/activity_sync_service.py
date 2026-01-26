@@ -6,10 +6,12 @@ to the database in real-time by streaming Temporal history events.
 
 import asyncio
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+from jsonpatch import JsonPatch  # type: ignore[import-untyped]
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from temporalio.api.enums.v1 import EventType
 from temporalio.api.history.v1 import HistoryEvent
@@ -17,8 +19,9 @@ from temporalio.client import Client, WorkflowHandle
 from temporalio.exceptions import TemporalError
 
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
-from nexus.workflows.models.execution import Execution
+from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_version import WorkflowVersion
+from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
 from nexus.workflows.utils.activity_traversal import (
     build_branch_head_map,
     collect_branch_activity_ids,
@@ -36,16 +39,19 @@ class ActivitySyncService:
         self,
         temporal_client: Client,
         session_factory: Any,  # noqa: ANN401 # async_sessionmaker type not directly importable
+        activity_publisher: ActivityUpdatePublisher | None = None,
     ) -> None:
         """Initialize activity sync service.
 
         Args:
             temporal_client: Temporal client for workflow operations
             session_factory: AsyncSession factory (async_sessionmaker)
+            activity_publisher: Publisher for streaming activity updates to Valkey (optional)
 
         """
         self.temporal_client = temporal_client
         self.session_factory = session_factory
+        self.activity_publisher = activity_publisher or ActivityUpdatePublisher()
         self._sync_tasks: dict[str, asyncio.Task[None]] = {}
         self._shutdown = False
 
@@ -108,6 +114,43 @@ class ActivitySyncService:
         else:
             logger.info("Monitoring task for execution %s completed successfully", execution_id)
 
+    async def _update_execution_to_running(self, execution_id: UUID, event: HistoryEvent) -> None:
+        """Update execution status to RUNNING when workflow starts.
+
+        Only updates if execution is in PENDING state (idempotent for service restarts).
+
+        Args:
+            execution_id: Database execution ID
+            event: Temporal workflow started event
+
+        """
+        async with self.session_factory() as session:
+            try:
+                result = await session.exec(select(Execution).where(Execution.id == execution_id))
+                execution = result.one_or_none()
+
+                if not execution:
+                    logger.warning("Execution %s not found when updating to RUNNING", execution_id)
+                    return
+
+                # Only update if currently PENDING (defensive check for race conditions)
+                if execution.status == ExecutionStatus.PENDING:
+                    execution.status = ExecutionStatus.RUNNING
+                    execution.last_processed_event_id = event.event_id
+                    execution.updated_at = datetime.now(UTC)
+                    await session.commit()
+                    logger.info("Updated execution %s to RUNNING status", execution_id)
+                else:
+                    logger.debug(
+                        "Skipping RUNNING update for execution %s - already in %s state",
+                        execution_id,
+                        execution.status.value,
+                    )
+            except Exception:
+                await session.rollback()
+                logger.exception("Error updating execution %s to RUNNING", execution_id)
+                # Don't raise - this is non-critical, monitoring should continue
+
     async def shutdown(self) -> None:
         """Shutdown all monitoring tasks gracefully."""
         logger.info("Shutting down activity sync service...")
@@ -127,14 +170,14 @@ class ActivitySyncService:
 
     async def _initialize_monitoring(
         self, execution_id: UUID
-    ) -> tuple[int, UUID, dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    ) -> tuple[Execution, dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
         """Initialize monitoring by fetching execution data and workflow structure.
 
         Args:
             execution_id: Database execution ID
 
         Returns:
-            Tuple of (last_processed_event_id, workflow_version_id, activity_definitions_map, branch_head_map)
+            Tuple of (execution, activity_definitions_map, branch_head_map)
 
         Raises:
             RuntimeError: If execution not found in database
@@ -149,15 +192,14 @@ class ActivitySyncService:
                 logger.error(msg)
                 raise RuntimeError(msg)
 
-            last_processed_event_id = execution.last_processed_event_id
-            workflow_version_id = execution.workflow_version_id
-
-        activity_definitions_map, activities_list = await self._fetch_activity_definitions_map(workflow_version_id)
+        activity_definitions_map, activities_list = await self._fetch_activity_definitions_map(
+            execution.workflow_version_id
+        )
         branch_head_map = build_branch_head_map(activities_list)
 
         await self._create_all_activities_upfront(execution_id, activity_definitions_map)
 
-        return last_processed_event_id, workflow_version_id, activity_definitions_map, branch_head_map
+        return execution, activity_definitions_map, branch_head_map
 
     async def _handle_event_post_processing(
         self,
@@ -204,7 +246,7 @@ class ActivitySyncService:
 
         return None
 
-    async def _monitor_execution(self, execution_id: UUID, temporal_workflow_id: str) -> None:
+    async def _monitor_execution(self, execution_id: UUID, temporal_workflow_id: str) -> None:  # noqa: C901
         """Monitor a single execution and sync activities to database.
 
         Runs until workflow completes or service shuts down.
@@ -219,7 +261,8 @@ class ActivitySyncService:
 
             handle: WorkflowHandle[Any, Any] = self.temporal_client.get_workflow_handle(temporal_workflow_id)
 
-            last_processed_event_id, _, _, branch_head_map = await self._initialize_monitoring(execution_id)
+            execution, _, branch_head_map = await self._initialize_monitoring(execution_id)
+            last_processed_event_id = execution.last_processed_event_id
 
             conditions_handled: set[str] = set()
             temp_map: dict[int, dict[str, Any]] = {}
@@ -232,6 +275,25 @@ class ActivitySyncService:
                 if event.event_id <= last_processed_event_id:
                     continue
 
+                # Handle workflow execution started event
+                if event.event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
+                    await self._update_execution_to_running(execution_id, event)
+                    last_processed_event_id = event.event_id
+                    continue  # Skip activity processing for workflow events
+
+                # Handle workflow completion events
+                if event.event_type in {
+                    EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED,
+                    EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
+                    EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED,
+                    EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT,
+                    EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
+                }:
+                    await self._update_execution_status_from_event(execution_id, event)
+                    last_processed_event_id = event.event_id
+                    continue  # Skip activity processing, likely last event
+
+                # Process activity events
                 self._process_activity_event(event, temp_map)
 
                 synced_event_id = await self._handle_event_post_processing(
@@ -316,6 +378,115 @@ class ActivitySyncService:
             temp_map[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
             temp_map[scheduled_id]["error_details"] = "Activity was canceled"
 
+    def _extract_execution_status_from_event(self, event: HistoryEvent) -> tuple[ExecutionStatus, datetime, str | None]:
+        """Extract execution status, completion time, and error from workflow completion event.
+
+        Args:
+            event: Temporal workflow completion event
+
+        Returns:
+            Tuple of (status, completed_at, error_details)
+
+        Raises:
+            ValueError: If event is not a workflow completion event
+
+        """
+        event_type = event.event_type
+        completed_at = ensure_timezone_aware(event.event_time)
+        error_details = None
+
+        if event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
+            status = ExecutionStatus.COMPLETED
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
+            status = ExecutionStatus.FAILED
+            failed_attrs = event.workflow_execution_failed_event_attributes
+            if failed_attrs and failed_attrs.failure:
+                error_details = failed_attrs.failure.message
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
+            status = ExecutionStatus.CANCELLED
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
+            status = ExecutionStatus.FAILED
+            error_details = "Workflow execution timed out"
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
+            status = ExecutionStatus.CANCELLED
+            error_details = "Workflow was forcibly terminated"
+        else:
+            msg = f"Event type {event_type} is not a workflow completion event"
+            raise ValueError(msg)
+
+        return status, completed_at, error_details
+
+    async def _update_execution_status_from_event(self, execution_id: UUID, event: HistoryEvent) -> None:
+        """Update execution status to terminal state when workflow completes.
+
+        Args:
+            execution_id: Database execution ID
+            event: Temporal workflow completion event
+
+        """
+        async with self.session_factory() as session:
+            try:
+                # Load execution with activities (selectinload respects relationship order_by)
+                query = select(Execution).where(Execution.id == execution_id)
+                query = query.options(selectinload(Execution.activities))  # type: ignore[arg-type]
+                result = await session.exec(query)
+                execution = result.one_or_none()
+
+                if not execution:
+                    logger.warning("Execution %s not found when processing workflow completion", execution_id)
+                    return
+
+                terminal_states = {ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
+
+                # Only update if not already in terminal state (idempotency)
+                if execution.status in terminal_states:
+                    logger.debug("Execution %s already in terminal state %s", execution_id, execution.status.value)
+                    return
+
+                # Extract status, timestamp, and error details from event
+                status, completed_at, error_details = self._extract_execution_status_from_event(event)
+
+                # Ensure completed_at > created_at (database constraint)
+                if completed_at <= execution.created_at:
+                    completed_at = execution.created_at + timedelta(microseconds=1)
+                    logger.warning(
+                        "Workflow %s completed (%s) before execution created (%s), adjusting to %s",
+                        execution.temporal_workflow_id,
+                        completed_at.isoformat(),
+                        execution.created_at.isoformat(),
+                        completed_at.isoformat(),
+                    )
+
+                # Update execution to terminal state
+                execution.status = status
+                execution.completed_at = completed_at
+                execution.last_processed_event_id = event.event_id
+                if error_details:
+                    execution.error_details = error_details
+                execution.updated_at = datetime.now(UTC)
+
+                await session.commit()
+
+                logger.info(
+                    "Updated execution %s to %s status at %s",
+                    execution_id,
+                    status.value,
+                    completed_at.isoformat(),
+                )
+
+                # Publish final snapshot after execution reaches terminal state
+                try:
+                    await self.activity_publisher.publish_snapshot(execution, "final_snapshot")
+                    logger.debug("Published final snapshot for execution %s", execution_id)
+                except Exception:
+                    # Log error but don't fail (publishing is best-effort)
+                    logger.exception("Failed to publish final snapshot for execution %s (non-fatal)", execution_id)
+
+            except Exception:
+                await session.rollback()
+                logger.exception("Error updating execution %s status from workflow completion event", execution_id)
+                # Don't raise - monitoring should continue
+
     def _process_activity_event(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
         """Process a single activity event and update temporary map.
 
@@ -360,11 +531,17 @@ class ActivitySyncService:
         """
         async with self.session_factory() as session:
             try:
-                # Load existing activities (keyed by activity_name for stable lookup)
+                # Load existing activities with proper ordering (matches relationship order_by)
                 result = await session.exec(
-                    select(ActivityExecution).where(ActivityExecution.execution_id == execution_id)
+                    select(ActivityExecution)
+                    .where(ActivityExecution.execution_id == execution_id)
+                    .order_by(ActivityExecution.created_at, ActivityExecution.activity_name)  # type: ignore[arg-type]
                 )
-                existing_activities = {activity.activity_name: activity for activity in result.all()}
+                existing_activities_list = result.all()
+                existing_activities = {activity.activity_name: activity for activity in existing_activities_list}
+
+                # Track which activities were updated for patch generation
+                updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
 
                 # Update activities from events
                 for activity_data in temp_map.values():
@@ -397,6 +574,15 @@ class ActivitySyncService:
                     except (TemporalError, ValueError) as e:
                         logger.debug("Could not query activity data for %s: %s", activity_id, e)
 
+                    # Store old values before updating
+                    old_values = {
+                        "status": existing.status,
+                        "started_at": existing.started_at,
+                        "completed_at": existing.completed_at,
+                        "error_details": existing.error_details,
+                        "retry_count": existing.retry_count,
+                    }
+
                     # Update existing activity
                     existing.status = activity_data["status"]
                     existing.started_at = activity_data["started_at"]
@@ -407,6 +593,9 @@ class ActivitySyncService:
                     existing.retry_count = activity_data["retry_count"]
                     existing.updated_at = datetime.now(UTC)
 
+                    # Track updated activity with old values for patch generation
+                    updated_activities.append((existing, old_values))
+
                 # Update execution's last processed event ID
                 result = await session.exec(select(Execution).where(Execution.id == execution_id))
                 execution = result.one_or_none()
@@ -414,6 +603,10 @@ class ActivitySyncService:
                     execution.last_processed_event_id = last_event_id
 
                 await session.commit()
+
+                # Publish activity patches after commit
+                if updated_activities:
+                    await self._publish_activity_patches(execution_id, existing_activities_list, updated_activities)
 
             except Exception:
                 await session.rollback()
@@ -625,7 +818,104 @@ class ActivitySyncService:
                         execution_id,
                     )
 
+                    # Publish initial snapshot after activities are created
+                    try:
+                        # Load execution with activities (selectinload respects relationship order_by)
+                        query = select(Execution).where(Execution.id == execution_id)
+                        query = query.options(selectinload(Execution.activities))  # type: ignore[arg-type]
+                        result = await session.exec(query)
+                        execution = result.one_or_none()
+
+                        if execution:
+                            await self.activity_publisher.publish_snapshot(execution, "initial_snapshot")
+                            logger.debug("Published initial snapshot for execution %s", execution_id)
+                    except Exception:
+                        # Log error but don't fail (publishing is best-effort)
+                        logger.exception(
+                            "Failed to publish initial snapshot for execution %s (non-fatal)", execution_id
+                        )
+
             except Exception:
                 await session.rollback()
                 logger.exception("Error creating activities upfront for execution %s", execution_id)
                 raise
+
+    async def _publish_activity_patches(
+        self,
+        execution_id: UUID,
+        all_activities: list[ActivityExecution],
+        updated_activities: list[tuple[ActivityExecution, dict[str, Any]]],
+    ) -> None:
+        """Publish activity patches for incremental updates.
+
+        Creates JSON Patch operations manually without costly DB reads by directly
+        constructing patch operations for each changed field.
+
+        Args:
+            execution_id: Database execution ID
+            all_activities: Complete ordered list of activities (for finding indices)
+            updated_activities: List of (activity, old_values) tuples for activities that were updated
+
+        """
+        try:
+            # Build activity name to index mapping
+            activity_index_map = {activity.activity_name: idx for idx, activity in enumerate(all_activities)}
+
+            # Create patch operations for each updated activity
+            patch_ops: list[dict[str, Any]] = []
+
+            for activity, old_values in updated_activities:
+                # Find the index of this activity in the activities list
+                activity_idx = activity_index_map.get(activity.activity_name)
+                if activity_idx is None:
+                    logger.warning(
+                        "Activity %s not found in activities list for execution %s",
+                        activity.activity_name,
+                        execution_id,
+                    )
+                    continue
+
+                # Create patch operations for each changed field
+                # Only include fields that are part of ActivityData schema
+                fields_to_check = [
+                    ("status", activity.status.value if activity.status else None),
+                    ("started_at", activity.started_at.isoformat() if activity.started_at else None),
+                    ("completed_at", activity.completed_at.isoformat() if activity.completed_at else None),
+                    ("error_details", activity.error_details),
+                ]
+
+                for field_name, new_value in fields_to_check:
+                    old_value = old_values.get(field_name)
+
+                    # Convert old value to comparable format
+                    if field_name == "status" and old_value is not None:
+                        old_value = old_value.value
+                    elif field_name in ("started_at", "completed_at") and old_value is not None:
+                        old_value = old_value.isoformat()
+
+                    # Only create patch if value actually changed
+                    if old_value != new_value:
+                        patch_ops.append(
+                            {
+                                "op": "replace",
+                                "path": f"/activities/{activity_idx}/{field_name}",
+                                "value": new_value,
+                            }
+                        )
+
+            # Publish patches if there are any operations
+            if patch_ops:
+                # Wrap operations in a JsonPatch object
+                json_patch = JsonPatch(patch_ops)
+                await self.activity_publisher.publish_activity_patch(execution_id, [json_patch])
+
+                logger.debug(
+                    "Published %d patch operations for execution %s (%d activities updated)",
+                    len(patch_ops),
+                    execution_id,
+                    len(updated_activities),
+                )
+
+        except Exception:
+            # Log error but don't fail database sync (publishing is best-effort)
+            logger.exception("Failed to publish activity patches for execution %s (non-fatal)", execution_id)

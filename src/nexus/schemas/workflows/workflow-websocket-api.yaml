@@ -115,7 +115,7 @@ defaultContentType: application/json
 
 channels:
   # Note: Single execution visualization is handled by websocket-execution-streaming.yaml
-  # with the executionUpdates channel at /executions/{execution_id}
+  # with the executions channel at /executions/{execution_id}
 
   allExecutions:
     address: /executions
@@ -1005,7 +1005,7 @@ components:
               status: failed
 
   parameters:
-    executionId:
+    execution_id:
       description: Workflow execution ID to stream updates for
       schema:
         type: string

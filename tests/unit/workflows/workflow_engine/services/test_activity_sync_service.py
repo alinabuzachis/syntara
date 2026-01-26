@@ -645,3 +645,383 @@ class TestHandleEventPostProcessing:
             # Should NOT sync just because event_id is 10
             mock_sync.assert_not_called()
             assert result is None
+
+
+class TestWorkflowEventExtraction:
+    """Test workflow completion event extraction."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.service = ActivitySyncService(Mock(), Mock())
+
+    def _create_workflow_event(
+        self,
+        event_type: int,
+        event_id: int = 100,
+        failure_message: str | None = None,
+    ) -> Mock:
+        """Create a mock workflow completion event."""
+        event = Mock()
+        event.event_type = event_type
+        event.event_id = event_id
+        event.event_time = datetime(2025, 1, 20, 12, 0, 0, tzinfo=UTC)
+
+        if event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
+            attrs = Mock()
+            event.workflow_execution_started_event_attributes = attrs
+
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
+            attrs = Mock()
+            event.workflow_execution_completed_event_attributes = attrs
+
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
+            attrs = Mock()
+            attrs.failure = Mock(message=failure_message) if failure_message else None
+            event.workflow_execution_failed_event_attributes = attrs
+
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
+            attrs = Mock()
+            event.workflow_execution_canceled_event_attributes = attrs
+
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
+            attrs = Mock()
+            attrs.failure = Mock(message=failure_message) if failure_message else None
+            event.workflow_execution_timed_out_event_attributes = attrs
+
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
+            attrs = Mock()
+            event.workflow_execution_terminated_event_attributes = attrs
+
+        return event
+
+    @pytest.mark.parametrize(
+        ("event_type", "expected_status", "expected_error"),
+        [
+            (EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED, "completed", None),
+            (EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED, "failed", None),
+            (EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED, "cancelled", None),
+            (EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT, "failed", "Workflow execution timed out"),
+            (EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED, "cancelled", "Workflow was forcibly terminated"),
+        ],
+    )
+    def test_extract_execution_status_from_event(
+        self, event_type: int, expected_status: str, expected_error: str | None
+    ) -> None:
+        """Test extracting execution status from workflow completion events."""
+        event = self._create_workflow_event(event_type)
+
+        status, completed_at, error_details = self.service._extract_execution_status_from_event(event)
+
+        assert status.value == expected_status
+        assert completed_at == datetime(2025, 1, 20, 12, 0, 0, tzinfo=UTC)
+        assert error_details == expected_error
+
+    def test_extract_execution_status_with_failure_message(self) -> None:
+        """Test extracting status from FAILED event includes error message."""
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        event = self._create_workflow_event(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED, failure_message="Database connection failed"
+        )
+
+        status, _completed_at, error_details = self.service._extract_execution_status_from_event(event)
+
+        assert status == ExecutionStatus.FAILED
+        assert error_details == "Database connection failed"
+
+    def test_extract_execution_status_with_timeout_uses_default_message(self) -> None:
+        """Test extracting status from TIMED_OUT event uses default message (not custom)."""
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        event = self._create_workflow_event(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT, failure_message="Workflow exceeded 5 minute timeout"
+        )
+
+        status, _completed_at, error_details = self.service._extract_execution_status_from_event(event)
+
+        assert status == ExecutionStatus.FAILED
+        # Implementation uses default message, not custom failure message
+        assert error_details == "Workflow execution timed out"
+
+    def test_extract_execution_status_raises_on_invalid_event(self) -> None:
+        """Test extraction raises ValueError for non-completion events."""
+        # Use an activity event instead of a workflow event
+        event = self._create_workflow_event(EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED)
+
+        with pytest.raises(ValueError, match="is not a workflow completion event"):
+            self.service._extract_execution_status_from_event(event)
+
+
+class TestExecutionStatusUpdates:
+    """Test execution status updates during monitoring."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.mock_session_factory = Mock()
+        self.service = ActivitySyncService(Mock(), self.mock_session_factory)
+        self.execution_id = uuid4()
+
+    def _create_mock_execution(
+        self,
+        execution_id: UUID,
+        status: str = "PENDING",
+        created_at: datetime | None = None,
+    ) -> Mock:
+        """Create a mock Execution object."""
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        execution = Mock(spec=Execution)
+        execution.id = execution_id
+        execution.status = ExecutionStatus[status]
+        execution.temporal_workflow_id = f"exec-{execution_id}"
+        execution.created_at = created_at or datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC)
+        execution.updated_at = execution.created_at
+        execution.completed_at = None
+        execution.error_details = None
+        return execution
+
+    def _create_workflow_event(
+        self,
+        event_type: int,
+        event_id: int = 1,
+        event_time: datetime | None = None,
+        failure_message: str | None = None,
+    ) -> Mock:
+        """Create a mock workflow event."""
+        event = Mock()
+        event.event_type = event_type
+        event.event_id = event_id
+        event.event_time = event_time or datetime(2025, 1, 20, 12, 0, 0, tzinfo=UTC)
+
+        if event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
+            attrs = Mock()
+            event.workflow_execution_started_event_attributes = attrs
+
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
+            attrs = Mock()
+            attrs.failure = Mock(message=failure_message) if failure_message else None
+            event.workflow_execution_failed_event_attributes = attrs
+
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
+            attrs = Mock()
+            event.workflow_execution_completed_event_attributes = attrs
+
+        return event
+
+    @pytest.mark.asyncio
+    async def test_update_execution_to_running_from_pending(self) -> None:
+        """Test updating execution status from PENDING to RUNNING."""
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        execution = self._create_mock_execution(self.execution_id, status="PENDING")
+
+        # Mock session
+        mock_result = Mock()
+        mock_result.one_or_none.return_value = execution
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        self.mock_session_factory.return_value = mock_session
+
+        event = self._create_workflow_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED, event_id=5)
+
+        # Execute
+        await self.service._update_execution_to_running(self.execution_id, event)
+
+        # Verify status changed to RUNNING
+        assert execution.status == ExecutionStatus.RUNNING
+        assert execution.last_processed_event_id == 5
+        mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_update_execution_to_running_skips_if_already_running(self) -> None:
+        """Test updating to RUNNING is idempotent (service restart scenario)."""
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        execution = self._create_mock_execution(self.execution_id, status="RUNNING")
+        original_status = execution.status
+
+        # Mock session
+        mock_result = Mock()
+        mock_result.one_or_none.return_value = execution
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        self.mock_session_factory.return_value = mock_session
+
+        event = self._create_workflow_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+
+        # Execute
+        await self.service._update_execution_to_running(self.execution_id, event)
+
+        # Verify status unchanged (idempotent)
+        assert execution.status == original_status
+        assert execution.status == ExecutionStatus.RUNNING
+        # Commit should not be called since no changes
+        mock_session.commit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_update_execution_to_running_skips_if_terminal_state(self) -> None:
+        """Test updating to RUNNING skips if execution already in terminal state."""
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        execution = self._create_mock_execution(self.execution_id, status="COMPLETED")
+        original_status = execution.status
+
+        # Mock session
+        mock_result = Mock()
+        mock_result.one_or_none.return_value = execution
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        self.mock_session_factory.return_value = mock_session
+
+        event = self._create_workflow_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+
+        # Execute
+        await self.service._update_execution_to_running(self.execution_id, event)
+
+        # Verify status unchanged
+        assert execution.status == original_status
+        assert execution.status == ExecutionStatus.COMPLETED
+        mock_session.commit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_update_execution_status_on_completion(self) -> None:
+        """Test updating execution status to COMPLETED when workflow completes."""
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        execution = self._create_mock_execution(self.execution_id, status="RUNNING")
+
+        # Mock session
+        mock_result = Mock()
+        mock_result.one_or_none.return_value = execution
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        self.mock_session_factory.return_value = mock_session
+
+        event_time = datetime(2025, 1, 20, 12, 30, 0, tzinfo=UTC)
+        event = self._create_workflow_event(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED, event_id=100, event_time=event_time
+        )
+
+        # Execute
+        await self.service._update_execution_status_from_event(self.execution_id, event)
+
+        # Verify status changed to COMPLETED
+        assert execution.status == ExecutionStatus.COMPLETED
+        assert execution.completed_at == event_time
+        assert execution.last_processed_event_id == 100
+        assert execution.error_details is None
+        mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_update_execution_status_on_failure_with_error(self) -> None:
+        """Test updating execution status to FAILED with error message."""
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        execution = self._create_mock_execution(self.execution_id, status="RUNNING")
+
+        # Mock session
+        mock_result = Mock()
+        mock_result.one_or_none.return_value = execution
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        self.mock_session_factory.return_value = mock_session
+
+        event = self._create_workflow_event(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
+            event_id=100,
+            failure_message="Database connection timeout",
+        )
+
+        # Execute
+        await self.service._update_execution_status_from_event(self.execution_id, event)
+
+        # Verify status changed to FAILED with error
+        assert execution.status == ExecutionStatus.FAILED
+        assert execution.completed_at is not None
+        assert execution.error_details == "Database connection timeout"
+        mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_update_execution_status_skips_if_already_terminal(self) -> None:
+        """Test updating status is idempotent (service restart after completion)."""
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        execution = self._create_mock_execution(self.execution_id, status="COMPLETED")
+        execution.completed_at = datetime(2025, 1, 20, 12, 0, 0, tzinfo=UTC)
+        original_status = execution.status
+        original_completed_at = execution.completed_at
+
+        # Mock session
+        mock_result = Mock()
+        mock_result.one_or_none.return_value = execution
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        self.mock_session_factory.return_value = mock_session
+
+        event = self._create_workflow_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED)
+
+        # Execute
+        await self.service._update_execution_status_from_event(self.execution_id, event)
+
+        # Verify execution not modified (idempotent)
+        assert execution.status == original_status
+        assert execution.status == ExecutionStatus.COMPLETED
+        assert execution.completed_at == original_completed_at
+        mock_session.commit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_update_execution_status_adjusts_timestamp_if_before_created_at(self) -> None:
+        """Test completion timestamp is adjusted if before created_at (database constraint)."""
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        created_at = datetime(2025, 1, 20, 12, 0, 0, tzinfo=UTC)
+        execution = self._create_mock_execution(self.execution_id, status="RUNNING", created_at=created_at)
+
+        # Mock session
+        mock_result = Mock()
+        mock_result.one_or_none.return_value = execution
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        self.mock_session_factory.return_value = mock_session
+
+        # Completion time before creation time (edge case)
+        event_time = datetime(2025, 1, 20, 11, 0, 0, tzinfo=UTC)
+        event = self._create_workflow_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED, event_time=event_time)
+
+        # Execute
+        await self.service._update_execution_status_from_event(self.execution_id, event)
+
+        # Verify completed_at was adjusted to be after created_at
+        assert execution.status == ExecutionStatus.COMPLETED
+        assert execution.completed_at > created_at
+        # Should be created_at + 1 microsecond
+        assert execution.completed_at == created_at + datetime.resolution
+        mock_session.commit.assert_awaited_once()

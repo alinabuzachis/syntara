@@ -136,6 +136,9 @@ services:
       - NEXUS_TASK_QUEUE=nexus-workflow-queue
       - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
       - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
+      # Valkey Configuration (for activity streaming)
+      - NEXUS_VALKEY_HOST=valkey
+      - NEXUS_VALKEY_PASSWORD=${NEXUS_VALKEY_PASSWORD:-valkey}
       # Workflow API Base URL (for workflow callback URL generation)
       - NEXUS_WORKFLOW_BASE_URL=${NEXUS_WORKFLOW_BASE_URL:-http://nexus:8000/api/v1}
       # Agent Orchestrator Configuration (for agentic activities)
@@ -154,6 +157,8 @@ services:
       database:
         condition: service_healthy
       temporal:
+        condition: service_healthy
+      valkey:
         condition: service_healthy
     healthcheck:
       test: [CMD, pgrep, -f, nexus.workflows.worker]

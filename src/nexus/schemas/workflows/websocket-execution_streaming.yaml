@@ -15,7 +15,6 @@ info:
     - Initial state delivered via WebSocket using ExecutionSnapshotMessage
     - Real-time updates via Valkey Streams -> WebSocket push (JSON Patch format)
     - Event replay support via `replay` parameter
-    - Heartbeat messages for connection health
 
     ## Architecture
 
@@ -76,18 +75,16 @@ servers:
     host: localhost:8000
     protocol: ws
     description: Development WebSocket server (API v1)
-    pathname: /ws/workflows/v1
   production:
     host: api.syntara-orchestration.io
     protocol: wss
     description: Production WebSocket server (API v1)
-    pathname: /ws/workflows/v1
 
 defaultContentType: application/json
 
 channels:
-  activityUpdates:
-    address: /executions/{execution_id}
+  executions:
+    address: /ws/workflows/v1/executions/{execution_id}
     title: Activity Status Updates
     description: |
       Real-time activity status updates for a specific workflow execution.
@@ -109,9 +106,8 @@ channels:
       5. If no replay: Server sends only new events (live streaming)
       6. Server forwards `ActivityPatchMessage` (JSON Patch) to WebSocket client
       7. Client applies JSON Patch operations to update activity state
-      8. Server sends `heartbeat` every 30s when no updates
-      9. When execution completes, server sends ExecutionSnapshotMessage with type="final_snapshot"
-      10. Server disconnects WebSocket after sending final_snapshot
+      8. When execution completes, server sends ExecutionSnapshotMessage with type="final_snapshot"
+      9. Server disconnects WebSocket after sending final_snapshot
 
       **Event Replay Support**:
       Clients can reconnect with `replay=<last_event_id>` to catch up on missed events.
@@ -126,7 +122,7 @@ channels:
       (`GET /executions/{id}?include=activities`) and skip WebSocket connection.
     parameters:
       execution_id:
-        $ref: '#/components/parameters/executionId'
+        $ref: '#/components/parameters/execution_id'
       replay:
         $ref: '#/components/parameters/replay'
     messages:
@@ -134,24 +130,20 @@ channels:
         $ref: '#/components/messages/executionSnapshot'
       activityPatch:
         $ref: '#/components/messages/activityPatch'
-      heartbeat:
-        $ref: '#/components/messages/heartbeat'
 
 operations:
   receiveActivityUpdates:
     action: receive
     channel:
-      $ref: '#/channels/activityUpdates'
+      $ref: '#/channels/executions'
     summary: Receive real-time activity status updates for an execution
     description: |
       Server reads from Valkey Streams and forwards messages to client.
       - `execution_snapshot`: Full execution state (first message on replay=0)
       - `activity_patch`: Activity status changes (JSON Patch format)
-      - `heartbeat`: Periodic health indicator (30s interval)
     messages:
-      - $ref: '#/channels/activityUpdates/messages/executionSnapshot'
-      - $ref: '#/channels/activityUpdates/messages/activityPatch'
-      - $ref: '#/channels/activityUpdates/messages/heartbeat'
+      - $ref: '#/channels/executions/messages/executionSnapshot'
+      - $ref: '#/channels/executions/messages/activityPatch'
 
 components:
   schemas:
@@ -357,7 +349,7 @@ components:
                 value: Connection timeout to external service
 
   parameters:
-    executionId:
+    execution_id:
       description: Workflow execution ID to stream activity updates for
       schema:
         type: string

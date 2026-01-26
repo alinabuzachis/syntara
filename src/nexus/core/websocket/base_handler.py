@@ -3,6 +3,7 @@
 Provides a template method pattern for implementing WebSocket streaming handlers.
 """
 
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 from nexus.core.models.base.error import ErrorData
 from nexus.core.valkey.stream import StreamClient
 from nexus.core.websocket.close_codes import INTERNAL_ERROR, NORMAL_CLOSURE
-from nexus.core.websocket.exceptions import StreamingValidationError
+from nexus.core.websocket.exceptions import StreamingValidationError, WaitForStreamTimeoutError
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 
 logger = logging.getLogger(__name__)
@@ -387,3 +388,53 @@ class BaseWebSocketStreamingHandler(ABC):
 
         """
         await websocket.close(code=code, reason=reason)
+
+    async def _wait_for_stream_creation(
+        self,
+        stream_id: str,
+        resource_id: str,
+        resource_status: str,
+        resource_type: str = "resource",
+        max_wait_seconds: int = 30,
+    ) -> None:
+        """Wait for stream to be created in Valkey.
+
+        Helper method for subclasses that need to wait for stream creation.
+
+        Args:
+            stream_id: Valkey stream ID to wait for
+            resource_id: String representation of the resource ID
+            resource_status: Current status of the resource
+            resource_type: Type of resource (e.g., "invocation", "execution")
+            max_wait_seconds: Maximum time to wait for stream creation
+
+        Raises:
+            WaitForStreamTimeoutError: If timeout waiting for stream creation
+
+        """
+        logger.info(
+            "Stream %s does not exist yet, waiting for creation (resource status: %s)",
+            stream_id,
+            resource_status,
+        )
+
+        wait_interval = 0.5
+        total_waited = 0.0
+
+        async with StreamClient() as client:
+            while total_waited < max_wait_seconds:
+                await asyncio.sleep(wait_interval)
+                total_waited += wait_interval
+
+                info = await client.info(stream_id)
+                if info["exists"]:
+                    logger.info("Stream %s created after %.1fs", stream_id, total_waited)
+                    return
+
+            # Timeout waiting for stream
+            logger.error("Timeout waiting for stream %s to be created", stream_id)
+            raise WaitForStreamTimeoutError(
+                resource_id=resource_id,
+                resource_status=resource_status,
+                resource_type=resource_type,
+            )

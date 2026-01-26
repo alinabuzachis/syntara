@@ -17,7 +17,7 @@ from nexus.agent_orchestrator.services.streaming_service import (
     get_invocation_stream_id,
 )
 from nexus.core.websocket.close_codes import POLICY_VIOLATION
-from nexus.core.websocket.exceptions import EventsExpiredError, StreamingValidationError, WaitForStreamTimeoutError
+from nexus.core.websocket.exceptions import EventsExpiredError, StreamingValidationError
 
 
 def mock_db_session_factory(handler: WebSocketStreamingHandler, scalar_result: Any) -> None:  # noqa: ANN401
@@ -188,7 +188,12 @@ class TestWebSocketStreamingHandlerWaitForStreamReady:
 
         with patch.object(handler, "_wait_for_stream_creation") as mock_wait:
             await handler.wait_for_stream_ready(stream_id, context)
-            mock_wait.assert_called_once_with(stream_id, invocation_id, InvocationStatus.RUNNING)
+            mock_wait.assert_called_once_with(
+                stream_id=stream_id,
+                resource_id=str(invocation_id),
+                resource_status=InvocationStatus.RUNNING.value,
+                resource_type="invocation",
+            )
 
 
 class TestWebSocketStreamingHandlerCheckInvocationExists:
@@ -220,47 +225,6 @@ class TestWebSocketStreamingHandlerCheckInvocationExists:
 
         assert exc_info.value.error_data.code == "INVOCATION_NOT_FOUND"
         assert str(invocation_id) in exc_info.value.error_data.detail
-
-
-class TestWebSocketStreamingHandlerWaitForStreamCreation:
-    """Test _wait_for_stream_creation method."""
-
-    async def test_wait_for_stream_creation_succeeds_when_stream_created(
-        self, handler: WebSocketStreamingHandler
-    ) -> None:
-        """Test that _wait_for_stream_creation returns when stream is created."""
-        invocation_id = uuid4()
-        stream_id = get_invocation_stream_id(invocation_id)
-
-        with patch("nexus.agent_orchestrator.services.streaming_service.StreamClient") as mock_stream_client:
-            # Mock stream client that reports stream exists on first check
-            mock_client = AsyncMock()
-            mock_client.info.return_value = {"exists": True}
-            mock_stream_client.return_value.__aenter__.return_value = mock_client
-            mock_stream_client.return_value.__aexit__.return_value = None
-
-            # Should not raise, should not timeout
-            await handler._wait_for_stream_creation(stream_id, invocation_id, InvocationStatus.RUNNING)
-
-    async def test_wait_for_stream_creation_times_out(self, handler: WebSocketStreamingHandler) -> None:
-        """Test that _wait_for_stream_creation raises timeout error."""
-        invocation_id = uuid4()
-        stream_id = get_invocation_stream_id(invocation_id)
-
-        with patch("nexus.agent_orchestrator.services.streaming_service.StreamClient") as mock_stream_client:
-            # Mock stream client that never reports stream exists
-            mock_client = AsyncMock()
-            mock_client.info.return_value = {"exists": False}
-            mock_stream_client.return_value.__aenter__.return_value = mock_client
-            mock_stream_client.return_value.__aexit__.return_value = None
-
-            with pytest.raises(WaitForStreamTimeoutError) as exc_info:
-                # Use very short timeout for test
-                await handler._wait_for_stream_creation(
-                    stream_id, invocation_id, InvocationStatus.RUNNING, max_wait_seconds=1
-                )
-
-            assert exc_info.value.error_data.code == "STREAM_TIMEOUT"
 
 
 class TestStreamingService:
