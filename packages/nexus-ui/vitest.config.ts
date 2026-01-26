@@ -15,11 +15,24 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
-    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/playwright.config.ts'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/playwright.config.ts', '**/*.browser.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'src/test/', '**/*.d.ts', '**/*.config.*', '**/mockData', 'dist/', 'e2e/'],
+      reporter: ['text', 'json', 'json-summary', 'html', 'lcov'],
+      exclude: [
+        'node_modules/',
+        'src/test/',
+        '**/*.d.ts',
+        '**/*.config.*',
+        '**/mockData',
+        'dist/',
+        'e2e/',
+        '**/*.test.{ts,tsx}',
+        '**/*.spec.{ts,tsx}',
+      ],
+      // Note: Global thresholds are NOT set here.
+      // Coverage is enforced incrementally on new/modified files only
+      // via scripts/check-pr-coverage.js which runs in CI
     },
   },
 })

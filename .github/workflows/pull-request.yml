@@ -13,12 +13,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Fetch enough history for Codecov to compare against base branch
+          fetch-depth: 0
+
       - uses: actions/setup-node@v6
         with:
           node-version: '22.12.0'
           cache: 'npm'
+
       - run: npm ci
-      - run: npm test
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        working-directory: packages/nexus-ui
+
+      - name: Check PR coverage
+        run: npm run test:coverage:check origin/${{ github.base_ref }}
+        working-directory: packages/nexus-ui
+        env:
+          COVERAGE_THRESHOLD: 80
 
   test-build:
     name: Test Multi-Arch Container Build

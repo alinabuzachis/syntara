@@ -16,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export default tseslint.config(
-  { ignores: ['dist', 'e2e/**', 'playwright.config.ts', 'test-results/**', 'playwright-report/**'] },
+  { ignores: ['dist', 'e2e/**', 'playwright.config.ts', 'test-results/**', 'playwright-report/**', 'scripts/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -65,7 +65,7 @@ export default tseslint.config(
   },
   {
     // Allow console in entry files
-    files: ['**/index.tsx', '**/main.tsx', '**/vite.config.ts', '**/vitest.config.ts'],
+    files: ['**/index.tsx', '**/main.tsx', '**/vite.config.ts', '**/vitest.config.ts', '**/vitest.browser.config.ts'],
     rules: {
       'no-console': 'off',
     },

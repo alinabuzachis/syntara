@@ -21,6 +21,9 @@ npm test                   # Run all tests
 npm run test:nexus-ui      # Run UI package tests
 npm run test:coverage      # Run tests with coverage report
 npm run test:ui            # Interactive test UI (Vitest UI)
+npm run test:browser       # Run browser mode tests (Playwright)
+npm run test:browser:ui    # Browser tests with Vitest UI
+npm run test:browser:headed # Browser tests visible (not headless)
 
 # Run a specific test
 cd packages/nexus-ui
@@ -320,6 +323,28 @@ Before writing conditional logic with strings:
 
 Write tests that verify **what** your code does, not **how** it does it. Tests should survive refactoring.
 
+#### Coverage Requirements
+
+**All new and modified files must meet 80% coverage threshold** across:
+
+- **Statements**: 80%
+- **Branches**: 80%
+- **Functions**: 80%
+- **Lines**: 80%
+
+This is enforced incrementally - existing files can improve gradually, but new code should meet the standard.
+
+**Coverage enforcement:**
+
+Coverage is enforced on changed files in PRs via `scripts/check-pr-coverage.js`. Run locally:
+
+```bash
+npm run test:coverage        # Generate coverage report
+npm run test:coverage:check  # Check coverage for changed files (fails if <80%)
+```
+
+CI automatically runs this check and **blocks PRs** where changed source files have less than 80% line coverage.
+
 #### AAA Pattern (Arrange-Act-Assert)
 
 Structure every test with three phases:
@@ -338,20 +363,111 @@ it('increments counter when button clicked', async () => {
 })
 ```
 
+#### Test Modes: jsdom vs Browser Mode
+
+**Default (jsdom)** - Fast, lightweight for most tests:
+
+- File naming: `*.test.ts` or `*.test.tsx`
+- Use for: Component rendering, user interactions, form validation, hooks, utilities
+- Environment: Simulated DOM via jsdom
+
+**Browser Mode** - Real browser for specific needs:
+
+- File naming: `*.browser.test.tsx`
+- Use for: IntersectionObserver, ResizeObserver, Canvas API, real layout calculations
+- Environment: Chromium via Playwright
+- Commands:
+  - `npm run test:browser` - Run headless
+  - `npm run test:browser:headed` - Watch in browser
+  - `npm run test:browser:ui` - Vitest UI
+
+**When to use browser mode:**
+
+- Testing components that use IntersectionObserver, ResizeObserver, MutationObserver
+- Canvas/WebGL rendering
+- Accurate layout/positioning with getBoundingClientRect
+- Real drag-and-drop with DataTransfer API
+- Screenshot/visual regression testing
+- Testing focus management and keyboard navigation that requires real browser behavior
+- Components that rely on CSS-driven behavior (animations, transitions, media queries)
+
+**Default to jsdom** unless you specifically need browser APIs - it's much faster.
+
+**Why the distinction matters:**
+
+- jsdom/happy-dom **simulate** browser behavior in Node.js but can produce false positives/negatives
+- Browser mode runs tests in **real browsers** for accurate, reliable results
+- Trade-off: Browser mode is slower to start but eliminates simulation gaps
+- See [Vitest Browser Mode docs](https://vitest.dev/guide/browser/) and [Why Browser Mode](https://vitest.dev/guide/browser/why.html) for details
+
+**Example - When Browser Mode is Required:**
+
+```typescript
+// ✅ Use browser mode for IntersectionObserver
+// File: LazyImage.browser.test.tsx
+import { render, screen, waitFor } from '@testing-library/react'
+import { expect, test } from 'vitest'
+import { LazyImage } from './LazyImage'
+
+test('loads image when scrolled into view', async () => {
+  render(<LazyImage src="/image.jpg" alt="Lazy loaded" />)
+
+  const img = screen.getByAltText('Lazy loaded')
+
+  // Scroll element into view - IntersectionObserver needs real browser
+  img.scrollIntoView()
+
+  await waitFor(() => {
+    expect(img).toHaveAttribute('src', '/image.jpg')
+  })
+})
+```
+
+**Example - When jsdom is Sufficient:**
+
+```typescript
+// ✅ Use jsdom for user interactions and state changes
+// File: Counter.test.tsx
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { expect, test } from 'vitest'
+import { Counter } from './Counter'
+
+test('increments count on button click', async () => {
+  const user = userEvent.setup()
+  render(<Counter />)
+
+  await user.click(screen.getByRole('button', { name: /increment/i }))
+
+  expect(screen.getByText('Count: 1')).toBeInTheDocument()
+})
+```
+
+**Decision Tree:**
+
+```text
+Does the component use browser-specific APIs?
+├─ Yes → Use browser mode (*.browser.test.tsx)
+│  └─ Examples: IntersectionObserver, ResizeObserver, Canvas, real layout
+└─ No → Use jsdom (*.test.tsx)
+   └─ Examples: Rendering, clicks, state, forms, most user interactions
+```
+
 #### What to Test
 
-| Type          | Focus On                                                |
-| ------------- | ------------------------------------------------------- |
-| **Component** | User interactions, conditional rendering, accessibility |
-| **Hook**      | Return values, state transitions, callback invocations  |
-| **Store**     | Actions modify state correctly, edge cases              |
-| **Utility**   | Input → output transformations, boundary conditions     |
+| Type          | Focus On                                                | Coverage Target |
+| ------------- | ------------------------------------------------------- | --------------- |
+| **Component** | User interactions, conditional rendering, accessibility | 80%+            |
+| **Hook**      | Return values, state transitions, callback invocations  | 80%+            |
+| **Store**     | Actions modify state correctly, edge cases              | 80%+            |
+| **Utility**   | Input → output transformations, boundary conditions     | 90%+            |
 
 #### What NOT to Test
 
 - Implementation details (internal state, private methods)
 - Third-party library behavior
 - Static content that doesn't change
+- Generated files (`**/*.d.ts`, `**/mockData`, API contracts)
 
 #### Quick Reference
 
@@ -359,6 +475,40 @@ it('increments counter when button clicked', async () => {
 - **Hooks**: Use `renderHook()` and wrap state changes in `act()`
 - **Stores**: Reset state in `beforeEach`, test via `getState()` and actions
 - **Mocking**: Use `vi.fn()` for callbacks, `vi.mock()` for modules
+
+#### Industry Best Practices for Test Coverage
+
+**Bare Minimum (80%):**
+
+- **Happy path**: Test the most common user flow
+- **Error cases**: Test at least one error scenario
+- **Edge cases**: Test boundary conditions (empty, null, max values)
+- **User interactions**: Test all clickable elements and form inputs
+
+**Example - Button Component:**
+
+```typescript
+// ✅ Meets 80% threshold
+describe('Button', () => {
+  it('renders with label', () => {
+    /* ... */
+  }) // Happy path
+  it('calls onClick when clicked', () => {
+    /* ... */
+  }) // Interaction
+  it('renders as disabled when disabled prop', () => {}) // Edge case
+  it('shows loading state', () => {
+    /* ... */
+  }) // State variation
+})
+```
+
+**Why 80%?**
+
+- Industry standard (Google, Airbnb, Netflix use 80-90%)
+- Catches most bugs without diminishing returns
+- Balances thoroughness with development velocity
+- Forces testing of critical paths without testing getters/setters
 
 ### Critical Development Workflows
 
