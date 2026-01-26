@@ -87,7 +87,9 @@ describe('applyOperation', () => {
     })
 
     it('adds error_details to existing activity', () => {
-      const activities = new Map<string, ActivityState>([['fetch_data', { activityId: 'fetch_data', status: 'error' }]])
+      const activities = new Map<string, ActivityState>([
+        ['fetch_data', { activityId: 'fetch_data', status: 'failed' }],
+      ])
       const operation: JsonPatchOperation = {
         op: 'add',
         path: '/activities/fetch_data/error_details',
@@ -134,7 +136,7 @@ describe('applyOperation', () => {
 
       applyOperation(activities, operation)
 
-      expect(activities.get('process_data')?.status).toBe('success')
+      expect(activities.get('process_data')?.status).toBe('completed')
     })
 
     it('maps completed to success', () => {
@@ -147,7 +149,7 @@ describe('applyOperation', () => {
 
       applyOperation(activities, operation)
 
-      expect(activities.get('task')?.status).toBe('success')
+      expect(activities.get('task')?.status).toBe('completed')
     })
 
     it('maps failed to error', () => {
@@ -160,11 +162,11 @@ describe('applyOperation', () => {
 
       applyOperation(activities, operation)
 
-      expect(activities.get('task')?.status).toBe('error')
+      expect(activities.get('task')?.status).toBe('failed')
     })
 
-    it('maps retrying to running', () => {
-      const activities = new Map<string, ActivityState>([['task', { activityId: 'task', status: 'error' }]])
+    it('preserves retrying status without mapping', () => {
+      const activities = new Map<string, ActivityState>([['task', { activityId: 'task', status: 'failed' }]])
       const operation: JsonPatchOperation = {
         op: 'replace',
         path: '/activities/task/status',
@@ -173,12 +175,12 @@ describe('applyOperation', () => {
 
       applyOperation(activities, operation)
 
-      expect(activities.get('task')?.status).toBe('running')
+      expect(activities.get('task')?.status).toBe('retrying')
     })
 
     it('updates error_details', () => {
       const activities = new Map<string, ActivityState>([
-        ['task', { activityId: 'task', status: 'error', errorDetails: 'Old error' }],
+        ['task', { activityId: 'task', status: 'failed', errorDetails: 'Old error' }],
       ])
       const operation: JsonPatchOperation = {
         op: 'replace',
@@ -205,7 +207,7 @@ describe('applyOperation', () => {
     })
 
     it('updates completed_at timestamp', () => {
-      const activities = new Map<string, ActivityState>([['task', { activityId: 'task', status: 'success' }]])
+      const activities = new Map<string, ActivityState>([['task', { activityId: 'task', status: 'completed' }]])
       const operation: JsonPatchOperation = {
         op: 'replace',
         path: '/activities/task/completed_at',
@@ -242,7 +244,7 @@ describe('applyOperation', () => {
   describe('remove operation', () => {
     it('removes error_details', () => {
       const activities = new Map<string, ActivityState>([
-        ['task', { activityId: 'task', status: 'error', errorDetails: 'Some error' }],
+        ['task', { activityId: 'task', status: 'failed', errorDetails: 'Some error' }],
       ])
       const operation: JsonPatchOperation = {
         op: 'remove',
@@ -361,7 +363,7 @@ describe('applyJsonPatch', () => {
 
     applyJsonPatch(activities, operations)
 
-    expect(activities.get('fetch_data')?.status).toBe('success')
+    expect(activities.get('fetch_data')?.status).toBe('completed')
     expect(activities.get('process_data')?.status).toBe('pending')
   })
 
@@ -376,7 +378,7 @@ describe('applyJsonPatch', () => {
 
     expect(activities.get('task')).toEqual({
       activityId: 'task',
-      status: 'error',
+      status: 'failed',
       errorDetails: 'Connection timeout',
     })
   })
@@ -428,7 +430,7 @@ describe('buildActivityStateMap', () => {
     expect(map.size).toBe(2)
     expect(map.get('fetch_data')).toEqual({
       activityId: 'fetch_data',
-      status: 'success',
+      status: 'completed',
       errorDetails: null,
       startedAt: '2025-12-10T15:00:05Z',
       completedAt: '2025-12-10T15:00:10Z',
@@ -455,7 +457,7 @@ describe('buildActivityStateMap', () => {
 
     const map = buildActivityStateMap(apiActivities)
 
-    expect(map.get('task')?.status).toBe('error')
+    expect(map.get('task')?.status).toBe('failed')
     expect(map.get('task')?.errorDetails).toBe('Connection timeout')
   })
 
@@ -468,16 +470,16 @@ describe('buildActivityStateMap', () => {
 describe('extractActivityMaps', () => {
   it('extracts status and error maps', () => {
     const activities = new Map<string, ActivityState>([
-      ['fetch_data', { activityId: 'fetch_data', status: 'success' }],
-      ['process_data', { activityId: 'process_data', status: 'error', errorDetails: 'Failed to process' }],
+      ['fetch_data', { activityId: 'fetch_data', status: 'completed' }],
+      ['process_data', { activityId: 'process_data', status: 'failed', errorDetails: 'Failed to process' }],
       ['send_notification', { activityId: 'send_notification', status: 'pending' }],
     ])
 
     const [statusMap, errorMap] = extractActivityMaps(activities)
 
     expect(statusMap.size).toBe(3)
-    expect(statusMap.get('fetch_data')).toBe('success')
-    expect(statusMap.get('process_data')).toBe('error')
+    expect(statusMap.get('fetch_data')).toBe('completed')
+    expect(statusMap.get('process_data')).toBe('failed')
     expect(statusMap.get('send_notification')).toBe('pending')
 
     expect(errorMap.size).toBe(1)
@@ -486,7 +488,7 @@ describe('extractActivityMaps', () => {
 
   it('handles activities without errors', () => {
     const activities = new Map<string, ActivityState>([
-      ['task1', { activityId: 'task1', status: 'success' }],
+      ['task1', { activityId: 'task1', status: 'completed' }],
       ['task2', { activityId: 'task2', status: 'running' }],
     ])
 

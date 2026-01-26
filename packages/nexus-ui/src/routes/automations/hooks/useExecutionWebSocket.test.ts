@@ -214,7 +214,7 @@ describe('useExecutionWebSocket', () => {
       })
 
       const storeState = useExecutionStore.getState()
-      expect(storeState.activityStates.get('fetch_data')?.status).toBe('success')
+      expect(storeState.activityStates.get('fetch_data')?.status).toBe('completed')
       expect(storeState.activityStates.get('process_data')?.status).toBe('running')
     })
   })
@@ -237,7 +237,7 @@ describe('useExecutionWebSocket', () => {
       })
 
       const storeState = useExecutionStore.getState()
-      expect(storeState.activityStates.get('process_data')?.status).toBe('success')
+      expect(storeState.activityStates.get('process_data')?.status).toBe('completed')
     })
 
     it('updates last event ID', () => {
@@ -274,8 +274,8 @@ describe('useExecutionWebSocket', () => {
       })
 
       const storeState = useExecutionStore.getState()
-      expect(storeState.activityStates.get('process_data')?.status).toBe('success')
-      expect(storeState.activityStates.get('fetch_data')?.status).toBe('error')
+      expect(storeState.activityStates.get('process_data')?.status).toBe('completed')
+      expect(storeState.activityStates.get('fetch_data')?.status).toBe('failed')
       expect(storeState.activityErrors.get('fetch_data')).toBe('Connection timeout')
     })
   })
@@ -410,7 +410,7 @@ describe('useExecutionWebSocket', () => {
       })
 
       storeState = useExecutionStore.getState()
-      expect(storeState.activityStates.get('process_data')?.status).toBe('success')
+      expect(storeState.activityStates.get('process_data')?.status).toBe('completed')
 
       // 3. Final snapshot
       act(() => {
@@ -462,8 +462,8 @@ describe('useExecutionWebSocket', () => {
       })
 
       const storeState = useExecutionStore.getState()
-      expect(storeState.activityStates.get('process_data')?.status).toBe('success')
-      expect(storeState.activityStates.get('send_notification')?.status).toBe('success')
+      expect(storeState.activityStates.get('process_data')?.status).toBe('completed')
+      expect(storeState.activityStates.get('send_notification')?.status).toBe('completed')
       expect(storeState.lastEventId).toBe('1691431234568-2')
     })
   })

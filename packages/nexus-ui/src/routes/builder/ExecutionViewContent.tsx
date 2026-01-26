@@ -88,7 +88,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
       const firstActivityId = flattenedActivities[0]?.id
       const triggerEdges =
         firstActivityId && triggers.length > 0
-          ? triggers.map((_, index) => ({
+          ? triggers.map((_: unknown, index: number) => ({
               id: `trigger-${index}-edge`,
               source: `trigger-${index}`,
               target: firstActivityId,

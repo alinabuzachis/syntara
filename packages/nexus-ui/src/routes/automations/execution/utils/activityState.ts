@@ -5,8 +5,7 @@
  * Implements RFC 6902 JSON Patch operations (add, replace, remove).
  */
 
-import type { ActivityStatus, JsonPatchOperation, NodeStatus, ActivityState } from '../types'
-import { mapActivityStatusToNodeStatus } from '../types'
+import type { ActivityStatus, JsonPatchOperation, ActivityState } from '../types'
 
 // ============================================================================
 // JSON Patch Path Parsing
@@ -112,10 +111,9 @@ export function applyOperation(
       // If activity doesn't exist, create it
       if (!existingActivity) {
         if (field === 'status') {
-          const status = mapActivityStatusToNodeStatus(value as ActivityStatus)
           activities.set(resolvedActivityId, {
             activityId: resolvedActivityId,
-            status,
+            status: value as ActivityStatus,
           })
         } else {
           throw new Error(`Cannot create activity with field '${field}'. 'status' is required first.`)
@@ -128,7 +126,7 @@ export function applyOperation(
 
       switch (field) {
         case 'status':
-          updatedActivity.status = mapActivityStatusToNodeStatus(value as ActivityStatus)
+          updatedActivity.status = value as ActivityStatus
           break
         case 'error_details':
           updatedActivity.errorDetails = value as string | null
@@ -226,7 +224,7 @@ export function buildActivityStateMap(
   for (const activity of activities) {
     map.set(activity.activity_id, {
       activityId: activity.activity_id,
-      status: mapActivityStatusToNodeStatus(activity.status),
+      status: activity.status,
       errorDetails: activity.error_details,
       startedAt: activity.started_at,
       completedAt: activity.completed_at,
@@ -244,8 +242,8 @@ export function buildActivityStateMap(
  */
 export function extractActivityMaps(
   activities: Map<string, ActivityState>
-): [Map<string, NodeStatus>, Map<string, string>] {
-  const activityStates = new Map<string, NodeStatus>()
+): [Map<string, ActivityStatus>, Map<string, string>] {
+  const activityStates = new Map<string, ActivityStatus>()
   const activityErrors = new Map<string, string>()
 
   for (const [activityId, activity] of activities) {

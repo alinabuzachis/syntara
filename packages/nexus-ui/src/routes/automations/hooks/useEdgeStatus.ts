@@ -7,7 +7,7 @@
 
 import { useMemo } from 'react'
 
-import type { EdgeStatus, NodeStatus } from '../execution/types'
+import type { EdgeStatus, ActivityStatus } from '../execution/types'
 import { useExecutionStore, selectActivityStatus } from '../stores/useExecutionStore'
 
 // ============================================================================
@@ -22,21 +22,21 @@ import { useExecutionStore, selectActivityStatus } from '../stores/useExecutionS
  * - 'pending': Edge is not yet traversable (source not completed)
  *
  * Terminal states that mark edge as 'passed':
- * - 'success': Source completed successfully
- * - 'error': Source failed (but execution continued)
+ * - 'completed': Source finished execution successfully
+ * - 'failed': Source failed (execution may continue)
  * - 'cancelled': Source was cancelled (execution may continue via other paths)
- * - 'completed': Source finished execution (general completion status)
  *
  * Non-terminal states that mark edge as 'pending':
  * - 'pending': Source not started
  * - 'running': Source currently executing
+ * - 'retrying': Source retrying after failure
  * - 'skipped': Source was skipped (edge may become passed if workflow continues)
  *
- * @param sourceStatus - Status of the source node
+ * @param sourceStatus - Status of the source node (ActivityStatus from backend)
  * @returns Edge status derived from source node
  */
-export function deriveEdgeStatus(sourceStatus: NodeStatus): EdgeStatus {
-  const passedStatuses: NodeStatus[] = ['success', 'error', 'cancelled', 'completed']
+export function deriveEdgeStatus(sourceStatus: ActivityStatus): EdgeStatus {
+  const passedStatuses: ActivityStatus[] = ['completed', 'failed', 'cancelled']
   return passedStatuses.includes(sourceStatus) ? 'passed' : 'pending'
 }
 

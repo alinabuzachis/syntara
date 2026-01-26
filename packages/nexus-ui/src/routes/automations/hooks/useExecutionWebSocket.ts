@@ -133,7 +133,11 @@ export function useExecutionWebSocket(
   )
 
   // Build channel configuration with replay support
-  const channel = useMemo(() => buildExecutionChannelPath(executionId, replayParam), [executionId, replayParam])
+  const channel = useMemo(() => {
+    const channelPath = buildExecutionChannelPath(executionId, replayParam)
+    // console.debug('[WebSocket] Channel config:', { executionId, replayParam, channelPath, enabled, isComplete })
+    return channelPath
+  }, [executionId, replayParam])
 
   // Handle incoming WebSocket messages
   const handleMessage = useCallback(
@@ -157,7 +161,6 @@ export function useExecutionWebSocket(
 
         case 'activity_patch': {
           const patch = msg as ActivityPatchMessage
-          // console.debug('[WebSocket] Received activity_patch', patch.event_id, patch.ops)
 
           // Apply incremental updates
           applyPatch(patch.ops, patch.event_id)

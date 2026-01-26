@@ -110,7 +110,7 @@ describe('useExecutionStore', () => {
 
       const state = useExecutionStore.getState()
       expect(state.activityStates.size).toBe(3)
-      expect(state.activityStates.get('fetch_data')?.status).toBe('success')
+      expect(state.activityStates.get('fetch_data')?.status).toBe('completed')
       expect(state.activityStates.get('process_data')?.status).toBe('running')
       expect(state.activityStates.get('send_notification')?.status).toBe('pending')
     })
@@ -124,19 +124,19 @@ describe('useExecutionStore', () => {
       const fetchDataState = state.activityStates.get('fetch_data')
       expect(fetchDataState).toBeDefined()
       expect(fetchDataState?.activityId).toBe('fetch_data')
-      expect(fetchDataState?.status).toBe('success')
+      expect(fetchDataState?.status).toBe('completed')
       expect(fetchDataState?.startedAt).toBe('2025-12-10T15:00:05Z')
       expect(fetchDataState?.completedAt).toBe('2025-12-10T15:00:10Z')
       expect(fetchDataState?.errorDetails).toBeNull()
     })
 
-    it('maps completed status to success', () => {
+    it('stores completed status without conversion', () => {
       const execution = createMockExecution()
 
       useExecutionStore.getState().setExecution(execution)
 
       const state = useExecutionStore.getState()
-      expect(state.activityStates.get('fetch_data')?.status).toBe('success')
+      expect(state.activityStates.get('fetch_data')?.status).toBe('completed')
     })
 
     it('extracts activity errors', () => {
@@ -155,7 +155,7 @@ describe('useExecutionStore', () => {
       useExecutionStore.getState().setExecution(execution)
 
       const state = useExecutionStore.getState()
-      expect(state.activityStates.get('failed_task')?.status).toBe('error')
+      expect(state.activityStates.get('failed_task')?.status).toBe('failed')
       expect(state.activityErrors.get('failed_task')).toBe('Connection timeout')
     })
 
@@ -220,7 +220,7 @@ describe('useExecutionStore', () => {
       expect(state.activityStates.get('task2')?.status).toBe('running')
     })
 
-    it('preserves original ActivityStatus for badge compatibility', () => {
+    it('preserves original ActivityStatus from backend', () => {
       useExecutionStore.getState().setActivityExecutions([
         {
           activity_id: 'task1',
@@ -232,7 +232,7 @@ describe('useExecutionStore', () => {
       ])
 
       const state = useExecutionStore.getState()
-      // Should preserve 'completed' not map to 'success' for builder overlay
+      // Should preserve backend status without conversion
       expect(state.activityStates.get('task1')?.status).toBe('completed')
     })
 
@@ -369,7 +369,7 @@ describe('useExecutionStore', () => {
 
     it('selectActivityStatus returns activity status', () => {
       const status = selectActivityStatus('fetch_data')(useExecutionStore.getState())
-      expect(status).toBe('success')
+      expect(status).toBe('completed')
     })
 
     it('selectActivityStatus returns undefined for unknown activity', () => {

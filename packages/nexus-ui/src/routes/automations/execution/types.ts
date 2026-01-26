@@ -28,49 +28,9 @@ export type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus
 // ============================================================================
 
 /**
- * Node status for visualization
- * Maps from ActivityStatus with UI-friendly naming
- */
-export type NodeStatus = 'pending' | 'running' | 'success' | 'error' | 'skipped' | 'cancelled'
-
-/**
- * Edge status derived from source node status
+ * Edge status derived from source activity status
  */
 export type EdgeStatus = 'pending' | 'passed'
-
-// ============================================================================
-// Status Mapping
-// ============================================================================
-
-/**
- * Convert API ActivityStatus to UI NodeStatus
- * - 'completed' → 'success' (UI-friendly terminology)
- * - 'failed' → 'error' (matches common UI conventions)
- * - 'retrying' → 'running' (retrying is a form of running)
- */
-export function mapActivityStatusToNodeStatus(status: ActivityStatus): NodeStatus {
-  switch (status) {
-    case 'pending':
-      return 'pending'
-    case 'running':
-      return 'running'
-    case 'completed':
-      return 'success'
-    case 'failed':
-      return 'error'
-    case 'retrying':
-      return 'running'
-    case 'skipped':
-      return 'skipped'
-    case 'cancelled':
-      return 'cancelled'
-    default: {
-      // Exhaustive check - TypeScript will error if we miss a case
-      const _exhaustive: never = status
-      return _exhaustive
-    }
-  }
-}
 
 // ============================================================================
 // JSON Patch Types
@@ -147,8 +107,8 @@ export interface ActivityState {
   /** Activity ID from workflow definition */
   activityId: string
   /** Current status */
-  status: NodeStatus
-  /** Error message if status is 'error' */
+  status: ActivityStatus
+  /** Error message if status is 'failed' */
   errorDetails?: string | null
   /** When activity started execution */
   startedAt?: string | null
@@ -206,7 +166,7 @@ export interface ExecutionStoreState {
   /** Execution visualization data */
   visualization: ExecutionVisualization | null
   /** Activity states keyed by activity_id (for fast lookup) */
-  activityStates: Map<string, NodeStatus>
+  activityStates: Map<string, ActivityStatus>
   /** Activity errors keyed by activity_id */
   activityErrors: Map<string, string>
   /** WebSocket connection state */

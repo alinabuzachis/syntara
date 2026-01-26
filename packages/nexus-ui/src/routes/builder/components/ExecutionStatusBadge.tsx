@@ -1,8 +1,7 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Icon, Spinner } from '@patternfly/react-core'
 import { RhUiCheckIcon, RhUiErrorIcon, RhUiSyncIcon, RhUiEllipsisHorizontalFillIcon } from '@patternfly/react-icons'
 
-type ActivityStatus = WorkflowAPI.components['schemas']['ActivityStatus']
+import type { ActivityStatus } from '../../../routes/automations/execution/types'
 
 interface ExecutionStatusBadgeProps {
   status: ActivityStatus
@@ -45,6 +44,18 @@ export function ExecutionStatusBadge({ status, retryCount }: ExecutionStatusBadg
           icon: <RhUiSyncIcon />,
           backgroundColor: 'var(--pf-t--global--color--status--warning--default)',
           label: 'Retrying',
+        }
+      case 'skipped':
+        return {
+          icon: <RhUiEllipsisHorizontalFillIcon />,
+          backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
+          label: 'Skipped',
+        }
+      case 'cancelled':
+        return {
+          icon: <RhUiErrorIcon />,
+          backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
+          label: 'Cancelled',
         }
       default:
         return {

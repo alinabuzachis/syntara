@@ -226,33 +226,22 @@ export function BuilderFlow(props: BuilderFlowProps) {
           edgeType = 'loopOutgoing'
         }
 
-        // Derive edge status from source and target node activity states (for execution view)
-        // Edge is 'passed' (solid) if either source OR target is completed
+        // Derive edge status from source node activity state (for execution view)
+        // Edge is 'passed' (solid) if source node has completed execution
         let edgeExecutionStatus: 'passed' | 'pending' | undefined
         if (executionStatus) {
           // Trigger nodes (e.g., "trigger-0") are always considered "passed"
           const isSourceTrigger = edge.source.startsWith('trigger-')
-          const isTargetTrigger = edge.target.startsWith('trigger-')
 
           const sourceActivityState = activityStates.get(edge.source)
-          const targetActivityState = activityStates.get(edge.target)
 
-          // Check if source is completed (passed) - triggers are always passed
-          const sourceStatus = isSourceTrigger
+          // Edge status depends only on source node status
+          // Triggers are always passed (execution starts from triggers)
+          edgeExecutionStatus = isSourceTrigger
             ? 'passed'
             : sourceActivityState
               ? deriveEdgeStatus(sourceActivityState.status)
               : 'pending'
-
-          // Check if target is completed (passed) - triggers are always passed
-          const targetStatus = isTargetTrigger
-            ? 'passed'
-            : targetActivityState
-              ? deriveEdgeStatus(targetActivityState.status)
-              : 'pending'
-
-          // Edge is 'passed' if either source OR target is completed
-          edgeExecutionStatus = sourceStatus === 'passed' || targetStatus === 'passed' ? 'passed' : 'pending'
         }
 
         const restoredEdge: EdgeType = {
@@ -678,6 +667,40 @@ export function BuilderFlow(props: BuilderFlowProps) {
     setNodes,
     setEdges,
   })
+
+  // Update edge execution status when activity states change (for WebSocket updates)
+  useEffect(() => {
+    if (!executionStatus || !isInitialized) return
+
+    setEdges((currentEdges) =>
+      currentEdges.map((edge) => {
+        // Trigger nodes are always "passed"
+        const isSourceTrigger = edge.source.startsWith('trigger-')
+
+        const sourceActivityState = activityStates.get(edge.source)
+
+        // Derive edge status from source node status
+        const edgeExecutionStatus = isSourceTrigger
+          ? 'passed'
+          : sourceActivityState
+            ? deriveEdgeStatus(sourceActivityState.status)
+            : 'pending'
+
+        // Only update if status changed to avoid unnecessary re-renders
+        if (edge.data?.executionStatus !== edgeExecutionStatus) {
+          return {
+            ...edge,
+            data: {
+              ...edge.data,
+              executionStatus: edgeExecutionStatus,
+            },
+          }
+        }
+
+        return edge
+      })
+    )
+  }, [activityStates, executionStatus, isInitialized])
 
   const isValidConnection = useCallback(
     (connection: EdgeType | Connection) => {

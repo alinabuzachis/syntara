@@ -7,7 +7,7 @@
 import { renderHook } from '@testing-library/react'
 import { describe, it, expect, beforeEach } from 'vitest'
 
-import type { Execution, NodeStatus } from '../execution/types'
+import type { Execution, ActivityStatus } from '../execution/types'
 import { useExecutionStore } from '../stores/useExecutionStore'
 
 import { deriveEdgeStatus, useEdgeStatus, useEdgeStatuses } from './useEdgeStatus'
@@ -16,7 +16,7 @@ import { deriveEdgeStatus, useEdgeStatus, useEdgeStatuses } from './useEdgeStatu
 // Test Helpers
 // ============================================================================
 
-function createMockExecution(activityStates: Array<{ id: string; status: NodeStatus }>): Execution {
+function createMockExecution(activityStates: Array<{ id: string; status: ActivityStatus }>): Execution {
   return {
     id: 'exec-123',
     createdAt: '2025-12-10T15:00:00Z',
@@ -29,10 +29,10 @@ function createMockExecution(activityStates: Array<{ id: string; status: NodeSta
     workflow_definition: { workflow: { activities: [] } },
     activities: activityStates.map((activity) => ({
       activity_id: activity.id,
-      status: activity.status === 'success' ? 'completed' : activity.status === 'error' ? 'failed' : activity.status,
+      status: activity.status,
       error_details: null,
       started_at: activity.status !== 'pending' ? '2025-12-10T15:00:05Z' : null,
-      completed_at: ['success', 'error', 'cancelled'].includes(activity.status) ? '2025-12-10T15:00:10Z' : null,
+      completed_at: ['completed', 'failed', 'cancelled'].includes(activity.status) ? '2025-12-10T15:00:10Z' : null,
     })),
   } as unknown as Execution
 }
@@ -43,20 +43,16 @@ function createMockExecution(activityStates: Array<{ id: string; status: NodeSta
 
 describe('deriveEdgeStatus', () => {
   describe('passed statuses', () => {
-    it('returns passed for success status', () => {
-      expect(deriveEdgeStatus('success')).toBe('passed')
+    it('returns passed for completed status', () => {
+      expect(deriveEdgeStatus('completed')).toBe('passed')
     })
 
-    it('returns passed for error status', () => {
-      expect(deriveEdgeStatus('error')).toBe('passed')
+    it('returns passed for failed status', () => {
+      expect(deriveEdgeStatus('failed')).toBe('passed')
     })
 
     it('returns passed for cancelled status', () => {
       expect(deriveEdgeStatus('cancelled')).toBe('passed')
-    })
-
-    it('returns passed for completed status', () => {
-      expect(deriveEdgeStatus('completed')).toBe('passed')
     })
   })
 
@@ -67,6 +63,10 @@ describe('deriveEdgeStatus', () => {
 
     it('returns pending for running status', () => {
       expect(deriveEdgeStatus('running')).toBe('pending')
+    })
+
+    it('returns pending for retrying status', () => {
+      expect(deriveEdgeStatus('retrying')).toBe('pending')
     })
 
     it('returns pending for skipped status', () => {
@@ -90,23 +90,23 @@ describe('useEdgeStatus', () => {
   })
 
   it('returns pending when source node not found', () => {
-    const execution = createMockExecution([{ id: 'task1', status: 'success' }])
+    const execution = createMockExecution([{ id: 'task1', status: 'completed' }])
     useExecutionStore.getState().setExecution(execution)
 
     const { result } = renderHook(() => useEdgeStatus('unknown_task'))
     expect(result.current).toBe('pending')
   })
 
-  it('returns passed for success source', () => {
-    const execution = createMockExecution([{ id: 'task1', status: 'success' }])
+  it('returns passed for completed source', () => {
+    const execution = createMockExecution([{ id: 'task1', status: 'completed' }])
     useExecutionStore.getState().setExecution(execution)
 
     const { result } = renderHook(() => useEdgeStatus('task1'))
     expect(result.current).toBe('passed')
   })
 
-  it('returns passed for error source', () => {
-    const execution = createMockExecution([{ id: 'task1', status: 'error' }])
+  it('returns passed for failed source', () => {
+    const execution = createMockExecution([{ id: 'task1', status: 'failed' }])
     useExecutionStore.getState().setExecution(execution)
 
     const { result } = renderHook(() => useEdgeStatus('task1'))
@@ -115,14 +115,6 @@ describe('useEdgeStatus', () => {
 
   it('returns passed for cancelled source', () => {
     const execution = createMockExecution([{ id: 'task1', status: 'cancelled' }])
-    useExecutionStore.getState().setExecution(execution)
-
-    const { result } = renderHook(() => useEdgeStatus('task1'))
-    expect(result.current).toBe('passed')
-  })
-
-  it('returns passed for completed source', () => {
-    const execution = createMockExecution([{ id: 'task1', status: 'completed' }])
     useExecutionStore.getState().setExecution(execution)
 
     const { result } = renderHook(() => useEdgeStatus('task1'))
@@ -215,7 +207,7 @@ describe('useEdgeStatuses', () => {
 
   it('returns status map for multiple edges', () => {
     const execution = createMockExecution([
-      { id: 'task1', status: 'success' },
+      { id: 'task1', status: 'completed' },
       { id: 'task2', status: 'running' },
       { id: 'task3', status: 'pending' },
     ])
@@ -236,7 +228,7 @@ describe('useEdgeStatuses', () => {
   })
 
   it('handles edges with unknown source nodes', () => {
-    const execution = createMockExecution([{ id: 'task1', status: 'success' }])
+    const execution = createMockExecution([{ id: 'task1', status: 'completed' }])
     useExecutionStore.getState().setExecution(execution)
 
     const edges = [
@@ -285,22 +277,22 @@ describe('useEdgeStatuses', () => {
 
   it('handles workflow with mixed terminal and non-terminal states', () => {
     const execution = createMockExecution([
-      { id: 'fetch_data', status: 'success' },
+      { id: 'fetch_data', status: 'completed' },
       { id: 'process_data', status: 'running' },
       { id: 'send_notification', status: 'pending' },
-      { id: 'log_error', status: 'error' },
+      { id: 'log_error', status: 'failed' },
       { id: 'cleanup', status: 'cancelled' },
-      { id: 'finalize', status: 'completed' },
+      { id: 'retry_task', status: 'retrying' },
     ])
     useExecutionStore.getState().setExecution(execution)
 
     const edges = [
-      { id: 'edge1', source: 'fetch_data' }, // success -> passed
+      { id: 'edge1', source: 'fetch_data' }, // completed -> passed
       { id: 'edge2', source: 'process_data' }, // running -> pending
       { id: 'edge3', source: 'send_notification' }, // pending -> pending
-      { id: 'edge4', source: 'log_error' }, // error -> passed
+      { id: 'edge4', source: 'log_error' }, // failed -> passed
       { id: 'edge5', source: 'cleanup' }, // cancelled -> passed
-      { id: 'edge6', source: 'finalize' }, // completed -> passed
+      { id: 'edge6', source: 'retry_task' }, // retrying -> pending
     ]
 
     const { result } = renderHook(() => useEdgeStatuses(edges))
@@ -310,7 +302,7 @@ describe('useEdgeStatuses', () => {
     expect(result.current.get('edge3')).toBe('pending')
     expect(result.current.get('edge4')).toBe('passed')
     expect(result.current.get('edge5')).toBe('passed')
-    expect(result.current.get('edge6')).toBe('passed')
+    expect(result.current.get('edge6')).toBe('pending')
   })
 
   it('maintains referential equality when activities unchanged', () => {

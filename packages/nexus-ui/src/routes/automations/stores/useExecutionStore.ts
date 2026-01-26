@@ -121,15 +121,11 @@ type ExecutionStore = ExecutionStoreState & ExecutionStoreActions
 /**
  * Convert API ActivityExecution to internal ActivityState
  * Used by ExecutionDetailsPanel when loading execution data via REST API
- *
- * NOTE: We preserve the original ActivityStatus (not mapped to NodeStatus)
- * because the ExecutionStatusBadge component expects the original API status values.
  */
 function activityExecutionToState(exec: ActivityExecution): ActivityState {
   return {
     activityId: exec.activity_id,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    status: exec.status as any, // Preserve original ActivityStatus for badge compatibility
+    status: exec.status ?? 'pending',
     errorDetails: exec.error_details,
     startedAt: exec.started_at,
     completedAt: exec.completed_at,
@@ -348,7 +344,7 @@ export const selectActivityState = (activityId: string) => (state: ExecutionStor
   state.activityStates.get(activityId)
 
 /**
- * Select activity status by ID (returns just the NodeStatus)
+ * Select activity status by ID (returns just the ActivityStatus)
  */
 export const selectActivityStatus = (activityId: string) => (state: ExecutionStore) =>
   state.activityStates.get(activityId)?.status

@@ -58,6 +58,24 @@ describe('ExecutionStatusBadge', () => {
     })
   })
 
+  it('renders skipped status with ellipsis icon', () => {
+    const { container } = render(<ExecutionStatusBadge status="skipped" />)
+
+    const badge = container.querySelector('div')
+    expect(badge).toHaveStyle({
+      backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
+    })
+  })
+
+  it('renders cancelled status with error icon', () => {
+    const { container } = render(<ExecutionStatusBadge status="cancelled" />)
+
+    const badge = container.querySelector('div')
+    expect(badge).toHaveStyle({
+      backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
+    })
+  })
+
   it('displays retry count in title when provided', () => {
     const { container } = render(<ExecutionStatusBadge status="retrying" retryCount={3} />)
 

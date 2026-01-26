@@ -333,7 +333,7 @@ describe('useExecutionData', () => {
     await waitFor(() => {
       const storeState = useExecutionStore.getState()
       expect(storeState.activityStates.size).toBe(3)
-      expect(storeState.activityStates.get('fetch_data')?.status).toBe('success')
+      expect(storeState.activityStates.get('fetch_data')?.status).toBe('completed')
       expect(storeState.activityStates.get('process_data')?.status).toBe('running')
       expect(storeState.activityStates.get('send_notification')?.status).toBe('pending')
     })

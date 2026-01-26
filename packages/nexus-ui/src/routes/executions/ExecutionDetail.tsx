@@ -12,6 +12,7 @@ import {
   Tooltip,
 } from '@patternfly/react-core'
 import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
+import { useQueryClient } from '@tanstack/react-query'
 import '@xyflow/react/dist/style.css'
 import { useEffect, useMemo } from 'react'
 import { useLocation, useParams, useSearch } from 'wouter'
@@ -21,6 +22,7 @@ import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
+import { useExecutionWebSocket } from '../automations/hooks/useExecutionWebSocket'
 import { useExecutionStore } from '../automations/stores/useExecutionStore'
 import { AutomationHistoryCard } from '../builder/AutomationHistoryCard'
 import { ExecutionDetailsPanel } from '../builder/ExecutionDetailsPanel'
@@ -121,20 +123,21 @@ export default function ExecutionDetail() {
   const executionId = params.executionId!
   const [, setLocation] = useLocation()
   const searchParams = useSearch()
+  const queryClient = useQueryClient()
 
   // Use execution store
-  const { setActivityExecutions } = useExecutionStore()
+  const { setActivityExecutions, reset } = useExecutionStore.getState()
 
-  // Derive historyCardOpen from URL search params
-  const historyCardOpen = useMemo(() => {
-    const params = new URLSearchParams(searchParams)
-    return params.get('history') === 'open'
-  }, [searchParams])
+  // Reset execution store when executionId changes
+  // This ensures WebSocket can reconnect for new executions
+  useEffect(() => {
+    reset()
+  }, [executionId, reset])
 
   // Fetch execution with workflow_definition and activities included
-  const executionQuery = workflowClient.useQuery('get', '/executions/{executionId}', {
+  const executionQuery = workflowClient.useQuery('get', '/executions/{execution_id}', {
     params: {
-      path: { executionId },
+      path: { execution_id: executionId },
       query: {
         include: 'workflow_definition,activities',
       },
@@ -142,6 +145,30 @@ export default function ExecutionDetail() {
   })
 
   const execution = executionQuery.data as Execution | undefined
+
+  // Connect to WebSocket for real-time updates (only for running/pending executions)
+  const shouldStream = execution?.status === 'running' || execution?.status === 'pending'
+  useExecutionWebSocket(executionId, {
+    enabled: shouldStream,
+    onExecutionComplete: () => {
+      // Invalidate all execution queries to refresh:
+      // - ExecutionDetail header status
+      // - ExecutionDetailsPanel (bottom panel)
+      // - AutomationHistoryCard (run history)
+      void queryClient.invalidateQueries({
+        queryKey: ['get', '/executions/{execution_id}'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['get', '/executions'],
+      })
+    },
+  })
+
+  // Derive historyCardOpen from URL search params
+  const historyCardOpen = useMemo(() => {
+    const params = new URLSearchParams(searchParams)
+    return params.get('history') === 'open'
+  }, [searchParams])
 
   // Fetch executions for this workflow
   const executionsQuery = workflowClient.useQuery(

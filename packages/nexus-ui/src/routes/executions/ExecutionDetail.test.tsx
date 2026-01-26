@@ -76,7 +76,7 @@ const mockExecutionsQuery = {
 vi.mock('../../client', () => ({
   workflowClient: {
     useQuery: vi.fn((method: string, endpoint: string) => {
-      if (endpoint === '/executions/{executionId}') {
+      if (endpoint === '/executions/{execution_id}') {
         return mockExecutionQuery
       }
       if (endpoint === '/executions') {
@@ -161,6 +161,11 @@ vi.mock('../builder/ExecutionStatus', () => ({
   },
 }))
 
+// Mock useExecutionWebSocket hook
+vi.mock('../automations/hooks/useExecutionWebSocket', () => ({
+  useExecutionWebSocket: vi.fn(),
+}))
+
 describe('ExecutionDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -215,10 +220,10 @@ describe('ExecutionDetail', () => {
 
     expect(vi.mocked(workflowClient.useQuery)).toHaveBeenCalledWith(
       'get',
-      '/executions/{executionId}',
+      '/executions/{execution_id}',
       expect.objectContaining({
         params: {
-          path: { executionId: 'exec-123' },
+          path: { execution_id: 'exec-123' },
           query: {
             include: 'workflow_definition,activities',
           },
@@ -352,7 +357,7 @@ describe('ExecutionDetail', () => {
       }
 
       vi.mocked(workflowClient.useQuery).mockImplementation((method: string, endpoint: string) => {
-        if (endpoint === '/executions/{executionId}') {
+        if (endpoint === '/executions/{execution_id}') {
           return mockNewExecutionQuery
         }
         return mockExecutionsQuery
@@ -396,7 +401,7 @@ describe('ExecutionDetail', () => {
       }
 
       vi.mocked(workflowClient.useQuery).mockImplementation((method: string, endpoint: string) => {
-        if (endpoint === '/executions/{executionId}') {
+        if (endpoint === '/executions/{execution_id}') {
           return mockMinimalExecution
         }
         return mockExecutionsQuery
@@ -411,6 +416,95 @@ describe('ExecutionDetail', () => {
 
       // Should render without crashing
       expect(screen.getByTestId('execution-view-content')).toBeInTheDocument()
+    })
+  })
+
+  describe('Execution Store Reset', () => {
+    it('resets execution store when executionId changes', async () => {
+      const queryClient = new QueryClient()
+
+      // Mock execution store with reset function
+      const mockReset = vi.fn()
+      const mockSetActivityExecutions = vi.fn()
+
+      // Store the original useExecutionStore module
+      const { useExecutionStore } = await import('../automations/stores/useExecutionStore')
+
+      // Mock getState to return our mock functions
+      const originalGetState = useExecutionStore.getState
+      useExecutionStore.getState = vi.fn(() => ({
+        ...originalGetState(),
+        reset: mockReset,
+        setActivityExecutions: mockSetActivityExecutions,
+      }))
+
+      // Initial render with exec-123
+      mockUseParams.mockReturnValue({ executionId: 'exec-123' })
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      // Should call reset on mount
+      expect(mockReset).toHaveBeenCalledTimes(1)
+
+      // Change executionId to exec-456
+      mockUseParams.mockReturnValue({ executionId: 'exec-456' })
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      // Should call reset again when executionId changes
+      expect(mockReset).toHaveBeenCalledTimes(2)
+
+      // Restore original
+      useExecutionStore.getState = originalGetState
+    })
+
+    it('does not reset execution store when executionId stays the same', async () => {
+      const queryClient = new QueryClient()
+
+      // Mock execution store with reset function
+      const mockReset = vi.fn()
+      const mockSetActivityExecutions = vi.fn()
+
+      // Store the original useExecutionStore module
+      const { useExecutionStore } = await import('../automations/stores/useExecutionStore')
+
+      // Mock getState to return our mock functions
+      const originalGetState = useExecutionStore.getState
+      useExecutionStore.getState = vi.fn(() => ({
+        ...originalGetState(),
+        reset: mockReset,
+        setActivityExecutions: mockSetActivityExecutions,
+      }))
+
+      // Initial render with exec-123
+      mockUseParams.mockReturnValue({ executionId: 'exec-123' })
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      // Should call reset on mount
+      expect(mockReset).toHaveBeenCalledTimes(1)
+
+      // Re-render with same executionId
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <ExecutionDetail />
+        </QueryClientProvider>
+      )
+
+      // Should still only have called reset once (not called again for same executionId)
+      expect(mockReset).toHaveBeenCalledTimes(1)
+
+      // Restore original
+      useExecutionStore.getState = originalGetState
     })
   })
 })
