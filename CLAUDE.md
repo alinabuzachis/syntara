@@ -220,6 +220,100 @@ Codebase Search Patterns:
 - Hook provides generic, reusable functionality
 - Pattern is not domain-specific to nexus-ui
 
+### Internationalization (i18n) Guidelines
+
+**CRITICAL: Never use user-facing translatable strings in conditional logic or comparisons.**
+
+User-facing strings that will be translated should only be used for display purposes. Using them in logic creates bugs when the application is localized to other languages.
+
+#### Anti-Pattern: Comparing Display Strings
+
+```typescript
+// ❌ BAD: Using translatable string in logic
+const cadence = durationToHumanReadableCadence(parsed.cadence)
+if (cadence !== 'Does not repeat') {
+  // This breaks when translated to other languages
+  parts.push(`Repeats ${cadence.toLowerCase()}`)
+}
+
+// ❌ BAD: Using label text in comparisons
+if (label === 'Active') {
+  // Breaks in non-English locales
+  return 'success'
+}
+```
+
+#### Correct Patterns
+
+##### 1. Compare Raw/Internal Values
+
+```typescript
+// ✅ GOOD: Check the raw value before translation
+if (parsed.cadence) {
+  // parsed.cadence is the ISO duration like 'P1D', not 'Daily'
+  parts.push(`Repeats ${cadence.toLowerCase()}`)
+}
+
+// ✅ GOOD: Use enum/constant values from API
+if (status === 'active') {
+  // 'active' is from API contract, not a display string
+  return 'success'
+}
+```
+
+##### 2. Use TypeScript Enums or Union Types
+
+```typescript
+// ✅ GOOD: Define internal constants separate from display
+type CadenceValue = 'none' | 'daily' | 'weekly' | 'monthly' | 'annually'
+
+// Compare internal values
+if (cadence === 'daily') {
+  return 'P1D'
+}
+
+// Map to display strings separately
+const cadenceLabels: Record<CadenceValue, string> = {
+  none: 'Does not repeat',
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  annually: 'Annually',
+}
+```
+
+##### 3. Use Value-to-Label Mapping
+
+```typescript
+// ✅ GOOD: Separate logic values from display labels
+const statusMap: Record<StatusValue, { label: string; variant: 'success' | 'danger' }> = {
+  approved: { label: 'Approved', variant: 'success' },
+  rejected: { label: 'Rejected', variant: 'danger' },
+  pending: { label: 'Pending', variant: 'warning' },
+}
+
+// Use the value for logic
+const config = statusMap[apiStatus]
+```
+
+#### Allowed String Comparisons
+
+These types of strings are **safe** to use in logic (they won't be translated):
+
+- **API contract values**: `type === 'converge'`, `status === 'success'`, `executor === 'script'`
+- **TypeScript enum values**: `nodeType === NodeType.Task`
+- **Internal constants**: `mode === 'development'`, `edge.type === 'buttonEdge'`
+- **Technical identifiers**: `file.endsWith('.tsx')`, `id.startsWith('parallel_')`
+
+#### Quick Checklist
+
+Before writing conditional logic with strings:
+
+1. ✅ Is this string from an API response or TypeScript type? → **Safe to use**
+2. ✅ Is this an internal constant/identifier? → **Safe to use**
+3. ❌ Is this string shown to users in the UI? → **Do NOT use in logic**
+4. ❌ Would this string be translated to other languages? → **Do NOT use in logic**
+
 ### Testing Guidelines
 
 #### Core Principle: Test Behavior, Not Implementation

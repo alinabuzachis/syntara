@@ -119,7 +119,8 @@ export function formatIntervalDescription(interval: string): string {
     parts.push(startLine)
   }
 
-  if (cadence !== 'Does not repeat') {
+  // Check the raw duration value instead of the translated string
+  if (parsed.cadence) {
     parts.push(`Repeats ${cadence.toLowerCase()}`)
   }
 
