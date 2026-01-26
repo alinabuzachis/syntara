@@ -57,19 +57,21 @@ events = await redis.xread({f"invocation:{id}:events": last_id}, block=1000)
 
 ### 3. Connection Health Monitoring
 
-**Decision**: Implement bidirectional ping/pong with 30-second intervals
+**Decision**: Implement passive activity-based connection tracking with 4-hour timeout
 
 **Rationale**:
-- WebSocket protocol includes built-in ping/pong frames
-- FastAPI WebSocket supports `send_text`, `receive_text`, `send_json`, `receive_json`
-- 30-second interval balances responsiveness with overhead
-- Detect stale connections before TCP timeout (usually 60s+)
+- WebSocket channels can remain idle for extended periods (hours) during long-running operations
+- Activity on any message (send or receive) indicates a healthy connection
+- TCP keepalive and browser/client-side mechanisms handle lower-level connection health
+- 4-hour timeout provides generous buffer while still cleaning up abandoned connections
+- No application-level ping/pong messages needed - reduces network overhead
 
-**Best Practices**:
-- Server sends ping every 30 seconds
-- Client must respond with pong
-- Close connection after 2 missed pongs (60s total)
-- Use asyncio.wait_for() with timeout for pong responses
+**Implementation**:
+- Track `last_activity_at` timestamp on connection
+- Update timestamp when sending messages to client
+- Update timestamp when receiving messages from client
+- Background cleanup task runs every 30 seconds
+- Connections inactive for 4+ hours are closed and removed
 
 ### 4. Multi-Client Event Delivery
 
@@ -223,8 +225,8 @@ finally:
 
 **Values Based on Clarifications** (Session 2025-10-20):
 ```python
-WEBSOCKET_HEARTBEAT_INTERVAL = 30  # seconds
-WEBSOCKET_PONG_TIMEOUT = 10  # seconds
+WEBSOCKET_ACTIVITY_TIMEOUT = 14400  # 4 hours - connections idle longer are considered stale
+WEBSOCKET_CLEANUP_INTERVAL = 30  # seconds - how often to check for stale connections
 WEBSOCKET_MAX_CONNECTIONS_PER_USER_IP = 25  # Clarification Q2
 WEBSOCKET_MAX_TOTAL_CONNECTIONS = 100
 WEBSOCKET_DEFAULT_REPLAY_COUNT = 10  # Clarification Q1 (default)

@@ -595,8 +595,8 @@ sequenceDiagram
 # Environment variables
 WEBSOCKET_MAX_MESSAGE_SIZE = 1048576  # 1MB
 WEBSOCKET_MAX_CONNECTIONS = 100
-WEBSOCKET_PING_INTERVAL = 30  # seconds
-WEBSOCKET_PING_TIMEOUT = 10  # seconds
+WEBSOCKET_ACTIVITY_TIMEOUT = 14400  # 4 hours - connections idle longer are considered stale
+WEBSOCKET_CLEANUP_INTERVAL = 30  # seconds - how often to check for stale connections
 ```
 
 ## File Structure
@@ -804,4 +804,3 @@ nexus/
 - Connection pooling
 - Message batching
 - Compression negotiation
-- Keep-alive ping/pong optimization

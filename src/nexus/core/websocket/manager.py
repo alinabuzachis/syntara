@@ -12,6 +12,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID, uuid4
 
+from nexus.core.constants import WebSocketConfig
+
 if TYPE_CHECKING:
     from fastapi import WebSocket
 
@@ -39,7 +41,7 @@ class WebSocketConnectionInfo:
         resource_id: Optional ID of the resource being accessed (e.g., invocation_id, session_id)
         user_agent: Client user agent string (optional)
         connected_at: Timestamp when connection was established
-        last_ping_at: Last ping received timestamp
+        last_activity_at: Last activity timestamp (message send/receive)
         metadata: Additional connection metadata (extensible for use-case specific data)
         is_active: Connection health status
         state: Current connection state
@@ -53,28 +55,28 @@ class WebSocketConnectionInfo:
     resource_id: str | None = None
     user_agent: str | None = None
     connected_at: float = field(default_factory=time.time)
-    last_ping_at: float = field(default_factory=time.time)
+    last_activity_at: float = field(default_factory=time.time)
     metadata: dict[str, Any] = field(default_factory=dict)
     is_active: bool = True
     state: ConnectionState = ConnectionState.CONNECTING
 
-    def update_ping(self) -> None:
-        """Update the last ping timestamp."""
-        self.last_ping_at = time.time()
+    def update_activity(self) -> None:
+        """Update the last activity timestamp."""
+        self.last_activity_at = time.time()
         self.is_active = True
 
-    def check_health(self, timeout_seconds: float = 60) -> bool:
-        """Check if connection is healthy based on last ping.
+    def check_health(self, timeout_seconds: float = 14400) -> bool:
+        """Check if connection is healthy based on last activity.
 
         Args:
-            timeout_seconds: Timeout in seconds (default: 60s = 2 missed pongs)
+            timeout_seconds: Timeout in seconds (default: 14400s = 4 hours)
 
         Returns:
             True if connection is healthy, False otherwise
 
         """
-        time_since_ping = time.time() - self.last_ping_at
-        if time_since_ping > timeout_seconds:
+        time_since_activity = time.time() - self.last_activity_at
+        if time_since_activity > timeout_seconds:
             self.is_active = False
             return False
         return True
@@ -109,7 +111,7 @@ class WebSocketConnectionLifecycleManager:
 
     Features:
         - Connection state management (Connecting → Active → Reconnecting → Closed)
-        - Health monitoring via ping/pong (30s intervals, 60s timeout)
+        - Health monitoring via activity tracking (4-hour timeout)
         - Multi-client support (multiple connections per resource)
         - Automatic cleanup of stale connections
         - Channel-based grouping
@@ -124,7 +126,7 @@ class WebSocketConnectionLifecycleManager:
         ...     user_agent="Mozilla/5.0"
         ... )
         >>> manager.activate_connection(conn_id)
-        >>> manager.update_ping(conn_id)
+        >>> manager.update_activity(conn_id)
         >>> manager.get_connections_for_resource("550e8400-...")
         [WebSocketConnectionInfo(...)]
 
@@ -132,10 +134,6 @@ class WebSocketConnectionLifecycleManager:
 
     _instance: ClassVar["WebSocketConnectionLifecycleManager | None"] = None
     _initialized: bool = False
-
-    # Health monitoring constants
-    PING_INTERVAL_SECONDS: float = 30  # Ping every 30 seconds
-    PING_TIMEOUT_SECONDS: float = 60  # Mark inactive after 2 missed pongs
 
     def __new__(cls) -> "WebSocketConnectionLifecycleManager":
         """Ensure singleton instance."""
@@ -275,8 +273,8 @@ class WebSocketConnectionLifecycleManager:
         else:
             logger.warning("Attempted to remove non-existent connection %s", connection_id)
 
-    def update_ping(self, connection_id: UUID) -> None:
-        """Update ping timestamp for a connection.
+    def update_activity(self, connection_id: UUID) -> None:
+        """Update activity timestamp for a connection.
 
         Args:
             connection_id: Connection ID to update
@@ -284,10 +282,9 @@ class WebSocketConnectionLifecycleManager:
         """
         connection = self._connections.get(connection_id)
         if connection:
-            connection.update_ping()
-            logger.debug("Ping updated for connection %s", connection_id)
+            connection.update_activity()
         else:
-            logger.warning("Attempted to update ping for non-existent connection %s", connection_id)
+            logger.warning("Attempted to update activity for non-existent connection %s", connection_id)
 
     def update_metadata(self, connection_id: UUID, key: str, value: Any) -> None:  # noqa: ANN401
         """Update connection metadata.
@@ -374,7 +371,7 @@ class WebSocketConnectionLifecycleManager:
         return len(self._channel_connections.get(channel, set()))
 
     async def cleanup_stale_connections(self) -> int:
-        """Clean up connections that haven't sent ping in timeout period.
+        """Clean up connections that haven't had activity in timeout period.
 
         Closes the WebSocket connection and removes from tracking.
 
@@ -385,7 +382,7 @@ class WebSocketConnectionLifecycleManager:
         stale_connections = []
 
         for connection_id, connection in self._connections.items():
-            if not connection.check_health(self.PING_TIMEOUT_SECONDS):
+            if not connection.check_health(WebSocketConfig.ACTIVITY_TIMEOUT):
                 stale_connections.append((connection_id, connection))
 
         for connection_id, connection in stale_connections:
@@ -408,7 +405,7 @@ class WebSocketConnectionLifecycleManager:
     async def monitor_connections(self) -> None:
         """Background task to monitor connection health and cleanup stale connections.
 
-        Runs cleanup every 30 seconds (matches ping interval).
+        Runs cleanup every 30 seconds.
         """
         while True:
             try:
@@ -422,11 +419,11 @@ class WebSocketConnectionLifecycleManager:
                 if cleaned > 0:
                     logger.info("Cleaned up %d stale WebSocket connections", cleaned)
 
-                await asyncio.sleep(self.PING_INTERVAL_SECONDS)
+                await asyncio.sleep(WebSocketConfig.CLEANUP_INTERVAL)
 
             except Exception:
                 logger.exception("Error in connection monitoring")
-                await asyncio.sleep(self.PING_INTERVAL_SECONDS)
+                await asyncio.sleep(WebSocketConfig.CLEANUP_INTERVAL)
 
     def start_monitoring(self) -> None:
         """Start the background connection monitoring task."""

@@ -749,53 +749,6 @@ def _get_client_address(websocket: WebSocket) -> str:
     return f"{client_host}:{client_port}"
 
 
-async def _send_periodic_pings(
-    websocket: WebSocket, connection_id: str, lifecycle_conn_id: uuid.UUID, channel_name: str
-) -> None:
-    """Send WebSocket ping frames periodically to keep connection alive.
-
-    Sends ping frames every 30 seconds. The client's WebSocket library
-    should automatically respond with pong frames. If no pong is received,
-    the monitoring task will clean up the stale connection.
-
-    Args:
-        websocket: WebSocket connection
-        connection_id: Connection ID for logging
-        lifecycle_conn_id: Lifecycle manager connection ID for ping tracking
-        channel_name: Channel name for logging
-
-    """
-    lifecycle_manager = get_connection_lifecycle_manager()
-    ping_interval = lifecycle_manager.PING_INTERVAL_SECONDS
-
-    while True:
-        await asyncio.sleep(ping_interval)
-        try:
-            # Send WebSocket ping frame (protocol-level, not application message)
-            await websocket.send({"type": "websocket.ping"})
-
-            # Update lifecycle manager timestamp on successful send.
-            # Note: This is optimistic - we don't explicitly verify pong reception.
-            # If the connection is truly dead (client not sending pongs), TCP will
-            # detect this within 30-120s and the next send() will fail, at which
-            # point the ping loop exits and cleanup will remove the stale connection.
-            lifecycle_manager.update_ping(lifecycle_conn_id)
-
-            logger.debug(
-                "Sent ping to channel '%s', connection '%s'",
-                channel_name,
-                connection_id,
-            )
-        except WebSocketDisconnect:
-            logger.debug(
-                "Connection closed while sending ping: channel '%s', connection '%s'", channel_name, connection_id
-            )
-            break
-        except Exception:
-            logger.exception("Error sending ping on channel '%s', connection '%s'", channel_name, connection_id)
-            break
-
-
 async def _cancel_background_task(
     background_task: asyncio.Task[None] | None,
     channel_name: str,
@@ -863,6 +816,7 @@ async def _process_message(
     hooks: WebSocketHooks,
     handler_func: Callable[..., Any],
     connection_id: str,
+    lifecycle_conn_id: uuid.UUID,
     *,
     handler_accepts_conn_id: bool,
 ) -> bool:
@@ -875,8 +829,9 @@ async def _process_message(
         channel_name: Channel name
         hooks: Hook handlers
         handler_func: Channel handler function
-        handler_accepts_conn_id: Whether handler accepts connection_id
         connection_id: Connection ID
+        lifecycle_conn_id: Lifecycle manager connection ID for activity tracking
+        handler_accepts_conn_id: Whether handler accepts connection_id
 
     Returns:
         True if should continue processing, False if should break the loop
@@ -919,6 +874,9 @@ async def _process_message(
     # Send response
     try:
         await websocket.send_json(final_response)
+        # Update activity timestamp on successful send
+        lifecycle_manager = get_connection_lifecycle_manager()
+        lifecycle_manager.update_activity(lifecycle_conn_id)
         return True
     except WebSocketDisconnect:
         logger.debug("Client disconnected during send on channel '%s'", channel_name)
@@ -956,9 +914,11 @@ async def _run_bidirectional_message_loop(
             raw_message = await _receive_message(websocket, channel_name)
             if raw_message is None:
                 break
-            # Update ping timestamp - any message indicates connection is alive
-            lifecycle_manager.update_ping(lifecycle_conn_id)
+            # Update activity timestamp - any message indicates connection is alive
+            lifecycle_manager.update_activity(lifecycle_conn_id)
         except ValidationError as e:
+            # Update activity - even invalid messages mean connection is alive
+            lifecycle_manager.update_activity(lifecycle_conn_id)
             error_response = await hooks.on_validation_error(e, channel_name)
             if not await _send_error_response(websocket, error_response, channel_name):
                 break
@@ -972,6 +932,7 @@ async def _run_bidirectional_message_loop(
             hooks,
             handler_func,
             connection_id,
+            lifecycle_conn_id,
             handler_accepts_conn_id=handler_accepts_conn_id,
         )
         if not should_continue:
@@ -1052,12 +1013,6 @@ def create_websocket_endpoint(
         lifecycle_manager.activate_connection(lifecycle_conn_id)
         _connection_id_context.set(connection_id_str)
 
-        # Start periodic ping task to monitor connection health
-        ping_task = asyncio.create_task(
-            _send_periodic_pings(websocket, connection_id_str, lifecycle_conn_id, channel_name)
-        )
-        logger.debug("Started ping task for channel '%s', connection '%s'", channel_name, connection_id_str)
-
         # Start background task if on_connect handler exists
         background_task: asyncio.Task[None] | None = None
         if on_connect_func is not None and callable(on_connect_func):
@@ -1085,7 +1040,6 @@ def create_websocket_endpoint(
         except Exception:
             logger.exception("Unexpected error on channel '%s'", channel_name)
         finally:
-            await _cancel_background_task(ping_task, channel_name, connection_id_str)
             await _cancel_background_task(background_task, channel_name, connection_id_str)
             connection_manager.remove_connection(connection_id_str)
             lifecycle_manager.remove_connection(lifecycle_conn_id, reason="normal_close")

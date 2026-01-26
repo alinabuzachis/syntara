@@ -95,7 +95,7 @@ Starlette's `TestClient` is fundamentally incompatible with receive-only WebSock
 
 2. **Message Queue Race Condition**
    - Both background task (sending messages) and test (receiving messages) compete for same internal queue
-   - When endpoint tries to read (for keepalive), it steals messages from test
+   - Connection stays alive based on message activity (no separate keepalive mechanism)
    - When test tries to read, endpoint is blocking the queue
 
 3. **No Proper Disconnect Signaling**

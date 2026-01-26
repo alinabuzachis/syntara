@@ -4,9 +4,12 @@ This module tests that WebSocket endpoints properly handle invalid JSON input
 by returning appropriate error responses.
 """
 
+import time
 from datetime import UTC, datetime
 
 from starlette.testclient import TestClient
+
+from nexus.core.websocket.manager import get_connection_lifecycle_manager
 
 
 class TestWebSocketJsonValidation:
@@ -180,3 +183,42 @@ class TestWebSocketJsonValidation:
             # Should mention JSON or format issue
             message_lower = response["message"].lower()
             assert any(keyword in message_lower for keyword in ["json", "format", "invalid", "parse", "decode"])
+
+    def test_validation_error_updates_activity_timestamp(self, sync_test_client: TestClient) -> None:
+        """Test that ValidationError updates the lifecycle manager activity timestamp.
+
+        This verifies that even invalid JSON messages count as connection activity,
+        which is correct since receiving data (even malformed) proves the connection is alive.
+        """
+        lifecycle_manager = get_connection_lifecycle_manager()
+
+        with sync_test_client.websocket_connect("/ws/example/v1/chat") as websocket:
+            # Send valid message first to establish connection
+            websocket.send_json({"message": "hello"})
+            websocket.receive_json()
+
+            # Get connections for the chat channel
+            active_connections = lifecycle_manager.get_connections_for_channel("chat")
+            assert len(active_connections) >= 1
+
+            # Get the connection for this channel
+            conn_info = active_connections[0]
+            initial_activity = conn_info.last_activity_at
+
+            # Wait a bit to ensure timestamp would change
+            time.sleep(0.1)
+
+            # Send invalid JSON to trigger ValidationError
+            websocket.send_text("invalid json")
+
+            # Receive error response
+            error_response = websocket.receive_json()
+            assert error_response["error"] == "INVALID_REQUEST"
+
+            # Verify activity timestamp was updated even though message was invalid
+            updated_conn_info = lifecycle_manager.get_connection(conn_info.connection_id)
+            assert updated_conn_info is not None
+            assert updated_conn_info.last_activity_at > initial_activity, (
+                "Activity timestamp should be updated when ValidationError occurs, "
+                "since receiving any data indicates the connection is alive"
+            )

@@ -35,8 +35,8 @@ class WebSocketConfig:
     MAX_CONNECTIONS = 100
 
     # Health check settings
-    PING_INTERVAL = 30  # seconds
-    PING_TIMEOUT = 10  # seconds
+    CLEANUP_INTERVAL = 30  # seconds - how often to check for stale connections
+    ACTIVITY_TIMEOUT = 14400  # seconds (4 hours) - connections idle longer than this are considered stale
 
 
 class ValidationMessages:
