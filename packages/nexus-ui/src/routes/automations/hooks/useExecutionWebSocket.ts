@@ -2,7 +2,7 @@
  * Execution WebSocket Hook
  *
  * React hook for real-time execution streaming via WebSocket.
- * Handles initial_snapshot, activity_patch, final_snapshot, and heartbeat messages.
+ * Handles initial_snapshot, activity_patch, and final_snapshot messages.
  * Supports auto-reconnection with event replay from last known state.
  */
 
@@ -177,12 +177,6 @@ export function useExecutionWebSocket(
           onExecutionComplete?.()
 
           // Server will disconnect after final_snapshot
-          break
-        }
-
-        case 'heartbeat': {
-          // Heartbeat received - connection is healthy
-          // console.debug('[WebSocket] Received heartbeat')
           break
         }
 

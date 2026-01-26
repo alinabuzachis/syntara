@@ -167,7 +167,6 @@ WS /ws/workflows/v1/executions/exec-123?replay={lastEventId}
 | ------------------ | -------------------------- | ------------------------------- |
 | `initial_snapshot` | On connect with `replay=0` | Set initial activity states     |
 | `activity_patch`   | On every status change     | Update specific activity fields |
-| `heartbeat`        | Every 30s                  | Keep-alive                      |
 | `final_snapshot`   | Execution complete         | Final state before disconnect   |
 
 ### 1. Initial Snapshot
@@ -231,19 +230,7 @@ WS /ws/workflows/v1/executions/exec-123?replay={lastEventId}
 - `started_at` → `ISO8601 timestamp`
 - `completed_at` → `ISO8601 timestamp`
 
-### 3. Heartbeat
-
-```json
-{
-  "type": "heartbeat",
-  "execution_id": "exec-123-456",
-  "timestamp": "2025-01-20T10:02:30Z"
-}
-```
-
-**Action**: No-op (keep connection alive)
-
-### 4. Final Snapshot
+### 3. Final Snapshot
 
 ```json
 {
@@ -331,13 +318,7 @@ interface ActivityPatchMessage {
   timestamp: string
 }
 
-interface HeartbeatMessage {
-  type: 'heartbeat'
-  execution_id: string
-  timestamp: string
-}
-
-type WebSocketMessage = ExecutionSnapshotMessage | ActivityPatchMessage | HeartbeatMessage
+type WebSocketMessage = ExecutionSnapshotMessage | ActivityPatchMessage
 ```
 
 ### Zustand Store
@@ -451,10 +432,6 @@ function handleMessage(msg: WebSocketMessage) {
     case 'activity_patch':
       applyPatch(msg.ops)
       lastEventId = msg.event_id
-      break
-
-    case 'heartbeat':
-      // No-op, connection is alive
       break
 
     case 'final_snapshot':

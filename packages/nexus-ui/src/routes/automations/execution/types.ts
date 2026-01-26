@@ -132,21 +132,9 @@ export interface ActivityPatchMessage extends BaseWebSocketMessage {
 }
 
 /**
- * Heartbeat message
- * Sent every 30s when no updates to indicate connection health
- */
-export interface HeartbeatMessage {
-  type: 'heartbeat'
-  /** Workflow execution ID */
-  execution_id: string
-  /** Timestamp of heartbeat */
-  timestamp: string
-}
-
-/**
  * Union of all possible WebSocket message types
  */
-export type WebSocketMessage = ExecutionSnapshotMessage | ActivityPatchMessage | HeartbeatMessage
+export type WebSocketMessage = ExecutionSnapshotMessage | ActivityPatchMessage
 
 // ============================================================================
 // Visualization State Types

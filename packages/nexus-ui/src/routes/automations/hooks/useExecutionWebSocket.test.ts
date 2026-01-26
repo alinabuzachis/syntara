@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 import * as websocketModule from '../../../lib/websocket'
 import type { ConnectionState } from '../../../lib/websocket/types'
-import type { ExecutionSnapshotMessage, ActivityPatchMessage, HeartbeatMessage, Execution } from '../execution/types'
+import type { ExecutionSnapshotMessage, ActivityPatchMessage, Execution } from '../execution/types'
 import { useExecutionStore } from '../stores/useExecutionStore'
 
 import { useExecutionWebSocket } from './useExecutionWebSocket'
@@ -117,14 +117,6 @@ function createFinalSnapshotMessage(): ExecutionSnapshotMessage {
         },
       ],
     } as unknown as Execution,
-  }
-}
-
-function createHeartbeatMessage(): HeartbeatMessage {
-  return {
-    type: 'heartbeat',
-    execution_id: 'exec-123',
-    timestamp: '2025-12-10T15:00:30Z',
   }
 }
 
@@ -335,21 +327,6 @@ describe('useExecutionWebSocket', () => {
 
       const storeState = useExecutionStore.getState()
       expect(storeState.lastEventId).toBe('1691431234599-0')
-    })
-  })
-
-  describe('heartbeat message', () => {
-    it('handles heartbeat messages', () => {
-      renderHook(() => useExecutionWebSocket('exec-123'))
-
-      const message = createHeartbeatMessage()
-
-      // Should not throw
-      expect(() => {
-        act(() => {
-          mockOnMessage?.(message)
-        })
-      }).not.toThrow()
     })
   })
 
