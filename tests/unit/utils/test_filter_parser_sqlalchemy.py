@@ -2,238 +2,178 @@
 
 These tests verify that FilterParser can correctly apply filters to SQLAlchemy Query objects
 using the query.filter() API instead of building raw SQL strings.
-
-NOTE: These tests use timezone-naive datetimes because the test models create tables
-directly via SQLModel metadata (not via Alembic migrations). Production code uses
-Alembic migrations with DateTime(timezone=True) to create TIMESTAMPTZ columns and
-stores timezone-aware UTC datetimes. See BaseResource in core/models/base.py.
 """
 # ruff: noqa: DTZ001
 # mypy: disable-error-code="arg-type,attr-defined"
 
-from collections.abc import AsyncGenerator
 from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
-import pytest_asyncio
-import sqlalchemy
-from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlmodel import Field, SQLModel, select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.core.models import User
 from nexus.core.utils.filters import Filter, FilterOperator, apply_filters, parse_filters
-
-
-class UserModel(SQLModel, table=True):
-    """Test model for FilterParser SQLAlchemy integration tests."""
-
-    __tablename__ = "test_users_filtering"
-    # TODO(alex): Rework this test to avoid create_all. AAP-58759
-
-    id: int = Field(primary_key=True)
-    username: str = Field(index=True)
-    email: str = Field(index=True)
-    full_name: str
-    age: int
-    is_active: bool = Field(default=True)
-    created_at: datetime = Field()
 
 
 @pytest.mark.asyncio
 class TestFilterParserSQLAlchemy:
     """Test FilterParser SQLAlchemy Query API integration."""
 
-    @pytest_asyncio.fixture
-    async def session(
-        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine
-    ) -> AsyncGenerator[AsyncSession, None]:
-        """Create database session with test data using PostgreSQL.
-
-        Args:
-            test_db_session: Async PostgreSQL test session from conftest
-            test_db_engine: Async PostgreSQL engine from conftest
-
-        Yields:
-            AsyncSession with test data
-
-        """
-        # Create tables for test models
-        async with test_db_engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
-
-        # Clear existing data from this test's tables
-        await test_db_session.exec(sqlalchemy.delete(UserModel))
-        await test_db_session.commit()
-
-        # Add test data
-        test_users = [
-            UserModel(
-                id=1,
-                username="alice",
-                email="alice@example.com",
-                full_name="Alice Smith",
-                age=25,
-                is_active=True,
-                created_at=datetime(2025, 1, 1, 10, 0, 0),
-            ),
-            UserModel(
-                id=2,
-                username="bob",
-                email="bob@example.com",
-                full_name="Bob Johnson",
-                age=30,
-                is_active=True,
-                created_at=datetime(2025, 1, 2, 11, 0, 0),
-            ),
-            UserModel(
-                id=3,
-                username="charlie",
-                email="charlie@example.com",
-                full_name="Charlie Brown",
-                age=35,
-                is_active=False,
-                created_at=datetime(2025, 1, 3, 12, 0, 0),
-            ),
-            UserModel(
-                id=4,
-                username="diana",
-                email="diana@example.com",
-                full_name="Diana Prince",
-                age=28,
-                is_active=True,
-                created_at=datetime(2025, 1, 4, 13, 0, 0),
-            ),
-        ]
-
-        for user in test_users:
-            test_db_session.add(user)
-        await test_db_session.commit()
-
-        yield test_db_session
-
-    async def test_apply_filters_empty_filters_list(self, session: AsyncSession) -> None:
+    async def test_apply_filters_empty_filters_list(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test that empty filters list returns original query unchanged."""
-        query = select(UserModel)
+        query = select(User)
         filters: list[Filter] = []
 
         # Apply filters should return the same query
-        filtered_query = apply_filters(query, filters, UserModel)
+        filtered_query = apply_filters(query, filters, User)
 
         # Should be able to execute without changes
-        result = (await session.exec(filtered_query)).all()
-        assert len(result) == 4
+        result = (await test_db_session.exec(filtered_query)).all()
+        assert len(result) == len(test_users)
 
-    async def test_apply_filters_equality_operator(self, session: AsyncSession) -> None:
+    async def test_apply_filters_equality_operator(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test applying equality filter using Query API."""
-        query = select(UserModel)
+        query = select(User)
         filters = [Filter(field="username", operator=FilterOperator.EQ, value="alice")]
 
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
+        alice_user = next(u for u in test_users if u.username == "alice")
         assert len(result) == 1
-        assert result[0].username == "alice"
-        assert result[0].email == "alice@example.com"
+        assert result[0].username == alice_user.username
+        assert result[0].email == alice_user.email
 
-    async def test_apply_filters_contains_operator(self, session: AsyncSession) -> None:
+    async def test_apply_filters_contains_operator(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test applying contains filter using ilike."""
-        query = select(UserModel)
+        query = select(User)
         filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value="o")]
 
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match "Bob Johnson" and "Charlie Brown"
-        assert len(result) == 2
+        # Should match users with 'o' in full_name
+        expected_users = [u for u in test_users if "o" in u.full_name.lower()]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"bob", "charlie"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_apply_filters_starts_with_operator(self, session: AsyncSession) -> None:
+    async def test_apply_filters_starts_with_operator(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test applying starts_with filter using ilike."""
-        query = select(UserModel)
+        query = select(User)
         filters = [Filter(field="username", operator=FilterOperator.STARTS_WITH, value="b")]
 
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match "bob"
-        assert len(result) == 1
-        assert result[0].username == "bob"
+        # Should match users starting with 'b'
+        expected_users = [u for u in test_users if u.username.startswith("b")]
+        assert len(result) == len(expected_users)
+        assert result[0].username == expected_users[0].username
 
-    async def test_apply_filters_numeric_comparison_operators(self, session: AsyncSession) -> None:
-        """Test applying numeric comparison filters."""
-        query = select(UserModel)
+    async def test_apply_filters_datetime_comparison_operators(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """Test applying datetime comparison filters."""
+        query = select(User)
 
-        # Test greater than
-        filters = [Filter(field="age", operator=FilterOperator.GT, value=30)]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
-        assert len(result) == 1
-        assert result[0].username == "charlie"
-
-        # Test greater than or equal
-        filters = [Filter(field="age", operator=FilterOperator.GTE, value=30)]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
-        assert len(result) == 2
+        # Test greater than Jan 2nd
+        filters = [Filter(field="created_at", operator=FilterOperator.GT, value=datetime(2025, 1, 2, 11, 0, 0))]
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
+        # Users created after Jan 2nd 11:00
+        expected_users = [u for u in test_users if u.created_at > datetime(2025, 1, 2, 11, 0, 0)]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"bob", "charlie"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-        # Test less than
-        filters = [Filter(field="age", operator=FilterOperator.LT, value=30)]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
-        assert len(result) == 2
+        # Test greater than or equal to Jan 2nd
+        filters = [Filter(field="created_at", operator=FilterOperator.GTE, value=datetime(2025, 1, 2, 11, 0, 0))]
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
+        # Users created on/after Jan 2nd 11:00
+        expected_users = [u for u in test_users if u.created_at >= datetime(2025, 1, 2, 11, 0, 0)]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-        # Test less than or equal
-        filters = [Filter(field="age", operator=FilterOperator.LTE, value=30)]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
-        assert len(result) == 3
+        # Test less than Jan 3rd
+        filters = [Filter(field="created_at", operator=FilterOperator.LT, value=datetime(2025, 1, 3, 12, 0, 0))]
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
+        # Users created before Jan 3rd 12:00
+        expected_users = [u for u in test_users if u.created_at < datetime(2025, 1, 3, 12, 0, 0)]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_apply_filters_boolean_field(self, session: AsyncSession) -> None:
+        # Test less than or equal to Jan 3rd
+        filters = [Filter(field="created_at", operator=FilterOperator.LTE, value=datetime(2025, 1, 3, 12, 0, 0))]
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
+        # Users created on/before Jan 3rd 12:00
+        expected_users = [u for u in test_users if u.created_at <= datetime(2025, 1, 3, 12, 0, 0)]
+        assert len(result) == len(expected_users)
+        usernames = {user.username for user in result}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
+
+    async def test_apply_filters_boolean_field(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test applying filter to boolean field."""
-        query = select(UserModel)
+        query = select(User)
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=True)]
 
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match active users (alice, bob, diana)
-        assert len(result) == 3
+        # Should match active users
+        expected_users = [u for u in test_users if u.is_active]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_apply_filters_multiple_conditions_and_logic(self, session: AsyncSession) -> None:
+    async def test_apply_filters_multiple_conditions_and_logic(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test applying multiple filters with AND logic."""
-        query = select(UserModel)
+        query = select(User)
         filters = [
             Filter(field="is_active", operator=FilterOperator.EQ, value=True),
-            Filter(field="age", operator=FilterOperator.GTE, value=28),
+            Filter(field="created_at", operator=FilterOperator.GTE, value=datetime(2025, 1, 2, 11, 0, 0)),
         ]
 
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match active users with age >= 28 (bob, diana)
-        assert len(result) == 2
+        # Should match active users created on/after Jan 2nd
+        expected_users = [u for u in test_users if u.is_active and u.created_at >= datetime(2025, 1, 2, 11, 0, 0)]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"bob", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
     async def test_apply_filters_invalid_field_raises_error(self) -> None:
         """Test that invalid field name raises ValueError."""
-        query = select(UserModel)
+        query = select(User)
         filters = [Filter(field="nonexistent_field", operator=FilterOperator.EQ, value="test")]
 
-        with pytest.raises(ValueError, match="Field 'nonexistent_field' not found on model UserModel"):
-            apply_filters(query, filters, UserModel)
+        with pytest.raises(ValueError, match="Field 'nonexistent_field' not found on model User"):
+            apply_filters(query, filters, User)
 
-    async def test_apply_filters_with_parsed_filters(self, session: AsyncSession) -> None:
+    async def test_apply_filters_with_parsed_filters(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test complete workflow: parse parameters and apply to query."""
         # Parse filters from query parameters
         params = {
@@ -249,33 +189,38 @@ class TestFilterParserSQLAlchemy:
                 filter_obj.value = bool(int(str(filter_obj.value)))
 
         # Apply to query
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match alice (starts with 'a' and is active)
-        assert len(result) == 1
-        assert result[0].username == "alice"
+        # Should match users starting with 'a' and active
+        expected_users = [u for u in test_users if u.username.startswith("a") and u.is_active]
+        assert len(result) == len(expected_users)
+        assert result[0].username == expected_users[0].username
 
-    async def test_apply_filters_case_insensitive_string_operations(self, session: AsyncSession) -> None:
+    async def test_apply_filters_case_insensitive_string_operations(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test that string operations are case-insensitive."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test contains with different case
         filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value="ALICE")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
+        alice_user = next(u for u in test_users if u.username == "alice")
         assert len(result) == 1
-        assert result[0].username == "alice"
+        assert result[0].username == alice_user.username
 
         # Test starts_with with different case
         filters = [Filter(field="username", operator=FilterOperator.STARTS_WITH, value="BOB")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
+        bob_user = next(u for u in test_users if u.username == "bob")
         assert len(result) == 1
-        assert result[0].username == "bob"
+        assert result[0].username == bob_user.username
 
     async def test_apply_filters_method_signature_and_validation(self) -> None:
         """Test apply_filters method signature and basic validation."""
@@ -298,138 +243,173 @@ class TestFilterParserSQLAlchemy:
         result = apply_filters(mock_query, empty_filters, mock_model)  # type: ignore[var-annotated]
         assert result == mock_query
 
-    async def test_datetime_field_filtering(self, session: AsyncSession) -> None:
+    async def test_datetime_field_filtering(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test filtering datetime fields."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test filtering by date (as string, would be converted by your app)
         filters = [Filter(field="created_at", operator=FilterOperator.GTE, value=datetime(2025, 1, 3, 0, 0, 0))]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match charlie and diana (created on/after Jan 3)
-        assert len(result) == 2
+        # Should match users created on/after Jan 3
+        expected_users = [u for u in test_users if u.created_at >= datetime(2025, 1, 3, 0, 0, 0)]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"charlie", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_boolean_string_to_boolean_conversion(self, session: AsyncSession) -> None:
+    async def test_boolean_string_to_boolean_conversion(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test automatic conversion of boolean string values to actual boolean types."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test "true" string converts to True boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="true")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match active users (alice, bob, diana)
-        assert len(result) == 3
+        # Should match active users
+        expected_users = [u for u in test_users if u.is_active]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
         # Test "false" string converts to False boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="false")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match inactive users (charlie)
-        assert len(result) == 1
-        assert result[0].username == "charlie"
+        # Should match inactive users
+        expected_users = [u for u in test_users if not u.is_active]
+        assert len(result) == len(expected_users)
+        usernames = {user.username for user in result}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_boolean_numeric_string_conversion(self, session: AsyncSession) -> None:
+    async def test_boolean_numeric_string_conversion(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test conversion of numeric string representations to boolean."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test "1" string converts to True boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="1")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match active users (alice, bob, diana)
-        assert len(result) == 3
+        # Should match active users
+        expected_users = [u for u in test_users if u.is_active]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
         # Test "0" string converts to False boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="0")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match inactive users (charlie)
-        assert len(result) == 1
-        assert result[0].username == "charlie"
+        # Should match inactive users
+        expected_users = [u for u in test_users if not u.is_active]
+        assert len(result) == len(expected_users)
+        usernames = {user.username for user in result}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_boolean_alternative_string_representations(self, session: AsyncSession) -> None:
+    async def test_boolean_alternative_string_representations(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test alternative boolean string representations (yes/no, on/off)."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test "yes" string converts to True boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="yes")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match active users (alice, bob, diana)
-        assert len(result) == 3
+        # Should match active users
+        expected_users = [u for u in test_users if u.is_active]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
         # Test "no" string converts to False boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="no")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match inactive users (charlie)
-        assert len(result) == 1
-        assert result[0].username == "charlie"
+        # Should match inactive users
+        expected_users = [u for u in test_users if not u.is_active]
+        assert len(result) == len(expected_users)
+        usernames = {user.username for user in result}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
         # Test "on" string converts to True boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="on")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match active users (alice, bob, diana)
-        assert len(result) == 3
+        # Should match active users
+        expected_users = [u for u in test_users if u.is_active]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
         # Test "off" string converts to False boolean
         filters = [Filter(field="is_active", operator=FilterOperator.EQ, value="off")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match inactive users (charlie)
-        assert len(result) == 1
-        assert result[0].username == "charlie"
+        # Should match inactive users
+        expected_users = [u for u in test_users if not u.is_active]
+        assert len(result) == len(expected_users)
+        usernames = {user.username for user in result}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_boolean_case_insensitive_conversion(self, session: AsyncSession) -> None:
+    async def test_boolean_case_insensitive_conversion(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test that boolean string conversion is case-insensitive."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test various case combinations for "true"
         true_variations = ["TRUE", "True", "TrUe", "tRUE"]
         for true_value in true_variations:
             filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=true_value)]
-            filtered_query = apply_filters(query, filters, UserModel)
-            result = (await session.exec(filtered_query)).all()
+            filtered_query = apply_filters(query, filters, User)
+            result = (await test_db_session.exec(filtered_query)).all()
 
-            # Should match active users (alice, bob, diana)
-            assert len(result) == 3, f"Failed for case variation: {true_value}"
+            # Should match active users
+            expected_users = [u for u in test_users if u.is_active]
+            assert len(result) == len(expected_users)
             usernames = {user.username for user in result}
-            assert usernames == {"alice", "bob", "diana"}
+            expected_usernames = {u.username for u in expected_users}
+            assert usernames == expected_usernames
 
         # Test various case combinations for "false"
         false_variations = ["FALSE", "False", "FaLsE", "fALSE"]
         for false_value in false_variations:
             filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=false_value)]
-            filtered_query = apply_filters(query, filters, UserModel)
-            result = (await session.exec(filtered_query)).all()
+            filtered_query = apply_filters(query, filters, User)
+            result = (await test_db_session.exec(filtered_query)).all()
 
-            # Should match inactive users (charlie)
-            assert len(result) == 1, f"Failed for case variation: {false_value}"
-            assert result[0].username == "charlie"
+            # Should match inactive users
+            expected_users = [u for u in test_users if not u.is_active]
+            assert len(result) == len(expected_users)
+            usernames = {user.username for user in result}
+            expected_usernames = {u.username for u in expected_users}
+            assert usernames == expected_usernames
 
     async def test_boolean_invalid_string_raises_error(self) -> None:
         """Test that invalid boolean strings raise ValueError."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test invalid boolean strings
         invalid_values = ["invalid", "maybe", "sometimes", "2", "-1", "null", ""]
@@ -438,9 +418,11 @@ class TestFilterParserSQLAlchemy:
             filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=invalid_value)]
 
             with pytest.raises(ValueError, match="Invalid boolean value"):
-                apply_filters(query, filters, UserModel)
+                apply_filters(query, filters, User)
 
-    async def test_end_to_end_boolean_filtering_from_query_params(self, session: AsyncSession) -> None:
+    async def test_end_to_end_boolean_filtering_from_query_params(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test complete workflow: parse boolean query parameters and apply filters."""
         # Test the exact scenario that was failing: enabled[eq]=false
         params = {"is_active[eq]": "false"}
@@ -450,59 +432,69 @@ class TestFilterParserSQLAlchemy:
         filters = parse_filters(params, allowed_fields)
 
         # Apply to query - this should automatically convert "false" to False
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match inactive users (charlie)
-        assert len(result) == 1
-        assert result[0].username == "charlie"
-        assert result[0].is_active is False
+        # Should match inactive users
+        expected_users = [u for u in test_users if not u.is_active]
+        assert len(result) == len(expected_users)
+        usernames = {user.username for user in result}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
+        for user in result:
+            assert user.is_active is False
 
         # Test the opposite: enabled[eq]=true
         params = {"is_active[eq]": "true"}
         filters = parse_filters(params, allowed_fields)
 
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match active users (alice, bob, diana)
-        assert len(result) == 3
+        # Should match active users
+        expected_users = [u for u in test_users if u.is_active]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
         for user in result:
             assert user.is_active is True
 
-    async def test_boolean_filtering_mixed_with_other_filters(self, session: AsyncSession) -> None:
+    async def test_boolean_filtering_mixed_with_other_filters(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test boolean filtering combined with other filter types."""
-        # Test boolean + numeric filter
-        params = {"is_active[eq]": "true", "age[gte]": "30"}
-        allowed_fields = ["is_active", "age"]
+        # Test boolean + datetime filter
+        params = {"is_active[eq]": "true", "created_at[gte]": "2025-01-02T11:00:00"}
+        allowed_fields = ["is_active", "created_at"]
         filters = parse_filters(params, allowed_fields)
 
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match active users with age >= 30 (bob)
-        assert len(result) == 1
-        assert result[0].username == "bob"
-        assert result[0].is_active is True
-        assert result[0].age >= 30
+        # Should match active users created on/after Jan 2nd
+        expected_users = [u for u in test_users if u.is_active and u.created_at >= datetime(2025, 1, 2, 11, 0, 0)]
+        assert len(result) == len(expected_users)
+        usernames = {user.username for user in result}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
         # Test boolean + string filter
         params = {"is_active[eq]": "false", "username[starts_with]": "c"}
         allowed_fields = ["is_active", "username"]
         filters = parse_filters(params, allowed_fields)
 
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match inactive users whose username starts with 'c' (charlie)
-        assert len(result) == 1
-        assert result[0].username == "charlie"
+        # Should match inactive users whose username starts with 'c'
+        expected_users = [u for u in test_users if not u.is_active and u.username.startswith("c")]
+        assert len(result) == len(expected_users)
+        assert result[0].username == expected_users[0].username
         assert result[0].is_active is False
 
 
@@ -510,59 +502,9 @@ class TestFilterParserSQLAlchemy:
 class TestSQLInjectionProtection:
     """Test SQL injection protection in filter operations with real database."""
 
-    @pytest_asyncio.fixture
-    async def session(
-        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine
-    ) -> AsyncGenerator[AsyncSession, None]:
-        """Create database session with test data using PostgreSQL.
-
-        Args:
-            test_db_session: Async PostgreSQL test session from conftest
-            test_db_engine: Async PostgreSQL engine from conftest
-
-        Yields:
-            AsyncSession with test data
-
-        """
-        # Create tables for test models
-        async with test_db_engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
-
-        # Clear existing data from this test's tables
-        await test_db_session.exec(sqlalchemy.delete(UserModel))
-        await test_db_session.commit()
-
-        # Add test data
-        test_users = [
-            UserModel(
-                id=1,
-                username="alice",
-                email="alice@example.com",
-                full_name="Alice Smith",
-                age=25,
-                is_active=True,
-                created_at=datetime(2025, 1, 1, 10, 0, 0),
-            ),
-            UserModel(
-                id=2,
-                username="bob",
-                email="bob@example.com",
-                full_name="Bob Johnson",
-                age=30,
-                is_active=True,
-                created_at=datetime(2025, 1, 2, 11, 0, 0),
-            ),
-        ]
-
-        for user in test_users:
-            test_db_session.add(user)
-        await test_db_session.commit()
-
-        yield test_db_session
-
-    async def test_like_injection_protection_contains(self, session: AsyncSession) -> None:
+    async def test_like_injection_protection_contains(self, test_db_session: AsyncSession) -> None:
         """Test that LIKE injection attempts are properly sanitized with contains operator."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test SQL injection attempts through contains operator
         injection_attempts = [
@@ -574,17 +516,17 @@ class TestSQLInjectionProtection:
 
         for injection_value in injection_attempts:
             filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value=injection_value)]
-            filtered_query = apply_filters(query, filters, UserModel)
+            filtered_query = apply_filters(query, filters, User)
 
             # Should execute safely without SQL injection
-            result = (await session.exec(filtered_query)).all()
+            result = (await test_db_session.exec(filtered_query)).all()
 
             # Should return empty result since no user has these exact escaped values
             assert len(result) == 0
 
-    async def test_like_injection_protection_starts_with(self, session: AsyncSession) -> None:
+    async def test_like_injection_protection_starts_with(self, test_db_session: AsyncSession) -> None:
         """Test that LIKE injection attempts are properly sanitized with starts_with operator."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test injection attempts through starts_with operator
         injection_attempts = [
@@ -595,46 +537,47 @@ class TestSQLInjectionProtection:
 
         for injection_value in injection_attempts:
             filters = [Filter(field="full_name", operator=FilterOperator.STARTS_WITH, value=injection_value)]
-            filtered_query = apply_filters(query, filters, UserModel)
+            filtered_query = apply_filters(query, filters, User)
 
             # Should execute safely without SQL injection
-            result = (await session.exec(filtered_query)).all()
+            result = (await test_db_session.exec(filtered_query)).all()
 
             # Should return empty result since wildcards are escaped
             assert len(result) == 0
 
-    async def test_wildcard_escaping_functionality(self, session: AsyncSession) -> None:
+    async def test_wildcard_escaping_functionality(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test that wildcards are properly escaped but filtering still works correctly."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test that % wildcard is escaped in contains
         filters = [Filter(field="username", operator=FilterOperator.CONTAINS, value="ali%ce")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
         # Should not match "alice" because % is escaped to literal %
         assert len(result) == 0
 
         # Test that _ wildcard is escaped in contains
         filters = [Filter(field="username", operator=FilterOperator.CONTAINS, value="alic_")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
         # Should not match "alice" because _ is escaped to literal _
         assert len(result) == 0
 
         # Test normal contains still works
         filters = [Filter(field="username", operator=FilterOperator.CONTAINS, value="lic")]
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match "alice" because no wildcards to escape
+        alice_user = next(u for u in test_users if u.username == "alice")
         assert len(result) == 1
-        assert result[0].username == "alice"
+        assert result[0].username == alice_user.username
 
-    async def test_backslash_escaping_in_filters(self, session: AsyncSession) -> None:
+    async def test_backslash_escaping_in_filters(self, test_db_session: AsyncSession) -> None:
         """Test proper handling of backslashes in filter values."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test various backslash patterns
         backslash_patterns = [
@@ -646,16 +589,16 @@ class TestSQLInjectionProtection:
 
         for pattern in backslash_patterns:
             filters = [Filter(field="username", operator=FilterOperator.CONTAINS, value=pattern)]
-            filtered_query = apply_filters(query, filters, UserModel)
+            filtered_query = apply_filters(query, filters, User)
 
             # Should execute safely without error
-            result = (await session.exec(filtered_query)).all()
+            result = (await test_db_session.exec(filtered_query)).all()
             # Should return empty since no users have these patterns in username
             assert len(result) == 0
 
-    async def test_injection_through_field_values_with_special_chars(self, session: AsyncSession) -> None:
+    async def test_injection_through_field_values_with_special_chars(self, test_db_session: AsyncSession) -> None:
         """Test injection attempts through special characters in field values."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test various special character injection attempts
         special_char_injections = [
@@ -670,24 +613,24 @@ class TestSQLInjectionProtection:
             # Test with different operators to ensure all are protected
             for operator in [FilterOperator.EQ, FilterOperator.CONTAINS, FilterOperator.STARTS_WITH]:
                 filters = [Filter(field="username", operator=operator, value=injection_value)]
-                filtered_query = apply_filters(query, filters, UserModel)
+                filtered_query = apply_filters(query, filters, User)
 
                 # Should execute safely without SQL injection
-                result = (await session.exec(filtered_query)).all()
+                result = (await test_db_session.exec(filtered_query)).all()
 
                 # Should not find any matches for these injection strings
                 assert len(result) == 0
 
-    async def test_parametrized_query_protection(self, session: AsyncSession) -> None:
+    async def test_parametrized_query_protection(self, test_db_session: AsyncSession) -> None:
         """Test that SQLAlchemy's parametrized queries protect against injection."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test that SQLAlchemy correctly parameterizes our filter values
         # This is more of a verification that our approach is sound
         dangerous_value = "'; DROP TABLE users; SELECT * FROM users WHERE username='"
 
         filters = [Filter(field="username", operator=FilterOperator.EQ, value=dangerous_value)]
-        filtered_query = apply_filters(query, filters, UserModel)
+        filtered_query = apply_filters(query, filters, User)
 
         # The query should be safely parameterized - we can inspect it
         # SQLAlchemy should use bound parameters, not string concatenation
@@ -699,12 +642,12 @@ class TestSQLInjectionProtection:
         assert ":username_1" in query_str or "%(username_1)s" in query_str or "?" in query_str
 
         # Execute safely
-        result = (await session.exec(filtered_query)).all()
+        result = (await test_db_session.exec(filtered_query)).all()
         assert len(result) == 0
 
-    async def test_multiple_injection_attempts_combined(self, session: AsyncSession) -> None:
+    async def test_multiple_injection_attempts_combined(self, test_db_session: AsyncSession) -> None:
         """Test multiple simultaneous injection attempts in different fields."""
-        query = select(UserModel)
+        query = select(User)
 
         # Combine multiple injection attempts in one filter set
         filters = [
@@ -713,17 +656,17 @@ class TestSQLInjectionProtection:
             Filter(field="email", operator=FilterOperator.EQ, value="' UNION SELECT--"),
         ]
 
-        filtered_query = apply_filters(query, filters, UserModel)
+        filtered_query = apply_filters(query, filters, User)
 
         # Should execute safely without any SQL injection
-        result = (await session.exec(filtered_query)).all()
+        result = (await test_db_session.exec(filtered_query)).all()
 
         # Should return empty result since no user matches these injection strings
         assert len(result) == 0
 
-    async def test_case_insensitive_operations_with_injection(self, session: AsyncSession) -> None:
+    async def test_case_insensitive_operations_with_injection(self, test_db_session: AsyncSession) -> None:
         """Test that case-insensitive operations don't introduce injection vulnerabilities."""
-        query = select(UserModel)
+        query = select(User)
 
         # Test injection attempts with case variations
         case_injection_attempts = [
@@ -734,10 +677,10 @@ class TestSQLInjectionProtection:
 
         for injection_value in case_injection_attempts:
             filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value=injection_value)]
-            filtered_query = apply_filters(query, filters, UserModel)
+            filtered_query = apply_filters(query, filters, User)
 
             # Should execute safely
-            result = (await session.exec(filtered_query)).all()
+            result = (await test_db_session.exec(filtered_query)).all()
 
             # Should not match legitimate users due to escaped wildcards
             assert len(result) == 0
@@ -752,84 +695,9 @@ class TestLogicalORFiltering:
     showing how multiple Filter objects are created for potential OR application.
     """
 
-    @pytest_asyncio.fixture
-    async def session(
-        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine
-    ) -> AsyncGenerator[AsyncSession, None]:
-        """Create database session with test data for OR testing.
-
-        Args:
-            test_db_session: Async PostgreSQL test session from conftest
-            test_db_engine: Async PostgreSQL engine from conftest
-
-        Yields:
-            AsyncSession with test data
-
-        """
-        # Create tables for test models
-        async with test_db_engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
-
-        # Clear existing data from this test's tables
-        await test_db_session.exec(sqlalchemy.delete(UserModel))
-        await test_db_session.commit()
-
-        # Add test data with varied statuses and names for OR testing
-        test_users = [
-            UserModel(
-                id=1,
-                username="alice",
-                email="alice@example.com",
-                full_name="Alice Smith",
-                age=25,
-                is_active=True,
-                created_at=datetime(2025, 1, 1, 10, 0, 0),
-            ),
-            UserModel(
-                id=2,
-                username="bob",
-                email="bob@example.com",
-                full_name="Bob Johnson",
-                age=30,
-                is_active=True,
-                created_at=datetime(2025, 1, 2, 11, 0, 0),
-            ),
-            UserModel(
-                id=3,
-                username="charlie",
-                email="charlie@example.com",
-                full_name="Charlie Brown",
-                age=35,
-                is_active=False,
-                created_at=datetime(2025, 1, 3, 12, 0, 0),
-            ),
-            UserModel(
-                id=4,
-                username="diana",
-                email="diana@example.com",
-                full_name="Diana Prince",
-                age=28,
-                is_active=True,
-                created_at=datetime(2025, 1, 4, 13, 0, 0),
-            ),
-            UserModel(
-                id=5,
-                username="eve",
-                email="eve@example.com",
-                full_name="Eve Wilson",
-                age=32,
-                is_active=False,
-                created_at=datetime(2025, 1, 5, 14, 0, 0),
-            ),
-        ]
-
-        for user in test_users:
-            test_db_session.add(user)
-        await test_db_session.commit()
-
-        yield test_db_session
-
-    async def test_logical_or_with_comma_separated_equality_filters(self, session: AsyncSession) -> None:
+    async def test_logical_or_with_comma_separated_equality_filters(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test OR logic with comma-separated values for equality filters."""
         # Parse comma-separated username values
         params = {"username": "alice,charlie,eve"}
@@ -842,16 +710,21 @@ class TestLogicalORFiltering:
         assert all(f.operator == FilterOperator.EQ for f in filters)
 
         # Apply to query - should match users with username = 'alice' OR 'charlie' OR 'eve'
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match alice, charlie, and eve
-        assert len(result) == 3
+        # Should match users in the comma-separated list
+        target_usernames = ["alice", "charlie", "eve"]
+        expected_users = [u for u in test_users if u.username in target_usernames]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "charlie", "eve"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_logical_or_with_bracket_notation_contains(self, session: AsyncSession) -> None:
+    async def test_logical_or_with_bracket_notation_contains(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test OR logic with bracket notation using contains operator."""
         # Parse comma-separated values with contains operator
         params = {"full_name[contains]": "Smith,Johnson,Prince"}
@@ -864,54 +737,68 @@ class TestLogicalORFiltering:
         assert all(f.operator == FilterOperator.CONTAINS for f in filters)
 
         # Apply to query - should match users whose full_name contains 'Smith' OR 'Johnson' OR 'Prince'
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match Alice Smith, Bob Johnson, and Diana Prince
-        assert len(result) == 3
+        # Should match users whose full_name contains specified values
+        contains_values = ["Smith", "Johnson", "Prince"]
+        expected_users = [u for u in test_users if any(val in u.full_name for val in contains_values)]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_logical_or_with_numeric_comparison_filters(self, session: AsyncSession) -> None:
-        """Test OR logic with numeric comparison operators."""
-        # Parse comma-separated age values with gte operator: age >= 25 OR >= 32 OR >= 35
-        params = {"age[gte]": "25,32,35"}
-        allowed_fields = ["age"]
+    async def test_logical_or_with_datetime_comparison_filters(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """Test OR logic with datetime comparison operators."""
+        # Parse comma-separated created_at values with gte operator
+        params = {"created_at[gte]": "2025-01-01T00:00:00,2025-01-03T00:00:00,2025-01-05T00:00:00"}
+        allowed_fields = ["created_at"]
         filters = parse_filters(params, allowed_fields)
 
         # Should create 3 separate filters
         assert len(filters) == 3
-        assert all(f.field == "age" for f in filters)
+        assert all(f.field == "created_at" for f in filters)
         assert all(f.operator == FilterOperator.GTE for f in filters)
 
         # Apply to query
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Since it's OR logic with >=, anyone with age >= 25 will match (which is everyone)
+        # Since it's OR logic with >=, anyone created on/after Jan 1st will match (which is everyone)
         # This demonstrates that OR with overlapping conditions can be broader than expected
-        assert len(result) == 5  # All users have age >= 25
+        assert len(result) == len(test_users)  # All users created on/after Jan 1st
 
-    async def test_logical_or_with_non_overlapping_numeric_conditions(self, session: AsyncSession) -> None:
-        """Test OR logic with non-overlapping numeric conditions."""
-        # Test specific age values: age = 25 OR = 32 OR = 35
-        params = {"age": "25,32,35"}
-        allowed_fields = ["age"]
+    async def test_logical_or_with_specific_datetime_conditions(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """Test OR logic with specific datetime conditions."""
+        # Test specific created_at values: created on Jan 1st OR Jan 3rd OR Jan 5th
+        params = {"created_at": "2025-01-01T10:00:00,2025-01-03T12:00:00,2025-01-05T14:00:00"}
+        allowed_fields = ["created_at"]
         filters = parse_filters(params, allowed_fields)
 
         # Apply to query
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match alice (25), eve (32), and charlie (35)
-        assert len(result) == 3
+        # Should match users created on specific dates
+        expected_datetimes = [
+            datetime(2025, 1, 1, 10, 0, 0),
+            datetime(2025, 1, 3, 12, 0, 0),
+            datetime(2025, 1, 5, 14, 0, 0),
+        ]
+        expected_users = [u for u in test_users if u.created_at in expected_datetimes]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "eve", "charlie"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_logical_or_with_boolean_values(self, session: AsyncSession) -> None:
+    async def test_logical_or_with_boolean_values(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test OR logic with boolean values (though OR with boolean is unusual)."""
         # Test is_active = true OR = false (which should match everyone)
         params = {"is_active": "true,false"}
@@ -919,14 +806,16 @@ class TestLogicalORFiltering:
         filters = parse_filters(params, allowed_fields)
 
         # Apply to query
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
         # Should match all users since everyone is either active or inactive
-        assert len(result) == 5
+        assert len(result) == len(test_users)
 
-    async def test_logical_or_mixed_with_and_conditions(self, session: AsyncSession) -> None:
+    async def test_logical_or_mixed_with_and_conditions(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test OR conditions mixed with AND conditions across different fields."""
         # username = 'alice' OR 'bob' OR 'charlie' AND is_active = true
         params = {
@@ -940,16 +829,21 @@ class TestLogicalORFiltering:
         assert len(filters) == 4
 
         # Apply to query
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match only alice and bob (charlie is not active)
-        assert len(result) == 2
+        # Should match users in username list who are active
+        target_usernames = ["alice", "bob", "charlie"]
+        expected_users = [u for u in test_users if u.username in target_usernames and u.is_active]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_logical_or_with_starts_with_operator(self, session: AsyncSession) -> None:
+    async def test_logical_or_with_starts_with_operator(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test OR logic with starts_with operator."""
         # full_name starts_with 'Alice' OR 'Bob' OR 'Eve'
         params = {"full_name[starts_with]": "Alice,Bob,Eve"}
@@ -957,16 +851,21 @@ class TestLogicalORFiltering:
         filters = parse_filters(params, allowed_fields)
 
         # Apply to query
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match Alice Smith, Bob Johnson, and Eve Wilson
-        assert len(result) == 3
+        # Should match users whose full_name starts with specified values
+        start_values = ["Alice", "Bob", "Eve"]
+        expected_users = [u for u in test_users if any(u.full_name.startswith(val) for val in start_values)]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob", "eve"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_logical_or_with_whitespace_handling(self, session: AsyncSession) -> None:
+    async def test_logical_or_with_whitespace_handling(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test that OR logic properly handles whitespace in comma-separated values."""
         # Test with various whitespace patterns
         params = {"username": " alice , bob,  charlie  ,diana"}
@@ -979,16 +878,19 @@ class TestLogicalORFiltering:
         assert filter_values == {"alice", "bob", "charlie", "diana"}
 
         # Apply to query
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match all four users
-        assert len(result) == 4
+        # Should match users in the trimmed list
+        expected_usernames_list = ["alice", "bob", "charlie", "diana"]
+        expected_users = [u for u in test_users if u.username in expected_usernames_list]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob", "charlie", "diana"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_logical_or_with_datetime_fields(self, session: AsyncSession) -> None:
+    async def test_logical_or_with_datetime_fields(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test OR logic with datetime comparison operators."""
         # created_at >= '2025-01-02' OR >= '2025-01-04' (overlapping conditions)
         params = {"created_at[gte]": "2025-01-02T00:00:00,2025-01-04T00:00:00"}
@@ -996,40 +898,47 @@ class TestLogicalORFiltering:
         filters = parse_filters(params, allowed_fields)
 
         # Apply to query
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match bob, charlie, diana, and eve (created on/after Jan 2)
-        assert len(result) == 4
+        # Should match users created on/after Jan 2
+        expected_users = [u for u in test_users if u.created_at >= datetime(2025, 1, 2, 0, 0, 0)]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"bob", "charlie", "diana", "eve"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_logical_or_complex_multi_field_scenario(self, session: AsyncSession) -> None:
+    async def test_logical_or_complex_multi_field_scenario(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test complex scenario with OR logic across multiple fields and operators."""
-        # Complex query: (username = 'alice' OR 'eve') AND (age >= 30 OR age >= 25) AND is_active
+        # Complex query: (username = 'alice' OR 'eve') AND (created_at >= Jan1 OR >= Jan3) AND is_active
         params = {
             "username": "alice,eve",  # OR within username
-            "age[gte]": "30,25",  # OR within age (overlapping: anyone >= 25)
+            "created_at[gte]": "2025-01-01T00:00:00,2025-01-03T00:00:00",  # OR within created_at
             "is_active": "true",  # Single condition
         }
-        allowed_fields = ["username", "age", "is_active"]
+        allowed_fields = ["username", "created_at", "is_active"]
         filters = parse_filters(params, allowed_fields)
 
         # Should create 5 filters total: 2 + 2 + 1
         assert len(filters) == 5
 
         # Apply to query
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match only alice (username='alice' AND age>=25 AND is_active=true)
+        # Should match only alice (username='alice' AND created_at>=Jan1 AND is_active=true)
         # eve is excluded because is_active=false
+        alice_user = next(u for u in test_users if u.username == "alice")
         assert len(result) == 1
-        assert result[0].username == "alice"
+        assert result[0].username == alice_user.username
 
-    async def test_logical_or_case_insensitive_operations(self, session: AsyncSession) -> None:
+    async def test_logical_or_case_insensitive_operations(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test that OR logic works correctly with case-insensitive operations."""
         # Test contains with different cases
         params = {"full_name[contains]": "SMITH,johnson,brown"}
@@ -1037,16 +946,21 @@ class TestLogicalORFiltering:
         filters = parse_filters(params, allowed_fields)
 
         # Apply to query
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match Alice Smith, Bob Johnson, and Charlie Brown (case-insensitive)
-        assert len(result) == 3
+        # Should match users whose full_name contains specified values (case-insensitive)
+        contains_values = ["SMITH", "johnson", "brown"]
+        expected_users = [u for u in test_users if any(val.lower() in u.full_name.lower() for val in contains_values)]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob", "charlie"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_end_to_end_or_filtering_workflow(self, session: AsyncSession) -> None:
+    async def test_end_to_end_or_filtering_workflow(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test complete end-to-end workflow with OR filtering from query params to results."""
         # Simulate real API query with multiple OR conditions
         params = {
@@ -1061,9 +975,9 @@ class TestLogicalORFiltering:
         assert len(filters) == 4  # 2 + 2
 
         # Apply filters
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
         # Should find no matches because no user satisfies both conditions:
         # - alice/diana usernames don't have full names starting with Bob/Charlie
@@ -1077,11 +991,14 @@ class TestLogicalORFiltering:
         }
         filters = parse_filters(params, [*allowed_fields, "is_active"])
 
-        query = select(UserModel)
-        filtered_query = apply_filters(query, filters, UserModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_filters(query, filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match both alice and bob (both active)
-        assert len(result) == 2
+        # Should match users in the list who are active
+        target_usernames = ["alice", "bob"]
+        expected_users = [u for u in test_users if u.username in target_usernames and u.is_active]
+        assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
-        assert usernames == {"alice", "bob"}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames

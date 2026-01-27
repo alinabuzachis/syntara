@@ -2,307 +2,235 @@
 
 These tests verify that apply_label_filters can correctly apply label filters to SQLAlchemy
 Query objects using the JSON field operators instead of building raw SQL strings.
-
-NOTE: These tests use timezone-naive datetimes because the test models create tables
-directly via SQLModel metadata (not via Alembic migrations). Production code uses
-Alembic migrations with DateTime(timezone=True) to create TIMESTAMPTZ columns and
-stores timezone-aware UTC datetimes. See BaseResource in core/models/base.py.
 """
 # ruff: noqa: DTZ001
 # mypy: disable-error-code="arg-type,attr-defined"
 
-from collections.abc import AsyncGenerator
 from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
-import pytest_asyncio
-import sqlalchemy
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlmodel import Field, SQLModel, select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.core.models import User
+from nexus.core.models.user import UserRole
 from nexus.core.utils.labels import apply_label_filters, parse_label_filter
-from tests.unit.utils.test_filter_parser_sqlalchemy import UserModel
-
-
-class ResourceModel(SQLModel, table=True):
-    """Test model for label filtering SQLAlchemy integration tests."""
-
-    __tablename__ = "test_resources"
-    # TODO(alex): Rework this test to avoid create_all. AAP-58759
-
-    id: int = Field(primary_key=True)
-    name: str = Field(index=True)
-    description: str
-    status: str = Field(default="active")
-    labels: dict[str, str] = Field(default_factory=dict, sa_type=JSONB)
-    created_at: datetime = Field()
 
 
 @pytest.mark.asyncio
 class TestLabelFilteringSQLAlchemy:
     """Test label filtering SQLAlchemy Query API integration."""
 
-    @pytest_asyncio.fixture
-    async def session(
-        self, test_db_session: AsyncSession, test_db_engine: AsyncEngine
-    ) -> AsyncGenerator[AsyncSession, None]:
-        """Create database session with test data using PostgreSQL.
-
-        Args:
-            test_db_session: Async PostgreSQL test session from conftest
-            test_db_engine: Async PostgreSQL engine from conftest
-
-        Yields:
-            AsyncSession with test data
-
-        """
-        # Create tables for test models
-        async with test_db_engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
-
-        # Clear existing data from this test's tables
-        await test_db_session.exec(sqlalchemy.delete(ResourceModel))
-        await test_db_session.commit()
-
-        # Add test data with various label combinations
-        test_resources = [
-            ResourceModel(
-                id=1,
-                name="api-service",
-                description="Main API service",
-                status="active",
-                labels={
-                    "environment": "production",
-                    "region": "us-east-1",
-                    "team": "platform",
-                    "service": "api",
-                    "version": "v1.2.0",
-                },
-                created_at=datetime(2025, 1, 1, 10, 0, 0),
-            ),
-            ResourceModel(
-                id=2,
-                name="web-service",
-                description="Frontend web service",
-                status="active",
-                labels={
-                    "environment": "production",
-                    "region": "us-west-2",
-                    "team": "frontend",
-                    "service": "web",
-                    "version": "v2.1.0",
-                },
-                created_at=datetime(2025, 1, 2, 11, 0, 0),
-            ),
-            ResourceModel(
-                id=3,
-                name="staging-api",
-                description="Staging API service",
-                status="testing",
-                labels={
-                    "environment": "staging",
-                    "region": "us-east-1",
-                    "team": "platform",
-                    "service": "api",
-                    "version": "v1.3.0-beta",
-                },
-                created_at=datetime(2025, 1, 3, 12, 0, 0),
-            ),
-            ResourceModel(
-                id=4,
-                name="data-processor",
-                description="Background data processing service",
-                status="active",
-                labels={
-                    "environment": "production",
-                    "region": "us-east-1",
-                    "team": "data",
-                    "service": "processor",
-                    "version": "v3.0.1",
-                },
-                created_at=datetime(2025, 1, 4, 13, 0, 0),
-            ),
-            ResourceModel(
-                id=5,
-                name="dev-sandbox",
-                description="Development sandbox",
-                status="inactive",
-                labels={"environment": "development", "region": "us-west-1", "team": "dev", "experimental": "true"},
-                created_at=datetime(2025, 1, 5, 14, 0, 0),
-            ),
-        ]
-
-        for resource in test_resources:
-            test_db_session.add(resource)
-        await test_db_session.commit()
-
-        yield test_db_session
-
-    async def test_apply_label_filters_empty_filters(self, session: AsyncSession) -> None:
+    async def test_apply_label_filters_empty_filters(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test that empty label filters returns original query unchanged."""
-        query = select(ResourceModel)
+        query = select(User)
         label_filters: dict[str, str] = {}
 
         # Apply filters should return the same query
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
+        filtered_query = apply_label_filters(query, label_filters, User)
 
         # Should be able to execute without changes
-        result = (await session.exec(filtered_query)).all()
-        assert len(result) == 5
+        result = (await test_db_session.exec(filtered_query)).all()
+        assert len(result) == len(test_users)
 
-    async def test_apply_label_filters_single_label_match(self, session) -> None:
+    async def test_apply_label_filters_single_label_match(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test applying single label filter."""
-        query = select(ResourceModel)
+        query = select(User)
         label_filters = {"environment": "production"}
 
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match resources 1, 2, and 4 (production environment)
-        assert len(result) == 3
-        names = {resource.name for resource in result}
-        assert names == {"api-service", "web-service", "data-processor"}
+        # Should match users with production environment
+        expected_users = [u for u in test_users if u.labels.get("environment") == "production"]
+        assert len(result) == len(expected_users)
+        usernames = {user.username for user in result}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_apply_label_filters_multiple_labels_and_logic(self, session) -> None:
+    async def test_apply_label_filters_multiple_labels_and_logic(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test applying multiple label filters with AND logic."""
-        query = select(ResourceModel)
+        query = select(User)
         label_filters = {"environment": "production", "region": "us-east-1"}
 
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match resources 1 and 4 (production AND us-east-1)
-        assert len(result) == 2
-        names = {resource.name for resource in result}
-        assert names == {"api-service", "data-processor"}
+        # Should match users with production AND us-east-1
+        expected_users = [
+            u
+            for u in test_users
+            if u.labels.get("environment") == "production" and u.labels.get("region") == "us-east-1"
+        ]
+        assert len(result) == len(expected_users)
+        usernames = {user.username for user in result}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_apply_label_filters_team_and_service_match(self, session) -> None:
+    async def test_apply_label_filters_team_and_service_match(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test filtering by team and service labels."""
-        query = select(ResourceModel)
+        query = select(User)
         label_filters = {"team": "platform", "service": "api"}
 
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match resources 1 and 3 (platform team AND api service)
-        assert len(result) == 2
-        names = {resource.name for resource in result}
-        assert names == {"api-service", "staging-api"}
+        # Should match users with platform team AND api service
+        expected_users = [
+            u for u in test_users if u.labels.get("team") == "platform" and u.labels.get("service") == "api"
+        ]
+        assert len(result) == len(expected_users)
+        usernames = {user.username for user in result}
+        expected_usernames = {u.username for u in expected_users}
+        assert usernames == expected_usernames
 
-    async def test_apply_label_filters_no_matches(self, session) -> None:
-        """Test label filtering with no matching resources."""
-        query = select(ResourceModel)
+    async def test_apply_label_filters_no_matches(self, test_db_session: AsyncSession) -> None:
+        """Test label filtering with no matching users."""
+        query = select(User)
         label_filters = {"environment": "production", "team": "nonexistent"}
 
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match no resources
+        # Should match no users
         assert len(result) == 0
 
-    async def test_apply_label_filters_single_unique_label(self, session) -> None:
-        """Test filtering by a label that only exists on one resource."""
-        query = select(ResourceModel)
+    async def test_apply_label_filters_single_unique_label(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """Test filtering by a label that only exists on one user."""
+        query = select(User)
         label_filters = {"experimental": "true"}
 
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match only the dev-sandbox resource
-        assert len(result) == 1
-        assert result[0].name == "dev-sandbox"
+        # Should match users with experimental label
+        expected_users = [u for u in test_users if u.labels.get("experimental") == "true"]
+        assert len(result) == len(expected_users)
+        assert result[0].username == expected_users[0].username
 
-    async def test_apply_label_filters_version_pattern(self, session) -> None:
+    async def test_apply_label_filters_version_pattern(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test filtering by version labels."""
-        query = select(ResourceModel)
+        query = select(User)
         label_filters = {"version": "v1.2.0"}
 
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match only api-service with v1.2.0
-        assert len(result) == 1
-        assert result[0].name == "api-service"
+        # Should match users with version v1.2.0
+        expected_users = [u for u in test_users if u.labels.get("version") == "v1.2.0"]
+        assert len(result) == len(expected_users)
+        assert result[0].username == expected_users[0].username
 
-    async def test_apply_label_filters_with_order_by(self, session) -> None:
+    async def test_apply_label_filters_with_order_by(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test label filtering combined with ORDER BY."""
-        query = select(ResourceModel).order_by(ResourceModel.name)
+        query = select(User).order_by(User.username)
         label_filters = {"environment": "production"}
 
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should be ordered by name: api-service, data-processor, web-service
-        assert len(result) == 3
-        names = [resource.name for resource in result]
-        assert names == ["api-service", "data-processor", "web-service"]
+        # Should be ordered by username
+        expected_users = [u for u in test_users if u.labels.get("environment") == "production"]
+        expected_usernames = sorted([u.username for u in expected_users])
+        assert len(result) == len(expected_users)
+        usernames = [user.username for user in result]
+        assert usernames == expected_usernames
 
-    async def test_apply_label_filters_with_limit(self, session) -> None:
+    @pytest.mark.usefixtures("test_users")
+    async def test_apply_label_filters_with_limit(self, test_db_session: AsyncSession) -> None:
         """Test label filtering combined with LIMIT."""
-        query = select(ResourceModel).limit(2)
+        query = select(User).limit(2)
         label_filters = {"environment": "production"}
 
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
         # Should be limited to 2 results
         assert len(result) == 2
         # All should be production environment
-        for resource in result:
-            assert resource.labels["environment"] == "production"
+        for user in result:
+            assert user.labels["environment"] == "production"
 
     async def test_apply_label_filters_model_without_labels_field(self) -> None:
         """Test that error is raised when model doesn't have labels field."""
-        query = select(UserModel)
+        # Create a mock model without labels field
+        mock_model = Mock(spec=[])
+        mock_model.__name__ = "MockModel"
+        query = Mock()
         label_filters = {"environment": "production"}
 
-        with pytest.raises(ValueError, match="Model UserModel does not have a 'labels' field"):
-            apply_label_filters(query, label_filters, UserModel)
+        with pytest.raises(ValueError, match="Model MockModel does not have a 'labels' field"):
+            apply_label_filters(query, label_filters, mock_model)
 
-    async def test_apply_label_filters_case_sensitive_matching(self, session) -> None:
+    async def test_apply_label_filters_case_sensitive_matching(self, test_db_session: AsyncSession) -> None:
         """Test that label matching is case-sensitive."""
-        query = select(ResourceModel)
+        query = select(User)
         label_filters = {"environment": "Production"}  # Wrong case
 
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match no resources due to case sensitivity
+        # Should match no users due to case sensitivity
         assert len(result) == 0
 
-    async def test_apply_label_filters_with_parsed_params(self, session) -> None:
+    async def test_apply_label_filters_with_parsed_params(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test complete workflow: parse label parameters and apply to query."""
         # Parse labels from query parameters
         params = {"labels[environment]": "production", "labels[team]": "platform", "other_param": "ignored"}
         label_filters = parse_label_filter(params)
 
         # Apply to query
-        query = select(ResourceModel)
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        query = select(User)
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match api-service (production + platform team)
-        assert len(result) == 1
-        assert result[0].name == "api-service"
+        # Should match users with production + platform team
+        expected_users = [
+            u for u in test_users if u.labels.get("environment") == "production" and u.labels.get("team") == "platform"
+        ]
+        assert len(result) == len(expected_users)
+        assert result[0].username == expected_users[0].username
 
-    async def test_apply_label_filters_complex_scenario(self, session) -> None:
+    async def test_apply_label_filters_complex_scenario(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test complex scenario with multiple filters and query operations."""
-        # Find all production services in us-east-1 region, ordered by creation time
-        query = select(ResourceModel).where(ResourceModel.status == "active").order_by("created_at")
+        # Find all production users in us-east-1 region, ordered by creation time
+        query = select(User).where(User.is_active).order_by("created_at")
 
         label_filters = {"environment": "production", "region": "us-east-1"}
 
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match api-service and data-processor (both active, production, us-east-1)
-        assert len(result) == 2
+        # Should match users that are active, production, us-east-1
+        expected_users = [
+            u
+            for u in test_users
+            if u.is_active and u.labels.get("environment") == "production" and u.labels.get("region") == "us-east-1"
+        ]
+        expected_users_sorted = sorted(expected_users, key=lambda x: x.created_at)
+        assert len(result) == len(expected_users)
         # Should be ordered by creation time
-        assert result[0].name == "api-service"  # Created first
-        assert result[1].name == "data-processor"  # Created second
+        assert result[0].username == expected_users_sorted[0].username
+        assert result[1].username == expected_users_sorted[1].username
 
     async def test_apply_label_filters_with_mock_query(self) -> None:
         """Test apply_label_filters method signature and basic validation."""
@@ -327,40 +255,44 @@ class TestLabelFilteringSQLAlchemy:
         result = apply_label_filters(mock_query, empty_filters, mock_model_with_labels)  # type: ignore[var-annotated]
         assert result == mock_query
 
-    async def test_apply_label_filters_performance_with_many_labels(self, session) -> None:
-        """Test performance with resources having many labels."""
-        # Add a resource with many labels
-        resource_with_many_labels = ResourceModel(
-            id=6,
-            name="complex-service",
-            description="Service with many labels",
-            status="active",
+    async def test_apply_label_filters_performance_with_many_labels(self, test_db_session: AsyncSession) -> None:
+        """Test performance with users having many labels."""
+        # Add a user with many labels
+        user_with_many_labels = User(
+            username="complex-user",
+            email="complex@example.com",
+            full_name="Complex User",
+            role=UserRole.CREATOR,
+            is_active=True,
             labels={f"label_{i}": f"value_{i}" for i in range(20)},  # 20 labels
             created_at=datetime(2025, 1, 6, 15, 0, 0),
         )
-        session.add(resource_with_many_labels)
-        await session.commit()
+        test_db_session.add(user_with_many_labels)
+        await test_db_session.commit()
 
-        query = select(ResourceModel)
+        query = select(User)
         label_filters = {"label_0": "value_0", "label_10": "value_10"}
 
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match the complex-service
+        # Should match the complex-user
         assert len(result) == 1
-        assert result[0].name == "complex-service"
+        assert result[0].username == "complex-user"
 
-    async def test_apply_label_filters_json_field_operations(self, session) -> None:
+    async def test_apply_label_filters_json_field_operations(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
         """Test that the function uses proper JSON field operations."""
-        query = select(ResourceModel)
+        query = select(User)
         label_filters = {"environment": "production"}
 
         # Apply label filters using PostgreSQL JSONB operators
-        filtered_query = apply_label_filters(query, label_filters, ResourceModel)
-        result = (await session.exec(filtered_query)).all()
+        filtered_query = apply_label_filters(query, label_filters, User)
+        result = (await test_db_session.exec(filtered_query)).all()
 
         # Verify results are correct
-        assert len(result) == 3
-        for resource in result:
-            assert resource.labels["environment"] == "production"
+        expected_users = [u for u in test_users if u.labels.get("environment") == "production"]
+        assert len(result) == len(expected_users)
+        for user in result:
+            assert user.labels["environment"] == "production"
