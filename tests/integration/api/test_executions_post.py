@@ -178,7 +178,7 @@ async def test_create_execution_temporal_connection_failure_graceful_degradation
     """
     # Mock create_temporal_execution_service to raise the exception
     with patch(
-        "nexus.api.v1.executions.create_temporal_execution_service",
+        "nexus.workflows.executions_router.create_temporal_execution_service",
         side_effect=exception,
     ):
         response = await auth_client.post(
@@ -250,7 +250,7 @@ async def test_create_execution_temporal_workflow_start_failure(
         return mock_temporal_service
 
     with patch(
-        "nexus.api.v1.executions.create_temporal_execution_service",
+        "nexus.workflows.executions_router.create_temporal_execution_service",
         side_effect=mock_create_service,
     ):
         response = await auth_client.post(

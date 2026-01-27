@@ -206,8 +206,23 @@ class TestOpenAPISchema:
             ("agent_orchestrator/openapi.yaml", "agent_orchestrator"),
             ("example.json", "example"),
             ("workflows.yaml", "workflows"),
+            # Ancillary router prefix support
+            ("example/sub_openapi.json", "sub"),
+            ("workflows/admin_openapi.yaml", "admin"),
+            ("domain/custom_openapi.yml", "custom"),
         ],
-        ids=["dir-json", "dir-yaml", "dir-yml", "workflows-dir", "underscore-dir", "flat-json", "flat-yaml"],
+        ids=[
+            "dir-json",
+            "dir-yaml",
+            "dir-yml",
+            "workflows-dir",
+            "underscore-dir",
+            "flat-json",
+            "flat-yaml",
+            "sub-prefix-json",
+            "admin-prefix-yaml",
+            "custom-prefix-yml",
+        ],
     )
     def test_domain_extraction(self, filename: str, expected_domain: str) -> None:
         """Test domain extraction from various filename patterns."""
@@ -446,3 +461,23 @@ class TestLoadSchemas:
         # Empty list
         schemas = load_schemas([])
         assert schemas == []
+
+    def test_ancillary_router_domain_extraction(self) -> None:
+        """Test domain extraction for ancillary routers with prefixes."""
+        schema_data = {
+            "openapi": "3.0.3",
+            "info": {"title": "Test", "version": "1.0.0"},
+            "paths": {},
+        }
+
+        # Test various prefix patterns
+        test_cases = [
+            ("domain/sub_openapi.json", "sub"),
+            ("workflows/admin_openapi.yaml", "admin"),
+            ("api/custom_openapi.yml", "custom"),
+            ("example/test_openapi.json", "test"),
+        ]
+
+        for filename, expected_domain in test_cases:
+            schema = OpenAPISchema(filename, schema_data)
+            assert schema.domain == expected_domain, f"Failed for {filename}"

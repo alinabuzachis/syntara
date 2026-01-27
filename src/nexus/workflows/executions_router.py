@@ -53,7 +53,7 @@ async def get_temporal_execution_service() -> TemporalExecutionService | None:
     """
     try:
         return await create_temporal_execution_service()
-    except (RPCError, OSError, ConnectionError, RuntimeError) as e:
+    except (RPCError, OSError, RuntimeError) as e:
         logger.warning("Temporal service unavailable: %s", e)
         return None
 

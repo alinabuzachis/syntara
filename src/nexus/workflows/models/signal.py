@@ -1,7 +1,7 @@
 """Signal models for workflow activity signals.
 
 This module defines the Pydantic models for activity signal payloads and responses,
-matching the OpenAPI schema definitions in workflow-api.yaml.
+matching the OpenAPI schema definitions in openapi.yaml.
 """
 
 from typing import Any
@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 class ActivitySignalPayload(BaseModel):
     """Generic signal payload for sending arbitrary data to a specific activity.
 
-    This matches the ActivitySignalPayload schema in workflow-api.yaml.
+    This matches the ActivitySignalPayload schema in openapi.yaml.
     The signal_data field contains arbitrary JSON data whose structure depends
     on what the activity expects to receive.
 
@@ -70,7 +70,7 @@ class ActivitySignalPayload(BaseModel):
 class SignalResponse(BaseModel):
     """Response confirming a signal was sent to a workflow.
 
-    This matches the SignalResponse schema in workflow-api.yaml.
+    This matches the SignalResponse schema in openapi.yaml.
     """
 
     status: str = Field(

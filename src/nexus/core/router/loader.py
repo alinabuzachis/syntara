@@ -11,6 +11,10 @@ import yaml
 
 logger = logging.getLogger("nexus.core.router.loader")
 
+JSON_EXTENSION: str = ".json"
+YAML_EXTENSION: str = ".yaml"
+YML_EXTENSION: str = ".yml"
+
 
 class EndpointDefinition:
     """Represents a single endpoint from OpenAPI spec."""
@@ -89,8 +93,12 @@ class OpenAPISchema:
         path = Path(self.filename)
 
         # If filename is 'openapi.{ext}', use parent directory as domain
-        if path.stem == "openapi" and path.suffix in {".json", ".yaml", ".yml"}:
+        if path.stem == "openapi" and path.suffix in {JSON_EXTENSION, YAML_EXTENSION, YML_EXTENSION}:
             return path.parent.name
+
+        # Special case for when a domain contains a sub-router using a different path
+        if path.stem.endswith("_openapi") and path.suffix in {JSON_EXTENSION, YAML_EXTENSION, YML_EXTENSION}:
+            return path.stem.replace("_openapi", "")
 
         # Otherwise, use filename stem as domain
         return path.stem
@@ -206,9 +214,9 @@ def load_openapi_schema(filename: str) -> OpenAPISchema | None:
 
         # Detect format based on file extension
         suffix = Path(filename).suffix
-        if suffix in {".yaml", ".yml"}:
+        if suffix in {YAML_EXTENSION, YML_EXTENSION}:
             schema_data = yaml.safe_load(content)
-        elif suffix == ".json":
+        elif suffix == JSON_EXTENSION:
             schema_data = json.loads(content)
         else:
             logger.error("Unsupported schema format: %s (use .json, .yaml, or .yml)", suffix)

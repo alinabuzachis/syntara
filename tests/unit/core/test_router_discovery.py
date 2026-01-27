@@ -12,6 +12,7 @@ from fastapi.routing import APIRoute
 from nexus.core.router_discovery import (
     RouterInfo,
     _extract_router_from_module,
+    _extract_router_prefix_from_file_path,
     discover_and_register_routers,
     discover_routers,
     register_routers,
@@ -96,6 +97,31 @@ class TestDiscoverRouters:
             assert any("test_module" in str(call) for call in calls)
             assert not any("excluded" in str(call) for call in calls)
 
+    def test_discover_finds_ancillary_routers(self, tmp_path: Path) -> None:
+        """Test discovery finds routers with different prefixes."""
+        # Create test directory structure with multiple routers
+        domain_dir = tmp_path / "test_domain"
+        domain_dir.mkdir()
+
+        # Create main and ancillary router files
+        (domain_dir / "router.py").write_text("from fastapi import APIRouter\nrouter = APIRouter()")
+        (domain_dir / "sub_router.py").write_text("from fastapi import APIRouter\nrouter = APIRouter()")
+        (domain_dir / "admin_router.py").write_text("from fastapi import APIRouter\nrouter = APIRouter()")
+
+        with patch("nexus.core.router_discovery._load_router_from_file") as mock_load:
+            mock_load.return_value = None
+
+            discover_routers(
+                base_paths=[tmp_path],
+                exclude_modules=set(),
+            )
+
+            # Should find all three router files
+            calls = [str(call[0][0]) for call in mock_load.call_args_list]
+            assert any("router.py" in call for call in calls)
+            assert any("sub_router.py" in call for call in calls)
+            assert any("admin_router.py" in call for call in calls)
+
 
 class TestRegisterRouters:
     """Tests for register_routers function."""
@@ -114,6 +140,7 @@ class TestRegisterRouters:
             domain="test",
             module_path="nexus.test.router",
             router=router,
+            router_prefix="",
             source_file=Path("/test/router.py"),
         )
 
@@ -135,6 +162,7 @@ class TestRegisterRouters:
             domain="bad",
             module_path="nexus.bad.router",
             router=bad_router,
+            router_prefix="",
             source_file=Path("/bad/router.py"),
         )
 
@@ -190,6 +218,7 @@ class TestDiscoverAndRegisterRouters:
             domain="test",
             module_path="nexus.test.router",
             router=APIRouter(),
+            router_prefix="",
             source_file=Path("/test/router.py"),
         )
 
@@ -255,3 +284,22 @@ class TestRealRouterDiscovery:
         # App should have routes registered
         # (More routes than just health endpoint)
         assert len(app.routes) > 1
+
+
+class TestExtractRouterPrefixFromFilePath:
+    """Tests for _extract_router_prefix_from_file_path function."""
+
+    @pytest.mark.parametrize(
+        ("file_path", "expected_prefix"),
+        [
+            (Path("domain/router.py"), ""),
+            (Path("domain/sub_router.py"), "sub_"),
+            (Path("domain/admin_router.py"), "admin_"),
+            (Path("workflows/custom_router.py"), "custom_"),
+        ],
+        ids=["main-router", "sub-router", "admin-router", "custom-router"],
+    )
+    def test_prefix_extraction(self, file_path: Path, expected_prefix: str) -> None:
+        """Test router prefix extraction from file paths."""
+        result = _extract_router_prefix_from_file_path(file_path)
+        assert result == expected_prefix

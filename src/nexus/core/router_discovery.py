@@ -67,6 +67,7 @@ class RouterInfo:
         domain: str,
         module_path: str,
         router: APIRouter,
+        router_prefix: str,
         source_file: Path,
     ) -> None:
         """Initialize router information.
@@ -75,12 +76,14 @@ class RouterInfo:
             domain: Domain name extracted from module path
             module_path: Python module path (e.g., 'nexus.api.v1.workflows')
             router: FastAPI router instance
+            router_prefix: Prefix of the router implementation
             source_file: Path to the source file
 
         """
         self.domain = domain
         self.module_path = module_path
         self.router = router
+        self.router_prefix = router_prefix
         self.source_file = source_file
 
     def __repr__(self) -> str:
@@ -140,7 +143,7 @@ def _discover_domain_routers(
         discovered: List to append discovered routers to
 
     """
-    for router_file in base_path.glob("*/router.py"):
+    for router_file in base_path.glob("*/*router.py"):
         domain = router_file.parent.name
 
         if domain in exclude_modules:
@@ -203,8 +206,11 @@ def _load_router_from_file(
 
     """
     try:
+        # Extract router prefix
+        router_prefix = _extract_router_prefix_from_file_path(file_path)
+
         # Convert file path to module path
-        module_path = f"nexus.api.v1.{domain}" if is_api_v1 else f"nexus.{domain}.router"
+        module_path = f"nexus.api.v1.{domain}" if is_api_v1 else f"nexus.{domain}.{router_prefix}router"
 
         logger.debug("Importing module: %s", module_path)
         module = importlib.import_module(module_path)
@@ -221,6 +227,7 @@ def _load_router_from_file(
             domain=domain,
             module_path=module_path,
             router=router,
+            router_prefix=router_prefix,
             source_file=file_path,
         )
 
@@ -230,6 +237,11 @@ def _load_router_from_file(
     except Exception:
         logger.exception("Error loading router from %s", file_path)
         return None
+
+
+def _extract_router_prefix_from_file_path(file_path: Path) -> str:
+    file_name: str = file_path.name
+    return file_name.replace("router.py", "")
 
 
 def _extract_router_from_module(module: object, domain: str) -> APIRouter | None:
@@ -441,13 +453,14 @@ def _build_schema_file_list(routers: list[RouterInfo]) -> list[str]:
 
     for router_info in routers:
         domain = router_info.domain
+        router_prefix = router_info.router_prefix
 
         # Check for both JSON and YAML schemas
         for ext in ["json", "yaml", "yml"]:
-            schema_resource = schemas_package.joinpath(domain).joinpath(f"openapi.{ext}")
+            schema_resource = schemas_package.joinpath(domain).joinpath(f"{router_prefix}openapi.{ext}")
             try:
                 if schema_resource.is_file():
-                    relative_path = f"{domain}/openapi.{ext}"
+                    relative_path = f"{domain}/{router_prefix}openapi.{ext}"
                     schema_files.append(relative_path)
                     logger.debug("Found schema: %s", relative_path)
                     break  # Use first found format

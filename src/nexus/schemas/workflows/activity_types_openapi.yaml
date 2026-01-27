@@ -1,0 +1,47 @@
+---
+openapi: 3.0.3
+info:
+  title: Workflow Engine API
+  description: API for activity metadata.
+  version: 1.0.0
+  contact:
+    name: Automation Nexus Team
+
+servers:
+  - url: /api/v1
+    description: API server (relative path)
+
+paths:
+  /activity_types:
+    get:
+      summary: List available activity types
+      description: |
+        Retrieve all available activity executor types that can be used in workflow definitions.
+        This endpoint is used for workflow validation, UI tooling, and documentation.
+      operationId: list_activity_types
+      responses:
+        '200':
+          description: List of available activity types with their configuration schemas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activity_types:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ActivityType'
+
+components:
+  schemas:
+    ActivityType:
+      $ref: ./shared-schemas.yaml#/components/schemas/ActivityType
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

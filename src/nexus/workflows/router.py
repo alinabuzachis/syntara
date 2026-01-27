@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import ValidationError as PydanticValidationError
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.auth import get_current_user
@@ -26,10 +27,16 @@ from nexus.workflows.models.workflow import (
     WorkflowReadWithVersion,
     WorkflowUpdate,
 )
+from nexus.workflows.models.workflow_version import (
+    WorkflowVersion,
+    WorkflowVersionListResponse,
+    WorkflowVersionRead,
+)
 from nexus.workflows.services import WorkflowService
 
-router = APIRouter(prefix="/workflows", tags=["workflows"])
+router = APIRouter(prefix="/workflows", tags=["workflows", "workflow-versions"])
 
+WORKFLOW_NOT_FOUND: str = "Workflow not found"
 
 # ============================================================================
 # Dependency Injection Providers
@@ -54,6 +61,11 @@ def get_workflow_service(
 
     """
     return WorkflowService(db, current_user)
+
+
+# ============================================================================
+# Workflow endpoints
+# ============================================================================
 
 
 @router.post("", response_model=WorkflowRead, status_code=status.HTTP_201_CREATED)
@@ -162,7 +174,7 @@ async def get_workflow(
     except WorkflowNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workflow not found",
+            detail=WORKFLOW_NOT_FOUND,
         ) from e
     except WorkflowVersionNotFoundError as e:
         raise HTTPException(
@@ -227,7 +239,7 @@ async def update_workflow(
     except WorkflowNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workflow not found",
+            detail=WORKFLOW_NOT_FOUND,
         ) from e
     except WorkflowNameConflictError as e:
         raise HTTPException(
@@ -284,5 +296,114 @@ async def delete_workflow(
     except WorkflowNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workflow not found",
+            detail=WORKFLOW_NOT_FOUND,
         ) from e
+
+
+# ============================================================================
+# Workflow version endpoints
+# ----------------------------------------------------------------------------
+# NOTE: WorkflowVersion entities are READ-ONLY and system-managed.
+# Versions are created automatically via PATCH /workflows/{id} with workflow_definition.
+# No POST endpoint for manual version creation - this ensures version integrity.
+# ============================================================================
+
+
+@router.get("/{workflow_id}/versions")
+async def list_workflow_versions(
+    workflow_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> WorkflowVersionListResponse:
+    """List all versions for a workflow.
+
+    Args:
+        workflow_id: Workflow UUID
+        db: Database session
+
+    Returns:
+        List of versions ordered by version DESC
+
+    Raises:
+        HTTPException: 404 if workflow not found
+
+    """
+    # Verify workflow exists
+    workflow_result = await db.exec(
+        select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
+    )
+    workflow = workflow_result.one_or_none()
+
+    if not workflow:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=WORKFLOW_NOT_FOUND,
+        )
+
+    # Get versions
+    result = await db.exec(
+        select(WorkflowVersion)
+        .filter(
+            WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
+            WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+        .order_by(WorkflowVersion.version.desc())  # type: ignore[attr-defined]
+    )
+    versions = list(result.all())
+
+    # Deserialize workflow_definition from JSON strings to dicts
+    version_dicts = [deserialize_workflow_version(v) for v in versions]
+
+    # Manually construct response with deserialized versions
+    return WorkflowVersionListResponse(versions=[WorkflowVersionRead.model_validate(v) for v in version_dicts])
+
+
+@router.get("/{workflow_id}/versions/{version}")
+async def get_workflow_version(
+    workflow_id: UUID,
+    version: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> WorkflowVersionRead:
+    """Get a specific workflow version.
+
+    Args:
+        workflow_id: Workflow UUID
+        version: Version number
+        db: Database session
+
+    Returns:
+        Workflow version
+
+    Raises:
+        HTTPException: 404 if workflow or version not found
+
+    """
+    # Verify workflow exists
+    workflow_result = await db.exec(
+        select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
+    )
+    workflow = workflow_result.one_or_none()
+
+    if not workflow:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=WORKFLOW_NOT_FOUND,
+        )
+
+    # Get version
+    result = await db.exec(
+        select(WorkflowVersion).filter(
+            WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
+            WorkflowVersion.version == version,  # type: ignore[arg-type]
+            WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    workflow_version = result.one_or_none()
+
+    if not workflow_version:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Version {version} not found for this workflow",
+        )
+
+    # Deserialize workflow_definition from JSON string to dict and return
+    return WorkflowVersionRead.model_validate(deserialize_workflow_version(workflow_version))
