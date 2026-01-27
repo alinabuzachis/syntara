@@ -4,6 +4,7 @@ import { type Node, type NodeProps } from '@xyflow/react'
 import type { CSSProperties } from 'react'
 
 import { parseTriggerLabel } from '../../../../utils/triggerFormatting'
+import { useIsExecutionView } from '../../../builder/ExecutionViewContext'
 
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
@@ -81,12 +82,13 @@ export function TriggerNodeDetails(
     triggerDetails: string | null
   }>
 ) {
+  const isExecutionView = useIsExecutionView()
   return (
     <>
       <NodeHeader>
         <FlexItem>{props.icon}</FlexItem>
         <FlexItem grow={{ default: 'grow' }} />
-        {props.menuActions && props.menuActions.length > 0 && (
+        {props.menuActions && props.menuActions.length > 0 && !isExecutionView && (
           <FlexItem>
             <NodeMenu menuActions={props.menuActions} />
           </FlexItem>

@@ -88,6 +88,7 @@ import { EdgeMarkers } from './edges/edgeMarkers'
 import { LoopBackEdge } from './edges/LoopBackEdge'
 import { LoopDoneEdge } from './edges/LoopDoneEdge'
 import { LoopOutgoingEdge } from './edges/LoopOutgoingEdge'
+import { useIsExecutionView } from './ExecutionViewContext'
 import { useButtonEdgeMaintenance } from './hooks/useButtonEdgeMaintenance'
 import { useConnectionHandlers } from './hooks/useConnectionHandlers'
 import { useEdgeActiveState } from './hooks/useEdgeActiveState'
@@ -127,6 +128,7 @@ const builderEdgeTypes = {
 }
 
 export function BuilderFlow(props: BuilderFlowProps) {
+  const isExecutionView = useIsExecutionView()
   // Destructure props to use in callbacks
   const {
     workflowId,
@@ -754,11 +756,11 @@ export function BuilderFlow(props: BuilderFlowProps) {
         edgeTypes={builderEdgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodesDelete={onNodesDelete}
-        onNodeClick={onNodeClick}
-        onConnect={onConnect}
-        onConnectStart={onConnectStart}
-        onConnectEnd={onConnectEnd}
+        onNodesDelete={isExecutionView ? undefined : onNodesDelete}
+        onNodeClick={isExecutionView ? undefined : onNodeClick}
+        onConnect={isExecutionView ? undefined : onConnect}
+        onConnectStart={isExecutionView ? undefined : onConnectStart}
+        onConnectEnd={isExecutionView ? undefined : onConnectEnd}
         connectOnClick={false}
         connectionRadius={200}
         connectionLineStyle={{ stroke: '#6b7280', strokeWidth: 2 }}
@@ -768,7 +770,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
         fitView
         minZoom={0.1}
         maxZoom={1}
-        deleteKeyCode={['Delete', 'Backspace']}
+        deleteKeyCode={isExecutionView ? null : ['Delete', 'Backspace']}
+        nodesDraggable={!isExecutionView}
+        nodesConnectable={!isExecutionView}
       >
         <EdgeMarkers />
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
