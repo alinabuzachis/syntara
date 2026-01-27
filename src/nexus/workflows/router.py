@@ -9,7 +9,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.auth import get_current_user
-from nexus.api.v1.utils import deserialize_workflow_version
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.validators import ValidationError
@@ -33,6 +32,7 @@ from nexus.workflows.models.workflow_version import (
     WorkflowVersionRead,
 )
 from nexus.workflows.services import WorkflowService
+from nexus.workflows.utils.serialization import deserialize_workflow_version
 
 router = APIRouter(prefix="/workflows", tags=["workflows", "workflow-versions"])
 
