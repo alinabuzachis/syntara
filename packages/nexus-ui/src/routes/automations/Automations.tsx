@@ -35,6 +35,7 @@ import { LinkCell } from '../../components/table/LinkCell'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { SwitchCell } from '../../components/table/SwitchCell.tsx'
 import { useFuse } from '../../hooks/useFuse'
+import { useTableSort } from '../../hooks/useTableSort'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { getDateField } from '../../utils/getDateField'
 
@@ -112,7 +113,26 @@ export default function Automations() {
   const { showSuccess, showError } = useAlerts()
   const [, setLocation] = useLocation()
 
-  const { search, setSearch, items: automations } = useFuse<Workflow>(workflows, [{ name: 'name' }])
+  const { search, setSearch, items: filteredAutomations } = useFuse<Workflow>(workflows, [{ name: 'name' }])
+
+  const { activeSortIndex, getSortParams, sortData } = useTableSort({
+    initialSortIndex: 0,
+    initialDirection: 'asc',
+  })
+
+  // Sort the filtered automations
+  const automations = sortData(filteredAutomations, (workflow) => {
+    switch (activeSortIndex) {
+      case 0:
+        return workflow.name ?? ''
+      case 1:
+        return getDateField(workflow, 'createdAt') ? new Date(getDateField(workflow, 'createdAt')!) : null
+      case 2:
+        return getDateField(workflow, 'updatedAt') ? new Date(getDateField(workflow, 'updatedAt')!) : null
+      default:
+        return workflow.name ?? ''
+    }
+  })
 
   const handleRunAutomation = (workflow: Workflow) => {
     // eslint-disable-next-line no-console
@@ -259,9 +279,9 @@ export default function Automations() {
         >
           <Thead>
             <Tr>
-              <Th>Name</Th>
-              <Th>Created at</Th>
-              <Th>Updated at</Th>
+              <Th sort={getSortParams(0)}>Name</Th>
+              <Th sort={getSortParams(1)}>Created at</Th>
+              <Th sort={getSortParams(2)}>Updated at</Th>
               <Th>Tags</Th>
               <Th>State</Th>
               <Th screenReaderText="Actions" />

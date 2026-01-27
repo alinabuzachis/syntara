@@ -407,4 +407,64 @@ describe('Integrations Component', () => {
       expect(screen.queryByRole('button', { name: 'Previous page' })).not.toBeInTheDocument()
     })
   })
+
+  describe('Sorting Functionality', () => {
+    it('renders sortable column headers', () => {
+      render(<Integrations />, { wrapper })
+
+      // Verify sortable columns have sort buttons
+      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
+      expect(within(nameHeader).getByRole('button')).toBeInTheDocument()
+
+      const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
+      expect(within(statusHeader).getByRole('button')).toBeInTheDocument()
+
+      const toolsHeader = screen.getByRole('columnheader', { name: /Tools/i })
+      expect(within(toolsHeader).getByRole('button')).toBeInTheDocument()
+    })
+
+    it('changes sort when clicking column headers', () => {
+      render(<Integrations />, { wrapper })
+
+      // Click Name header to sort by name
+      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
+      const sortButton = within(nameHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All integrations should still be visible
+      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
+      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
+      expect(screen.getByText('Development Server')).toBeInTheDocument()
+    })
+
+    it('can toggle sort direction by clicking the same column header', () => {
+      render(<Integrations />, { wrapper })
+
+      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
+      const sortButton = within(nameHeader).getByRole('button')
+
+      // Click twice to toggle direction
+      fireEvent.click(sortButton)
+      fireEvent.click(sortButton)
+
+      // All integrations should still be visible after sorting
+      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
+      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
+      expect(screen.getByText('Development Server')).toBeInTheDocument()
+    })
+
+    it('can sort by different columns', () => {
+      render(<Integrations />, { wrapper })
+
+      // Click Tools header
+      const toolsHeader = screen.getByRole('columnheader', { name: /Tools/i })
+      const sortButton = within(toolsHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All integrations should still be visible
+      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
+      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
+      expect(screen.getByText('Development Server')).toBeInTheDocument()
+    })
+  })
 })

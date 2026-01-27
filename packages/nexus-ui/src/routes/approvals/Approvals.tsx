@@ -21,6 +21,7 @@ import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useFuse } from '../../hooks/useFuse'
+import { useTableSort } from '../../hooks/useTableSort'
 
 import { ApprovalStatusBadges } from './approvalUtils'
 import { mockApprovals } from './mockApprovals'
@@ -32,9 +33,9 @@ type ApprovalWithDetails = Approval & {
   workflowId?: string
 }
 
-type SortColumn = 'approvalName' | 'automationName' | 'requested_at' | 'decided_at' | 'status'
-// 'approvalType' removed for RH1 - may be added back later
-type SortDirection = 'asc' | 'desc'
+// Column indices for sorting (excluding the expand column)
+const SORT_COLUMNS = ['approvalName', 'automationName', 'requested_at', 'decided_at', 'status'] as const
+type SortColumn = (typeof SORT_COLUMNS)[number]
 
 const getApprovalDetails = (approval: ApprovalWithDetails) => ({
   approvalName: approval.name || approval.id,
@@ -95,8 +96,13 @@ export default function Approvals() {
   const USE_MOCK_APPROVALS = getUseMockApprovals()
   const [cursor, setCursor] = useState<string | null>(null)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
-  const [sortColumn, setSortColumn] = useState<SortColumn>('requested_at')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
+  // Use the table sort hook - default to 'requested_at' (index 2) descending
+  const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
+    initialSortIndex: 2,
+    initialDirection: 'desc',
+  })
+  const sortColumn = SORT_COLUMNS[activeSortIndex]
 
   const approvalsQuery = workflowClient.useQuery('get', '/approvals', {
     params: {
@@ -155,15 +161,6 @@ export default function Approvals() {
     })
     return sorted
   }, [filteredApprovals, sortColumn, sortDirection])
-
-  const handleSort = (column: SortColumn) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortColumn(column)
-      setSortDirection('asc')
-    }
-  }
 
   const queryState = useQueryState(approvalsQuery, 'Error loading approvals')
 
@@ -255,89 +252,20 @@ export default function Approvals() {
                 }}
                 aria-label="Row expansion"
               />
-              <Th
-                modifier="nowrap"
-                sort={{
-                  sortBy: {
-                    index: 0,
-                    direction: sortColumn === 'approvalName' ? sortDirection : undefined,
-                    defaultDirection: 'asc',
-                  },
-                  onSort: () => handleSort('approvalName'),
-                  columnIndex: 0,
-                }}
-              >
+              <Th modifier="nowrap" sort={getSortParams(0)}>
                 Approval name
               </Th>
               {/* Approval type column removed for RH1 - may be added back later */}
-              {/* <Th
-                modifier="nowrap"
-                sort={{
-                  sortBy: {
-                    index: 1,
-                    direction: sortColumn === 'approvalType' ? sortDirection : undefined,
-                    defaultDirection: 'asc',
-                  },
-                  onSort: () => handleSort('approvalType'),
-                  columnIndex: 1,
-                }}
-              >
-                Approval type
-              </Th> */}
-              <Th
-                modifier="nowrap"
-                sort={{
-                  sortBy: {
-                    index: 1,
-                    direction: sortColumn === 'automationName' ? sortDirection : undefined,
-                    defaultDirection: 'asc',
-                  },
-                  onSort: () => handleSort('automationName'),
-                  columnIndex: 1,
-                }}
-              >
+              <Th modifier="nowrap" sort={getSortParams(1)}>
                 Automation
               </Th>
-              <Th
-                modifier="nowrap"
-                sort={{
-                  sortBy: {
-                    index: 2,
-                    direction: sortColumn === 'requested_at' ? sortDirection : undefined,
-                    defaultDirection: 'desc',
-                  },
-                  onSort: () => handleSort('requested_at'),
-                  columnIndex: 2,
-                }}
-              >
+              <Th modifier="nowrap" sort={getSortParams(2)}>
                 Approval initiated
               </Th>
-              <Th
-                modifier="nowrap"
-                sort={{
-                  sortBy: {
-                    index: 3,
-                    direction: sortColumn === 'decided_at' ? sortDirection : undefined,
-                    defaultDirection: 'asc',
-                  },
-                  onSort: () => handleSort('decided_at'),
-                  columnIndex: 3,
-                }}
-              >
+              <Th modifier="nowrap" sort={getSortParams(3)}>
                 Actioned on
               </Th>
-              <Th
-                modifier="nowrap"
-                sort={{
-                  sortBy: {
-                    index: 4,
-                    direction: sortColumn === 'status' ? sortDirection : undefined,
-                    defaultDirection: 'asc',
-                  },
-                  onSort: () => handleSort('status'),
-                  columnIndex: 4,
-                }}
-              >
+              <Th modifier="nowrap" sort={getSortParams(4)}>
                 Status
               </Th>
             </Tr>
@@ -383,7 +311,6 @@ export default function Approvals() {
                   </Tr>
                   <Tr key={`${approval.id}-expanded`} isExpanded={isExpanded}>
                     <Td colSpan={6}>
-                      {/* TODO: revert back to 7 after returning "approval type" column */}
                       <ExpandableRowContent>
                         <DescriptionList>
                           <DescriptionListGroup>

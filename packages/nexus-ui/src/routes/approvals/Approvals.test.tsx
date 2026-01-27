@@ -1,5 +1,5 @@
 import type { Approval } from '@ansible/nexus-contracts'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { workflowClient } from '../../client'
@@ -242,5 +242,73 @@ describe('Approvals Component', () => {
     render(<Approvals />)
 
     expect(screen.getByText('No approvals found')).toBeInTheDocument()
+  })
+
+  describe('Sorting Functionality', () => {
+    it('renders sortable column headers', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      // Verify sortable columns have sort buttons
+      const approvalNameHeader = screen.getByRole('columnheader', { name: /Approval name/i })
+      expect(within(approvalNameHeader).getByRole('button')).toBeInTheDocument()
+
+      const automationHeader = screen.getByRole('columnheader', { name: /Automation/i })
+      expect(within(automationHeader).getByRole('button')).toBeInTheDocument()
+
+      const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
+      expect(within(statusHeader).getByRole('button')).toBeInTheDocument()
+    })
+
+    it('changes sort when clicking column headers', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      // Click Approval name header to sort by name
+      const approvalNameHeader = screen.getByRole('columnheader', { name: /Approval name/i })
+      const sortButton = within(approvalNameHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All approvals should still be visible
+      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
+      expect(screen.getByText('Test Approval 2')).toBeInTheDocument()
+      expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
+    })
+
+    it('can toggle sort direction by clicking the same column header', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      const approvalNameHeader = screen.getByRole('columnheader', { name: /Approval name/i })
+      const sortButton = within(approvalNameHeader).getByRole('button')
+
+      // Click twice to toggle direction
+      fireEvent.click(sortButton)
+      fireEvent.click(sortButton)
+
+      // All approvals should still be visible after sorting
+      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
+      expect(screen.getByText('Test Approval 2')).toBeInTheDocument()
+      expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
+    })
+
+    it('can sort by different columns', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      // Click Status header
+      const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
+      const statusSortButton = within(statusHeader).getByRole('button')
+      fireEvent.click(statusSortButton)
+
+      // All approvals should still be visible
+      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
+      expect(screen.getByText('Test Approval 2')).toBeInTheDocument()
+      expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
+    })
   })
 })

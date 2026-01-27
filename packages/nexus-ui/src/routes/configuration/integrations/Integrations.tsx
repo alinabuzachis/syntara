@@ -40,6 +40,7 @@ import { IconLabel } from '../../../components/IconLabel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useFuse } from '../../../hooks/useFuse'
+import { useTableSort } from '../../../hooks/useTableSort'
 import { getErrorMessage } from '../../../utils/apiErrors'
 
 import { IntegrationCard } from './IntegrationCard'
@@ -147,8 +148,33 @@ export default function Integrations() {
       },
     },
   })
-  const { search, setSearch, items: results } = useFuse<ToolProvider>(query.data?.resources ?? [], [{ name: 'name' }])
+  const {
+    search,
+    setSearch,
+    items: filteredResults,
+  } = useFuse<ToolProvider>(query.data?.resources ?? [], [{ name: 'name' }])
   const { showAlert } = useAlerts()
+
+  const { activeSortIndex, getSortParams, sortData } = useTableSort({
+    initialSortIndex: 0,
+    initialDirection: 'asc',
+  })
+
+  // Sort the filtered results
+  const results = sortData(filteredResults, (provider) => {
+    switch (activeSortIndex) {
+      case 0:
+        return provider.name ?? ''
+      case 1:
+        return provider.status ?? ''
+      case 2:
+        return (provider.configuration as { provider_type?: string }).provider_type ?? ''
+      case 3:
+        return (provider as { tool_count?: number }).tool_count ?? 0
+      default:
+        return provider.name ?? ''
+    }
+  })
 
   const { mutate: validateProvider } = toolProvidersClient.useMutation('post', '/tool_providers/{provider_id}/validate')
   const { mutate: deleteProvider } = toolProvidersClient.useMutation('delete', '/tool_providers/{provider_id}')
@@ -338,10 +364,10 @@ export default function Integrations() {
           >
             <Thead>
               <Tr>
-                <Th>Name</Th>
-                <Th>Status</Th>
-                <Th>Integration type</Th>
-                <Th>Tools</Th>
+                <Th sort={getSortParams(0)}>Name</Th>
+                <Th sort={getSortParams(1)}>Status</Th>
+                <Th sort={getSortParams(2)}>Integration type</Th>
+                <Th sort={getSortParams(3)}>Tools</Th>
                 <Th screenReaderText="Actions" />
               </Tr>
             </Thead>

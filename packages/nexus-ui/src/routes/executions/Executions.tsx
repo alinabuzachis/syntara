@@ -13,6 +13,7 @@ import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useFuse } from '../../hooks/useFuse'
+import { useTableSort } from '../../hooks/useTableSort'
 import { getDateField } from '../../utils/getDateField'
 import { StatusLabel } from '../builder/ExecutionStatus'
 
@@ -47,7 +48,30 @@ export default function Executions() {
     }
   )
 
-  const { search, setSearch, items: filteredExecutions } = useFuse(executions, [{ name: 'workflow_id' }])
+  const { search, setSearch, items: searchFilteredExecutions } = useFuse(executions, [{ name: 'workflow_id' }])
+
+  const { activeSortIndex, getSortParams, sortData } = useTableSort({
+    initialSortIndex: 3, // Default sort by Created at
+    initialDirection: 'desc',
+  })
+
+  // Sort the filtered executions
+  const filteredExecutions = sortData(searchFilteredExecutions, (execution) => {
+    switch (activeSortIndex) {
+      case 0:
+        return execution.id ?? ''
+      case 1:
+        return execution.workflow_id ?? ''
+      case 2:
+        return execution.status ?? ''
+      case 3:
+        return getDateField(execution, 'createdAt') ? new Date(getDateField(execution, 'createdAt')!) : null
+      case 4:
+        return execution.completed_at ? new Date(execution.completed_at) : null
+      default:
+        return execution.id ?? ''
+    }
+  })
 
   const queryState = useQueryState(executionsQuery, 'Error loading executions')
   if (queryState) {
@@ -97,7 +121,7 @@ export default function Executions() {
             content: (
               <>
                 {filteredExecutions.length} {filteredExecutions.length === 1 ? 'execution' : 'executions'}
-                {executionsQuery.data?.total && executionsQuery.data.total > filteredExecutions.length && (
+                {executionsQuery.data?.total != null && executionsQuery.data.total > filteredExecutions.length && (
                   <span style={{ opacity: 0.6 }}> (of {executionsQuery.data.total} total)</span>
                 )}
               </>
@@ -110,15 +134,15 @@ export default function Executions() {
         >
           <Thead>
             <Tr>
-              <Th modifier="nowrap" style={{ minWidth: '250px', width: '250px' }}>
+              <Th modifier="nowrap" style={{ minWidth: '250px', width: '250px' }} sort={getSortParams(0)}>
                 Execution ID
               </Th>
-              <Th modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
+              <Th modifier="nowrap" style={{ minWidth: '200px', width: '200px' }} sort={getSortParams(1)}>
                 Workflow
               </Th>
-              <Th>Status</Th>
-              <Th>Created at</Th>
-              <Th>Completed at</Th>
+              <Th sort={getSortParams(2)}>Status</Th>
+              <Th sort={getSortParams(3)}>Created at</Th>
+              <Th sort={getSortParams(4)}>Completed at</Th>
             </Tr>
           </Thead>
           <Tbody>

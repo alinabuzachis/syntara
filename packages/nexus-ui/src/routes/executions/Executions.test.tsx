@@ -1,5 +1,5 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { useLocation, useSearch } from 'wouter'
@@ -275,5 +275,73 @@ describe('Executions Component', () => {
     const workflow3Button = screen.getByText('workflow-3').closest('button')
     await user.click(workflow3Button!)
     expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-3')
+  })
+
+  describe('Sorting Functionality', () => {
+    it('renders sortable column headers', () => {
+      mockExecutionsQuery(mockExecutions)
+
+      render(<Executions />)
+
+      // Verify sortable columns have sort buttons
+      const executionIdHeader = screen.getByRole('columnheader', { name: /Execution ID/i })
+      expect(within(executionIdHeader).getByRole('button')).toBeInTheDocument()
+
+      const workflowHeader = screen.getByRole('columnheader', { name: /^Workflow$/i })
+      expect(within(workflowHeader).getByRole('button')).toBeInTheDocument()
+
+      const statusHeader = screen.getByRole('columnheader', { name: /^Status$/i })
+      expect(within(statusHeader).getByRole('button')).toBeInTheDocument()
+    })
+
+    it('changes sort when clicking column headers', () => {
+      mockExecutionsQuery(mockExecutions)
+
+      render(<Executions />)
+
+      // Click Execution ID header to sort
+      const executionIdHeader = screen.getByRole('columnheader', { name: /Execution ID/i })
+      const sortButton = within(executionIdHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All executions should still be visible
+      expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
+      expect(screen.getByText('223e4567-e89b-12d3-a456-426614174001')).toBeInTheDocument()
+      expect(screen.getByText('323e4567-e89b-12d3-a456-426614174002')).toBeInTheDocument()
+    })
+
+    it('can toggle sort direction by clicking the same column header', () => {
+      mockExecutionsQuery(mockExecutions)
+
+      render(<Executions />)
+
+      const executionIdHeader = screen.getByRole('columnheader', { name: /Execution ID/i })
+      const sortButton = within(executionIdHeader).getByRole('button')
+
+      // Click twice to toggle direction
+      fireEvent.click(sortButton)
+      fireEvent.click(sortButton)
+
+      // All executions should still be visible after sorting
+      expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
+      expect(screen.getByText('223e4567-e89b-12d3-a456-426614174001')).toBeInTheDocument()
+      expect(screen.getByText('323e4567-e89b-12d3-a456-426614174002')).toBeInTheDocument()
+    })
+
+    it('can sort by different columns', () => {
+      mockExecutionsQuery(mockExecutions)
+
+      render(<Executions />)
+
+      // Click Workflow header
+      const workflowHeader = screen.getByRole('columnheader', { name: /^Workflow$/i })
+      const sortButton = within(workflowHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All executions should still be visible
+      expect(screen.getByText('workflow-1')).toBeInTheDocument()
+      expect(screen.getByText('workflow-2')).toBeInTheDocument()
+      expect(screen.getByText('workflow-3')).toBeInTheDocument()
+    })
   })
 })

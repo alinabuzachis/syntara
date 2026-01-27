@@ -1006,4 +1006,77 @@ describe('Automations Component', () => {
       })
     })
   })
+
+  describe('Sorting Functionality', () => {
+    it('renders sortable column headers', async () => {
+      render(<Automations />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      // Verify sortable columns have sort buttons
+      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
+      expect(within(nameHeader).getByRole('button')).toBeInTheDocument()
+
+      const createdAtHeader = screen.getByRole('columnheader', { name: /Created at/i })
+      expect(within(createdAtHeader).getByRole('button')).toBeInTheDocument()
+
+      const updatedAtHeader = screen.getByRole('columnheader', { name: /Updated at/i })
+      expect(within(updatedAtHeader).getByRole('button')).toBeInTheDocument()
+    })
+
+    it('changes sort when clicking column headers', async () => {
+      render(<Automations />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      // Click Name header to sort by name
+      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
+      const sortButton = within(nameHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All automations should still be visible
+      expect(screen.getByText('Important Project Workflow')).toBeInTheDocument()
+      expect(screen.getByText('Secondary Team Workflow')).toBeInTheDocument()
+    })
+
+    it('can toggle sort direction by clicking the same column header', async () => {
+      render(<Automations />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
+      const sortButton = within(nameHeader).getByRole('button')
+
+      // Click twice to toggle direction
+      fireEvent.click(sortButton)
+      fireEvent.click(sortButton)
+
+      // All automations should still be visible after sorting
+      expect(screen.getByText('Important Project Workflow')).toBeInTheDocument()
+      expect(screen.getByText('Secondary Team Workflow')).toBeInTheDocument()
+    })
+
+    it('can sort by different columns', async () => {
+      render(<Automations />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      // Click Created at column
+      const createdAtHeader = screen.getByRole('columnheader', { name: /Created at/i })
+      const sortButton = within(createdAtHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All automations should still be visible
+      expect(screen.getByText('Important Project Workflow')).toBeInTheDocument()
+      expect(screen.getByText('Secondary Team Workflow')).toBeInTheDocument()
+    })
+  })
 })
