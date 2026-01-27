@@ -88,11 +88,12 @@ This project uses `uv` for dependency management and provides a comprehensive Ma
 
 **Option 1: Full Stack with Containers (Recommended)**
 
-**NOTE**: The UI image is private and you need to be previously logged in ghcr.io registry in order to be able to download the image.
-You can do it easily with `gh` [github cli](https://cli.github.com/)
+**NOTE**: The UI image is private and requires authentication to the GitHub Container Registry (ghcr.io). You need a [**classic Personal Access Token (PAT)**](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry) with `read:packages` scope to pull the image.
+
+You can authenticate with:
 
 ```bash
-gh auth token | podman login ghcr.io --username $(gh api user --jq '.login') --password-stdin
+echo <your_PAT> | podman login ghcr.io -u <your_username> --password-stdin
 ```
 
 **IMPORTANT**: Before starting the services for the first time, you must build the container images:
