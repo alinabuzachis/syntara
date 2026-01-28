@@ -1,5 +1,11 @@
 import { Icon, Spinner } from '@patternfly/react-core'
-import { RhUiCheckIcon, RhUiErrorIcon, RhUiSyncIcon, RhUiEllipsisHorizontalFillIcon } from '@patternfly/react-icons'
+import {
+  RhUiCheckIcon,
+  RhUiErrorIcon,
+  RhUiSyncIcon,
+  RhUiEllipsisHorizontalFillIcon,
+  RhUiMinusIcon,
+} from '@patternfly/react-icons'
 
 import type { ActivityStatus } from '../../../routes/automations/execution/types'
 
@@ -47,7 +53,7 @@ export function ExecutionStatusBadge({ status, retryCount }: ExecutionStatusBadg
         }
       case 'skipped':
         return {
-          icon: <RhUiEllipsisHorizontalFillIcon />,
+          icon: <RhUiMinusIcon />,
           backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
           label: 'Skipped',
         }

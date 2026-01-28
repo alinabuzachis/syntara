@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ExecutionViewContext } from '../../../builder/ExecutionViewContext'
+
 import { TriggerNodeComponent } from './TriggerNode'
 
 vi.mock('@xyflow/react', () => ({

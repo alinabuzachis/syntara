@@ -58,7 +58,7 @@ describe('ExecutionStatusBadge', () => {
     })
   })
 
-  it('renders skipped status with ellipsis icon', () => {
+  it('renders skipped status with minus icon', () => {
     const { container } = render(<ExecutionStatusBadge status="skipped" />)
 
     const badge = container.querySelector('div')
