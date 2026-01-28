@@ -14,6 +14,7 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 
@@ -28,11 +29,13 @@ import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer, type TableFooterProps } from '../../../components/table/ScrollableTableContainer'
 import { useFuse } from '../../../hooks/useFuse'
+import { useTableSort } from '../../../hooks/useTableSort'
 import { getErrorMessage } from '../../../utils/apiErrors'
 
 export default function IntegrationTools() {
   const params = useParams()
   const [, navigate] = useLocation()
+  const queryClient = useQueryClient()
   const provider_id = params?.provider_id || ''
   const { showAlert } = useAlerts()
   const [cursor, setCursor] = useState<string | null>(null)
@@ -52,7 +55,7 @@ export default function IntegrationTools() {
       },
     },
   })
-  const { mutate: updateTools } = toolsClient.useMutation('patch', '/tools/bulk_update')
+  const { mutateAsync: updateTools } = toolsClient.useMutation('patch', '/tools/bulk_update')
   const { mutate: refreshTools } = toolProvidersClient.useMutation(
     'post',
     '/tool_providers/{provider_id}/refresh_tools'
@@ -87,60 +90,73 @@ export default function IntegrationTools() {
 
   const handleSubmit = async () => {
     // Get all tools on current page that should be enabled (in enabledToolIds)
-    // Note: We submit all tools that should be enabled, not just changed ones, to match previous behavior
     const enableTools = results.filter((tool) => enabledToolIds.has(tool.id)).map((tool) => tool.id)
     // Get all tools on current page that should be disabled (not in enabledToolIds)
     const disableTools = results.filter((tool) => !enabledToolIds.has(tool.id)).map((tool) => tool.id)
 
-    // Submit changes for current page
-    if (enableTools && enableTools.length > 0) {
-      updateTools(
-        { body: { tool_ids: enableTools, enabled: true } },
-        { onSuccess: () => navigate(AppRoute.Configuration.Integrations.Root) }
-      )
+    // Collect all update promises
+    const updates: Promise<unknown>[] = []
+
+    if (enableTools.length > 0) {
+      updates.push(updateTools({ body: { tool_ids: enableTools, enabled: true } }))
     }
-    if (disableTools && disableTools.length > 0) {
-      updateTools(
-        { body: { tool_ids: disableTools, enabled: false } },
-        { onSuccess: () => navigate(AppRoute.Configuration.Integrations.Root) }
-      )
+    if (disableTools.length > 0) {
+      updates.push(updateTools({ body: { tool_ids: disableTools, enabled: false } }))
     }
 
-    // If no tools on current page, just navigate
-    if ((!enableTools || enableTools.length === 0) && (!disableTools || disableTools.length === 0)) {
-      navigate(AppRoute.Configuration.Integrations.Root)
+    // Wait for all updates to complete before navigating
+    if (updates.length > 0) {
+      await Promise.all(updates)
+      // Invalidate tools query cache so fresh data is fetched when returning to this page
+      await queryClient.invalidateQueries({ queryKey: ['get', '/tools'] })
     }
+
+    navigate(AppRoute.Configuration.Integrations.Root)
   }
-  const { search, setSearch, items: results } = useFuse(query.data?.resources ?? [], [{ name: 'namespaced_name' }])
-  const previousResultsRef = useRef(results)
+  const {
+    search,
+    setSearch,
+    items: filteredResults,
+  } = useFuse(query.data?.resources ?? [], [{ name: 'namespaced_name' }])
+
+  const { getSortParams, sortData } = useTableSort({
+    initialSortIndex: 0,
+    initialDirection: 'asc',
+  })
+
+  // Sort the filtered results by name
+  const results = sortData(filteredResults, (tool) => tool.namespaced_name ?? '')
+
+  // Track filteredResults for state sync (not results, since sorting creates new array each render)
+  const previousResultsRef = useRef(filteredResults)
   // Track enabled tool IDs across all pages
   const [enabledToolIds, setEnabledToolIds] = useState<Set<string>>(() => {
     const initialEnabled = new Set<string>()
-    results.filter((tool) => tool.enabled).forEach((tool) => initialEnabled.add(tool.id))
+    filteredResults.filter((tool) => tool.enabled).forEach((tool) => initialEnabled.add(tool.id))
     return initialEnabled
   })
   const [refreshDialogOpen, setRefreshDialogOpen] = useState(false)
 
-  // Sync enabledToolIds when results change (e.g., page navigation, refresh)
+  // Sync enabledToolIds when filteredResults change (e.g., page navigation, refresh)
   // This initializes enabledToolIds with tools that are enabled from the API
   // and preserves user selections when navigating between pages
   useEffect(() => {
-    // Only update if results actually changed
-    if (previousResultsRef.current !== results) {
-      previousResultsRef.current = results
+    // Only update if filteredResults actually changed (not on every sort)
+    if (previousResultsRef.current !== filteredResults) {
+      previousResultsRef.current = filteredResults
       // Use queueMicrotask to avoid calling setState synchronously within an effect
       queueMicrotask(() => {
         setEnabledToolIds((prev) => {
           const updated = new Set(prev)
           // Add tools that are enabled on the current page (from API)
-          results.filter((tool) => tool.enabled).forEach((tool) => updated.add(tool.id))
+          filteredResults.filter((tool) => tool.enabled).forEach((tool) => updated.add(tool.id))
           // Note: We preserve selections for tools not on the current page
           // This allows tracking enabled tools across all pages
           return updated
         })
       })
     }
-  }, [results])
+  }, [filteredResults])
 
   // Get enabled tools for the current page
   const enabledTools = results.filter((tool) => enabledToolIds.has(tool.id))
@@ -220,6 +236,7 @@ export default function IntegrationTools() {
       ) : (
         <ScrollableTableContainer
           aria-label="Tools table"
+          isExpandable
           footer={
             {
               content: (
@@ -266,7 +283,7 @@ export default function IntegrationTools() {
                 }}
                 screenReaderText="Select all tools"
               />
-              <Th>{`${enabledToolIds.size} ${enabledToolIds.size === 1 ? 'tool' : 'tools'} enabled`}</Th>
+              <Th sort={getSortParams(0)}>Name</Th>
             </Tr>
           </Thead>
           <Tbody>

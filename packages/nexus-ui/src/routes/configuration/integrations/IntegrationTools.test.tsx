@@ -130,7 +130,7 @@ describe('IntegrationTools Component', () => {
       error: null,
       data: undefined,
       reset: vi.fn(),
-      mutateAsync: vi.fn(),
+      mutateAsync: mockMutate.mockResolvedValue(undefined),
       isSuccess: false,
       isIdle: true,
       failureCount: 0,
@@ -180,7 +180,7 @@ describe('IntegrationTools Component', () => {
     it('displays correct item count', () => {
       render(<IntegrationTools />, { wrapper })
 
-      // Since 2 tools are enabled by default (tool-1 and tool-3), it shows selection count
+      // Since 2 tools are enabled by default (tool_one and tool_three), it shows selection count
       // Check that it appears in both header and footer
       const counts = screen.getAllByText('2 of 3 tools enabled')
       expect(counts.length).toBeGreaterThan(0)
@@ -197,26 +197,27 @@ describe('IntegrationTools Component', () => {
       // Header checkbox + 3 tool checkboxes = 4 total
       expect(checkboxes.length).toBe(4)
 
-      // tool-1 and tool-3 should be checked (enabled: true)
-      // tool-2 should be unchecked (enabled: false)
-      // We can verify this by checking the checked state
+      // Tools are sorted alphabetically: tool_one, tool_three, tool_two
+      // tool_one (enabled: true), tool_three (enabled: true), tool_two (enabled: false)
       const toolCheckboxes = checkboxes.slice(1) // Skip header checkbox
 
-      // Tool 1 should be checked (enabled: true)
+      // tool_one should be checked (enabled: true)
       expect(toolCheckboxes[0]).toBeChecked()
-      // Tool 2 should not be checked (enabled: false)
-      expect(toolCheckboxes[1]).not.toBeChecked()
-      // Tool 3 should be checked (enabled: true)
-      expect(toolCheckboxes[2]).toBeChecked()
+      // tool_three should be checked (enabled: true)
+      expect(toolCheckboxes[1]).toBeChecked()
+      // tool_two should not be checked (enabled: false)
+      expect(toolCheckboxes[2]).not.toBeChecked()
     })
 
     it('updates selection count when tools are selected', () => {
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
-      const tool2Checkbox = checkboxes[2] // tool-2 (currently unchecked)
+      // Tools sorted alphabetically: tool_one, tool_three, tool_two
+      // tool_two is at index 3 (after header), currently unchecked
+      const tool2Checkbox = checkboxes[3]
 
-      // Click to select tool-2
+      // Click to select tool_two
       fireEvent.click(tool2Checkbox)
 
       // Should show 3 tools enabled (all tools now selected) - appears in both header and footer
@@ -228,13 +229,14 @@ describe('IntegrationTools Component', () => {
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
-      const tool1Checkbox = checkboxes[1] // tool-1 (currently checked)
+      // After sorting: tool_one (index 1), tool_three (index 2), tool_two (index 3)
+      const toolOneCheckbox = checkboxes[1] // tool_one (currently checked)
 
-      // Click to deselect tool-1
-      fireEvent.click(tool1Checkbox)
+      // Click to deselect tool_one
+      fireEvent.click(toolOneCheckbox)
 
-      // tool-1 should now be unchecked
-      expect(tool1Checkbox).not.toBeChecked()
+      // tool_one should now be unchecked
+      expect(toolOneCheckbox).not.toBeChecked()
     })
 
     it('supports select all functionality', () => {
@@ -328,10 +330,11 @@ describe('IntegrationTools Component', () => {
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
-      const tool2Checkbox = checkboxes[2] // tool-2 (currently unchecked)
+      // After sorting: tool_one (index 1), tool_three (index 2), tool_two (index 3)
+      const toolTwoCheckbox = checkboxes[3] // tool_two (currently unchecked)
 
-      // Select tool-2
-      fireEvent.click(tool2Checkbox)
+      // Select tool_two
+      fireEvent.click(toolTwoCheckbox)
 
       const saveButton = screen.getByText('Save')
       fireEvent.click(saveButton)
@@ -346,10 +349,11 @@ describe('IntegrationTools Component', () => {
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
-      const tool1Checkbox = checkboxes[1] // tool-1 (currently checked)
+      // After sorting: tool_one (index 1), tool_three (index 2), tool_two (index 3)
+      const toolOneCheckbox = checkboxes[1] // tool_one (currently checked)
 
-      // Deselect tool-1
-      fireEvent.click(tool1Checkbox)
+      // Deselect tool_one
+      fireEvent.click(toolOneCheckbox)
 
       const saveButton = screen.getByText('Save')
       fireEvent.click(saveButton)
@@ -431,12 +435,12 @@ describe('IntegrationTools Component', () => {
       expect(checkboxes.length).toBeGreaterThan(0)
     })
 
-    it('renders count in column header', () => {
+    it('renders Name column header', () => {
       render(<IntegrationTools />, { wrapper })
 
-      // Column header shows count instead of "Name" - text may appear in header and footer
-      const counts = screen.getAllByText('2 of 3 tools enabled')
-      expect(counts.length).toBeGreaterThan(0)
+      // Column header shows "Name"
+      const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
+      expect(nameHeader).toBeInTheDocument()
     })
 
     it('displays tool information in rows', () => {
@@ -459,9 +463,11 @@ describe('IntegrationTools Component', () => {
       render(<IntegrationTools />, { wrapper })
 
       const checkboxes = screen.getAllByRole('checkbox')
-      const tool2Checkbox = checkboxes[2] // tool-2
+      // Tools sorted alphabetically: tool_one, tool_three, tool_two
+      // tool_two is at index 3 (after header), currently unchecked
+      const tool2Checkbox = checkboxes[3]
 
-      // Select tool-2
+      // Select tool_two
       fireEvent.click(tool2Checkbox)
 
       // Verify enabledTools state was updated
@@ -732,6 +738,65 @@ describe('IntegrationTools Component', () => {
 
       // Confirmation dialog should not be shown
       expect(screen.queryByText(/Are you sure you want to refresh tools/i)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Sorting Functionality', () => {
+    it('renders sortable Name column header', () => {
+      render(<IntegrationTools />, { wrapper })
+
+      // Verify sortable column has sort button
+      const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
+      expect(within(nameHeader).getByRole('button')).toBeInTheDocument()
+    })
+
+    it('sorts tools in ascending order by default', () => {
+      render(<IntegrationTools />, { wrapper })
+
+      // Get all table rows (excluding header)
+      const rows = screen.getAllByRole('row').slice(1)
+
+      // Verify ascending alphabetical order: tool_one, tool_three, tool_two
+      // (Note: "one" < "three" < "two" alphabetically)
+      expect(within(rows[0]).getByText('test.tool_one')).toBeInTheDocument()
+      expect(within(rows[1]).getByText('test.tool_three')).toBeInTheDocument()
+      expect(within(rows[2]).getByText('test.tool_two')).toBeInTheDocument()
+    })
+
+    it('sorts tools in descending order when clicking Name column header', () => {
+      render(<IntegrationTools />, { wrapper })
+
+      // Click Name header to toggle to descending
+      const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
+      const sortButton = within(nameHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // Get all table rows (excluding header)
+      const rows = screen.getAllByRole('row').slice(1)
+
+      // Verify descending alphabetical order: tool_two, tool_three, tool_one
+      expect(within(rows[0]).getByText('test.tool_two')).toBeInTheDocument()
+      expect(within(rows[1]).getByText('test.tool_three')).toBeInTheDocument()
+      expect(within(rows[2]).getByText('test.tool_one')).toBeInTheDocument()
+    })
+
+    it('toggles back to ascending order on second click', () => {
+      render(<IntegrationTools />, { wrapper })
+
+      const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
+      const sortButton = within(nameHeader).getByRole('button')
+
+      // Click twice to go: asc -> desc -> asc
+      fireEvent.click(sortButton)
+      fireEvent.click(sortButton)
+
+      // Get all table rows (excluding header)
+      const rows = screen.getAllByRole('row').slice(1)
+
+      // Verify back to ascending alphabetical order: tool_one, tool_three, tool_two
+      expect(within(rows[0]).getByText('test.tool_one')).toBeInTheDocument()
+      expect(within(rows[1]).getByText('test.tool_three')).toBeInTheDocument()
+      expect(within(rows[2]).getByText('test.tool_two')).toBeInTheDocument()
     })
   })
 })
