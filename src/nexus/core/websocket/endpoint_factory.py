@@ -21,7 +21,6 @@ import yaml
 from fastapi import WebSocket, WebSocketDisconnect
 
 from nexus.core.websocket.connection import get_connection_manager
-from nexus.core.websocket.discovery import HandlerNotFoundError, discover_handler
 from nexus.core.websocket.hooks import WebSocketHooks, discover_hooks
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.schema_validator import ValidationError
@@ -35,6 +34,10 @@ _connection_id_context: ContextVar[str | None] = ContextVar("connection_id_conte
 # Global cache of loaded specs (component_name -> spec_dict)
 # Used by validation to avoid re-loading spec files
 _SPEC_CACHE: dict[str, dict[str, Any]] = {}
+
+# Global cache of loaded handler modules (component_name -> channel_name -> module)
+# Populated during spec scanning.
+_HANDLER_MODULE_CACHE: dict[str, dict[str, types.ModuleType]] = {}
 
 
 async def _send_error_response(websocket: WebSocket, error_dict: dict[str, Any], channel_name: str) -> bool:
@@ -475,6 +478,13 @@ def _scan_ws_directory(component_name: str, ws_dir: Path, project_root: Path) ->
             continue
 
         specs[py_file] = (module, spec_dict)
+
+        if component_name not in _HANDLER_MODULE_CACHE:
+            _HANDLER_MODULE_CACHE[component_name] = {}
+        for channel_name in spec_dict.get("channels", {}):
+            _HANDLER_MODULE_CACHE[component_name][channel_name] = module
+            logger.debug("Cached module for channel '%s' in component '%s'", channel_name, component_name)
+
         logger.debug(
             "Loaded spec from %s for %s (%d channels)",
             expected_spec_path.name,
@@ -534,6 +544,11 @@ def scan_handler_specs() -> dict[str, dict[str, Any]]:
         True
 
     """
+    # Clear global caches to ensure clean state
+    # This prevents stale data in dynamic reload scenarios
+    _SPEC_CACHE.clear()
+    _HANDLER_MODULE_CACHE.clear()
+
     current_file = Path(__file__)
     nexus_dir = current_file.parent.parent.parent  # src/nexus/
     project_root = nexus_dir.parent.parent
@@ -969,12 +984,13 @@ def create_websocket_endpoint(
     is_receive_only = is_receive_only_channel(spec, channel_name)
     request_msg_type = _validate_channel_and_get_request_type(spec, channel_name, is_receive_only=is_receive_only)
 
-    # Discover handler module
-    try:
-        handler_module = discover_handler(component_name, channel_name)
-    except HandlerNotFoundError:
-        logger.exception("Handler not found for component '%s', channel '%s'", component_name, channel_name)
-        raise
+    # Get handler module from cache (populated during spec scanning)
+    handler_module = _HANDLER_MODULE_CACHE.get(component_name, {}).get(channel_name)
+
+    if handler_module is None:
+        # This should never happen - cache is populated during spec scanning
+        msg = f"Module not found in cache for component '{component_name}', channel '{channel_name}'. "
+        raise RuntimeError(msg)
 
     hooks = discover_hooks(handler_module, component_name)
     normalized_channel_name = normalize_channel_name(channel_name)

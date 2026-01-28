@@ -15,26 +15,6 @@ from nexus.core.websocket.close_codes import UNSUPPORTED_DATA
 
 logger = logging.getLogger(__name__)
 
-# AsyncAPI specification path (relative to project root)
-SPEC_PATH = "src/nexus/schemas/agent_orchestrator/websocket-adaptor_streaming.yaml"
-
-
-def handle_invocations(_message: dict[str, object], _connection_id: str) -> dict[str, str]:
-    """Return empty dict as dummy handler for framework.
-
-    This function is required for the WebSocket framework to discover this module,
-    but it won't be called since 'invocations' is a receive-only channel.
-
-    Args:
-        _message: Incoming message (unused)
-        _connection_id: Connection ID (unused)
-
-    Returns:
-        Empty dict
-
-    """
-    return {}
-
 
 async def on_connect_invocations(websocket: WebSocket, connection_id: str) -> None:
     """WebSocket connection handler for invocation streaming.

@@ -8,6 +8,7 @@ import inspect
 import logging
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from types import ModuleType
 from typing import Any
 
@@ -217,7 +218,7 @@ def check_missing_handlers(
 def check_orphaned_handlers(
     channels: dict[str, Any],
     handler_functions: dict[str, list[str]],
-    component_name: str,
+    handler_module: ModuleType,
     result: ChannelValidationResult,
 ) -> None:
     """Check for handler/on_connect functions without corresponding channels.
@@ -225,18 +226,22 @@ def check_orphaned_handlers(
     Args:
         channels: Dictionary of channel definitions from AsyncAPI spec
         handler_functions: Dictionary of discovered handler function names
-        component_name: Name of the component
+        handler_module: Handler module to extract filename from
         result: Validation result to update with errors
 
     """
     # Get all normalized channel names from spec
     channel_names = {normalize_channel_name(name) for name in channels}
 
+    # Extract module filename for error reporting
+    module_file = getattr(handler_module, "__file__", None)
+    module_name = Path(module_file).name if module_file else handler_module.__name__
+
     # Check for orphaned handle_* functions
     for handler_name in handler_functions["handlers"]:
         if handler_name not in channel_names:
             result.add_error(
-                f"Orphaned handler 'handle_{handler_name}' in '{component_name}.py' - "
+                f"Orphaned handler 'handle_{handler_name}' in '{module_name}' - "
                 f"no channel '{handler_name}' in '{result.spec_path}'"
             )
 
@@ -244,7 +249,7 @@ def check_orphaned_handlers(
     for on_connect_name in handler_functions["on_connect"]:
         if on_connect_name not in channel_names:
             result.add_error(
-                f"Orphaned handler 'on_connect_{on_connect_name}' in '{component_name}.py' - "
+                f"Orphaned handler 'on_connect_{on_connect_name}' in '{module_name}' - "
                 f"no channel '{on_connect_name}' in '{result.spec_path}'"
             )
 
@@ -361,7 +366,7 @@ def validate_channel_mappings(
     validate_naming_convention(channels, result)
     validate_channel_addresses(spec, component_name, channels, result)
     check_missing_handlers(channels, handler_functions, spec, result)
-    check_orphaned_handlers(channels, handler_functions, component_name, result)
+    check_orphaned_handlers(channels, handler_functions, handler_module, result)
 
     return result
 

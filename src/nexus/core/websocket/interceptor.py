@@ -7,10 +7,13 @@ WebSocket endpoint creation lifecycle during application bootstrap.
 import logging
 from typing import TYPE_CHECKING, Any
 
-from nexus.core.websocket import channel_validator, discovery
+from nexus.core.websocket import channel_validator
+from nexus.core.websocket.endpoint_factory import _HANDLER_MODULE_CACHE
 
 if TYPE_CHECKING:
     from types import ModuleType
+
+    from nexus.core.websocket.channel_validator import ChannelValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -170,8 +173,9 @@ class ValidationInterceptor(WebSocketInterceptor):
     def __init__(self) -> None:
         """Initialize the validation interceptor."""
         self.specs: dict[str, dict[str, Any]] = {}
-        self.handler_modules: dict[str, ModuleType] = {}
+        self.channel_modules: dict[str, dict[str, ModuleType]] = {}
         self.component_names: list[str] = []
+        self.validation_results: list[ChannelValidationResult] = []
 
     def on_bootstrap_start(self, specs: dict[str, Any]) -> None:
         """Collect all AsyncAPI specs for validation.
@@ -185,27 +189,34 @@ class ValidationInterceptor(WebSocketInterceptor):
         logger.debug("ValidationInterceptor: Starting validation for %d components", len(specs))
 
     def before_endpoint_creation(
-        self, component_name: str, _channel_name: str, _channel_config: dict[str, Any]
+        self,
+        component_name: str,
+        channel_name: str,
+        channel_config: dict[str, Any],  # noqa: ARG002
     ) -> None:
-        """Load handler module for later validation.
+        """Collect channel-to-module mappings from cache for later validation.
 
         Args:
             component_name: Name of the component
-            _channel_name: Name of the channel (unused in validation)
-            _channel_config: Channel configuration from AsyncAPI spec (unused in validation)
+            channel_name: Name of the channel
+            channel_config: Channel configuration from AsyncAPI spec (unused)
 
         """
-        # Load handler module if not already loaded
-        if component_name not in self.handler_modules:
-            module = discovery.load_handler_module(component_name)
-            if module is not None:
-                self.handler_modules[component_name] = module
+        # Get module for this specific channel from endpoint_factory's cache
+        module = _HANDLER_MODULE_CACHE.get(component_name, {}).get(channel_name)
+        if module is not None:
+            if component_name not in self.channel_modules:
+                self.channel_modules[component_name] = {}
+            self.channel_modules[component_name][channel_name] = module
 
-    def on_bootstrap_complete(self, _results: dict[str, Any]) -> None:
+    def on_bootstrap_complete(self, results: dict[str, Any]) -> None:  # noqa: ARG002
         """Run comprehensive validation after all endpoints are created.
 
+        For components with multiple handler files, validates each module
+        against only its channels to avoid false positives.
+
         Args:
-            _results: Summary of bootstrap results (unused in current validation)
+            results: Summary of bootstrap results (unused in current validation)
 
         """
         logger.info("Running channel mapping validation...")
@@ -216,37 +227,59 @@ class ValidationInterceptor(WebSocketInterceptor):
 
         for component_name in self.component_names:
             spec = self.specs.get(component_name)
-            handler_module = self.handler_modules.get(component_name)
+            channel_modules = self.channel_modules.get(component_name, {})
 
             if not spec:
                 logger.warning("No spec found for component '%s'", component_name)
                 continue
 
-            if not handler_module:
-                logger.warning("No handler module found for component '%s'", component_name)
+            if not channel_modules:
+                logger.warning("No handler modules found for component '%s'", component_name)
                 continue
 
-            # Get spec path for error reporting
-            spec_path = f"{component_name}.yaml"
+            # Group channels by their handler module
+            module_to_channels: dict[ModuleType, list[str]] = {}
+            for channel_name, module in channel_modules.items():
+                if module not in module_to_channels:
+                    module_to_channels[module] = []
+                module_to_channels[module].append(channel_name)
 
-            # Validate this component
-            result = channel_validator.validate_channel_mappings(
-                component_name=component_name, spec=spec, spec_path=spec_path, handler_module=handler_module
-            )
+            # Validate each module against only its channels
+            for module_idx, (handler_module, module_channels) in enumerate(module_to_channels.items(), 1):
+                # Create a filtered spec containing only this module's channels
+                filtered_spec = spec.copy()
+                all_channels = spec.get("channels", {})
+                filtered_spec["channels"] = {
+                    ch_name: all_channels[ch_name] for ch_name in module_channels if ch_name in all_channels
+                }
 
-            validation_results.append(result)
-            total_errors += len(result.errors)
-            total_warnings += len(result.warnings)
+                # Get spec path for error reporting
+                module_name = getattr(handler_module, "__name__", f"module_{module_idx}")
+                spec_path = f"{component_name} ({module_name})"
+
+                # Validate this module against its channels
+                result = channel_validator.validate_channel_mappings(
+                    component_name=component_name,
+                    spec=filtered_spec,
+                    spec_path=spec_path,
+                    handler_module=handler_module,
+                )
+
+                validation_results.append(result)
+                total_errors += len(result.errors)
+                total_warnings += len(result.warnings)
+
+        self.validation_results = validation_results
 
         # Log summary
         if total_errors > 0 or total_warnings > 0:
             logger.info(
-                "Channel validation complete: %d error(s), %d warning(s) across %d component(s)",
+                "Channel validation complete: %d error(s), %d warning(s) across %d validation(s)",
                 total_errors,
                 total_warnings,
                 len(validation_results),
             )
         else:
             logger.info(
-                "Channel validation complete: All %d component(s) validated successfully", len(validation_results)
+                "Channel validation complete: All %d validation(s) passed successfully", len(validation_results)
             )

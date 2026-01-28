@@ -9,7 +9,12 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from nexus.core.websocket.endpoint_factory import create_websocket_endpoint, scan_handler_specs
+from nexus.core.websocket.endpoint_factory import (
+    _HANDLER_MODULE_CACHE,
+    _SPEC_CACHE,
+    create_websocket_endpoint,
+    scan_handler_specs,
+)
 
 
 def _create_mock_traversable(path: Path) -> Mock:
@@ -549,18 +554,19 @@ def _create_bidirectional_spec(
 class TestReceiveOnlyChannels:
     """Tests for receive-only channel support (Phase 3: AAP-58895)."""
 
-    @patch("nexus.core.websocket.endpoint_factory.discover_handler")
+    @patch(
+        "nexus.core.websocket.endpoint_factory._HANDLER_MODULE_CACHE",
+        {"test_component": {"test": _create_mock_handler_module(has_handler=False, has_on_connect=True)}},
+    )
     @patch("nexus.core.websocket.endpoint_factory.discover_hooks")
     @patch("nexus.core.websocket.endpoint_factory.is_receive_only_channel")
     def test_receive_only_no_request_message_allowed(
         self,
         mock_is_receive_only: MagicMock,
         mock_discover_hooks: MagicMock,
-        mock_discover_handler: MagicMock,
     ) -> None:
         """Receive-only channel without Request message doesn't raise ValueError."""
         mock_is_receive_only.return_value = True
-        mock_discover_handler.return_value = _create_mock_handler_module(has_handler=False, has_on_connect=True)
         mock_discover_hooks.return_value = MagicMock()
 
         spec = _create_receive_only_spec()
@@ -569,19 +575,19 @@ class TestReceiveOnlyChannels:
         endpoint = create_websocket_endpoint("test", spec, "test_component")
         assert callable(endpoint)
 
-    @patch("nexus.core.websocket.endpoint_factory.discover_handler")
+    @patch(
+        "nexus.core.websocket.endpoint_factory._HANDLER_MODULE_CACHE",
+        {"test_component": {"test": _create_mock_handler_module(has_handler=False, has_on_connect=True)}},
+    )
     @patch("nexus.core.websocket.endpoint_factory.discover_hooks")
     @patch("nexus.core.websocket.endpoint_factory.is_receive_only_channel")
     def test_receive_only_no_handler_function_allowed(
         self,
         mock_is_receive_only: MagicMock,
         mock_discover_hooks: MagicMock,
-        mock_discover_handler: MagicMock,
     ) -> None:
         """Receive-only channel without handle_xxx doesn't raise error."""
         mock_is_receive_only.return_value = True
-        # No handler function, only on_connect
-        mock_discover_handler.return_value = _create_mock_handler_module(has_handler=False, has_on_connect=True)
         mock_discover_hooks.return_value = MagicMock()
 
         spec = _create_receive_only_spec()
@@ -590,14 +596,16 @@ class TestReceiveOnlyChannels:
         endpoint = create_websocket_endpoint("test", spec, "test_component")
         assert callable(endpoint)
 
-    @patch("nexus.core.websocket.endpoint_factory.discover_handler")
+    @patch(
+        "nexus.core.websocket.endpoint_factory._HANDLER_MODULE_CACHE",
+        {"test_component": {"test": _create_mock_handler_module(has_handler=False, has_on_connect=False)}},
+    )
     @patch("nexus.core.websocket.endpoint_factory.discover_hooks")
     @patch("nexus.core.websocket.endpoint_factory.is_receive_only_channel")
     def test_receive_only_requires_on_connect(
         self,
         mock_is_receive_only: MagicMock,
         mock_discover_hooks: MagicMock,
-        mock_discover_handler: MagicMock,
     ) -> None:
         """Receive-only channel without on_connect raises ValueError at runtime.
 
@@ -606,8 +614,6 @@ class TestReceiveOnlyChannels:
         but will fail at runtime.
         """
         mock_is_receive_only.return_value = True
-        # No on_connect function
-        mock_discover_handler.return_value = _create_mock_handler_module(has_handler=False, has_on_connect=False)
         mock_discover_hooks.return_value = MagicMock()
 
         spec = _create_receive_only_spec()
@@ -616,18 +622,19 @@ class TestReceiveOnlyChannels:
         endpoint = create_websocket_endpoint("test", spec, "test_component")
         assert callable(endpoint)
 
-    @patch("nexus.core.websocket.endpoint_factory.discover_handler")
+    @patch(
+        "nexus.core.websocket.endpoint_factory._HANDLER_MODULE_CACHE",
+        {"test_component": {"test": _create_mock_handler_module(has_handler=True)}},
+    )
     @patch("nexus.core.websocket.endpoint_factory.discover_hooks")
     @patch("nexus.core.websocket.endpoint_factory.is_receive_only_channel")
     def test_bidirectional_requires_request_message(
         self,
         mock_is_receive_only: MagicMock,
         mock_discover_hooks: MagicMock,
-        mock_discover_handler: MagicMock,
     ) -> None:
         """Bidirectional channel must have Request message (regression)."""
         mock_is_receive_only.return_value = False
-        mock_discover_handler.return_value = _create_mock_handler_module(has_handler=True)
         mock_discover_hooks.return_value = MagicMock()
 
         # Create spec WITHOUT Request message
@@ -637,19 +644,19 @@ class TestReceiveOnlyChannels:
         with pytest.raises(ValueError, match="No request message type found"):
             create_websocket_endpoint("test", spec, "test_component")
 
-    @patch("nexus.core.websocket.endpoint_factory.discover_handler")
+    @patch(
+        "nexus.core.websocket.endpoint_factory._HANDLER_MODULE_CACHE",
+        {"test_component": {"test": _create_mock_handler_module(has_handler=False)}},
+    )
     @patch("nexus.core.websocket.endpoint_factory.discover_hooks")
     @patch("nexus.core.websocket.endpoint_factory.is_receive_only_channel")
     def test_bidirectional_requires_handler_function(
         self,
         mock_is_receive_only: MagicMock,
         mock_discover_hooks: MagicMock,
-        mock_discover_handler: MagicMock,
     ) -> None:
         """Bidirectional channel must have handle_xxx (regression)."""
         mock_is_receive_only.return_value = False
-        # No handler function
-        mock_discover_handler.return_value = _create_mock_handler_module(has_handler=False)
         mock_discover_hooks.return_value = MagicMock()
 
         spec = _create_bidirectional_spec(has_request_message=True)
@@ -657,3 +664,40 @@ class TestReceiveOnlyChannels:
         # Should raise ValueError for bidirectional channel without handler
         with pytest.raises(ValueError, match=r"Handler function .* not found"):
             create_websocket_endpoint("test", spec, "test_component")
+
+
+class TestCacheClearing:
+    """Tests for cache management in scan_handler_specs."""
+
+    def test_scan_handler_specs_clears_caches(self) -> None:
+        """Test that scan_handler_specs() clears global caches on each call."""
+        # Pollute the caches with stale data
+        _SPEC_CACHE["stale_component"] = {"channels": {}}
+        _HANDLER_MODULE_CACHE["stale_component"] = {"stale_channel": types.ModuleType("stale")}
+
+        # Verify caches are polluted
+        assert "stale_component" in _SPEC_CACHE
+        assert "stale_component" in _HANDLER_MODULE_CACHE
+
+        # Call scan_handler_specs - should clear caches
+        # Note: This will scan actual codebase, but that's fine for this test
+        scan_handler_specs()
+
+        # Verify caches were cleared and repopulated with only real data
+        assert "stale_component" not in _SPEC_CACHE
+        assert "stale_component" not in _HANDLER_MODULE_CACHE
+
+    def test_multiple_scan_calls_are_idempotent(self) -> None:
+        """Test that calling scan_handler_specs() multiple times produces consistent results."""
+        # First scan
+        result1 = scan_handler_specs()
+
+        # Second scan
+        result2 = scan_handler_specs()
+
+        # Results should be identical (same components, same channels)
+        assert result1.keys() == result2.keys()
+        for component_name in result1:
+            channels1 = result1[component_name].get("channels", {})
+            channels2 = result2[component_name].get("channels", {})
+            assert channels1.keys() == channels2.keys()

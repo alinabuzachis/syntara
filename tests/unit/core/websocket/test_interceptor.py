@@ -1,6 +1,8 @@
 """Tests for WebSocket interceptor system."""
 
+from types import ModuleType
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 from nexus.core.websocket.interceptor import (
     InterceptorRegistry,
@@ -173,7 +175,7 @@ class TestValidationInterceptor:
         interceptor = ValidationInterceptor()
 
         assert interceptor.specs == {}
-        assert interceptor.handler_modules == {}
+        assert interceptor.channel_modules == {}
         assert interceptor.component_names == []
 
     def test_on_bootstrap_start(self) -> None:
@@ -190,15 +192,26 @@ class TestValidationInterceptor:
         assert interceptor.component_names == ["example", "another"]
 
     def test_before_endpoint_creation(self) -> None:
-        """Test before_endpoint_creation loads handler modules."""
+        """Test before_endpoint_creation collects channel-to-module mappings."""
         interceptor = ValidationInterceptor()
 
-        # Call with "example" component which exists in the codebase
-        interceptor.before_endpoint_creation("example", "chat", {"address": "/ws/chat"})
+        # Create mock modules
+        mock_module1 = MagicMock(spec=ModuleType)
+        mock_module2 = MagicMock(spec=ModuleType)
 
-        # Verify that the handler module was loaded and stored
-        assert "example" in interceptor.handler_modules
-        assert interceptor.handler_modules["example"] is not None
+        # Mock _HANDLER_MODULE_CACHE to have the example component with multiple modules
+        with patch(
+            "nexus.core.websocket.interceptor._HANDLER_MODULE_CACHE",
+            {"example": {"chat": mock_module1, "coffee": mock_module2}},
+        ):
+            # Call with different channels
+            interceptor.before_endpoint_creation("example", "chat", {"address": "/ws/chat"})
+            interceptor.before_endpoint_creation("example", "coffee", {"address": "/ws/coffee"})
+
+            # Verify that channel-to-module mappings were collected
+            assert "example" in interceptor.channel_modules
+            assert interceptor.channel_modules["example"]["chat"] is mock_module1
+            assert interceptor.channel_modules["example"]["coffee"] is mock_module2
 
     def test_on_bootstrap_complete(self) -> None:
         """Test on_bootstrap_complete runs validation."""
@@ -207,11 +220,51 @@ class TestValidationInterceptor:
         # Set up minimal data for validation
         interceptor.component_names = []
         interceptor.specs = {}
-        interceptor.handler_modules = {}
+        interceptor.channel_modules = {}
 
         results = {"total_endpoints": 0}
-        # Should complete without errors (validation is tested in other tests)
         interceptor.on_bootstrap_complete(results)
+
+        assert interceptor.validation_results == []
+
+    def test_multiple_modules_per_component(self) -> None:
+        """Test that multiple handler files per component are validated correctly."""
+        interceptor = ValidationInterceptor()
+
+        # Create two different mock modules
+        module1 = MagicMock(spec=ModuleType)
+        module1.__name__ = "module_file1"
+        module2 = MagicMock(spec=ModuleType)
+        module2.__name__ = "module_file2"
+
+        # Mock handler functions for each module
+        def mock_handle_chat(_msg: dict[str, Any], _conn_id: str) -> dict[str, Any]:
+            return {}
+
+        def mock_handle_coffee(_msg: dict[str, Any], _conn_id: str) -> dict[str, Any]:
+            return {}
+
+        module1.handle_chat = mock_handle_chat
+        module2.handle_coffee = mock_handle_coffee
+
+        # Set up component with channels from different modules
+        interceptor.component_names = ["example"]
+        interceptor.specs = {
+            "example": {
+                "channels": {
+                    "chat": {"address": "/ws/example/v1/chat"},
+                    "coffee": {"address": "/ws/example/v1/coffee"},
+                },
+                "servers": {"development": {}},
+            }
+        }
+        interceptor.channel_modules = {"example": {"chat": module1, "coffee": module2}}
+
+        interceptor.on_bootstrap_complete({"total_endpoints": 2})
+
+        # Verify validation ran and succeeded for each module
+        assert len(interceptor.validation_results) == 2
+        assert all(result.is_valid for result in interceptor.validation_results)
 
 
 class TestGetRegistry:

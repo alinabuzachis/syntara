@@ -331,13 +331,28 @@ class TestCheckMissingHandlersReceiveOnly:
 class TestCheckOrphanedHandlers:
     """Tests for check_orphaned_handlers function."""
 
+    @staticmethod
+    def _create_mock_module(filename: str = "example.py") -> types.ModuleType:
+        """Create a mock module with specified filename.
+
+        Args:
+            filename: Filename to set for the module (default: example.py)
+
+        Returns:
+            Mock ModuleType with __file__ attribute set
+
+        """
+        mock_module = types.ModuleType("example")
+        mock_module.__file__ = f"/path/to/{filename}"
+        return mock_module
+
     def test_no_orphaned_handlers(self) -> None:
         """Test when all handlers have corresponding channels."""
         channels: dict[str, object] = {"coffee": {}, "chat": {}}
         handler_functions: dict[str, list[str]] = {"handlers": ["coffee", "chat"], "on_connect": ["chat"]}
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        check_orphaned_handlers(channels, handler_functions, "example", result)
+        check_orphaned_handlers(channels, handler_functions, self._create_mock_module(), result)
 
         assert len(result.errors) == 0
 
@@ -347,11 +362,12 @@ class TestCheckOrphanedHandlers:
         handler_functions: dict[str, list[str]] = {"handlers": ["coffee", "nonexistent"], "on_connect": []}
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        check_orphaned_handlers(channels, handler_functions, "example", result)
+        check_orphaned_handlers(channels, handler_functions, self._create_mock_module(), result)
 
         assert len(result.errors) == 1
         assert "handle_nonexistent" in result.errors[0]
         assert "nonexistent" in result.errors[0]
+        assert "example.py" in result.errors[0]
 
     def test_orphaned_on_connect(self) -> None:
         """Test when an on_connect function has no corresponding channel."""
@@ -359,11 +375,12 @@ class TestCheckOrphanedHandlers:
         handler_functions: dict[str, list[str]] = {"handlers": ["coffee"], "on_connect": ["coffee", "nonexistent"]}
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        check_orphaned_handlers(channels, handler_functions, "example", result)
+        check_orphaned_handlers(channels, handler_functions, self._create_mock_module(), result)
 
         assert len(result.errors) == 1
         assert "on_connect_nonexistent" in result.errors[0]
         assert "nonexistent" in result.errors[0]
+        assert "example.py" in result.errors[0]
 
     def test_orphaned_both(self) -> None:
         """Test when both handler and on_connect are orphaned."""
@@ -371,11 +388,24 @@ class TestCheckOrphanedHandlers:
         handler_functions: dict[str, list[str]] = {"handlers": ["coffee", "orphan1"], "on_connect": ["orphan2"]}
         result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
 
-        check_orphaned_handlers(channels, handler_functions, "example", result)
+        check_orphaned_handlers(channels, handler_functions, self._create_mock_module("handlers1.py"), result)
 
         assert len(result.errors) == 2
         assert any("handle_orphan1" in e for e in result.errors)
         assert any("on_connect_orphan2" in e for e in result.errors)
+        assert any("handlers1.py" in e for e in result.errors)
+
+    def test_orphaned_handler_multi_module_filename(self) -> None:
+        """Test that error messages show correct filename for multi-module components."""
+        channels: dict[str, object] = {"coffee": {}}
+        handler_functions: dict[str, list[str]] = {"handlers": ["nonexistent"], "on_connect": []}
+        result = ChannelValidationResult(component_name="example", spec_path="example.yaml")
+
+        check_orphaned_handlers(channels, handler_functions, self._create_mock_module("handlers2.py"), result)
+
+        assert len(result.errors) == 1
+        assert "handlers2.py" in result.errors[0]
+        assert "handle_nonexistent" in result.errors[0]
 
 
 class TestValidateChannelAddresses:
