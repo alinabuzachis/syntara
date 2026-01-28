@@ -546,7 +546,7 @@ class TestToolEventWebSocketStreaming:
         2. Wait for completion
         3. Verify tool_call and tool_result events were published to stream
         """
-        from nexus.core.valkey.stream import StreamClient
+        from nexus.core.cache.stream import StreamClient
 
         # Set up ToolProvider with calculator tool
         await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)

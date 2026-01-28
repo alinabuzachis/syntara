@@ -1,11 +1,14 @@
-"""Generic Valkey Stream client for arbitrary event data.
+"""Generic Cache Stream client for arbitrary event data.
 
 This module provides a flexible, generic interface for publishing and reading
-arbitrary dictionary data to/from Valkey Streams. Unlike EventPublisher which
+arbitrary dictionary data to/from cache Streams. Unlike EventPublisher which
 is tied to specific StreamingEvent objects, StreamClient accepts any dict data.
 
+Currently implemented using Valkey (Redis-compatible), but abstracted to support
+other Redis-compatible backends (Redis, KeyDB, Dragonfly, etc.).
+
 Usage:
-    from nexus.core.valkey.stream import StreamClient
+    from nexus.core.cache.stream import StreamClient
 
     # Recommended: Use as async context manager for automatic cleanup
     async with StreamClient() as client:
@@ -53,18 +56,20 @@ _STREAM_ID_EMPTY_ERROR = "stream_id cannot be empty"
 
 
 class StreamClient:
-    """Generic Valkey Stream client for publishing and reading arbitrary event data.
+    """Generic Cache Stream client for publishing and reading arbitrary event data.
 
-    This client provides a simple, flexible interface for working with Valkey Streams
+    This client provides a simple, flexible interface for working with cache Streams
     without being tied to specific event schemas. It automatically handles JSON
     serialization/deserialization and provides both publish and async generator-based
     reading capabilities.
 
+    Currently uses Valkey as the underlying cache implementation.
+
     Recommended usage is as an async context manager for automatic resource cleanup.
 
     Attributes:
-        _client: Valkey async client instance
-        _settings: Application settings for Valkey configuration
+        _client: Cache async client instance (Valkey)
+        _settings: Application settings for cache configuration
 
     """
 
@@ -88,9 +93,9 @@ class StreamClient:
         await self.disconnect()
 
     def connect(self) -> None:
-        """Establish connection to Valkey with connection pooling.
+        """Establish connection to cache with connection pooling.
 
-        Creates a Valkey client with configured host, port, database, password,
+        Creates a cache client (Valkey) with configured host, port, database, password,
         and connection pool size. Connection is lazy - actual network I/O happens
         on first operation (e.g., xadd, xread).
 
@@ -101,26 +106,26 @@ class StreamClient:
         if self._client is None:
             try:
                 self._client = valkey.Valkey(
-                    host=self._settings.valkey_host,
-                    port=self._settings.valkey_port,
-                    db=self._settings.valkey_db,
+                    host=self._settings.cache_host,
+                    port=self._settings.cache_port,
+                    db=self._settings.cache_db,
                     password=(
-                        self._settings.valkey_password.get_secret_value() if self._settings.valkey_password else None
+                        self._settings.cache_password.get_secret_value() if self._settings.cache_password else None
                     ),
                     decode_responses=True,
-                    max_connections=self._settings.valkey_connection_pool_size,
+                    max_connections=self._settings.cache_connection_pool_size,
                 )
-                logger.info("Connected to Valkey stream client")
+                logger.info("Connected to cache stream client")
             except ValkeyConnectionError:
-                logger.exception("Failed to connect to Valkey")
+                logger.exception("Failed to connect to cache")
                 raise
             except OSError as e:
-                logger.exception("Network error connecting to Valkey")
+                logger.exception("Network error connecting to cache")
                 msg = f"Network error: {e}"
                 raise ValkeyConnectionError(msg) from e
 
     async def disconnect(self) -> None:
-        """Close Valkey connection and cleanup resources.
+        """Close cache connection and cleanup resources.
 
         Properly closes the client connection and releases pool resources.
         Safe to call multiple times.
@@ -129,9 +134,9 @@ class StreamClient:
             try:
                 await self._client.aclose()
                 self._client = None
-                logger.info("Disconnected from Valkey stream client")
+                logger.info("Disconnected from cache stream client")
             except (ValkeyConnectionError, OSError) as e:
-                logger.warning("Error during Valkey disconnect: %s", e)
+                logger.warning("Error during cache disconnect: %s", e)
                 # Don't raise on disconnect errors - already cleaning up
                 self._client = None
 
@@ -185,13 +190,13 @@ class StreamClient:
 
             # Set TTL on stream key for automatic cleanup
             # Each publish resets the TTL, so streams expire after inactivity period
-            await self._client.expire(stream_id, self._settings.valkey_stream_ttl_seconds)
+            await self._client.expire(stream_id, self._settings.cache_stream_ttl_seconds)
 
             logger.debug(
                 "Published event to stream '%s': %s (TTL: %ds)",
                 stream_id,
                 event_id,
-                self._settings.valkey_stream_ttl_seconds,
+                self._settings.cache_stream_ttl_seconds,
             )
             return str(event_id)  # Explicitly cast to str for type safety
 

@@ -25,7 +25,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from starlette.testclient import TestClient
 
-from nexus.core.valkey.stream import StreamClient
+from nexus.core.cache.stream import StreamClient
 from tests.helpers.workflow import create_minimal_workflow_definition
 
 pytestmark = pytest.mark.integration

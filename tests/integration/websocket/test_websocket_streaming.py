@@ -27,7 +27,7 @@ from uuid import UUID, uuid4
 import pytest
 import pytest_asyncio
 
-from nexus.core.valkey.stream import StreamClient
+from nexus.core.cache.stream import StreamClient
 
 pytestmark = pytest.mark.integration
 

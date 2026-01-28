@@ -41,7 +41,7 @@ from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
     create_tool_wrapper,
 )
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
-from nexus.core.valkey.stream import StreamClient
+from nexus.core.cache.stream import StreamClient
 
 logger = logging.getLogger(__name__)
 

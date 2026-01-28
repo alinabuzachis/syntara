@@ -8,8 +8,8 @@ import pytest
 
 from nexus.agent_orchestrator.models import Invocation
 from nexus.agent_orchestrator.services.streaming_service import get_invocation_stream_id
+from nexus.core.cache.stream import StreamClient
 from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
-from nexus.core.valkey.stream import StreamClient
 from nexus.files.models import FileMetadata
 from tests.helpers.invocations import wait_for_invocation_execution
 

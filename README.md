@@ -243,7 +243,7 @@ The `podman-compose.yml` defines the following services:
 | Service | Description | Port | Image |
 |---------|-------------|------|-------|
 | **database** | PostgreSQL 15 database | 5432 | `postgres:15` |
-| **valkey** | Redis-compatible in-memory data store | 6379 | `valkey-8-c10s` |
+| **valkey** | Cache service (Valkey - Redis-compatible) | 6379 | `valkey-8-c10s` |
 | **temporal** | Temporal workflow engine | 7233 | `temporalio/auto-setup:1.25.1` |
 | **temporal-ui** | Temporal web UI (dev only) | 8081 | `temporalio/ui:2.31.2` |
 | **temporal-worker** | Temporal workflow worker | - | Built from `containers/nexus/Containerfile` |
@@ -309,7 +309,7 @@ export NEXUS_API_PORT=8001
 export NEXUS_UI_PORT=8081
 export NEXUS_TEMPORAL_PORT=7234
 export NEXUS_TEMPORAL_UI_PORT=8082
-export VALKEY_PORT=6380
+export NEXUS_CACHE_PORT=6380
 make services-run
 ```
 
@@ -340,8 +340,8 @@ NEXUS_DB_USER=admin
 NEXUS_DB_PASSWORD=admin
 NEXUS_DB_NAME=nexus_api
 
-# Valkey Configuration
-VALKEY_PORT=6379
+# Cache Configuration
+NEXUS_CACHE_PORT=6379
 
 # Temporal Configuration
 NEXUS_TEMPORAL_ADDRESS=localhost:7233

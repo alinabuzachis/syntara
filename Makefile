@@ -135,23 +135,23 @@ db-clean: ## Stop database and remove all data (destructive)
 	$(COMPOSE_FINAL_CMD) down -v
 	@echo "✅ Database stopped and data purged"
 
-.PHONY: valkey-run
-valkey-run: ## Start Valkey cache container (foreground, Ctrl+C to stop)
-	@echo "🚀 Starting Valkey/Redis cache..."
-	@echo "📍 Connection: valkey://localhost:$${VALKEY_PORT:-6379}"
+.PHONY: cache-run
+cache-run: ## Start cache container (foreground, Ctrl+C to stop)
+	@echo "🚀 Starting cache server (Valkey/Redis-compatible)..."
+	@echo "📍 Connection: cache://localhost:$${NEXUS_CACHE_PORT:-6379}"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	$(COMPOSE_FINAL_CMD) up valkey
 
-.PHONY: valkey-clean
-valkey-clean: ## Stop Valkey and remove data
-	@echo "🧹 Stopping Valkey cache..."
+.PHONY: cache-clean
+cache-clean: ## Stop cache and remove data
+	@echo "🧹 Stopping cache server..."
 	$(COMPOSE_FINAL_CMD) stop valkey || true
 	@if podman container exists nexus_valkey_1 2>/dev/null; then \
 		echo "Removing valkey container..."; \
 		podman container rm -f nexus_valkey_1; \
 	fi
-	@echo "✅ Valkey stopped"
+	@echo "✅ Cache stopped"
 
 
 # Temporal
@@ -191,7 +191,7 @@ run-all: ## Start all services (foreground, Ctrl+C to stop)
 	@echo "📍 Nexus API: http://localhost:$${NEXUS_API_PORT:-8000}"
 	@echo "📍 Nexus UI: http://localhost:$${NEXUS_UI_PORT:-8080}"
 	@echo "📍 Database: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
-	@echo "📍 Valkey Cache: valkey://localhost:$${VALKEY_PORT:-6379}"
+	@echo "📍 Cache: cache://localhost:$${NEXUS_CACHE_PORT:-6379}"
 	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
 	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
@@ -200,10 +200,10 @@ run-all: ## Start all services (foreground, Ctrl+C to stop)
 	$(COMPOSE_FINAL_CMD) up --build
 
 .PHONY: services-run
-services-run: ## Start all services (database + valkey + temporal + UI + worker + MCP) in background
-	@echo "🚀 Starting all services (database + valkey + temporal + UI + worker + MCP)..."
+services-run: ## Start all services (database + cache + temporal + UI + worker + MCP) in background
+	@echo "🚀 Starting all services (database + cache + temporal + UI + worker + MCP)..."
 	@echo "📍 Database: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
-	@echo "📍 Valkey Cache: valkey://localhost:$${VALKEY_PORT:-6379}"
+	@echo "📍 Cache: cache://localhost:$${NEXUS_CACHE_PORT:-6379}"
 	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
 	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
@@ -233,9 +233,9 @@ db-logs: ## View database logs only
 	@echo "📋 Viewing database logs (project: $(PODMAN_PROJECT))..."
 	$(COMPOSE_FINAL_CMD) logs -f database
 
-.PHONY: valkey-logs
-valkey-logs: ## View Valkey cache logs only
-	@echo "📋 Viewing Valkey cache logs (project: $(PODMAN_PROJECT))..."
+.PHONY: cache-logs
+cache-logs: ## View cache server logs only
+	@echo "📋 Viewing cache server logs (project: $(PODMAN_PROJECT))..."
 	$(COMPOSE_FINAL_CMD) logs -f valkey
 
 .PHONY: temporal-logs

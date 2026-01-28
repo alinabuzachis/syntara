@@ -186,45 +186,46 @@ class RouterDiscoverySettings(BaseSettings):
 
 
 # =============================================================================
-# Valkey Configuration
+# Cache Configuration
 # =============================================================================
 
 
-class ValkeySettings(BaseSettings):
-    """Valkey (Redis-compatible) configuration for event streaming.
+class CacheSettings(BaseSettings):
+    """Cache configuration for event streaming.
 
     Used for persistent event storage and multi-client synchronization.
-    Valkey provides Redis-compatible streams for event caching and replay.
+    Currently implemented using Valkey (Redis-compatible), but abstracted
+    to support other Redis-compatible backends (Redis, KeyDB, Dragonfly, etc.).
     """
 
-    valkey_host: str = Field(
+    cache_host: str = Field(
         default="localhost",
-        description="Valkey server hostname",
+        description="Cache server hostname",
     )
 
-    valkey_port: int = Field(
+    cache_port: int = Field(
         default=6379,
-        description="Valkey server port",
+        description="Cache server port",
     )
 
-    valkey_db: int = Field(
+    cache_db: int = Field(
         default=0,
-        description="Valkey database number",
+        description="Cache database number",
     )
 
-    valkey_password: SecretStr = Field(
+    cache_password: SecretStr = Field(
         default=SecretStr("valkey"),  # Default matches podman-compose.yml
-        description="Valkey server password (if required)",
+        description="Cache server password (if required)",
     )
 
-    valkey_stream_ttl_seconds: int = Field(
+    cache_stream_ttl_seconds: int = Field(
         default=86400,  # 24 hours
         description="Time-to-live for streaming event streams in seconds",
     )
 
-    valkey_connection_pool_size: int = Field(
+    cache_connection_pool_size: int = Field(
         default=10,
-        description="Maximum number of Valkey connections in pool",
+        description="Maximum number of cache connections in pool",
     )
 
 
@@ -1085,7 +1086,7 @@ class Settings(
     DocumentConversionSettings,
     OpenAPIValidationSettings,
     RouterDiscoverySettings,
-    ValkeySettings,
+    CacheSettings,
     DatabaseSettings,
     ServerSettings,
     RetrieverServiceSettings,

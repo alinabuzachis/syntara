@@ -25,8 +25,8 @@ import pytest
 import pytest_asyncio
 import valkey.asyncio as valkey
 
+from nexus.core.cache.stream import StreamClient
 from nexus.core.config.base import get_settings
-from nexus.core.valkey.stream import StreamClient
 
 # ============================================================================
 # Fixtures
@@ -49,10 +49,10 @@ async def valkey_client() -> AsyncGenerator[valkey.Valkey, None]:
     settings = get_settings()
 
     client = valkey.Valkey(
-        host=settings.valkey_host,
-        port=settings.valkey_port,
-        db=settings.valkey_db,
-        password=settings.valkey_password.get_secret_value() if settings.valkey_password else None,
+        host=settings.cache_host,
+        port=settings.cache_port,
+        db=settings.cache_db,
+        password=settings.cache_password.get_secret_value() if settings.cache_password else None,
         decode_responses=True,
     )
 

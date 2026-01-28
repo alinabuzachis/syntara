@@ -17,8 +17,8 @@ from starlette.websockets import WebSocket
 if TYPE_CHECKING:
     from uuid import UUID
 
+from nexus.core.cache.stream import StreamClient
 from nexus.core.models.base.error import ErrorData
-from nexus.core.valkey.stream import StreamClient
 from nexus.core.websocket.close_codes import INTERNAL_ERROR, NORMAL_CLOSURE
 from nexus.core.websocket.exceptions import StreamingValidationError, WaitForStreamTimeoutError
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
@@ -134,10 +134,10 @@ class BaseWebSocketStreamingHandler(ABC):
 
         """
         error_data = ErrorData(
-            type="https://api.nexus.com/errors/valkey-stream-not-found",
-            title="Valkey Stream Not Found",
-            detail=f"Valkey stream {stream_id} does not exist",
-            code="VALKEY_STREAM_NOT_FOUND",
+            type="https://api.nexus.com/errors/cache-stream-not-found",
+            title="Cache Stream Not Found",
+            detail=f"Cache stream {stream_id} does not exist",
+            code="CACHE_STREAM_NOT_FOUND",
             retryable=False,
             instance=f"/{self._channel_name}/{self.get_resource_id(session_state)}",
         )

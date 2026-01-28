@@ -18,13 +18,13 @@ services:
       retries: 5
 
   valkey:
-    image: ${NEXUS_VALKEY_IMAGE:-quay.io/sclorg/valkey-8-c10s:latest}
+    image: ${NEXUS_CACHE_IMAGE:-quay.io/sclorg/valkey-8-c10s:latest}
     restart: unless-stopped
     command: sh -c "valkey-server --requirepass $${VALKEY_PASSWORD:-valkey}"
     ports:
-      - ${NEXUS_VALKEY_PORT:-6379}:6379
+      - ${NEXUS_CACHE_PORT:-6379}:6379
     environment:
-      VALKEY_PASSWORD: ${NEXUS_VALKEY_PASSWORD:-valkey}
+      VALKEY_PASSWORD: ${NEXUS_CACHE_PASSWORD:-valkey}
     healthcheck:
       test: [CMD-SHELL, 'valkey-cli -h 127.0.0.1 -p 6379 -a $${VALKEY_PASSWORD:-valkey} ping']
       interval: 10s
@@ -95,8 +95,8 @@ services:
       - NEXUS_DB_NAME=${NEXUS_DB_NAME:-nexus_api}
       - NEXUS_TEMPORAL_ADDRESS=temporal:7233
       - NEXUS_TEMPORAL_NAMESPACE=default
-      - NEXUS_VALKEY_HOST=valkey
-      - NEXUS_VALKEY_PASSWORD=${NEXUS_VALKEY_PASSWORD:-valkey}
+      - NEXUS_CACHE_HOST=valkey
+      - NEXUS_CACHE_PASSWORD=${NEXUS_CACHE_PASSWORD:-valkey}
       - NEXUS_OPENROUTER_API_KEY=${NEXUS_OPENROUTER_API_KEY}
       - NEXUS_OPENROUTER_MODEL=${NEXUS_OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
       - NEXUS_OPENROUTER_BASE_URL=${NEXUS_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
@@ -136,9 +136,9 @@ services:
       - NEXUS_TASK_QUEUE=nexus-workflow-queue
       - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
       - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
-      # Valkey Configuration (for activity streaming)
-      - NEXUS_VALKEY_HOST=valkey
-      - NEXUS_VALKEY_PASSWORD=${NEXUS_VALKEY_PASSWORD:-valkey}
+      # Cache Configuration (for activity streaming)
+      - NEXUS_CACHE_HOST=valkey
+      - NEXUS_CACHE_PASSWORD=${NEXUS_CACHE_PASSWORD:-valkey}
       # Workflow API Base URL (for workflow callback URL generation)
       - NEXUS_WORKFLOW_BASE_URL=${NEXUS_WORKFLOW_BASE_URL:-http://nexus:8000/api/v1}
       # Agent Orchestrator Configuration (for agentic activities)

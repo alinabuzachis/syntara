@@ -11,7 +11,7 @@ from uuid import UUID
 
 from jsonpatch import JsonPatch  # type: ignore[import-untyped]
 
-from nexus.core.valkey.stream import StreamClient
+from nexus.core.cache.stream import StreamClient
 from nexus.workflows.models.activity_execution import ActivityExecution
 from nexus.workflows.models.execution import ActivityData, Execution
 from nexus.workflows.models.visualization import (
