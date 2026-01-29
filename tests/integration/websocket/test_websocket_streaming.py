@@ -13,7 +13,7 @@ Improvements:
 
 These tests require:
 - PostgreSQL database
-- Valkey server
+- Redis server
 - OpenRouter API key (for LLM tests) or mocked LLM
 
 Run with: pytest tests/integration/websocket/test_websocket_streaming.py
@@ -109,8 +109,8 @@ async def populated_stream(test_stream: tuple[UUID, str]) -> tuple[UUID, str]:
 class TestStreamingEndToEnd:
     """Test end-to-end streaming LLM response flow."""
 
-    async def test_basic_streaming_flow_with_valkey(self, test_stream) -> None:
-        """Test that streaming publishes events to Valkey correctly."""
+    async def test_basic_streaming_flow_with_redis(self, test_stream) -> None:
+        """Test that streaming publishes events to Redis correctly."""
         invocation_id, stream_id = test_stream
 
         # Simulate publishing events (this is what GenericAgent.stream() does)
@@ -172,7 +172,7 @@ class TestStreamingEndToEnd:
             assert error["data"]["code"] == "RATE_LIMIT_EXCEEDED"
 
     async def test_event_ordering_preservation(self, test_stream) -> None:
-        """Test that events maintain order in Valkey stream."""
+        """Test that events maintain order in Redis stream."""
         invocation_id, stream_id = test_stream
 
         async with StreamClient() as client:

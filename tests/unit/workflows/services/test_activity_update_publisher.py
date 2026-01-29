@@ -1,6 +1,6 @@
 """Unit tests for ActivityUpdatePublisher.
 
-These tests verify the publisher logic for streaming activity updates to Valkey.
+These tests verify the publisher logic for streaming activity updates to Redis.
 """
 
 from datetime import UTC, datetime

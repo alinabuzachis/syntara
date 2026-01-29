@@ -71,7 +71,7 @@ class ExecutionSnapshotMessage(BaseModel):
     Attributes:
         type: Message type discriminator
         execution_id: Execution identifier
-        event_id: Valkey Stream event ID for replay support
+        event_id: Redis Stream event ID for replay support
         execution: Full execution data with activities (same schema as REST API)
         timestamp: When this message was generated
 
@@ -86,7 +86,7 @@ class ExecutionSnapshotMessage(BaseModel):
         examples=["123e4567-e89b-12d3-a456-426614174000"],
     )
     event_id: str = Field(
-        description="Valkey Stream event ID for replay support",
+        description="Redis Stream event ID for replay support",
         examples=["1642680000000-0", "1642680123456-1"],
     )
     execution: dict[str, Any] = Field(
@@ -138,7 +138,7 @@ class ActivityPatchMessage(BaseModel):
     Attributes:
         type: Message type discriminator (always "activity_patch")
         execution_id: Execution identifier
-        event_id: Valkey Stream event ID for replay support
+        event_id: Redis Stream event ID for replay support
         ops: JSON Patch operations to apply
         timestamp: When this message was generated
 
@@ -153,7 +153,7 @@ class ActivityPatchMessage(BaseModel):
         examples=["123e4567-e89b-12d3-a456-426614174000"],
     )
     event_id: str = Field(
-        description="Valkey Stream event ID for replay support",
+        description="Redis Stream event ID for replay support",
         examples=["1642680123456-1"],
     )
     ops: list[JsonPatchOperation] = Field(

@@ -17,16 +17,16 @@ services:
       timeout: 5s
       retries: 5
 
-  valkey:
-    image: ${NEXUS_CACHE_IMAGE:-quay.io/sclorg/valkey-8-c10s:latest}
+  redis:
+    image: ${NEXUS_CACHE_IMAGE:-quay.io/sclorg/redis-6-c9s}
     restart: unless-stopped
-    command: sh -c "valkey-server --requirepass $${VALKEY_PASSWORD:-valkey}"
+    command: sh -c "redis-server --requirepass $${REDIS_PASSWORD:-cache}"
     ports:
       - ${NEXUS_CACHE_PORT:-6379}:6379
     environment:
-      VALKEY_PASSWORD: ${NEXUS_CACHE_PASSWORD:-valkey}
+      REDIS_PASSWORD: ${NEXUS_CACHE_PASSWORD:-cache}
     healthcheck:
-      test: [CMD-SHELL, 'valkey-cli -h 127.0.0.1 -p 6379 -a $${VALKEY_PASSWORD:-valkey} ping']
+      test: [CMD-SHELL, 'redis-cli -h 127.0.0.1 -p 6379 -a $${REDIS_PASSWORD:-cache} ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -95,8 +95,8 @@ services:
       - NEXUS_DB_NAME=${NEXUS_DB_NAME:-nexus_api}
       - NEXUS_TEMPORAL_ADDRESS=temporal:7233
       - NEXUS_TEMPORAL_NAMESPACE=default
-      - NEXUS_CACHE_HOST=valkey
-      - NEXUS_CACHE_PASSWORD=${NEXUS_CACHE_PASSWORD:-valkey}
+      - NEXUS_CACHE_HOST=redis
+      - NEXUS_CACHE_PASSWORD=${NEXUS_CACHE_PASSWORD:-cache}
       - NEXUS_OPENROUTER_API_KEY=${NEXUS_OPENROUTER_API_KEY}
       - NEXUS_OPENROUTER_MODEL=${NEXUS_OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
       - NEXUS_OPENROUTER_BASE_URL=${NEXUS_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
@@ -109,7 +109,7 @@ services:
         condition: service_healthy
       temporal:
         condition: service_healthy
-      valkey:
+      redis:
         condition: service_healthy
     healthcheck:
       test: [CMD, curl, -f, 'http://localhost:8000/health']
@@ -137,8 +137,8 @@ services:
       - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
       - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
       # Cache Configuration (for activity streaming)
-      - NEXUS_CACHE_HOST=valkey
-      - NEXUS_CACHE_PASSWORD=${NEXUS_CACHE_PASSWORD:-valkey}
+      - NEXUS_CACHE_HOST=redis
+      - NEXUS_CACHE_PASSWORD=${NEXUS_CACHE_PASSWORD:-cache}
       # Workflow API Base URL (for workflow callback URL generation)
       - NEXUS_WORKFLOW_BASE_URL=${NEXUS_WORKFLOW_BASE_URL:-http://nexus:8000/api/v1}
       # Agent Orchestrator Configuration (for agentic activities)
@@ -158,7 +158,7 @@ services:
         condition: service_healthy
       temporal:
         condition: service_healthy
-      valkey:
+      redis:
         condition: service_healthy
     healthcheck:
       test: [CMD, pgrep, -f, nexus.workflows.worker]

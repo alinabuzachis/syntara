@@ -1,7 +1,7 @@
 """Cache client utilities for event streaming.
 
 This module provides generic cache Stream clients for flexible event handling.
-Currently implemented using Valkey, but abstracted to support other Redis-compatible backends.
+Abstracted to support redis-compatible backends (Redis, KeyDB, Dragonfly, Valkey).
 """
 
 from nexus.core.cache.stream import StreamClient

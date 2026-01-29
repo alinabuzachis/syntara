@@ -46,7 +46,7 @@ class ActivitySyncService:
         Args:
             temporal_client: Temporal client for workflow operations
             session_factory: AsyncSession factory (async_sessionmaker)
-            activity_publisher: Publisher for streaming activity updates to Valkey (optional)
+            activity_publisher: Publisher for streaming activity updates to Redis (optional)
 
         """
         self.temporal_client = temporal_client

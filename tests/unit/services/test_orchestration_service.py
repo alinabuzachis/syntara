@@ -68,7 +68,7 @@ class TestOrchestrationServiceStreamingExecution:
 
     @pytest.mark.asyncio
     async def test_orchestration_service_streams_llm_responses(self) -> None:
-        """Test that OrchestrationService streams LLM responses to Valkey."""
+        """Test that OrchestrationService streams LLM responses to Cache."""
         # Arrange
         mock_llm = AsyncMock()
         mock_llm.model_name = "test-model"
@@ -113,7 +113,7 @@ class TestOrchestrationServiceStreamingExecution:
             assert result["type"] == "answer"
             assert "WebSocket endpoint" in result["content"]
 
-            # Verify events were published to Valkey
+            # Verify events were published to Cache
             # 3 delta events (Hello, " ", World) + 1 completion event = 4 publish calls
             assert mock_client_instance.publish.call_count == 4
 

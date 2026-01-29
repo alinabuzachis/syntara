@@ -243,7 +243,7 @@ The `podman-compose.yml` defines the following services:
 | Service | Description | Port | Image |
 |---------|-------------|------|-------|
 | **database** | PostgreSQL 15 database | 5432 | `postgres:15` |
-| **valkey** | Cache service (Valkey - Redis-compatible) | 6379 | `valkey-8-c10s` |
+| **redis** | Cache service | 6379 | `redis-6-c9s` |
 | **temporal** | Temporal workflow engine | 7233 | `temporalio/auto-setup:1.25.1` |
 | **temporal-ui** | Temporal web UI (dev only) | 8081 | `temporalio/ui:2.31.2` |
 | **temporal-worker** | Temporal workflow worker | - | Built from `containers/nexus/Containerfile` |

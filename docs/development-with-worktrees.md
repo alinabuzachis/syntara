@@ -113,7 +113,7 @@ PODMAN_PROJECT=nexus
 NEXUS_API_PORT=8000
 NEXUS_DB_PORT=5432
 NEXUS_TEMPORAL_UI_PORT=8081
-VALKEY_PORT=6379
+NEXUS_CACHE_PORT=6379
 ```
 
 **Feature Worktree** (`~/repos/nexus/worktrees/feature-auth/.env`):
@@ -122,7 +122,7 @@ PODMAN_PROJECT=nexus-feature-auth
 NEXUS_API_PORT=8001
 NEXUS_DB_PORT=5433
 NEXUS_TEMPORAL_UI_PORT=8082
-VALKEY_PORT=6380
+NEXUS_CACHE_PORT=6380
 ```
 
 ## Managing Worktrees
@@ -195,7 +195,7 @@ After initializing a worktree, you should review and update the `.env` file to a
 
 The `PODMAN_PROJECT` variable determines the project name for `podman-compose`, which affects:
 
-- Container names: `${PODMAN_PROJECT}_database_1`, `${PODMAN_PROJECT}_valkey_1`, etc.
+- Container names: `${PODMAN_PROJECT}_database_1`, `${PODMAN_PROJECT}_redis_1`, etc.
 - Network names: `${PODMAN_PROJECT}_default`
 - Volume names: `${PODMAN_PROJECT}_nexus_postgres_data`
 

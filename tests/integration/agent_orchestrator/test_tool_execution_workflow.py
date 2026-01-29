@@ -529,18 +529,18 @@ class TestToolExecutionFailureRetryWorkflow:
 
 
 class TestToolEventWebSocketStreaming:
-    """Integration test for tool event streaming via WebSocket/Valkey.
+    """Integration test for tool event streaming via WebSocket/Redis.
 
     Validates that tool_call and tool_result events are published to the
-    Valkey stream during tool execution, enabling real-time WebSocket streaming.
+    Redis stream during tool execution, enabling real-time WebSocket streaming.
     """
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("mock_mcp_provider_for_testing")
-    async def test_tool_events_published_to_valkey_stream(
+    async def test_tool_events_published_to_redis_stream(
         self, auth_client_with_tool_aware_mocked_llm: AsyncClient
     ) -> None:
-        """Test that tool_call and tool_result events appear in the Valkey stream.
+        """Test that tool_call and tool_result events appear in the Redis stream.
 
         1. Create invocation with tool-requiring prompt
         2. Wait for completion
@@ -574,7 +574,7 @@ class TestToolEventWebSocketStreaming:
             assert completed_invocation is not None
             assert completed_invocation["status"] == "completed"
 
-        # Read events from Valkey stream and verify tool events were published
+        # Read events from Redis stream and verify tool events were published
         stream_id = f"invocation:{invocation_id}:events"
         events: list[dict[str, Any]] = []
 

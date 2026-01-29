@@ -73,7 +73,7 @@ async def test_retriever_service_integration_with_agent_invocation(
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("mock_relevancy_checker")
 async def test_file_upload_with_streaming_events(auth_client_with_mocked_llm, test_user, mock_openrouter_llm) -> None:
-    """Test complete flow: upload files -> execute -> response streams via Valkey.
+    """Test complete flow: upload files -> execute -> response streams via Redis.
 
     Verifies that file upload invocations produce streaming events
     that can be consumed via WebSocket.
@@ -81,7 +81,7 @@ async def test_file_upload_with_streaming_events(auth_client_with_mocked_llm, te
     Flow tested:
     1. Upload file via invocations API
     2. Invocation executes with file context
-    3. Streaming events (delta, completion) are published to Valkey
+    3. Streaming events (delta, completion) are published to Redis
     4. Events can be read back from the stream
     """
     text_file_path = FIXTURES_DIR / "sample.txt"
@@ -115,7 +115,7 @@ async def test_file_upload_with_streaming_events(auth_client_with_mocked_llm, te
             async with StreamClient() as client:
                 info = await client.info(stream_id)
 
-                assert info["exists"] is True, "Invocation stream should exist in Valkey"
+                assert info["exists"] is True, "Invocation stream should exist in Redis"
                 assert info["length"] > 0, "Stream should contain events"
 
                 events: list[dict[str, object]] = []

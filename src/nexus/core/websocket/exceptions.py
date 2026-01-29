@@ -33,7 +33,7 @@ class StreamingValidationError(Exception):
 
 
 class EventsExpiredError(StreamingValidationError):
-    """Valkey streaming events have expired for a resource."""
+    """Cache streaming events have expired for a resource."""
 
     def __init__(self, resource_id: str, resource_status: str, resource_type: str = "resource") -> None:
         """Initialize events expired error.
@@ -46,9 +46,9 @@ class EventsExpiredError(StreamingValidationError):
         """
         error_data = ErrorData(
             type="https://api.nexus.com/errors/events-expired",
-            title="Valkey Streaming Events Expired",
+            title="Streaming Events Expired",
             detail=(
-                f"Valkey streaming events have expired. Events are only retained for a limited time. "
+                f"Streaming events have expired. Events are only retained for a limited time. "
                 f"Resource status: {resource_status}"
             ),
             code="EVENTS_EXPIRED",
@@ -59,7 +59,7 @@ class EventsExpiredError(StreamingValidationError):
 
 
 class WaitForStreamTimeoutError(StreamingValidationError):
-    """Timeout waiting for Valkey stream creation."""
+    """Timeout waiting for cache stream creation."""
 
     def __init__(self, resource_id: str, resource_status: str, resource_type: str = "resource") -> None:
         """Initialize stream timeout error.
@@ -72,8 +72,8 @@ class WaitForStreamTimeoutError(StreamingValidationError):
         """
         error_data = ErrorData(
             type="https://api.nexus.com/errors/timeout-error",
-            title="Valkey Streaming Timeout",
-            detail=f"Timeout waiting for Valkey streaming to start. Resource status: {resource_status}",
+            title="Streaming Timeout",
+            detail=f"Timeout waiting for streaming to start. Resource status: {resource_status}",
             code="STREAM_TIMEOUT",
             retryable=True,
             instance=f"/{resource_type}s/{resource_id}",

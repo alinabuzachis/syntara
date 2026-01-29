@@ -125,7 +125,7 @@ class TestOnConnectExecutions:
         mock_execution_streaming_service: MagicMock,
     ) -> None:
         """Test that valid timestamp-sequence format is accepted."""
-        # Setup: Valid Valkey stream ID format
+        # Setup: Valid stream ID format
         execution_id = uuid4()
         mock_websocket.url.path = f"/ws/workflows/v1/executions/{execution_id}"
         mock_websocket.query_params = {"replay": "1691431234567-42"}

@@ -1,6 +1,6 @@
 """Streaming service components for WebSocket event streaming.
 
-Provides WebSocket event streaming from Valkey streams for workflow executions.
+Provides WebSocket event streaming from Redis streams for workflow executions.
 """
 
 import logging
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 # Constants for stream naming
 def get_execution_stream_id(execution_id: UUID) -> str:
-    """Get Valkey stream ID for an execution.
+    """Get Redis stream ID for an execution.
 
     DRY helper to ensure consistent stream naming across the application.
 
@@ -34,7 +34,7 @@ def get_execution_stream_id(execution_id: UUID) -> str:
         execution_id: UUID of the execution
 
     Returns:
-        Valkey stream ID (e.g., "execution:UUID:events")
+        Redis stream ID (e.g., "execution:UUID:events")
 
     """
     return f"execution:{execution_id}:events"
@@ -58,7 +58,7 @@ class ExecutionStreamingNotFoundError(StreamingValidationError):
 
 
 class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
-    """Handler for streaming execution events from Valkey to WebSocket clients.
+    """Handler for streaming execution events from Redis to WebSocket clients.
 
     Extends BaseWebSocketStreamingHandler with execution-specific validation
     and streaming logic.
@@ -146,7 +146,7 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
         """Wait for execution stream to be created.
 
         Args:
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
             session_state: Session state dict with execution_id and execution_status
 
         Raises:
@@ -159,7 +159,7 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
 
         if execution_status in TERMINAL_EXECUTION_STATUSES:
             # Execution finished but stream doesn't exist - events expired
-            logger.warning("Execution %s is %s but the Valkey stream has expired", execution_id, execution_status.value)
+            logger.warning("Execution %s is %s but the Redis stream has expired", execution_id, execution_status.value)
             raise EventsExpiredError(
                 resource_id=str(execution_id),
                 resource_status=execution_status.value,
@@ -208,7 +208,7 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
 class ExecutionStreamingService:
     """Streaming service for execution WebSocket event delivery.
 
-    Provides WebSocket streaming of execution events from Valkey streams.
+    Provides WebSocket streaming of execution events from Redis streams.
     """
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -228,7 +228,7 @@ class ExecutionStreamingService:
         replay: str | None = None,
         connection_id: str | None = None,
     ) -> None:
-        """Stream events from Valkey to WebSocket client.
+        """Stream events from Redis to WebSocket client.
 
         Args:
             websocket: WebSocket connection
@@ -236,7 +236,7 @@ class ExecutionStreamingService:
             replay: Optional replay parameter:
                    - None: Live streaming only (new events after connection)
                    - "0": Replay from beginning (includes initial snapshot)
-                   - event_id: Replay from specific Valkey stream ID
+                   - event_id: Replay from specific Redis stream ID
             connection_id: Connection identifier for logging
 
         """

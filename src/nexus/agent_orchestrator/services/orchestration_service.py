@@ -142,7 +142,7 @@ class OrchestrationService:
         """Execute agent orchestration with LLM streaming through LangGraph.
 
         Uses LangGraph's astream_events() to capture LLM streaming deltas and publish
-        them to Valkey for WebSocket clients to consume.
+        them to Redis for WebSocket clients to consume.
 
         Args:
             prompt: User's prompt to process
@@ -223,7 +223,7 @@ class OrchestrationService:
             initial_state: Initial agent state
             config: Runnable config with thread_id
             invocation_id: Invocation UUID
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
             client: StreamClient for publishing events
 
         Returns:
@@ -298,7 +298,7 @@ class OrchestrationService:
         Args:
             event: Event dictionary from astream_events()
             invocation_id: Invocation UUID
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
             client: StreamClient for publishing events
 
         """
@@ -324,7 +324,7 @@ class OrchestrationService:
         Args:
             event: Event dictionary from astream_events()
             invocation_id: Invocation UUID
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
             client: StreamClient for publishing events
 
         """
@@ -335,7 +335,7 @@ class OrchestrationService:
                 content = chunk.content if hasattr(chunk, "content") else None
 
                 if content:
-                    # Publish delta event to Valkey
+                    # Publish delta event to Redis
                     delta_data = DeltaEventData(delta=content)
                     delta_event = {
                         "event_type": "delta",
@@ -354,7 +354,7 @@ class OrchestrationService:
         Args:
             event: Event dictionary from astream_events()
             invocation_id: Invocation UUID
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
             client: StreamClient for publishing events
 
         """
@@ -381,7 +381,7 @@ class OrchestrationService:
         Args:
             event: Event dictionary from astream_events()
             invocation_id: Invocation UUID
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
             client: StreamClient for publishing events
 
         """
@@ -404,11 +404,11 @@ class OrchestrationService:
         await client.publish(stream_id, tool_result_event)
 
     async def _publish_completion_event(self, invocation_id: UUID, stream_id: str, client: StreamClient) -> None:
-        """Publish completion event to Valkey.
+        """Publish completion event to Redis.
 
         Args:
             invocation_id: Invocation UUID
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
             client: StreamClient for publishing
 
         """
@@ -433,7 +433,7 @@ class OrchestrationService:
         Args:
             exception: The exception that occurred
             invocation_id: Invocation UUID
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
             client: StreamClient for publishing events
 
         """
@@ -456,7 +456,7 @@ class OrchestrationService:
 
         Args:
             invocation_id: Invocation UUID
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
             final_state: Final LangGraph state containing context metadata and result
 
         Returns:
@@ -491,7 +491,7 @@ class OrchestrationService:
 
         Args:
             result: Result dictionary to enhance
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
 
         Returns:
             Enhanced result with streaming metadata
@@ -515,7 +515,7 @@ class OrchestrationService:
 
         Args:
             invocation_id: Invocation UUID
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
 
         Returns:
             Fallback response dictionary

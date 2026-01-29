@@ -1,8 +1,8 @@
-"""Integration tests for StreamClient with real Valkey instance.
+"""Integration tests for StreamClient with real Redis instance.
 
 Simplified test suite with improved fixture design.
 
-These tests require a running Valkey instance (configured via environment variables).
+These tests require a running Redis instance (configured via environment variables).
 They test real interactions including:
 - Publishing and reading events
 - Stream info retrieval
@@ -23,7 +23,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-import valkey.asyncio as valkey
+import redis.asyncio as redis
 
 from nexus.core.cache.stream import StreamClient
 from nexus.core.config.base import get_settings
@@ -34,21 +34,15 @@ from nexus.core.config.base import get_settings
 
 
 @pytest_asyncio.fixture(scope="session")
-async def valkey_client() -> AsyncGenerator[valkey.Valkey, None]:
-    """Create a Valkey client for integration tests.
+async def redis_client() -> AsyncGenerator[redis.Redis, None]:
+    """Create a Redis client for integration tests.
 
     Uses settings from environment variables or defaults.
-    Tests will fail with ValkeyConnectionError if service is unavailable.
-
-    Environment variables:
-        VALKEY_HOST: Valkey host (default: localhost)
-        VALKEY_PORT: Valkey port (default: 6379)
-        VALKEY_DB: Valkey database number (default: 0)
-        VALKEY_PASSWORD: Valkey password (default: None)
+    Tests will fail with RedisConnectionError if service is unavailable.
     """
     settings = get_settings()
 
-    client = valkey.Valkey(
+    client = redis.Redis(
         host=settings.cache_host,
         port=settings.cache_port,
         db=settings.cache_db,
@@ -83,7 +77,7 @@ async def stream_client() -> AsyncGenerator[StreamClient, None]:
 
 @pytest_asyncio.fixture
 async def stream_client_with_cleanup(
-    valkey_client: valkey.Valkey, test_stream_id: str
+    redis_client: redis.Redis, test_stream_id: str
 ) -> AsyncGenerator[tuple[StreamClient, str], None]:
     """Create a StreamClient with automatic stream cleanup.
 
@@ -97,7 +91,7 @@ async def stream_client_with_cleanup(
     # Cleanup: disconnect and delete stream
     await client.disconnect()
     try:
-        await valkey_client.delete(test_stream_id)
+        await redis_client.delete(test_stream_id)
     except Exception:
         pass  # Ignore errors during cleanup
 
@@ -108,7 +102,7 @@ async def stream_client_with_cleanup(
 
 
 class TestPublishAndRead:
-    """Test publishing and reading events with real Valkey."""
+    """Test publishing and reading events with real Redis."""
 
     @pytest.mark.asyncio
     async def test_publish_and_read_single_event(self, stream_client_with_cleanup) -> None:
@@ -120,7 +114,7 @@ class TestPublishAndRead:
         event_id = await stream_client.publish(test_stream_id, data)
 
         assert event_id is not None
-        assert "-" in event_id  # Valkey event IDs have format "timestamp-sequence"
+        assert "-" in event_id  # Redis event IDs have format "timestamp-sequence"
 
         # Read event
         events = []

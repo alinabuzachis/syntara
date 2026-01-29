@@ -1,4 +1,4 @@
-"""Base handler for streaming events from Valkey to WebSocket clients.
+"""Base handler for streaming events from cache to WebSocket clients.
 
 Provides a template method pattern for implementing WebSocket streaming handlers.
 """
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseWebSocketStreamingHandler(ABC):
-    """Base handler for streaming events from Valkey to WebSocket clients.
+    """Base handler for streaming events from cache to WebSocket clients.
 
     This abstract base class implements the Template Method pattern to provide
     a reusable framework for WebSocket streaming. Subclasses must implement
@@ -126,7 +126,7 @@ class BaseWebSocketStreamingHandler(ABC):
         expected and acceptable.
 
         Args:
-            stream_id: Valkey stream ID
+            stream_id: Stream identifier
             session_state: Session state dict from create_session_state
 
         Raises:
@@ -222,7 +222,7 @@ class BaseWebSocketStreamingHandler(ABC):
         connection_id: str | None = None,
         **params: Any,  # noqa: ANN401
     ) -> None:
-        """Stream events from Valkey to WebSocket client.
+        """Stream events from cache to WebSocket client.
 
         This method orchestrates the entire streaming lifecycle:
         1. Create session state (via create_session_state)
@@ -230,14 +230,14 @@ class BaseWebSocketStreamingHandler(ABC):
         3. Activate connection
         4. Wait for stream ready if needed (via wait_for_stream_ready)
         5. Determine replay parameters (via get_replay_parameters)
-        6. Stream events from Valkey
+        6. Stream events from cache
         7. Transform and send each event (via transform_event)
         8. Handle errors appropriately
         9. Cleanup connection
 
         Args:
             websocket: WebSocket connection
-            stream_id: Valkey stream ID to read from
+            stream_id: Stream identifier
             replay_count: Number of historical events to replay (default: "10")
             last_event_id: Specific event ID to resume from
             connection_id: Connection identifier for logging
@@ -373,7 +373,7 @@ class BaseWebSocketStreamingHandler(ABC):
             "event_type": "error",
             "resource_id": resource_id,
             "timestamp": datetime.now(UTC).isoformat(),
-            "event_id": None,  # Errors don't have Valkey event_id (not resumable)
+            "event_id": None,  # Errors don't have stream event_id (not resumable)
             "data": error_data.to_dict(),
         }
         await websocket.send_json(error_event)
@@ -397,12 +397,12 @@ class BaseWebSocketStreamingHandler(ABC):
         resource_type: str = "resource",
         max_wait_seconds: int = 30,
     ) -> None:
-        """Wait for stream to be created in Valkey.
+        """Wait for stream to be created in cache.
 
         Helper method for subclasses that need to wait for stream creation.
 
         Args:
-            stream_id: Valkey stream ID to wait for
+            stream_id: Stream identifier
             resource_id: String representation of the resource ID
             resource_status: Current status of the resource
             resource_type: Type of resource (e.g., "invocation", "execution")

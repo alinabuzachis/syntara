@@ -11,15 +11,15 @@ info:
     **AsyncAPI Version**: 3.0.0
 
     This API provides real-time activity status updates for workflow executions
-    using Valkey Streams for scalable cross-process communication with event replay:
+    using Redis Streams for scalable cross-process communication with event replay:
     - Initial state delivered via WebSocket using ExecutionSnapshotMessage
-    - Real-time updates via Valkey Streams -> WebSocket push (JSON Patch format)
+    - Real-time updates via Redis Streams -> WebSocket push (JSON Patch format)
     - Event replay support via `replay` parameter
 
     ## Architecture
 
     ```
-    Temporal Worker          Valkey Streams       API Server(s)        Client
+    Temporal Worker          Redis Streams       API Server(s)        Client
     ┌─────────────┐      ┌──────────────┐      ┌─────────────┐      ┌────────┐
     │ ActivitySync│      │    XADD      │      │  WebSocket  │      │Frontend│
     │ Service     │─────>│ execution:   │─────>│  Handler    │─────>│   UI   │
@@ -32,7 +32,7 @@ info:
     **Initial Connection (Running Execution):**
     1. Client loads workflow structure via `GET /executions/{id}?include=workflow_definition`
     2. Client connects to `/ws/workflows/v1/executions/{execution_id}?replay=0`
-    3. Server reads from Valkey Stream `execution:{id}:events` starting from beginning
+    3. Server reads from Redis Stream `execution:{id}:events` starting from beginning
     4. Server sends `ExecutionSnapshotMessage` with type="initial_snapshot" (first message)
     5. Server sends `ActivityPatchMessage` for subsequent activity updates (JSON Patch format)
     6. When execution completes, server sends `ExecutionSnapshotMessage` with type="final_snapshot" (last message)
@@ -48,7 +48,7 @@ info:
 
     **Reconnection:**
     1. Client reconnects to `/ws/workflows/v1/executions/{execution_id}?replay=<last_event_id>`
-    2. Server reads from Valkey Stream starting from that event_id
+    2. Server reads from Redis Stream starting from that event_id
     3. Client receives missed `ActivityPatchMessage` events
     4. Server resumes live streaming
 
@@ -91,16 +91,16 @@ channels:
 
       **Connection URL**: `ws://localhost:8000/ws/workflows/v1/executions/{execution_id}?replay=<event_id>`
 
-      **Initial State (Valkey Streams Replay)**:
+      **Initial State (Redis Streams Replay)**:
       Client connects with `replay=0` to receive full execution state:
       - First message: `ExecutionSnapshotMessage` with type="initial_snapshot"
       - Subsequent messages: `ActivityPatchMessage` (JSON Patch format) for updates
       - Last message: `ExecutionSnapshotMessage` with type="final_snapshot" (when execution completes)
       - Server disconnects WebSocket after sending final_snapshot
 
-      **Message Flow (Valkey Streams)**:
+      **Message Flow (Redis Streams)**:
       1. Client connects to WebSocket with optional `replay` parameter
-      2. Server reads from Valkey Stream `execution:{id}:events` using XREAD
+      2. Server reads from Redis Stream `execution:{id}:events` using XREAD
       3. If `replay=0`: Server sends ExecutionSnapshotMessage with type="initial_snapshot" + all updates
       4. If `replay=<event_id>`: Server sends updates from that event_id onwards
       5. If no replay: Server sends only new events (live streaming)
@@ -111,7 +111,7 @@ channels:
 
       **Event Replay Support**:
       Clients can reconnect with `replay=<last_event_id>` to catch up on missed events.
-      Event IDs are Valkey auto-generated stream IDs (format: `{milliseconds}-{sequence}`).
+      Event IDs are Redis auto-generated stream IDs (format: `{milliseconds}-{sequence}`).
 
       **Edge Status Derivation**:
       Edge status is computed client-side from source/target node status.
@@ -138,7 +138,7 @@ operations:
       $ref: '#/channels/executions'
     summary: Receive real-time activity status updates for an execution
     description: |
-      Server reads from Valkey Streams and forwards messages to client.
+      Server reads from Redis Streams and forwards messages to client.
       - `execution_snapshot`: Full execution state (first message on replay=0)
       - `activity_patch`: Activity status changes (JSON Patch format)
     messages:
@@ -207,7 +207,7 @@ components:
             example: abc-123-def-456
           event_id:
             type: string
-            description: Valkey stream ID for replay support
+            description: Redis stream ID for replay support
             example: '1691431234567-0'
           execution:
             description: |-
@@ -309,7 +309,7 @@ components:
             example: abc-123-def-456
           event_id:
             type: string
-            description: Valkey stream ID for replay support
+            description: Redis stream ID for replay support
             example: '1691431234568-0'
           ops:
             type: array
@@ -357,10 +357,10 @@ components:
 
     replay:
       description: |
-        Optional replay parameter for event replay from Valkey Streams.
+        Optional replay parameter for event replay from Redis Streams.
         - Not specified: Live streaming only (new events after connection)
         - `0`: Replay from beginning (includes ExecutionSnapshotMessage)
-        - `<event_id>`: Replay from specific Valkey stream ID (e.g., `1691431234567-5`)
+        - `<event_id>`: Replay from specific Redis stream ID (e.g., `1691431234567-5`)
       schema:
         type: string
         example: '0'

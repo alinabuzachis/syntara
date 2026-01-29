@@ -76,7 +76,7 @@ class TestStreamingQueryParams:
 
     def test_valid_last_event_id_timestamp_sequence(self) -> None:
         """Test last_event_id with valid timestamp-sequence format."""
-        # Test various valid Valkey stream IDs
+        # Test various valid Redis stream IDs
         valid_ids = [
             "1691431234567-0",
             "1691431234567-42",

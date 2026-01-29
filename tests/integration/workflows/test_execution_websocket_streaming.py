@@ -2,7 +2,7 @@
 
 These tests verify the WebSocket streaming infrastructure for executions:
 - Connection handling and validation
-- Event replay from Valkey Streams
+- Event replay from Redis Streams
 - Message format validation
 - Error handling for terminal executions
 
@@ -11,7 +11,7 @@ using specs/024-execution-visualizer/workflow-stream-viewer.py
 
 These tests require:
 - PostgreSQL database
-- Valkey server
+- Redis server
 
 Run with: pytest tests/integration/workflows/test_execution_websocket_streaming.py
 """

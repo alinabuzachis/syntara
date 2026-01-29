@@ -102,7 +102,7 @@ components:
           type: string
           nullable: true
           title: Event ID
-          description: Valkey stream event ID for resumption and ordering (format {milliseconds}-{sequence}). Can be null for events not yet persisted.
+          description: Cache stream event ID for resumption and ordering (format {milliseconds}-{sequence}). Can be null for events not yet persisted.
           example: 1691431234567-42
 
     DeltaEventData:
@@ -214,5 +214,5 @@ components:
       description: Resume from specific event ID (for precise reconnection). Use '0' to start from beginning of stream. Takes precedence over replay_count.
       schema:
         type: string
-        description: Valkey stream event ID to resume after
+        description: Cache stream event ID to resume after
       example: 1691431234567-42

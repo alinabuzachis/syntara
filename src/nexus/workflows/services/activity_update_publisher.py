@@ -1,7 +1,7 @@
-"""Activity update publisher for Valkey Streams.
+"""Activity update publisher for Redis Streams.
 
 This module provides the ActivityUpdatePublisher class for publishing workflow
-execution activity updates to Valkey Streams for WebSocket streaming to clients.
+execution activity updates to Redis Streams for WebSocket streaming to clients.
 """
 
 import logging
@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 
 
 class ActivityUpdatePublisher:
-    """Publishes activity updates to Valkey Streams for WebSocket streaming.
+    """Publishes activity updates to Redis Streams for WebSocket streaming.
 
     This publisher handles the translation of execution and activity data into
-    WebSocket-compatible messages and publishes them to Valkey Streams using the
+    WebSocket-compatible messages and publishes them to Redis Streams using the
     stream key format: `execution:{execution_id}:events`
 
     The publisher supports three types of messages:
@@ -60,7 +60,7 @@ class ActivityUpdatePublisher:
             execution_id: The execution UUID or string
 
         Returns:
-            The Valkey stream key in format: execution:{execution_id}:events
+            The Redis stream key in format: execution:{execution_id}:events
 
         """
         return f"execution:{execution_id}:events"
@@ -110,7 +110,7 @@ class ActivityUpdatePublisher:
         execution: Execution,
         snapshot_type: Literal["initial_snapshot", "final_snapshot"],
     ) -> str:
-        """Publish execution snapshot to Valkey Stream.
+        """Publish execution snapshot to Redis Stream.
 
         Sends a full snapshot of the execution state including all activities.
         Used for both initial snapshot (first activity sync) and final snapshot
@@ -121,10 +121,10 @@ class ActivityUpdatePublisher:
             snapshot_type: The snapshot type - either "initial_snapshot" or "final_snapshot"
 
         Returns:
-            The Valkey-generated event ID (e.g., "1642680000000-0")
+            The Redis-generated event ID (e.g., "1642680000000-0")
 
         Raises:
-            ValkeyConnectionError: If connection to Valkey fails
+            RedisConnectionError: If connection to Redis fails
             ValueError: If required parameters are missing or invalid
 
         """
@@ -137,12 +137,12 @@ class ActivityUpdatePublisher:
         message = ExecutionSnapshotMessage(
             type=snapshot_type,
             execution_id=str(execution.id),
-            event_id="",  # Will be set by Valkey
+            event_id="",  # Will be set by Redis
             execution=execution_data,
             timestamp=datetime.now(UTC),
         )
 
-        # Publish to Valkey Streams
+        # Publish to Redis Streams
         async with StreamClient() as client:
             event_id = await client.publish(stream_id, message.model_dump(mode="json", exclude={"event_id"}))
             logger.debug(
@@ -170,10 +170,10 @@ class ActivityUpdatePublisher:
                             the operations to apply
 
         Returns:
-            The Valkey-generated event ID (e.g., "1642680123456-1")
+            The Redis-generated event ID (e.g., "1642680123456-1")
 
         Raises:
-            ValkeyConnectionError: If connection to Valkey fails
+            RedisConnectionError: If connection to Redis fails
             ValueError: If required parameters are missing or invalid
 
         """
@@ -198,12 +198,12 @@ class ActivityUpdatePublisher:
         message = ActivityPatchMessage(
             type="activity_patch",
             execution_id=str(execution_id),
-            event_id="",  # Will be set by Valkey
+            event_id="",  # Will be set by Redis
             ops=ops,
             timestamp=datetime.now(UTC),
         )
 
-        # Publish to Valkey Streams
+        # Publish to Redis Streams
         async with StreamClient() as client:
             event_id = await client.publish(
                 stream_id, message.model_dump(mode="json", by_alias=True, exclude={"event_id"})

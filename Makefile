@@ -137,19 +137,19 @@ db-clean: ## Stop database and remove all data (destructive)
 
 .PHONY: cache-run
 cache-run: ## Start cache container (foreground, Ctrl+C to stop)
-	@echo "🚀 Starting cache server (Valkey/Redis-compatible)..."
+	@echo "🚀 Starting cache server..."
 	@echo "📍 Connection: cache://localhost:$${NEXUS_CACHE_PORT:-6379}"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	$(COMPOSE_FINAL_CMD) up valkey
+	$(COMPOSE_FINAL_CMD) up redis
 
 .PHONY: cache-clean
 cache-clean: ## Stop cache and remove data
 	@echo "🧹 Stopping cache server..."
-	$(COMPOSE_FINAL_CMD) stop valkey || true
-	@if podman container exists nexus_valkey_1 2>/dev/null; then \
-		echo "Removing valkey container..."; \
-		podman container rm -f nexus_valkey_1; \
+	$(COMPOSE_FINAL_CMD) stop redis || true
+	@if podman container exists nexus_redis_1 2>/dev/null; then \
+		echo "Removing redis container..."; \
+		podman container rm -f nexus_redis_1; \
 	fi
 	@echo "✅ Cache stopped"
 
@@ -207,7 +207,7 @@ services-run: ## Start all services (database + cache + temporal + UI + worker +
 	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
 	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
-	$(COMPOSE_FINAL_CMD) up --build -d database valkey temporal temporal-ui temporal-worker mcp-server
+	$(COMPOSE_FINAL_CMD) up --build -d database redis temporal temporal-ui temporal-worker mcp-server
 	@echo "✅ All services started in background"
 	@echo "   Use 'make services-logs' to view logs"
 	@echo "   Use 'make services-stop' to stop services"
@@ -225,7 +225,7 @@ services-logs: ## View logs from all services
 	@echo ""
 	$(COMPOSE_FINAL_CMD) ps
 	@echo ""
-	$(COMPOSE_FINAL_CMD) logs -f database valkey temporal temporal-ui temporal-worker mcp-server
+	$(COMPOSE_FINAL_CMD) logs -f database redis temporal temporal-ui temporal-worker mcp-server
 
 
 .PHONY: db-logs
@@ -236,7 +236,7 @@ db-logs: ## View database logs only
 .PHONY: cache-logs
 cache-logs: ## View cache server logs only
 	@echo "📋 Viewing cache server logs (project: $(PODMAN_PROJECT))..."
-	$(COMPOSE_FINAL_CMD) logs -f valkey
+	$(COMPOSE_FINAL_CMD) logs -f redis
 
 .PHONY: temporal-logs
 temporal-logs: ## View Temporal server and worker logs

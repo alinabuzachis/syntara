@@ -194,8 +194,7 @@ class CacheSettings(BaseSettings):
     """Cache configuration for event streaming.
 
     Used for persistent event storage and multi-client synchronization.
-    Currently implemented using Valkey (Redis-compatible), but abstracted
-    to support other Redis-compatible backends (Redis, KeyDB, Dragonfly, etc.).
+    Currently implemented using Redis.
     """
 
     cache_host: str = Field(
@@ -214,7 +213,7 @@ class CacheSettings(BaseSettings):
     )
 
     cache_password: SecretStr = Field(
-        default=SecretStr("valkey"),  # Default matches podman-compose.yml
+        default=SecretStr("cache"),
         description="Cache server password (if required)",
     )
 

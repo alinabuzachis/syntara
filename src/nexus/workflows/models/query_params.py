@@ -78,16 +78,16 @@ class ExecutionStreamingQueryParams(SQLModel):
     injection attacks and ensure proper format.
 
     Attributes:
-        replay: Optional replay parameter for event replay from Valkey Streams.
+        replay: Optional replay parameter for event replay from Redis Streams.
                - Not specified (None): Live streaming only (new events after connection)
                - "0": Replay from beginning (includes initial snapshot)
-               - "<event_id>": Replay from specific Valkey stream ID (e.g., "1691431234567-5")
+               - "<event_id>": Replay from specific Redis stream ID (e.g., "1691431234567-5")
 
     """
 
     replay: str | None = Field(
         default=None,
-        description="Replay parameter for event replay ('0' or Valkey stream ID)",
+        description="Replay parameter for event replay ('0' or Redis stream ID)",
     )
 
     @field_validator("replay")
@@ -112,10 +112,10 @@ class ExecutionStreamingQueryParams(SQLModel):
         if v == "0":
             return v
 
-        # Validate Valkey stream ID format (timestamp-sequence like 1691431234567-42)
+        # Validate Redis stream ID format (timestamp-sequence like 1691431234567-42)
         if not re.match(r"^\d+-\d+$", v):
             msg = (
-                f"replay must be '0' or Valkey stream ID format 'timestamp-sequence' "
+                f"replay must be '0' or Redis stream ID format 'timestamp-sequence' "
                 f"(e.g., '1691431234567-42'), got: {v}"
             )
             raise ValueError(msg)

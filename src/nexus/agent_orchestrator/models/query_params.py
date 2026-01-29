@@ -25,7 +25,7 @@ class StreamingQueryParams(SQLModel):
                      Can be "all" for complete history, "0" for live-only,
                      or a numeric string (non-negative integer). Default: "10".
                      Note: Values > 1000 will be capped at 1000 by the streaming layer.
-        last_event_id: Optional Valkey stream event ID to resume from.
+        last_event_id: Optional Cache stream event ID to resume from.
                       Format: "timestamp-sequence" (e.g., "1691431234567-42").
                       Special values: "0" (start from beginning), "$" (only new events).
                       Takes precedence over replay_count.
@@ -35,7 +35,7 @@ class StreamingQueryParams(SQLModel):
     replay_count: str = Field(
         default="10", description="Number of historical events to replay ('all', '0', or non-negative integer)"
     )
-    last_event_id: str | None = Field(default=None, description="Valkey stream event ID to resume from")
+    last_event_id: str | None = Field(default=None, description="Cache stream event ID to resume from")
 
     @field_validator("replay_count")
     @classmethod
@@ -91,7 +91,7 @@ class StreamingQueryParams(SQLModel):
         if v in ("0", "$"):
             return v
 
-        # Validate Valkey stream ID format (timestamp-sequence like 1691431234567-42)
+        # Validate stream ID format (timestamp-sequence like 1691431234567-42)
         if not re.match(r"^\d+-\d+$", v):
             msg = f"last_event_id must be in format 'timestamp-sequence' (e.g., '1691431234567-42'), got: {v}"
             raise ValueError(msg)

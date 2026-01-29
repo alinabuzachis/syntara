@@ -4,8 +4,7 @@ This module provides a flexible, generic interface for publishing and reading
 arbitrary dictionary data to/from cache Streams. Unlike EventPublisher which
 is tied to specific StreamingEvent objects, StreamClient accepts any dict data.
 
-Currently implemented using Valkey (Redis-compatible), but abstracted to support
-other Redis-compatible backends (Redis, KeyDB, Dragonfly, etc.).
+Abstracted to support redis-compatible backends (Redis, KeyDB, Dragonfly, Valkey).
 
 Usage:
     from nexus.core.cache.stream import StreamClient
@@ -42,9 +41,9 @@ from collections.abc import AsyncGenerator, Callable
 from types import TracebackType
 from typing import Any
 
-import valkey.asyncio as valkey
-from valkey.exceptions import ConnectionError as ValkeyConnectionError
-from valkey.exceptions import ResponseError
+import redis.asyncio as redis
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import ResponseError
 
 from nexus.core.config.base import get_settings
 
@@ -63,19 +62,17 @@ class StreamClient:
     serialization/deserialization and provides both publish and async generator-based
     reading capabilities.
 
-    Currently uses Valkey as the underlying cache implementation.
-
     Recommended usage is as an async context manager for automatic resource cleanup.
 
     Attributes:
-        _client: Cache async client instance (Valkey)
+        _client: Cache async client instance
         _settings: Application settings for cache configuration
 
     """
 
     def __init__(self) -> None:
         """Initialize stream client with configuration from settings."""
-        self._client: valkey.Valkey | None = None
+        self._client: redis.Redis | None = None
         self._settings = get_settings()
 
     async def __aenter__(self) -> "StreamClient":
@@ -95,17 +92,17 @@ class StreamClient:
     def connect(self) -> None:
         """Establish connection to cache with connection pooling.
 
-        Creates a cache client (Valkey) with configured host, port, database, password,
+        Creates a cache client with configured host, port, database, password,
         and connection pool size. Connection is lazy - actual network I/O happens
         on first operation (e.g., xadd, xread).
 
         Raises:
-            ValkeyConnectionError: If client initialization fails
+            RedisConnectionError: If client initialization fails
 
         """
         if self._client is None:
             try:
-                self._client = valkey.Valkey(
+                self._client = redis.Redis(
                     host=self._settings.cache_host,
                     port=self._settings.cache_port,
                     db=self._settings.cache_db,
@@ -116,13 +113,13 @@ class StreamClient:
                     max_connections=self._settings.cache_connection_pool_size,
                 )
                 logger.info("Connected to cache stream client")
-            except ValkeyConnectionError:
+            except RedisConnectionError:
                 logger.exception("Failed to connect to cache")
                 raise
             except OSError as e:
                 logger.exception("Network error connecting to cache")
                 msg = f"Network error: {e}"
-                raise ValkeyConnectionError(msg) from e
+                raise RedisConnectionError(msg) from e
 
     async def disconnect(self) -> None:
         """Close cache connection and cleanup resources.
@@ -135,27 +132,27 @@ class StreamClient:
                 await self._client.aclose()
                 self._client = None
                 logger.info("Disconnected from cache stream client")
-            except (ValkeyConnectionError, OSError) as e:
+            except (RedisConnectionError, OSError) as e:
                 logger.warning("Error during cache disconnect: %s", e)
                 # Don't raise on disconnect errors - already cleaning up
                 self._client = None
 
     async def publish(self, stream_id: str, data: dict[str, Any]) -> str:
-        """Publish arbitrary event data to a Valkey stream.
+        """Publish arbitrary event data to a cache stream.
 
         Automatically serializes the data dictionary to JSON and publishes it
         to the specified stream using XADD. The entire dict is stored in a
         single 'data' field for simplicity.
 
         Args:
-            stream_id: The stream identifier (stream key in Valkey)
+            stream_id: Stream identifier
             data: Arbitrary dictionary data to publish
 
         Returns:
-            The Valkey-generated event ID (e.g., "1234567890123-0")
+            The stream-generated event ID (e.g., "1234567890123-0")
 
         Raises:
-            ValkeyConnectionError: If connection to Valkey fails
+            RedisConnectionError: If connection to cache fails
             json.JSONDecodeError: If data cannot be serialized to JSON
             ResponseError: If XADD operation fails
             ValueError: If stream_id is empty
@@ -185,7 +182,7 @@ class StreamClient:
             # Using '*' for auto-generated ID
             if self._client is None:
                 msg = _CLIENT_NOT_CONNECTED_ERROR
-                raise ValkeyConnectionError(msg)  # noqa: TRY301
+                raise RedisConnectionError(msg)  # noqa: TRY301
             event_id = await self._client.xadd(stream_id, {"data": json_data})
 
             # Set TTL on stream key for automatic cleanup
@@ -204,15 +201,15 @@ class StreamClient:
             logger.exception("Failed to serialize data for stream '%s'", stream_id)
             raise
         except ResponseError:
-            logger.exception("Valkey error publishing to stream '%s'", stream_id)
+            logger.exception("Cache error publishing to stream '%s'", stream_id)
             raise
-        except ValkeyConnectionError:
+        except RedisConnectionError:
             logger.exception("Connection error publishing to stream '%s'", stream_id)
             raise
         except OSError as e:
             logger.exception("Network error publishing to stream '%s'", stream_id)
             msg = f"Network error: {e}"
-            raise ValkeyConnectionError(msg) from e
+            raise RedisConnectionError(msg) from e
 
     def _validate_events_params(self, stream_id: str, start_id: str | None, replay: int | None) -> None:
         """Validate parameters for the events method.
@@ -250,13 +247,13 @@ class StreamClient:
             The starting event ID for XREAD
 
         Raises:
-            ValkeyConnectionError: If client not connected
+            RedisConnectionError: If client not connected
             ResponseError: If stream operation fails (other than non-existence)
 
         """
         if self._client is None:
             msg = _CLIENT_NOT_CONNECTED_ERROR
-            raise ValkeyConnectionError(msg)
+            raise RedisConnectionError(msg)
 
         # Honor explicit start_id first
         if start_id is not None:
@@ -323,7 +320,7 @@ class StreamClient:
                 # Deserialize the JSON data
                 try:
                     data = json.loads(fields.get("data", "{}"))
-                    # Add Valkey-generated event_id to enable client resumption
+                    # Add stream-generated event_id to enable client resumption
                     data["event_id"] = event_id
                 except json.JSONDecodeError:
                     logger.exception("Failed to deserialize event %s from stream '%s'", event_id, stream_id)
@@ -361,14 +358,14 @@ class StreamClient:
             Deserialized event data dictionaries
 
         Raises:
-            ValkeyConnectionError: If connection fails
+            RedisConnectionError: If connection fails
             ResponseError: If stream read operation fails
             OSError: If network error occurs
 
         """
         if self._client is None:
             msg = _CLIENT_NOT_CONNECTED_ERROR
-            raise ValkeyConnectionError(msg)
+            raise RedisConnectionError(msg)
 
         try:
             while True:
@@ -396,15 +393,15 @@ class StreamClient:
                     return
 
         except ResponseError:
-            logger.exception("Valkey error reading from stream '%s'", stream_id)
+            logger.exception("Cache error reading from stream '%s'", stream_id)
             raise
-        except ValkeyConnectionError:
+        except RedisConnectionError:
             logger.exception("Connection error reading from stream '%s'", stream_id)
             raise
         except OSError as e:
             logger.exception("Network error reading from stream '%s'", stream_id)
             msg = f"Network error: {e}"
-            raise ValkeyConnectionError(msg) from e
+            raise RedisConnectionError(msg) from e
 
     async def events(
         self,
@@ -433,7 +430,7 @@ class StreamClient:
         Use the context manager pattern or manually call disconnect() when finished.
 
         Args:
-            stream_id: The stream identifier to read from
+            stream_id: Stream identifier
             start_id: Starting position in stream. If provided, replay is ignored.
             replay: Number of events to replay from current head. Only used if start_id
                    is not provided. Retrieves last N events and starts from there.
@@ -446,7 +443,7 @@ class StreamClient:
             Dict[str, Any]: Deserialized event data dictionaries
 
         Raises:
-            ValkeyConnectionError: If connection to Valkey fails
+            RedisConnectionError: If connection to cache fails
             json.JSONDecodeError: If event data cannot be deserialized
             ResponseError: If stream read operation fails
             ValueError: If stream_id is empty or both start_id and replay provided
@@ -509,7 +506,7 @@ class StreamClient:
                 - exists: Whether the stream exists
 
         Raises:
-            ValkeyConnectionError: If connection to Valkey fails
+            RedisConnectionError: If connection to Redis fails
             ResponseError: If stream info operation fails (other than non-existence)
             ValueError: If stream_id is empty
 
@@ -531,7 +528,7 @@ class StreamClient:
         try:
             if self._client is None:
                 msg = _CLIENT_NOT_CONNECTED_ERROR
-                raise ValkeyConnectionError(msg)  # noqa: TRY301
+                raise RedisConnectionError(msg)  # noqa: TRY301
 
             info = await self._client.xinfo_stream(stream_id)
             return {
@@ -550,20 +547,20 @@ class StreamClient:
                     "exists": False,
                 }
             # Other error
-            logger.exception("Valkey error getting info for stream '%s'", stream_id)
+            logger.exception("Redis error getting info for stream '%s'", stream_id)
             raise
-        except ValkeyConnectionError:
+        except RedisConnectionError:
             logger.exception("Connection error getting info for stream '%s'", stream_id)
             raise
         except OSError as e:
             logger.exception("Network error getting info for stream '%s'", stream_id)
             msg = f"Network error: {e}"
-            raise ValkeyConnectionError(msg) from e
+            raise RedisConnectionError(msg) from e
 
     async def delete(self, stream_id: str) -> bool:
         """Delete a stream immediately.
 
-        Removes the stream and all its events from Valkey. Useful for cleanup
+        Removes the stream and all its events from Redis. Useful for cleanup
         in tests or when streams need to be explicitly removed before their TTL expires.
 
         Args:
@@ -573,7 +570,7 @@ class StreamClient:
             True if stream was deleted, False if it didn't exist
 
         Raises:
-            ValkeyConnectionError: If connection to Valkey fails
+            RedisConnectionError: If connection to Redis fails
             ValueError: If stream_id is empty
 
         Example:
@@ -598,16 +595,16 @@ class StreamClient:
         try:
             if self._client is None:
                 msg = _CLIENT_NOT_CONNECTED_ERROR
-                raise ValkeyConnectionError(msg)  # noqa: TRY301
+                raise RedisConnectionError(msg)  # noqa: TRY301
 
             deleted_count: int = await self._client.delete(stream_id)
             logger.debug("Deleted stream '%s': %s", stream_id, deleted_count > 0)
             return deleted_count > 0
 
-        except ValkeyConnectionError:
+        except RedisConnectionError:
             logger.exception("Connection error deleting stream '%s'", stream_id)
             raise
         except OSError as e:
             logger.exception("Network error deleting stream '%s'", stream_id)
             msg = f"Network error: {e}"
-            raise ValkeyConnectionError(msg) from e
+            raise RedisConnectionError(msg) from e

@@ -1,1 +1,1 @@
-"""Integration tests for Valkey utilities."""
+"""Integration tests for Redis utilities."""

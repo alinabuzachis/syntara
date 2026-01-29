@@ -30,7 +30,7 @@ info:
     - **Authentication**: JWT token in query parameter or Authorization header
     - **Session Management**: Server assigns session_id for reconnection support
     - **Message Replay**: Use last_event_id to resume from specific event
-    - **State Persistence**: Session state maintained in Redis/Valkey for reliability
+    - **State Persistence**: Session state maintained in Redis for reliability
     - **Version Detection**: Server includes API version in connection acknowledgment
 
     ## Shared Schemas
@@ -1015,7 +1015,7 @@ components:
       description: |
         Optional session ID for WebSocket reconnection. Server provides this ID in the initial
         connection_ack message. Clients can use it to reconnect and resume their session
-        after disconnection, with session state maintained in Redis/Valkey.
+        after disconnection, with session state maintained in Redis.
       schema:
         type: string
 

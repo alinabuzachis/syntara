@@ -205,7 +205,7 @@ class TestOnConnectInvocations:
         mock_streaming_service: MagicMock,
     ) -> None:
         """Test that valid timestamp-sequence format is accepted."""
-        # Setup: Valid Valkey stream ID format
+        # Setup: Valid Redis stream ID format
         invocation_id = uuid4()
         mock_websocket.url.path = f"/ws/agent_orchestrator/v1/invocations/{invocation_id}"
         mock_websocket.query_params = {"last_event_id": "1691431234567-42"}

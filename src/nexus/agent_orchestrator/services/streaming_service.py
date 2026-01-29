@@ -1,6 +1,6 @@
 """Streaming service components for WebSocket event streaming.
 
-Provides WebSocket event streaming from Valkey streams.
+Provides WebSocket event streaming from Redis streams.
 """
 
 import logging
@@ -31,7 +31,7 @@ TERMINAL_EVENT_TYPES = frozenset({"completion", "error", "cancelled"})
 
 # Constants for stream naming
 def get_invocation_stream_id(invocation_id: UUID) -> str:
-    """Get Valkey stream ID for an invocation.
+    """Get Redis stream ID for an invocation.
 
     DRY helper to ensure consistent stream naming across the application.
 
@@ -39,7 +39,7 @@ def get_invocation_stream_id(invocation_id: UUID) -> str:
         invocation_id: UUID of the invocation
 
     Returns:
-        Valkey stream ID (e.g., "invocation:UUID:events")
+        Redis stream ID (e.g., "invocation:UUID:events")
 
     """
     return f"invocation:{invocation_id}:events"
@@ -63,7 +63,7 @@ class InvocationNotFoundError(StreamingValidationError):
 
 
 class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
-    """Handler for streaming invocation events from Valkey to WebSocket clients.
+    """Handler for streaming invocation events from Redis to WebSocket clients.
 
     Extends BaseWebSocketStreamingHandler with invocation-specific validation
     and streaming logic.
@@ -151,7 +151,7 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
         """Wait for invocation stream to be created.
 
         Args:
-            stream_id: Valkey stream ID
+            stream_id: Redis stream ID
             session_state: Session state dict with invocation_id and invocation_status
 
         Raises:
@@ -168,7 +168,7 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
         if invocation_status in terminal_statuses:
             # Invocation finished but stream doesn't exist - events expired
             logger.warning(
-                "Invocation %s is %s but the Valkey stream has expired", invocation_id, invocation_status.value
+                "Invocation %s is %s but the Redis stream has expired", invocation_id, invocation_status.value
             )
             raise EventsExpiredError(
                 resource_id=str(invocation_id),
@@ -218,7 +218,7 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
 class StreamingService:
     """Streaming service for WebSocket event delivery.
 
-    Provides WebSocket streaming of events from Valkey streams.
+    Provides WebSocket streaming of events from Redis streams.
     """
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -239,7 +239,7 @@ class StreamingService:
         last_event_id: str | None = None,
         connection_id: str | None = None,
     ) -> None:
-        """Stream events from Valkey to WebSocket client.
+        """Stream events from Redis to WebSocket client.
 
         Args:
             websocket: WebSocket connection

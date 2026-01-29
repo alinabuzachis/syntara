@@ -56,14 +56,14 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-      valkey:
-        image: quay.io/sclorg/valkey-8-c10s:latest
+      redis:
+        image: quay.io/sclorg/redis-6-c9s
         env:
-          VALKEY_PASSWORD: valkey
+          REDIS_PASSWORD: cache
         ports:
           - 6379:6379
         options: >-
-          --health-cmd "valkey-cli -a valkey PING"
+          --health-cmd "redis-cli -a cache PING"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
@@ -89,7 +89,7 @@ jobs:
       - name: Run tests (excluding MCP) with coverage
         run: make test-coverage
         env:
-          NEXUS_CACHE_PASSWORD: valkey
+          NEXUS_CACHE_PASSWORD: cache
 
       - name: Run MCP tests
         run: make test-mcp
