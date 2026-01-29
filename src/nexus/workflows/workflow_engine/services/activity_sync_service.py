@@ -6,6 +6,7 @@ to the database in real-time by streaming Temporal history events.
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -30,6 +31,33 @@ from nexus.workflows.utils.activity_traversal import (
 from nexus.workflows.utils.datetime import ensure_timezone_aware
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ExecutionMonitorMetadata:
+    """Metadata required for monitoring a workflow execution.
+
+    This contains all the necessary data structures for monitoring
+    and syncing activity executions from Temporal to the database.
+
+    Attributes:
+        execution_id: Database execution ID being monitored
+        last_processed_event_id: Last event ID that was processed and synced
+        activity_definitions_map: Map of activity ID to activity definition from workflow
+        branch_head_map: Map of activities to their parent condition branches
+        activity_index_map: Map of activity names to their indices in the activities list
+        pending_activity_updates: Map of event IDs to activity update data awaiting database sync
+        conditions_handled: Set of condition IDs already processed for branch skipping
+
+    """
+
+    execution_id: UUID
+    last_processed_event_id: int
+    activity_definitions_map: dict[str, dict[str, Any]]
+    branch_head_map: dict[str, dict[str, Any]]
+    activity_index_map: dict[str, int]
+    pending_activity_updates: dict[int, dict[str, Any]]
+    conditions_handled: set[str]
 
 
 class ActivitySyncService:
@@ -114,23 +142,23 @@ class ActivitySyncService:
         else:
             logger.info("Monitoring task for execution %s completed successfully", execution_id)
 
-    async def _update_execution_to_running(self, execution_id: UUID, event: HistoryEvent) -> None:
+    async def _update_execution_to_running(self, metadata: ExecutionMonitorMetadata, event: HistoryEvent) -> None:
         """Update execution status to RUNNING when workflow starts.
 
         Only updates if execution is in PENDING state (idempotent for service restarts).
 
         Args:
-            execution_id: Database execution ID
+            metadata: Monitoring metadata containing execution and related data
             event: Temporal workflow started event
 
         """
         async with self.session_factory() as session:
             try:
-                result = await session.exec(select(Execution).where(Execution.id == execution_id))
+                result = await session.exec(select(Execution).where(Execution.id == metadata.execution_id))
                 execution = result.one_or_none()
 
                 if not execution:
-                    logger.warning("Execution %s not found when updating to RUNNING", execution_id)
+                    logger.warning("Execution %s not found when updating to RUNNING", metadata.execution_id)
                     return
 
                 # Only update if currently PENDING (defensive check for race conditions)
@@ -139,16 +167,16 @@ class ActivitySyncService:
                     execution.last_processed_event_id = event.event_id
                     execution.updated_at = datetime.now(UTC)
                     await session.commit()
-                    logger.info("Updated execution %s to RUNNING status", execution_id)
+                    logger.info("Updated execution %s to RUNNING status", metadata.execution_id)
                 else:
                     logger.debug(
                         "Skipping RUNNING update for execution %s - already in %s state",
-                        execution_id,
+                        metadata.execution_id,
                         execution.status.value,
                     )
             except Exception:
                 await session.rollback()
-                logger.exception("Error updating execution %s to RUNNING", execution_id)
+                logger.exception("Error updating execution %s to RUNNING", metadata.execution_id)
                 # Don't raise - this is non-critical, monitoring should continue
 
     async def shutdown(self) -> None:
@@ -168,16 +196,14 @@ class ActivitySyncService:
         self._sync_tasks.clear()
         logger.info("Activity sync service shutdown complete")
 
-    async def _initialize_monitoring(
-        self, execution_id: UUID
-    ) -> tuple[Execution, dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    async def _initialize_monitoring(self, execution_id: UUID) -> ExecutionMonitorMetadata:
         """Initialize monitoring by fetching execution data and workflow structure.
 
         Args:
             execution_id: Database execution ID
 
         Returns:
-            Tuple of (execution, activity_definitions_map, branch_head_map)
+            ExecutionMonitorMetadata containing execution and related data structures
 
         Raises:
             RuntimeError: If execution not found in database
@@ -192,32 +218,61 @@ class ActivitySyncService:
                 logger.error(msg)
                 raise RuntimeError(msg)
 
-        activity_definitions_map, activities_list = await self._fetch_activity_definitions_map(
-            execution.workflow_version_id
-        )
+            # Extract needed fields from execution
+            workflow_version_id = execution.workflow_version_id
+            last_processed_event_id = execution.last_processed_event_id
+
+        activity_definitions_map, activities_list = await self._fetch_activity_definitions_map(workflow_version_id)
         branch_head_map = build_branch_head_map(activities_list)
 
         await self._create_all_activities_upfront(execution_id, activity_definitions_map)
 
-        return execution, activity_definitions_map, branch_head_map
+        # Build activity index map after activities are created (for patch generation)
+        activity_index_map = await self._build_activity_index_map(execution_id)
+
+        return ExecutionMonitorMetadata(
+            execution_id=execution_id,
+            last_processed_event_id=last_processed_event_id,
+            activity_definitions_map=activity_definitions_map,
+            branch_head_map=branch_head_map,
+            activity_index_map=activity_index_map,
+            pending_activity_updates={},
+            conditions_handled=set(),
+        )
+
+    async def _build_activity_index_map(self, execution_id: UUID) -> dict[str, int]:
+        """Build mapping from activity_name to index in activities list.
+
+        This mapping is used for JSON Patch generation to identify activity positions
+        in the activities array without repeatedly querying the database.
+
+        Args:
+            execution_id: Database execution ID
+
+        Returns:
+            Dictionary mapping activity_name to its index in the ordered activities list
+
+        """
+        async with self.session_factory() as session:
+            result = await session.exec(
+                select(ActivityExecution)
+                .where(ActivityExecution.execution_id == execution_id)
+                .order_by(ActivityExecution.created_at, ActivityExecution.activity_name)  # type: ignore[arg-type]
+            )
+            activities = result.all()
+            return {activity.activity_name: idx for idx, activity in enumerate(activities)}
 
     async def _handle_event_post_processing(
         self,
         event: HistoryEvent,
-        execution_id: UUID,
-        temp_map: dict[int, dict[str, Any]],
-        branch_head_map: dict[str, dict[str, Any]],
-        conditions_handled: set[str],
+        metadata: ExecutionMonitorMetadata,
         handle: WorkflowHandle[Any, Any],
     ) -> int | None:
         """Handle post-processing after an event is processed.
 
         Args:
             event: Temporal history event
-            execution_id: Database execution ID
-            temp_map: Temporary map of activity data
-            branch_head_map: Branch head map for condition tracking
-            conditions_handled: Set of already handled condition IDs
+            metadata: Monitoring metadata containing execution and related data
             handle: Workflow handle
 
         Returns:
@@ -228,11 +283,9 @@ class ActivitySyncService:
             attrs = event.activity_task_started_event_attributes
             scheduled_id = attrs.scheduled_event_id
 
-            if scheduled_id in temp_map:
-                activity_id = temp_map[scheduled_id]["activity_id"]
-                await self._handle_condition_branch_skipping(
-                    execution_id, activity_id, branch_head_map, conditions_handled
-                )
+            if scheduled_id in metadata.pending_activity_updates:
+                activity_id = metadata.pending_activity_updates[scheduled_id]["activity_id"]
+                await self._handle_condition_branch_skipping(metadata, activity_id)
 
         if event.event_type in {
             EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
@@ -241,7 +294,9 @@ class ActivitySyncService:
             EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
             EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED,
         }:
-            await self._sync_activities_to_db(execution_id, temp_map, handle, event.event_id)
+            # Update metadata with the event ID before syncing
+            metadata.last_processed_event_id = event.event_id
+            await self._sync_activities_to_db(metadata, handle)
             return event.event_id
 
         return None
@@ -261,24 +316,20 @@ class ActivitySyncService:
 
             handle: WorkflowHandle[Any, Any] = self.temporal_client.get_workflow_handle(temporal_workflow_id)
 
-            execution, _, branch_head_map = await self._initialize_monitoring(execution_id)
-            last_processed_event_id = execution.last_processed_event_id
-
-            conditions_handled: set[str] = set()
-            temp_map: dict[int, dict[str, Any]] = {}
+            metadata = await self._initialize_monitoring(execution_id)
 
             async for event in handle.fetch_history_events(page_size=1000, wait_new_event=True):
                 if self._shutdown:
                     logger.info("Shutdown requested, stopping monitoring for execution %s", execution_id)
                     break
 
-                if event.event_id <= last_processed_event_id:
+                if event.event_id <= metadata.last_processed_event_id:
                     continue
 
                 # Handle workflow execution started event
                 if event.event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
-                    await self._update_execution_to_running(execution_id, event)
-                    last_processed_event_id = event.event_id
+                    await self._update_execution_to_running(metadata, event)
+                    metadata.last_processed_event_id = event.event_id
                     continue  # Skip activity processing for workflow events
 
                 # Handle workflow completion events
@@ -289,21 +340,19 @@ class ActivitySyncService:
                     EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT,
                     EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
                 }:
-                    await self._update_execution_status_from_event(execution_id, event)
-                    last_processed_event_id = event.event_id
+                    await self._update_execution_status_from_event(metadata, event)
+                    metadata.last_processed_event_id = event.event_id
                     continue  # Skip activity processing, likely last event
 
                 # Process activity events
-                self._process_activity_event(event, temp_map)
+                self._process_activity_event(event, metadata)
 
-                synced_event_id = await self._handle_event_post_processing(
-                    event, execution_id, temp_map, branch_head_map, conditions_handled, handle
-                )
+                synced_event_id = await self._handle_event_post_processing(event, metadata, handle)
                 if synced_event_id:
-                    last_processed_event_id = synced_event_id
+                    metadata.last_processed_event_id = synced_event_id
 
-            if temp_map and not self._shutdown:
-                await self._sync_activities_to_db(execution_id, temp_map, handle, last_processed_event_id)
+            if metadata.pending_activity_updates and not self._shutdown:
+                await self._sync_activities_to_db(metadata, handle)
 
             logger.info("Activity monitoring completed for execution %s", execution_id)
 
@@ -315,12 +364,12 @@ class ActivitySyncService:
         except Exception:
             logger.exception("Error monitoring execution %s", execution_id)
 
-    def _process_activity_scheduled(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
+    def _process_activity_scheduled(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_SCHEDULED event."""
         attrs = event.activity_task_scheduled_event_attributes
         if attrs.activity_id.startswith("__internal__"):
             return
-        temp_map[event.event_id] = {
+        metadata.pending_activity_updates[event.event_id] = {
             "activity_id": attrs.activity_id,
             "activity_name": attrs.activity_id,
             "status": ActivityStatus.PENDING,
@@ -330,53 +379,55 @@ class ActivitySyncService:
             "retry_count": 0,
         }
 
-    def _process_activity_started(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
+    def _process_activity_started(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_STARTED event."""
         attrs = event.activity_task_started_event_attributes
         scheduled_id = attrs.scheduled_event_id
-        if scheduled_id in temp_map:
+        if scheduled_id in metadata.pending_activity_updates:
             # Set status based on attempt number: RUNNING for first attempt, RETRYING for subsequent attempts
             attempt = attrs.attempt if attrs.attempt else 1
-            temp_map[scheduled_id]["status"] = ActivityStatus.RETRYING if attempt > 1 else ActivityStatus.RUNNING
-            temp_map[scheduled_id]["started_at"] = ensure_timezone_aware(event.event_time)
-            temp_map[scheduled_id]["retry_count"] = attempt - 1
+            metadata.pending_activity_updates[scheduled_id]["status"] = (
+                ActivityStatus.RETRYING if attempt > 1 else ActivityStatus.RUNNING
+            )
+            metadata.pending_activity_updates[scheduled_id]["started_at"] = ensure_timezone_aware(event.event_time)
+            metadata.pending_activity_updates[scheduled_id]["retry_count"] = attempt - 1
 
-    def _process_activity_completed(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
+    def _process_activity_completed(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_COMPLETED event."""
         attrs = event.activity_task_completed_event_attributes
         scheduled_id = attrs.scheduled_event_id
-        if scheduled_id in temp_map:
-            temp_map[scheduled_id]["status"] = ActivityStatus.COMPLETED
-            temp_map[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
+        if scheduled_id in metadata.pending_activity_updates:
+            metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.COMPLETED
+            metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
 
-    def _process_activity_failed(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
+    def _process_activity_failed(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_FAILED event."""
         attrs = event.activity_task_failed_event_attributes
         scheduled_id = attrs.scheduled_event_id
-        if scheduled_id in temp_map:
-            temp_map[scheduled_id]["status"] = ActivityStatus.FAILED
-            temp_map[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
+        if scheduled_id in metadata.pending_activity_updates:
+            metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.FAILED
+            metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
             if attrs.failure:
-                temp_map[scheduled_id]["error_details"] = attrs.failure.message
+                metadata.pending_activity_updates[scheduled_id]["error_details"] = attrs.failure.message
 
-    def _process_activity_timed_out(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
+    def _process_activity_timed_out(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_TIMED_OUT event."""
         attrs = event.activity_task_timed_out_event_attributes
         scheduled_id = attrs.scheduled_event_id
-        if scheduled_id in temp_map:
-            temp_map[scheduled_id]["status"] = ActivityStatus.FAILED
-            temp_map[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
+        if scheduled_id in metadata.pending_activity_updates:
+            metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.FAILED
+            metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
             if attrs.failure:
-                temp_map[scheduled_id]["error_details"] = attrs.failure.message
+                metadata.pending_activity_updates[scheduled_id]["error_details"] = attrs.failure.message
 
-    def _process_activity_canceled(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
+    def _process_activity_canceled(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_CANCELED event."""
         attrs = event.activity_task_canceled_event_attributes
         scheduled_id = attrs.scheduled_event_id
-        if scheduled_id in temp_map:
-            temp_map[scheduled_id]["status"] = ActivityStatus.CANCELLED
-            temp_map[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
-            temp_map[scheduled_id]["error_details"] = "Activity was canceled"
+        if scheduled_id in metadata.pending_activity_updates:
+            metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.CANCELLED
+            metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
+            metadata.pending_activity_updates[scheduled_id]["error_details"] = "Activity was canceled"
 
     def _extract_execution_status_from_event(self, event: HistoryEvent) -> tuple[ExecutionStatus, datetime, str | None]:
         """Extract execution status, completion time, and error from workflow completion event.
@@ -416,31 +467,35 @@ class ActivitySyncService:
 
         return status, completed_at, error_details
 
-    async def _update_execution_status_from_event(self, execution_id: UUID, event: HistoryEvent) -> None:
+    async def _update_execution_status_from_event(
+        self, metadata: ExecutionMonitorMetadata, event: HistoryEvent
+    ) -> None:
         """Update execution status to terminal state when workflow completes.
 
         Args:
-            execution_id: Database execution ID
+            metadata: Monitoring metadata containing execution and related data
             event: Temporal workflow completion event
 
         """
         async with self.session_factory() as session:
             try:
                 # Load execution with activities (selectinload respects relationship order_by)
-                query = select(Execution).where(Execution.id == execution_id)
+                query = select(Execution).where(Execution.id == metadata.execution_id)
                 query = query.options(selectinload(Execution.activities))  # type: ignore[arg-type]
                 result = await session.exec(query)
                 execution = result.one_or_none()
 
                 if not execution:
-                    logger.warning("Execution %s not found when processing workflow completion", execution_id)
+                    logger.warning("Execution %s not found when processing workflow completion", metadata.execution_id)
                     return
 
                 terminal_states = {ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
 
                 # Only update if not already in terminal state (idempotency)
                 if execution.status in terminal_states:
-                    logger.debug("Execution %s already in terminal state %s", execution_id, execution.status.value)
+                    logger.debug(
+                        "Execution %s already in terminal state %s", metadata.execution_id, execution.status.value
+                    )
                     return
 
                 # Extract status, timestamp, and error details from event
@@ -469,7 +524,7 @@ class ActivitySyncService:
 
                 logger.info(
                     "Updated execution %s to %s status at %s",
-                    execution_id,
+                    metadata.execution_id,
                     status.value,
                     completed_at.isoformat(),
                 )
@@ -477,56 +532,56 @@ class ActivitySyncService:
                 # Publish final snapshot after execution reaches terminal state
                 try:
                     await self.activity_publisher.publish_snapshot(execution, "final_snapshot")
-                    logger.debug("Published final snapshot for execution %s", execution_id)
+                    logger.debug("Published final snapshot for execution %s", metadata.execution_id)
                 except Exception:
                     # Log error but don't fail (publishing is best-effort)
-                    logger.exception("Failed to publish final snapshot for execution %s (non-fatal)", execution_id)
+                    logger.exception(
+                        "Failed to publish final snapshot for execution %s (non-fatal)", metadata.execution_id
+                    )
 
             except Exception:
                 await session.rollback()
-                logger.exception("Error updating execution %s status from workflow completion event", execution_id)
+                logger.exception(
+                    "Error updating execution %s status from workflow completion event", metadata.execution_id
+                )
                 # Don't raise - monitoring should continue
 
-    def _process_activity_event(self, event: HistoryEvent, temp_map: dict[int, dict[str, Any]]) -> None:
-        """Process a single activity event and update temporary map.
+    def _process_activity_event(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
+        """Process a single activity event and update metadata's pending updates.
 
         Args:
             event: Temporal history event
-            temp_map: Temporary map to store/update activity data
+            metadata: Monitoring metadata containing pending activity updates
 
         """
         event_type = event.event_type
 
         if event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
-            self._process_activity_scheduled(event, temp_map)
+            self._process_activity_scheduled(event, metadata)
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED:
-            self._process_activity_started(event, temp_map)
+            self._process_activity_started(event, metadata)
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
-            self._process_activity_completed(event, temp_map)
+            self._process_activity_completed(event, metadata)
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED:
-            self._process_activity_failed(event, temp_map)
+            self._process_activity_failed(event, metadata)
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
-            self._process_activity_timed_out(event, temp_map)
+            self._process_activity_timed_out(event, metadata)
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED:
-            self._process_activity_canceled(event, temp_map)
+            self._process_activity_canceled(event, metadata)
 
     async def _sync_activities_to_db(
         self,
-        execution_id: UUID,
-        temp_map: dict[int, dict[str, Any]],
+        metadata: ExecutionMonitorMetadata,
         handle: WorkflowHandle[Any, Any],
-        last_event_id: int,
     ) -> None:
-        """Sync activities from temporary map to database (UPDATE only).
+        """Sync activities from pending updates to database (UPDATE only).
 
         Since all activities are created upfront, this method only updates existing records
         with status changes and runtime data from Temporal events.
 
         Args:
-            execution_id: Database execution ID
-            temp_map: Temporary map of activity data from events
+            metadata: Monitoring metadata containing execution and pending updates
             handle: Temporal workflow handle for queries
-            last_event_id: Last processed event ID
 
         """
         async with self.session_factory() as session:
@@ -534,7 +589,7 @@ class ActivitySyncService:
                 # Load existing activities with proper ordering (matches relationship order_by)
                 result = await session.exec(
                     select(ActivityExecution)
-                    .where(ActivityExecution.execution_id == execution_id)
+                    .where(ActivityExecution.execution_id == metadata.execution_id)
                     .order_by(ActivityExecution.created_at, ActivityExecution.activity_name)  # type: ignore[arg-type]
                 )
                 existing_activities_list = result.all()
@@ -544,7 +599,7 @@ class ActivitySyncService:
                 updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
 
                 # Update activities from events
-                for activity_data in temp_map.values():
+                for activity_data in metadata.pending_activity_updates.values():
                     activity_id = activity_data["activity_id"]
 
                     # Skip internal activities (defense in depth)
@@ -560,7 +615,7 @@ class ActivitySyncService:
                         logger.warning(
                             "Activity %s not found in database for execution %s (should have been created upfront)",
                             activity_id,
-                            execution_id,
+                            metadata.execution_id,
                         )
                         continue
 
@@ -597,20 +652,20 @@ class ActivitySyncService:
                     updated_activities.append((existing, old_values))
 
                 # Update execution's last processed event ID
-                result = await session.exec(select(Execution).where(Execution.id == execution_id))
+                result = await session.exec(select(Execution).where(Execution.id == metadata.execution_id))
                 execution = result.one_or_none()
                 if execution:
-                    execution.last_processed_event_id = last_event_id
+                    execution.last_processed_event_id = metadata.last_processed_event_id
 
                 await session.commit()
 
                 # Publish activity patches after commit
                 if updated_activities:
-                    await self._publish_activity_patches(execution_id, existing_activities_list, updated_activities)
+                    await self._publish_activity_patches(metadata, updated_activities)
 
             except Exception:
                 await session.rollback()
-                logger.exception("Error syncing activities to database for execution %s", execution_id)
+                logger.exception("Error syncing activities to database for execution %s", metadata.execution_id)
                 raise
 
     async def _fetch_activity_definitions_map(
@@ -649,10 +704,8 @@ class ActivitySyncService:
 
     async def _handle_condition_branch_skipping(
         self,
-        execution_id: UUID,
+        metadata: ExecutionMonitorMetadata,
         activity_id: str,
-        branch_head_map: dict[str, dict[str, Any]],
-        conditions_handled: set[str],
     ) -> None:
         """Handle condition branch skipping when an activity from a branch starts.
 
@@ -661,24 +714,22 @@ class ActivitySyncService:
         (untriggered) branch as SKIPPED.
 
         Args:
-            execution_id: Database execution ID
+            metadata: Monitoring metadata containing execution and related data
             activity_id: ID of the activity that just started
-            branch_head_map: Mapping of activities to their parent condition branches
-            conditions_handled: Set of condition IDs already processed (modified in place)
 
         """
         # Check if this activity is in a condition branch
-        if activity_id not in branch_head_map:
+        if activity_id not in metadata.branch_head_map:
             return
 
-        branch_info = branch_head_map[activity_id]
+        branch_info = metadata.branch_head_map[activity_id]
         condition_id = branch_info["condition_id"]
 
         # Only process each condition once
-        if condition_id in conditions_handled:
+        if condition_id in metadata.conditions_handled:
             return
 
-        conditions_handled.add(condition_id)
+        metadata.conditions_handled.add(condition_id)
 
         # Determine which branch was taken and which to skip
         taken_branch = branch_info["branch"]
@@ -693,7 +744,7 @@ class ActivitySyncService:
 
         # Mark opposite branch activities as SKIPPED
         if activities_to_skip:
-            await self._mark_activities_skipped(execution_id, activities_to_skip)
+            await self._mark_activities_skipped(metadata, activities_to_skip)
             logger.info(
                 "Condition %s took '%s' branch, marked %d activities in '%s' branch as SKIPPED",
                 condition_id,
@@ -704,15 +755,15 @@ class ActivitySyncService:
 
     async def _mark_activities_skipped(
         self,
-        execution_id: UUID,
+        metadata: ExecutionMonitorMetadata,
         activity_ids: list[str],
     ) -> None:
-        """Mark activities as SKIPPED in database.
+        """Mark activities as SKIPPED in database and publish patches to Valkey.
 
         Only marks activities that are currently PENDING (doesn't override already-started activities).
 
         Args:
-            execution_id: Database execution ID
+            metadata: Monitoring metadata containing execution and related data
             activity_ids: List of activity IDs (activity_name) to mark as SKIPPED
 
         """
@@ -724,30 +775,48 @@ class ActivitySyncService:
                 # Query all activities with matching activity_name
                 result = await session.exec(
                     select(ActivityExecution).where(
-                        ActivityExecution.execution_id == execution_id,
+                        ActivityExecution.execution_id == metadata.execution_id,
                         ActivityExecution.activity_name.in_(activity_ids),  # type: ignore[attr-defined]
                         ActivityExecution.status == ActivityStatus.PENDING,
                     )
                 )
                 activities = result.all()
 
+                # Track which activities were updated for patch generation
+                updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
+
                 # Update status to SKIPPED
                 for activity in activities:
+                    # Store old values before updating
+                    old_values = {
+                        "status": activity.status,
+                        "started_at": activity.started_at,
+                        "completed_at": activity.completed_at,
+                        "error_details": activity.error_details,
+                    }
+
                     activity.status = ActivityStatus.SKIPPED
                     activity.updated_at = datetime.now(UTC)
+
+                    # Track updated activity with old values for patch generation
+                    updated_activities.append((activity, old_values))
 
                 await session.commit()
 
                 logger.debug(
                     "Marked %d activities as SKIPPED for execution %s (out of %d requested)",
                     len(activities),
-                    execution_id,
+                    metadata.execution_id,
                     len(activity_ids),
                 )
 
+                # Publish activity patches after commit
+                if updated_activities:
+                    await self._publish_activity_patches(metadata, updated_activities)
+
             except Exception:
                 await session.rollback()
-                logger.exception("Error marking activities as SKIPPED for execution %s", execution_id)
+                logger.exception("Error marking activities as SKIPPED for execution %s", metadata.execution_id)
                 raise
 
     async def _create_all_activities_upfront(
@@ -842,8 +911,7 @@ class ActivitySyncService:
 
     async def _publish_activity_patches(
         self,
-        execution_id: UUID,
-        all_activities: list[ActivityExecution],
+        metadata: ExecutionMonitorMetadata,
         updated_activities: list[tuple[ActivityExecution, dict[str, Any]]],
     ) -> None:
         """Publish activity patches for incremental updates.
@@ -852,21 +920,18 @@ class ActivitySyncService:
         constructing patch operations for each changed field.
 
         Args:
-            execution_id: Database execution ID
-            all_activities: Complete ordered list of activities (for finding indices)
+            metadata: Monitoring metadata containing execution and activity index map
             updated_activities: List of (activity, old_values) tuples for activities that were updated
 
         """
+        execution_id = metadata.execution_id
         try:
-            # Build activity name to index mapping
-            activity_index_map = {activity.activity_name: idx for idx, activity in enumerate(all_activities)}
-
             # Create patch operations for each updated activity
             patch_ops: list[dict[str, Any]] = []
 
             for activity, old_values in updated_activities:
                 # Find the index of this activity in the activities list
-                activity_idx = activity_index_map.get(activity.activity_name)
+                activity_idx = metadata.activity_index_map.get(activity.activity_name)
                 if activity_idx is None:
                     logger.warning(
                         "Activity %s not found in activities list for execution %s",
