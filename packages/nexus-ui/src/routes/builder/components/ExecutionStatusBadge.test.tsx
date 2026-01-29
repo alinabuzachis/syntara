@@ -1,92 +1,81 @@
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { ExecutionStatusBadge } from './ExecutionStatusBadge'
 
 describe('ExecutionStatusBadge', () => {
-  it('renders pending status with horizontal ellipsis icon', () => {
-    const { container } = render(<ExecutionStatusBadge status="pending" />)
+  it('renders pending status with neutral border', () => {
+    render(<ExecutionStatusBadge status="pending" />)
 
-    const badge = container.querySelector('div')
-    expect(badge).toBeInTheDocument()
-    expect(badge).toHaveStyle({
-      backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
-    })
-
-    // Check for PatternFly Icon component
-    const icon = container.querySelector('.pf-v6-c-icon')
-    expect(icon).toBeInTheDocument()
+    const badge = screen.getByLabelText('Pending')
+    const style = badge.getAttribute('style') ?? ''
+    expect(style).toContain('border-color: var(--pf-t--global--color--nonstatus--gray--300)')
+    expect(style).toContain('border-style: solid')
   })
 
   it('renders running status with spinner', () => {
     const { container } = render(<ExecutionStatusBadge status="running" />)
 
-    const badge = container.querySelector('div')
-    expect(badge).toHaveStyle({
-      backgroundColor: 'var(--pf-t--global--color--brand--default)',
-    })
-
-    // PatternFly Spinner renders with specific class
+    const badge = screen.getByLabelText('Running')
+    const style = badge.getAttribute('style') ?? ''
+    expect(style).toContain('border-color: var(--pf-t--global--color--brand--default)')
+    expect(style).toContain('border-style: solid')
     const spinner = container.querySelector('.pf-v6-c-spinner')
     expect(spinner).toBeInTheDocument()
   })
 
-  it('renders completed status with check icon', () => {
-    const { container } = render(<ExecutionStatusBadge status="completed" />)
+  it('maps completed status to success styling', () => {
+    render(<ExecutionStatusBadge status="completed" />)
 
-    const badge = container.querySelector('div')
-    expect(badge).toHaveStyle({
-      backgroundColor: 'var(--pf-t--global--color--status--success--default)',
-    })
+    const badge = screen.getByLabelText('Success')
+    const style = badge.getAttribute('style') ?? ''
+    expect(style).toContain('border-color: var(--pf-t--global--color--status--success--default)')
   })
 
-  it('renders failed status with error icon', () => {
-    const { container } = render(<ExecutionStatusBadge status="failed" />)
+  it('maps failed status to error styling', () => {
+    render(<ExecutionStatusBadge status="failed" />)
 
-    const badge = container.querySelector('div')
-    expect(badge).toHaveStyle({
-      backgroundColor: 'var(--pf-t--global--color--status--danger--default)',
-    })
+    const badge = screen.getByLabelText('Error')
+    const style = badge.getAttribute('style') ?? ''
+    expect(style).toContain('border-color: var(--pf-t--global--color--status--danger--default)')
   })
 
-  it('renders retrying status with sync icon', () => {
-    const { container } = render(<ExecutionStatusBadge status="retrying" />)
+  it('maps retrying status to running styling with retry label', () => {
+    render(<ExecutionStatusBadge status="retrying" retryCount={3} />)
 
-    const badge = container.querySelector('div')
-    expect(badge).toHaveStyle({
-      backgroundColor: 'var(--pf-t--global--color--status--warning--default)',
-    })
-  })
-
-  it('renders skipped status with minus icon', () => {
-    const { container } = render(<ExecutionStatusBadge status="skipped" />)
-
-    const badge = container.querySelector('div')
-    expect(badge).toHaveStyle({
-      backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
-    })
-  })
-
-  it('renders cancelled status with error icon', () => {
-    const { container } = render(<ExecutionStatusBadge status="cancelled" />)
-
-    const badge = container.querySelector('div')
-    expect(badge).toHaveStyle({
-      backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
-    })
+    const badge = screen.getByLabelText('Retrying (3 retries)')
+    const style = badge.getAttribute('style') ?? ''
+    expect(style).toContain('border-color: var(--pf-t--global--color--brand--default)')
   })
 
   it('displays retry count in title when provided', () => {
-    const { container } = render(<ExecutionStatusBadge status="retrying" retryCount={3} />)
+    render(<ExecutionStatusBadge status="retrying" retryCount={3} />)
 
-    const badge = container.querySelector('div')
+    const badge = screen.getByLabelText('Retrying (3 retries)')
     expect(badge).toHaveAttribute('title', 'Retrying (3 retries)')
   })
 
-  it('positions badge in bottom-right corner', () => {
-    const { container } = render(<ExecutionStatusBadge status="running" />)
+  it('renders skipped status with dashed border', () => {
+    render(<ExecutionStatusBadge status="skipped" />)
 
-    const badge = container.querySelector('div')
+    const badge = screen.getByLabelText('Skipped')
+    const style = badge.getAttribute('style') ?? ''
+    expect(style).toContain('border-color: var(--pf-t--global--color--nonstatus--gray--default)')
+    expect(style).toContain('border-style: dashed')
+  })
+
+  it('renders cancelled status with muted border', () => {
+    render(<ExecutionStatusBadge status="cancelled" />)
+
+    const badge = screen.getByLabelText('Cancelled')
+    const style = badge.getAttribute('style') ?? ''
+    expect(style).toContain('border-color: var(--pf-t--global--color--nonstatus--gray--300)')
+  })
+
+  it('positions badge in bottom-right corner', () => {
+    render(<ExecutionStatusBadge status="running" />)
+
+    const badge = screen.getByLabelText('Running')
     expect(badge).toHaveStyle({
       position: 'absolute',
       bottom: '-20px',
@@ -95,9 +84,9 @@ describe('ExecutionStatusBadge', () => {
   })
 
   it('renders with correct size', () => {
-    const { container } = render(<ExecutionStatusBadge status="pending" />)
+    render(<ExecutionStatusBadge status="pending" />)
 
-    const badge = container.querySelector('div')
+    const badge = screen.getByLabelText('Pending')
     expect(badge).toHaveStyle({
       width: '48px',
       height: '48px',

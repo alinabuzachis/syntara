@@ -1,17 +1,78 @@
 import { Icon, Spinner } from '@patternfly/react-core'
 import {
-  RhUiCheckIcon,
-  RhUiErrorIcon,
-  RhUiSyncIcon,
+  RhUiCheckCircleFillIcon,
   RhUiEllipsisHorizontalFillIcon,
-  RhUiMinusIcon,
+  RhUiMinusCircleFillIcon,
+  RhUiStopCircleFillIcon,
+  RhUiErrorFillIcon,
 } from '@patternfly/react-icons'
 
 import type { ActivityStatus } from '../../../routes/automations/execution/types'
+import { activityStatusColors } from '../executionStatusConstants'
 
 interface ExecutionStatusBadgeProps {
   status: ActivityStatus
   retryCount?: number
+}
+
+type VisualStatus = 'pending' | 'running' | 'success' | 'error' | 'skipped' | 'cancelled'
+
+const visualStatusConfig: Record<
+  VisualStatus,
+  {
+    color: string
+    node: React.ReactNode
+    borderStyle?: React.CSSProperties['borderStyle']
+  }
+> = {
+  pending: {
+    color: activityStatusColors.pending,
+    node: <RhUiEllipsisHorizontalFillIcon style={{ color: activityStatusColors.pending }} />,
+  },
+  running: {
+    color: activityStatusColors.running,
+    node: (
+      <Spinner size="lg" style={{ '--pf-v6-c-spinner--Color': activityStatusColors.running } as React.CSSProperties} />
+    ),
+  },
+  success: {
+    color: activityStatusColors.completed,
+    node: <RhUiCheckCircleFillIcon style={{ color: activityStatusColors.completed }} />,
+  },
+  error: {
+    color: activityStatusColors.failed,
+    node: <RhUiErrorFillIcon style={{ color: activityStatusColors.failed }} />,
+  },
+  skipped: {
+    color: activityStatusColors.skipped,
+    node: <RhUiMinusCircleFillIcon style={{ color: activityStatusColors.skipped }} />,
+    borderStyle: 'dashed',
+  },
+  cancelled: {
+    color: activityStatusColors.cancelled,
+    node: <RhUiStopCircleFillIcon style={{ color: activityStatusColors.cancelled }} />,
+  },
+}
+
+function normalizeStatus(status: ActivityStatus): { visualStatus: VisualStatus; label: string } {
+  switch (status) {
+    case 'completed':
+      return { visualStatus: 'success', label: 'Success' }
+    case 'failed':
+      return { visualStatus: 'error', label: 'Error' }
+    case 'retrying':
+      return { visualStatus: 'running', label: 'Retrying' }
+    case 'pending':
+      return { visualStatus: 'pending', label: 'Pending' }
+    case 'running':
+      return { visualStatus: 'running', label: 'Running' }
+    case 'skipped':
+      return { visualStatus: 'skipped', label: 'Skipped' }
+    case 'cancelled':
+      return { visualStatus: 'cancelled', label: 'Cancelled' }
+    default:
+      return { visualStatus: 'pending', label: 'Pending' }
+  }
 }
 
 /**
@@ -19,61 +80,9 @@ interface ExecutionStatusBadgeProps {
  * Renders as a circular badge positioned in the bottom-right corner of the node.
  */
 export function ExecutionStatusBadge({ status, retryCount }: ExecutionStatusBadgeProps) {
-  const getStatusConfig = (status: ActivityStatus) => {
-    switch (status) {
-      case 'pending':
-        return {
-          icon: <RhUiEllipsisHorizontalFillIcon />,
-          backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
-          label: 'Pending',
-        }
-      case 'running':
-        return {
-          icon: <Spinner size="sm" />,
-          backgroundColor: 'var(--pf-t--global--color--brand--default)',
-          label: 'Running',
-        }
-      case 'completed':
-        return {
-          icon: <RhUiCheckIcon />,
-          backgroundColor: 'var(--pf-t--global--color--status--success--default)',
-          label: 'Completed',
-        }
-      case 'failed':
-        return {
-          icon: <RhUiErrorIcon />,
-          backgroundColor: 'var(--pf-t--global--color--status--danger--default)',
-          label: 'Failed',
-        }
-      case 'retrying':
-        return {
-          icon: <RhUiSyncIcon />,
-          backgroundColor: 'var(--pf-t--global--color--status--warning--default)',
-          label: 'Retrying',
-        }
-      case 'skipped':
-        return {
-          icon: <RhUiMinusIcon />,
-          backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
-          label: 'Skipped',
-        }
-      case 'cancelled':
-        return {
-          icon: <RhUiErrorIcon />,
-          backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
-          label: 'Cancelled',
-        }
-      default:
-        return {
-          icon: <RhUiEllipsisHorizontalFillIcon />,
-          backgroundColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
-          label: 'Unknown',
-        }
-    }
-  }
-
-  const config = getStatusConfig(status)
-  const isRunning = status === 'running'
+  const normalized = normalizeStatus(status)
+  const config = visualStatusConfig[normalized.visualStatus]
+  const title = retryCount ? `${normalized.label} (${retryCount} retries)` : normalized.label
 
   return (
     <div
@@ -84,22 +93,19 @@ export function ExecutionStatusBadge({ status, retryCount }: ExecutionStatusBadg
         width: '48px',
         height: '48px',
         borderRadius: '50%',
-        backgroundColor: config.backgroundColor,
+        backgroundColor: 'var(--pf-t--global--background--color--primary--default)',
+        borderColor: config.color,
+        borderStyle: config.borderStyle ?? 'solid',
+        borderWidth: '2px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        border: '2px solid var(--pf-t--global--background--color--primary--default)',
         zIndex: 10,
       }}
-      title={`${config.label}${retryCount ? ` (${retryCount} retries)` : ''}`}
+      title={title}
+      aria-label={title}
     >
-      {isRunning ? (
-        config.icon
-      ) : (
-        <Icon size="lg" style={{ color: 'white' }}>
-          {config.icon}
-        </Icon>
-      )}
+      {normalized.visualStatus === 'running' ? config.node : <Icon size="xl">{config.node}</Icon>}
     </div>
   )
 }
