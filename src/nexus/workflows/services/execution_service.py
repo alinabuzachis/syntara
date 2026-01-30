@@ -9,7 +9,6 @@ from collections.abc import Iterable
 from typing import Any
 from uuid import UUID, uuid4
 
-import yaml
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -176,12 +175,9 @@ class ExecutionService(BaseService):
 
         # Step 2: Start Temporal workflow FIRST (if temporal_service is available)
         if self.temporal_service is not None:
-            # Convert workflow definition to YAML for Temporal
-            workflow_yaml = yaml.dump(workflow_version.workflow_definition)
-
             logger.info("Starting Temporal workflow for execution...")
-            temporal_result = await self.temporal_service.start_yaml_workflow(
-                workflow_yaml=workflow_yaml,
+            temporal_result = await self.temporal_service.start_workflow(
+                workflow_def=workflow_version.workflow_definition,
                 workflow_name=workflow.name,
                 input_data=input_data,
                 workflow_id=str(workflow.id),

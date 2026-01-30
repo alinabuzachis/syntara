@@ -23,7 +23,7 @@ from nexus.workflows.workflow_engine.models.responses import (
     WorkflowStatusResponse,
     WorkflowTerminationResponse,
 )
-from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
+from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowDefinition
 
 logger = logging.getLogger(__name__)
 
@@ -78,17 +78,17 @@ class TemporalExecutionService:
             logger.warning("Failed to fetch workflow history for failure details: %s", e)
         return None
 
-    async def start_yaml_workflow(
+    async def start_workflow(
         self,
-        workflow_yaml: str,
+        workflow_def: dict[str, Any],
         workflow_name: str,
         input_data: dict[str, Any] | None = None,
         workflow_id: str | None = None,
     ) -> WorkflowStartResponse:
-        """Start a workflow from YAML definition.
+        """Start a workflow from dict definition.
 
         Args:
-            workflow_yaml: YAML workflow definition string
+            workflow_def: Workflow definition as dict
             workflow_name: Name for this workflow execution
             input_data: Input parameters for the workflow
             workflow_id: Optional workflow ID (auto-generated if not provided)
@@ -103,13 +103,13 @@ class TemporalExecutionService:
                 - started_at: ISO 8601 timestamp when workflow started
 
         Raises:
-            WorkflowParseError: If YAML is invalid
+            ValidationError: If workflow definition is invalid
             Exception: If workflow fails to start
 
         Example:
             >>> service = TemporalExecutionService(client)
-            >>> result = await service.start_yaml_workflow(
-            ...     workflow_yaml='...',
+            >>> result = await service.start_workflow(
+            ...     workflow_def={'schemaVersion': '1.0.0', ...},
             ...     workflow_name='my-workflow',
             ...     input_data={'user_id': 123}
             ... )
@@ -118,9 +118,9 @@ class TemporalExecutionService:
 
         """
         try:
-            # Parse YAML workflow definition
-            logger.info("Parsing YAML workflow: %s", workflow_name)
-            workflow_def = parse_workflow_yaml(workflow_yaml)
+            # Validate workflow definition
+            logger.info("Validating workflow definition: %s", workflow_name)
+            _workflow_definition = WorkflowDefinition(**workflow_def)
 
             # Generate internal workflow ID if not provided
             if workflow_id is None:
@@ -139,13 +139,10 @@ class TemporalExecutionService:
                 temporal_workflow_id,
             )
 
-            # Convert Pydantic model to dict for Temporal
-            workflow_def_dict = workflow_def.model_dump(mode="json", by_alias=True, warnings=False)
-
-            # Start Temporal workflow
+            # Start Temporal workflow with the original dict
             handle = await self.temporal_client.start_workflow(
                 DynamicWorkflow.run,
-                args=[workflow_def_dict, execution_id, input_data],
+                args=[workflow_def, execution_id, input_data],
                 id=temporal_workflow_id,
                 task_queue=self.task_queue,
             )

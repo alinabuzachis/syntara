@@ -1,4 +1,4 @@
-r"""CLI tool for executing workflows from YAML files.
+r"""CLI tool for executing workflows from YAML or JSON files.
 
 ## Purpose
 
@@ -6,7 +6,7 @@ This is a **development and debugging utility** for manual verification of workf
 It is NOT intended to be used in production or imported by the application code.
 
 This script serves as:
-- A manual testing tool for developers to validate workflow YAML files
+- A manual testing tool for developers to validate workflow YAML or JSON files
 - A debugging utility to inspect workflow execution locally
 - A reference implementation showing how to use the TemporalExecutionService
 - A quick way to verify Temporal integration without running the full API
@@ -21,10 +21,15 @@ This file is intentionally excluded from automated test coverage because:
 
 ## Usage
 
+    # YAML workflow
     python tools/workflow_cli.py run <workflow.yaml>
     python tools/workflow_cli.py run tests/integration/workflow/examples/basic/hello-world.yaml
     python tools/workflow_cli.py run \\
         tests/integration/workflow/examples/basic/parallel-demo.yaml --inputs '{"items": ["a", "b", "c"]}'
+
+    # JSON workflow
+    python tools/workflow_cli.py run <workflow.json>
+    python tools/workflow_cli.py run workflow-definition.json --inputs '{"key": "value"}'
 """
 # pragma: no cover - Manual verification utility, excluded from coverage
 
@@ -35,6 +40,8 @@ import logging
 import sys
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 from nexus.workflows.workflow_engine.models import WorkflowResultResponse
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
@@ -51,10 +58,10 @@ async def run_workflow(  # noqa: C901, PLR0912, PLR0915
     temporal_address: str = "localhost:7233",
     task_queue: str = "nexus-workflow-queue",
 ) -> WorkflowResultResponse:
-    """Run a workflow from a YAML file.
+    """Run a workflow from a YAML or JSON file.
 
     Args:
-        workflow_file: Path to YAML workflow file
+        workflow_file: Path to YAML or JSON workflow file
         inputs: Input parameters for the workflow
         temporal_address: Temporal server address
         task_queue: Task queue name
@@ -67,15 +74,34 @@ async def run_workflow(  # noqa: C901, PLR0912, PLR0915
         Exception: If workflow execution fails
 
     """
-    # Read workflow YAML
+    # Read workflow file
     if not workflow_file.exists():
         msg = f"Workflow file not found: {workflow_file}"
         raise FileNotFoundError(msg)
 
-    workflow_yaml = workflow_file.read_text()
     workflow_name = workflow_file.stem
+    file_extension = workflow_file.suffix.lower()
 
-    logger.info("Loading workflow: %s from %s", workflow_name, workflow_file)
+    # Load workflow definition as dict
+    workflow_content = workflow_file.read_text()
+    if file_extension == ".json":
+        logger.info("Loading JSON workflow: %s from %s", workflow_name, workflow_file)
+        try:
+            workflow_def = json.loads(workflow_content)
+        except json.JSONDecodeError as e:
+            msg = f"Invalid JSON in workflow file: {e}"
+            raise ValueError(msg) from e
+    elif file_extension in {".yaml", ".yml"}:
+        logger.info("Loading YAML workflow: %s from %s", workflow_name, workflow_file)
+        try:
+            workflow_def = yaml.safe_load(workflow_content)
+        except yaml.YAMLError as e:
+            msg = f"Invalid YAML in workflow file: {e}"
+            raise ValueError(msg) from e
+    else:
+        msg = f"Unsupported file format: {file_extension}. Use .json, .yaml, or .yml"
+        raise ValueError(msg)
+
     logger.info("Connecting to Temporal at: %s", temporal_address)
 
     # Start worker service
@@ -100,8 +126,8 @@ async def run_workflow(  # noqa: C901, PLR0912, PLR0915
         if inputs:
             logger.info("Inputs: %s", json.dumps(inputs, indent=2))
 
-        result = await execution_service.start_yaml_workflow(
-            workflow_yaml=workflow_yaml,
+        result = await execution_service.start_workflow(
+            workflow_def=workflow_def,
             workflow_name=workflow_name,
             input_data=inputs or {},
         )
@@ -163,12 +189,15 @@ async def run_workflow(  # noqa: C901, PLR0912, PLR0915
 def main() -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Execute workflows from YAML files",
+        description="Execute workflows from YAML or JSON files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run a simple workflow
+  # Run a YAML workflow
   python tools/workflow_cli.py run tests/integration/workflow/examples/hello-world.yaml
+
+  # Run a JSON workflow
+  python tools/workflow_cli.py run workflow-definition.json
 
   # Run with inputs
   python tools/workflow_cli.py run tests/integration/workflow/examples/loop-demo.yaml \\
@@ -183,7 +212,7 @@ Examples:
 
     parser.add_argument("command", choices=["run"], help="Command to execute")
 
-    parser.add_argument("workflow_file", type=Path, help="Path to YAML workflow file")
+    parser.add_argument("workflow_file", type=Path, help="Path to workflow file (.yaml, .yml, or .json)")
 
     parser.add_argument("--inputs", "-i", type=str, help="Input parameters as JSON string")
 

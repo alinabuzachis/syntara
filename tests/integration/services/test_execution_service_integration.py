@@ -10,6 +10,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
+import yaml
 from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
@@ -17,7 +18,6 @@ from temporalio.worker import Worker
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
-from nexus.workflows.workflow_engine.yaml_workflow_parser import WorkflowParseError
 
 
 @pytest_asyncio.fixture
@@ -65,10 +65,11 @@ workflow:
         language: bash
         code: echo "Integration test successful"
 """
+        workflow_def = yaml.safe_load(workflow_yaml)
 
         # Start workflow
-        result = await execution_service.start_yaml_workflow(
-            workflow_yaml=workflow_yaml,
+        result = await execution_service.start_workflow(
+            workflow_def=workflow_def,
             workflow_name="integration-test",
         )
 
@@ -107,11 +108,12 @@ workflow:
         language: bash
         code: echo "Custom ID test"
 """
+        workflow_def = yaml.safe_load(workflow_yaml)
 
         custom_id = "my-custom-workflow-id-12345"
 
-        result = await execution_service.start_yaml_workflow(
-            workflow_yaml=workflow_yaml,
+        result = await execution_service.start_workflow(
+            workflow_def=workflow_def,
             workflow_name="custom-id-test",
             workflow_id=custom_id,
         )
@@ -144,9 +146,10 @@ workflow:
         language: bash
         code: echo "Hello, $INPUT_NAME!"
 """
+        workflow_def = yaml.safe_load(workflow_yaml)
 
-        result = await execution_service.start_yaml_workflow(
-            workflow_yaml=workflow_yaml,
+        result = await execution_service.start_workflow(
+            workflow_def=workflow_def,
             workflow_name="input-test",
             input_data={"user_name": "Alice"},
         )
@@ -157,18 +160,38 @@ workflow:
         # Verify input was used
         assert "Hello, Alice!" in workflow_result.activity_outputs["use_input"]["stdout"]
 
-    async def test_invalid_yaml_raises_error(self, execution_service: TemporalExecutionService) -> None:
-        """Test that invalid YAML raises WorkflowParseError."""
-        invalid_yaml = """
-schemaVersion: "1.0.0"
-this is not valid yaml!!!
-"""
+    async def test_invalid_workflow_definition_raises_validation_error(
+        self, execution_service: TemporalExecutionService
+    ) -> None:
+        """Test that invalid workflow definition raises ValidationError."""
+        from pydantic import ValidationError
 
-        with pytest.raises(WorkflowParseError, match="Invalid YAML syntax"):
-            await execution_service.start_yaml_workflow(
-                workflow_yaml=invalid_yaml,
-                workflow_name="invalid-test",
+        # Valid YAML but missing required 'metadata' field
+        invalid_workflow_yaml = """
+schemaVersion: "1.0.0"
+version: 1
+triggers:
+- type: manual
+workflow:
+  activities:
+  - id: test_task
+    type: task
+    task:
+      executor: script
+      config:
+        language: bash
+        code: echo "test"
+"""
+        workflow_def = yaml.safe_load(invalid_workflow_yaml)
+
+        with pytest.raises(ValidationError) as exc_info:
+            await execution_service.start_workflow(
+                workflow_def=workflow_def,
+                workflow_name="invalid-workflow",
             )
+
+        # Verify the error mentions the missing 'metadata' field
+        assert "metadata" in str(exc_info.value).lower()
 
     async def test_get_workflow_status(self, execution_service: TemporalExecutionService) -> None:
         """Test getting workflow status."""
@@ -192,10 +215,11 @@ workflow:
           sleep 1
           echo "Done"
 """
+        workflow_def = yaml.safe_load(workflow_yaml)
 
         # Start workflow
-        result = await execution_service.start_yaml_workflow(
-            workflow_yaml=workflow_yaml,
+        result = await execution_service.start_workflow(
+            workflow_def=workflow_def,
             workflow_name="status-test",
         )
 
@@ -238,10 +262,11 @@ workflow:
           sleep 10
           echo "This should not complete"
 """
+        workflow_def = yaml.safe_load(workflow_yaml)
 
         # Start workflow
-        result = await execution_service.start_yaml_workflow(
-            workflow_yaml=workflow_yaml,
+        result = await execution_service.start_workflow(
+            workflow_def=workflow_def,
             workflow_name="cancel-test",
         )
 
@@ -281,10 +306,11 @@ workflow:
           sleep 10
           echo "This should not complete"
 """
+        workflow_def = yaml.safe_load(workflow_yaml)
 
         # Start workflow
-        result = await execution_service.start_yaml_workflow(
-            workflow_yaml=workflow_yaml,
+        result = await execution_service.start_workflow(
+            workflow_def=workflow_def,
             workflow_name="terminate-test",
         )
 
@@ -363,8 +389,9 @@ workflow:
                 workflows=[DynamicWorkflow],
                 activities=[execute_bash_script],
             ):
-                result = await service.start_yaml_workflow(
-                    workflow_yaml=workflow_yaml,
+                workflow_def = yaml.safe_load(workflow_yaml)
+                result = await service.start_workflow(
+                    workflow_def=workflow_def,
                     workflow_name="factory-test",
                 )
 

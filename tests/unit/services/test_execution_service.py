@@ -5,17 +5,45 @@ Integration tests with a real Temporal server are in tests/integration/.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import UUID
 
 import pytest
+import yaml
+from pydantic import ValidationError
 
 from nexus.core.config.base import get_settings
 from nexus.workflows.workflow_engine.services.temporal_execution_service import (
     TemporalExecutionService,
     create_temporal_execution_service,
 )
-from nexus.workflows.workflow_engine.yaml_workflow_parser import WorkflowParseError
+
+
+@pytest.fixture
+def valid_workflow_dict() -> dict[str, Any]:
+    """Fixture providing a valid workflow definition as dict."""
+    return {
+        "schemaVersion": "1.0.0",
+        "version": 1,
+        "metadata": {"name": "test-workflow", "description": "Test"},
+        "triggers": [{"type": "manual"}],
+        "workflow": {
+            "activities": [
+                {
+                    "id": "task1",
+                    "type": "task",
+                    "task": {"executor": "script", "config": {"language": "bash", "code": "echo test"}},
+                }
+            ]
+        },
+    }
+
+
+@pytest.fixture
+def valid_workflow_yaml(valid_workflow_dict: dict[str, Any]) -> str:
+    """Fixture providing a valid workflow definition as YAML string."""
+    return yaml.dump(valid_workflow_dict)
 
 
 class TestTemporalExecutionServiceInitialization:
@@ -38,12 +66,15 @@ class TestTemporalExecutionServiceInitialization:
         assert service.task_queue == "custom-queue"
 
 
-class TestStartYamlWorkflow:
-    """Test starting workflows from YAML."""
+class TestStartWorkflow:
+    """Test starting workflows from dict format."""
 
     @pytest.mark.asyncio
-    async def test_start_workflow_success(self) -> None:
-        """Test successfully starting a workflow from YAML."""
+    async def test_start_workflow_success(
+        self,
+        valid_workflow_dict: dict[str, Any],
+    ) -> None:
+        """Test successfully starting a workflow."""
         # Mock Temporal client
         mock_client = Mock()
         mock_handle = Mock()
@@ -52,27 +83,8 @@ class TestStartYamlWorkflow:
 
         service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
-        yaml_workflow = """
-schemaVersion: "1.0.0"
-version: 1
-metadata:
-  name: test-workflow
-  description: Test
-triggers:
-- type: manual
-workflow:
-  activities:
-  - id: task1
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: echo "test"
-"""
-
-        result = await service.start_yaml_workflow(
-            workflow_yaml=yaml_workflow,
+        result = await service.start_workflow(
+            workflow_def=valid_workflow_dict,
             workflow_name="test-workflow",
             input_data={"user_id": 123},
         )
@@ -98,7 +110,10 @@ workflow:
         mock_client.start_workflow.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_start_workflow_with_custom_id(self) -> None:
+    async def test_start_workflow_with_custom_id(
+        self,
+        valid_workflow_dict: dict[str, Any],
+    ) -> None:
         """Test starting workflow with custom workflow ID."""
         mock_client = Mock()
         mock_handle = Mock()
@@ -107,27 +122,8 @@ workflow:
 
         service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
-        yaml_workflow = """
-schemaVersion: "1.0.0"
-version: 1
-metadata:
-  name: test-workflow
-  description: Test
-triggers:
-- type: manual
-workflow:
-  activities:
-  - id: task1
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: echo "test"
-"""
-
-        result = await service.start_yaml_workflow(
-            workflow_yaml=yaml_workflow,
+        result = await service.start_workflow(
+            workflow_def=valid_workflow_dict,
             workflow_name="test-workflow",
             workflow_id="custom-workflow-id",
         )
@@ -135,69 +131,34 @@ workflow:
         assert result.workflow_id == "custom-workflow-id"
 
     @pytest.mark.asyncio
-    async def test_start_workflow_invalid_yaml(self) -> None:
-        """Test starting workflow with invalid YAML."""
-        mock_client = Mock()
-        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
-
-        invalid_yaml = """
-schemaVersion: "1.0.0"
-invalid yaml here!!!
-"""
-
-        with pytest.raises(WorkflowParseError, match="Invalid YAML syntax"):
-            await service.start_yaml_workflow(
-                workflow_yaml=invalid_yaml,
-                workflow_name="test-workflow",
-            )
-
-    @pytest.mark.asyncio
-    async def test_start_workflow_missing_required_fields(self) -> None:
-        """Test starting workflow with missing required fields."""
-        mock_client = Mock()
-        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
-
-        incomplete_yaml = """
-schemaVersion: "1.0.0"
-version: 1
-"""
-
-        with pytest.raises(WorkflowParseError, match="Workflow validation failed"):
-            await service.start_yaml_workflow(
-                workflow_yaml=incomplete_yaml,
-                workflow_name="test-workflow",
-            )
-
-    @pytest.mark.asyncio
-    async def test_start_workflow_temporal_error(self) -> None:
+    async def test_start_workflow_temporal_error(
+        self,
+        valid_workflow_dict: dict[str, Any],
+    ) -> None:
         """Test starting workflow when Temporal fails."""
         mock_client = Mock()
         mock_client.start_workflow = AsyncMock(side_effect=RuntimeError("Temporal connection failed"))
 
         service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
-        yaml_workflow = """
-schemaVersion: "1.0.0"
-version: 1
-metadata:
-  name: test-workflow
-  description: Test
-triggers:
-- type: manual
-workflow:
-  activities:
-  - id: task1
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: echo "test"
-"""
-
         with pytest.raises(RuntimeError, match="Temporal connection failed"):
-            await service.start_yaml_workflow(
-                workflow_yaml=yaml_workflow,
+            await service.start_workflow(
+                workflow_def=valid_workflow_dict,
+                workflow_name="test-workflow",
+            )
+
+    @pytest.mark.asyncio
+    async def test_start_workflow_invalid_definition(self) -> None:
+        """Test starting workflow with dict missing required fields."""
+        mock_client = Mock()
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
+
+        # Invalid dict missing required fields
+        invalid_dict = {"schemaVersion": "1.0.0"}
+
+        with pytest.raises(ValidationError):
+            await service.start_workflow(
+                workflow_def=invalid_dict,
                 workflow_name="test-workflow",
             )
 
@@ -464,7 +425,7 @@ class TestWorkflowDataConversion:
     """Test workflow definition data conversion."""
 
     @pytest.mark.asyncio
-    async def test_workflow_def_converted_to_dict(self) -> None:
+    async def test_workflow_def_converted_to_dict(self, valid_workflow_dict: dict[str, Any]) -> None:
         """Test that workflow definition is properly converted to dict for Temporal."""
         mock_client = Mock()
         mock_handle = Mock()
@@ -484,27 +445,8 @@ class TestWorkflowDataConversion:
 
         service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
-        yaml_workflow = """
-schemaVersion: "1.0.0"
-version: 1
-metadata:
-  name: test-workflow
-  description: Test
-triggers:
-- type: manual
-workflow:
-  activities:
-  - id: task1
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: echo "test"
-"""
-
-        await service.start_yaml_workflow(
-            workflow_yaml=yaml_workflow,
+        await service.start_workflow(
+            workflow_def=valid_workflow_dict,
             workflow_name="test-workflow",
         )
 

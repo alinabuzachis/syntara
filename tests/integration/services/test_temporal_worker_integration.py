@@ -13,6 +13,7 @@ import signal
 from unittest.mock import patch
 
 import pytest
+import yaml
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
@@ -186,9 +187,10 @@ class TestTemporalWorkerServiceIntegration:
                 activity_id="test_activity",
                 script='echo "Worker is processing workflows!"',
             )
+            workflow_def = yaml.safe_load(workflow_yaml)
 
-            result = await execution_service.start_yaml_workflow(
-                workflow_yaml=workflow_yaml,
+            result = await execution_service.start_workflow(
+                workflow_def=workflow_def,
                 workflow_name="worker-integration-test",
             )
 
@@ -230,14 +232,15 @@ class TestTemporalWorkerServiceIntegration:
                 activity_id="task1",
                 script='echo "Processed by worker"',
             )
+            workflow_def = yaml.safe_load(workflow_yaml)
 
-            result1 = await service1.start_yaml_workflow(
-                workflow_yaml=workflow_yaml,
+            result1 = await service1.start_workflow(
+                workflow_def=workflow_def,
                 workflow_name="worker1-test",
             )
 
-            result2 = await service2.start_yaml_workflow(
-                workflow_yaml=workflow_yaml,
+            result2 = await service2.start_workflow(
+                workflow_def=workflow_def,
                 workflow_name="worker2-test",
             )
 
@@ -275,9 +278,10 @@ class TestTemporalWorkerServiceIntegration:
                 activity_id="long_task",
                 script='|\n          sleep 2\n          echo "Completed"',
             )
+            workflow_def = yaml.safe_load(workflow_yaml)
 
-            await execution_service.start_yaml_workflow(
-                workflow_yaml=workflow_yaml,
+            await execution_service.start_workflow(
+                workflow_def=workflow_def,
                 workflow_name="long-running-test",
             )
 
@@ -324,9 +328,10 @@ class TestWorkerServiceConfiguration:
                 activity_id="task1",
                 script='echo "On correct queue"',
             )
+            workflow_def = yaml.safe_load(workflow_yaml)
 
-            result = await execution_service.start_yaml_workflow(
-                workflow_yaml=workflow_yaml,
+            result = await execution_service.start_workflow(
+                workflow_def=workflow_def,
                 workflow_name="queue-test",
             )
 

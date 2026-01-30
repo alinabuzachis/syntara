@@ -238,13 +238,13 @@ async def test_create_execution_temporal_workflow_start_failure(
     # Mock create_temporal_execution_service to return a service
     mock_temporal_service = AsyncMock()
 
-    # Mock start_yaml_workflow to raise RPCError (workflow start failure)
+    # Mock start_workflow to raise RPCError (workflow start failure)
     rpc_error = RPCError(
         "Workflow start failed: invalid workflow definition",
         status=RPCStatusCode.INVALID_ARGUMENT,
         raw_grpc_status=b"",
     )
-    mock_temporal_service.start_yaml_workflow = AsyncMock(side_effect=rpc_error)
+    mock_temporal_service.start_workflow = AsyncMock(side_effect=rpc_error)
 
     async def mock_create_service() -> TemporalExecutionService:
         return mock_temporal_service

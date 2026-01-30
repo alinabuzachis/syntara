@@ -180,7 +180,7 @@ class TestCreateExecution:
         temporal_result.execution_id = str(temporal_execution_id)
         temporal_result.temporal_workflow_id = "exec-abc123"
         temporal_result.temporal_run_id = "run-xyz789"
-        mock_temporal.start_yaml_workflow = AsyncMock(return_value=temporal_result)
+        mock_temporal.start_workflow = AsyncMock(return_value=temporal_result)
 
         mock_user = Mock(spec=User)
         mock_user.id = user_id
@@ -204,11 +204,11 @@ class TestCreateExecution:
         assert result.updated_by == user_id
 
         # Verify Temporal was called
-        mock_temporal.start_yaml_workflow.assert_awaited_once()
-        call_kwargs = mock_temporal.start_yaml_workflow.call_args.kwargs
+        mock_temporal.start_workflow.assert_awaited_once()
+        call_kwargs = mock_temporal.start_workflow.call_args.kwargs
         assert call_kwargs["workflow_name"] == "test-workflow"
         assert call_kwargs["input_data"] == {"key": "value"}
-        assert "workflow_yaml" in call_kwargs
+        assert "workflow_def" in call_kwargs
 
         # Verify database operations
         mock_session.add.assert_called_once()
