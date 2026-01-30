@@ -531,4 +531,94 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
     const mToN = edges.find((e) => e.source === 'M' && e.target === 'N')
     expect(mToN).toBeDefined()
   })
+
+  it('does not create backward edge from converge when it follows a parallel at end of workflow', () => {
+    // Regression test for bug where converge following parallel at end of workflow
+    // would incorrectly create edge back to first activity
+    // Structure: Script → Parallel[Script2, Script3] → Converge (last)
+    const activities: Activity[] = [
+      {
+        id: 'script1',
+        name: 'Script',
+        task: {
+          config: { code: 'import time\ntime.sleep(2)', timeout: 300, language: 'python', environment: {} },
+          executor: 'script',
+        },
+        type: 'task',
+        requiresApproval: false,
+      },
+      {
+        type: 'parallel',
+        id: 'parallel1',
+        name: 'Parallel execution',
+        branches: [
+          {
+            id: 'script2',
+            name: 'Script2',
+            task: {
+              config: { code: 'import time\ntime.sleep(2)', timeout: 300, language: 'python', environment: {} },
+              executor: 'script',
+            },
+            type: 'task',
+            requiresApproval: false,
+          },
+          {
+            id: 'script3',
+            name: 'Script3',
+            task: {
+              config: { code: 'import time\ntime.sleep(2)', timeout: 300, language: 'python', environment: {} },
+              executor: 'script',
+            },
+            type: 'task',
+            requiresApproval: false,
+          },
+        ],
+      },
+      {
+        id: 'converge1',
+        name: 'Converge',
+        type: 'converge',
+        converge: {
+          branches: ['script2', 'script3'],
+          strategy: 'all',
+          onTimeout: 'fail',
+          aggregateOutputs: true,
+        },
+        requiresApproval: false,
+      },
+    ]
+
+    const { activities: flatActivities, edges } = WorkflowTransform.flatten(activities)
+
+    // Should have 4 activities: script1, script2, script3, converge1 (parallel removed)
+    expect(flatActivities).toHaveLength(4)
+    expect(flatActivities.map((a) => a.id).sort()).toEqual(['converge1', 'script1', 'script2', 'script3'])
+
+    // Should have exactly 4 edges:
+    // 1. script1 → script2 (to first parallel branch)
+    // 2. script1 → script3 (to second parallel branch)
+    // 3. script2 → converge1 (parallel branch to converge)
+    // 4. script3 → converge1 (parallel branch to converge)
+    expect(edges).toHaveLength(4)
+
+    const script1ToScript2 = edges.find((e) => e.source === 'script1' && e.target === 'script2')
+    expect(script1ToScript2).toBeDefined()
+
+    const script1ToScript3 = edges.find((e) => e.source === 'script1' && e.target === 'script3')
+    expect(script1ToScript3).toBeDefined()
+
+    const script2ToConverge = edges.find((e) => e.source === 'script2' && e.target === 'converge1')
+    expect(script2ToConverge).toBeDefined()
+
+    const script3ToConverge = edges.find((e) => e.source === 'script3' && e.target === 'converge1')
+    expect(script3ToConverge).toBeDefined()
+
+    // CRITICAL: Should NOT have backward edge from converge to script1
+    const convergeToScript1 = edges.find((e) => e.source === 'converge1' && e.target === 'script1')
+    expect(convergeToScript1).toBeUndefined()
+
+    // CRITICAL: Converge should have NO outgoing edges (it's the end of the workflow)
+    const convergeOutgoingEdges = edges.filter((e) => e.source === 'converge1')
+    expect(convergeOutgoingEdges).toHaveLength(0)
+  })
 })

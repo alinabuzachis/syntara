@@ -2601,4 +2601,617 @@ describe('WorkflowTransform - Parallel Detection', () => {
     const exitPoints = activities.filter((a) => a.type !== 'loop' && !edges.some((e) => e.source === a.id))
     expect(exitPoints.length).toBeGreaterThan(0) // F, B1, AAP2 are endpoints
   })
+
+  it('flattens deeply nested parallel with sequences containing parallel, condition, and loop nodes', () => {
+    // Regression test for workflow loading bug where condition/loop nodes inside
+    // parallel branches were not being extracted to the flat activities array
+    // Structure: A → Parallel[
+    //   Sequence[AAP1, Parallel[Condition[B,F|B1], AAP2]],
+    //   Sequence[E, Loop[D]]
+    // ]
+    const nestedActivities: Activity[] = [
+      {
+        type: 'task',
+        id: 'A',
+        name: 'Task A',
+        task: { executor: 'script', config: { language: 'python', code: 'a' } },
+      },
+      {
+        type: 'parallel',
+        id: 'parallel_outer',
+        name: 'Parallel execution',
+        branches: [
+          {
+            type: 'sequence',
+            id: 'sequence_branch1',
+            name: 'Branch sequence',
+            steps: [
+              {
+                type: 'task',
+                id: 'AAP1',
+                name: 'AAP1',
+                task: { executor: 'aap_job_template', config: { jobTemplateId: 1, timeout: 3600 } },
+              },
+              {
+                type: 'parallel',
+                id: 'parallel_nested',
+                name: 'Nested Parallel',
+                branches: [
+                  {
+                    type: 'condition',
+                    id: 'C',
+                    name: 'Condition C',
+                    condition: 'm',
+                    then: [
+                      {
+                        type: 'task',
+                        id: 'B',
+                        name: 'Task B',
+                        task: { executor: 'script', config: { language: 'python', code: 'm' } },
+                      },
+                      {
+                        type: 'task',
+                        id: 'F',
+                        name: 'Task F',
+                        task: { executor: 'script', config: { language: 'python', code: 'c' } },
+                      },
+                    ],
+                    else: [
+                      {
+                        type: 'task',
+                        id: 'B1',
+                        name: 'Task B1',
+                        task: { executor: 'script', config: { language: 'python', code: 'z' } },
+                      },
+                    ],
+                  },
+                  {
+                    type: 'task',
+                    id: 'AAP2',
+                    name: 'AAP2',
+                    task: { executor: 'aap_job_template', config: { jobTemplateId: 22, timeout: 3600 } },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: 'sequence',
+            id: 'sequence_branch2',
+            name: 'Branch sequence',
+            steps: [
+              {
+                type: 'task',
+                id: 'E',
+                name: 'Task E',
+                task: { executor: 'script', config: { language: 'python', code: 'm' } },
+              },
+              {
+                type: 'loop',
+                id: 'L',
+                name: 'Loop L',
+                loop: {
+                  type: 'forEach',
+                  items: 'm',
+                  itemVariable: 'item',
+                  indexVariable: 'index',
+                  do: [
+                    {
+                      type: 'task',
+                      id: 'D',
+                      name: 'Task D',
+                      task: { executor: 'script', config: { language: 'python', code: 'b' } },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+    // CRITICAL: All structural nodes (condition, loop) should be extracted to flat array
+    // Parallel and sequence containers should be removed
+    // Should have: A, AAP1, C, B, F, B1, AAP2, E, L, D = 10 activities
+    expect(activities).toHaveLength(10)
+    const activityIds = activities.map((a) => a.id).sort()
+    expect(activityIds).toEqual(['A', 'AAP1', 'AAP2', 'B', 'B1', 'C', 'D', 'E', 'F', 'L'])
+
+    // Verify condition node was extracted
+    const conditionNode = activities.find((a) => a.id === 'C')
+    expect(conditionNode).toBeDefined()
+    expect(conditionNode!.type).toBe('condition')
+    // Condition branches should be empty after flattening (activities extracted to flat array)
+    expect((conditionNode as Extract<Activity, { type: 'condition' }>).then).toEqual([])
+    expect((conditionNode as Extract<Activity, { type: 'condition' }>).else).toEqual([])
+
+    // Verify loop node was extracted
+    const loopNode = activities.find((a) => a.id === 'L')
+    expect(loopNode).toBeDefined()
+    expect(loopNode!.type).toBe('loop')
+    expect((loopNode as Extract<Activity, { type: 'loop' }>).loop.do).toEqual([])
+
+    // Verify edges are created correctly
+    // A should connect to first activities in both branches (AAP1 and E)
+    const aToAap1 = edges.find((e) => e.source === 'A' && e.target === 'AAP1')
+    expect(aToAap1).toBeDefined()
+    const aToE = edges.find((e) => e.source === 'A' && e.target === 'E')
+    expect(aToE).toBeDefined()
+
+    // AAP1 should connect to first activities in nested parallel branches (C and AAP2)
+    const aap1ToC = edges.find((e) => e.source === 'AAP1' && e.target === 'C')
+    expect(aap1ToC).toBeDefined()
+    const aap1ToAap2 = edges.find((e) => e.source === 'AAP1' && e.target === 'AAP2')
+    expect(aap1ToAap2).toBeDefined()
+
+    // Condition edges
+    const cToB = edges.find((e) => e.source === 'C' && e.target === 'B' && e.sourceHandle === 'true')
+    expect(cToB).toBeDefined()
+    const cToB1 = edges.find((e) => e.source === 'C' && e.target === 'B1' && e.sourceHandle === 'false')
+    expect(cToB1).toBeDefined()
+
+    // B to F (sequential in then branch)
+    const bToF = edges.find((e) => e.source === 'B' && e.target === 'F')
+    expect(bToF).toBeDefined()
+
+    // Loop edges
+    const eToL = edges.find((e) => e.source === 'E' && e.target === 'L')
+    expect(eToL).toBeDefined()
+    const lToD = edges.find((e) => e.source === 'L' && e.target === 'D' && e.sourceHandle === 'loop')
+    expect(lToD).toBeDefined()
+    const dToL = edges.find((e) => e.source === 'D' && e.target === 'L' && e.targetHandle === 'end')
+    expect(dToL).toBeDefined()
+
+    // CRITICAL: No edges should reference removed parallel or sequence containers
+    const invalidEdges = edges.filter(
+      (e) =>
+        e.source === 'parallel_outer' ||
+        e.target === 'parallel_outer' ||
+        e.source === 'parallel_nested' ||
+        e.target === 'parallel_nested' ||
+        e.source.startsWith('sequence_') ||
+        e.target.startsWith('sequence_')
+    )
+    expect(invalidEdges).toHaveLength(0)
+  })
+
+  it('correctly nests parallel and converge inside condition branch', () => {
+    // Regression test for bug where parallel and converge appeared at wrong nesting level
+    // Structure: Script → Condition[then: Script2 → Parallel[Script5, Script4] → Converge]
+    //
+    // This tests the fix that handles edge targets wrapped in parallel containers.
+    // The key behavior: when collecting activities for condition's then branch,
+    // if edge targets are inside a parallel container, the parallel should be collected
+    // along with any converge nodes that follow it (if using regular sequential edges).
+
+    const workflow: Activity[] = [
+      {
+        type: 'task',
+        id: 'Script',
+        name: 'Script',
+        task: {
+          executor: 'script',
+          config: { language: 'python', code: 'script' },
+        },
+      },
+      {
+        type: 'condition',
+        id: 'cond1',
+        condition: 'a',
+        then: [
+          {
+            type: 'task',
+            id: 'Script2',
+            name: 'Script2',
+            task: {
+              executor: 'script',
+              config: { language: 'python', code: 'script2' },
+            },
+          },
+          {
+            type: 'parallel',
+            id: 'parallel_test',
+            name: 'Parallel execution',
+            branches: [
+              {
+                type: 'task',
+                id: 'Script5',
+                name: 'Script5',
+                task: {
+                  executor: 'script',
+                  config: { language: 'python', code: 'script5' },
+                },
+              },
+              {
+                type: 'task',
+                id: 'Script4',
+                name: 'Script4',
+                task: {
+                  executor: 'script',
+                  config: { language: 'python', code: 'script4' },
+                },
+              },
+            ],
+          },
+          {
+            type: 'converge',
+            id: 'J',
+            name: 'J',
+            converge: {
+              branches: ['Script5', 'Script4'],
+              strategy: 'all',
+              onTimeout: 'fail',
+              aggregateOutputs: true,
+            },
+          },
+        ],
+        else: [],
+      },
+    ]
+
+    // Flatten
+    const { activities, edges } = WorkflowTransform.flatten(workflow)
+
+    // Verify flattening
+    expect(activities.map((a) => a.id)).toEqual(['Script', 'cond1', 'Script2', 'Script5', 'Script4', 'J'])
+
+    // Verify edges
+    const scriptToCond = edges.find((e) => e.source === 'Script' && e.target === 'cond1')
+    expect(scriptToCond).toBeDefined()
+
+    const condToScript2 = edges.find((e) => e.source === 'cond1' && e.target === 'Script2')
+    expect(condToScript2).toBeDefined()
+    expect(condToScript2?.sourceHandle).toBe('true')
+
+    const script2ToScript5 = edges.find((e) => e.source === 'Script2' && e.target === 'Script5')
+    expect(script2ToScript5).toBeDefined()
+
+    const script2ToScript4 = edges.find((e) => e.source === 'Script2' && e.target === 'Script4')
+    expect(script2ToScript4).toBeDefined()
+
+    const script5ToJ = edges.find((e) => e.source === 'Script5' && e.target === 'J')
+    expect(script5ToJ).toBeDefined()
+
+    const script4ToJ = edges.find((e) => e.source === 'Script4' && e.target === 'J')
+    expect(script4ToJ).toBeDefined()
+
+    // Nest back
+    const reNested = WorkflowTransform.nest(activities, edges)
+
+    // CRITICAL: Verify structure is correct
+    expect(reNested).toHaveLength(2)
+    expect(reNested[0].id).toBe('Script')
+    expect(reNested[1].id).toBe('cond1')
+
+    // Verify condition structure
+    const cond = reNested[1] as Extract<Activity, { type: 'condition' }>
+    expect(cond.type).toBe('condition')
+    expect(cond.then).toBeDefined()
+    expect(cond.then).toHaveLength(3) // Script2, parallel, converge
+
+    // Verify then branch contents
+    const thenBranch = cond.then!
+    expect(thenBranch[0].id).toBe('Script2')
+    expect(thenBranch[0].type).toBe('task')
+
+    expect(thenBranch[1].type).toBe('parallel')
+    const parallel = thenBranch[1] as Extract<Activity, { type: 'parallel' }>
+    expect(parallel.branches).toHaveLength(2)
+
+    // Verify parallel branches contain the correct activities
+    const branch1 = parallel.branches![0] as Activity
+    const branch2 = parallel.branches![1] as Activity
+    expect([branch1.id, branch2.id].sort()).toEqual(['Script4', 'Script5'])
+
+    expect(thenBranch[2].id).toBe('J')
+    expect(thenBranch[2].type).toBe('converge')
+
+    // Round-trip test: flatten again and verify edges are correct
+    const { edges: reFlatEdges } = WorkflowTransform.flatten(reNested)
+
+    const reScript2ToScript5 = reFlatEdges.find((e) => e.source === 'Script2' && e.target === 'Script5')
+    expect(reScript2ToScript5).toBeDefined()
+
+    const reScript2ToScript4 = reFlatEdges.find((e) => e.source === 'Script2' && e.target === 'Script4')
+    expect(reScript2ToScript4).toBeDefined()
+
+    const reScript5ToJ = reFlatEdges.find((e) => e.source === 'Script5' && e.target === 'J')
+    expect(reScript5ToJ).toBeDefined()
+
+    const reScript4ToJ = reFlatEdges.find((e) => e.source === 'Script4' && e.target === 'J')
+    expect(reScript4ToJ).toBeDefined()
+  })
+
+  it('creates edges from activities to nested converge nodes in different scopes', () => {
+    // Regression test for bug where converge nodes inside parallel/sequence branches
+    // didn't get edges from activities outside those containers
+    //
+    // Structure: Condition[then: Script2 → Parallel[Script5, Sequence[Script3, Converge2]], Converge, Script6]
+    // Where Converge2.branches = ['Script3', 'Script6']
+    // Script3 is inside parallel, Script6 is outside - both should have edges to Converge2
+
+    const workflow: Activity[] = [
+      {
+        type: 'task',
+        id: 'Script',
+        name: 'Script',
+        task: { executor: 'script', config: { language: 'python', code: 'script' } },
+      },
+      {
+        type: 'condition',
+        id: 'Condition',
+        condition: 'a',
+        then: [
+          {
+            type: 'task',
+            id: 'Script2',
+            name: 'Script2',
+            task: { executor: 'script', config: { language: 'python', code: 'script2' } },
+          },
+          {
+            type: 'parallel',
+            id: 'Parallel',
+            name: 'Parallel',
+            branches: [
+              {
+                type: 'task',
+                id: 'Script5',
+                name: 'Script5',
+                task: { executor: 'script', config: { language: 'python', code: 'script5' } },
+              },
+              {
+                type: 'sequence',
+                id: 'Sequence',
+                name: 'Sequence',
+                steps: [
+                  {
+                    type: 'task',
+                    id: 'Script3',
+                    name: 'Script3',
+                    task: { executor: 'script', config: { language: 'python', code: 'script3' } },
+                  },
+                  {
+                    type: 'converge',
+                    id: 'Converge2',
+                    name: 'Converge2',
+                    converge: {
+                      branches: ['Script3', 'Script6'],
+                      strategy: 'all',
+                      onTimeout: 'fail',
+                      aggregateOutputs: true,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: 'converge',
+            id: 'Converge',
+            name: 'Converge',
+            converge: {
+              branches: ['Script5'],
+              strategy: 'all',
+              onTimeout: 'continue',
+              aggregateOutputs: false,
+            },
+          },
+          {
+            type: 'task',
+            id: 'Script6',
+            name: 'Script6',
+            task: { executor: 'script', config: { language: 'python', code: 'script6' } },
+          },
+        ],
+        else: [],
+      },
+    ]
+
+    // Flatten
+    const { activities, edges } = WorkflowTransform.flatten(workflow)
+
+    // Verify both Script3 and Script6 have edges to Converge2
+    const script3ToConverge2 = edges.find((e) => e.source === 'Script3' && e.target === 'Converge2')
+    expect(script3ToConverge2).toBeDefined()
+
+    const script6ToConverge2 = edges.find((e) => e.source === 'Script6' && e.target === 'Converge2')
+    expect(script6ToConverge2).toBeDefined()
+
+    // Round-trip test
+    const reNested = WorkflowTransform.nest(activities, edges)
+    const { edges: reFlatEdges } = WorkflowTransform.flatten(reNested)
+
+    const reScript3ToConverge2 = reFlatEdges.find((e) => e.source === 'Script3' && e.target === 'Converge2')
+    expect(reScript3ToConverge2).toBeDefined()
+
+    const reScript6ToConverge2 = reFlatEdges.find((e) => e.source === 'Script6' && e.target === 'Converge2')
+    expect(reScript6ToConverge2).toBeDefined()
+  })
+
+  it('handles complex nested parallel with multiple converge nodes at different levels', () => {
+    // Regression test for the exact scenario from user's screenshot (test2 workflow)
+    // Structure: Script → Condition[
+    //   then: Script2 → Parallel[
+    //     Script5,
+    //     Script4,
+    //     Sequence[Script3, Converge2, Script7]
+    //   ] → Converge → Script6
+    // ]
+    // Where Converge2.branches = ['Script3', 'Script6']
+    // This tests that Script6 (outside parallel) gets an edge to Converge2 (inside parallel)
+
+    const workflow: Activity[] = [
+      {
+        type: 'task',
+        id: 'Script',
+        name: 'Script',
+        task: {
+          executor: 'script',
+          config: { language: 'python', code: 'import time\ntime.sleep(2)' },
+        },
+      },
+      {
+        type: 'condition',
+        id: 'Condition',
+        condition: 'test_condition',
+        then: [
+          {
+            type: 'task',
+            id: 'Script2',
+            name: 'Script2',
+            task: {
+              executor: 'script',
+              config: { language: 'python', code: 'import time\ntime.sleep(2)' },
+            },
+          },
+          {
+            type: 'parallel',
+            id: 'ParallelExecution',
+            name: 'Parallel execution',
+            branches: [
+              {
+                type: 'task',
+                id: 'Script5',
+                name: 'Script5',
+                task: {
+                  executor: 'script',
+                  config: { language: 'python', code: 'import time\ntime.sleep(2)' },
+                },
+              },
+              {
+                type: 'task',
+                id: 'Script4',
+                name: 'Script4',
+                task: {
+                  executor: 'script',
+                  config: { language: 'python', code: 'import time\ntime.sleep(2)' },
+                },
+              },
+              {
+                type: 'sequence',
+                id: 'BranchSequence',
+                name: 'Branch sequence',
+                steps: [
+                  {
+                    type: 'task',
+                    id: 'Script3',
+                    name: 'Script3',
+                    task: {
+                      executor: 'script',
+                      config: { language: 'python', code: 'import time\ntime.sleep(2)' },
+                    },
+                  },
+                  {
+                    type: 'converge',
+                    id: 'Converge2',
+                    name: 'Converge2',
+                    converge: {
+                      timeout: 2,
+                      branches: ['Script3', 'Script6'],
+                      strategy: 'all',
+                      onTimeout: 'fail',
+                      aggregateOutputs: true,
+                    },
+                  },
+                  {
+                    type: 'task',
+                    id: 'Script7',
+                    name: 'Script7',
+                    task: {
+                      executor: 'script',
+                      config: { language: 'python', code: 'import time\ntime.sleep(3)' },
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: 'converge',
+            id: 'Converge',
+            name: 'Converge',
+            converge: {
+              timeout: 2,
+              branches: ['Script5', 'Script4'],
+              strategy: 'all',
+              onTimeout: 'continue',
+              aggregateOutputs: false,
+            },
+          },
+          {
+            type: 'task',
+            id: 'Script6',
+            name: 'Script6',
+            task: {
+              executor: 'script',
+              config: { language: 'python', code: 'import time\ntime.sleep(2)' },
+            },
+          },
+        ],
+        else: [],
+      },
+    ]
+
+    // Flatten
+    const { activities, edges } = WorkflowTransform.flatten(workflow)
+
+    // Verify all expected activities are present
+    const activityIds = activities.map((a) => a.id)
+    expect(activityIds).toContain('Script')
+    expect(activityIds).toContain('Condition')
+    expect(activityIds).toContain('Script2')
+    expect(activityIds).toContain('Script3')
+    expect(activityIds).toContain('Script4')
+    expect(activityIds).toContain('Script5')
+    expect(activityIds).toContain('Script6')
+    expect(activityIds).toContain('Script7')
+    expect(activityIds).toContain('Converge')
+    expect(activityIds).toContain('Converge2')
+
+    // CRITICAL: Verify edges to Converge2
+    // Script3 is inside the parallel, Script6 is outside - both should have edges to Converge2
+    const script3ToConverge2 = edges.find((e) => e.source === 'Script3' && e.target === 'Converge2')
+    expect(script3ToConverge2).toBeDefined()
+    expect(script3ToConverge2?.sourceHandle).toBe('source')
+
+    const script6ToConverge2 = edges.find((e) => e.source === 'Script6' && e.target === 'Converge2')
+    expect(script6ToConverge2).toBeDefined()
+    expect(script6ToConverge2?.sourceHandle).toBe('source')
+
+    // Verify edge from Converge2 to Script7
+    const converge2ToScript7 = edges.find((e) => e.source === 'Converge2' && e.target === 'Script7')
+    expect(converge2ToScript7).toBeDefined()
+
+    // Verify edges to Converge (the outer converge node)
+    const script5ToConverge = edges.find((e) => e.source === 'Script5' && e.target === 'Converge')
+    expect(script5ToConverge).toBeDefined()
+
+    const script4ToConverge = edges.find((e) => e.source === 'Script4' && e.target === 'Converge')
+    expect(script4ToConverge).toBeDefined()
+
+    // Verify edge from Converge to Script6
+    const convergeToScript6 = edges.find((e) => e.source === 'Converge' && e.target === 'Script6')
+    expect(convergeToScript6).toBeDefined()
+
+    // Round-trip test
+    const reNested = WorkflowTransform.nest(activities, edges)
+    const { edges: reFlatEdges } = WorkflowTransform.flatten(reNested)
+
+    // Verify Script6 → Converge2 edge survives round-trip
+    const reScript6ToConverge2 = reFlatEdges.find((e) => e.source === 'Script6' && e.target === 'Converge2')
+    expect(reScript6ToConverge2).toBeDefined()
+
+    const reScript3ToConverge2 = reFlatEdges.find((e) => e.source === 'Script3' && e.target === 'Converge2')
+    expect(reScript3ToConverge2).toBeDefined()
+
+    // Verify the complete edge structure is preserved
+    const reConverge2ToScript7 = reFlatEdges.find((e) => e.source === 'Converge2' && e.target === 'Script7')
+    expect(reConverge2ToScript7).toBeDefined()
+
+    const reConvergeToScript6 = reFlatEdges.find((e) => e.source === 'Converge' && e.target === 'Script6')
+    expect(reConvergeToScript6).toBeDefined()
+  })
 })

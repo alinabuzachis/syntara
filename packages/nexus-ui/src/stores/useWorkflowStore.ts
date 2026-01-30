@@ -428,12 +428,66 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
       const activities = [...state.currentWorkflow.workflow.activities]
       const convergeActivities = activities.filter((a) => a.type === 'converge')
 
+      // Build a map of activity ID → parallel container ID
+      // This allows us to detect when multiple incoming edges belong to the same parallel group
+      const activityToParallelMap = new Map<string, string>()
+      activities.forEach((activity) => {
+        if (activity.type === 'parallel' && activity.branches) {
+          activity.branches.forEach((branch) => {
+            // For each activity in the parallel branch, map it to the parallel container ID
+            const collectActivityIds = (act: Activity): void => {
+              activityToParallelMap.set(act.id, activity.id)
+              if (act.type === 'sequence' && act.steps) {
+                act.steps.forEach(collectActivityIds)
+              } else if (act.type === 'condition') {
+                ;(act.then || []).forEach(collectActivityIds)
+                ;(act.else || []).forEach(collectActivityIds)
+              } else if (act.type === 'loop' && act.loop.do) {
+                act.loop.do.forEach(collectActivityIds)
+              }
+            }
+            collectActivityIds(branch)
+          })
+        }
+      })
+
       for (const convergeActivity of convergeActivities) {
         // Find all edges that target this converge activity
         const incomingEdges = state.edges.filter((edge) => edge.target === convergeActivity.id)
         const sourceActivityIds = incomingEdges.map((edge) => edge.source)
 
-        // Update converge.branches directly from incoming edges
+        // Group sources by their parallel container (if any)
+        const parallelGroups = new Map<string, string[]>()
+        const standaloneActivities: string[] = []
+
+        for (const sourceId of sourceActivityIds) {
+          const parallelId = activityToParallelMap.get(sourceId)
+          if (parallelId) {
+            // This source belongs to a parallel container
+            if (!parallelGroups.has(parallelId)) {
+              parallelGroups.set(parallelId, [])
+            }
+            parallelGroups.get(parallelId)!.push(sourceId)
+          } else {
+            // This source is a standalone activity
+            standaloneActivities.push(sourceId)
+          }
+        }
+
+        // Build the final branches array
+        // CRITICAL: converge.branches should ALWAYS contain individual activity IDs,
+        // NOT parallel container IDs. The API schema expects the IDs of the actual
+        // branch endpoint activities, not their container.
+        const branchIds: string[] = []
+
+        parallelGroups.forEach((sources) => {
+          // Always use individual source activity IDs, regardless of how many there are
+          branchIds.push(...sources)
+        })
+
+        branchIds.push(...standaloneActivities)
+
+        // Update converge.branches with the deduplicated branch IDs
         const convergeIndex = activities.findIndex((a) => a.id === convergeActivity.id)
         if (convergeIndex !== -1) {
           const existing = convergeActivity as Extract<Activity, { type: 'converge' }>
@@ -441,7 +495,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
             ...existing,
             converge: {
               ...existing.converge,
-              branches: sourceActivityIds,
+              branches: branchIds,
             },
           }
         }

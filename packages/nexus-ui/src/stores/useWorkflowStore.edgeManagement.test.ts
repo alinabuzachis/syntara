@@ -1,3 +1,4 @@
+import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it, beforeEach } from 'vitest'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
@@ -573,6 +574,143 @@ describe('useWorkflowStore - Edge Management', () => {
 
       // Edges should remain unchanged
       expect(useWorkflowStore.getState().edges).toEqual(edges)
+    })
+
+    it('sets converge.branches to individual activity IDs when branches from same parallel converge', () => {
+      // Create a workflow with parallel execution that converges
+      // Structure: parallel(A, B) → J
+      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const joinJ = createConvergeActivity('J', 'Converge J')
+
+      // Create parallel container manually (simulating what WorkflowTransform.nest() does)
+      const parallel: Extract<Activity, { type: 'parallel' }> = {
+        type: 'parallel',
+        id: 'parallel_1',
+        name: 'Parallel execution',
+        branches: [taskA, taskB],
+      }
+
+      // Edges from parallel branches to converge
+      const edges: EdgeConnection[] = [
+        { id: 'A-J', source: 'A', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
+        { id: 'B-J', source: 'B', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
+      ]
+
+      useWorkflowStore.setState({
+        currentWorkflow: {
+          name: 'Test',
+          triggers: [],
+          workflow: {
+            activities: [parallel, joinJ],
+          },
+        },
+        workflowVersion: 1,
+        edges,
+      })
+
+      // Sync converge node branches
+      useWorkflowStore.getState().syncConvergeNodeBranches()
+
+      // Get the updated converge activity
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities
+      const converge = activities?.find((a) => a.id === 'J') as Extract<Activity, { type: 'converge' }> | undefined
+
+      // CRITICAL: converge.branches should contain individual activity IDs (A, B),
+      // NOT the parallel container ID. This matches the API schema expectation.
+      expect(converge?.converge?.branches).toContain('A')
+      expect(converge?.converge?.branches).toContain('B')
+      expect(converge?.converge?.branches).toHaveLength(2)
+    })
+
+    it('handles partial convergence from parallel execution', () => {
+      // Create a workflow where only ONE branch from a parallel converges
+      // Structure: parallel(A, B) → J, with only A converging to J
+      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const joinJ = createConvergeActivity('J', 'Converge J')
+
+      const parallel: Extract<Activity, { type: 'parallel' }> = {
+        type: 'parallel',
+        id: 'parallel_1',
+        name: 'Parallel execution',
+        branches: [taskA, taskB],
+      }
+
+      // Only A converges to J (B doesn't)
+      const edges: EdgeConnection[] = [
+        { id: 'A-J', source: 'A', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
+      ]
+
+      useWorkflowStore.setState({
+        currentWorkflow: {
+          name: 'Test',
+          triggers: [],
+          workflow: {
+            activities: [parallel, joinJ],
+          },
+        },
+        workflowVersion: 1,
+        edges,
+      })
+
+      // Sync converge node branches
+      useWorkflowStore.getState().syncConvergeNodeBranches()
+
+      // Get the updated converge activity
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities
+      const converge = activities?.find((a) => a.id === 'J') as Extract<Activity, { type: 'converge' }> | undefined
+
+      // For partial convergence, should reference the individual branch, not the parallel container
+      expect(converge?.converge?.branches).toEqual(['A'])
+    })
+
+    it('handles mixed convergence from parallel and standalone activities', () => {
+      // Create a workflow with both parallel branches AND standalone activities converging
+      // Structure: parallel(A, B) + C → J
+      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const joinJ = createConvergeActivity('J', 'Converge J')
+
+      const parallel: Extract<Activity, { type: 'parallel' }> = {
+        type: 'parallel',
+        id: 'parallel_1',
+        name: 'Parallel execution',
+        branches: [taskA, taskB],
+      }
+
+      // All three converge to J
+      const edges: EdgeConnection[] = [
+        { id: 'A-J', source: 'A', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
+        { id: 'B-J', source: 'B', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
+        { id: 'C-J', source: 'C', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
+      ]
+
+      useWorkflowStore.setState({
+        currentWorkflow: {
+          name: 'Test',
+          triggers: [],
+          workflow: {
+            activities: [parallel, taskC, joinJ],
+          },
+        },
+        workflowVersion: 1,
+        edges,
+      })
+
+      // Sync converge node branches
+      useWorkflowStore.getState().syncConvergeNodeBranches()
+
+      // Get the updated converge activity
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities
+      const converge = activities?.find((a) => a.id === 'J') as Extract<Activity, { type: 'converge' }> | undefined
+
+      // Should reference ALL individual activity IDs (A, B, C), not the parallel container
+      expect(converge?.converge?.branches).toContain('A')
+      expect(converge?.converge?.branches).toContain('B')
+      expect(converge?.converge?.branches).toContain('C')
+      expect(converge?.converge?.branches).toHaveLength(3)
     })
   })
 })
