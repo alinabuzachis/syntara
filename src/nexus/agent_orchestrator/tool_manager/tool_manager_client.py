@@ -8,7 +8,7 @@ from uuid import UUID
 
 import httpx
 
-from nexus.agent_orchestrator.utils.retry import retry_with_backoff
+from nexus.core.utils.retry import retry_with_backoff
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
 from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProviderWithConfiguration
 

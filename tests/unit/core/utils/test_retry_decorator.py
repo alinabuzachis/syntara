@@ -17,13 +17,14 @@ from uuid import UUID, uuid4
 import httpx
 import openai
 import pytest
+from fastapi import HTTPException
 
-from nexus.agent_orchestrator.utils.retry import (
+from nexus.core.config.base import AdapterRetrySettings
+from nexus.core.utils.retry import (
     calculate_backoff,
     is_retryable_error,
     retry_with_backoff,
 )
-from nexus.core.config.base import AdapterRetrySettings
 
 
 class TestErrorClassification:
@@ -180,6 +181,28 @@ class TestErrorClassification:
         )
         assert is_retryable_error(error) is False
 
+    @pytest.mark.parametrize(
+        ("status_code", "expected_retryable"),
+        [
+            (500, True),  # Internal Server Error - retryable
+            (502, True),  # Bad Gateway - retryable
+            (503, True),  # Service Unavailable - retryable
+            (504, True),  # Gateway Timeout - retryable
+            (429, True),  # Too Many Requests - retryable
+            (400, False),  # Bad Request - not retryable
+            (401, False),  # Unauthorized - not retryable
+            (403, False),  # Forbidden - not retryable
+            (404, False),  # Not Found - not retryable
+            (409, False),  # Conflict - not retryable
+            (422, False),  # Unprocessable Entity - not retryable
+            (501, False),  # Not Implemented - not retryable (5xx but not in retryable list)
+        ],
+    )
+    def test_fastapi_http_exception_retryable(self, status_code: int, *, expected_retryable: bool) -> None:
+        """Test FastAPI HTTPException retryable status determination (defensive fallback)."""
+        error = HTTPException(status_code=status_code, detail="Test error")
+        assert is_retryable_error(error) is expected_retryable
+
     def test_value_error_is_not_retryable(self) -> None:
         """Test that ValueError is not retryable."""
         error = ValueError("Invalid value")
@@ -209,15 +232,15 @@ class TestBackoffCalculation:
 
         # Test attempt 0 (first retry)
         delay = calculate_backoff(0, settings)
-        assert 0.9 <= delay <= 1.1  # 1.0 ± 10%
+        assert delay == pytest.approx(1.0, abs=0.1)  # 1.0 ± 10%
 
         # Test attempt 1 (second retry)
         delay = calculate_backoff(1, settings)
-        assert 1.8 <= delay <= 2.2  # 2.0 ± 10%
+        assert delay == pytest.approx(2.0, abs=0.2)  # 2.0 ± 10%
 
         # Test attempt 2 (third retry)
         delay = calculate_backoff(2, settings)
-        assert 3.6 <= delay <= 4.4  # 4.0 ± 10%
+        assert delay == pytest.approx(4.0, abs=0.4)  # 4.0 ± 10%
 
     def test_backoff_cap_enforced(self) -> None:
         """Test that backoff delay never exceeds max_backoff_seconds."""
@@ -241,11 +264,11 @@ class TestBackoffCalculation:
 
         # Test attempt 0: 2.0 * 3^0 = 2.0
         delay = calculate_backoff(0, settings)
-        assert 1.8 <= delay <= 2.2  # 2.0 ± 10%
+        assert delay == pytest.approx(2.0, abs=0.2)  # 2.0 ± 10%
 
         # Test attempt 1: 2.0 * 3^1 = 6.0
         delay = calculate_backoff(1, settings)
-        assert 5.4 <= delay <= 6.6  # 6.0 ± 10%
+        assert delay == pytest.approx(6.0, abs=0.6)  # 6.0 ± 10%
 
 
 class TestSettingsValidation:
@@ -268,7 +291,7 @@ class TestSettingsValidation:
         """Test that initial_backoff_seconds must be > 0."""
         # Valid: positive
         settings = AdapterRetrySettings(adapter_initial_backoff_seconds=1.0)
-        assert settings.adapter_initial_backoff_seconds == 1.0
+        assert settings.adapter_initial_backoff_seconds == pytest.approx(1.0)
 
         # Invalid: zero or negative
         with pytest.raises(Exception):  # Pydantic ValidationError
@@ -281,7 +304,7 @@ class TestSettingsValidation:
         """Test that request_timeout_seconds must be > 0."""
         # Valid: positive
         settings = AdapterRetrySettings(adapter_request_timeout_seconds=30.0)
-        assert settings.adapter_request_timeout_seconds == 30.0
+        assert settings.adapter_request_timeout_seconds == pytest.approx(30.0)
 
         # Invalid: zero or negative
         with pytest.raises(Exception):  # Pydantic ValidationError
@@ -437,7 +460,7 @@ class TestRetryDecorator:
 
         # Expected delays: 0.1s, 0.2s, 0.4s (with jitter ±10%)
         # Total: ~0.7s (allowing for jitter and execution time)
-        assert 0.5 <= elapsed <= 1.0
+        assert elapsed == pytest.approx(0.7, abs=0.3)
 
     @pytest.mark.asyncio
     async def test_max_retries_zero_disables_retry(
@@ -627,7 +650,7 @@ class TestRetryDecorator:
         # Should timeout on each attempt: 4 attempts x 0.5s + backoff delays
         # Expected: ~2s-3s total (4 x 0.5s timeouts + backoff delays)
         assert call_count == 4  # Initial + 3 retries
-        assert 2.0 <= elapsed <= 4.0
+        assert elapsed == pytest.approx(3.0, abs=1.0)
 
     @pytest.mark.asyncio
     async def test_httpx_fallback_exceptions(

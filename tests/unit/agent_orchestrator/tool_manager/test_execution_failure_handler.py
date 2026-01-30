@@ -15,7 +15,7 @@ from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
     create_tool_awrapper,
     create_tool_wrapper,
 )
-from nexus.agent_orchestrator.utils.retry import is_retryable_error
+from nexus.core.utils.retry import is_retryable_error
 
 
 async def _execute_async_wrapper(

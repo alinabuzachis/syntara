@@ -13,7 +13,7 @@ from langchain_openai import ChatOpenAI
 from nexus.agent_orchestrator.agents.base_agent import BaseAgent
 from nexus.agent_orchestrator.models import GenericAgentResponse
 from nexus.agent_orchestrator.models.agent_state import AgentState
-from nexus.agent_orchestrator.utils.retry import retry_with_backoff
+from nexus.core.utils.retry import retry_with_backoff
 
 if TYPE_CHECKING:
     from langchain.messages import AnyMessage

@@ -1,0 +1,107 @@
+"""RFC 9457 compliant error handlers for Tool Manager domain.
+
+This module provides error handling for tool and provider-specific exceptions.
+"""
+
+import logging
+
+from fastapi import Request, status
+from fastapi.responses import JSONResponse
+
+from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
+from nexus.tool_manager.lib.exceptions import (
+    ProviderError,
+    ProviderNameConflictError,
+    ProviderNotFoundError,
+    ToolManagerError,
+    ToolNotFoundError,
+)
+from nexus.tool_manager.lib.exceptions import (
+    ValidationError as ToolValidationError,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def tool_not_found_handler(request: Request, exc: ToolNotFoundError) -> JSONResponse:
+    """Handle ToolNotFoundError with RFC 9457 format."""
+    logger.error("Tool not found", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_404_NOT_FOUND,
+        problem_type=PROBLEM_TYPES["resource_not_found"],
+        title="Tool Not Found",
+        detail=exc.message,
+        code="TOOL_NOT_FOUND",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def tool_provider_not_found_handler(request: Request, exc: ProviderNotFoundError) -> JSONResponse:
+    """Handle ProviderNotFoundError with RFC 9457 format."""
+    logger.error("Provider not found", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_404_NOT_FOUND,
+        problem_type=PROBLEM_TYPES["resource_not_found"],
+        title="Provider Not Found",
+        detail=exc.message,
+        code="PROVIDER_NOT_FOUND",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def tool_provider_name_conflict_handler(request: Request, exc: ProviderNameConflictError) -> JSONResponse:
+    """Handle ProviderNameConflictError with RFC 9457 format."""
+    logger.error("Provider name conflict", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_409_CONFLICT,
+        problem_type=PROBLEM_TYPES["name_conflict"],
+        title="Provider Name Conflict",
+        detail=exc.message,
+        code="PROVIDER_NAME_CONFLICT",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def tool_provider_error_handler(request: Request, exc: ProviderError) -> JSONResponse:
+    """Handle ProviderError with RFC 9457 format."""
+    logger.error("Provider error", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        problem_type=PROBLEM_TYPES["provider_error"],
+        title="Provider Error",
+        detail=exc.message,
+        code="PROVIDER_ERROR",
+        retryable=True,
+        instance=str(request.url),
+    )
+
+
+def tool_validation_error_handler(request: Request, exc: ToolValidationError) -> JSONResponse:
+    """Handle tool ValidationError with RFC 9457 format."""
+    logger.error("Tool validation error", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        problem_type=PROBLEM_TYPES["validation_error"],
+        title="Tool Validation Error",
+        detail=exc.message,
+        code="TOOL_VALIDATION_ERROR",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def tool_manager_error_handler(request: Request, exc: ToolManagerError) -> JSONResponse:
+    """Handle generic ToolManagerError with RFC 9457 format."""
+    logger.error("Tool manager error", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        problem_type=PROBLEM_TYPES["provider_error"],
+        title="Tool Manager Error",
+        detail=exc.message,
+        code="TOOL_MANAGER_ERROR",
+        retryable=False,
+        instance=str(request.url),
+    )

@@ -15,6 +15,7 @@ from typing import Any, TypeVar
 
 import httpx
 import openai
+from fastapi import HTTPException
 
 from nexus.core.config.base import AdapterRetrySettings, get_settings
 
@@ -88,6 +89,10 @@ def is_retryable_error(error: Exception) -> bool:
     # Check httpx exceptions (defensive fallback)
     if isinstance(error, httpx.HTTPStatusError):
         return error.response.status_code in _RETRYABLE_HTTP_STATUS_CODES
+
+    # Check fastapi exceptions (defensive fallback)
+    if isinstance(error, HTTPException):
+        return error.status_code in _RETRYABLE_HTTP_STATUS_CODES
 
     # Check timeout exceptions
     return isinstance(

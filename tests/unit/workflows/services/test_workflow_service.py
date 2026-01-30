@@ -17,7 +17,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.core.validators import ValidationError
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
@@ -25,6 +24,7 @@ from nexus.workflows.exceptions import (
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
 from nexus.workflows.services.workflow_service import WorkflowConvertResourceMixin, WorkflowService
+from nexus.workflows.validators import ValidationError
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
 
 

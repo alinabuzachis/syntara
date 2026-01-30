@@ -11,7 +11,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.api.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
-from nexus.core.validators import ValidationError
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
@@ -33,6 +32,7 @@ from nexus.workflows.models.workflow_version import (
 )
 from nexus.workflows.services import WorkflowService
 from nexus.workflows.utils.serialization import deserialize_workflow_version
+from nexus.workflows.validators import ValidationError
 
 router = APIRouter(prefix="/workflows", tags=["workflows", "workflow-versions"])
 
