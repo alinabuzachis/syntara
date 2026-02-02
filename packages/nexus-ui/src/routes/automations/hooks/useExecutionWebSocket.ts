@@ -211,8 +211,14 @@ export function useExecutionWebSocket(
 
         case 'disconnected':
         case 'failed':
-          setConnectionState(false, true)
-          onConnectionStateChange?.(false, true)
+          // Disconnect after final_snapshot should not mark the UI as stale.
+          if (isComplete) {
+            setConnectionState(false, false)
+            onConnectionStateChange?.(false, false)
+          } else {
+            setConnectionState(false, true)
+            onConnectionStateChange?.(false, true)
+          }
           break
 
         case 'connecting':
@@ -220,7 +226,7 @@ export function useExecutionWebSocket(
           break
       }
     },
-    [setConnectionState, onConnectionStateChange]
+    [setConnectionState, onConnectionStateChange, isComplete]
   )
 
   // Use WebSocket hook

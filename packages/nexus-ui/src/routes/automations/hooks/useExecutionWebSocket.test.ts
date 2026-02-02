@@ -379,6 +379,22 @@ describe('useExecutionWebSocket', () => {
       expect(storeState.isStale).toBe(true)
     })
 
+    it('does not mark stale after disconnect when execution is complete', () => {
+      renderHook(() => useExecutionWebSocket('exec-123'))
+
+      act(() => {
+        mockOnMessage?.(createFinalSnapshotMessage())
+      })
+      act(() => {
+        mockOnStateChange?.('disconnected')
+      })
+
+      const storeState = useExecutionStore.getState()
+      expect(storeState.isComplete).toBe(true)
+      expect(storeState.isConnected).toBe(false)
+      expect(storeState.isStale).toBe(false)
+    })
+
     it('calls onConnectionStateChange callback', () => {
       const onStateChange = vi.fn()
       renderHook(() => useExecutionWebSocket('exec-123', { onConnectionStateChange: onStateChange }))

@@ -20,6 +20,7 @@ import { useLocation, useParams, useSearch } from 'wouter'
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
+import { ConnectionBanner } from '../../components/ConnectionBanner'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
 import { useExecutionWebSocket } from '../automations/hooks/useExecutionWebSocket'
@@ -52,6 +53,8 @@ function ExecutionDetailContent({
   searchParams: string
   setLocation: (path: string) => void
 }) {
+  const isStale = useExecutionStore((state) => state.isStale)
+
   return (
     <Flex
       alignItems={{ default: 'alignItemsStretch' }}
@@ -75,6 +78,25 @@ function ExecutionDetailContent({
           overflow: 'hidden',
         }}
       >
+        {isStale && (
+          <Flex
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 10,
+              padding: 'var(--pf-t--global--spacer--md)',
+              pointerEvents: 'auto',
+            }}
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <FlexItem fullWidth={{ default: 'fullWidth' }}>
+              <ConnectionBanner isVisible />
+            </FlexItem>
+          </Flex>
+        )}
         <Stack style={{ height: '100%', overflow: 'hidden', gap: 'var(--pf-t--global--spacer--sm)' }}>
           {/* Workflow Canvas - use ExecutionViewContent for read-only viewing */}
           <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
