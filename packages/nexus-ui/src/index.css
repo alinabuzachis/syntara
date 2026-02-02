@@ -5,3 +5,10 @@
 table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
   background: var(--pf-t--global--background--color--glass--default);
 }
+
+/**
+ * Position toast alerts below the page header to prevent blocking header controls.
+ */
+.pf-v6-c-alert-group.pf-m-toast {
+  inset-block-start: 132px;
+}
