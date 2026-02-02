@@ -15,7 +15,7 @@ import {
   TitleSizes,
 } from '@patternfly/react-core'
 import { RhUiPlayFillIcon } from '@patternfly/react-icons'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { workflowClient } from '../../client'
 import { useQueryState } from '../../components/states/useQueryState'
@@ -25,6 +25,24 @@ import { StatusLabel } from './ExecutionStatus'
 
 type Execution = WorkflowAPI.components['schemas']['Execution']
 type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
+
+function formatElapsedTime(elapsedMs: number) {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  const parts: string[] = []
+  if (hours > 0) {
+    parts.push(`${hours}h`)
+  }
+  if (minutes > 0 || hours > 0) {
+    parts.push(`${minutes}m`)
+  }
+  parts.push(`${seconds}s`)
+
+  return parts.join(' ')
+}
 
 interface ExecutionDetailsPanelProps {
   executionId: string
@@ -36,6 +54,7 @@ interface ExecutionDetailsPanelProps {
 export function ExecutionDetailsPanel({ executionId }: ExecutionDetailsPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const { setActivityExecutions } = useExecutionStoreActions()
+  const [now, setNow] = useState(() => Date.now())
 
   // Fetch execution details with activities included
   const executionQuery = workflowClient.useQuery('get', '/executions/{execution_id}', {
@@ -48,6 +67,38 @@ export function ExecutionDetailsPanel({ executionId }: ExecutionDetailsPanelProp
   })
 
   const execution = executionQuery.data as Execution | undefined
+  const isRunning = execution?.status === 'running' || execution?.status === 'pending'
+  const startedAtValue = execution?.started_at ?? execution?.created_at ?? null
+  const startedAtMs = startedAtValue ? Date.parse(startedAtValue) : null
+  const completedAtMs = execution?.completed_at ? Date.parse(execution.completed_at) : null
+
+  useEffect(() => {
+    if (!startedAtMs || !isRunning || completedAtMs) {
+      return
+    }
+
+    const interval = setInterval(() => {
+      setNow(Date.now())
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [startedAtMs, isRunning, completedAtMs])
+
+  const elapsedMs = useMemo(() => {
+    if (!startedAtMs || Number.isNaN(startedAtMs)) {
+      return undefined
+    }
+
+    const endMs = completedAtMs && !Number.isNaN(completedAtMs) ? completedAtMs : isRunning ? now : undefined
+
+    if (!endMs) {
+      return undefined
+    }
+
+    return Math.max(0, endMs - startedAtMs)
+  }, [startedAtMs, completedAtMs, isRunning, now])
+
+  const elapsedLabel = elapsedMs !== undefined ? formatElapsedTime(elapsedMs) : undefined
 
   // Update execution store when activities load
   useEffect(() => {
@@ -143,6 +194,26 @@ export function ExecutionDetailsPanel({ executionId }: ExecutionDetailsPanelProp
                   <DescriptionListTerm>Status</DescriptionListTerm>
                   <DescriptionListDescription>
                     <StatusLabel status={execution.status!} />
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>Elapsed time</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    {elapsedLabel ? (
+                      <Content
+                        component={ContentVariants.small}
+                        style={{ color: 'var(--pf-t--global--text--color--subtle)' }}
+                      >
+                        {elapsedLabel}
+                      </Content>
+                    ) : (
+                      <Content
+                        component={ContentVariants.small}
+                        style={{ color: 'var(--pf-t--global--text--color--subtle)' }}
+                      >
+                        —
+                      </Content>
+                    )}
                   </DescriptionListDescription>
                 </DescriptionListGroup>
                 <DescriptionListGroup>

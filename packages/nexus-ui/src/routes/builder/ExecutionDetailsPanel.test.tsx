@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { ExecutionDetailsPanel } from './ExecutionDetailsPanel'
@@ -64,6 +64,23 @@ describe('ExecutionDetailsPanel', () => {
     expect(screen.getByText('Execution Details')).toBeInTheDocument()
     expect(screen.getByText('exec-123')).toBeInTheDocument()
     expect(screen.getByTestId('status-label')).toHaveTextContent('running')
+  })
+
+  it('shows elapsed time between status and execution id', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-01T00:00:30Z'))
+
+    render(<ExecutionDetailsPanel executionId="exec-123" />)
+
+    expect(screen.getByText('Elapsed time')).toBeInTheDocument()
+    expect(screen.getByText('30s')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+
+    expect(screen.getByText('32s')).toBeInTheDocument()
+    vi.useRealTimers()
   })
 
   it('displays execution ID', () => {
