@@ -244,14 +244,14 @@ class TestAgenticActivityFileIds:
                     input_data={},
                 )
 
-                # Verify logging includes file_count in the format string and args
-                # The logger.info call format: logger.info("..file_count=%d..", ..., len(file_ids))
+                # Verify logging includes file_count as a keyword argument
+                # The logger.info call format: logger.info("message", file_count=len(file_ids))
                 info_calls = mock_logger.info.call_args_list
                 found_file_count_log = False
                 for call in info_calls:
-                    args = call[0]  # Positional arguments
-                    # Check if file_count is in format string and 5 is in the arguments
-                    if len(args) >= 1 and "file_count" in str(args[0]) and 5 in args:
+                    kwargs = call[1]  # Keyword arguments
+                    # Check if file_count is in kwargs with value 5
+                    if kwargs.get("file_count") == 5:
                         found_file_count_log = True
                         break
                 assert found_file_count_log, f"Expected file_count=5 in log calls: {info_calls}"

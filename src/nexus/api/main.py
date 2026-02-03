@@ -1,7 +1,6 @@
 """Main FastAPI application module for Nexus."""
 
 import json
-import logging
 import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -9,6 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import structlog
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,11 +18,13 @@ from sqlmodel import text
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import get_db
+from nexus.core.logging.logging import configure_structlog
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
 
-logger = logging.getLogger(__name__)
+configure_structlog()
+logger = structlog.stdlib.get_logger(__name__)
 
 
 @asynccontextmanager
@@ -43,19 +45,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         None
 
     """
-    # Configure application loggers to use uvicorn's handlers
-    # Copy uvicorn's handlers to nexus logger so our logs get formatted
-    uvicorn_logger = logging.getLogger("uvicorn")
-    nexus_logger = logging.getLogger("nexus")
-    nexus_logger.setLevel(logging.INFO)
-
-    # Copy uvicorn's handlers to nexus logger
-    for handler in uvicorn_logger.handlers:
-        nexus_logger.addHandler(handler)
-
-    # Disable propagation since we have handlers now
-    nexus_logger.propagate = False
-
     # Discover and register all routers automatically
     # This replaces manual router imports and registration
     settings = get_settings()
@@ -94,9 +83,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         lock_file = _get_lock_file_path()
         try:
             lock_file.unlink(missing_ok=True)
-            logger.debug("Cleaned up lock file: %s", lock_file)
+            logger.debug("Cleaned up lock file", lock_file=lock_file)
         except OSError as e:
-            logger.warning("Failed to clean up lock file %s: %s", lock_file, e)
+            logger.warning("Failed to clean up lock file", lock_file=lock_file, error=str(e))
 
 
 # Create FastAPI application

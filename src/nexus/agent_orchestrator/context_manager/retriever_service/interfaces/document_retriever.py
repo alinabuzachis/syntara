@@ -4,14 +4,15 @@ This module defines the DocumentRetriever interface that all document retrieval
 implementations must follow for consistent integration with RetrieverService.
 """
 
-import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from typing import Any
 
+import structlog
+
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class DocumentRetriever(ABC):

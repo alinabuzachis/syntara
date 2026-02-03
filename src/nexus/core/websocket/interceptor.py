@@ -4,8 +4,9 @@ This module provides a flexible interceptor pattern for hooking into the
 WebSocket endpoint creation lifecycle during application bootstrap.
 """
 
-import logging
 from typing import TYPE_CHECKING, Any
+
+import structlog
 
 from nexus.core.websocket import channel_validator
 from nexus.core.websocket.endpoint_factory import _HANDLER_MODULE_CACHE
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 
     from nexus.core.websocket.channel_validator import ChannelValidationResult
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class WebSocketInterceptor:
@@ -82,7 +83,7 @@ class InterceptorRegistry:
 
         """
         self._interceptors.append(interceptor)
-        logger.debug("Registered interceptor: %s", interceptor.__class__.__name__)
+        logger.debug("Registered interceptor", interceptor_class=interceptor.__class__.__name__)
 
     def on_bootstrap_start(self, specs: dict[str, Any]) -> None:
         """Execute on_bootstrap_start for all registered interceptors.
@@ -95,7 +96,7 @@ class InterceptorRegistry:
             try:
                 interceptor.on_bootstrap_start(specs)
             except Exception:
-                logger.exception("Error in %s.on_bootstrap_start", interceptor.__class__.__name__)
+                logger.exception("Error in on_bootstrap_start", interceptor_class=interceptor.__class__.__name__)
 
     def before_endpoint_creation(self, component_name: str, channel_name: str, channel_config: dict[str, Any]) -> None:
         """Execute before_endpoint_creation for all registered interceptors.
@@ -110,7 +111,7 @@ class InterceptorRegistry:
             try:
                 interceptor.before_endpoint_creation(component_name, channel_name, channel_config)
             except Exception:
-                logger.exception("Error in %s.before_endpoint_creation", interceptor.__class__.__name__)
+                logger.exception("Error in before_endpoint_creation", interceptor_class=interceptor.__class__.__name__)
 
     def after_endpoint_creation(
         self, component_name: str, channel_name: str, endpoint: object, *, success: bool, error: Exception | None = None
@@ -131,7 +132,7 @@ class InterceptorRegistry:
                     component_name, channel_name, endpoint, success=success, error=error
                 )
             except Exception:
-                logger.exception("Error in %s.after_endpoint_creation", interceptor.__class__.__name__)
+                logger.exception("Error in after_endpoint_creation", interceptor_class=interceptor.__class__.__name__)
 
     def on_bootstrap_complete(self, results: dict[str, Any]) -> None:
         """Execute on_bootstrap_complete for all registered interceptors.
@@ -144,7 +145,7 @@ class InterceptorRegistry:
             try:
                 interceptor.on_bootstrap_complete(results)
             except Exception:
-                logger.exception("Error in %s.on_bootstrap_complete", interceptor.__class__.__name__)
+                logger.exception("Error in on_bootstrap_complete", interceptor_class=interceptor.__class__.__name__)
 
 
 # Global registry instance
@@ -186,7 +187,7 @@ class ValidationInterceptor(WebSocketInterceptor):
         """
         self.specs = specs.copy()
         self.component_names = list(specs.keys())
-        logger.debug("ValidationInterceptor: Starting validation for %d components", len(specs))
+        logger.debug("ValidationInterceptor: Starting validation", component_count=len(specs))
 
     def before_endpoint_creation(
         self,
@@ -230,11 +231,11 @@ class ValidationInterceptor(WebSocketInterceptor):
             channel_modules = self.channel_modules.get(component_name, {})
 
             if not spec:
-                logger.warning("No spec found for component '%s'", component_name)
+                logger.warning("No spec found for component", component_name=component_name)
                 continue
 
             if not channel_modules:
-                logger.warning("No handler modules found for component '%s'", component_name)
+                logger.warning("No handler modules found for component", component_name=component_name)
                 continue
 
             # Group channels by their handler module
@@ -274,12 +275,12 @@ class ValidationInterceptor(WebSocketInterceptor):
         # Log summary
         if total_errors > 0 or total_warnings > 0:
             logger.info(
-                "Channel validation complete: %d error(s), %d warning(s) across %d validation(s)",
-                total_errors,
-                total_warnings,
-                len(validation_results),
+                "Channel validation complete",
+                errors=total_errors,
+                warnings=total_warnings,
+                validations=len(validation_results),
             )
         else:
             logger.info(
-                "Channel validation complete: All %d validation(s) passed successfully", len(validation_results)
+                "Channel validation complete: All validations passed successfully", validations=len(validation_results)
             )

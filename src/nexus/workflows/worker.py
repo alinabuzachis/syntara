@@ -20,6 +20,8 @@ import logging
 import signal
 import sys
 
+import structlog
+
 from nexus.core.config.base import get_settings
 from nexus.workflows.workflow_engine.services.temporal_worker import start_worker, stop_worker
 
@@ -30,7 +32,17 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     stream=sys.stdout,
 )
-logger = logging.getLogger(__name__)
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.JSONRenderer(),
+    ],
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+)
+
+logger = structlog.stdlib.get_logger(__name__)
 
 
 async def main() -> None:
@@ -43,7 +55,7 @@ async def main() -> None:
 
     def signal_handler(sig: int) -> None:
         """Handle shutdown signals."""
-        logger.info("Received signal %s, initiating graceful shutdown...", sig)
+        logger.info("Received signal, initiating graceful shutdown...", signal=sig)
         shutdown_event.set()
 
     # Register signal handlers with the event loop for proper asyncio integration

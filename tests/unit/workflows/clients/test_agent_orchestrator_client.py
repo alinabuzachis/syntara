@@ -217,10 +217,10 @@ class TestAgentOrchestratorClientFileIds:
             assert mock_logger.info.call_count >= 2
             invocation_call_args = mock_logger.info.call_args_list[1]  # Second call is invocation
 
-            # Check that the log format includes file_count
-            assert "file_count=%d" in invocation_call_args[0][0]
-            # Check that the value 3 is in the log arguments
-            assert 3 in invocation_call_args[0]
+            # Check that the log message is correct
+            assert invocation_call_args[0][0] == "Invoking agent asynchronously"
+            # Check that file_count=3 is in the kwargs
+            assert invocation_call_args[1]["file_count"] == 3
 
     @pytest.mark.asyncio
     async def test_file_ids_zero_count_logged_when_not_provided(self) -> None:
@@ -243,10 +243,10 @@ class TestAgentOrchestratorClientFileIds:
             assert mock_logger.info.call_count >= 2
             invocation_call_args = mock_logger.info.call_args_list[1]  # Second call is invocation
 
-            # Check that the log format includes file_count
-            assert "file_count=%d" in invocation_call_args[0][0]
-            # Check that the value 0 is in the log arguments
-            assert 0 in invocation_call_args[0]
+            # Check that the log message is correct
+            assert invocation_call_args[0][0] == "Invoking agent asynchronously"
+            # Check that file_count=0 is in the kwargs
+            assert invocation_call_args[1]["file_count"] == 0
 
 
 class TestAgentOrchestratorClientRetryLogic:

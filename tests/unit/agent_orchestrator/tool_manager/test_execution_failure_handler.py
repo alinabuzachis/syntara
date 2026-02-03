@@ -207,8 +207,8 @@ class TestSyncToolWrapper:
 
         # Verify logging
         mock_logger.exception.assert_called_once_with(
-            "Tool execution failed during wrapped call: tool_name=%s",
-            "sync_tool",
+            "Tool execution failed during wrapped call",
+            tool_name="sync_tool",
         )
 
         # Verify _disable_tool_by_id was actually called (fallback path using asyncio.run)
@@ -253,8 +253,8 @@ class TestSyncToolWrapper:
 
         # Verify logging
         mock_logger.exception.assert_called_once_with(
-            "Tool execution failed during wrapped call: tool_name=%s",
-            "loop_tool",
+            "Tool execution failed during wrapped call",
+            tool_name="loop_tool",
         )
 
         # Verify _disable_tool_by_id was actually called (via run_coroutine_threadsafe path)
@@ -318,11 +318,11 @@ class TestToolWrapperFailureScenarios:
         assert mock_logger.exception.call_count == 1
         assert mock_logger.error.call_count == 1
         mock_logger.exception.assert_called_once_with(
-            "Tool execution failed during wrapped call: tool_name=%s",
-            "test_tool",
+            "Tool execution failed during wrapped call",
+            tool_name="test_tool",
         )
         mock_logger.error.assert_called_once_with(
-            "BaseTool missing metadata - this indicates a bug in tool synchronization: tool_name=%s", "test_tool"
+            "BaseTool missing metadata - this indicates a bug in tool synchronization", tool_name="test_tool"
         )
 
         # Verify error ToolMessage returned
@@ -351,11 +351,11 @@ class TestToolWrapperFailureScenarios:
         assert mock_logger.exception.call_count == 1
         assert mock_logger.error.call_count == 1
         mock_logger.exception.assert_called_once_with(
-            "Tool execution failed during wrapped call: tool_name=%s",
-            "network_tool",
+            "Tool execution failed during wrapped call",
+            tool_name="network_tool",
         )
         mock_logger.error.assert_called_once_with(
-            "BaseTool missing metadata - this indicates a bug in tool synchronization: tool_name=%s", "network_tool"
+            "BaseTool missing metadata - this indicates a bug in tool synchronization", tool_name="network_tool"
         )
 
         # Verify response
@@ -384,11 +384,11 @@ class TestToolWrapperFailureScenarios:
         assert mock_logger.exception.call_count == 1
         assert mock_logger.error.call_count == 1
         mock_logger.exception.assert_called_once_with(
-            "Tool execution failed during wrapped call: tool_name=%s",
-            "config_tool",
+            "Tool execution failed during wrapped call",
+            tool_name="config_tool",
         )
         mock_logger.error.assert_called_once_with(
-            "BaseTool missing metadata - this indicates a bug in tool synchronization: tool_name=%s", "config_tool"
+            "BaseTool missing metadata - this indicates a bug in tool synchronization", tool_name="config_tool"
         )
 
         # Verify response
@@ -418,12 +418,12 @@ class TestToolWrapperFailureScenarios:
         assert mock_logger.exception.call_count == 1
         assert mock_logger.error.call_count == 1
         mock_logger.exception.assert_called_once_with(
-            "Tool execution failed during wrapped call: tool_name=%s",
-            "timeout_tool",
+            "Tool execution failed during wrapped call",
+            tool_name="timeout_tool",
         )
         mock_logger.error.assert_called_once_with(
-            "BaseTool metadata missing tool_id - this indicates a bug in tool synchronization: tool_name=%s",
-            "timeout_tool",
+            "BaseTool metadata missing tool_id - this indicates a bug in tool synchronization",
+            tool_name="timeout_tool",
         )
 
         # Verify response
@@ -451,14 +451,13 @@ class TestToolWrapperFailureScenarios:
         # Verify logging
         assert mock_logger.exception.call_count == 2
         mock_logger.exception.assert_any_call(
-            "Tool execution failed during wrapped call: tool_name=%s",
-            "key_tool",
+            "Tool execution failed during wrapped call",
+            tool_name="key_tool",
         )
         mock_logger.exception.assert_any_call(
-            "Invalid tool_id format in metadata - this indicates a bug in tool synchronization: "
-            "tool_name=%s, tool_id=%s",
-            "key_tool",
-            "invalid-uuid-format",
+            "Invalid tool_id format in metadata - this indicates a bug in tool synchronization",
+            tool_id_value="invalid-uuid-format",
+            tool_name="key_tool",
         )
 
         # Verify response
@@ -489,10 +488,10 @@ class TestToolWrapperFailureScenarios:
 
         # Verify logging
         mock_logger.exception.assert_called_once_with(
-            "Tool execution failed during wrapped call: tool_name=%s",
-            "disk_tool",
+            "Tool execution failed during wrapped call",
+            tool_name="disk_tool",
         )
-        mock_logger.debug.assert_called_once_with("Extracted tool_id from metadata: %s", valid_tool_id)
+        mock_logger.debug.assert_called_once_with("Extracted tool_id from metadata", tool_id=valid_tool_id)
 
         # Verify tool disable was called directly
         mock_disable_tool.assert_called_once()
@@ -529,12 +528,12 @@ class TestToolWrapperFailureScenarios:
         assert mock_logger.exception.call_count == 1
         assert mock_logger.error.call_count == 1
         mock_logger.exception.assert_called_once_with(
-            "Tool execution failed during wrapped call: tool_name=%s",
-            "attr_tool",
+            "Tool execution failed during wrapped call",
+            tool_name="attr_tool",
         )
         mock_logger.error.assert_called_once_with(
-            "BaseTool metadata missing tool_id - this indicates a bug in tool synchronization: tool_name=%s",
-            "attr_tool",
+            "BaseTool metadata missing tool_id - this indicates a bug in tool synchronization",
+            tool_name="attr_tool",
         )
 
         # Verify response

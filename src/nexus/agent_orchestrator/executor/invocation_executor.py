@@ -1,12 +1,12 @@
 """Service for executing invocations decoupled from creation."""
 
 import contextlib
-import logging
 from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID
 
+import structlog
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator import ContextManagerPlanner
@@ -18,7 +18,7 @@ from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
 from nexus.files import FileManager, FileStatus, get_file_manager
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class InvocationExecutor:
@@ -63,17 +63,17 @@ class InvocationExecutor:
             # Load fresh invocation from database to get latest FileMetadata status
             invocation: Invocation | None = await session.get(Invocation, invocation_id)
             if not invocation:
-                logger.error("Invocation not found for execution (invocation_id=%s)", invocation_id)
+                logger.error("Invocation not found for execution", invocation_id=invocation_id)
                 return
 
             # Check if invocation was cancelled before execution
             if invocation.status == InvocationStatus.CANCELLED:
-                logger.info("Invocation was cancelled before execution (invocation_id=%s)", invocation_id)
+                logger.info("Invocation was cancelled before execution", invocation_id=invocation_id)
                 return
 
             logger.info(
-                "Executing invocation (invocation_id=%s)",
-                invocation.id,
+                "Executing invocation",
+                invocation_id=invocation.id,
             )
 
             # Log conversion failures but allow execution to proceed (FR-020)
@@ -86,16 +86,16 @@ class InvocationExecutor:
                     OrchestrationService,
                 )
 
-                logger.info("Initializing LLM for invocation %s", invocation.id)
+                logger.info("Initializing LLM for invocation", invocation_id=invocation.id)
                 llm = get_openrouter_llm()
                 context_manager_planner = ContextManagerPlanner(session_factory=self.session_factory)
                 orchestration_service = OrchestrationService(llm=llm, context_manager_planner=context_manager_planner)
-                logger.info("LLM initialized successfully for invocation %s", invocation.id)
+                logger.info("LLM initialized successfully for invocation", invocation_id=invocation.id)
             except LLMConfigurationError as e:
                 # Mark invocation as failed
                 logger.exception(
-                    "LLM configuration failed for invocation %s",
-                    invocation.id,
+                    "LLM configuration failed for invocation",
+                    invocation_id=invocation.id,
                 )
                 now = datetime.now(UTC)
                 invocation.started_at = now  # Set started_at to indicate when failure was detected
@@ -103,7 +103,9 @@ class InvocationExecutor:
                 invocation.error_message = str(e)
                 invocation.completed_at = now
                 await session.commit()
-                logger.exception("Invocation failed (invocation_id=%s): %s", invocation.id, invocation.error_message)
+                logger.exception(
+                    "Invocation failed", invocation_id=invocation.id, error_message=invocation.error_message
+                )
 
                 # Send failure signal to workflow
                 callback_url = cast(
@@ -123,9 +125,9 @@ class InvocationExecutor:
 
                 # Execute through OrchestrationService (which handles context enhancement internally)
                 logger.info(
-                    "Executing through OrchestrationService (invocation_id=%s): %s",
-                    invocation.id,
-                    invocation.prompt,
+                    "Executing through OrchestrationService",
+                    invocation_id=invocation.id,
+                    prompt=invocation.prompt,
                 )
 
                 # Execute through orchestration service
@@ -144,8 +146,8 @@ class InvocationExecutor:
 
                 if invocation.status == InvocationStatus.CANCELLED:
                     logger.info(
-                        "Invocation was cancelled during execution, skipping completion (invocation_id=%s)",
-                        exec_invocation_id,
+                        "Invocation was cancelled during execution, skipping completion",
+                        invocation_id=exec_invocation_id,
                     )
                     return  # Don't override the CANCELLED status
 
@@ -158,12 +160,12 @@ class InvocationExecutor:
             except InvocationCancelledError:
                 # Invocation was cancelled during execution - this is expected behavior
                 # Don't mark as failed since cancellation is already handled
-                logger.info("Invocation cancelled during execution (invocation_id=%s)", exec_invocation_id)
+                logger.info("Invocation cancelled during execution", invocation_id=exec_invocation_id)
             except Exception as e:
                 logger.exception(
-                    "Exception during invocation execution (invocation_id=%s, error_type=%s)",
-                    exec_invocation_id,
-                    type(e).__name__,
+                    "Exception during invocation execution",
+                    invocation_id=exec_invocation_id,
+                    error_type=type(e).__name__,
                 )
                 await self._handle_execution_error(e, exec_invocation_id, session)
 
@@ -183,8 +185,8 @@ class InvocationExecutor:
 
         """
         logger.exception(
-            "Invocation execution failed (invocation_id=%s)",
-            invocation_id,
+            "Invocation execution failed",
+            invocation_id=invocation_id,
         )
         # Rollback session to clear any pending changes from the error
         await session.rollback()
@@ -230,10 +232,10 @@ class InvocationExecutor:
 
         if failed_files:
             logger.warning(
-                "Proceeding with invocation despite %d failed conversions (invocation_id=%s, failed_files=%s)",
-                len(failed_files),
-                invocation.id,
-                [f.filename for f in failed_files],
+                "Proceeding with invocation despite failed conversions",
+                failed_conversion_count=len(failed_files),
+                invocation_id=invocation.id,
+                failed_files=[f.filename for f in failed_files],
             )
 
 

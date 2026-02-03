@@ -36,18 +36,18 @@ Usage:
 
 import asyncio
 import json
-import logging
 from collections.abc import AsyncGenerator, Callable
 from types import TracebackType
 from typing import Any
 
 import redis.asyncio as redis
+import structlog
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import ResponseError
 
 from nexus.core.config.base import get_settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 # Error message constants
 _CLIENT_NOT_CONNECTED_ERROR = "Client not connected"
@@ -133,7 +133,7 @@ class StreamClient:
                 self._client = None
                 logger.info("Disconnected from cache stream client")
             except (RedisConnectionError, OSError) as e:
-                logger.warning("Error during cache disconnect: %s", e)
+                logger.warning("Error during cache disconnect", error=str(e))
                 # Don't raise on disconnect errors - already cleaning up
                 self._client = None
 
@@ -190,24 +190,24 @@ class StreamClient:
             await self._client.expire(stream_id, self._settings.cache_stream_ttl_seconds)
 
             logger.debug(
-                "Published event to stream '%s': %s (TTL: %ds)",
-                stream_id,
-                event_id,
-                self._settings.cache_stream_ttl_seconds,
+                "Published event to stream",
+                stream_id=stream_id,
+                event_id=event_id,
+                ttl_seconds=self._settings.cache_stream_ttl_seconds,
             )
             return str(event_id)  # Explicitly cast to str for type safety
 
         except json.JSONDecodeError:
-            logger.exception("Failed to serialize data for stream '%s'", stream_id)
+            logger.exception("Failed to serialize data for stream", stream_id=stream_id)
             raise
         except ResponseError:
-            logger.exception("Cache error publishing to stream '%s'", stream_id)
+            logger.exception("Cache error publishing to stream ", stream_id=stream_id)
             raise
         except RedisConnectionError:
-            logger.exception("Connection error publishing to stream '%s'", stream_id)
+            logger.exception("Connection error publishing to stream", stream_id=stream_id)
             raise
         except OSError as e:
-            logger.exception("Network error publishing to stream '%s'", stream_id)
+            logger.exception("Network error publishing to stream", stream_id=stream_id)
             msg = f"Network error: {e}"
             raise RedisConnectionError(msg) from e
 
@@ -283,7 +283,7 @@ class StreamClient:
                 if "no such key" in str(e).lower():
                     # Stream doesn't exist yet, start from beginning
                     return "0-0"
-                logger.exception("Error calculating replay position for stream '%s'", stream_id)
+                logger.exception("Error calculating replay position for stream", stream_id=stream_id)
                 raise
 
         # Default to beginning
@@ -323,7 +323,7 @@ class StreamClient:
                     # Add stream-generated event_id to enable client resumption
                     data["event_id"] = event_id
                 except json.JSONDecodeError:
-                    logger.exception("Failed to deserialize event %s from stream '%s'", event_id, stream_id)
+                    logger.exception("Failed to deserialize event from stream", event_id=event_id, stream_id=stream_id)
                     # Skip malformed events
                     continue
 
@@ -331,7 +331,9 @@ class StreamClient:
 
                 # Check if we should stop after adding this event
                 if should_stop and should_stop(data):
-                    logger.debug("Stopping event stream '%s' at %s (should_stop returned True)", stream_id, event_id)
+                    logger.debug(
+                        "Stopping event stream (should_stop returned True)", stream_id=stream_id, event_id=event_id
+                    )
                     # Return events including the stop event, signal to stop
                     return last_id, events, True
 
@@ -393,13 +395,13 @@ class StreamClient:
                     return
 
         except ResponseError:
-            logger.exception("Cache error reading from stream '%s'", stream_id)
+            logger.exception("Cache error reading from stream", stream_id=stream_id)
             raise
         except RedisConnectionError:
-            logger.exception("Connection error reading from stream '%s'", stream_id)
+            logger.exception("Connection error reading from stream", stream_id=stream_id)
             raise
         except OSError as e:
-            logger.exception("Network error reading from stream '%s'", stream_id)
+            logger.exception("Network error reading from stream", stream_id=stream_id)
             msg = f"Network error: {e}"
             raise RedisConnectionError(msg) from e
 
@@ -547,13 +549,13 @@ class StreamClient:
                     "exists": False,
                 }
             # Other error
-            logger.exception("Redis error getting info for stream '%s'", stream_id)
+            logger.exception("Redis error getting info for stream", stream_id=stream_id)
             raise
         except RedisConnectionError:
-            logger.exception("Connection error getting info for stream '%s'", stream_id)
+            logger.exception("Connection error getting info for stream", stream_id=stream_id)
             raise
         except OSError as e:
-            logger.exception("Network error getting info for stream '%s'", stream_id)
+            logger.exception("Network error getting info for stream", stream_id=stream_id)
             msg = f"Network error: {e}"
             raise RedisConnectionError(msg) from e
 
@@ -598,13 +600,13 @@ class StreamClient:
                 raise RedisConnectionError(msg)  # noqa: TRY301
 
             deleted_count: int = await self._client.delete(stream_id)
-            logger.debug("Deleted stream '%s': %s", stream_id, deleted_count > 0)
+            logger.debug("Deleted stream", stream_id=stream_id, deleted=deleted_count > 0)
             return deleted_count > 0
 
         except RedisConnectionError:
-            logger.exception("Connection error deleting stream '%s'", stream_id)
+            logger.exception("Connection error deleting stream", stream_id=stream_id)
             raise
         except OSError as e:
-            logger.exception("Network error deleting stream '%s'", stream_id)
+            logger.exception("Network error deleting stream", stream_id=stream_id)
             msg = f"Network error: {e}"
             raise RedisConnectionError(msg) from e

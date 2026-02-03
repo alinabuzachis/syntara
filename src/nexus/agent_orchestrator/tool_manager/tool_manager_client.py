@@ -1,18 +1,18 @@
 """Tool Manager HTTP Client for Agent Orchestrator integration."""
 
-import logging
 import types
 from typing import Any
 from urllib.parse import urlparse
 from uuid import UUID
 
 import httpx
+import structlog
 
 from nexus.core.utils.retry import retry_with_backoff
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
 from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProviderWithConfiguration
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def _validate_url(url: str) -> None:
@@ -152,7 +152,7 @@ class ToolManagerClient:
             httpx.ConnectError: On network connectivity issues
 
         """
-        logger.debug("Fetching tool providers from Tool Manager API with params: %s", params)
+        logger.debug("Fetching tool providers from Tool Manager API", params=params)
         response = await self.session.get("/tool_manager/tool_providers", params=params)
         response.raise_for_status()
         return dict(response.json())
@@ -196,7 +196,7 @@ class ToolManagerClient:
             if not cursor:
                 break
 
-        logger.info("Retrieved %d total tool providers", len(providers))
+        logger.info("Retrieved total tool providers", provider_count=len(providers))
         return providers
 
     @retry_with_backoff
@@ -215,7 +215,7 @@ class ToolManagerClient:
             httpx.ConnectError: On network connectivity issues
 
         """
-        logger.debug("Fetching tools from Tool Manager API with params: %s", params)
+        logger.debug("Fetching tools from Tool Manager API", params=params)
         response = await self.session.get("/tool_manager/tools", params=params)
         response.raise_for_status()
         return dict(response.json())
@@ -260,7 +260,7 @@ class ToolManagerClient:
             if not cursor:
                 break
 
-        logger.info("Retrieved %d total tools", len(tools))
+        logger.info("Retrieved total tools", tool_count=len(tools))
         return tools
 
     @retry_with_backoff
@@ -300,14 +300,17 @@ class ToolManagerClient:
             update_data["enabled"] = True
 
         logger.debug(
-            "Updating tool status: tool_id=%s, status=%s, refresh_error=%s", tool_id, status.value, refresh_error
+            "Updating tool status",
+            tool_id=tool_id,
+            status=status.value,
+            refresh_error=refresh_error,
         )
 
         # Make API request
         response = await self.session.patch(f"/tool_manager/tools/{tool_id}", json=update_data)
         response.raise_for_status()
 
-        logger.info("Updated tool status: tool_id=%s, status=%s", tool_id, status.value)
+        logger.info("Updated tool status", tool_id=tool_id, status=status.value)
 
     @retry_with_backoff
     async def update_tool_provider_status(
@@ -347,14 +350,14 @@ class ToolManagerClient:
             update_data["enabled"] = True
 
         logger.debug(
-            "Updating provider status: provider_id=%s, status=%s, validation_error=%s",
-            provider_id,
-            status.value,
-            validation_error,
+            "Updating provider status",
+            provider_id=provider_id,
+            status=status.value,
+            validation_error=validation_error,
         )
 
         # Make API request
         response = await self.session.patch(f"/tool_manager/tool_providers/{provider_id}", json=update_data)
         response.raise_for_status()
 
-        logger.info("Updated provider status: provider_id=%s, status=%s", provider_id, status.value)
+        logger.info("Updated provider status", provider_id=provider_id, status=status.value)

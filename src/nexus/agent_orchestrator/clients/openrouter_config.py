@@ -4,14 +4,13 @@ Configures LangChain to use OpenRouter as the LLM provider.
 OpenRouter provides API gateway to multiple LLMs (Claude, GPT-4, etc.).
 """
 
-import logging
-
+import structlog
 from langchain_openai import ChatOpenAI
 
 from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.core.config.base import get_settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def get_openrouter_llm(
@@ -49,10 +48,10 @@ def get_openrouter_llm(
     selected_max_tokens = max_tokens if max_tokens is not None else settings.openrouter_max_tokens
 
     logger.info(
-        "Initializing OpenRouter LLM: model=%s, temperature=%s, max_tokens=%s",
-        selected_model,
-        selected_temperature,
-        selected_max_tokens,
+        "Initializing OpenRouter LLM",
+        model=selected_model,
+        temperature=selected_temperature,
+        max_tokens=selected_max_tokens,
     )
 
     # Configure ChatOpenAI with OpenRouter

@@ -4,7 +4,7 @@ This module provides centralized configuration management for the RetrieverServi
 framework, integrating with the existing Nexus configuration patterns.
 """
 
-import logging
+import structlog
 
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import ConfigurationError
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
@@ -12,7 +12,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy
 )
 from nexus.core.config.base import get_settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ConfigurationManager:
@@ -113,10 +113,10 @@ class ConfigurationManager:
 
         self._loaded = True
         logger.info(
-            "Loaded configurations from settings: LLM (model=%s, threshold=%.2f), Keyword (threshold=%.2f)",
-            settings.retriever_llm_model,
-            settings.retriever_llm_similarity_threshold,
-            settings.retriever_keyword_similarity_threshold,
+            "Loaded configurations from settings",
+            llm_model=settings.retriever_llm_model,
+            llm_threshold=settings.retriever_llm_similarity_threshold,
+            keyword_threshold=settings.retriever_keyword_similarity_threshold,
         )
 
     def get_llm_configuration(self) -> RelevancyConfiguration:

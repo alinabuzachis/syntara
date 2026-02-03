@@ -771,7 +771,8 @@ class TestExecutionStatusUpdates:
     def setup_method(self) -> None:
         """Set up test fixtures."""
         self.mock_session_factory = Mock()
-        self.service = ActivitySyncService(Mock(), self.mock_session_factory)
+        self.mock_activity_publisher = AsyncMock()
+        self.service = ActivitySyncService(Mock(), self.mock_session_factory, self.mock_activity_publisher)
         self.execution_id = uuid4()
 
     def _create_mock_execution(
@@ -834,6 +835,7 @@ class TestExecutionStatusUpdates:
         mock_session = Mock()
         mock_session.exec = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
 
@@ -866,6 +868,7 @@ class TestExecutionStatusUpdates:
         mock_session = Mock()
         mock_session.exec = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
 
@@ -899,6 +902,7 @@ class TestExecutionStatusUpdates:
         mock_session = Mock()
         mock_session.exec = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
 
@@ -930,6 +934,7 @@ class TestExecutionStatusUpdates:
         mock_session = Mock()
         mock_session.exec = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
 
@@ -966,6 +971,7 @@ class TestExecutionStatusUpdates:
         mock_session = Mock()
         mock_session.exec = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
 
@@ -1005,6 +1011,7 @@ class TestExecutionStatusUpdates:
         mock_session = Mock()
         mock_session.exec = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
 
@@ -1038,6 +1045,7 @@ class TestExecutionStatusUpdates:
         mock_session = Mock()
         mock_session.exec = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
 

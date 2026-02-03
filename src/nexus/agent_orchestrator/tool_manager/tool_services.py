@@ -4,10 +4,10 @@ This module provides functions for integrating with the Tool Manager component,
 including tool discovery, synchronization, and error reporting.
 """
 
-import logging
 from typing import Any
 from uuid import UUID
 
+import structlog
 from langchain_core.tools import BaseTool
 
 from nexus.agent_orchestrator.tool_manager.tool_filtering import (
@@ -27,7 +27,7 @@ from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provid
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
 from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProviderWithConfiguration
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 async def _discover_tool_providers() -> list[ToolProviderWithConfiguration]:
@@ -50,10 +50,10 @@ async def _discover_tool_providers() -> list[ToolProviderWithConfiguration]:
             max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
         ) as client:
             all_providers = await client.get_all_tool_providers()
-            logger.info("Discovered %d Tool Providers", len(all_providers))
+            logger.info("Discovered Tool Providers", provider_count=len(all_providers))
             return all_providers
     except Exception as e:  # noqa: BLE001 (Failure of ToolManagerClient for whatever reason is not critical)
-        logger.warning("Tool Manager failed, continuing without tool providers: %s", e)
+        logger.warning("Tool Manager failed, continuing without tool providers", error=str(e))
         return []
 
 
@@ -81,14 +81,14 @@ async def _discover_tools() -> ToolDiscoveryResult:
             enabled_tools = [t for t in all_tools if t.enabled]
             disabled_tools = [t for t in all_tools if not t.enabled]
             logger.info(
-                "Discovered %d enabled and %d disabled Tools (from %d total)",
-                len(enabled_tools),
-                len(disabled_tools),
-                len(all_tools),
+                "Discovered enabled and disabled Tools",
+                enabled_count=len(enabled_tools),
+                disabled_count=len(disabled_tools),
+                total_count=len(all_tools),
             )
             return enabled_tools, disabled_tools
     except Exception as e:  # noqa: BLE001 (Failure of ToolManagerClient for whatever reason is not critical)
-        logger.warning("Tool Manager failed, continuing without tools: %s", e)
+        logger.warning("Tool Manager failed, continuing without tools", error=str(e))
         return [], []
 
 
@@ -110,7 +110,7 @@ async def report_tool_execution_failure(tool_id: UUID, error_message: str) -> No
     ) as client:
         try:
             await client.update_tool_status(tool_id=tool_id, status=ToolStatus.ERROR, refresh_error=error_message)
-            logger.info("Reported tool execution failure: tool_id=%s", tool_id)
+            logger.info("Reported tool execution failure", tool_id=tool_id)
         except Exception:
             logger.exception("Failed to report tool execution failure")
 
@@ -118,7 +118,7 @@ async def report_tool_execution_failure(tool_id: UUID, error_message: str) -> No
 def _should_skip_provider(provider: ToolProviderWithConfiguration) -> bool:
     """Check if provider should be skipped due to missing configuration."""
     if not provider.configuration:
-        logger.warning("Skipping provider %s: no configuration", provider.name)
+        logger.warning("Skipping provider: no configuration", provider_name=provider.name)
         return True
     return False
 
@@ -141,10 +141,10 @@ def _is_provider_type_supported(provider: ToolProviderWithConfiguration, provide
     if not provider_factory.is_registered(provider_type):
         supported_types = provider_factory.get_registered_provider_types()
         logger.warning(
-            "Skipping provider %s with unsupported type: %s. Supported types: %s",
-            provider.name,
-            provider_type,
-            supported_types,
+            "Skipping provider with unsupported type",
+            provider_name=provider.name,
+            provider_type=provider_type,
+            supported_types=supported_types,
         )
         return False
     return True
@@ -173,19 +173,27 @@ async def _handle_provider_errors(provider: ToolProviderWithConfiguration, error
     """Handle different types of provider errors with appropriate logging and provider disabling."""
     # Log the error appropriately based on type
     if isinstance(error, (ConnectionError, TimeoutError)):
-        logger.warning("Failed to get tools from provider %s: %s, disabling provider", provider.name, error)
+        logger.warning(
+            "Failed to get tools from provider, disabling provider", provider_name=provider.name, error=str(error)
+        )
         validation_error = f"Connection/timeout error: {error}"
     elif isinstance(error, OSError):
-        logger.warning("Network/system error from provider %s: %s, disabling provider", provider.name, error)
+        logger.warning(
+            "Network/system error from provider, disabling provider", provider_name=provider.name, error=str(error)
+        )
         validation_error = f"Network/system error: {error}"
     elif isinstance(error, RuntimeError):
-        logger.warning("Unexpected error from provider %s: %s, disabling provider", provider.name, error)
+        logger.warning(
+            "Unexpected error from provider, disabling provider", provider_name=provider.name, error=str(error)
+        )
         validation_error = f"Runtime error: {error}"
     elif isinstance(error, ValueError):
-        logger.warning("Invalid configuration for provider %s: %s, disabling provider", provider.name, error)
+        logger.warning(
+            "Invalid configuration for provider, disabling provider", provider_name=provider.name, error=str(error)
+        )
         validation_error = f"Invalid configuration: {error}"
     else:
-        logger.exception("Unexpected error processing provider %s, disabling provider", provider.name)
+        logger.exception("Unexpected error processing provider, disabling provider", provider_name=provider.name)
         validation_error = f"Unexpected error: {error}"
 
     # Disable the provider and set error status using ToolManagerClient
@@ -202,9 +210,9 @@ async def _handle_provider_errors(provider: ToolProviderWithConfiguration, error
                 status=ProviderStatus.ERROR,
                 validation_error=validation_error,
             )
-            logger.info("Disabled provider %s due to error", provider.name)
+            logger.info("Disabled provider due to error", provider_name=provider.name)
     except Exception:
-        logger.exception("Failed to disable provider %s via ToolManagerClient", provider.name)
+        logger.exception("Failed to disable provider via ToolManagerClient", provider_name=provider.name)
 
 
 async def _handle_provider_re_enablement(provider: ToolProviderWithConfiguration) -> None:
@@ -225,9 +233,9 @@ async def _handle_provider_re_enablement(provider: ToolProviderWithConfiguration
                 status=ProviderStatus.AVAILABLE,
                 validation_error=None,
             )
-            logger.info("Re-enabled previously disabled provider: %s", provider.name)
+            logger.info("Re-enabled previously disabled provider", provider_name=provider.name)
     except Exception:
-        logger.exception("Failed to re-enable provider %s via ToolManagerClient", provider.name)
+        logger.exception("Failed to re-enable provider via ToolManagerClient", provider_name=provider.name)
 
 
 async def _process_single_provider(
@@ -248,7 +256,7 @@ async def _process_single_provider(
 
     # Skip disabled providers unless they're in ERROR state (eligible for retry)
     if not provider.enabled and not _should_retry_disabled_provider(provider):
-        logger.debug("Skipping disabled provider %s (status: %s)", provider.name, provider.status.value)
+        logger.debug("Skipping disabled provider", provider_name=provider.name, provider_status=provider.status.value)
         return []
 
     try:
@@ -259,7 +267,7 @@ async def _process_single_provider(
         provider_tools = await adapter.get_base_tools()
 
         namespaced_tools = _create_namespaced_tools(provider, provider_tools)
-        logger.info("Retrieved %d tools from provider %s", len(provider_tools), provider.name)
+        logger.info("Retrieved tools from provider", tool_count=len(provider_tools), provider_name=provider.name)
 
         # If this was a disabled ERROR provider that succeeded, re-enable it
         if _should_retry_disabled_provider(provider):
@@ -272,14 +280,14 @@ async def _process_single_provider(
         if provider.enabled:
             await _handle_provider_errors(provider, e)
         else:
-            logger.debug("Retry failed for disabled provider %s: %s", provider.name, e)
+            logger.debug("Retry failed for disabled provider", provider_name=provider.name, error=str(e))
         return []
     except Exception as e:  # noqa: BLE001 (Handle any unexpected provider errors gracefully)
         # Only disable if provider was enabled (don't update status for failed retries)
         if provider.enabled:
             await _handle_provider_errors(provider, e)
         else:
-            logger.debug("Retry failed for disabled provider %s: %s", provider.name, e)
+            logger.debug("Retry failed for disabled provider", provider_name=provider.name, error=str(e))
         return []
 
 
@@ -306,7 +314,11 @@ async def _retrieve_base_tools_from_providers(
             namespaced_tools.extend(provider_tools)
         break  # Exit the async generator after first iteration
 
-    logger.info("Retrieved %d total tools from %d providers", len(namespaced_tools), len(all_providers))
+    logger.info(
+        "Retrieved total tools from providers",
+        total_tool_count=len(namespaced_tools),
+        provider_count=len(all_providers),
+    )
     return namespaced_tools
 
 
@@ -325,7 +337,7 @@ def _filter_enabled_tools(
 
     """
     filtered_tools = filter_base_tools_by_enabled(namespaced_tools, enabled_tools)
-    logger.info("Filtered %d tools for execution", len(filtered_tools))
+    logger.info("Filtered tools for execution", filtered_tool_count=len(filtered_tools))
     return filtered_tools
 
 
@@ -344,7 +356,7 @@ def _enhance_tools_with_metadata(
 
     """
     enhanced_tools = enhance_namespaced_tools_with_metadata(namespaced_tools, enabled_tools)
-    logger.info("Enhanced %d tools with metadata", len(enhanced_tools))
+    logger.info("Enhanced tools with metadata", enhanced_tool_count=len(enhanced_tools))
     return enhanced_tools
 
 
@@ -376,11 +388,11 @@ async def _update_missing_tools(
                 await client.update_tool_status(
                     tool_id=missing_tool.id, status=ToolStatus.MISSING, refresh_error="Tool not found in MCP server"
                 )
-                logger.info("Updated missing tool status: %s", missing_tool.namespaced_name)
+                logger.info("Updated missing tool status", tool_name=missing_tool.namespaced_name)
             except (OSError, RuntimeError) as e:
-                logger.warning("Failed to update missing tool status: %s", e)
+                logger.warning("Failed to update missing tool status", error=str(e))
             except Exception:
-                logger.exception("Failed to update tool status for %s", missing_tool.namespaced_name)
+                logger.exception("Failed to update tool status", tool_name=missing_tool.namespaced_name)
 
 
 async def _update_re_enabled_tools(
@@ -414,14 +426,15 @@ async def _update_re_enabled_tools(
                 await client.update_tool_status(
                     tool_id=re_enableable_tool.id, status=ToolStatus.AVAILABLE, refresh_error=None
                 )
-                logger.info("Re-enabled previously disabled tool: %s", re_enableable_tool.namespaced_name)
+                logger.info("Re-enabled previously disabled tool", tool_name=re_enableable_tool.namespaced_name)
             except (OSError, RuntimeError) as e:
-                logger.warning("Failed to re-enable tool status: %s", e)
+                logger.warning("Failed to re-enable tool status", error=str(e))
             except Exception:
-                logger.exception("Failed to re-enable tool %s", re_enableable_tool.namespaced_name)
+                logger.exception("Failed to re-enable tool", tool_name=re_enableable_tool.namespaced_name)
 
     logger.info(
-        "Re-enabled %d previously disabled tools that are now available on MCP servers", len(re_enableable_tools)
+        "Re-enabled previously disabled tools that are now available on MCP servers",
+        re_enabled_count=len(re_enableable_tools),
     )
 
 
@@ -439,7 +452,7 @@ def _log_unregistered_tools(
     unregistered_tools = identify_unregistered_tools(namespaced_tools, enabled_tools)
     if unregistered_tools:
         unregistered_names = [tool.name for tool in unregistered_tools]
-        logger.info("Unregistered tools found in MCP servers: %s", unregistered_names)
+        logger.info("Unregistered tools found in MCP servers", unregistered_tool_names=unregistered_names)
 
 
 class ToolSynchronizer:
@@ -473,7 +486,7 @@ class ToolSynchronizer:
             List of filtered BaseTools ready for execution
 
         """
-        logger.info("Starting tool synchronization for invocation %s", self.invocation_id)
+        logger.info("Starting tool synchronization", invocation_id=self.invocation_id)
 
         try:
             # Step 1: Discover tools and providers from Tool Manager
@@ -498,10 +511,10 @@ class ToolSynchronizer:
             # Step 7: Log unregistered tools for awareness
             _log_unregistered_tools(self.namespaced_tools, self.enabled_tools)
 
-            logger.info("Tool synchronization completed for invocation %s", self.invocation_id)
+            logger.info("Tool synchronization completed", invocation_id=self.invocation_id)
             return enhanced_tools
 
         except Exception:
             # Don't fail the entire execution if tool sync fails
-            logger.exception("Tool synchronization failed for invocation %s", self.invocation_id)
+            logger.exception("Tool synchronization failed", invocation_id=self.invocation_id)
             return []

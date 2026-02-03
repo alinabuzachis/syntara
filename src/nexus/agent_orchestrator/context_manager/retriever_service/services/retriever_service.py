@@ -7,11 +7,11 @@ checking with fallback mechanisms.
 
 import asyncio
 import contextlib
-import logging
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 from uuid import UUID
 
+import structlog
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import (
@@ -35,7 +35,7 @@ from nexus.agent_orchestrator.models import Invocation
 from nexus.core.constants import RetrieverServiceDefaults
 from nexus.core.database.session import get_db
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class RetrieverService:
@@ -97,9 +97,9 @@ class RetrieverService:
         self.relevancy_registry = relevancy_registry_factory()
 
         logger.debug(
-            "Initialized RetrieverService with %d retrievers and %d relevancy checkers",
-            len(self.retriever_registry.list_retrievers()),
-            len(self.relevancy_registry.list_checkers()),
+            "Initialized RetrieverService",
+            retriever_count=len(self.retriever_registry.list_retrievers()),
+            relevancy_checker_count=len(self.relevancy_registry.list_checkers()),
         )
 
     def _ensure_user_friendly_error(self, error: Exception) -> DocumentRetrievalError:
@@ -146,8 +146,8 @@ class RetrieverService:
         """
         try:
             logger.info(
-                "Starting streaming document retrieval for invocation %s",
-                invocation_id,
+                "Starting streaming document retrieval for invocation",
+                invocation_id=invocation_id,
             )
 
             # Step 1: Load invocation context
@@ -157,7 +157,7 @@ class RetrieverService:
                     async with self.get_async_session_context() as session:
                         invocation_context = await self._load_invocation_context(invocation_id, session)
                 except Exception:
-                    logger.exception("Failed to load invocation context for %s", invocation_id)
+                    logger.exception("Failed to load invocation context", invocation_id=invocation_id)
                     return []
 
             # Step 2-3: Retrieve and score documents from all backends with parallel processing
@@ -170,7 +170,7 @@ class RetrieverService:
                     logger.info("No documents found in any storage backend")
                     return []
 
-                logger.info("Document retrieval completed: %d documents processed", len(scored_documents))
+                logger.info("Document retrieval completed", processed_documents=len(scored_documents))
 
                 # Step 4: Rank and filter documents
                 try:
@@ -180,7 +180,7 @@ class RetrieverService:
                     # Return scored documents without filtering
                     ranked_documents = sorted(scored_documents, key=lambda doc: doc.relevancy_score, reverse=True)
 
-                logger.info("Document retrieval completed: %d relevant documents returned", len(ranked_documents))
+                logger.info("Document retrieval completed", relevant_documents=len(ranked_documents))
                 return ranked_documents
 
             except DocumentRetrievalError:
@@ -192,7 +192,7 @@ class RetrieverService:
         except DocumentRetrievalError:
             raise
         except Exception as e:
-            logger.exception("Critical failure in document retrieval for invocation %s", invocation_id)
+            logger.exception("Critical failure in document retrieval", invocation_id=invocation_id)
             error_msg = f"Document retrieval failed for invocation {invocation_id}: {e!s}"
             raise RetrieverServiceError(error_msg) from e
 
@@ -215,7 +215,7 @@ class RetrieverService:
             result = await session.get(Invocation, invocation_id)
 
         except Exception as e:
-            logger.exception("Failed to load invocation context for %s", invocation_id)
+            logger.exception("Failed to load invocation context", invocation_id=invocation_id)
             error_msg = f"Cannot load invocation context: {e!s}"
             raise RetrieverServiceError(error_msg) from e
 
@@ -226,7 +226,9 @@ class RetrieverService:
         # Extract context data (stored as JSONB)
         context_data = result.context_data or {}
 
-        logger.debug("Loaded invocation context for %s: %d context keys", invocation_id, len(context_data.keys()))
+        logger.debug(
+            "Loaded invocation context", invocation_id=invocation_id, context_key_count=len(context_data.keys())
+        )
 
         return context_data
 
@@ -252,7 +254,7 @@ class RetrieverService:
             logger.warning("No document retrievers registered")
             return
 
-        logger.debug("Starting parallel document retrieval from %d backends", len(retriever_names))
+        logger.debug("Starting parallel document retrieval", backend_count=len(retriever_names))
 
         # Use a semaphore to limit concurrent relevancy checks
         semaphore = asyncio.Semaphore(RetrieverServiceDefaults.CONCURRENT_RELEVANCY_CHECK_LIMIT)
@@ -265,9 +267,7 @@ class RetrieverService:
             document_count += 1
             yield document
 
-        logger.info(
-            "Streaming completed: %d documents processed across %d backends", document_count, len(retriever_names)
-        )
+        logger.info("Streaming completed", processed_documents=document_count, backend_count=len(retriever_names))
 
     def _get_relevancy_checkers(
         self,
@@ -323,7 +323,7 @@ class RetrieverService:
         """Process documents from a single retriever with parallel scoring."""
         try:
             retriever = self.retriever_registry.get_retriever(retriever_name)
-            logger.debug("Starting document stream from %s", retriever_name)
+            logger.debug("Starting document stream", retriever_name=retriever_name)
 
             document_count = 0
             async for document in retriever.retrieve_documents(invocation_context):
@@ -338,17 +338,19 @@ class RetrieverService:
                     yield scored_document
                 except Exception as e:
                     logger.exception(
-                        "Failed to score document from %s: %s", retriever_name, document.file_metadata.filename
+                        "Failed to score document",
+                        retriever_name=retriever_name,
+                        filename=document.file_metadata.filename,
                     )
                     # Use default score and continue
                     document.relevancy_score = RetrieverServiceDefaults.DEFAULT_RELEVANCY_SCORE
                     document.retrieval_metadata.update({"relevancy_checker_error": str(e)})
                     yield document
 
-            logger.debug("Completed stream from %s: %d documents processed", retriever_name, document_count)
+            logger.debug("Completed stream", retriever_name=retriever_name, processed_documents=document_count)
 
         except Exception as e:
-            logger.exception("Document retrieval failed from %s", retriever_name)
+            logger.exception("Document retrieval failed", retriever_name=retriever_name)
             user_friendly_error = self._ensure_user_friendly_error(e)
             raise user_friendly_error from e
 
@@ -382,8 +384,8 @@ class RetrieverService:
 
             except (RetrieverServiceError, ValueError, TypeError, RuntimeError) as e:
                 logger.warning(
-                    "Primary relevancy checker failed for %s, trying fallback",
-                    document.file_metadata.filename,
+                    "Primary relevancy checker failed, trying fallback",
+                    filename=document.file_metadata.filename,
                     exc_info=e,
                 )
 
@@ -397,13 +399,13 @@ class RetrieverService:
                 return document
 
             except Exception:
-                logger.exception("Fallback relevancy checker also failed for %s", document.file_metadata.filename)
+                logger.exception("Fallback relevancy checker also failed", filename=document.file_metadata.filename)
 
         # If both checkers fail, use default score
         logger.warning(
-            "Both relevancy checkers failed for %s, using default score %s",
-            document.file_metadata.filename,
-            RetrieverServiceDefaults.DEFAULT_RELEVANCY_SCORE,
+            "Both relevancy checkers failed, using default score",
+            filename=document.file_metadata.filename,
+            default_score=RetrieverServiceDefaults.DEFAULT_RELEVANCY_SCORE,
         )
         document.relevancy_score = RetrieverServiceDefaults.DEFAULT_RELEVANCY_SCORE
         document.retrieval_metadata.update({"relevancy_checker_used": "default", "relevancy_checker_failed": True})
@@ -457,13 +459,13 @@ class RetrieverService:
                 final_documents = filtered_documents[:max_results]
 
                 logger.debug(
-                    "Applied filters: threshold=%.2f (%d->%d docs), max_results=%d (%d->%d docs)",
-                    threshold,
-                    len(ranked_documents),
-                    len(filtered_documents),
-                    max_results,
-                    len(filtered_documents),
-                    len(final_documents),
+                    "Applied filters",
+                    threshold=threshold,
+                    before_threshold_filter=len(ranked_documents),
+                    after_threshold_filter=len(filtered_documents),
+                    max_results=max_results,
+                    before_max_filter=len(filtered_documents),
+                    final_count=len(final_documents),
                 )
 
                 return final_documents

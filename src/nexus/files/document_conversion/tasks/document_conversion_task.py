@@ -12,10 +12,10 @@ Key design decisions:
 """
 
 import contextlib
-import logging
 from collections.abc import AsyncGenerator, Callable
 from uuid import UUID
 
+import structlog
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.database.session import get_db
@@ -26,7 +26,7 @@ from nexus.files.document_conversion.services.document_conversion_service import
 from nexus.files.document_conversion.services.types import ConversionState
 from nexus.files.models import FileStatus
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class DocumentConversionTask:
@@ -85,22 +85,22 @@ class DocumentConversionTask:
             ConversionState indicating the result (SUCCESS, FAILED, SKIPPED)
 
         """
-        logger.info("Starting document conversion (file_id=%s)", file_id)
+        logger.info("Starting document conversion", file_id=file_id)
 
         try:
             async with self.get_async_session_context() as session:
                 # Get file metadata from database via FileManager
                 file_metadata = await self.file_manager.get_file_metadata(file_id, session)
                 if not file_metadata:
-                    logger.error("File not found (file_id=%s)", file_id)
+                    logger.error("File not found", file_id=file_id)
                     return ConversionState.FAILED
 
                 # Skip if not pending conversion
                 if file_metadata.status != FileStatus.PENDING_CONVERSION:
                     logger.info(
-                        "Skipping file not pending conversion (file_id=%s, status=%s)",
-                        file_id,
-                        file_metadata.status.value,
+                        "Skipping file not pending conversion",
+                        file_id=file_id,
+                        status=file_metadata.status.value,
                     )
                     return ConversionState.SKIPPED
 
@@ -119,23 +119,23 @@ class DocumentConversionTask:
 
                 # Perform conversion using the service
                 logger.info(
-                    "Converting file (file_id=%s, filename=%s, mime_type=%s)",
-                    file_id,
-                    file_metadata.filename,
-                    file_metadata.mime_type,
+                    "Converting file",
+                    file_id=file_id,
+                    filename=file_metadata.filename,
+                    mime_type=file_metadata.mime_type,
                 )
 
                 result = await self.service.convert_file(file_metadata, status_updater=status_updater)
 
                 logger.info(
-                    "Document conversion completed (file_id=%s, result=%s)",
-                    file_id,
-                    result.name,
+                    "Document conversion completed",
+                    file_id=file_id,
+                    result=result.name,
                 )
                 return result
 
         except Exception:
-            logger.exception("Error during document conversion (file_id=%s)", file_id)
+            logger.exception("Error during document conversion", file_id=file_id)
 
             # Try to update status to FAILED
             try:
@@ -147,7 +147,7 @@ class DocumentConversionTask:
                         conversion_error="Unexpected error during conversion",
                     )
             except Exception:
-                logger.exception("Failed to update file status after error (file_id=%s)", file_id)
+                logger.exception("Failed to update file status after error", file_id=file_id)
 
             return ConversionState.FAILED
 

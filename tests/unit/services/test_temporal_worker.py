@@ -487,9 +487,9 @@ class TestTemporalWorkerServiceLogging:
 
             # Verify logger was called with connection info
             mock_logger.info.assert_any_call(
-                "Connecting to Temporal server at %s (namespace: %s)",
-                "test.temporal.io:7233",
-                "test-namespace",
+                "Connecting to Temporal server",
+                temporal_address="test.temporal.io:7233",
+                namespace="test-namespace",
             )
 
     @pytest.mark.asyncio

@@ -1,9 +1,9 @@
 """Tool Provider API endpoints."""
 
-import logging
 from typing import Annotated, Any
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -39,7 +39,7 @@ from nexus.tool_manager.services.tool_service import ToolService
 
 router = APIRouter(prefix="/tool_manager", tags=["tools", "tool_providers"])
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 # ============================================================================

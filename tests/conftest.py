@@ -7,7 +7,6 @@ This module provides:
 
 import asyncio
 import gc
-import logging
 import os
 import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
@@ -21,6 +20,7 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 import sqlalchemy
+import structlog
 from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
@@ -41,6 +41,7 @@ from nexus.api.auth.dependencies import get_current_user
 from nexus.api.main import app
 from nexus.core.config.base import Settings, get_settings
 from nexus.core.database.session import get_db
+from nexus.core.logging.logging import configure_structlog
 from nexus.core.models import User, UserRole
 from nexus.files.models import FileMetadata
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
@@ -61,7 +62,13 @@ from tests.helpers.workflow import ExecutionsFactory
 # Ensure models are registered with SQLModel metadata
 _ = (Invocation, User, Workflow, WorkflowVersion, Execution, FileMetadata)
 
-logger = logging.getLogger(__name__)
+# Configure structlog for consistent test logging
+# This ensures that all tests have proper structlog configuration,
+# preventing unpredictable behavior when error handlers or other components
+# use structlog.stdlib.get_logger(__name__) without configuration.
+configure_structlog()
+
+logger = structlog.stdlib.get_logger(__name__)
 
 
 # ============================================================================
@@ -426,13 +433,6 @@ async def session_app(worker_id: str) -> AsyncGenerator[FastAPI, None]:
     # This happens once per worker session
     async with app.router.lifespan_context(app):
         logger.info("Session app initialized for worker '%s'", worker_id)
-
-        # CRITICAL: Reset nexus logger propagation for caplog in tests
-        # The lifespan sets nexus_logger.propagate = False for production logging,
-        # but tests need propagation enabled for pytest's caplog to capture logs.
-        # This must be done after lifespan startup completes.
-        nexus_logger = logging.getLogger("nexus")
-        nexus_logger.propagate = True
 
         yield app
 

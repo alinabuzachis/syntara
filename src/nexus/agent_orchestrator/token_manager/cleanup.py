@@ -4,15 +4,15 @@ This module provides functionality to clean up token usage records that are
 beyond the retention period, preventing unbounded database growth.
 """
 
-import logging
 from datetime import UTC, datetime, timedelta
 
+import structlog
 from sqlalchemy import delete
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 async def cleanup_old_usage_records(
@@ -36,7 +36,7 @@ async def cleanup_old_usage_records(
         async with AsyncSession(engine) as session:
             deleted_count = await cleanup_old_usage_records(session, retention_days=90)
             await session.commit()
-            logger.info(f"Deleted {deleted_count} old usage records")
+            logger.info("Deleted old usage records", deleted_count=deleted_count)
 
     """
     if retention_days <= 0:
@@ -54,11 +54,9 @@ async def cleanup_old_usage_records(
 
     logger.info(
         "Token usage cleanup completed",
-        extra={
-            "deleted_count": deleted_count,
-            "retention_days": retention_days,
-            "cutoff_timestamp": cutoff_timestamp.isoformat(),
-        },
+        deleted_count=deleted_count,
+        retention_days=retention_days,
+        cutoff_timestamp=cutoff_timestamp.isoformat(),
     )
 
     return deleted_count

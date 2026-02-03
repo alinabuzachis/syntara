@@ -439,24 +439,24 @@ class TestLoadSchemas:
             schemas = load_schemas(["example/openapi.json", "nonexistent_test_12345.json"])
             assert len(schemas) == 1
 
-            # Verify logger.info was called with the summary message (uses format string)
+            # Verify logger.info was called with the summary message (uses kwargs format)
             assert mock_logger.info.called
-            call_args = mock_logger.info.call_args[0]
-            assert "Loaded %d/%d schema files" in call_args[0]
-            assert call_args[1] == 1  # successful
-            assert call_args[2] == 2  # total
+            call_args = mock_logger.info.call_args
+            assert "Loaded schema files successfully" in call_args[0][0]
+            assert call_args[1]["loaded_count"] == 1  # successful
+            assert call_args[1]["total_count"] == 2  # total
 
         # All failures
         with patch("nexus.core.router.loader.logger") as mock_logger:
             schemas = load_schemas(["nonexistent1_test.json", "nonexistent2_test.json"])
             assert schemas == []
 
-            # Verify logger.info was called with the summary message (uses format string)
+            # Verify logger.info was called with the summary message (uses kwargs format)
             assert mock_logger.info.called
-            call_args = mock_logger.info.call_args[0]
-            assert "Loaded %d/%d schema files" in call_args[0]
-            assert call_args[1] == 0  # successful
-            assert call_args[2] == 2  # total
+            call_args = mock_logger.info.call_args
+            assert "Loaded schema files successfully" in call_args[0][0]
+            assert call_args[1]["loaded_count"] == 0  # successful
+            assert call_args[1]["total_count"] == 2  # total
 
         # Empty list
         schemas = load_schemas([])

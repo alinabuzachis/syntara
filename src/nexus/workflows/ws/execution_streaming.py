@@ -3,9 +3,9 @@
 Thin proxy handler that delegates to ExecutionStreamingService for actual streaming logic.
 """
 
-import logging
 from uuid import UUID
 
+import structlog
 from fastapi import WebSocket
 from pydantic import ValidationError
 
@@ -13,7 +13,7 @@ from nexus.core.websocket.close_codes import UNSUPPORTED_DATA
 from nexus.workflows.models.query_params import ExecutionStreamingQueryParams
 from nexus.workflows.services.execution_streaming_service import get_execution_streaming_service
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 async def on_connect_executions(websocket: WebSocket, connection_id: str) -> None:
@@ -34,7 +34,7 @@ async def on_connect_executions(websocket: WebSocket, connection_id: str) -> Non
     try:
         execution_id = UUID(execution_id_str)
     except ValueError:
-        logger.exception("Invalid execution_id in path: %s", execution_id_str)
+        logger.exception("Invalid execution_id in path", execution_id_str=execution_id_str)
         await websocket.close(code=UNSUPPORTED_DATA, reason="Invalid execution ID")
         return
 
@@ -43,7 +43,7 @@ async def on_connect_executions(websocket: WebSocket, connection_id: str) -> Non
         params = ExecutionStreamingQueryParams(**dict(websocket.query_params))
         replay = params.replay
     except ValidationError as e:
-        logger.warning("Invalid query parameters: %s", e)
+        logger.warning("Invalid query parameters", validation_error=str(e))
         # Extract first error message for user-friendly reason
         error_msg = e.errors()[0]["msg"] if e.errors() else "Invalid query parameters"
         await websocket.close(code=UNSUPPORTED_DATA, reason=error_msg)

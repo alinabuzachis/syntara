@@ -97,8 +97,9 @@ class TestOrchestratorAgentContextIntegration:
             # Verify error was logged
             mock_logger.warning.assert_called_once()
             warning_call = mock_logger.warning.call_args[0]
+            warning_kwargs = mock_logger.warning.call_args[1]
             assert "Context integration failed" in warning_call[0]
-            assert invocation_id in warning_call[1]
+            assert warning_kwargs.get("invocation_id") == invocation_id
 
     @pytest.mark.asyncio
     async def test_orchestrator_handles_various_context_exceptions(self) -> None:

@@ -7,9 +7,9 @@ Document conversion is triggered automatically for each uploaded file
 as a background task (AAP-60780 decoupling).
 """
 
-import logging
 from typing import Annotated
 
+import structlog
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -32,7 +32,7 @@ from nexus.files.document_conversion.tasks import DocumentConversionTask
 from nexus.files.validators import ValidationError as FileValidationError
 
 router = APIRouter(prefix="/files", tags=["Files"])
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 # ============================================================================
@@ -146,8 +146,8 @@ async def upload_files(
         # This enables pre-conversion so files are ready when attached to invocations
         for metadata in file_metadata_list:
             logger.info(
-                "Scheduling document conversion for standalone file upload (file_id=%s)",
-                metadata.id,
+                "Scheduling document conversion for standalone file upload",
+                file_id=metadata.id,
             )
             background_tasks.add_task(document_conversion_task.convert, metadata.id)
 
@@ -169,7 +169,7 @@ async def upload_files(
         )
 
     except FileValidationError as e:
-        logger.warning("File validation error: %s", e)
+        logger.warning("File validation error", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),

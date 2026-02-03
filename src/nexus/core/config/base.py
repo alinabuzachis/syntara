@@ -698,6 +698,10 @@ class LoggingSettings(BaseSettings):
         default="INFO",
         description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
     )
+    output_format: str = Field(
+        default="json",
+        description="Log output format (json, text)",
+    )
 
 
 # =============================================================================

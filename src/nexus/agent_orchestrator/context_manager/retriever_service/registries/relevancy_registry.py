@@ -4,8 +4,9 @@ This module provides the RelevancyRegistry class for registering and managing
 different RelevancyChecker implementations with their associated configurations.
 """
 
-import logging
 from typing import Any
+
+import structlog
 
 from nexus.agent_orchestrator.context_manager.retriever_service.checkers.keyword_relevancy_checker import (
     KeywordRelevancyChecker,
@@ -20,7 +21,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy
     RelevancyConfiguration,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class RelevancyRegistry:
@@ -111,12 +112,12 @@ class RelevancyRegistry:
         # Set primary and fallback if this is the first registration
         if self._primary_checker is None:
             self._primary_checker = name
-            logger.info("Set primary checker: %s", name)
+            logger.info("Set primary checker", checker_name=name)
         elif self._fallback_checker is None and name != self._primary_checker:
             self._fallback_checker = name
-            logger.info("Set fallback checker: %s", name)
+            logger.info("Set fallback checker", checker_name=name)
 
-        logger.info("Registered relevancy checker: %s -> %s", name, checker_class.__name__)
+        logger.info("Registered relevancy checker", checker_name=name, checker_class=checker_class.__name__)
 
     def get_checker(self, name: str) -> RelevancyChecker:
         """Get a relevancy checker instance by name.
@@ -138,7 +139,7 @@ class RelevancyRegistry:
         checker_class = self._checkers[name]
         checker_instance = checker_class()
 
-        logger.debug("Created checker instance: %s", name)
+        logger.debug("Created checker instance", checker_name=name)
         return checker_instance
 
     def get_configuration(self, name: str) -> RelevancyConfiguration:
@@ -183,9 +184,9 @@ class RelevancyRegistry:
         old_config = self._configurations[name]
         self._configurations[name] = config
 
-        logger.info("Updated configuration for checker '%s'", name)
-        logger.debug("Old config: %s", old_config.model_dump())
-        logger.debug("New config: %s", config.model_dump())
+        logger.info("Updated configuration for checker", checker_name=name)
+        logger.debug("Old config", old_config=old_config.model_dump())
+        logger.debug("New config", new_config=config.model_dump())
 
     def get_primary_checker(self) -> tuple[RelevancyChecker, RelevancyConfiguration] | None:
         """Get the primary relevancy checker and its configuration.
@@ -203,7 +204,7 @@ class RelevancyRegistry:
         checker = self.get_checker(self._primary_checker)
         config = self.get_configuration(self._primary_checker)
 
-        logger.debug("Retrieved primary checker: %s", self._primary_checker)
+        logger.debug("Retrieved primary checker", checker_name=self._primary_checker)
         return checker, config
 
     def get_fallback_checker(self) -> tuple[RelevancyChecker, RelevancyConfiguration] | None:
@@ -222,7 +223,7 @@ class RelevancyRegistry:
         checker = self.get_checker(self._fallback_checker)
         config = self.get_configuration(self._fallback_checker)
 
-        logger.debug("Retrieved fallback checker: %s", self._fallback_checker)
+        logger.debug("Retrieved fallback checker", checker_name=self._fallback_checker)
         return checker, config
 
     def set_primary_checker(self, name: str) -> None:
@@ -242,7 +243,7 @@ class RelevancyRegistry:
         old_primary = self._primary_checker
         self._primary_checker = name
 
-        logger.info("Changed primary checker from '%s' to '%s'", old_primary, name)
+        logger.info("Changed primary checker", old_primary=old_primary, new_primary=name)
 
     def set_fallback_checker(self, name: str) -> None:
         """Set the fallback relevancy checker.
@@ -261,7 +262,7 @@ class RelevancyRegistry:
         old_fallback = self._fallback_checker
         self._fallback_checker = name
 
-        logger.info("Changed fallback checker from '%s' to '%s'", old_fallback, name)
+        logger.info("Changed fallback checker", old_fallback=old_fallback, new_fallback=name)
 
     def list_checkers(self) -> list[str]:
         """List names of all registered checkers.
@@ -285,7 +286,7 @@ class RelevancyRegistry:
             config = self.get_configuration(name)
             all_checkers[name] = (checker_instance, config)
 
-        logger.debug("Created instances for %d checkers", len(all_checkers))
+        logger.debug("Created instances for checkers", checker_count=len(all_checkers))
         return all_checkers
 
 
@@ -309,7 +310,7 @@ def _setup_default_registry() -> "RelevancyRegistry":
     registry.set_primary_checker("llm")
     registry.set_fallback_checker("keyword")
 
-    logger.info("Initialized RelevancyRegistry with %d default checkers", len(registry.list_checkers()))
+    logger.info("Initialized RelevancyRegistry with default checkers", checker_count=len(registry.list_checkers()))
 
     return registry
 

@@ -4,12 +4,12 @@ Provides a template method pattern for implementing WebSocket streaming handlers
 """
 
 import asyncio
-import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+import structlog
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.websockets import WebSocket
@@ -23,7 +23,7 @@ from nexus.core.websocket.close_codes import INTERNAL_ERROR, NORMAL_CLOSURE
 from nexus.core.websocket.exceptions import StreamingValidationError, WaitForStreamTimeoutError
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class BaseWebSocketStreamingHandler(ABC):
@@ -59,7 +59,7 @@ class BaseWebSocketStreamingHandler(ABC):
         """
         self._session_factory = session_factory
         self._channel_name = channel_name
-        logger.info("%s initialized with channel: %s", self.__class__.__name__, channel_name)
+        logger.info("Handler initialized with channel", handler=self.__class__.__name__, channel=channel_name)
 
     # ============ Template Methods (Must Override) ============
 
@@ -187,7 +187,7 @@ class BaseWebSocketStreamingHandler(ABC):
             try:
                 replay = int(replay_count)
             except (ValueError, TypeError):
-                logger.warning("Invalid replay_count '%s', defaulting to 10", replay_count)
+                logger.warning("Invalid replay_count, defaulting to 10", replay_count=replay_count)
                 replay = 10
 
         return start_id, replay
@@ -270,7 +270,7 @@ class BaseWebSocketStreamingHandler(ABC):
             )
 
             conn_id = connection_id or resource_id[:8]
-            logger.info("Starting event streaming (connection %s)", conn_id)
+            logger.info("Starting event streaming", connection_id=conn_id)
 
             # Activate connection after successful setup
             lifecycle_manager.activate_connection(lifecycle_conn_id)
@@ -289,7 +289,7 @@ class BaseWebSocketStreamingHandler(ABC):
             # Step 4: Stream events to client
             stop_condition = self.get_stop_condition(session_state)
             async with StreamClient() as client:
-                logger.info("Starting event stream (connection %s)", conn_id)
+                logger.info("Starting event stream", connection_id=conn_id)
                 async for event in client.events(
                     stream_id=stream_id,
                     start_id=start_id,
@@ -302,11 +302,11 @@ class BaseWebSocketStreamingHandler(ABC):
                     await websocket.send_json(event)
 
                     event_type = event.get("event_type")
-                    logger.debug("Sent %s event to %s", event_type, conn_id)
+                    logger.debug("Sent event to connection", event_type=event_type, connection_id=conn_id)
 
             # Stream completed normally
             await self._close_websocket(websocket, NORMAL_CLOSURE, "Streaming complete")
-            logger.info("Event streaming completed (connection %s)", conn_id)
+            logger.info("Event streaming completed", connection_id=conn_id)
 
         except Exception as e:
             # Handle errors
@@ -335,13 +335,13 @@ class BaseWebSocketStreamingHandler(ABC):
         """
         if isinstance(error, StreamingValidationError):
             # Handle validation errors by sending error event to client
-            logger.warning("Streaming validation error for %s: %s", conn_id, error)
+            logger.warning("Streaming validation error", connection_id=conn_id, error=str(error))
             resource_id = self.get_resource_id(session_state) if session_state else "unknown"
             await self._send_error_event(websocket, error.error_data, resource_id)
             await self._close_websocket(websocket, error.close_code, error.error_data.title)
         else:
             # Handle unexpected errors
-            logger.exception("Error streaming events to %s", conn_id)
+            logger.exception("Error streaming events to connection", connection_id=conn_id)
 
             # Try to send error to client if possible
             try:
@@ -413,9 +413,9 @@ class BaseWebSocketStreamingHandler(ABC):
 
         """
         logger.info(
-            "Stream %s does not exist yet, waiting for creation (resource status: %s)",
-            stream_id,
-            resource_status,
+            "Stream does not exist yet, waiting for creation",
+            stream_id=stream_id,
+            resource_status=resource_status,
         )
 
         wait_interval = 0.5
@@ -428,11 +428,11 @@ class BaseWebSocketStreamingHandler(ABC):
 
                 info = await client.info(stream_id)
                 if info["exists"]:
-                    logger.info("Stream %s created after %.1fs", stream_id, total_waited)
+                    logger.info("Stream created after wait", stream_id=stream_id, wait_time=total_waited)
                     return
 
             # Timeout waiting for stream
-            logger.error("Timeout waiting for stream %s to be created", stream_id)
+            logger.error("Timeout waiting for stream to be created", stream_id=stream_id)
             raise WaitForStreamTimeoutError(
                 resource_id=resource_id,
                 resource_status=resource_status,

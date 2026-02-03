@@ -9,9 +9,9 @@ must access FileMetadata records through FileManager methods, not via direct
 database queries (encapsulation principle).
 """
 
-import logging
 from uuid import UUID, uuid4
 
+import structlog
 from fastapi import UploadFile
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -22,7 +22,7 @@ from nexus.files.models import FileMetadata, FileStatus
 from nexus.files.retrievers.base import BaseRetriever
 from nexus.files.retrievers.local import LocalFileRetriever
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class FileManager:
@@ -111,8 +111,8 @@ class FileManager:
 
         """
         logger.info(
-            "Starting file upload processing (file_count=%d)",
-            len(files),
+            "Starting file upload processing",
+            file_count=len(files),
         )
 
         # Step 1: Validate all files (single read per file)
@@ -164,16 +164,16 @@ class FileManager:
                 file_metadata_list.append(metadata)
 
                 logger.info(
-                    "File processed successfully (filename=%s, file_id=%s)",
-                    filename,
-                    file_id,
+                    "File processed successfully",
+                    filename=filename,
+                    file_id=file_id,
                 )
 
         except (OSError, PermissionError):
             # Storage failure - cleanup already saved files
             logger.exception(
-                "Storage failure during file processing, cleaning up %d saved files",
-                len(saved_file_paths),
+                "Storage failure during file processing, cleaning up saved files",
+                saved_file_count=len(saved_file_paths),
             )
 
             # Attempt to delete saved files
@@ -183,8 +183,8 @@ class FileManager:
             raise
 
         logger.info(
-            "All files processed successfully (file_count=%d)",
-            len(file_metadata_list),
+            "All files processed successfully",
+            file_count=len(file_metadata_list),
         )
 
         return file_metadata_list
@@ -273,9 +273,9 @@ class FileManager:
         await session.commit()
 
         logger.info(
-            "File status updated (file_id=%s, status=%s)",
-            file_id,
-            status.value,
+            "File status updated",
+            file_id=file_id,
+            status=status.value,
         )
 
         return file_metadata

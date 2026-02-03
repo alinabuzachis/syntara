@@ -4,8 +4,7 @@ This module provides centralized error handling utilities and framework-level
 error handlers that are shared across all domains.
 """
 
-import logging
-
+import structlog
 from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -15,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from nexus.agent_orchestrator.utils import is_retryable_error
 from nexus.core.models.base.error import ErrorData
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 INTERNAL_SERVER_ERROR: str = "Internal Server Error"
 REQUEST_VALIDATION_ERROR: str = "Request Validation Error"
@@ -67,7 +66,7 @@ def create_problem_details_response(
         instance=instance,
     )
 
-    logger.debug("Created ErrorData %s", error_data.to_dict())
+    logger.debug("Created ErrorData", error_data=error_data.to_dict())
 
     return JSONResponse(
         status_code=status_code,
@@ -104,7 +103,7 @@ def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse
 
     problem_key, title = status_mapping.get(exc.status_code, ("internal_error", "Error"))
 
-    logger.error("HTTPException %s, %s", problem_key, title, exc_info=exc)
+    logger.error("HTTPException", problem_key=problem_key, title=title, exc_info=exc)
     return create_problem_details_response(
         status_code=exc.status_code,
         problem_type=PROBLEM_TYPES[problem_key],

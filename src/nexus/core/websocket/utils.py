@@ -1,9 +1,10 @@
 """Utility functions for WebSocket operations."""
 
-import logging
 from typing import Any
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def normalize_channel_name(name: str) -> str:
@@ -63,12 +64,12 @@ def is_receive_only_channel(spec: dict[str, Any], channel_name: str) -> bool:
     operations = spec.get("operations", {})
 
     if not operations:
-        logger.debug("No operations section found, treating %s as bidirectional", channel_name)
+        logger.debug("No operations section found, treating channel as bidirectional", channel_name=channel_name)
         return False
 
     # Handle malformed operations section
     if not isinstance(operations, dict):
-        logger.debug("Operations section is not a dict, treating %s as bidirectional", channel_name)
+        logger.debug("Operations section is not a dict, treating channel as bidirectional", channel_name=channel_name)
         return False
 
     # Build the channel reference to match against
@@ -89,18 +90,18 @@ def is_receive_only_channel(spec: dict[str, Any], channel_name: str) -> bool:
 
             if action == "receive":
                 has_receive = True
-                logger.debug("Operation '%s' has receive action for %s", operation_name, channel_name)
+                logger.debug("Operation has receive action", operation_name=operation_name, channel_name=channel_name)
             elif action == "send":
                 has_send = True
-                logger.debug("Operation '%s' has send action for %s", operation_name, channel_name)
+                logger.debug("Operation has send action", operation_name=operation_name, channel_name=channel_name)
 
     is_receive_only = has_receive and not has_send
     logger.debug(
-        "Channel %s: receive=%s, send=%s, receive_only=%s",
-        channel_name,
-        has_receive,
-        has_send,
-        is_receive_only,
+        "Channel operation summary",
+        channel_name=channel_name,
+        has_receive=has_receive,
+        has_send=has_send,
+        is_receive_only=is_receive_only,
     )
 
     return is_receive_only

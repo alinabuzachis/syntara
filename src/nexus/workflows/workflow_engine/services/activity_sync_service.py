@@ -5,12 +5,12 @@ to the database in real-time by streaming Temporal history events.
 """
 
 import asyncio
-import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+import structlog
 from jsonpatch import JsonPatch  # type: ignore[import-untyped]
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -30,7 +30,7 @@ from nexus.workflows.utils.activity_traversal import (
 )
 from nexus.workflows.utils.datetime import ensure_timezone_aware
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 @dataclass
@@ -109,10 +109,10 @@ class ActivitySyncService:
         task_key = str(execution_id)
 
         if task_key in self._sync_tasks:
-            logger.warning("Already monitoring execution %s", execution_id)
+            logger.warning("Already monitoring execution", execution_id=execution_id)
             return
 
-        logger.info("Starting activity sync monitoring for execution %s", execution_id)
+        logger.info("Starting activity sync monitoring for execution", execution_id=execution_id)
 
         # Create background task to monitor this execution
         task = asyncio.create_task(
@@ -136,11 +136,11 @@ class ActivitySyncService:
         self._sync_tasks.pop(task_key, None)
 
         if task.cancelled():
-            logger.debug("Monitoring task for execution %s was cancelled", execution_id)
+            logger.debug("Monitoring task for execution was cancelled", execution_id=execution_id)
         elif task.exception():
-            logger.error("Monitoring task for execution %s failed: %s", execution_id, task.exception())
+            logger.error("Monitoring task for execution failed", execution_id=execution_id, error=str(task.exception()))
         else:
-            logger.info("Monitoring task for execution %s completed successfully", execution_id)
+            logger.info("Monitoring task for execution completed successfully", execution_id=execution_id)
 
     async def _update_execution_to_running(self, metadata: ExecutionMonitorMetadata, event: HistoryEvent) -> None:
         """Update execution status to RUNNING when workflow starts.
@@ -158,7 +158,7 @@ class ActivitySyncService:
                 execution = result.one_or_none()
 
                 if not execution:
-                    logger.warning("Execution %s not found when updating to RUNNING", metadata.execution_id)
+                    logger.warning("Execution not found when updating to RUNNING", execution_id=metadata.execution_id)
                     return
 
                 # Only update if currently PENDING (defensive check for race conditions)
@@ -167,16 +167,16 @@ class ActivitySyncService:
                     execution.last_processed_event_id = event.event_id
                     execution.updated_at = datetime.now(UTC)
                     await session.commit()
-                    logger.info("Updated execution %s to RUNNING status", metadata.execution_id)
+                    logger.info("Updated execution to RUNNING status", execution_id=metadata.execution_id)
                 else:
                     logger.debug(
-                        "Skipping RUNNING update for execution %s - already in %s state",
-                        metadata.execution_id,
-                        execution.status.value,
+                        "Skipping RUNNING update for execution - already in state",
+                        execution_id=metadata.execution_id,
+                        current_status=execution.status.value,
                     )
             except Exception:
                 await session.rollback()
-                logger.exception("Error updating execution %s to RUNNING", metadata.execution_id)
+                logger.exception("Error updating execution to RUNNING", execution_id=metadata.execution_id)
                 # Don't raise - this is non-critical, monitoring should continue
 
     async def shutdown(self) -> None:
@@ -312,7 +312,11 @@ class ActivitySyncService:
 
         """
         try:
-            logger.info("Starting activity monitor for execution %s (temporal: %s)", execution_id, temporal_workflow_id)
+            logger.info(
+                "Starting activity monitor for execution (temporal)",
+                execution_id=execution_id,
+                temporal_workflow_id=temporal_workflow_id,
+            )
 
             handle: WorkflowHandle[Any, Any] = self.temporal_client.get_workflow_handle(temporal_workflow_id)
 
@@ -320,7 +324,7 @@ class ActivitySyncService:
 
             async for event in handle.fetch_history_events(page_size=1000, wait_new_event=True):
                 if self._shutdown:
-                    logger.info("Shutdown requested, stopping monitoring for execution %s", execution_id)
+                    logger.info("Shutdown requested, stopping monitoring for execution", execution_id=execution_id)
                     break
 
                 if event.event_id <= metadata.last_processed_event_id:
@@ -354,15 +358,15 @@ class ActivitySyncService:
             if metadata.pending_activity_updates and not self._shutdown:
                 await self._sync_activities_to_db(metadata, handle)
 
-            logger.info("Activity monitoring completed for execution %s", execution_id)
+            logger.info("Activity monitoring completed for execution", execution_id=execution_id)
 
         except asyncio.CancelledError:
-            logger.info("Activity monitoring cancelled for execution %s", execution_id)
+            logger.info("Activity monitoring cancelled for execution", execution_id=execution_id)
             raise
         except TemporalError as e:
-            logger.warning("Temporal error while monitoring execution %s: %s", execution_id, e)
+            logger.warning("Temporal error while monitoring execution", execution_id=execution_id, error=str(e))
         except Exception:
-            logger.exception("Error monitoring execution %s", execution_id)
+            logger.exception("Error monitoring execution", execution_id=execution_id)
 
     def _process_activity_scheduled(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_SCHEDULED event."""
@@ -486,7 +490,9 @@ class ActivitySyncService:
                 execution = result.one_or_none()
 
                 if not execution:
-                    logger.warning("Execution %s not found when processing workflow completion", metadata.execution_id)
+                    logger.warning(
+                        "Execution not found when processing workflow completion", execution_id=metadata.execution_id
+                    )
                     return
 
                 terminal_states = {ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
@@ -494,7 +500,9 @@ class ActivitySyncService:
                 # Only update if not already in terminal state (idempotency)
                 if execution.status in terminal_states:
                     logger.debug(
-                        "Execution %s already in terminal state %s", metadata.execution_id, execution.status.value
+                        "Execution already in terminal state",
+                        execution_id=metadata.execution_id,
+                        status=execution.status.value,
                     )
                     return
 
@@ -505,11 +513,11 @@ class ActivitySyncService:
                 if completed_at <= execution.created_at:
                     completed_at = execution.created_at + timedelta(microseconds=1)
                     logger.warning(
-                        "Workflow %s completed (%s) before execution created (%s), adjusting to %s",
-                        execution.temporal_workflow_id,
-                        completed_at.isoformat(),
-                        execution.created_at.isoformat(),
-                        completed_at.isoformat(),
+                        "Workflow completed before execution created, adjusting",
+                        temporal_workflow_id=execution.temporal_workflow_id,
+                        completed_at=completed_at.isoformat(),
+                        created_at=execution.created_at.isoformat(),
+                        adjusted_completed_at=completed_at.isoformat(),
                     )
 
                 # Update execution to terminal state
@@ -523,26 +531,26 @@ class ActivitySyncService:
                 await session.commit()
 
                 logger.info(
-                    "Updated execution %s to %s status at %s",
-                    metadata.execution_id,
-                    status.value,
-                    completed_at.isoformat(),
+                    "Updated execution to status at time",
+                    execution_id=metadata.execution_id,
+                    status=status.value,
+                    completed_at=completed_at.isoformat(),
                 )
 
                 # Publish final snapshot after execution reaches terminal state
                 try:
                     await self.activity_publisher.publish_snapshot(execution, "final_snapshot")
-                    logger.debug("Published final snapshot for execution %s", metadata.execution_id)
+                    logger.debug("Published final snapshot for execution", execution_id=metadata.execution_id)
                 except Exception:
                     # Log error but don't fail (publishing is best-effort)
                     logger.exception(
-                        "Failed to publish final snapshot for execution %s (non-fatal)", metadata.execution_id
+                        "Failed to publish final snapshot for execution (non-fatal)", execution_id=metadata.execution_id
                     )
 
             except Exception:
                 await session.rollback()
                 logger.exception(
-                    "Error updating execution %s status from workflow completion event", metadata.execution_id
+                    "Error updating execution status from workflow completion event", execution_id=metadata.execution_id
                 )
                 # Don't raise - monitoring should continue
 
@@ -613,9 +621,9 @@ class ActivitySyncService:
                         # This shouldn't happen since we created all activities upfront
                         # Log a warning but don't fail
                         logger.warning(
-                            "Activity %s not found in database for execution %s (should have been created upfront)",
-                            activity_id,
-                            metadata.execution_id,
+                            "Activity not found in database for execution (should have been created upfront)",
+                            activity_id=activity_id,
+                            execution_id=metadata.execution_id,
                         )
                         continue
 
@@ -627,7 +635,7 @@ class ActivitySyncService:
                         input_data = await handle.query("get_activity_input", activity_id) or {}
                         output_data = await handle.query("get_activity_output", activity_id)
                     except (TemporalError, ValueError) as e:
-                        logger.debug("Could not query activity data for %s: %s", activity_id, e)
+                        logger.debug("Could not query activity data", activity_id=activity_id, error=str(e))
 
                     # Store old values before updating
                     old_values = {
@@ -665,7 +673,9 @@ class ActivitySyncService:
 
             except Exception:
                 await session.rollback()
-                logger.exception("Error syncing activities to database for execution %s", metadata.execution_id)
+                logger.exception(
+                    "Error syncing activities to database for execution", execution_id=metadata.execution_id
+                )
                 raise
 
     async def _fetch_activity_definitions_map(
@@ -746,11 +756,11 @@ class ActivitySyncService:
         if activities_to_skip:
             await self._mark_activities_skipped(metadata, activities_to_skip)
             logger.info(
-                "Condition %s took '%s' branch, marked %d activities in '%s' branch as SKIPPED",
-                condition_id,
-                taken_branch,
-                len(activities_to_skip),
-                opposite_branch,
+                "Condition took branch, marked activities in opposite branch as SKIPPED",
+                condition_id=condition_id,
+                taken_branch=taken_branch,
+                skipped_activity_count=len(activities_to_skip),
+                opposite_branch=opposite_branch,
             )
 
     async def _mark_activities_skipped(
@@ -804,10 +814,10 @@ class ActivitySyncService:
                 await session.commit()
 
                 logger.debug(
-                    "Marked %d activities as SKIPPED for execution %s (out of %d requested)",
-                    len(activities),
-                    metadata.execution_id,
-                    len(activity_ids),
+                    "Marked activities as SKIPPED for execution (out of requested)",
+                    marked_count=len(activities),
+                    execution_id=metadata.execution_id,
+                    requested_count=len(activity_ids),
                 )
 
                 # Publish activity patches after commit
@@ -816,7 +826,9 @@ class ActivitySyncService:
 
             except Exception:
                 await session.rollback()
-                logger.exception("Error marking activities as SKIPPED for execution %s", metadata.execution_id)
+                logger.exception(
+                    "Error marking activities as SKIPPED for execution", execution_id=metadata.execution_id
+                )
                 raise
 
     async def _create_all_activities_upfront(
@@ -847,7 +859,9 @@ class ActivitySyncService:
                 existing = result.one_or_none()
 
                 if existing:
-                    logger.debug("Activities already exist for execution %s, skipping upfront creation", execution_id)
+                    logger.debug(
+                        "Activities already exist for execution, skipping upfront creation", execution_id=execution_id
+                    )
                     return
 
                 # Create ActivityExecution records for all trackable activities
@@ -882,9 +896,9 @@ class ActivitySyncService:
 
                     await session.commit()
                     logger.info(
-                        "Created %d ActivityExecution records upfront for execution %s",
-                        len(new_activities),
-                        execution_id,
+                        "Created ActivityExecution records upfront for execution",
+                        record_count=len(new_activities),
+                        execution_id=execution_id,
                     )
 
                     # Publish initial snapshot after activities are created
@@ -897,16 +911,16 @@ class ActivitySyncService:
 
                         if execution:
                             await self.activity_publisher.publish_snapshot(execution, "initial_snapshot")
-                            logger.debug("Published initial snapshot for execution %s", execution_id)
+                            logger.debug("Published initial snapshot for execution", execution_id=execution_id)
                     except Exception:
                         # Log error but don't fail (publishing is best-effort)
                         logger.exception(
-                            "Failed to publish initial snapshot for execution %s (non-fatal)", execution_id
+                            "Failed to publish initial snapshot for execution (non-fatal)", execution_id=execution_id
                         )
 
             except Exception:
                 await session.rollback()
-                logger.exception("Error creating activities upfront for execution %s", execution_id)
+                logger.exception("Error creating activities upfront for execution", execution_id=execution_id)
                 raise
 
     async def _publish_activity_patches(
@@ -934,9 +948,9 @@ class ActivitySyncService:
                 activity_idx = metadata.activity_index_map.get(activity.activity_name)
                 if activity_idx is None:
                     logger.warning(
-                        "Activity %s not found in activities list for execution %s",
-                        activity.activity_name,
-                        execution_id,
+                        "Activity not found in activities list for execution",
+                        activity_name=activity.activity_name,
+                        execution_id=execution_id,
                     )
                     continue
 
@@ -975,12 +989,12 @@ class ActivitySyncService:
                 await self.activity_publisher.publish_activity_patch(execution_id, [json_patch])
 
                 logger.debug(
-                    "Published %d patch operations for execution %s (%d activities updated)",
-                    len(patch_ops),
-                    execution_id,
-                    len(updated_activities),
+                    "Published patch operations for execution (activities updated)",
+                    operation_count=len(patch_ops),
+                    execution_id=execution_id,
+                    updated_activity_count=len(updated_activities),
                 )
 
         except Exception:
             # Log error but don't fail database sync (publishing is best-effort)
-            logger.exception("Failed to publish activity patches for execution %s (non-fatal)", execution_id)
+            logger.exception("Failed to publish activity patches for execution (non-fatal)", execution_id=execution_id)

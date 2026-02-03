@@ -6,16 +6,16 @@ enabling agentic activity execution within workflows.
 
 import asyncio
 import http
-import logging
 from enum import Enum
 from types import TracebackType
 from typing import Any
 from uuid import uuid4
 
 import httpx
+import structlog
 
 # Configure logger
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ErrorCode(str, Enum):
@@ -125,7 +125,7 @@ class AgentOrchestratorClient:
             follow_redirects=True,
         )
 
-        logger.info("Initialized Agent Orchestrator client: %s", self.base_url)
+        logger.info("Initialized Agent Orchestrator client", base_url=self.base_url)
 
     async def close(self) -> None:
         """Close the HTTP client and clean up resources."""
@@ -275,7 +275,7 @@ class AgentOrchestratorClient:
             Exception: For HTTP errors
 
         """
-        logger.debug("Attempt %d/%d (correlation_id=%s)", attempt, self.max_retries, correlation_id)
+        logger.debug("Retry attempt", attempt=attempt, max_retries=self.max_retries, correlation_id=correlation_id)
 
         response = await self.http_client.post(
             "/invocations",
@@ -291,10 +291,10 @@ class AgentOrchestratorClient:
             raise AgentOrchestratorError(msg, code=ErrorCode.MISSING_FIELD, details=str(result))
 
         logger.info(
-            "Invocation created (correlation_id=%s, id=%s, status=%s)",
-            correlation_id,
-            invocation_id,
-            result.get("status"),
+            "Invocation created",
+            correlation_id=correlation_id,
+            invocation_id=invocation_id,
+            status=result.get("status"),
         )
         return str(invocation_id)
 
@@ -368,12 +368,12 @@ class AgentOrchestratorClient:
         session_id = session_id or str(uuid4())
 
         logger.info(
-            "Invoking agent asynchronously (correlation_id=%s, prompt_len=%d, agent=%s, model=%s, file_count=%d)",
-            correlation_id,
-            len(prompt),
-            agent,
-            model,
-            len(file_ids) if file_ids else 0,
+            "Invoking agent asynchronously",
+            correlation_id=correlation_id,
+            prompt_length=len(prompt),
+            agent=agent,
+            model=model,
+            file_count=len(file_ids) if file_ids else 0,
         )
 
         # Build request payload
@@ -400,12 +400,12 @@ class AgentOrchestratorClient:
                 last_error = e
                 backoff = self.retry_backoff_base * (2 ** (attempt - 1))
                 logger.warning(
-                    "Retryable error (attempt %d/%d), retrying in %.1fs (correlation_id=%s): %s",
-                    attempt,
-                    self.max_retries,
-                    backoff,
-                    correlation_id,
-                    str(e),
+                    "Retryable error, retrying with backoff",
+                    attempt=attempt,
+                    max_retries=self.max_retries,
+                    backoff_seconds=backoff,
+                    correlation_id=correlation_id,
+                    error=str(e),
                 )
                 await asyncio.sleep(backoff)
 

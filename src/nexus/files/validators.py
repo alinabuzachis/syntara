@@ -6,17 +6,17 @@ This module provides validation functions for file uploads including:
 - MIME type validation
 """
 
-import logging
 import os
 from typing import Protocol, cast
 
 import magic
+import structlog
 from fastapi import UploadFile
 
 from nexus.core.config.base import Settings
 from nexus.core.constants import MIME_TYPE_DETECTION_MIN_BYTES
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class SeekableFile(Protocol):
@@ -186,11 +186,10 @@ def validate_mime_type_from_bytes(
     # Warn about small files that may have unreliable MIME detection
     if len(file_content) < MIME_TYPE_DETECTION_MIN_BYTES:
         logger.warning(
-            "Small file may cause MIME detection issues (filename=%s, size=%d bytes). "
-            "Detection requires at least %d bytes for reliability.",
-            filename,
-            len(file_content),
-            MIME_TYPE_DETECTION_MIN_BYTES,
+            "Small file may cause MIME detection issues. Detection requires sufficient bytes for reliability.",
+            filename=filename,
+            file_size_bytes=len(file_content),
+            required_min_bytes=MIME_TYPE_DETECTION_MIN_BYTES,
         )
 
     # Detect MIME type using python-magic
@@ -206,9 +205,9 @@ def validate_mime_type_from_bytes(
         raise ValidationError(msg)
 
     logger.debug(
-        "MIME type validated (filename=%s, mime_type=%s)",
-        filename,
-        mime_type,
+        "MIME type validated",
+        filename=filename,
+        mime_type=mime_type,
     )
 
     return mime_type
@@ -263,8 +262,8 @@ async def validate_files(
         validated_files.append((file_content, mime_type))
 
     logger.info(
-        "All files validated successfully (count=%d)",
-        len(files),
+        "All files validated successfully",
+        file_count=len(files),
     )
 
     return validated_files

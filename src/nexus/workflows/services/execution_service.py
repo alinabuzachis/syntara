@@ -4,11 +4,11 @@ This service encapsulates execution-related business logic, separating it from
 HTTP/API concerns in the FastAPI endpoints.
 """
 
-import logging
 from collections.abc import Iterable
 from typing import Any
 from uuid import UUID, uuid4
 
+import structlog
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -35,7 +35,7 @@ from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ExecutionsConvertResourceMixin(ConvertResourceMixin):
@@ -141,7 +141,7 @@ class ExecutionService(BaseService):
             Exception: If Temporal workflow start fails
 
         """
-        logger.info("Creating execution for workflow %s by user %s", workflow_id, self.user.id)
+        logger.info("Creating execution for workflow by user", workflow_id=workflow_id, user_id=self.user.id)
 
         # Step 1: Validate workflow exists and is enabled
         result = await self.session.exec(
@@ -167,10 +167,10 @@ class ExecutionService(BaseService):
             raise WorkflowDisabledError(workflow_id)
 
         logger.info(
-            "Workflow validated: %s (version %d, schema %s)",
-            workflow.name,
-            workflow_version.version,
-            workflow_version.schema_version,
+            "Workflow validated",
+            workflow_name=workflow.name,
+            version=workflow_version.version,
+            schema_version=workflow_version.schema_version,
         )
 
         # Step 2: Start Temporal workflow FIRST (if temporal_service is available)
@@ -185,16 +185,18 @@ class ExecutionService(BaseService):
             temporal_workflow_id = temporal_result.temporal_workflow_id
             execution_id = UUID(temporal_result.execution_id)
             logger.info(
-                "Temporal workflow started: %s (run_id: %s, execution_id: %s)",
-                temporal_result.temporal_workflow_id,
-                temporal_result.temporal_run_id,
-                execution_id,
+                "Temporal workflow started",
+                temporal_workflow_id=temporal_result.temporal_workflow_id,
+                temporal_run_id=temporal_result.temporal_run_id,
+                execution_id=execution_id,
             )
         else:
             # For testing without Temporal, generate a stub ID
             execution_id = uuid4()
             temporal_workflow_id = f"exec-{execution_id}"
-            logger.warning("No Temporal service available, using stub workflow ID: %s", temporal_workflow_id)
+            logger.warning(
+                "No Temporal service available, using stub workflow ID", temporal_workflow_id=temporal_workflow_id
+            )
 
         # Step 3: Create execution record in database ONLY after Temporal accepts workflow
         execution = Execution(
@@ -212,9 +214,9 @@ class ExecutionService(BaseService):
         await self.session.commit()
 
         logger.info(
-            "Execution created successfully: %s (temporal_workflow_id: %s)",
-            execution.id,
-            execution.temporal_workflow_id,
+            "Execution created successfully",
+            execution_id=execution.id,
+            temporal_workflow_id=execution.temporal_workflow_id,
         )
 
         return self.convert_resource_mixin.convert_resource(execution)  # type: ignore[no-any-return]
@@ -317,7 +319,11 @@ class ExecutionService(BaseService):
         )
         activities = list(result.all())
 
-        logger.debug("Retrieved %d activities for execution %s from database", len(activities), execution_id)
+        logger.debug(
+            "Retrieved activities for execution from database",
+            activity_count=len(activities),
+            execution_id=execution_id,
+        )
 
         return activities
 
@@ -350,10 +356,10 @@ class ExecutionService(BaseService):
             raise TemporalUnavailableError(operation)
 
         logger.info(
-            "Sending signal to activity %s in execution %s (temporal_workflow_id: %s)",
-            activity_id,
-            execution_id,
-            execution.temporal_workflow_id,
+            "Sending signal to activity in execution",
+            activity_id=activity_id,
+            execution_id=execution_id,
+            temporal_workflow_id=execution.temporal_workflow_id,
         )
 
         # Send signal via Temporal service
@@ -364,7 +370,7 @@ class ExecutionService(BaseService):
         )
 
         logger.info(
-            "Signal sent successfully to activity %s in execution %s",
-            activity_id,
-            execution_id,
+            "Signal sent successfully to activity in execution",
+            activity_id=activity_id,
+            execution_id=execution_id,
         )

@@ -5,12 +5,13 @@ Python handler functions (handle_<name> and on_connect_<name>).
 """
 
 import inspect
-import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
 from typing import Any
+
+import structlog
 
 from .utils import is_receive_only_channel, normalize_channel_name
 
@@ -29,7 +30,7 @@ __all__ = [
     "validate_naming_convention",
 ]
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def get_server_pathname(spec: dict[str, Any]) -> str:
@@ -92,7 +93,7 @@ class ChannelValidationResult:
 
         """
         self.errors.append(message)
-        logger.error("Validation error in '%s': %s", self.component_name, message)
+        logger.error("Validation error in component", component=self.component_name, message=message)
 
     def add_warning(self, message: str) -> None:
         """Add a validation warning.
@@ -102,7 +103,7 @@ class ChannelValidationResult:
 
         """
         self.warnings.append(message)
-        logger.warning("Validation warning in '%s': %s", self.component_name, message)
+        logger.warning("Validation warning in component", component=self.component_name, message=message)
 
 
 def is_snake_case(name: str) -> bool:
@@ -204,8 +205,8 @@ def check_missing_handlers(
             if is_receive_only:
                 # Info message instead of warning for receive-only channels
                 logger.info(
-                    "No handler for receive-only channel '%s' (not required, events sent via on_connect)",
-                    channel_name,
+                    "No handler for receive-only channel (not required, events sent via on_connect)",
+                    channel=channel_name,
                 )
             else:
                 # Warning for bidirectional channels (existing behavior)
@@ -284,9 +285,9 @@ def validate_channel_addresses(
     # Extract optional pathname from servers section
     pathname = get_server_pathname(spec)
 
-    logger.info("Validating %d channels for component '%s'", len(channels), component_name)
+    logger.info("Validating channels for component", channel_count=len(channels), component=component_name)
     if pathname:
-        logger.info("Using pathname prefix: %s", pathname)
+        logger.info("Using pathname prefix", pathname=pathname)
 
     for channel_name, channel_def in channels.items():
         # Get the address from the channel definition
@@ -305,10 +306,10 @@ def validate_channel_addresses(
         # Example: /invocations/{id}/status/{status_id} → /invocations/status
         base_address = re.sub(r"\{[^}]+\}", "", address)
 
-        logger.debug("Validating channel '%s':", channel_name)
-        logger.debug("  Expected prefix: %s", expected_address)
-        logger.debug("  Actual: %s", address)
-        logger.debug("  Base (without variables): %s", base_address)
+        logger.debug("Validating channel", channel=channel_name)
+        logger.debug("Expected prefix", expected_address=expected_address)
+        logger.debug("Actual address", address=address)
+        logger.debug("Base (without variables)", base_address=base_address)
 
         # Check if base address starts with expected format (prefix match)
         # This allows additional path segments after the channel name
@@ -324,7 +325,7 @@ def validate_channel_addresses(
                 f"  (Base path after removing variables: {base_address})"
             )
         else:
-            logger.debug("  ✓ Address valid")
+            logger.debug("Address valid")
 
 
 def validate_channel_mappings(
@@ -389,7 +390,7 @@ def validate_all_components(
     for component_name, spec in specs.items():
         handler_module = handler_modules.get(component_name)
         if not handler_module:
-            logger.warning("No handler module found for component '%s'", component_name)
+            logger.warning("No handler module found for component", component=component_name)
             continue
 
         # Get spec path for error reporting

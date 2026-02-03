@@ -4,10 +4,10 @@ This module provides an LLM-based relevancy checker that uses OpenRouter
 to access various language models for sophisticated document relevancy scoring.
 """
 
-import logging
 import re
 from typing import cast
 
+import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
@@ -20,7 +20,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.core.constants import RetrieverServiceDefaults
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class LLMRelevancyChecker(RelevancyChecker):
@@ -84,7 +84,7 @@ class LLMRelevancyChecker(RelevancyChecker):
 
         """
         try:
-            logger.debug("Starting LLM relevancy check for document: %s", document.file_metadata.filename)
+            logger.debug("Starting LLM relevancy check for document", filename=document.file_metadata.filename)
 
             # Extract algorithm parameters
             params = config.algorithm_parameters
@@ -142,16 +142,16 @@ class LLMRelevancyChecker(RelevancyChecker):
                 score = self._parse_score_from_response(response_text)
 
                 logger.debug(
-                    "LLM relevancy check completed for %s: score=%.3f, model=%s",
-                    document.file_metadata.filename,
-                    score,
-                    model,
+                    "LLM relevancy check completed",
+                    filename=document.file_metadata.filename,
+                    score=score,
+                    model=model,
                 )
 
                 return score
 
             except Exception as e:
-                logger.exception("LLM API call failed for document %s", document.file_metadata.filename)
+                logger.exception("LLM API call failed for document", filename=document.file_metadata.filename)
                 error_msg = f"LLM API call failed: {e!s}"
                 raise RelevancyCheckError(error_msg) from e
 
@@ -160,7 +160,7 @@ class LLMRelevancyChecker(RelevancyChecker):
             raise
 
         except Exception as e:
-            logger.exception("LLM relevancy check failed for document %s", document.file_metadata.filename)
+            logger.exception("LLM relevancy check failed for document", filename=document.file_metadata.filename)
             error_msg = f"LLM relevancy check failed: {e!s}"
             raise RelevancyCheckError(error_msg) from e
 
@@ -278,7 +278,9 @@ class LLMRelevancyChecker(RelevancyChecker):
             return score
 
         # Default fallback
-        logger.warning("Could not parse relevancy score from LLM response: '%s', returning default 0.5", response[:100])
+        logger.warning(
+            "Could not parse relevancy score from LLM response, returning default 0.5", response_preview=response[:100]
+        )
         return self._get_default_score()
 
     def _get_default_score(self) -> float:

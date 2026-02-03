@@ -3,12 +3,12 @@
 Provides WebSocket event streaming from Redis streams for workflow executions.
 """
 
-import logging
 from collections.abc import Callable
 from functools import lru_cache
 from typing import Any, cast
 from uuid import UUID
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -21,7 +21,7 @@ from nexus.core.websocket.close_codes import POLICY_VIOLATION
 from nexus.core.websocket.exceptions import EventsExpiredError, StreamingValidationError
 from nexus.workflows.models.execution import TERMINAL_EXECUTION_STATUSES, Execution, ExecutionStatus
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 # Constants for stream naming
@@ -159,7 +159,11 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
 
         if execution_status in TERMINAL_EXECUTION_STATUSES:
             # Execution finished but stream doesn't exist - events expired
-            logger.warning("Execution %s is %s but the Redis stream has expired", execution_id, execution_status.value)
+            logger.warning(
+                "Execution is in status but the Redis stream has expired",
+                execution_id=execution_id,
+                execution_status=execution_status.value,
+            )
             raise EventsExpiredError(
                 resource_id=str(execution_id),
                 resource_status=execution_status.value,
@@ -198,10 +202,10 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
             execution = result.scalar_one_or_none()
 
             if execution is None:
-                logger.warning("Execution %s not found in database", execution_id)
+                logger.warning("Execution not found in database", execution_id=execution_id)
                 raise ExecutionStreamingNotFoundError(execution_id)
 
-            logger.debug("Execution %s found with status: %s", execution_id, execution.status)
+            logger.debug("Execution found with status", execution_id=execution_id, status=execution.status)
             return cast("ExecutionStatus", execution.status)
 
 

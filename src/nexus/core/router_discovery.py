@@ -22,13 +22,13 @@ Example:
 """
 
 import importlib
-import logging
 import os
 import tempfile
 from importlib.resources import files
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import structlog
 from fastapi import APIRouter, FastAPI
 from filelock import FileLock
 
@@ -37,7 +37,7 @@ from nexus.core.config.base import get_settings
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-logger = logging.getLogger("nexus.core.router_discovery")
+logger = structlog.stdlib.get_logger("nexus.core.router_discovery")
 
 
 def _get_lock_file_path() -> Path:
@@ -115,10 +115,10 @@ def discover_routers(
 
     for base_path in base_paths:
         if not base_path.exists():
-            logger.warning("Base path does not exist: %s", base_path)
+            logger.warning("Base path does not exist", path=str(base_path))
             continue
 
-        logger.info("Scanning for routers in: %s", base_path)
+        logger.info("Scanning for routers in path", path=str(base_path))
 
         # Pattern 1: {domain}/router.py files
         _discover_domain_routers(base_path, exclude_modules, discovered)
@@ -126,7 +126,7 @@ def discover_routers(
         # Pattern 2: api/v1/*.py files
         _discover_api_v1_routers(base_path, exclude_modules, discovered)
 
-    logger.info("Discovered %d router(s)", len(discovered))
+    logger.info("Discovered router(s)", count=len(discovered))
     return discovered
 
 
@@ -147,7 +147,7 @@ def _discover_domain_routers(
         domain = router_file.parent.name
 
         if domain in exclude_modules:
-            logger.debug("Skipping excluded domain: %s", domain)
+            logger.debug("Skipping excluded domain", domain=domain)
             continue
 
         router_info = _load_router_from_file(router_file, domain, is_api_v1=False)
@@ -180,7 +180,7 @@ def _discover_api_v1_routers(
         domain = py_file.stem
 
         if domain in exclude_modules:
-            logger.debug("Skipping excluded module: %s", domain)
+            logger.debug("Skipping excluded module", module=domain)
             continue
 
         router_info = _load_router_from_file(py_file, domain, is_api_v1=True)
@@ -212,17 +212,17 @@ def _load_router_from_file(
         # Convert file path to module path
         module_path = f"nexus.api.v1.{domain}" if is_api_v1 else f"nexus.{domain}.{router_prefix}router"
 
-        logger.debug("Importing module: %s", module_path)
+        logger.debug("Importing module", module_path=module_path)
         module = importlib.import_module(module_path)
 
         # Try to get router from module
         router = _extract_router_from_module(module, domain)
 
         if router is None:
-            logger.warning("No router found in %s", module_path)
+            logger.warning("No router found in module", module_path=module_path)
             return None
 
-        logger.info("Loaded router: %s from %s", domain, module_path)
+        logger.info("Loaded router from module", domain=domain, module_path=module_path)
         return RouterInfo(
             domain=domain,
             module_path=module_path,
@@ -232,10 +232,10 @@ def _load_router_from_file(
         )
 
     except ImportError:
-        logger.exception("Failed to import module for %s", file_path)
+        logger.exception("Failed to import module for file", file_path=str(file_path))
         return None
     except Exception:
-        logger.exception("Error loading router from %s", file_path)
+        logger.exception("Error loading router from file", file_path=str(file_path))
         return None
 
 
@@ -295,20 +295,20 @@ def register_routers(
         prefix: Common prefix to apply to all routers (e.g., '/api/v1')
 
     """
-    logger.info("Registering %d router(s) with prefix: %s", len(routers), prefix or "(none)")
+    logger.info("Registering router(s) with prefix", count=len(routers), prefix=prefix or "(none)")
 
     for router_info in routers:
         try:
             app.include_router(router_info.router, prefix=prefix)
             logger.info(
-                "Registered router: %s (%s)",
-                router_info.domain,
-                router_info.module_path,
+                "Registered router",
+                domain=router_info.domain,
+                module_path=router_info.module_path,
             )
         except Exception:
             logger.exception(
-                "Failed to register router: %s",
-                router_info.domain,
+                "Failed to register router",
+                domain=router_info.domain,
             )
 
 
@@ -363,7 +363,7 @@ def discover_and_register_routers(
     with lock:
         logger.info("=" * 80)
         logger.info("Dynamic Router Discovery and Registration")
-        logger.info("Lock: %s", lock_info)
+        logger.info("Lock file", lock_file=lock_info)
         logger.info("=" * 80)
 
         # Get configuration from settings if not provided
@@ -377,9 +377,9 @@ def discover_and_register_routers(
         nexus_root = Path(__file__).resolve().parent.parent
         base_paths = [nexus_root]
 
-        logger.info("Base paths: %s", [str(p) for p in base_paths])
+        logger.info("Base paths", paths=[str(p) for p in base_paths])
         if exclude_modules:
-            logger.info("Excluding modules: %s", ", ".join(sorted(exclude_modules)))
+            logger.info("Excluding modules", modules=", ".join(sorted(exclude_modules)))
 
         # Discover routers
         routers = discover_routers(base_paths, exclude_modules=exclude_modules)
@@ -396,7 +396,7 @@ def discover_and_register_routers(
             _validate_discovered_routers(app, routers)
 
         logger.info("=" * 80)
-        logger.info("Router discovery completed: %d router(s) registered", len(routers))
+        logger.info("Router discovery completed: router(s) registered", count=len(routers))
         logger.info("=" * 80)
 
         return routers
@@ -424,7 +424,7 @@ def _validate_discovered_routers(app: FastAPI, routers: list[RouterInfo]) -> Non
         schema_files = _build_schema_file_list(routers)
 
         if schema_files:
-            logger.info("Validating %d schema file(s)", len(schema_files))
+            logger.info("Validating schema file(s)", count=len(schema_files))
             validate_routes(app, schema_files)
         else:
             logger.info("No schema files found for validation")
@@ -462,7 +462,7 @@ def _build_schema_file_list(routers: list[RouterInfo]) -> list[str]:
                 if schema_resource.is_file():
                     relative_path = f"{domain}/{router_prefix}openapi.{ext}"
                     schema_files.append(relative_path)
-                    logger.debug("Found schema: %s", relative_path)
+                    logger.debug("Found schema", path=relative_path)
                     break  # Use first found format
             except (FileNotFoundError, AttributeError):
                 # Resource doesn't exist or directory doesn't exist

@@ -4,15 +4,16 @@ This module defines the RelevancyChecker interface that all relevancy checking
 implementations must follow for consistent integration with RetrieverService.
 """
 
-import logging
 from abc import ABC, abstractmethod
+
+import structlog
 
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
     RelevancyConfiguration,
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class RelevancyChecker(ABC):
@@ -105,16 +106,19 @@ class RelevancyChecker(ABC):
                     final_score = max(0.0, min(1.0, combined_score))
 
                     logger.debug(
-                        "Relevancy check completed: document=%s, query=%s, score=%.3f",
-                        document.file_metadata.filename, query, final_score
+                        "Relevancy check completed",
+                        document_filename=document.file_metadata.filename,
+                        query=query,
+                        score=final_score
                     )
 
                     return final_score
 
                 except Exception as e:
                     logger.error(
-                        "Relevancy check failed: document=%s, error=%s",
-                        document.file_metadata.filename, str(e)
+                        "Relevancy check failed",
+                        document_filename=document.file_metadata.filename,
+                        error=str(e)
                     )
                     raise RelevancyCheckError(f"Failed to check relevancy: {e}")
             ```

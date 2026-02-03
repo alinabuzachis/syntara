@@ -4,11 +4,12 @@ This module provides the main service for coordinating document conversion
 operations with file manager integration and status management.
 """
 
-import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
+
+import structlog
 
 from nexus.files import FileManager, FileMetadata, get_file_manager
 from nexus.files.document_conversion.registry import (
@@ -21,7 +22,7 @@ from nexus.files.models import FileStatus
 if TYPE_CHECKING:
     from nexus.files.document_conversion.models import ConversionResult
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class DocumentConversionService:
@@ -100,12 +101,12 @@ class DocumentConversionService:
         converter_name: str,
     ) -> None:
         logger.info(
-            "Document conversion succeeded (operation_id=%s, filename=%s, duration_ms=%d, converter=%s, output=%s)",
-            operation_id,
-            file_metadata.filename,
-            conversion_result.conversion_time_ms,
-            converter_name,
-            output_filename,
+            "Document conversion succeeded",
+            operation_id=operation_id,
+            filename=file_metadata.filename,
+            duration_ms=conversion_result.conversion_time_ms,
+            converter=converter_name,
+            output=output_filename,
         )
 
         file_metadata.status = FileStatus.CONVERTED
@@ -124,11 +125,11 @@ class DocumentConversionService:
         converter_name: str,
     ) -> None:
         logger.error(
-            "Document conversion failed (operation_id=%s, filename=%s, converter=%s, error=%s)",
-            operation_id,
-            file_metadata.filename,
-            converter_name,
-            conversion_result.error_message,
+            "Document conversion failed",
+            operation_id=operation_id,
+            filename=file_metadata.filename,
+            converter=converter_name,
+            error=conversion_result.error_message,
         )
 
         # Update status to conversion_failed
@@ -145,9 +146,9 @@ class DocumentConversionService:
         e: Exception,
     ) -> None:
         logger.exception(
-            "Unexpected error during document conversion (operation_id=%s, filename=%s)",
-            operation_id,
-            file_metadata.filename,
+            "Unexpected error during document conversion",
+            operation_id=operation_id,
+            filename=file_metadata.filename,
         )
 
         # Update status to conversion_failed with error details
@@ -161,9 +162,9 @@ class DocumentConversionService:
         file_metadata: "FileMetadata", operation_id: str, status_updater: Callable[[FileMetadata], Awaitable[None]]
     ) -> None:
         logger.warning(
-            "No converter available for MIME type (operation_id=%s, mime_type=%s)",
-            operation_id,
-            file_metadata.mime_type,
+            "No converter available for MIME type",
+            operation_id=operation_id,
+            mime_type=file_metadata.mime_type,
         )
 
         # Update status to conversion_failed
@@ -194,9 +195,9 @@ class DocumentConversionService:
         # Validate input status
         if file_metadata.status != FileStatus.PENDING_CONVERSION:
             logger.info(
-                "Skipping file not pending conversion (filename=%s, status=%s)",
-                file_metadata.filename,
-                file_metadata.status,
+                "Skipping file not pending conversion",
+                filename=file_metadata.filename,
+                status=file_metadata.status,
             )
             return ConversionState.SKIPPED
 
@@ -204,10 +205,10 @@ class DocumentConversionService:
         operation_id = f"conv-{uuid4().hex[:8]}"
 
         logger.info(
-            "Starting document conversion (operation_id=%s, filename=%s, mime_type=%s)",
-            operation_id,
-            file_metadata.filename,
-            file_metadata.mime_type,
+            "Starting document conversion",
+            operation_id=operation_id,
+            filename=file_metadata.filename,
+            mime_type=file_metadata.mime_type,
         )
 
         # Update status to 'converting'
@@ -231,10 +232,10 @@ class DocumentConversionService:
 
             # Perform conversion with timeout
             logger.debug(
-                "Using converter %s for file %s (operation_id=%s)",
-                converter.get_converter_name(),
-                file_metadata.filename,
-                operation_id,
+                "Using converter for file",
+                converter=converter.get_converter_name(),
+                filename=file_metadata.filename,
+                operation_id=operation_id,
             )
             conversion_result = await converter.convert_with_timeout(file_content, file_metadata)
 

@@ -4,11 +4,11 @@ This module provides the ActivityUpdatePublisher class for publishing workflow
 execution activity updates to Redis Streams for WebSocket streaming to clients.
 """
 
-import logging
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
+import structlog
 from jsonpatch import JsonPatch  # type: ignore[import-untyped]
 
 from nexus.core.cache.stream import StreamClient
@@ -20,7 +20,7 @@ from nexus.workflows.models.visualization import (
     JsonPatchOperation,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ActivityUpdatePublisher:
@@ -146,11 +146,11 @@ class ActivityUpdatePublisher:
         async with StreamClient() as client:
             event_id = await client.publish(stream_id, message.model_dump(mode="json", exclude={"event_id"}))
             logger.debug(
-                "Published %s for execution %s to stream %s: %s",
-                snapshot_type,
-                execution.id,
-                stream_id,
-                event_id,
+                "Published execution snapshot to stream",
+                snapshot_type=snapshot_type,
+                execution_id=execution.id,
+                stream_id=stream_id,
+                event_id=event_id,
             )
             return event_id
 
@@ -209,10 +209,10 @@ class ActivityUpdatePublisher:
                 stream_id, message.model_dump(mode="json", by_alias=True, exclude={"event_id"})
             )
             logger.debug(
-                "Published activity_patch for execution %s to stream %s: %s (%d operations)",
-                execution_id,
-                stream_id,
-                event_id,
-                len(ops),
+                "Published activity patch to stream",
+                execution_id=execution_id,
+                stream_id=stream_id,
+                event_id=event_id,
+                operation_count=len(ops),
             )
             return event_id

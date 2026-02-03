@@ -8,7 +8,6 @@ import asyncio
 import importlib.util
 import inspect
 import json
-import logging
 import types
 import uuid
 from collections.abc import Callable
@@ -17,6 +16,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
+import structlog
 import yaml
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -26,7 +26,7 @@ from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.schema_validator import ValidationError
 from nexus.core.websocket.utils import is_receive_only_channel, normalize_channel_name
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 # Context variable to pass connection_id to handlers
 _connection_id_context: ContextVar[str | None] = ContextVar("connection_id_context", default=None)
@@ -54,10 +54,10 @@ async def _send_error_response(websocket: WebSocket, error_dict: dict[str, Any],
     """
     try:
         await websocket.send_json(error_dict)
-        logger.warning("Error on channel '%s': %s", channel_name, error_dict.get("message"))
+        logger.warning("Error on channel", channel=channel_name, message=error_dict.get("message"))
         return True
     except WebSocketDisconnect:
-        logger.debug("Client disconnected before error response on channel '%s'", channel_name)
+        logger.debug("Client disconnected before error response on channel", channel=channel_name)
         return False
 
 
@@ -78,14 +78,14 @@ async def _receive_message(websocket: WebSocket, channel_name: str) -> dict[str,
     try:
         return await websocket.receive_json()  # type: ignore[no-any-return]
     except WebSocketDisconnect:
-        logger.debug("Client disconnected during receive on channel '%s'", channel_name)
+        logger.debug("Client disconnected during receive on channel", channel=channel_name)
         return None
     except json.JSONDecodeError as e:
-        logger.warning("Invalid JSON on channel '%s': %s", channel_name, e)
+        logger.warning("Invalid JSON on channel", channel=channel_name, error=str(e))
         msg = f"Invalid JSON format: {e.msg}"
         raise ValidationError(error_type="INVALID_REQUEST", message=msg) from e
     except Exception:
-        logger.exception("Error receiving message on channel '%s'", channel_name)
+        logger.exception("Error receiving message on channel", channel=channel_name)
         return None
 
 
@@ -187,7 +187,7 @@ def _find_orphan_specs(project_root: Path, components_with_ws: set[str]) -> list
                                 resource_path, project_root
                             )
                         except ValueError as e:
-                            logger.warning("Skipping malformed spec path: %s", e)
+                            logger.warning("Skipping malformed spec path", error=str(e))
                             continue
 
                         if not expected_handler_path.exists():
@@ -247,10 +247,10 @@ def _merge_operations(component_name: str, specs: dict[Path, tuple[Any, dict[str
         for op_name, op_def in spec.get("operations", {}).items():
             if op_name in merged:
                 logger.warning(
-                    "Duplicate operation '%s' in component '%s' from %s, keeping first",
-                    op_name,
-                    component_name,
-                    py_file.name,
+                    "Duplicate operation in component from file, keeping first",
+                    operation=op_name,
+                    component=component_name,
+                    filename=py_file.name,
                 )
             else:
                 merged[op_name] = op_def
@@ -348,10 +348,10 @@ def _merge_component_specs(component_name: str, specs: dict[Path, tuple[Any, dic
         merged["components"] = components
 
     logger.info(
-        "Merged %d spec(s) for component '%s' with %d total channels",
-        len(specs),
-        component_name,
-        len(merged["channels"]),
+        "Merged spec(s) for component with total channels",
+        spec_count=len(specs),
+        component=component_name,
+        channel_count=len(merged["channels"]),
     )
 
     return merged
@@ -373,7 +373,7 @@ def _load_module_from_file(component_name: str, py_file: Path) -> types.ModuleTy
         spec = importlib.util.spec_from_file_location(module_name, py_file)
 
         if spec is None or spec.loader is None:
-            logger.warning("Failed to create module spec for '%s', skipping", py_file)
+            logger.warning("Failed to create module spec, skipping", file=str(py_file))
             return None
 
         module = importlib.util.module_from_spec(spec)
@@ -381,7 +381,13 @@ def _load_module_from_file(component_name: str, py_file: Path) -> types.ModuleTy
         return module
 
     except Exception as e:  # noqa: BLE001
-        logger.warning("Failed to import %s for component '%s': %s", py_file.name, component_name, e, exc_info=True)
+        logger.warning(
+            "Failed to import for component",
+            filename=py_file.name,
+            component=component_name,
+            error=str(e),
+            exc_info=True,
+        )
         return None
 
 
@@ -405,10 +411,10 @@ def _load_spec_file(spec_path: Path, py_file: Path) -> dict[str, Any] | None:
         if spec_path.suffix == ".json":
             return json.loads(content)  # type: ignore[no-any-return]
 
-        logger.warning("Unknown spec file format %s in %s, skipping", spec_path.suffix, py_file.name)
+        logger.warning("Unknown spec file format, skipping", format=spec_path.suffix, filename=py_file.name)
         return None
     except Exception as e:  # noqa: BLE001
-        logger.warning("Failed to load spec from %s: %s", spec_path, e, exc_info=True)
+        logger.warning("Failed to load spec from path", spec_path=str(spec_path), error=str(e), exc_info=True)
         return None
 
 
@@ -436,7 +442,7 @@ def _scan_ws_directory(component_name: str, ws_dir: Path, project_root: Path) ->
         if py_file.name == "__init__.py":
             continue
 
-        logger.debug("Processing %s for component '%s'", py_file.name, component_name)
+        logger.debug("Processing file for component", filename=py_file.name, component=component_name)
 
         # Derive spec path from handler filename (automatic mapping)
         handler_stem = py_file.stem
@@ -483,13 +489,13 @@ def _scan_ws_directory(component_name: str, ws_dir: Path, project_root: Path) ->
             _HANDLER_MODULE_CACHE[component_name] = {}
         for channel_name in spec_dict.get("channels", {}):
             _HANDLER_MODULE_CACHE[component_name][channel_name] = module
-            logger.debug("Cached module for channel '%s' in component '%s'", channel_name, component_name)
+            logger.debug("Cached module for channel in component", channel=channel_name, component=component_name)
 
         logger.debug(
-            "Loaded spec from %s for %s (%d channels)",
-            expected_spec_path.name,
-            py_file.name,
-            len(spec_dict.get("channels", {})),
+            "Loaded spec from file for handler with channels",
+            spec_filename=expected_spec_path.name,
+            handler_filename=py_file.name,
+            channel_count=len(spec_dict.get("channels", {})),
         )
 
     return specs
@@ -600,11 +606,11 @@ def scan_handler_specs() -> dict[str, dict[str, Any]]:
 
         component_name = component_dir.name
         ws_dir = component_dir / "ws"
-        logger.debug("Scanning ws/ directory for component '%s'", component_name)
+        logger.debug("Scanning ws/ directory for component", component=component_name)
 
         specs = _scan_ws_directory(component_name, ws_dir, project_root)
         if not specs:
-            logger.debug("No valid specs found in ws/ directory for component '%s', skipping", component_name)
+            logger.debug("No valid specs found in ws/ directory for component, skipping", component=component_name)
             continue
 
         try:
@@ -613,15 +619,15 @@ def scan_handler_specs() -> dict[str, dict[str, Any]]:
             _SPEC_CACHE[component_name] = merged_spec
 
             logger.info(
-                "Registered component '%s' with %d channels from %d file(s)",
-                component_name,
-                len(merged_spec.get("channels", {})),
-                len(specs),
+                "Registered component with channels from file(s)",
+                component=component_name,
+                channel_count=len(merged_spec.get("channels", {})),
+                file_count=len(specs),
             )
         except ValueError:
-            logger.exception("Failed to merge specs for component '%s'", component_name)
+            logger.exception("Failed to merge specs for component", component=component_name)
 
-    logger.info("Discovered %d component(s) with AsyncAPI specs", len(component_specs))
+    logger.info("Discovered component(s) with AsyncAPI specs", component_count=len(component_specs))
     return component_specs
 
 
@@ -682,7 +688,9 @@ def _validate_handler_func(
     if handler_func is None:
         if is_receive_only:
             logger.info(
-                "No handler function '%s' for receive-only channel '%s' (not required)", handler_func_name, channel_name
+                "No handler function for receive-only channel (not required)",
+                handler_func=handler_func_name,
+                channel=channel_name,
             )
         else:
             msg = (
@@ -742,9 +750,9 @@ def _validate_channel_and_get_request_type(
 
     if is_receive_only:
         if request_msg_type:
-            logger.debug("Receive-only channel '%s' has Request message (will be ignored)", channel_name)
+            logger.debug("Receive-only channel has Request message (will be ignored)", channel=channel_name)
         else:
-            logger.info("Receive-only channel '%s' configured without Request message", channel_name)
+            logger.info("Receive-only channel configured without Request message", channel=channel_name)
 
     return request_msg_type
 
@@ -784,9 +792,11 @@ async def _cancel_background_task(
     try:
         await background_task
     except asyncio.CancelledError:  # NOSONAR - Expected when we initiate cancellation
-        logger.debug("Background task cancelled for channel '%s', connection '%s'", channel_name, connection_id)
+        logger.debug(
+            "Background task cancelled for channel, connection", channel=channel_name, connection_id=connection_id
+        )
     except Exception:
-        logger.exception("Error while cancelling background task for channel '%s'", channel_name)
+        logger.exception("Error while cancelling background task for channel", channel=channel_name)
 
 
 async def _handle_receive_only_channel(
@@ -809,7 +819,7 @@ async def _handle_receive_only_channel(
         ValueError: If on_connect handler is missing
 
     """
-    logger.info("Starting receive-only channel '%s', connection '%s'", channel_name, connection_id)
+    logger.info("Starting receive-only channel, connection", channel=channel_name, connection_id=connection_id)
 
     if on_connect_func is None:
         msg = (
@@ -820,7 +830,7 @@ async def _handle_receive_only_channel(
 
     if background_task is not None:
         await background_task
-        logger.info("Background task completed for receive-only channel '%s', closing connection", channel_name)
+        logger.info("Background task completed for receive-only channel, closing connection", channel=channel_name)
 
 
 async def _process_message(
@@ -863,7 +873,7 @@ async def _process_message(
     try:
         processed_message = await hooks.after_receive(validated_message, channel_name)
     except Exception as e:
-        logger.exception("Error in after_receive hook on channel '%s'", channel_name)
+        logger.exception("Error in after_receive hook on channel", channel=channel_name)
         error_response = await hooks.on_handler_error(e, channel_name)
         return await _send_error_response(websocket, error_response, channel_name)
 
@@ -874,7 +884,7 @@ async def _process_message(
         else:
             handler_response = await handler_func(processed_message)
     except Exception as e:
-        logger.exception("Handler error on channel '%s'", channel_name)
+        logger.exception("Handler error on channel", channel=channel_name)
         error_response = await hooks.on_handler_error(e, channel_name)
         return await _send_error_response(websocket, error_response, channel_name)
 
@@ -882,7 +892,7 @@ async def _process_message(
     try:
         final_response = await hooks.before_send(handler_response, channel_name)
     except Exception as e:
-        logger.exception("Error in before_send hook on channel '%s'", channel_name)
+        logger.exception("Error in before_send hook on channel", channel=channel_name)
         error_response = await hooks.on_handler_error(e, channel_name)
         return await _send_error_response(websocket, error_response, channel_name)
 
@@ -894,7 +904,7 @@ async def _process_message(
         lifecycle_manager.update_activity(lifecycle_conn_id)
         return True
     except WebSocketDisconnect:
-        logger.debug("Client disconnected during send on channel '%s'", channel_name)
+        logger.debug("Client disconnected during send on channel", channel=channel_name)
         return False
 
 
@@ -1033,7 +1043,9 @@ def create_websocket_endpoint(
         background_task: asyncio.Task[None] | None = None
         if on_connect_func is not None and callable(on_connect_func):
             background_task = asyncio.create_task(on_connect_func(websocket, connection_id_str))
-            logger.debug("Started background task for channel '%s', connection '%s'", channel_name, connection_id_str)
+            logger.debug(
+                "Started background task for channel, connection", channel=channel_name, connection_id=connection_id_str
+            )
 
         try:
             if is_receive_only:
@@ -1052,9 +1064,9 @@ def create_websocket_endpoint(
                     lifecycle_conn_id=lifecycle_conn_id,
                 )
         except WebSocketDisconnect:
-            logger.debug("Client disconnected from channel '%s'", channel_name)
+            logger.debug("Client disconnected from channel", channel=channel_name)
         except Exception:
-            logger.exception("Unexpected error on channel '%s'", channel_name)
+            logger.exception("Unexpected error on channel", channel=channel_name)
         finally:
             await _cancel_background_task(background_task, channel_name, connection_id_str)
             connection_manager.remove_connection(connection_id_str)

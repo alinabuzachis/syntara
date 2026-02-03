@@ -5,10 +5,10 @@ execution, even if the temporal worker restarts. It replaces the signal-based
 approach which could be lost on worker restart.
 """
 
-import logging
 from datetime import timedelta
 from typing import Any
 
+import structlog
 from temporalio import workflow
 from temporalio.worker import (
     ExecuteWorkflowInput,
@@ -17,7 +17,7 @@ from temporalio.worker import (
     WorkflowInterceptorClassInput,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class _MonitoringWorkflowInboundInterceptor(WorkflowInboundInterceptor):
@@ -49,9 +49,9 @@ class _MonitoringWorkflowInboundInterceptor(WorkflowInboundInterceptor):
             temporal_workflow_id = workflow.info().workflow_id
 
             logger.info(
-                "Starting activity monitoring for execution %s (workflow: %s)",
-                execution_id,
-                temporal_workflow_id,
+                "Starting activity monitoring for execution",
+                execution_id=execution_id,
+                temporal_workflow_id=temporal_workflow_id,
             )
 
             # Start activity monitoring in background (non-blocking)

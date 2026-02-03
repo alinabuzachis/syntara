@@ -5,13 +5,13 @@ multiple specialized agents with context integration and checkpointing.
 """
 
 import asyncio
-import logging
 from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
 
 import httpx
+import structlog
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
@@ -43,7 +43,7 @@ from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.core.cache.stream import StreamClient
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class OrchestrationService:
@@ -158,7 +158,7 @@ class OrchestrationService:
             Any exceptions from LLM API or streaming infrastructure
 
         """
-        logger.info("Executing streaming orchestration for invocation %s", invocation_id)
+        logger.info("Executing streaming orchestration for invocation", invocation_id=invocation_id)
 
         stream_id = get_invocation_stream_id(invocation_id)
 
@@ -187,7 +187,7 @@ class OrchestrationService:
                 # Handle completion callback
                 await self._handle_completion_callback(final_state, invocation_id)
 
-                logger.info("Streaming orchestration completed (invocation_id=%s)", invocation_id)
+                logger.info("Streaming orchestration completed", invocation_id=invocation_id)
 
                 # Build response with streaming metadata and context enhancement
                 return self._build_streaming_result(invocation_id, stream_id, final_state)
@@ -195,9 +195,9 @@ class OrchestrationService:
             except Exception as e:
                 # Handle streaming errors
                 logger.exception(
-                    "Exception in orchestration service (invocation_id=%s, error_type=%s)",
-                    invocation_id,
-                    type(e).__name__,
+                    "Exception in orchestration service",
+                    invocation_id=invocation_id,
+                    error_type=type(e).__name__,
                 )
                 await self._handle_streaming_error(e, invocation_id, stream_id, client)
 
@@ -272,22 +272,22 @@ class OrchestrationService:
 
         """
         logger.info(
-            "Checking for completion callback (invocation_id=%s, has_final_state=%s)",
-            invocation_id,
-            final_state is not None,
+            "Checking for completion callback",
+            invocation_id=invocation_id,
+            has_final_state=final_state is not None,
         )
 
         if not final_state:
-            logger.warning("No final_state available for callback (invocation_id=%s)", invocation_id)
+            logger.warning("No final_state available for callback", invocation_id=invocation_id)
             return
 
         try:
             await self._send_completion_callback(final_state, invocation_id)
         except (httpx.RequestError, httpx.HTTPStatusError, httpx.TimeoutException):
-            logger.exception("Activity signal failed for invocation %s", invocation_id)
+            logger.exception("Activity signal failed for invocation", invocation_id=invocation_id)
             # Continue without failing - notification is not critical
         except Exception:
-            logger.exception("Unexpected error during activity signal for invocation %s", invocation_id)
+            logger.exception("Unexpected error during activity signal for invocation", invocation_id=invocation_id)
             # Continue without failing - notification is not critical
 
     async def _process_streaming_event(
@@ -344,7 +344,7 @@ class OrchestrationService:
                         "data": delta_data.to_dict(),
                     }
                     await client.publish(stream_id, delta_event)
-                    logger.debug("Published delta event (invocation_id=%s)", invocation_id)
+                    logger.debug("Published delta event", invocation_id=invocation_id)
 
     async def _process_tool_start_event(
         self, event: dict[str, Any], invocation_id: UUID, stream_id: str, client: StreamClient
@@ -362,7 +362,7 @@ class OrchestrationService:
         data = event.get("data", {})
         tool_input = data.get("input", {}) if isinstance(data, dict) else {}
 
-        logger.info("Tool call started: %s (invocation_id=%s)", tool_name, invocation_id)
+        logger.info("Tool call started", tool_name=tool_name, invocation_id=invocation_id)
 
         tool_call_data = ToolCallEventData(tool_name=tool_name, tool_input=tool_input)
         tool_call_event = {
@@ -392,7 +392,7 @@ class OrchestrationService:
         raw_output = data.get("output", "") if isinstance(data, dict) else ""
         tool_output = str(raw_output.content) if hasattr(raw_output, "content") else str(raw_output)
 
-        logger.info("Tool call completed: %s (invocation_id=%s)", tool_name, invocation_id)
+        logger.info("Tool call completed", tool_name=tool_name, invocation_id=invocation_id)
 
         tool_result_data = ToolResultEventData(tool_name=tool_name, tool_output=tool_output)
         tool_result_event = {
@@ -437,7 +437,7 @@ class OrchestrationService:
             client: StreamClient for publishing events
 
         """
-        logger.exception("Streaming orchestration failed (invocation_id=%s)", invocation_id)
+        logger.exception("Streaming orchestration failed", invocation_id=invocation_id)
 
         # Publish error event with RFC 9457 classification
         error_data = classify_streaming_error(exception, invocation_id=invocation_id)
@@ -549,9 +549,9 @@ class OrchestrationService:
 
         """
         logger.info(
-            "CALLBACK CHECK: Checking completion callback for invocation %s (final_state_keys=%s)",
-            invocation_id,
-            list(final_state.keys()) if final_state else None,
+            "CALLBACK CHECK: Checking completion callback for invocation",
+            invocation_id=invocation_id,
+            final_state_keys=list(final_state.keys()) if final_state else None,
         )
 
         # Extract callback URL from metadata
@@ -559,27 +559,27 @@ class OrchestrationService:
         callback_url = metadata.get("callback_url")
 
         logger.info(
-            "CALLBACK CHECK: callback_url=%s, has_metadata=%s (invocation %s)",
-            callback_url,
-            metadata is not None,
-            invocation_id,
+            "CALLBACK CHECK: callback details",
+            callback_url=callback_url,
+            has_metadata=metadata is not None,
+            invocation_id=invocation_id,
         )
 
         if not callback_url:
             logger.warning(
-                "No callback_url found in metadata for invocation %s, skipping callback (metadata=%s)",
-                invocation_id,
-                metadata,
+                "No callback_url found in metadata for invocation, skipping callback",
+                invocation_id=invocation_id,
+                metadata=metadata,
             )
             return
 
         # Extract agent result
         result = final_state.get("result")
         if not result:
-            logger.warning("No result found in final_state for callback (invocation %s)", invocation_id)
+            logger.warning("No result found in final_state for callback", invocation_id=invocation_id)
             return
 
-        logger.info("CALLBACK: Sending activity signal to %s (invocation %s)", callback_url, invocation_id)
+        logger.info("CALLBACK: Sending activity signal", callback_url=callback_url, invocation_id=invocation_id)
         # Send the activity signal
         await WorkflowSignalClient.send_success_signal(callback_url, invocation_id, result)
 
@@ -619,7 +619,7 @@ class OrchestrationService:
             # Use direct import
             agent_class = GenericAgent
 
-            logger.info("Executing GenericAgent for invocation %s", state["invocation_id"])
+            logger.info("Executing GenericAgent for invocation", invocation_id=state["invocation_id"])
 
             agent = agent_class(llm=self.llm, available_tools=available_tools)
             updated_state = await agent.execute_as_node(state)

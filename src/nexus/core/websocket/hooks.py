@@ -5,15 +5,16 @@ WebSocket messages. Hooks have default behaviors that can be overridden
 per handler.
 """
 
-import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+import structlog
+
 from nexus.core.websocket.schema_validator import ValidationError, validate_message
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class WebSocketHooks:
@@ -51,7 +52,7 @@ class WebSocketHooks:
         """
         # Default: Schema validation
         validate_message(data, message_type, self.spec_path)
-        logger.debug("Validated %s message on channel '%s'", message_type, channel)
+        logger.debug("Validated message on channel", message_type=message_type, channel=channel)
         return data
 
     async def after_receive(self, data: dict[str, Any], _channel: str) -> dict[str, Any]:
@@ -162,7 +163,7 @@ def discover_hooks(handler_module: ModuleType, spec_path: str | Path) -> WebSock
             if callable(handler_hook):
                 # Bind the handler's hook function to the hooks instance
                 setattr(hooks, hook_name, handler_hook)
-                logger.debug("Handler provides custom hook: %s", hook_name)
+                logger.debug("Handler provides custom hook", hook_name=hook_name)
 
     return hooks
 

@@ -3,12 +3,12 @@
 Provides WebSocket event streaming from Redis streams.
 """
 
-import logging
 from collections.abc import Callable
 from functools import lru_cache
 from typing import Any, cast
 from uuid import UUID
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -21,7 +21,7 @@ from nexus.core.websocket.base_handler import BaseWebSocketStreamingHandler
 from nexus.core.websocket.close_codes import POLICY_VIOLATION
 from nexus.core.websocket.exceptions import EventsExpiredError, StreamingValidationError
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 # Constants for event types
@@ -168,7 +168,9 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
         if invocation_status in terminal_statuses:
             # Invocation finished but stream doesn't exist - events expired
             logger.warning(
-                "Invocation %s is %s but the Redis stream has expired", invocation_id, invocation_status.value
+                "Invocation is terminal but the Redis stream has expired",
+                invocation_id=invocation_id,
+                invocation_status=invocation_status.value,
             )
             raise EventsExpiredError(
                 resource_id=str(invocation_id),
@@ -208,10 +210,10 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
             invocation = result.scalar_one_or_none()
 
             if invocation is None:
-                logger.warning("Invocation %s not found in database", invocation_id)
+                logger.warning("Invocation not found in database", invocation_id=invocation_id)
                 raise InvocationNotFoundError(invocation_id)
 
-            logger.debug("Invocation %s found with status: %s", invocation_id, invocation.status)
+            logger.debug("Invocation found with status", invocation_id=invocation_id, status=invocation.status)
             return cast("InvocationStatus", invocation.status)
 
 

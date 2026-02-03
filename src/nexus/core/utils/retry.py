@@ -7,7 +7,6 @@ comprehensive logging for observability.
 
 import asyncio
 import functools
-import logging
 import random
 import time
 from collections.abc import Callable, Mapping
@@ -15,6 +14,7 @@ from typing import Any, TypeVar
 
 import httpx
 import openai
+import structlog
 from fastapi import HTTPException
 
 from nexus.core.config.base import AdapterRetrySettings, get_settings
@@ -37,7 +37,7 @@ _RETRYABLE_HTTP_STATUS_CODES = frozenset(
 
 T = TypeVar("T", bound=Callable[..., Any])
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def is_retryable_error(error: Exception) -> bool:
@@ -213,18 +213,18 @@ def retry_with_backoff(func: T) -> T:  # noqa: C901, UP047
                 if attempt > 0:
                     total_time = time.time() - start_time
                     logger.info(
-                        "Retry succeeded on attempt %s/%s for %s, total_time=%.2fs",
-                        attempt,
-                        max_retries,
-                        log_context,
-                        total_time,
+                        "Retry succeeded on attempt",
+                        attempt=attempt,
+                        max_retries=max_retries,
+                        context=log_context,
+                        total_time=total_time,
                     )
 
                 return result
 
             except asyncio.CancelledError:
                 # Handle interruption during execution or backoff
-                logger.warning("Operation cancelled for %s", log_context)
+                logger.warning("Operation cancelled", context=log_context)
                 raise
 
             except Exception as error:
@@ -234,9 +234,9 @@ def retry_with_backoff(func: T) -> T:  # noqa: C901, UP047
                 if not is_retryable_error(error):
                     # Non-retryable error - fail immediately
                     logger.warning(
-                        "Non-retryable error for %s: %s",
-                        log_context,
-                        type(error).__name__,
+                        "Non-retryable error",
+                        context=log_context,
+                        error_type=type(error).__name__,
                     )
                     raise
 
@@ -245,30 +245,30 @@ def retry_with_backoff(func: T) -> T:  # noqa: C901, UP047
                     # Exhausted retries
                     total_time = time.time() - start_time
                     logger.warning(
-                        "All retries exhausted for %s, attempts=%s, total_time=%.2fs, final_error=%s",
-                        log_context,
-                        attempt + 1,
-                        total_time,
-                        type(error).__name__,
+                        "All retries exhausted",
+                        context=log_context,
+                        attempts=attempt + 1,
+                        total_time=total_time,
+                        final_error=type(error).__name__,
                     )
                     raise
 
                 # Calculate backoff and sleep
                 delay = calculate_backoff(attempt, settings)
                 logger.debug(
-                    "Retry attempt %s/%s for %s after error: %s, delay=%.2fs",
-                    attempt + 1,
-                    max_retries,
-                    log_context,
-                    type(error).__name__,
-                    delay,
+                    "Retry attempt after error",
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    context=log_context,
+                    error_type=type(error).__name__,
+                    delay=delay,
                 )
 
                 try:
                     await asyncio.sleep(delay)
                 except asyncio.CancelledError:
                     # Handle interruption during backoff sleep
-                    logger.warning("Backoff interrupted for %s", log_context)
+                    logger.warning("Backoff interrupted", context=log_context)
                     raise
 
                 attempt += 1

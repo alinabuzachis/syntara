@@ -1,9 +1,9 @@
 """Execution API endpoints."""
 
-import logging
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.service import RPCError
@@ -31,7 +31,7 @@ from nexus.workflows.workflow_engine.services.temporal_execution_service import 
     create_temporal_execution_service,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 router = APIRouter(prefix="/executions", tags=["executions"])
 
@@ -54,7 +54,7 @@ async def get_temporal_execution_service() -> TemporalExecutionService | None:
     try:
         return await create_temporal_execution_service()
     except (RPCError, OSError, RuntimeError) as e:
-        logger.warning("Temporal service unavailable: %s", e)
+        logger.warning("Temporal service unavailable", error=str(e))
         return None
 
 
@@ -154,9 +154,9 @@ async def create_execution(
 
     """
     logger.info(
-        "Creating execution for workflow %s by user %s",
-        request.workflow_id,
-        current_user.id,
+        "Creating execution for workflow",
+        workflow_id=request.workflow_id,
+        user_id=current_user.id,
     )
 
     try:
@@ -237,7 +237,7 @@ async def list_execution_activities(
         HTTPException: 500 if Temporal query fails
 
     """
-    logger.info("Listing activities for execution %s", execution_id)
+    logger.info("Listing activities for execution", execution_id=execution_id)
 
     try:
         return await service.get_execution_activities(execution_id)
@@ -247,7 +247,7 @@ async def list_execution_activities(
             detail=str(e),
         ) from e
     except Exception as e:
-        logger.exception("Failed to list activities for execution %s", execution_id)
+        logger.exception("Failed to list activities for execution", execution_id=execution_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list activities: {e}",
@@ -283,9 +283,9 @@ async def signal_activity(
 
     """
     logger.info(
-        "Sending signal to activity %s in execution %s",
-        activity_id,
-        execution_id,
+        "Sending signal to activity in execution",
+        activity_id=activity_id,
+        execution_id=execution_id,
     )
 
     try:
@@ -310,9 +310,9 @@ async def signal_activity(
         ) from e
     except Exception as e:
         logger.exception(
-            "Failed to send signal to activity %s in execution %s",
-            activity_id,
-            execution_id,
+            "Failed to send signal to activity in execution",
+            activity_id=activity_id,
+            execution_id=execution_id,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

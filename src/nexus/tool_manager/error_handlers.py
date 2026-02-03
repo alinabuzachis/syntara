@@ -3,8 +3,7 @@
 This module provides error handling for tool and provider-specific exceptions.
 """
 
-import logging
-
+import structlog
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
@@ -20,7 +19,7 @@ from nexus.tool_manager.lib.exceptions import (
     ValidationError as ToolValidationError,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def tool_not_found_handler(request: Request, exc: ToolNotFoundError) -> JSONResponse:

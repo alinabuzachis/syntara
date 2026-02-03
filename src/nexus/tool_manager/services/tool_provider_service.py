@@ -4,12 +4,12 @@ This module provides the service layer for Tool Provider management, wrapping
 core domain logic with database persistence and transaction management.
 """
 
-import logging
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any, NoReturn
 from uuid import UUID
 
+import structlog
 from sqlalchemy import Select, text
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
@@ -43,7 +43,7 @@ from nexus.tool_manager.models.tool_provider_validation_result import ToolProvid
 
 SelectToolProvider = Select[tuple[ToolProvider]] | SelectOfScalar[tuple[ToolProvider]]
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ToolProviderServiceConvertResourceMixin(ConvertResourceMixin):
@@ -339,7 +339,7 @@ class ToolProviderService(BaseService):
 
         try:
             await self.session.flush()
-            logger.info("Successfully created provider '%s' with VALIDATING status", provider.name)
+            logger.info("Successfully created provider with VALIDATING status", provider_name=provider.name)
             return ToolProviderWithConfiguration.model_validate(provider)
 
         except IntegrityError as e:

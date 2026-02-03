@@ -3,9 +3,9 @@
 Handles information queries and questions using LLM via OpenRouter.
 """
 
-import logging
 from typing import TYPE_CHECKING
 
+import structlog
 from langchain_core.messages import SystemMessage
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
@@ -18,7 +18,7 @@ from nexus.core.utils.retry import retry_with_backoff
 if TYPE_CHECKING:
     from langchain.messages import AnyMessage
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class GenericAgent(BaseAgent):

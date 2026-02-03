@@ -174,9 +174,9 @@ class TestRegisterRouters:
 
         # Verify logger.exception was called with the expected message
         mock_logger.exception.assert_called_once()
-        call_args = mock_logger.exception.call_args[0]
-        assert "Failed to register router" in call_args[0]
-        assert router_info.domain in call_args
+        call_args = mock_logger.exception.call_args
+        assert "Failed to register router" in call_args[0][0]
+        assert call_args[1]["domain"] == router_info.domain
 
 
 class TestDiscoverAndRegisterRouters:

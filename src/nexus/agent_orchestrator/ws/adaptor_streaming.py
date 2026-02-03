@@ -3,9 +3,9 @@
 Thin proxy handler that delegates to StreamingService for actual streaming logic.
 """
 
-import logging
 from uuid import UUID
 
+import structlog
 from fastapi import WebSocket
 from pydantic import ValidationError
 
@@ -13,7 +13,7 @@ from nexus.agent_orchestrator.models.query_params import StreamingQueryParams
 from nexus.agent_orchestrator.services.streaming_service import get_streaming_service
 from nexus.core.websocket.close_codes import UNSUPPORTED_DATA
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 async def on_connect_invocations(websocket: WebSocket, connection_id: str) -> None:
@@ -34,7 +34,7 @@ async def on_connect_invocations(websocket: WebSocket, connection_id: str) -> No
     try:
         invocation_id = UUID(invocation_id_str)
     except ValueError:
-        logger.exception("Invalid invocation_id in path: %s", invocation_id_str)
+        logger.exception("Invalid invocation_id in path", invocation_id_str=invocation_id_str)
         await websocket.close(code=UNSUPPORTED_DATA, reason="Invalid invocation ID")
         return
 
@@ -44,7 +44,7 @@ async def on_connect_invocations(websocket: WebSocket, connection_id: str) -> No
         replay_count = params.replay_count
         last_event_id = params.last_event_id
     except ValidationError as e:
-        logger.warning("Invalid query parameters: %s", e)
+        logger.warning("Invalid query parameters", validation_error=str(e))
         # Extract first error message for user-friendly reason
         error_msg = e.errors()[0]["msg"] if e.errors() else "Invalid query parameters"
         await websocket.close(code=UNSUPPORTED_DATA, reason=error_msg)

@@ -4,14 +4,13 @@ This module provides filtering functionality to match LangChain BaseTools retrie
 from MCP servers with ToolWithParameters from Tool Manager using namespaced_name matching.
 """
 
-import logging
-
+import structlog
 from langchain_core.tools import BaseTool
 
 from nexus.agent_orchestrator.tool_manager.types import NamespacedBaseTool
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def filter_base_tools_by_enabled(
@@ -38,11 +37,11 @@ def filter_base_tools_by_enabled(
     for namespaced_name, base_tool in namespaced_tools:
         if namespaced_name in enabled_names:
             filtered_tools.append((namespaced_name, base_tool))
-            logger.debug("Including enabled tool: %s", namespaced_name)
+            logger.debug("Including enabled tool", tool_name=namespaced_name)
         else:
-            logger.debug("Excluding tool (not enabled or not registered): %s", namespaced_name)
+            logger.debug("Excluding tool (not enabled or not registered)", tool_name=namespaced_name)
 
-    logger.info("Filtered %d tools from %d base tools", len(filtered_tools), len(namespaced_tools))
+    logger.info("Filtered tools from base tools", filtered_count=len(filtered_tools), base_count=len(namespaced_tools))
     return filtered_tools
 
 
@@ -80,13 +79,13 @@ def enhance_namespaced_tools_with_metadata(
                 base_tool.metadata = {}
             base_tool.metadata["tool_id"] = str(tool_id)
 
-            logger.debug("Enhanced tool with metadata: %s (tool_id=%s)", namespaced_name, tool_id)
+            logger.debug("Enhanced tool with metadata", tool_name=namespaced_name, tool_id=tool_id)
         else:
-            logger.warning("Could not find tool_id for tool: %s", namespaced_name)
+            logger.warning("Could not find tool_id for tool", tool_name=namespaced_name)
 
         enhanced_tools.append(base_tool)
 
-    logger.info("Enhanced %d tools with metadata", len(enhanced_tools))
+    logger.info("Enhanced tools with metadata", enhanced_count=len(enhanced_tools))
     return enhanced_tools
 
 
@@ -114,9 +113,9 @@ def identify_missing_tools(
     for enabled_tool in enabled_tools:
         if enabled_tool.namespaced_name not in namespaced_names:
             missing_tools.append(enabled_tool)
-            logger.debug("Tool missing from MCP server: %s", enabled_tool.namespaced_name)
+            logger.debug("Tool missing from MCP server", tool_name=enabled_tool.namespaced_name)
 
-    logger.info("Identified %d tools missing from MCP servers", len(missing_tools))
+    logger.info("Identified tools missing from MCP servers", missing_count=len(missing_tools))
     return missing_tools
 
 
@@ -144,9 +143,9 @@ def identify_unregistered_tools(
     for namespaced_name, base_tool in namespaced_tools:
         if namespaced_name not in enabled_names:
             unregistered_tools.append(base_tool)
-            logger.debug("Unregistered tool found in MCP server: %s", namespaced_name)
+            logger.debug("Unregistered tool found in MCP server", tool_name=namespaced_name)
 
-    logger.info("Identified %d unregistered tools in MCP servers", len(unregistered_tools))
+    logger.info("Identified unregistered tools in MCP servers", unregistered_count=len(unregistered_tools))
     return unregistered_tools
 
 
@@ -179,9 +178,13 @@ def identify_re_enableable_tools(
         # Do NOT re-enable manually disabled tools (AVAILABLE status)
         if disabled_tool.namespaced_name in namespaced_names and disabled_tool.status == ToolStatus.MISSING:
             re_enableable_tools.append(disabled_tool)
-            logger.debug("Previously missing tool now available on MCP server: %s", disabled_tool.namespaced_name)
+            logger.debug("Previously missing tool now available on MCP server", tool_name=disabled_tool.namespaced_name)
         elif disabled_tool.namespaced_name in namespaced_names and disabled_tool.status == ToolStatus.AVAILABLE:
-            logger.debug("Skipping manually disabled tool (will not auto re-enable): %s", disabled_tool.namespaced_name)
+            logger.debug(
+                "Skipping manually disabled tool (will not auto re-enable)", tool_name=disabled_tool.namespaced_name
+            )
 
-    logger.info("Identified %d automatically disabled tools that can be re-enabled", len(re_enableable_tools))
+    logger.info(
+        "Identified automatically disabled tools that can be re-enabled", re_enableable_count=len(re_enableable_tools)
+    )
     return re_enableable_tools

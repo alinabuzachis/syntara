@@ -4,12 +4,13 @@ This module provides file storage operations using the retriever pattern
 for pluggable storage backends.
 """
 
-import logging
 from pathlib import Path
+
+import structlog
 
 from nexus.files.retrievers.base import BaseRetriever
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def sanitize_filename(filename: str, max_length: int = 200) -> str:
@@ -85,10 +86,10 @@ async def save_file(
         saved_path = await retriever.save_file(file_content, file_path)
 
         logger.info(
-            "File saved to storage (filename=%s, file_id=%s, size=%d bytes)",
-            safe_filename,
-            file_id,
-            len(file_content),
+            "File saved to storage",
+            filename=safe_filename,
+            file_id=file_id,
+            size_bytes=len(file_content),
         )
 
         return saved_path
@@ -96,11 +97,11 @@ async def save_file(
     except (OSError, PermissionError):
         # Log detailed error information (not exposed to client)
         logger.exception(
-            "Storage failure (filename=%s, file_id=%s, path=%s, size=%d bytes)",
-            safe_filename,
-            file_id,
-            file_path,
-            len(file_content),
+            "Storage failure",
+            filename=safe_filename,
+            file_id=file_id,
+            path=file_path,
+            size_bytes=len(file_content),
         )
         # Re-raise for caller to handle
         raise

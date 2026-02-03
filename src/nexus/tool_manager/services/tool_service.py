@@ -4,12 +4,12 @@ This module provides the service layer for Tool management, wrapping
 core domain logic with database persistence and transaction management.
 """
 
-import logging
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+import structlog
 from sqlalchemy import Select
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -33,7 +33,7 @@ from nexus.tool_manager.models.tool_bulk_update import MAX_BULK_UPDATES
 
 SelectTool = Select[tuple[Tool]] | SelectOfScalar[tuple[Tool]]
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ToolServiceEnrichQuery(EnrichQueryMixin):
@@ -202,9 +202,11 @@ class ToolService(BaseService):
 
         if duplicate_count > 0:
             logger.info(
-                "Bulk update request contained %d duplicate tool_ids, removed duplicates",
-                duplicate_count,
-                extra={"user_id": self.user.id, "original_count": len(tool_ids), "unique_count": len(unique_tool_ids)},
+                "Bulk update request contained duplicate tool_ids, removed duplicates",
+                duplicate_count=duplicate_count,
+                user_id=self.user.id,
+                original_count=len(tool_ids),
+                unique_count=len(unique_tool_ids),
             )
 
         # Query active/enabled tools
@@ -226,25 +228,21 @@ class ToolService(BaseService):
         # Log soft-deleted tools
         if deleted_tool_ids:
             logger.warning(
-                "Bulk update request included %d soft-deleted tool_ids that will be skipped",
-                len(deleted_tool_ids),
-                extra={
-                    "user_id": self.user.id,
-                    "deleted_tool_ids": [str(tool_id) for tool_id in deleted_tool_ids],
-                    "enabled": enabled,
-                },
+                "Bulk update request included soft-deleted tool_ids that will be skipped",
+                deleted_count=len(deleted_tool_ids),
+                user_id=self.user.id,
+                deleted_tool_ids=[str(tool_id) for tool_id in deleted_tool_ids],
+                enabled=enabled,
             )
 
         # Log tools that don't exist
         if not_found_tool_ids:
             logger.warning(
-                "Bulk update request included %d tool_ids that do not exist in database",
-                len(not_found_tool_ids),
-                extra={
-                    "user_id": self.user.id,
-                    "not_found_tool_ids": [str(tool_id) for tool_id in not_found_tool_ids],
-                    "enabled": enabled,
-                },
+                "Bulk update request included tool_ids that do not exist in database",
+                not_found_count=len(not_found_tool_ids),
+                user_id=self.user.id,
+                not_found_tool_ids=[str(tool_id) for tool_id in not_found_tool_ids],
+                enabled=enabled,
             )
 
         updated_count = 0
@@ -262,18 +260,16 @@ class ToolService(BaseService):
         await self.session.flush()
 
         logger.info(
-            "Bulk update completed: %d tools updated, %d skipped",
-            updated_count,
-            skipped_count,
-            extra={
-                "user_id": self.user.id,
-                "enabled": enabled,
-                "total_requested": len(tool_ids),
-                "unique_requested": len(unique_tool_ids),
-                "duplicates": duplicate_count,
-                "soft_deleted": len(deleted_tool_ids),
-                "not_found": len(not_found_tool_ids),
-            },
+            "Bulk update completed",
+            updated_count=updated_count,
+            skipped_count=skipped_count,
+            user_id=self.user.id,
+            enabled=enabled,
+            total_requested=len(tool_ids),
+            unique_requested=len(unique_tool_ids),
+            duplicates=duplicate_count,
+            soft_deleted=len(deleted_tool_ids),
+            not_found=len(not_found_tool_ids),
         )
 
         return {

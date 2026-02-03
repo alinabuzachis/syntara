@@ -34,7 +34,6 @@ class TestBaseAgentInitialization:
         agent = ConcreteAgent()
 
         assert agent.logger is not None
-        assert agent.logger.name == "ConcreteAgent"
 
 
 class TestBaseAgentErrorHandling:
@@ -161,11 +160,13 @@ class TestBaseAgentLogging:
 
             mock_info.assert_called_once()
             call_args = mock_info.call_args[0]
-            # First arg is format string, subsequent args are values
+            call_kwargs = mock_info.call_args[1]
+            # First arg is the message string
             assert "executing as node" in call_args[0]
-            assert call_args[1] == "ConcreteAgent"
-            assert call_args[2] == invocation_id
-            assert call_args[3] == session_id
+            # Check kwargs for the values
+            assert call_kwargs.get("agent_class") == "ConcreteAgent"
+            assert call_kwargs.get("invocation_id") == invocation_id
+            assert call_kwargs.get("session_id") == session_id
 
     def test_log_execution_success_logs_with_correct_format(self) -> None:
         """Test that execution success is logged with invocation ID."""
@@ -177,7 +178,9 @@ class TestBaseAgentLogging:
 
             mock_info.assert_called_once()
             call_args = mock_info.call_args[0]
-            # First arg is format string, subsequent args are values
+            call_kwargs = mock_info.call_args[1]
+            # First arg is the message string
             assert "completed successfully" in call_args[0]
-            assert call_args[1] == "ConcreteAgent"
-            assert call_args[2] == invocation_id
+            # Check kwargs for the values
+            assert call_kwargs.get("agent_class") == "ConcreteAgent"
+            assert call_kwargs.get("invocation_id") == invocation_id

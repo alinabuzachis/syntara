@@ -4,11 +4,11 @@ This service provides high-level operations for starting, monitoring, and managi
 workflow executions via Temporal.
 """
 
-import logging
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+import structlog
 from temporalio.api.enums.v1 import EventType
 from temporalio.client import Client, WorkflowHandle, WorkflowHistoryEventFilterType
 from temporalio.exceptions import TemporalError
@@ -25,7 +25,7 @@ from nexus.workflows.workflow_engine.models.responses import (
 )
 from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowDefinition
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class TemporalExecutionService:
@@ -75,7 +75,7 @@ class TemporalExecutionService:
                         return failed_attrs.failure.message
                     break
         except TemporalError as e:
-            logger.warning("Failed to fetch workflow history for failure details: %s", e)
+            logger.warning("Failed to fetch workflow history for failure details", error=str(e))
         return None
 
     async def start_workflow(
@@ -119,7 +119,7 @@ class TemporalExecutionService:
         """
         try:
             # Validate workflow definition
-            logger.info("Validating workflow definition: %s", workflow_name)
+            logger.info("Validating workflow definition", workflow_name=workflow_name)
             _workflow_definition = WorkflowDefinition(**workflow_def)
 
             # Generate internal workflow ID if not provided
@@ -133,10 +133,10 @@ class TemporalExecutionService:
             temporal_workflow_id = f"{workflow_name}-{execution_id}"
 
             logger.info(
-                "Starting workflow execution: %s (execution_id: %s, temporal_workflow_id: %s)",
-                workflow_id,
-                execution_id,
-                temporal_workflow_id,
+                "Starting workflow execution",
+                workflow_id=workflow_id,
+                execution_id=execution_id,
+                temporal_workflow_id=temporal_workflow_id,
             )
 
             # Start Temporal workflow with the original dict
@@ -148,9 +148,9 @@ class TemporalExecutionService:
             )
 
             logger.info(
-                "Workflow started successfully: %s (temporal_run_id: %s)",
-                temporal_workflow_id,
-                handle.first_execution_run_id,
+                "Workflow started successfully",
+                temporal_workflow_id=temporal_workflow_id,
+                temporal_run_id=handle.first_execution_run_id,
             )
 
             # Return execution information
@@ -164,7 +164,7 @@ class TemporalExecutionService:
             )
 
         except Exception:
-            logger.exception("Failed to start workflow %s", workflow_name)
+            logger.exception("Failed to start workflow", workflow_name=workflow_name)
             raise
 
     async def get_workflow_status(self, temporal_workflow_id: str) -> WorkflowStatusResponse:
@@ -212,7 +212,7 @@ class TemporalExecutionService:
             )
 
         except Exception:
-            logger.exception("Failed to get workflow status for %s", temporal_workflow_id)
+            logger.exception("Failed to get workflow status", temporal_workflow_id=temporal_workflow_id)
             raise
 
     async def get_workflow_result(self, temporal_workflow_id: str) -> WorkflowResultResponse:
@@ -232,17 +232,17 @@ class TemporalExecutionService:
             handle = self.temporal_client.get_workflow_handle(temporal_workflow_id)
 
             # Wait for workflow to complete
-            logger.info("Waiting for workflow %s to complete...", temporal_workflow_id)
+            logger.info("Waiting for workflow to complete", temporal_workflow_id=temporal_workflow_id)
             # TODO: This blocks until workflow completes, which is problematic  # noqa: TD002, TD003
             # for HITL workflows that may wait indefinitely for human input.
             # This will be addressed in a future Human-in-the-Loop Approvals ticket.
             result: dict[str, Any] = await handle.result()
 
         except Exception:
-            logger.exception("Workflow %s failed", temporal_workflow_id)
+            logger.exception("Workflow failed", temporal_workflow_id=temporal_workflow_id)
             raise
         else:
-            logger.info("Workflow %s completed successfully", temporal_workflow_id)
+            logger.info("Workflow completed successfully", temporal_workflow_id=temporal_workflow_id)
             # Convert dict result to typed response
             return WorkflowResultResponse(**result)
 
@@ -267,12 +267,14 @@ class TemporalExecutionService:
         try:
             handle = self.temporal_client.get_workflow_handle(temporal_workflow_id)
 
-            logger.info("Cancelling workflow %s: %s", temporal_workflow_id, reason or "No reason provided")
+            logger.info(
+                "Cancelling workflow", temporal_workflow_id=temporal_workflow_id, reason=reason or "No reason provided"
+            )
 
             # Cancel the workflow
             await handle.cancel()
 
-            logger.info("Workflow %s cancelled successfully", temporal_workflow_id)
+            logger.info("Workflow cancelled successfully", temporal_workflow_id=temporal_workflow_id)
 
             return WorkflowCancellationResponse(
                 temporal_workflow_id=temporal_workflow_id,
@@ -282,7 +284,7 @@ class TemporalExecutionService:
             )
 
         except Exception:
-            logger.exception("Failed to cancel workflow %s", temporal_workflow_id)
+            logger.exception("Failed to cancel workflow", temporal_workflow_id=temporal_workflow_id)
             raise
 
     async def terminate_workflow(
@@ -308,12 +310,14 @@ class TemporalExecutionService:
         try:
             handle = self.temporal_client.get_workflow_handle(temporal_workflow_id)
 
-            logger.warning("Terminating workflow %s: %s", temporal_workflow_id, reason or "No reason provided")
+            logger.warning(
+                "Terminating workflow", temporal_workflow_id=temporal_workflow_id, reason=reason or "No reason provided"
+            )
 
             # Terminate the workflow
             await handle.terminate(reason=reason)
 
-            logger.info("Workflow %s terminated successfully", temporal_workflow_id)
+            logger.info("Workflow terminated successfully", temporal_workflow_id=temporal_workflow_id)
 
             return WorkflowTerminationResponse(
                 temporal_workflow_id=temporal_workflow_id,
@@ -323,7 +327,7 @@ class TemporalExecutionService:
             )
 
         except Exception:
-            logger.exception("Failed to terminate workflow %s", temporal_workflow_id)
+            logger.exception("Failed to terminate workflow", temporal_workflow_id=temporal_workflow_id)
             raise
 
     async def send_activity_signal(
@@ -350,9 +354,9 @@ class TemporalExecutionService:
             handle = self.temporal_client.get_workflow_handle(temporal_workflow_id)
 
             logger.info(
-                "Sending signal to activity %s in workflow %s",
-                activity_id,
-                temporal_workflow_id,
+                "Sending signal to activity in workflow",
+                activity_id=activity_id,
+                temporal_workflow_id=temporal_workflow_id,
             )
 
             # Send signal to the workflow's activity_signal handler
@@ -362,16 +366,16 @@ class TemporalExecutionService:
             )
 
             logger.info(
-                "Signal sent successfully to activity %s in workflow %s",
-                activity_id,
-                temporal_workflow_id,
+                "Signal sent successfully to activity in workflow",
+                activity_id=activity_id,
+                temporal_workflow_id=temporal_workflow_id,
             )
 
         except Exception:
             logger.exception(
-                "Failed to send signal to activity %s in workflow %s",
-                activity_id,
-                temporal_workflow_id,
+                "Failed to send signal to activity in workflow",
+                activity_id=activity_id,
+                temporal_workflow_id=temporal_workflow_id,
             )
             raise
 

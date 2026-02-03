@@ -1,16 +1,16 @@
 """Route validation logic."""
 
 import inspect
-import logging
 import re
 from typing import Any
 
+import structlog
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
 from .loader import EndpointDefinition, OpenAPISchema
 
-logger = logging.getLogger("nexus.core.router.validator")
+logger = structlog.stdlib.get_logger("nexus.core.router.validator")
 
 
 class ValidationError:
@@ -82,11 +82,11 @@ class RouteValidator:
 
         # Get all routes from FastAPI app
         routes = self._extract_routes()
-        logger.info("Found %d registered routes in FastAPI app", len(routes))
+        logger.info("Found registered routes in FastAPI app", route_count=len(routes))
 
         # Validate each schema
         for schema in self.schemas:
-            logger.info("Validating schema: %s", schema.filename)
+            logger.info("Validating schema", schema_filename=schema.filename)
             self._validate_schema(schema, routes)
 
         # Check for orphaned routes (routes without specs)
@@ -292,7 +292,7 @@ def log_validation_errors(errors: list[ValidationError]) -> None:
         return
 
     logger.warning("=" * 80)
-    logger.warning("VALIDATION ERRORS: Found %d issue(s)", len(errors))
+    logger.warning("VALIDATION ERRORS: Found issues", issue_count=len(errors))
     logger.warning("=" * 80)
 
     # Group errors by type
@@ -304,15 +304,15 @@ def log_validation_errors(errors: list[ValidationError]) -> None:
 
     # Log each error type group
     for error_type, error_list in errors_by_type.items():
-        logger.warning("\n%s (%d):", error_type.upper().replace("_", " "), len(error_list))
+        logger.warning("Error type summary", error_type=error_type.upper().replace("_", " "), count=len(error_list))
         logger.warning("-" * 80)
 
         for error in error_list:
-            logger.error("✗ %s", error.message)
+            logger.error("Validation error", message=error.message)
             for key, value in error.details.items():
-                logger.error("  → %s: %s", key, value)
+                logger.error("Error detail", key=key, value=value)
             logger.error("")
 
     logger.warning("=" * 80)
-    logger.warning("Application starting despite %d validation error(s) (non-blocking mode)", len(errors))
+    logger.warning("Application starting despite validation errors (non-blocking mode)", error_count=len(errors))
     logger.warning("=" * 80)

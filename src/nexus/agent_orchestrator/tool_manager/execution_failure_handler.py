@@ -6,12 +6,12 @@ mechanisms for proper integration with StateGraph execution.
 """
 
 import asyncio
-import logging
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 from uuid import UUID
 
+import structlog
 from langchain_core.messages.tool import ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
@@ -21,7 +21,7 @@ from nexus.agent_orchestrator.utils import retry_with_backoff
 from nexus.core.config.base import get_settings
 from nexus.tool_manager.models.tool import ToolStatus
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 # Constants
 MAX_ERROR_MESSAGE_LENGTH = 500
@@ -59,29 +59,26 @@ def _extract_tool_id_from_metadata(base_tool: Any, tool_name: str) -> UUID | Non
 
     """
     if not base_tool or not hasattr(base_tool, "metadata") or not isinstance(base_tool.metadata, dict):
-        logger.error(
-            "BaseTool missing metadata - this indicates a bug in tool synchronization: tool_name=%s", tool_name
-        )
+        logger.error("BaseTool missing metadata - this indicates a bug in tool synchronization", tool_name=tool_name)
         return None
 
     tool_id_value = base_tool.metadata.get("tool_id")
     if not tool_id_value:
         logger.error(
-            "BaseTool metadata missing tool_id - this indicates a bug in tool synchronization: tool_name=%s",
-            tool_name,
+            "BaseTool metadata missing tool_id - this indicates a bug in tool synchronization",
+            tool_name=tool_name,
         )
         return None
 
     try:
         tool_id = UUID(str(tool_id_value))
-        logger.debug("Extracted tool_id from metadata: %s", tool_id)
+        logger.debug("Extracted tool_id from metadata", tool_id=tool_id)
         return tool_id
     except (ValueError, TypeError):
         logger.exception(
-            "Invalid tool_id format in metadata - this indicates a bug in tool synchronization: "
-            "tool_name=%s, tool_id=%s",
-            tool_name,
-            tool_id_value,
+            "Invalid tool_id format in metadata - this indicates a bug in tool synchronization",
+            tool_name=tool_name,
+            tool_id_value=tool_id_value,
         )
         return None
 
@@ -132,8 +129,8 @@ def create_tool_awrapper() -> Callable[
 
             # Handle the error and extract tool_id for disabling
             logger.exception(
-                "Tool execution failed during wrapped call: tool_name=%s",
-                tool_name,
+                "Tool execution failed during wrapped call",
+                tool_name=tool_name,
             )
 
             # Extract and validate tool_id from BaseTool metadata
@@ -215,8 +212,8 @@ def create_tool_wrapper(
             base_tool = request.tool
 
             logger.exception(
-                "Tool execution failed during wrapped call: tool_name=%s",
-                tool_name,
+                "Tool execution failed during wrapped call",
+                tool_name=tool_name,
             )
 
             # Extract and validate tool_id from BaseTool metadata
@@ -246,26 +243,26 @@ def _schedule_tool_disable_by_id(
         # Use the provided loop to schedule the task
         try:
             task = asyncio.run_coroutine_threadsafe(_disable_tool_by_id(tool_id, error), loop)
-            logger.info("Successfully auto-disabled failed tool using provided event loop: tool_id=%s", tool_id)
+            logger.info("Successfully auto-disabled failed tool using provided event loop", tool_id=tool_id)
             # Don't wait for completion to avoid blocking tool execution
             _ = task
         except RuntimeError:
             logger.warning(
-                "Failed to schedule tool auto-disable operation on provided event loop: tool_id=%s, error=%s",
-                tool_id,
-                f"{error.__class__.__name__}: {error!s}",
+                "Failed to schedule tool auto-disable operation on provided event loop",
+                tool_id=tool_id,
+                error=f"{error.__class__.__name__}: {error!s}",
             )
     else:
         # No loop provided - create a new event loop to run the async operation
         try:
             asyncio.run(_disable_tool_by_id(tool_id, error))
-            logger.info("Successfully auto-disabled failed tool using new event loop: tool_id=%s", tool_id)
+            logger.info("Successfully auto-disabled failed tool using new event loop", tool_id=tool_id)
         except RuntimeError as e:
             logger.warning(
-                "Failed to run tool auto-disable operation (no event loop): tool_id=%s, error=%s, details=%s",
-                tool_id,
-                f"{error.__class__.__name__}: {error!s}",
-                str(e),
+                "Failed to run tool auto-disable operation (no event loop)",
+                tool_id=tool_id,
+                error=f"{error.__class__.__name__}: {error!s}",
+                details=str(e),
             )
 
 
@@ -297,11 +294,11 @@ async def _disable_tool_by_id(tool_id: UUID, error: Exception) -> None:
                 refresh_error=error_message,
             )
 
-            logger.info("Successfully auto-disabled failed tool: tool_id=%s", tool_id)
+            logger.info("Successfully auto-disabled failed tool", tool_id=tool_id)
 
     except Exception:
         logger.exception(
-            "Failed to auto-disable tool after execution failure: tool_id=%s, error=%s",
-            tool_id,
-            f"{error.__class__.__name__}: {error!s}",
+            "Failed to auto-disable tool after execution failure",
+            tool_id=tool_id,
+            error=f"{error.__class__.__name__}: {error!s}",
         )

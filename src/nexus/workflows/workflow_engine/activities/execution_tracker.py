@@ -110,12 +110,13 @@ async def _execute_task_activity(self, activity, execution_id, workflow_state):
 - **Cancellation support**: Properly mark activities as cancelled when workflows stop
 """
 
-import logging
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.stdlib.get_logger(__name__)
 
 # In-memory storage for activity executions (stub for database)
 _activity_executions: dict[str, dict[str, Any]] = {}
@@ -171,7 +172,9 @@ async def create_activity_execution(
     # Store in memory (replace with database insert)
     _activity_executions[activity_exec_id] = activity_execution
 
-    logger.info("Created activity execution: %s (exec_id: %s, iteration: %s)", activity_id, activity_exec_id, iteration)
+    logger.info(
+        "Created activity execution", activity_id=activity_id, execution_id=activity_exec_id, iteration=iteration
+    )
 
     return activity_execution
 
@@ -231,10 +234,10 @@ async def update_activity_execution(
         activity_execution["completed_at"] = datetime.now(UTC).isoformat()
 
     logger.info(
-        "Updated activity execution: %s (status: %s, retries: %s)",
-        activity_exec_id,
-        activity_execution["status"],
-        activity_execution["retry_count"],
+        "Updated activity execution",
+        activity_exec_id=activity_exec_id,
+        status=activity_execution["status"],
+        retry_count=activity_execution["retry_count"],
     )
 
     return activity_execution
@@ -305,7 +308,9 @@ async def cancel_execution_activities(execution_id: str) -> int:
             activity_exec["completed_at"] = datetime.now(UTC).isoformat()
             cancelled_count += 1
 
-    logger.info("Cancelled %s running activities for execution: %s", cancelled_count, execution_id)
+    logger.info(
+        "Cancelled running activities for execution", cancelled_count=cancelled_count, execution_id=execution_id
+    )
 
     return cancelled_count
 

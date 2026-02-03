@@ -20,6 +20,8 @@ from temporalio import workflow
 # Must import constants first so when models imports constants, it uses the cached module
 # See: https://github.com/temporalio/sdk-python#avoiding-the-sandbox
 with workflow.unsafe.imports_passed_through():
+    import structlog  # noqa: F401 - Ensures structlog loads outside sandbox
+
     from . import constants  # noqa: F401 - Ensures constants load outside sandbox
     from .activities.aap_job_template_activity import execute_aap_job_template_activity
     from .activities.agentic_activity import execute_agentic_activity

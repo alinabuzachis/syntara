@@ -4,12 +4,12 @@ This module provides functions for converting URL query parameters with
 bracket notation into structured filter objects for database queries.
 """
 
-import logging
 import re
 from datetime import datetime
 from enum import Enum
 from typing import Any, TypeVar
 
+import structlog
 from pydantic import BaseModel
 from sqlalchemy import Select
 from sqlmodel import SQLModel, and_, or_
@@ -18,7 +18,7 @@ from sqlmodel import SQLModel, and_, or_
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 # Logger for this module
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 # Type variable for generic Query/Select type
 TP = TypeVar("TP", bound=tuple[Any, ...])
@@ -191,10 +191,10 @@ def _convert_datetime_value(value: str, field_attr: Any) -> datetime:  # noqa: A
     except ValueError as e:
         # Log warning and re-raise - malformed timestamps should fail loudly
         logger.warning(
-            "Failed to parse datetime value '%s' for field %s: %s",
-            value,
-            getattr(field_attr, "key", "unknown"),
-            e,
+            "Failed to parse datetime value",
+            value=value,
+            field=getattr(field_attr, "key", "unknown"),
+            error=str(e),
         )
         msg = f"Invalid datetime format: {value}. Expected ISO 8601 format (e.g., '2025-01-15T10:30:00Z')"
         raise ValueError(msg) from e
@@ -255,11 +255,11 @@ def _convert_numeric_value(value: str, python_type: type[int | float], field_att
     except ValueError as e:
         # Log warning and re-raise - type mismatches should fail loudly
         logger.warning(
-            "Failed to convert value '%s' to %s for field %s: %s",
-            value,
-            python_type.__name__,
-            getattr(field_attr, "key", "unknown"),
-            e,
+            "Failed to convert value to numeric type",
+            value=value,
+            python_type=python_type.__name__,
+            field=getattr(field_attr, "key", "unknown"),
+            error=str(e),
         )
         msg = f"Invalid {python_type.__name__} value: {value}"
         raise ValueError(msg) from e
@@ -288,10 +288,10 @@ def _convert_enum_value(value: str, python_type: type[Enum], field_attr: Any) ->
         valid_values = [item.value for item in python_type.__members__.values()]
         field_name = getattr(field_attr, "key", "unknown")
         logger.warning(
-            "Invalid enum value '%s' for field %s. Valid values: %s",
-            value,
-            field_name,
-            valid_values,
+            "Invalid enum value",
+            value=value,
+            field=field_name,
+            valid_values=valid_values,
         )
         msg = f"Invalid value '{value}' for field '{field_name}'. Valid values are: {', '.join(valid_values)}"
         raise ValueError(msg) from e
@@ -323,8 +323,8 @@ def _convert_filter_value(value: FilterValue, field_attr: Any) -> FilterValue:  
         # Some SQLAlchemy types don't implement python_type (like UUID, custom types)
         # This is expected, just use string comparison for these fields
         logger.debug(
-            "Field %s does not provide python_type, using string comparison",
-            getattr(field_attr, "key", "unknown"),
+            "Field does not provide python_type, using string comparison",
+            field=getattr(field_attr, "key", "unknown"),
         )
         return value
 

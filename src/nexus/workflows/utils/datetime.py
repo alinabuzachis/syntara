@@ -3,13 +3,13 @@
 Provides utilities for datetime conversion, timezone handling, and protobuf timestamp processing.
 """
 
-import logging
 from datetime import UTC, datetime
 from typing import cast
 
+import structlog
 from google.protobuf.timestamp_pb2 import Timestamp
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def ensure_timezone_aware(dt: datetime | Timestamp | object) -> datetime:
@@ -53,5 +53,5 @@ def ensure_timezone_aware(dt: datetime | Timestamp | object) -> datetime:
         return dt_like
 
     # If all else fails, log error and return current UTC time
-    logger.exception("Cannot convert %s (type=%s) to timezone-aware datetime", dt, type(dt))
+    logger.exception("Cannot convert to timezone-aware datetime", object=dt, object_type=type(dt))
     return datetime.now(UTC)

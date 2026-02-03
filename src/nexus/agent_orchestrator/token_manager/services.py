@@ -5,10 +5,10 @@ This module provides:
 - TokenValidationService: Orchestrates validation logic
 """
 
-import logging
 from functools import lru_cache
 from uuid import UUID
 
+import structlog
 import tiktoken
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -18,7 +18,7 @@ from nexus.agent_orchestrator.token_manager.exceptions import (
 )
 from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 @lru_cache(maxsize=128)
@@ -40,7 +40,7 @@ def _get_encoder(model_name: str = "gpt-4") -> tiktoken.Encoding:
     supported_models = ["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo", "gpt-4o"]
 
     if model_name not in supported_models:
-        logger.debug("Model %s not supported by tiktoken, using 'gpt-4' for token counting", model_name)
+        logger.debug("Model not supported by tiktoken, using 'gpt-4' for token counting", model_name=model_name)
         model_name = "gpt-4"
 
     return tiktoken.encoding_for_model(model_name)
@@ -108,11 +108,9 @@ class TokenCalculator:
         except Exception as e:
             logger.exception(
                 "Token calculation failed",
-                extra={
-                    "model_name": model_name,
-                    "text_length": len(text),
-                    "error": str(e),
-                },
+                model_name=model_name,
+                text_length=len(text),
+                error=str(e),
             )
             msg = f"Failed to calculate tokens: {e}"
             raise TokenCalculationError(msg) from e
@@ -208,13 +206,11 @@ class TokenValidationService:
             if current_usage + request_tokens > config.token_limit:
                 logger.warning(
                     "Token limit exceeded",
-                    extra={
-                        "user_id": str(user_id),
-                        "current_usage": current_usage,
-                        "token_limit": config.token_limit,
-                        "request_tokens": request_tokens,
-                        "would_total": current_usage + request_tokens,
-                    },
+                    user_id=str(user_id),
+                    current_usage=current_usage,
+                    token_limit=config.token_limit,
+                    request_tokens=request_tokens,
+                    would_total=current_usage + request_tokens,
                 )
                 raise TokenLimitExceededError(
                     user_id=user_id,
@@ -232,14 +228,12 @@ class TokenValidationService:
 
             logger.info(
                 "Token usage validated and recorded",
-                extra={
-                    "user_id": str(user_id),
-                    "request_tokens": request_tokens,
-                    "current_usage": current_usage,
-                    "new_total": current_usage + request_tokens,
-                    "token_limit": config.token_limit,
-                    "model_name": config_prelim.model_name,
-                },
+                user_id=str(user_id),
+                request_tokens=request_tokens,
+                current_usage=current_usage,
+                new_total=current_usage + request_tokens,
+                token_limit=config.token_limit,
+                model_name=config_prelim.model_name,
             )
 
         return request_tokens

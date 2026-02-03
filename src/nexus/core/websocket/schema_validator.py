@@ -4,13 +4,13 @@ This module provides lightweight validation of dict messages against AsyncAPI
 specifications without using SQLModel or Pydantic.
 """
 
-import logging
 from pathlib import Path
 from typing import Any
 
+import structlog
 import yaml
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ValidationError(Exception):
@@ -122,7 +122,7 @@ class SchemaValidator:
         for field_name, value in data.items():
             if field_name not in properties:
                 # Skip extra fields (lenient validation)
-                logger.debug("Unknown field '%s' in message, skipping validation", field_name)
+                logger.debug("Unknown field in message, skipping validation", field_name=field_name)
                 continue
 
             field_schema = properties[field_name]

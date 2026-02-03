@@ -6,12 +6,12 @@ documents from uploaded files using the existing FileManager infrastructure.
 
 import asyncio
 import contextlib
-import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+import structlog
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import DocumentRetrievalError
@@ -22,7 +22,7 @@ from nexus.core.database.session import get_db
 from nexus.files import FileManager, FileMetadata, get_file_manager
 from nexus.files.models import FileStatus
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 MAX_CONCURRENT_FILE_LOADS = 20
 
 
@@ -180,10 +180,10 @@ class UploadedFileRetriever(DocumentRetriever):
         unique_file_ids = list(dict.fromkeys(file_ids))
         if len(unique_file_ids) < len(file_ids):
             logger.debug(
-                "Removed %d duplicate file_ids from request (original: %d, unique: %d)",
-                len(file_ids) - len(unique_file_ids),
-                len(file_ids),
-                len(unique_file_ids),
+                "Removed duplicate file_ids from request",
+                duplicates_removed=len(file_ids) - len(unique_file_ids),
+                original_count=len(file_ids),
+                unique_count=len(unique_file_ids),
             )
 
         return unique_file_ids
@@ -214,7 +214,7 @@ class UploadedFileRetriever(DocumentRetriever):
         if len(file_metadata_list) != len(file_ids):
             found_ids = {fm.id for fm in file_metadata_list}
             missing_ids = set(file_ids) - found_ids
-            logger.error("Files not found in database: %s", missing_ids)
+            logger.error("Files not found in database", missing_ids=missing_ids)
             error_msg = self._format_retrieval_error()
             raise DocumentRetrievalError(error_msg)
 
@@ -223,7 +223,7 @@ class UploadedFileRetriever(DocumentRetriever):
         if unconverted_files:
             unconverted_details = [(fm.id, fm.status) for fm in unconverted_files]
             unconverted_filenames = [fm.filename for fm in unconverted_files]
-            logger.error("Cannot retrieve files with non-CONVERTED status: %s", unconverted_details)
+            logger.error("Cannot retrieve files with non-CONVERTED status", unconverted_details=unconverted_details)
             error_msg = self._format_retrieval_error(unconverted_filenames)
             raise DocumentRetrievalError(error_msg)
 
@@ -232,7 +232,7 @@ class UploadedFileRetriever(DocumentRetriever):
         if files_missing_paths:
             missing_path_ids = [fm.id for fm in files_missing_paths]
             missing_path_filenames = [fm.filename for fm in files_missing_paths]
-            logger.error("Files marked CONVERTED but missing converted_content_path: %s", missing_path_ids)
+            logger.error("Files marked CONVERTED but missing converted_content_path", missing_path_ids=missing_path_ids)
             error_msg = self._format_retrieval_error(missing_path_filenames)
             raise DocumentRetrievalError(error_msg)
 
@@ -263,12 +263,12 @@ class UploadedFileRetriever(DocumentRetriever):
             logger.info("No file_ids found in invocation context")
             return
 
-        logger.info("Found %d file_ids in invocation context, fetching metadata", len(file_ids))
+        logger.info("Found file_ids in invocation context, fetching metadata", file_count=len(file_ids))
 
         async with self.session_context() as session:
             file_metadata_list = await self._fetch_and_validate_metadata(file_ids, session)
 
-        logger.info("All %d files validated successfully, processing in parallel", len(file_metadata_list))
+        logger.info("All files validated successfully, processing in parallel", file_count=len(file_metadata_list))
 
         semaphore = asyncio.Semaphore(MAX_CONCURRENT_FILE_LOADS)
         tasks = [
@@ -296,9 +296,9 @@ class UploadedFileRetriever(DocumentRetriever):
                     raise DocumentRetrievalError(error_msg) from e
 
             logger.info(
-                "Streaming document retrieval completed: %d processed, %d skipped",
-                processed_count,
-                skipped_count,
+                "Streaming document retrieval completed",
+                processed_count=processed_count,
+                skipped_count=skipped_count,
             )
         except Exception:
             # Cancel all remaining tasks
@@ -329,8 +329,8 @@ class UploadedFileRetriever(DocumentRetriever):
                 # Defensive check: _fetch_and_validate_metadata should ensure this is never None
                 if not file_metadata.converted_content_path:
                     logger.error(
-                        "File %s misses converted_content_path.",
-                        file_metadata.id,
+                        "File misses converted_content_path",
+                        file_id=file_metadata.id,
                     )
                     error_msg = self._format_retrieval_error([file_metadata.filename])
                     raise DocumentRetrievalError(error_msg)  # noqa: TRY301
@@ -341,9 +341,9 @@ class UploadedFileRetriever(DocumentRetriever):
                 )
                 if document:
                     logger.debug(
-                        "Successfully retrieved document: %s (size: %d chars)",
-                        file_metadata.filename,
-                        len(document.content),
+                        "Successfully retrieved document",
+                        filename=file_metadata.filename,
+                        size_chars=len(document.content),
                     )
                     return document, "processed"
                 return None, "skipped"
@@ -351,7 +351,7 @@ class UploadedFileRetriever(DocumentRetriever):
             except DocumentRetrievalError:
                 raise
             except Exception as e:
-                logger.exception("Failed to load file content for %s", file_metadata.filename)
+                logger.exception("Failed to load file content", filename=file_metadata.filename)
                 error_msg = self._format_retrieval_error([file_metadata.filename])
                 raise DocumentRetrievalError(error_msg) from e
 
@@ -380,12 +380,12 @@ class UploadedFileRetriever(DocumentRetriever):
         try:
             content_str = content_bytes.decode("utf-8")
         except UnicodeDecodeError:
-            logger.warning("Failed to decode file as UTF-8: %s", file_metadata.filename)
+            logger.warning("Failed to decode file as UTF-8", filename=file_metadata.filename)
             return None
 
         # Validate content is not empty
         if not content_str or not content_str.strip():
-            logger.warning("Converted file is empty or contains only whitespace: %s", file_metadata.filename)
+            logger.warning("Converted file is empty or contains only whitespace", filename=file_metadata.filename)
             return None
 
         # Create RelevantDocument with metadata

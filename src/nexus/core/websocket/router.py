@@ -4,16 +4,16 @@ This module provides the WebSocket router that automatically discovers and regis
 WebSocket endpoints based on AsyncAPI specifications and handler modules.
 """
 
-import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+import structlog
 from fastapi import APIRouter
 
 from nexus.core.websocket.endpoint_factory import create_websocket_endpoint, scan_handler_specs
 from nexus.core.websocket.interceptor import InterceptorRegistry, ValidationInterceptor, get_registry
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 @dataclass
@@ -53,7 +53,7 @@ def _register_channel_endpoint(
     """
     address = channel_def.get("address")
     if not address:
-        logger.warning("Channel '%s' has no address, skipping", channel_name)
+        logger.warning("Channel has no address, skipping", channel_name=channel_name)
         return False
 
     interceptor_registry.before_endpoint_creation(component_name, channel_name, channel_def)
@@ -61,11 +61,11 @@ def _register_channel_endpoint(
     try:
         endpoint = create_websocket_endpoint(channel_name, spec_data, component_name)
         router.add_websocket_route(address, endpoint)
-        logger.info("Registered WebSocket endpoint: %s (channel: %s)", address, channel_name)
+        logger.info("Registered WebSocket endpoint", address=address, channel_name=channel_name)
         interceptor_registry.after_endpoint_creation(component_name, channel_name, endpoint, success=True)
         return True
     except Exception as e:
-        logger.exception("Failed to create endpoint for channel '%s'", channel_name)
+        logger.exception("Failed to create endpoint for channel", channel_name=channel_name)
         interceptor_registry.after_endpoint_creation(component_name, channel_name, None, success=False, error=e)
         return False
 
@@ -164,5 +164,5 @@ def build_websocket_router() -> APIRouter:
     }
     interceptor_registry.on_bootstrap_complete(bootstrap_results)
 
-    logger.info("Registered %d WebSocket endpoint(s)", total_success)
+    logger.info("Registered WebSocket endpoints", endpoint_count=total_success)
     return router

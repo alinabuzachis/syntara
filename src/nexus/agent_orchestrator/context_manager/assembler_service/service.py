@@ -4,10 +4,10 @@ This module implements the AssemblerService which assembles RelevantDocuments
 into ContextPackage objects with token validation and compression retry support.
 """
 
-import logging
 from typing import Any
 from uuid import UUID
 
+import structlog
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.context_manager.compressor import CompressorService
@@ -16,7 +16,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models import Re
 from nexus.agent_orchestrator.token_manager.exceptions import TokenLimitExceededError
 from nexus.agent_orchestrator.token_manager.services import TokenValidationService
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ContextAssemblyError(Exception):
@@ -126,16 +126,16 @@ class AssemblerService:
 
         """
         logger.info(
-            "Starting assembly for correlation_id: %s, documents: %d",
-            correlation_id,
-            len(documents) if documents else 0,
+            "Starting assembly",
+            correlation_id=correlation_id,
+            document_count=len(documents) if documents else 0,
         )
 
         # Handle empty or null documents
         if not documents:
             logger.info(
                 "Empty or null documents, returning default ContextPackage",
-                extra={"correlation_id": correlation_id},
+                correlation_id=correlation_id,
             )
             return ContextPackage(
                 correlation_id=correlation_id,
@@ -166,7 +166,8 @@ class AssemblerService:
             try:
                 logger.debug(
                     "Validating token budget with TokenValidationService",
-                    extra={"correlation_id": correlation_id, "user_id": str(user_id)},
+                    correlation_id=correlation_id,
+                    user_id=str(user_id),
                 )
                 original_token_count = await self.token_service.validate_and_record(
                     user_id=user_id,
@@ -177,22 +178,18 @@ class AssemblerService:
 
                 logger.info(
                     "Documents within token budget, no compression needed",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "token_count": original_token_count,
-                        "max_tokens": max_tokens,
-                    },
+                    correlation_id=correlation_id,
+                    token_count=original_token_count,
+                    max_tokens=max_tokens,
                 )
 
             except TokenLimitExceededError as e:
                 logger.info(
                     "Token limit exceeded, triggering compression retry loop",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "current_usage": e.current_usage,
-                        "token_limit": e.token_limit,
-                        "request_tokens": e.request_tokens,
-                    },
+                    correlation_id=correlation_id,
+                    current_usage=e.current_usage,
+                    token_limit=e.token_limit,
+                    request_tokens=e.request_tokens,
                 )
 
                 # Stage 2: Invoke compression with retry
@@ -215,7 +212,7 @@ class AssemblerService:
             # No user_id/session - skip token validation (testing mode)
             logger.warning(
                 "Skipping token validation - no user_id or session provided",
-                extra={"correlation_id": correlation_id},
+                correlation_id=correlation_id,
             )
 
         # Build payload with final documents
@@ -245,9 +242,9 @@ class AssemblerService:
         )
 
         logger.info(
-            "Assembly complete for correlation_id: %s, grounding_score: %.4f",
-            correlation_id,
-            grounding_score,
+            "Assembly complete",
+            correlation_id=correlation_id,
+            grounding_score=grounding_score,
         )
 
         return context_package
@@ -371,11 +368,11 @@ class AssemblerService:
             strategy_level = retry_count
 
             logger.info(
-                "Compression retry attempt %d/%d (strategy_level=%d)",
-                retry_count + 1,
-                compression_loop,
-                strategy_level,
-                extra={"correlation_id": correlation_id},
+                "Compression retry attempt",
+                retry_attempt=retry_count + 1,
+                max_attempts=compression_loop,
+                strategy_level=strategy_level,
+                correlation_id=correlation_id,
             )
 
             # Try compression with current strategy level
@@ -421,9 +418,9 @@ class AssemblerService:
 
                 # If we reach here, compression was successful
                 logger.info(
-                    "Compression successful at retry %d",
-                    retry_count,
-                    extra={"correlation_id": correlation_id},
+                    "Compression successful at retry",
+                    retry_count=retry_count,
+                    correlation_id=correlation_id,
                 )
                 return [compressed_doc], retry_count
 
@@ -432,10 +429,10 @@ class AssemblerService:
             except Exception as e:
                 retry_count += 1
                 logger.warning(
-                    "Compression attempt %d failed: %s",
-                    retry_count,
-                    str(e),
-                    extra={"correlation_id": correlation_id},
+                    "Compression attempt failed",
+                    retry_count=retry_count,
+                    error=str(e),
+                    correlation_id=correlation_id,
                 )
                 if retry_count >= compression_loop:
                     msg = f"Content exceeds token limit ({max_tokens}) after {retry_count} compression retries"

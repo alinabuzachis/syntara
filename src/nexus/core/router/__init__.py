@@ -1,13 +1,12 @@
 """Dynamic OpenAPI router validation system."""
 
-import logging
-
+import structlog
 from fastapi import FastAPI
 
 from .loader import load_schemas
 from .validator import RouteValidator, log_validation_errors
 
-logger = logging.getLogger("nexus.core.router")
+logger = structlog.stdlib.get_logger("nexus.core.router")
 
 
 def validate_routes(app: FastAPI, schema_files: list[str]) -> None:
@@ -41,7 +40,7 @@ def validate_routes(app: FastAPI, schema_files: list[str]) -> None:
     logger.info("=" * 80)
     logger.info("Dynamic OpenAPI Router Validation")
     logger.info("=" * 80)
-    logger.info("Schema files to validate: %s", ", ".join(schema_files))
+    logger.info("Schema files to validate", schema_files=", ".join(schema_files))
 
     # Load all OpenAPI schemas
     schemas = load_schemas(schema_files)

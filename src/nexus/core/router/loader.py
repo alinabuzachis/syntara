@@ -1,15 +1,15 @@
 """OpenAPI schema loading and parsing."""
 
 import json
-import logging
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import structlog
 import yaml
 
-logger = logging.getLogger("nexus.core.router.loader")
+logger = structlog.stdlib.get_logger("nexus.core.router.loader")
 
 JSON_EXTENSION: str = ".json"
 YAML_EXTENSION: str = ".yaml"
@@ -170,7 +170,7 @@ class OpenAPISchema:
                     operation_id = operation.get("operationId")
 
                     if not operation_id:
-                        logger.warning("Missing operationId for %s %s in %s", method.upper(), path, self.filename)
+                        logger.warning("Missing operationId", method=method.upper(), path=path, filename=self.filename)
                         continue
 
                     endpoint = EndpointDefinition(
@@ -206,7 +206,7 @@ def load_openapi_schema(filename: str) -> OpenAPISchema | None:
         schema_resource = schemas_package.joinpath(filename)
 
         if not schema_resource.is_file():
-            logger.error("Schema file not found in package: schemas/%s", filename)
+            logger.error("Schema file not found in package", schema_path=f"schemas/{filename}")
             return None
 
         # Read the file content
@@ -219,18 +219,18 @@ def load_openapi_schema(filename: str) -> OpenAPISchema | None:
         elif suffix == JSON_EXTENSION:
             schema_data = json.loads(content)
         else:
-            logger.error("Unsupported schema format: %s (use .json, .yaml, or .yml)", suffix)
+            logger.error("Unsupported schema format (use .json, .yaml, or .yml)", format=suffix)
             return None
 
         schema = OpenAPISchema(filename, schema_data)
-        logger.info("Loaded %s: %d endpoints for domain '%s'", filename, len(schema.endpoints), schema.domain)
+        logger.info("Loaded schema", filename=filename, endpoint_count=len(schema.endpoints), domain=schema.domain)
         return schema
 
     except (FileNotFoundError, json.JSONDecodeError, yaml.YAMLError):
-        logger.exception("Error loading schema %s", filename)
+        logger.exception("Error loading schema", filename=filename)
         return None
     except Exception:
-        logger.exception("Unexpected error loading %s", filename)
+        logger.exception("Unexpected error loading", filename=filename)
         return None
 
 
@@ -251,5 +251,5 @@ def load_schemas(schema_files: list[str]) -> list[OpenAPISchema]:
         if schema:
             schemas.append(schema)
 
-    logger.info("Loaded %d/%d schema files successfully", len(schemas), len(schema_files))
+    logger.info("Loaded schema files successfully", loaded_count=len(schemas), total_count=len(schema_files))
     return schemas

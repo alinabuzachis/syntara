@@ -1,9 +1,10 @@
 """Utility functions for file manager operations."""
 
-import logging
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.stdlib.get_logger(__name__)
 
 
 async def cleanup_files(file_paths: list[str], context: str = "") -> None:
@@ -23,7 +24,7 @@ async def cleanup_files(file_paths: list[str], context: str = "") -> None:
             if path.exists():
                 path.unlink()
                 context_msg = f" {context}" if context else ""
-                logger.info("Cleaned up file%s: %s", context_msg, file_path)
+                logger.info("Cleaned up file", context=context_msg, file_path=file_path)
         except Exception:
             # Don't fail cleanup if individual file deletion fails
-            logger.exception("Failed to cleanup file: %s", file_path)
+            logger.exception("Failed to cleanup file", file_path=file_path)

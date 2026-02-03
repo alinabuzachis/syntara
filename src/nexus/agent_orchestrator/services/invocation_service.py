@@ -14,11 +14,11 @@ Key design decisions:
   * Both file_ids AND uploads: validate file_ids, convert new files, execute with all
 """
 
-import logging
 from collections.abc import AsyncGenerator, Callable, Iterable
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+import structlog
 from fastapi import BackgroundTasks, UploadFile
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -36,7 +36,7 @@ from nexus.files.document_conversion.tasks import (
     get_document_conversion_task,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class InvocationService(BaseService):
@@ -132,16 +132,16 @@ class InvocationService(BaseService):
         for file_id_str in file_ids:
             file_id = UUID(file_id_str)
             logger.info(
-                "Scheduling document conversion (file_id=%s, invocation_id=%s)",
-                file_id,
-                invocation_id,
+                "Scheduling document conversion",
+                file_id=file_id,
+                invocation_id=invocation_id,
             )
             self.background_tasks.add_task(self.document_conversion_task.convert, file_id)
 
         logger.info(
-            "Scheduled %d document conversion tasks (invocation_id=%s)",
-            len(file_ids),
-            invocation_id,
+            "Scheduled document conversion tasks",
+            task_count=len(file_ids),
+            invocation_id=invocation_id,
         )
 
     def _schedule_execution_task(self, invocation_id: UUID) -> None:
@@ -154,7 +154,7 @@ class InvocationService(BaseService):
         if not self.background_tasks:
             return
 
-        logger.info("Scheduling invocation execution (invocation_id=%s)", invocation_id)
+        logger.info("Scheduling invocation execution", invocation_id=invocation_id)
         self.background_tasks.add_task(self.invocation_executor.execute_invocation, invocation_id)
 
     async def create_invocation(
@@ -199,9 +199,9 @@ class InvocationService(BaseService):
         if existing_file_ids:
             await self._validate_file_ids(existing_file_ids)
             logger.info(
-                "Validated %d pre-uploaded files (invocation_id=%s)",
-                len(existing_file_ids),
-                invocation_id,
+                "Validated pre-uploaded files",
+                file_count=len(existing_file_ids),
+                invocation_id=invocation_id,
             )
 
         # Process runtime file uploads
@@ -234,17 +234,17 @@ class InvocationService(BaseService):
             await self.session.commit()
 
             logger.info(
-                "Invocation created successfully (invocation_id=%s, file_count=%d)",
-                invocation_id,
-                len(all_file_ids),
+                "Invocation created successfully",
+                invocation_id=invocation_id,
+                file_count=len(all_file_ids),
             )
 
         except Exception:
             # Database commit failed - cleanup saved files if any
             if new_file_metadata_list:
                 logger.warning(
-                    "Invocation creation failed, cleaning up %d saved files",
-                    len(new_file_metadata_list),
+                    "Invocation creation failed, cleaning up saved files",
+                    file_count=len(new_file_metadata_list),
                 )
                 saved_file_paths = [fm.file_path for fm in new_file_metadata_list]
                 await file_utils.cleanup_files(saved_file_paths, context="after DB failure")
@@ -298,15 +298,15 @@ class InvocationService(BaseService):
         invocation = await self.session.get(Invocation, invocation_id)
 
         if not invocation:
-            logger.warning("Cancellation failed: Invocation not found (invocation_id=%s)", invocation_id)
+            logger.warning("Cancellation failed: Invocation not found", invocation_id=invocation_id)
             return CancellationResult.NOT_FOUND
 
         # Check if invocation is in a cancellable state
         if invocation.status not in (InvocationStatus.CREATED, InvocationStatus.RUNNING):
             logger.warning(
-                "Cancellation failed: Invocation not in cancellable state (invocation_id=%s, status=%s)",
-                invocation_id,
-                invocation.status.value,
+                "Cancellation failed: Invocation not in cancellable state",
+                invocation_id=invocation_id,
+                status=invocation.status.value,
             )
             return CancellationResult.NOT_CANCELLABLE
 
@@ -337,26 +337,26 @@ class InvocationService(BaseService):
 
         await self.session.commit()
 
-        logger.info("Invocation cancelled successfully (invocation_id=%s, reason=%s)", invocation_id, reason)
+        logger.info("Invocation cancelled successfully", invocation_id=invocation_id, reason=reason)
         return CancellationResult.SUCCESS
 
     async def _cleanup_files_from_paths(self, files_to_cleanup: list[str], invocation_id: UUID) -> None:
         """Clean up files from given paths (best-effort)."""
         if not files_to_cleanup:
-            logger.debug("No file paths found to clean up for invocation %s", invocation_id)
+            logger.debug("No file paths found to clean up for invocation", invocation_id=invocation_id)
             return
 
         logger.info(
-            "Cleaning up %d files for cancelled invocation %s",
-            len(files_to_cleanup),
-            invocation_id,
+            "Cleaning up files for cancelled invocation",
+            file_count=len(files_to_cleanup),
+            invocation_id=invocation_id,
         )
         try:
             await file_utils.cleanup_files(files_to_cleanup, context="after invocation cancellation")
         except Exception:
             logger.exception(
-                "File cleanup failed for cancelled invocation %s, but cancellation will proceed",
-                invocation_id,
+                "File cleanup failed for cancelled invocation, but cancellation will proceed",
+                invocation_id=invocation_id,
             )
 
     async def _cleanup_invocation_files(self, invocation: Invocation) -> None:
@@ -375,16 +375,16 @@ class InvocationService(BaseService):
 
         """
         if not invocation.context_data:
-            logger.debug("No context_data for invocation %s", invocation.id)
+            logger.debug("No context_data for invocation", invocation_id=invocation.id)
             return
 
         file_id_strs = invocation.context_data.get(CONTEXT_KEY_FILE_IDS, [])
         if not file_id_strs:
-            logger.debug("No files to clean up for invocation %s", invocation.id)
+            logger.debug("No files to clean up for invocation", invocation_id=invocation.id)
             return
 
         if not isinstance(file_id_strs, list):
-            logger.warning("file_ids is not a list for invocation %s", invocation.id)
+            logger.warning("file_ids is not a list for invocation", invocation_id=invocation.id)
             return
 
         # Convert strings to UUIDs at the boundary
@@ -393,7 +393,7 @@ class InvocationService(BaseService):
         # Get file metadata from database via FileManager
         file_metadata_records = await self.file_manager.get_files_metadata(file_ids, self.session)
         if not file_metadata_records:
-            logger.debug("No FileMetadata records found for invocation %s", invocation.id)
+            logger.debug("No FileMetadata records found for invocation", invocation_id=invocation.id)
             return
 
         files_to_cleanup: list[str] = []

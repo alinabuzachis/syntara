@@ -6,9 +6,9 @@ real-time activity syncing to the database.
 """
 
 import asyncio
-import logging
 from uuid import UUID
 
+import structlog
 from sqlmodel import select
 from temporalio import activity
 
@@ -21,7 +21,7 @@ from nexus.workflows.workflow_engine.services.activity_sync_registry import (
     get_activity_sync_service,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 @activity.defn(name="register_activity_monitoring")
@@ -53,7 +53,7 @@ async def register_activity_monitoring(execution_id: str, temporal_workflow_id: 
 
     # Check if monitoring is already running for this execution
     if sync_service.is_monitoring_execution(UUID(execution_id)):
-        logger.info("Activity monitoring already running for execution %s, skipping", execution_id)
+        logger.info("Activity monitoring already running for execution, skipping", execution_id=execution_id)
         return
 
     # Wait for Execution record to be created in DB with exponential backoff
@@ -70,18 +70,18 @@ async def register_activity_monitoring(execution_id: str, temporal_workflow_id: 
             if execution:
                 # Execution record found, start monitoring
                 sync_service.start_monitoring_execution(execution_uuid, temporal_workflow_id)
-                logger.info("Activity monitoring registered for execution %s", execution_id)
+                logger.info("Activity monitoring registered for execution", execution_id=execution_id)
                 return
 
         # Execution record not found yet, wait with exponential backoff
         if attempt < max_retries - 1:
             delay = base_delay * (2**attempt)
             logger.debug(
-                "Execution %s not found in DB, retrying in %.2fs (attempt %d/%d)",
-                execution_id,
-                delay,
-                attempt + 1,
-                max_retries,
+                "Execution not found in DB, retrying",
+                execution_id=execution_id,
+                delay=delay,
+                attempt=attempt + 1,
+                max_retries=max_retries,
             )
             await asyncio.sleep(delay)
 

@@ -4,16 +4,16 @@ This module provides file storage operations for the local filesystem using
 async I/O operations via aiofiles.
 """
 
-import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import aiofiles
+import structlog
 
 from nexus.files.retrievers.base import BaseRetriever
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class LocalFileRetriever(BaseRetriever):
@@ -62,8 +62,8 @@ class LocalFileRetriever(BaseRetriever):
             storage_path.mkdir(parents=True, exist_ok=True)
         except (OSError, PermissionError):
             logger.exception(
-                "Failed to create storage directory (path=%s)",
-                self.storage_dir,
+                "Failed to create storage directory",
+                path=self.storage_dir,
             )
             raise
 
@@ -75,8 +75,8 @@ class LocalFileRetriever(BaseRetriever):
             full_path.parent.mkdir(parents=True, exist_ok=True)
         except (OSError, PermissionError):
             logger.exception(
-                "Failed to create parent directory for file (path=%s)",
-                full_path.parent,
+                "Failed to create parent directory for file",
+                path=str(full_path.parent),
             )
             raise
 
@@ -86,18 +86,18 @@ class LocalFileRetriever(BaseRetriever):
                 await f.write(file_content)
 
             logger.debug(
-                "File saved successfully (path=%s, size=%d bytes)",
-                full_path,
-                len(file_content),
+                "File saved successfully",
+                path=str(full_path),
+                size_bytes=len(file_content),
             )
 
             return str(full_path.absolute())
 
         except (OSError, PermissionError):
             logger.exception(
-                "Failed to save file (path=%s, size=%d bytes)",
-                full_path,
-                len(file_content),
+                "Failed to save file",
+                path=str(full_path),
+                size_bytes=len(file_content),
             )
             raise
 
@@ -119,7 +119,7 @@ class LocalFileRetriever(BaseRetriever):
         file_path_obj = Path(file_path)
 
         if not file_path_obj.exists():
-            logger.warning("File not found (path=%s)", file_path)
+            logger.warning("File not found", file_path=file_path)
             msg = f"File not found: {file_path}"
             raise FileNotFoundError(msg)
 
@@ -128,15 +128,15 @@ class LocalFileRetriever(BaseRetriever):
                 content = await f.read()
 
             logger.debug(
-                "File loaded successfully (path=%s, size=%d bytes)",
-                file_path,
-                len(content),
+                "File loaded successfully",
+                path=file_path,
+                size_bytes=len(content),
             )
 
             return content
 
         except (OSError, PermissionError):
-            logger.exception("Failed to load file (path=%s)", file_path)
+            logger.exception("Failed to load file", file_path=file_path)
             raise
 
     async def file_exists(self, file_path: str) -> bool:
@@ -153,11 +153,11 @@ class LocalFileRetriever(BaseRetriever):
             file_path_obj = Path(file_path)
             exists = file_path_obj.exists() and file_path_obj.is_file()
 
-            logger.debug("File existence check (path=%s, exists=%s)", file_path, exists)
+            logger.debug("File existence check", file_path=file_path, exists=exists)
             return exists
 
         except (OSError, PermissionError):
-            logger.exception("Error checking file existence (path=%s)", file_path)
+            logger.exception("Error checking file existence", file_path=file_path)
             # For permission errors, assume file doesn't exist
             return False
 
@@ -183,7 +183,7 @@ class LocalFileRetriever(BaseRetriever):
         file_path_obj = Path(file_path)
 
         if not file_path_obj.exists():
-            logger.warning("File not found for metadata (path=%s)", file_path)
+            logger.warning("File not found for metadata", file_path=file_path)
             msg = f"File not found: {file_path}"
             raise FileNotFoundError(msg)
 
@@ -199,14 +199,14 @@ class LocalFileRetriever(BaseRetriever):
             }
 
             logger.debug(
-                "File metadata retrieved (path=%s, size=%d bytes, modified=%s)",
-                file_path,
-                stat.st_size,
-                metadata["modified"],
+                "File metadata retrieved",
+                path=file_path,
+                size_bytes=stat.st_size,
+                modified=metadata["modified"],
             )
 
             return metadata
 
         except (OSError, PermissionError):
-            logger.exception("Failed to get file metadata (path=%s)", file_path)
+            logger.exception("Failed to get file metadata", file_path=file_path)
             raise

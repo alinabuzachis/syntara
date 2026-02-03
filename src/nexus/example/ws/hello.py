@@ -16,14 +16,14 @@ Convention-based discovery:
 """
 
 import asyncio
-import logging
 import random
 from datetime import UTC, datetime
 from typing import Any
 
+import structlog
 from fastapi import WebSocket, WebSocketDisconnect
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 # Coffee Channel Implementation
@@ -160,7 +160,7 @@ async def on_connect_chat(websocket: WebSocket, connection_id: str) -> None:
         connection_id: Unique ID for this connection (for logging)
 
     """
-    logger.info("Starting chat background task for connection '%s'", connection_id)
+    logger.info("Starting chat background task for connection", connection_id=connection_id)
 
     try:
         while True:
@@ -180,20 +180,20 @@ async def on_connect_chat(websocket: WebSocket, connection_id: str) -> None:
             )
 
             logger.debug(
-                "Sent random message to connection '%s': %s",
-                connection_id,
-                random_message,
+                "Sent random message to connection",
+                connection_id=connection_id,
+                message=random_message,
             )
 
     except WebSocketDisconnect:
-        logger.info("Chat background task ended - connection closed: '%s'", connection_id)
+        logger.info("Chat background task ended - connection closed", connection_id=connection_id)
     except asyncio.CancelledError:
-        logger.info("Chat background task cancelled for connection '%s'", connection_id)
+        logger.info("Chat background task cancelled for connection", connection_id=connection_id)
         raise
     except Exception:
         logger.exception(
-            "Error in chat background task for connection '%s'",
-            connection_id,
+            "Error in chat background task for connection",
+            connection_id=connection_id,
         )
 
 
@@ -263,8 +263,8 @@ async def handle_agent_events(message: dict[str, Any], connection_id: str) -> di
 
     if connection_id not in _agent_events_subscriptions:
         logger.warning(
-            "Connection '%s' not found in subscriptions, initializing empty set",
-            connection_id,
+            "Connection not found in subscriptions, initializing empty set",
+            connection_id=connection_id,
         )
         _agent_events_subscriptions[connection_id] = set()
 
@@ -272,18 +272,18 @@ async def handle_agent_events(message: dict[str, Any], connection_id: str) -> di
     if action == "subscribe":
         _agent_events_subscriptions[connection_id].update(groups)
         logger.info(
-            "Connection '%s' subscribed to groups: %s (current: %s)",
-            connection_id,
-            groups,
-            _agent_events_subscriptions[connection_id],
+            "Connection subscribed to groups",
+            connection_id=connection_id,
+            subscribed_groups=groups,
+            current_subscriptions=_agent_events_subscriptions[connection_id],
         )
     elif action == "unsubscribe":
         _agent_events_subscriptions[connection_id].difference_update(groups)
         logger.info(
-            "Connection '%s' unsubscribed from groups: %s (remaining: %s)",
-            connection_id,
-            groups,
-            _agent_events_subscriptions[connection_id],
+            "Connection unsubscribed from groups",
+            connection_id=connection_id,
+            unsubscribed_groups=groups,
+            remaining_subscriptions=_agent_events_subscriptions[connection_id],
         )
 
     # Return confirmation
@@ -310,7 +310,7 @@ async def on_connect_agent_events(websocket: WebSocket, connection_id: str) -> N
         connection_id: Unique ID for this connection
 
     """
-    logger.info("Starting agent-events background task for connection '%s'", connection_id)
+    logger.info("Starting agent-events background task for connection", connection_id=connection_id)
 
     # Initialize empty subscription set for this connection
     _agent_events_subscriptions[connection_id] = set()
@@ -334,19 +334,19 @@ async def on_connect_agent_events(websocket: WebSocket, connection_id: str) -> N
         await asyncio.gather(log_task, progress_task)
 
     except WebSocketDisconnect:
-        logger.info("Agent-events background task ended - connection closed: '%s'", connection_id)
+        logger.info("Agent-events background task ended - connection closed", connection_id=connection_id)
     except asyncio.CancelledError:
-        logger.info("Agent-events background task cancelled for connection '%s'", connection_id)
+        logger.info("Agent-events background task cancelled for connection", connection_id=connection_id)
         raise
     except Exception:
         logger.exception(
-            "Error in agent-events background task for connection '%s'",
-            connection_id,
+            "Error in agent-events background task for connection",
+            connection_id=connection_id,
         )
     finally:
         # Clean up subscription tracking
         _agent_events_subscriptions.pop(connection_id, None)
-        logger.debug("Cleaned up subscriptions for connection '%s'", connection_id)
+        logger.debug("Cleaned up subscriptions for connection", connection_id=connection_id)
 
         # Cancel group tasks if still running
         if log_task and not log_task.done():
@@ -389,19 +389,19 @@ async def _send_log_events(websocket: WebSocket, connection_id: str) -> None:
             )
 
             logger.debug(
-                "Sent log event to connection '%s': %s - %s",
-                connection_id,
-                log_data["level"],
-                log_data["message"],
+                "Sent log event to connection",
+                connection_id=connection_id,
+                level=log_data["level"],
+                message=log_data["message"],
             )
 
     except (WebSocketDisconnect, asyncio.CancelledError):
-        logger.debug("Log events task ended for connection '%s'", connection_id)
+        logger.debug("Log events task ended for connection", connection_id=connection_id)
         raise
     except Exception:
         logger.exception(
-            "Error in log events task for connection '%s'",
-            connection_id,
+            "Error in log events task for connection",
+            connection_id=connection_id,
         )
 
 
@@ -440,19 +440,19 @@ async def _send_progress_events(websocket: WebSocket, connection_id: str) -> Non
             )
 
             logger.debug(
-                "Sent progress event to connection '%s': %s - %d%%",
-                connection_id,
-                progress_data["task"],
-                progress_data["progress"],
+                "Sent progress event to connection",
+                connection_id=connection_id,
+                task=progress_data["task"],
+                progress_percent=progress_data["progress"],
             )
 
     except (WebSocketDisconnect, asyncio.CancelledError):
-        logger.debug("Progress events task ended for connection '%s'", connection_id)
+        logger.debug("Progress events task ended for connection", connection_id=connection_id)
         raise
     except Exception:
         logger.exception(
-            "Error in progress events task for connection '%s'",
-            connection_id,
+            "Error in progress events task for connection",
+            connection_id=connection_id,
         )
 
 
@@ -491,7 +491,7 @@ async def on_connect_tokens(websocket: WebSocket, connection_id: str) -> None:
         connection_id: Unique ID for this connection (for logging)
 
     """
-    logger.info("Starting tokens background task for connection '%s'", connection_id)
+    logger.info("Starting tokens background task for connection", connection_id=connection_id)
 
     try:
         # Send 5 tokens with short delays for testing
@@ -508,18 +508,18 @@ async def on_connect_tokens(websocket: WebSocket, connection_id: str) -> None:
             )
 
             logger.debug(
-                "Sent token %d to connection '%s'",
-                i,
-                connection_id,
+                "Sent token to connection",
+                token_index=i,
+                connection_id=connection_id,
             )
 
     except WebSocketDisconnect:
-        logger.info("Tokens background task ended - connection closed: '%s'", connection_id)
+        logger.info("Tokens background task ended - connection closed", connection_id=connection_id)
     except asyncio.CancelledError:
-        logger.info("Tokens background task cancelled for connection '%s'", connection_id)
+        logger.info("Tokens background task cancelled for connection", connection_id=connection_id)
         raise
     except Exception:
         logger.exception(
-            "Error in tokens background task for connection '%s'",
-            connection_id,
+            "Error in tokens background task for connection",
+            connection_id=connection_id,
         )

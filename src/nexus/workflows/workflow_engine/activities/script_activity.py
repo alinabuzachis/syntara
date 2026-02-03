@@ -438,8 +438,8 @@ async def execute_python_script(config: dict[str, Any], inputs: dict[str, Any]) 
                     result["output"] = json.loads(lines[-1])
                     if len(lines) > 1:
                         activity.logger.debug(
-                            "Parsed JSON from last line of stdout (lines 1-%d contained non-JSON output)",
-                            len(lines) - 1,
+                            "Parsed JSON from last line of stdout",
+                            non_json_line_count=len(lines) - 1,
                         )
                 except json.JSONDecodeError:
                     # Not JSON output - that's fine, user can access via $.stdout

@@ -8,13 +8,13 @@ Reuses httpx patterns from api_activity.py with AAP-specific polling logic.
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from enum import StrEnum
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
 
 import httpx
+import structlog
 from temporalio import activity
 from temporalio.exceptions import CancelledError
 
@@ -27,7 +27,7 @@ from .common import ActivityExecutionError
 if TYPE_CHECKING:
     from httpx._client import UseClientDefault
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class JobStatus(StrEnum):
@@ -95,10 +95,10 @@ async def _lookup_job_template_by_name(
         # Return the job template ID
         job_template_id = int(results[0]["id"])
         logger.info(
-            "Resolved job template '%s' in org '%s' to ID %s",
-            job_template_name,
-            organization_name,
-            job_template_id,
+            "Resolved job template to ID",
+            job_template_name=job_template_name,
+            organization_name=organization_name,
+            job_template_id=job_template_id,
         )
         return job_template_id
 
@@ -260,14 +260,14 @@ async def _launch_aap_job(
         # Log based on reference type
         if config.job_template_name:
             logger.info(
-                "Launched job template '%s' in org '%s' (ID: %s), job ID: %s",
-                config.job_template_name,
-                config.organization_name,
-                job_template_id,
-                job_id,
+                "Launched job template by name",
+                job_template_name=config.job_template_name,
+                organization_name=config.organization_name,
+                job_template_id=job_template_id,
+                job_id=job_id,
             )
         else:
-            logger.info("Launched AAP job template %s, job ID: %s", job_template_id, job_id)
+            logger.info("Launched AAP job template", job_template_id=job_template_id, job_id=job_id)
 
         return job_id
     except httpx.HTTPStatusError as e:
@@ -321,12 +321,12 @@ async def _handle_cancellation(
 
     """
     if activity.is_cancelled():
-        logger.warning("Activity cancelled, cancelling AAP job %s", job_id)
+        logger.warning("Activity cancelled, cancelling AAP job", job_id=job_id)
         cancel_url = f"{base_url}/api/controller/v2/jobs/{job_id}/cancel/"
         try:
             await client.post(cancel_url, headers=auth_headers, auth=auth_param)
         except httpx.HTTPError:
-            logger.exception("Failed to cancel AAP job %s", job_id)
+            logger.exception("Failed to cancel AAP job", job_id=job_id)
         msg = "Activity cancelled, AAP job cancelled"
         raise CancelledError(msg)
 
@@ -386,13 +386,13 @@ def _log_terminal_status(job_id: int, status: str, job_data: dict[str, Any]) -> 
         job_data: Full job data dictionary
 
     """
-    logger.info("Job %s reached terminal status: %s", job_id, status)
+    logger.info("Job reached terminal status", job_id=job_id, status=status)
     if status.lower() in {JobStatus.FAILED.lower(), JobStatus.ERROR.lower()}:
         logger.error(
-            "Job %s failed with status: %s, result_traceback: %s",
-            job_id,
-            status,
-            job_data.get("result_traceback", "N/A"),
+            "Job failed with status",
+            job_id=job_id,
+            status=status,
+            result_traceback=job_data.get("result_traceback", "N/A"),
         )
 
 
@@ -442,7 +442,7 @@ async def _poll_until_complete(
         job_data = await _fetch_job_status(client, status_url, auth_headers, auth_param, job_id)
         status = job_data["status"]
 
-        logger.info("Job %s status: %s (raw response keys: %s)", job_id, status, list(job_data.keys()))
+        logger.info("Job status", job_id=job_id, status=status, response_keys=list(job_data.keys()))
 
         # Check if job reached terminal state
         if _is_terminal_status(status):

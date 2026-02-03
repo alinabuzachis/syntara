@@ -3,12 +3,13 @@
 This module provides connection tracking and lifecycle management for WebSocket connections.
 """
 
-import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import ClassVar
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.stdlib.get_logger(__name__)
 
 
 @dataclass
@@ -33,7 +34,7 @@ class WebSocketConnectionManager:
     """Manager for tracking active WebSocket connections.
 
     This class maintains an in-memory registry of active connections and provides
-    methods for connection lifecycle management with logging.
+    methods for connection lifecycle management with structlog.
 
     Examples:
         >>> manager = WebSocketConnectionManager()
@@ -92,12 +93,10 @@ class WebSocketConnectionManager:
 
         logger.info(
             "WebSocket connection established",
-            extra={
-                "connection_id": connection_id,
-                "client_address": client_address,
-                "channel": channel,
-                "timestamp": connection_info.connected_at.isoformat(),
-            },
+            connection_id=connection_id,
+            client_address=client_address,
+            channel=channel,
+            timestamp=connection_info.connected_at.isoformat(),
         )
 
     def remove_connection(self, connection_id: str) -> None:
@@ -118,18 +117,16 @@ class WebSocketConnectionManager:
             duration = (datetime.now(UTC) - connection_info.connected_at).total_seconds()
             logger.info(
                 "WebSocket connection closed",
-                extra={
-                    "connection_id": connection_id,
-                    "client_address": connection_info.client_address,
-                    "channel": connection_info.channel,
-                    "duration_seconds": duration,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                },
+                connection_id=connection_id,
+                client_address=connection_info.client_address,
+                channel=connection_info.channel,
+                duration_seconds=duration,
+                timestamp=datetime.now(UTC).isoformat(),
             )
         else:
             logger.warning(
                 "Attempted to remove non-existent connection",
-                extra={"connection_id": connection_id},
+                connection_id=connection_id,
             )
 
     def get_active_count(self) -> int:
@@ -215,7 +212,7 @@ class WebSocketConnectionManager:
         """
         count = len(self._connections)
         self._connections.clear()
-        logger.warning("Cleared all connections (count: %d)", count)
+        logger.warning("Cleared all connections", count=count)
 
 
 # Global singleton instance

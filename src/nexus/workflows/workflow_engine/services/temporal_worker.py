@@ -5,10 +5,10 @@ The worker connects to the Temporal server and processes tasks from configured q
 """
 
 import asyncio
-import logging
 import types
 from functools import lru_cache
 
+import structlog
 from temporalio.client import Client
 from temporalio.worker import Worker
 
@@ -27,7 +27,7 @@ from nexus.workflows.workflow_engine.interceptors.monitoring_interceptor import 
 from nexus.workflows.workflow_engine.services.activity_sync_registry import set_activity_sync_service
 from nexus.workflows.workflow_engine.services.activity_sync_service import ActivitySyncService
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class TemporalWorkerService:
@@ -70,9 +70,9 @@ class TemporalWorkerService:
         """
         try:
             logger.info(
-                "Connecting to Temporal server at %s (namespace: %s)",
-                self.temporal_address,
-                self.namespace,
+                "Connecting to Temporal server",
+                temporal_address=self.temporal_address,
+                namespace=self.namespace,
             )
 
             # Create Temporal client
@@ -81,7 +81,7 @@ class TemporalWorkerService:
                 namespace=self.namespace,
             )
 
-            logger.info("Connected to Temporal. Starting worker on queue: %s", self.task_queue)
+            logger.info("Connected to Temporal. Starting worker on queue", task_queue=self.task_queue)
 
             # Initialize activity publisher for streaming updates
             activity_publisher = ActivityUpdatePublisher()
@@ -118,7 +118,7 @@ class TemporalWorkerService:
             # Start worker in background task
             self._worker_task = asyncio.create_task(self.worker.run())
 
-            logger.info("Temporal worker started successfully on queue: %s", self.task_queue)
+            logger.info("Temporal worker started successfully on queue", task_queue=self.task_queue)
 
         except Exception:
             logger.exception("Failed to start Temporal worker")

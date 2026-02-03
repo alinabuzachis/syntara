@@ -3,8 +3,7 @@
 This module provides error handling for workflow and execution-specific exceptions.
 """
 
-import logging
-
+import structlog
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from temporalio.service import RPCError
@@ -20,7 +19,7 @@ from nexus.workflows.exceptions import (
 )
 from nexus.workflows.validators import ValidationError
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def validation_error_handler(request: Request, exc: ValidationError) -> JSONResponse:

@@ -4,14 +4,14 @@ This module provides a centralized client for agent orchestrator services
 to send activity completion signals (both success and failure) to workflows.
 """
 
-import logging
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 import httpx
+import structlog
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class WorkflowSignalClient:
@@ -55,9 +55,9 @@ class WorkflowSignalClient:
         }
 
         logger.info(
-            "SUCCESS SIGNAL: Sending to %s (invocation %s)",
-            callback_url,
-            invocation_id,
+            "SUCCESS SIGNAL: Sending to callback",
+            callback_url=callback_url,
+            invocation_id=invocation_id,
         )
 
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -67,16 +67,16 @@ class WorkflowSignalClient:
                 headers={"Content-Type": "application/json"},
             )
             logger.info(
-                "SUCCESS SIGNAL: HTTP response received (invocation %s, status_code=%s)",
-                invocation_id,
-                response.status_code,
+                "SUCCESS SIGNAL: HTTP response received",
+                invocation_id=invocation_id,
+                status_code=response.status_code,
             )
             response.raise_for_status()
 
         logger.info(
-            "SUCCESS SIGNAL: Sent successfully for invocation %s to %s",
-            invocation_id,
-            callback_url,
+            "SUCCESS SIGNAL: Sent successfully",
+            invocation_id=invocation_id,
+            callback_url=callback_url,
         )
 
     @staticmethod
@@ -98,8 +98,8 @@ class WorkflowSignalClient:
         """
         if not callback_url:
             logger.debug(
-                "No callback_url for invocation %s, skipping failure signal",
-                invocation_id,
+                "No callback_url for invocation, skipping failure signal",
+                invocation_id=invocation_id,
             )
             return
 
@@ -117,10 +117,10 @@ class WorkflowSignalClient:
         }
 
         logger.info(
-            "FAILURE SIGNAL: Sending to %s (invocation %s, error_type=%s)",
-            callback_url,
-            invocation_id,
-            type(error).__name__,
+            "FAILURE SIGNAL: Sending to callback",
+            callback_url=callback_url,
+            invocation_id=invocation_id,
+            error_type=type(error).__name__,
         )
 
         try:
@@ -131,27 +131,27 @@ class WorkflowSignalClient:
                     headers={"Content-Type": "application/json"},
                 )
                 logger.info(
-                    "FAILURE SIGNAL: HTTP response received (invocation %s, status_code=%s)",
-                    invocation_id,
-                    response.status_code,
+                    "FAILURE SIGNAL: HTTP response received",
+                    invocation_id=invocation_id,
+                    status_code=response.status_code,
                 )
                 response.raise_for_status()
 
             logger.info(
-                "FAILURE SIGNAL: Sent successfully for invocation %s to %s",
-                invocation_id,
-                callback_url,
+                "FAILURE SIGNAL: Sent successfully",
+                invocation_id=invocation_id,
+                callback_url=callback_url,
             )
         except (httpx.RequestError, httpx.HTTPStatusError, httpx.TimeoutException):
             logger.exception(
-                "Failed to send failure signal for invocation %s to %s",
-                invocation_id,
-                callback_url,
+                "Failed to send failure signal",
+                invocation_id=invocation_id,
+                callback_url=callback_url,
             )
             # Don't raise - failure signal is best-effort
         except Exception:
             logger.exception(
-                "Unexpected error sending failure signal for invocation %s",
-                invocation_id,
+                "Unexpected error sending failure signal",
+                invocation_id=invocation_id,
             )
             # Don't raise - failure signal is best-effort

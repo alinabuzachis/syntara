@@ -5,19 +5,20 @@ connections, including health monitoring, state tracking, and multi-client coord
 """
 
 import asyncio
-import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID, uuid4
 
+import structlog
+
 from nexus.core.constants import WebSocketConfig
 
 if TYPE_CHECKING:
     from fastapi import WebSocket
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ConnectionState(Enum):
@@ -100,7 +101,12 @@ class WebSocketConnectionInfo:
         """
         old_state = self.state
         self.state = new_state
-        logger.debug("Connection %s transitioned from %s to %s", self.connection_id, old_state.value, new_state.value)
+        logger.debug(
+            "Connection transitioned",
+            connection_id=self.connection_id,
+            old_state=old_state.value,
+            new_state=new_state.value,
+        )
 
 
 class WebSocketConnectionLifecycleManager:
@@ -207,13 +213,11 @@ class WebSocketConnectionLifecycleManager:
 
         logger.info(
             "WebSocket connection added",
-            extra={
-                "connection_id": str(connection_id),
-                "channel": channel,
-                "resource_id": resource_id,
-                "client_ip": client_ip,
-                "state": ConnectionState.CONNECTING.value,
-            },
+            connection_id=str(connection_id),
+            channel=channel,
+            resource_id=resource_id,
+            client_ip=client_ip,
+            state=ConnectionState.CONNECTING.value,
         )
 
         return connection_id
@@ -228,9 +232,9 @@ class WebSocketConnectionLifecycleManager:
         connection = self._connections.get(connection_id)
         if connection:
             connection.transition_to(ConnectionState.ACTIVE)
-            logger.info("Connection %s activated", connection_id)
+            logger.info("Connection activated", connection_id=connection_id)
         else:
-            logger.warning("Attempted to activate non-existent connection %s", connection_id)
+            logger.warning("Attempted to activate non-existent connection", connection_id=connection_id)
 
     def remove_connection(self, connection_id: UUID, reason: str = "closed") -> None:
         """Remove a WebSocket connection.
@@ -261,17 +265,15 @@ class WebSocketConnectionLifecycleManager:
             duration = time.time() - connection.connected_at
             logger.info(
                 "WebSocket connection removed",
-                extra={
-                    "connection_id": str(connection_id),
-                    "channel": connection.channel,
-                    "resource_id": connection.resource_id,
-                    "client_ip": connection.client_ip,
-                    "duration_seconds": duration,
-                    "reason": reason,
-                },
+                connection_id=str(connection_id),
+                channel=connection.channel,
+                resource_id=connection.resource_id,
+                client_ip=connection.client_ip,
+                duration_seconds=duration,
+                reason=reason,
             )
         else:
-            logger.warning("Attempted to remove non-existent connection %s", connection_id)
+            logger.warning("Attempted to remove non-existent connection", connection_id=connection_id)
 
     def update_activity(self, connection_id: UUID) -> None:
         """Update activity timestamp for a connection.
@@ -284,7 +286,7 @@ class WebSocketConnectionLifecycleManager:
         if connection:
             connection.update_activity()
         else:
-            logger.warning("Attempted to update activity for non-existent connection %s", connection_id)
+            logger.warning("Attempted to update activity for non-existent connection", connection_id=connection_id)
 
     def update_metadata(self, connection_id: UUID, key: str, value: Any) -> None:  # noqa: ANN401
         """Update connection metadata.
@@ -390,15 +392,15 @@ class WebSocketConnectionLifecycleManager:
             if connection.websocket:
                 try:
                     await connection.websocket.close(code=1001, reason="Connection timeout")
-                    logger.debug("Closed stale WebSocket connection %s", connection_id)
+                    logger.debug("Closed stale WebSocket connection", connection_id=connection_id)
                 except Exception:
-                    logger.exception("Error closing stale WebSocket connection %s", connection_id)
+                    logger.exception("Error closing stale WebSocket connection", connection_id=connection_id)
 
             # Remove from lifecycle manager tracking
             self.remove_connection(connection_id, reason="timeout")
 
         if stale_connections:
-            logger.warning("Cleaned up %d stale connections", len(stale_connections))
+            logger.warning("Cleaned up stale connections", stale_connection_count=len(stale_connections))
 
         return len(stale_connections)
 
@@ -415,9 +417,9 @@ class WebSocketConnectionLifecycleManager:
                 # Log metrics
                 active_count = self.get_active_connection_count()
                 if active_count > 0:
-                    logger.debug("Active WebSocket connections: %d", active_count)
+                    logger.debug("Active WebSocket connections", active_count=active_count)
                 if cleaned > 0:
-                    logger.info("Cleaned up %d stale WebSocket connections", cleaned)
+                    logger.info("Cleaned up stale WebSocket connections", cleaned_count=cleaned)
 
                 await asyncio.sleep(WebSocketConfig.CLEANUP_INTERVAL)
 
@@ -450,7 +452,7 @@ class WebSocketConnectionLifecycleManager:
         self._connections.clear()
         self._resource_connections.clear()
         self._channel_connections.clear()
-        logger.warning("Cleared all connections (count: %d)", count)
+        logger.warning("Cleared all connections", connection_count=count)
 
 
 # Global singleton instance

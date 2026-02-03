@@ -1,8 +1,9 @@
 """Base agent class providing common functionality for all agents."""
 
-import logging
 from abc import ABC, abstractmethod
 from typing import NoReturn
+
+import structlog
 
 from nexus.agent_orchestrator.exceptions import (
     AgentConfigurationError,
@@ -15,7 +16,7 @@ from nexus.agent_orchestrator.models.agent_response import (
 )
 from nexus.agent_orchestrator.models.agent_state import AgentState
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class BaseAgent(ABC):
@@ -30,7 +31,7 @@ class BaseAgent(ABC):
 
     def __init__(self) -> None:
         """Initialize base agent."""
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = structlog.stdlib.get_logger(self.__class__.__name__)
 
     async def execute_as_node(self, state: AgentState) -> AgentState:
         """Execute as LangGraph node with standardized workflow.
@@ -134,10 +135,10 @@ class BaseAgent(ABC):
 
         """
         self.logger.info(
-            "%s executing as node (invocation_id=%s, session_id=%s)",
-            self.__class__.__name__,
-            invocation_id,
-            session_id,
+            "Agent executing as node",
+            agent_class=self.__class__.__name__,
+            invocation_id=invocation_id,
+            session_id=session_id,
         )
 
     def _log_execution_success(self, invocation_id: str) -> None:
@@ -148,9 +149,9 @@ class BaseAgent(ABC):
 
         """
         self.logger.info(
-            "%s node execution completed successfully (invocation_id=%s)",
-            self.__class__.__name__,
-            invocation_id,
+            "Agent node execution completed successfully",
+            agent_class=self.__class__.__name__,
+            invocation_id=invocation_id,
         )
 
     def _handle_empty_response(
@@ -171,8 +172,8 @@ class BaseAgent(ABC):
 
         """
         self.logger.warning(
-            "Empty response for execution (invocation_id=%s)",
-            invocation_id,
+            "Empty response for execution",
+            invocation_id=invocation_id,
         )
         if not message:
             message = (

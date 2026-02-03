@@ -4,11 +4,11 @@ This module provides a keyword-based relevancy checker that scores documents
 based on keyword matching with configurable algorithms and weighting.
 """
 
-import logging
 from collections import Counter
 from math import log
 from typing import cast
 
+import structlog
 from rapidfuzz import fuzz
 from rapidfuzz.distance import JaroWinkler
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -24,7 +24,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.core.constants import RetrieverServiceDefaults
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class KeywordRelevancyChecker(RelevancyChecker):
@@ -90,7 +90,7 @@ class KeywordRelevancyChecker(RelevancyChecker):
 
         """
         try:
-            logger.debug("Starting keyword relevancy check for document: %s", document.file_metadata.filename)
+            logger.debug("Starting keyword relevancy check for document", filename=document.file_metadata.filename)
 
             # Extract algorithm parameters
             params = config.algorithm_parameters
@@ -172,22 +172,21 @@ class KeywordRelevancyChecker(RelevancyChecker):
             final_score = min(1.0, max(0.0, final_score))
 
             logger.debug(
-                "Keyword relevancy check completed for %s: score=%.3f "
-                "(content=%.3f, filename=%.3f, phrase=%.3f, proximity=%.3f, exact=%.3f, fuzzy=%.3f)",
-                document.file_metadata.filename,
-                final_score,
-                content_score,
-                filename_score,
-                phrase_score,
-                proximity_score,
-                exact_match_score,
-                fuzzy_score,
+                "Keyword relevancy check completed",
+                filename=document.file_metadata.filename,
+                final_score=final_score,
+                content_score=content_score,
+                filename_score=filename_score,
+                phrase_score=phrase_score,
+                proximity_score=proximity_score,
+                exact_match_score=exact_match_score,
+                fuzzy_score=fuzzy_score,
             )
 
             return final_score
 
         except Exception as e:
-            logger.exception("Keyword relevancy check failed for document %s", document.file_metadata.filename)
+            logger.exception("Keyword relevancy check failed for document", filename=document.file_metadata.filename)
             error_msg = f"Keyword relevancy check failed: {e!s}"
             raise RelevancyCheckError(error_msg) from e
 
@@ -304,7 +303,7 @@ class KeywordRelevancyChecker(RelevancyChecker):
             return min(1.0, max(0.0, similarity_score))
 
         except (ValueError, TypeError, ImportError, LookupError) as e:
-            logger.warning("TF-IDF calculation failed, falling back to manual method: %s", e)
+            logger.warning("TF-IDF calculation failed, falling back to manual method", error=str(e))
             # Fallback to original method if TF-IDF fails
             processed_query = self._preprocess_text(
                 query,

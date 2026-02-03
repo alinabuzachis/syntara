@@ -6,10 +6,10 @@ integrating with the Agent Orchestrator service for AI-driven task execution.
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 from uuid import UUID, uuid4
 
+import structlog
 from pydantic import ValidationError
 from temporalio import activity, workflow
 
@@ -27,7 +27,7 @@ with workflow.unsafe.imports_passed_through():
     )
 
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 # ============================================================================
@@ -190,7 +190,7 @@ async def execute_agentic_activity(
     """
     # Propagate correlation ID from workflow context if available, otherwise generate new one
     correlation_id = activity_config.get("metadata", {}).get("correlation_id") or str(uuid4())
-    logger.info("Starting agentic activity (correlation_id=%s)", correlation_id)
+    logger.info("Starting agentic activity", correlation_id=correlation_id)
 
     # Validate input data for security (prevent injection, DoS, etc.)
     _validate_input_data(input_data)
@@ -225,26 +225,25 @@ async def execute_agentic_activity(
             execution_id = UUID(execution_id_str)
             callback_url = generate_activity_signal_url(execution_id, activity_id)
             logger.info(
-                "Generated callback URL for activity (correlation_id=%s, callback_url=%s)",
-                correlation_id,
-                callback_url,
+                "Generated callback URL for activity",
+                correlation_id=correlation_id,
+                callback_url=callback_url,
             )
         except (ValueError, TypeError) as e:
             logger.warning(
-                "Failed to generate callback URL (correlation_id=%s): %s",
-                correlation_id,
-                str(e),
+                "Failed to generate callback URL",
+                correlation_id=correlation_id,
+                error=str(e),
             )
 
     logger.info(
-        "Invoking Agent Orchestrator "
-        "(correlation_id=%s, user_id=%s, agent=%s, model=%s, file_count=%d, has_callback=%s)",
-        correlation_id,
-        user_id,
-        config.agent,
-        config.model,
-        len(file_ids),
-        callback_url is not None,
+        "Invoking Agent Orchestrator",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        agent=config.agent,
+        model=config.model,
+        file_count=len(file_ids),
+        has_callback=callback_url is not None,
     )
 
     # Use context manager for automatic resource cleanup
@@ -261,9 +260,9 @@ async def execute_agentic_activity(
             # Invoke agent asynchronously - returns immediately with invocation ID
             # The workflow will wait for a signal with the actual result
             logger.info(
-                "Invoking agent asynchronously (correlation_id=%s, callback_url=%s)",
-                correlation_id,
-                callback_url,
+                "Invoking agent asynchronously",
+                correlation_id=correlation_id,
+                callback_url=callback_url,
             )
 
             invocation_id = await agent_client.invoke_agent_async(
@@ -278,10 +277,10 @@ async def execute_agentic_activity(
             )
 
             logger.info(
-                "Agent invocation created successfully (correlation_id=%s, invocation_id=%s, callback_url=%s)",
-                correlation_id,
-                invocation_id,
-                callback_url,
+                "Agent invocation created successfully",
+                correlation_id=correlation_id,
+                invocation_id=invocation_id,
+                callback_url=callback_url,
             )
 
             # Return metadata for the workflow to track
@@ -295,24 +294,23 @@ async def execute_agentic_activity(
             }
 
             logger.info(
-                "Returning from agentic activity - workflow will now wait for signal "
-                "(correlation_id=%s, invocation_id=%s)",
-                correlation_id,
-                invocation_id,
+                "Returning from agentic activity - workflow will now wait for signal",
+                correlation_id=correlation_id,
+                invocation_id=invocation_id,
             )
 
             return result
 
         except AgentOrchestratorConnectionError:
-            logger.exception("Failed to connect to Agent Orchestrator (correlation_id=%s)", correlation_id)
+            logger.exception("Failed to connect to Agent Orchestrator", correlation_id=correlation_id)
             raise
 
         except AgentOrchestratorError as e:
-            logger.exception("Agent Orchestrator error (correlation_id=%s)", correlation_id)
+            logger.exception("Agent Orchestrator error", correlation_id=correlation_id)
             msg = f"Agent Orchestrator error: {e}"
             raise AgenticActivityError(msg) from e
 
         except Exception as e:
-            logger.exception("Unexpected error during agentic activity (correlation_id=%s)", correlation_id)
+            logger.exception("Unexpected error during agentic activity", correlation_id=correlation_id)
             msg = f"Unexpected error: {e}"
             raise AgenticActivityError(msg) from e

@@ -1,10 +1,10 @@
 """Invocation API endpoints for v1."""
 
 import json
-import logging
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -43,7 +43,7 @@ from nexus.files.validators import (
 )
 
 router = APIRouter(prefix="/invocations", tags=["Invocation"])
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 INTERNAL_SERVER_ERROR: str = "Internal server error"
 
@@ -233,7 +233,7 @@ async def create_invocation(
         ) from e
     except ValueError as e:
         # file_ids validation error (files not found) - 400 Bad Request
-        logger.warning("File ID validation error in invocation request: %s", e)
+        logger.warning("File ID validation error in invocation request", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -371,7 +371,7 @@ async def get_invocation(
     try:
         invocation = await service.get_invocation(uuid_obj)
     except Exception as e:
-        logger.exception("Unexpected error retrieving invocation %s", invocation_id)
+        logger.exception("Unexpected error retrieving invocation", invocation_id=invocation_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=INTERNAL_SERVER_ERROR,
@@ -463,7 +463,7 @@ async def cancel_invocation(
         # Re-raise HTTPExceptions without wrapping
         raise
     except Exception as e:
-        logger.exception("Unexpected error cancelling invocation %s", invocation_id)
+        logger.exception("Unexpected error cancelling invocation", invocation_id=invocation_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=INTERNAL_SERVER_ERROR,

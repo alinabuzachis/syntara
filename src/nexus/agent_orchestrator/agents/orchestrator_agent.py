@@ -6,9 +6,10 @@ handling context integration and routing requests to appropriate specialist agen
 
 import asyncio
 import copy
-import logging
 from typing import Any, ClassVar
 from uuid import UUID
+
+import structlog
 
 from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.context_manager.planner import ContextManagerPlanner
@@ -16,7 +17,7 @@ from nexus.agent_orchestrator.exceptions import ContextIntegrationError
 from nexus.agent_orchestrator.models.agent_state import AgentState
 from nexus.core.config.base import get_settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class OrchestratorAgent:
@@ -50,7 +51,7 @@ class OrchestratorAgent:
             Updated state with enhanced prompt and routing decision
 
         """
-        logger.info("Orchestrator processing invocation %s", state["invocation_id"])
+        logger.info("Orchestrator processing invocation", invocation_id=state["invocation_id"])
 
         # Step 1: Context Integration
         enhanced_state = await self._integrate_context(state)
@@ -59,7 +60,9 @@ class OrchestratorAgent:
         routed_state = self._route_request(enhanced_state)
 
         logger.info(
-            "Orchestrator routed to %s for invocation %s", routed_state["current_agent"], state["invocation_id"]
+            "Orchestrator routed for invocation",
+            current_agent=routed_state["current_agent"],
+            invocation_id=state["invocation_id"],
         )
 
         return routed_state
@@ -75,7 +78,7 @@ class OrchestratorAgent:
 
         """
         try:
-            logger.debug("Calling context manager for session %s", state["session_id"])
+            logger.debug("Calling context manager for session", session_id=state["session_id"])
 
             # Get timeout from settings
             settings = get_settings()
@@ -107,9 +110,9 @@ class OrchestratorAgent:
             }
 
             logger.info(
-                "Context enhanced prompt for invocation %s (grounding_score: %.2f)",
-                state["invocation_id"],
-                context_package.grounding_score,
+                "Context enhanced prompt for invocation",
+                invocation_id=state["invocation_id"],
+                grounding_score=context_package.grounding_score,
             )
 
             return updated_state
@@ -125,9 +128,9 @@ class OrchestratorAgent:
             # Wrap the underlying exception in our custom exception type
             context_error = ContextIntegrationError(f"Context integration failed: {e}", state["invocation_id"])
             logger.warning(
-                "Context integration failed for invocation %s: %s. Proceeding with original prompt.",
-                state["invocation_id"],
-                context_error,
+                "Context integration failed for invocation. Proceeding with original prompt.",
+                invocation_id=state["invocation_id"],
+                error=str(context_error),
             )
 
             # Graceful fallback: use original prompt without context
@@ -184,11 +187,11 @@ class OrchestratorAgent:
             target_agent = (
                 AgentRoutes.GENERIC_AGENT
             )  # Routing to generic agent in both conditions, to keep space for workflow agent
-            logger.debug("Routing to %s based on workflow keywords", target_agent)
+            logger.debug("Routing based on workflow keywords", target_agent=target_agent)
         else:
             # Default to generic agent
             target_agent = AgentRoutes.GENERIC_AGENT
-            logger.debug("Routing to %s (default)", target_agent)
+            logger.debug("Routing to default agent", target_agent=target_agent)
 
         # Update state with routing decision
         routed_state = copy.deepcopy(state)

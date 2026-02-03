@@ -3,15 +3,14 @@
 This module provides error handling for LLM and agent-specific exceptions.
 """
 
-import logging
-
+import structlog
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
 from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def llm_configuration_error_handler(request: Request, exc: LLMConfigurationError) -> JSONResponse:

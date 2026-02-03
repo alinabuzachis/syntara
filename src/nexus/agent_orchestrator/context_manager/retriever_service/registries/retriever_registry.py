@@ -4,7 +4,7 @@ This module provides the RetrieverRegistry class for registering and managing
 different DocumentRetriever implementations in a pluggable architecture.
 """
 
-import logging
+import structlog
 
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import RegistryError
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.document_retriever import DocumentRetriever
@@ -12,7 +12,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.retrievers.uploa
     UploadedFileRetriever,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class RetrieverRegistry:
@@ -70,7 +70,7 @@ class RetrieverRegistry:
             raise RegistryError(error_msg)
 
         self._retrievers[name] = retriever_class
-        logger.info("Registered retriever: %s -> %s", name, retriever_class.__name__)
+        logger.info("Registered retriever", retriever_name=name, retriever_class=retriever_class.__name__)
 
     def get_retriever(self, name: str) -> DocumentRetriever:
         """Get a retriever instance by name.
@@ -92,7 +92,7 @@ class RetrieverRegistry:
         retriever_class = self._retrievers[name]
         retriever_instance = retriever_class()
 
-        logger.debug("Created retriever instance: %s", name)
+        logger.debug("Created retriever instance", retriever_name=name)
         return retriever_instance
 
     def get_all_retrievers(self) -> dict[str, DocumentRetriever]:
@@ -106,7 +106,7 @@ class RetrieverRegistry:
         for name, retriever_class in self._retrievers.items():
             all_retrievers[name] = retriever_class()
 
-        logger.debug("Created instances for %d retrievers", len(all_retrievers))
+        logger.debug("Created instances for retrievers", retriever_count=len(all_retrievers))
         return all_retrievers
 
     def list_retrievers(self) -> list[str]:
@@ -128,7 +128,9 @@ def _setup_default_registry() -> "RetrieverRegistry":
     registry: RetrieverRegistry = RetrieverRegistry()
     registry.register_retriever("uploaded_file", UploadedFileRetriever)
 
-    logger.info("Initialized RetrieverRegistry with %d default retrievers", len(registry.list_retrievers()))
+    logger.info(
+        "Initialized RetrieverRegistry with default retrievers", retriever_count=len(registry.list_retrievers())
+    )
 
     return registry
 

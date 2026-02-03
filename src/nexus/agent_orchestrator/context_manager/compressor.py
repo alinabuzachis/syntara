@@ -5,16 +5,16 @@ a simplified RH1 approach with binary decision making (pass-through or
 compress entire collection).
 """
 
-import logging
 from typing import Literal
 
+import structlog
 from langchain_openai import ChatOpenAI
 
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.token_manager.services import TokenCalculator
 from nexus.core.config.base import get_settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class CompressorService:
@@ -66,16 +66,16 @@ class CompressorService:
 
         """
         logger.debug(
-            "CompressorService.compress called - correlation_id: %s, strategy: %s, max_tokens: %d",
-            correlation_id,
-            strategy,
-            max_tokens,
+            "CompressorService.compress called",
+            correlation_id=correlation_id,
+            strategy=strategy,
+            max_tokens=max_tokens,
         )
 
         # Normalize input data to consistent format
         documents = self._normalize_input(data)
 
-        logger.debug("Compression input - correlation_id: %s, doc_count: %d", correlation_id, len(documents))
+        logger.debug("Compression input", correlation_id=correlation_id, doc_count=len(documents))
 
         # Execute compression strategy
         return await self._greedy_strategy(documents, max_tokens, goal, correlation_id)
@@ -116,28 +116,28 @@ class CompressorService:
         total_tokens = self.token_calculator.count_tokens(concatenated_content, model_name=self.model)
 
         logger.debug(
-            "Token analysis - correlation_id: %s, total_tokens: %d, max_tokens: %d",
-            correlation_id,
-            total_tokens,
-            max_tokens,
+            "Token analysis",
+            correlation_id=correlation_id,
+            total_tokens=total_tokens,
+            max_tokens=max_tokens,
         )
 
         # Step 3: Binary decision - pass through or compress entire collection
         if total_tokens <= max_tokens:
             # Documents fit within budget - pass through unchanged
             logger.info(
-                "No compression needed - correlation_id: %s, tokens_used: %d/%d",
-                correlation_id,
-                total_tokens,
-                max_tokens,
+                "No compression needed",
+                correlation_id=correlation_id,
+                tokens_used=total_tokens,
+                max_tokens=max_tokens,
             )
             return concatenated_content
         # Documents exceed budget - compress entire collection
         logger.info(
-            "Compression required - correlation_id: %s, tokens_before: %d, target: %d",
-            correlation_id,
-            total_tokens,
-            max_tokens,
+            "Compression required",
+            correlation_id=correlation_id,
+            tokens_before=total_tokens,
+            target=max_tokens,
         )
         return await self._compress_with_llm(documents, max_tokens, goal, correlation_id)
 
@@ -205,18 +205,18 @@ Goal: {goal_text}"""
 
         if compressed_tokens > max_tokens:
             logger.warning(
-                "Compressed output exceeds target - correlation_id: %s, tokens_after: %d, target: %d",
-                correlation_id,
-                compressed_tokens,
-                max_tokens,
+                "Compressed output exceeds target",
+                correlation_id=correlation_id,
+                tokens_after=compressed_tokens,
+                target=max_tokens,
             )
         else:
             logger.info(
-                "Compression completed - correlation_id: %s, tokens_after: %d, target: %d, ratio: %.2f",
-                correlation_id,
-                compressed_tokens,
-                max_tokens,
-                compressed_tokens / max_tokens,
+                "Compression completed",
+                correlation_id=correlation_id,
+                tokens_after=compressed_tokens,
+                target=max_tokens,
+                ratio=compressed_tokens / max_tokens,
             )
 
         return compressed_content

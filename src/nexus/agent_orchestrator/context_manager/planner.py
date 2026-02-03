@@ -5,11 +5,11 @@ compression, and assembly phases to produce final context packages.
 """
 
 import contextlib
-import logging
 import time
 from collections.abc import AsyncGenerator, Callable
 from uuid import UUID
 
+import structlog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -25,7 +25,7 @@ from .compressor import CompressorService, get_compressor_service
 from .models import ContextPackage
 from .retriever_service.services import RetrieverService, get_retriever_service
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ContextManagerPlanner:
@@ -73,14 +73,14 @@ class ContextManagerPlanner:
             async with self.get_async_session_context() as session:
                 invocation = await session.get(Invocation, invocation_id)
                 if invocation and invocation.status == InvocationStatus.CANCELLED:
-                    logger.info("Invocation cancelled during %s phase (invocation_id=%s)", phase, invocation_id)
+                    logger.info("Invocation cancelled during phase", phase=phase, invocation_id=invocation_id)
                     raise InvocationCancelledError(invocation_id, phase)
         except (SQLAlchemyError, OSError) as e:
             # Log but don't fail on database errors - graceful degradation
             logger.warning(
-                "Failed to check cancellation status for invocation_id=%s, continuing execution: %s",
-                invocation_id,
-                e,
+                "Failed to check cancellation status for invocation, continuing execution",
+                invocation_id=invocation_id,
+                error=str(e),
                 exc_info=True,
             )
 
@@ -112,8 +112,8 @@ class ContextManagerPlanner:
         """
         start_time = time.time()
 
-        logger.info("Starting context planning for correlation_id: %s", correlation_id)
-        logger.debug("Context planning - Tenant: %s, Query: %s", session_id, query)
+        logger.info("Starting context planning", correlation_id=correlation_id)
+        logger.debug("Context planning", tenant=session_id, query=query)
 
         # Initialize timing metadata
         timing_data = {}
@@ -130,9 +130,9 @@ class ContextManagerPlanner:
             retrieved_docs = await retriever.retrieve_relevant_documents(invocation_id, query)
             timing_data["retrieval_time_ms"] = int((time.time() - retrieval_start) * 1000)
             logger.info(
-                "Retrieval phase completed in %sms with %d documents",
-                timing_data["retrieval_time_ms"],
-                len(retrieved_docs),
+                "Retrieval phase completed",
+                retrieval_time_ms=timing_data["retrieval_time_ms"],
+                document_count=len(retrieved_docs),
             )
         except Exception:
             timing_data["retrieval_time_ms"] = int((time.time() - retrieval_start) * 1000)
@@ -174,13 +174,15 @@ class ContextManagerPlanner:
             )
 
         timing_data["assembly_time_ms"] = int((time.time() - assembly_start) * 1000)
-        logger.info("Assembly phase completed in %sms", timing_data["assembly_time_ms"])
+        logger.info("Assembly phase completed", assembly_time_ms=timing_data["assembly_time_ms"])
 
         # Calculate total execution time
         total_time_ms = int((time.time() - start_time) * 1000)
         timing_data["total_time_ms"] = total_time_ms
 
-        logger.info("Context planning completed for correlation_id: %s in %sms", correlation_id, total_time_ms)
-        logger.debug("Context Package ID: %s, Grounding Score: %s", context_package.id, context_package.grounding_score)
+        logger.info("Context planning completed", correlation_id=correlation_id, total_time_ms=total_time_ms)
+        logger.debug(
+            "Context Package created", package_id=context_package.id, grounding_score=context_package.grounding_score
+        )
 
         return context_package
