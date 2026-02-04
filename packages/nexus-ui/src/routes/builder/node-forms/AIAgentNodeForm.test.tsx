@@ -33,7 +33,7 @@ describe('AIAgentNodeForm', () => {
       model: 'anthropic/claude-3.5-sonnet',
       prompt: 'Test prompt',
       tools: '',
-      files: [],
+      fileIds: [],
     })
   })
 
@@ -53,7 +53,7 @@ describe('AIAgentNodeForm', () => {
       model: 'anthropic/claude-3.5-sonnet',
       prompt: 'Research the topic and provide a summary',
       tools: '',
-      files: [],
+      fileIds: [],
     })
   })
 

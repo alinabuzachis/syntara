@@ -16,7 +16,7 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
   useWorkflowStoreActions: vi.fn(() => ({
     updateActivity: mockUpdateActivity,
   })),
-  createAgenticActivity: vi.fn((id, name, tools, prompt, model) => ({
+  createAgenticActivity: vi.fn((id, name, tools, prompt, model, inputs, fileIds) => ({
     type: 'task',
     id,
     name,
@@ -27,6 +27,7 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
         ...(tools && { tools }),
         ...(prompt && { prompt }),
         ...(model && { model }),
+        ...(fileIds && { fileIds }),
       },
     },
   })),
@@ -65,6 +66,7 @@ vi.mock('../node-forms/AIAgentNodeForm', () => ({
             model: 'gpt-4',
             prompt: 'Updated prompt',
             tools: 'calculator, web_search',
+            fileIds: [],
           })
         }
         data-testid="submit-button"

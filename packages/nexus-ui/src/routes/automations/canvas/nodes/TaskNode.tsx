@@ -141,7 +141,15 @@ export function TaskActivityDetails(
           )}
           {/* Render agentic task details */}
           {props.data.task.executor === 'agentic' && !connectorData && detectedExecutorType !== 'approval' && (
-            <>{renderText('Model', props.data.task.config.model)}</>
+            <>
+              {renderText('Model', props.data.task.config.model)}
+              {(() => {
+                const fileIds = (props.data.task.config as { fileIds?: string[] }).fileIds
+                return fileIds && fileIds.length > 0
+                  ? renderText('Agent context', `${fileIds.length} file${fileIds.length === 1 ? '' : 's'}`)
+                  : null
+              })()}
+            </>
           )}
           {/* Render connector details for workaround format (agentic executor with connector data) */}
           {detectedExecutorType && detectedExecutorType !== 'approval' && connectorData && (

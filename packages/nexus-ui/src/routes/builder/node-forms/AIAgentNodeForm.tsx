@@ -1,6 +1,6 @@
 import type { FilesAPI } from '@ansible/nexus-contracts'
 import { Form, FormGroup, FormSelect, FormSelectOption, Stack, StackItem, TextArea } from '@patternfly/react-core'
-import { useState } from 'react'
+import { createContext, useContext, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
 import { FileUpload, type UploadedFile } from '../../../components/file-upload'
@@ -17,19 +17,35 @@ export interface AIAgentFormData {
   model: string
   prompt: string
   tools: string
-  files: File[]
 }
 
+/** Submitted data includes file IDs from uploads */
+export interface AIAgentFormSubmitData extends AIAgentFormData {
+  fileIds: string[]
+}
+
+/** Initial data for form fields (file IDs handled separately by parent) */
+export type AIAgentFormInitialData = Partial<AIAgentFormData>
+
+/** Context to share file state between form components */
+interface FileContextType {
+  completedFiles: UploadedFile[]
+  setCompletedFiles: React.Dispatch<React.SetStateAction<UploadedFile[]>>
+}
+const FileContext = createContext<FileContextType | null>(null)
+
 interface AIAgentNodeFormProps {
-  onSubmit: (data: AIAgentFormData) => void
+  onSubmit: (data: AIAgentFormSubmitData) => void
   onCancel: () => void
   submitButtonText?: string
-  initialData?: Partial<AIAgentFormData>
+  initialData?: AIAgentFormInitialData
 }
 
 function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) {
   const { register, control } = useFormContext<AIAgentFormData>()
-  const [completedFiles, setCompletedFiles] = useState<UploadedFile[]>([])
+  const fileContext = useContext(FileContext)
+  if (!fileContext) throw new Error('AIAgentFormFields must be used within FileContext.Provider')
+  const { completedFiles, setCompletedFiles } = fileContext
   const [uploadingFiles, setUploadingFiles] = useState<UploadedFile[]>([])
   const { uploadFiles, progress, error } = useFileUploadWithProgress()
 
@@ -149,17 +165,22 @@ function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) 
 export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
   const defaultModel = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet'
 
+  // Track only newly uploaded files (existing files handled by parent)
+  const [completedFiles, setCompletedFiles] = useState<UploadedFile[]>([])
+
   const defaultValues: AIAgentFormData = {
     name: '',
     model: defaultModel,
     prompt: '',
     tools: '',
-    files: [],
     ...props.initialData,
   }
 
   const handleSubmit = (data: AIAgentFormData) => {
-    props.onSubmit(data)
+    // Extract file IDs from completed uploads
+    const fileIds: string[] = completedFiles.filter((f) => f.status === 'success').map((f) => f.id)
+
+    props.onSubmit({ ...data, fileIds })
   }
 
   const methods = useForm<AIAgentFormData>({
@@ -167,10 +188,12 @@ export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
   })
 
   return (
-    <FormProvider {...methods}>
-      <Form id="ai-agent-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <AIAgentFormFields submitButtonText={props.submitButtonText} />
-      </Form>
-    </FormProvider>
+    <FileContext.Provider value={{ completedFiles, setCompletedFiles }}>
+      <FormProvider {...methods}>
+        <Form id="ai-agent-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+          <AIAgentFormFields submitButtonText={props.submitButtonText} />
+        </Form>
+      </FormProvider>
+    </FileContext.Provider>
   )
 }

@@ -219,6 +219,7 @@ export function createApiActivity(
  * @param prompt - Optional natural language prompt for the agent
  * @param model - Optional LLM model to use
  * @param inputs - Optional JSON string of input parameters
+ * @param fileIds - Optional array of uploaded file IDs
  */
 export function createAgenticActivity(
   id: string,
@@ -226,13 +227,15 @@ export function createAgenticActivity(
   tools?: string[],
   prompt?: string,
   model?: string,
-  inputs?: string
+  inputs?: string,
+  fileIds?: string[]
 ): TaskActivity {
   const config: {
     agent: string
     tools?: string[]
     prompt?: string
     model?: string
+    fileIds?: string[]
   } = {
     agent: '', // Default empty string since UI doesn't collect this field
   }
@@ -247,6 +250,10 @@ export function createAgenticActivity(
 
   if (model) {
     config.model = model
+  }
+
+  if (fileIds && fileIds.length > 0) {
+    config.fileIds = fileIds
   }
 
   const activity: TaskActivity = {
