@@ -72,6 +72,7 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
         menuActions={menuActions}
         triggerType={triggerType}
         triggerDetails={triggerDetails}
+        triggerKind={props.data.triggerType}
       />
     </NodeComponent>
   )
@@ -87,9 +88,17 @@ export function TriggerNodeDetails(
     menuActions?: ReturnType<typeof useNodeMenuActions>
     triggerType: string
     triggerDetails: string | null
+    triggerKind?: string
   }>
 ) {
   const isExecutionView = useIsExecutionView()
+  const isManualTrigger = props.triggerKind === 'manual'
+  const isScheduledTrigger = props.triggerKind === 'scheduled'
+  const normalizedDetails = props.triggerDetails
+    ? isManualTrigger
+      ? props.triggerDetails.replace(/^Manual\b/, 'Manual trigger')
+      : props.triggerDetails
+    : null
   return (
     <>
       <NodeHeader>
@@ -106,14 +115,15 @@ export function TriggerNodeDetails(
           <Title headingLevel="h3" size={TitleSizes.md}>
             {props.triggerType}
           </Title>
-          {props.triggerDetails && (
+          {isScheduledTrigger && normalizedDetails && (
+            <Content component={ContentVariants.small}>Schedule trigger</Content>
+          )}
+          {normalizedDetails && (
             <Content component={ContentVariants.small} style={{ whiteSpace: 'pre-line' }}>
-              {props.triggerDetails}
+              {normalizedDetails}
             </Content>
           )}
-          {props.triggerType === 'Manual' && !props.triggerDetails && (
-            <Content component={ContentVariants.small}>Manual trigger</Content>
-          )}
+          {isManualTrigger && !normalizedDetails && <Content component={ContentVariants.small}>Manual trigger</Content>}
         </div>
       </NodeBody>
     </>

@@ -32,11 +32,12 @@ vi.mock('./hooks/useNodeMenuActions', () => ({
 }))
 
 describe('TriggerNodeComponent', () => {
-  const createNodeProps = () => ({
+  const createNodeProps = (dataOverrides?: Partial<{ label: string; triggerType?: string }>) => ({
     id: 'trigger-0',
     data: {
       label: 'Manual',
       triggerType: 'manual',
+      ...dataOverrides,
     },
     type: 'trigger' as const,
     position: { x: 0, y: 0 },
@@ -65,5 +66,32 @@ describe('TriggerNodeComponent', () => {
     )
 
     expect(screen.queryByLabelText('Node actions menu')).not.toBeInTheDocument()
+  })
+
+  it('renders "Manual trigger" when the manual trigger details are shown', () => {
+    render(
+      <TriggerNodeComponent
+        {...createNodeProps({
+          label: 'Trigger (Manual)',
+          triggerType: 'manual',
+        })}
+      />
+    )
+
+    expect(screen.getByText('Manual trigger')).toBeInTheDocument()
+  })
+
+  it('renders "Schedule trigger" for scheduled triggers with cadence details', () => {
+    render(
+      <TriggerNodeComponent
+        {...createNodeProps({
+          label: 'MyTrigger (Continuous)',
+          triggerType: 'scheduled',
+        })}
+      />
+    )
+
+    expect(screen.getByText('Schedule trigger')).toBeInTheDocument()
+    expect(screen.getByText('Continuous')).toBeInTheDocument()
   })
 })

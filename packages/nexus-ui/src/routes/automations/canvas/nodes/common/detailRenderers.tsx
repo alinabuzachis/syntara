@@ -49,10 +49,11 @@ export function renderInputs(inputs?: Record<string, unknown>) {
  * Renders full JSON representation of data if show is true
  */
 export function renderJson(data: unknown, show?: boolean, label = 'JSON') {
-  if (!show) return null
+  if (!show || data === undefined || data === null) return null
+  const jsonObject = typeof data === 'object' ? (data as object) : { value: data }
   return (
     <Detail label={label}>
-      <CodeBlock jsonObject={data} />
+      <CodeBlock jsonObject={jsonObject} />
     </Detail>
   )
 }
@@ -73,7 +74,7 @@ export function renderObject(label: string, data?: Record<string, unknown>) {
  * Renders a simple text detail
  */
 export function renderText(label: string, text?: string) {
-  if (!text) return null
+  if (text === undefined || text === null || text === '') return null
   return (
     <Detail label={label}>
       <CodeBlock>{text}</CodeBlock>

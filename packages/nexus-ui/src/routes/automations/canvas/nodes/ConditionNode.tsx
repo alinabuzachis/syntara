@@ -5,7 +5,7 @@ import { type Node, type NodeProps } from '@xyflow/react'
 import { Details } from '../../../../components/details/Details'
 
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
-import { renderCondition, renderJson, renderOutputs } from './common/detailRenderers'
+import { renderJson, renderOutputs } from './common/detailRenderers'
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
@@ -75,7 +75,6 @@ export function ConditionNodeDetails(props: {
         <FlexItem grow={{ default: 'grow' }} style={{ minWidth: 0 }}>
           <NodeBody>
             <Details>
-              {renderCondition(props.conditionActivity.condition)}
               {renderOutputs(props.conditionActivity.outputs)}
               {renderJson(props.conditionActivity, props.showJson, 'Full Definition')}
             </Details>

@@ -1,3 +1,9 @@
+import { DescriptionList } from '@patternfly/react-core'
+
 export function Details(props: { children: React.ReactNode }) {
-  return <dl className="details">{props.children}</dl>
+  return (
+    <DescriptionList className="details" isCompact>
+      {props.children}
+    </DescriptionList>
+  )
 }

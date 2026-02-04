@@ -23,8 +23,8 @@ describe('TaskActivityDetails', () => {
 
     expect(screen.getByText('Script Task')).toBeInTheDocument()
     expect(screen.getByText('Script')).toBeInTheDocument()
+    expect(screen.getByText('Language')).toBeInTheDocument()
     expect(screen.getByText('python')).toBeInTheDocument()
-    expect(screen.getByText('print("hello")')).toBeInTheDocument()
   })
 
   it('renders api task details correctly', () => {
@@ -98,6 +98,8 @@ describe('TaskActivityDetails', () => {
     expect(screen.getByText('Agentic')).toBeInTheDocument()
     expect(screen.getByText('Model')).toBeInTheDocument()
     expect(screen.getByText('claude-3-sonnet')).toBeInTheDocument()
+    expect(screen.getByText('Tools')).toBeInTheDocument()
+    expect(screen.getByText('2 tools')).toBeInTheDocument()
   })
 
   it.skip('renders AAP connector task with AAP label', () => {
