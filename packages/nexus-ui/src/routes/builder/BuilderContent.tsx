@@ -54,6 +54,7 @@ import { BuilderFlow } from './BuilderFlow'
 import { NodeDetailsPanel } from './NodeDetailsPanel'
 import { buildNestedConditionStructure } from './utils/buildNestedStructure'
 import { EdgeFactory } from './utils/EdgeFactory'
+import { ACTIVITY_TYPES } from './utils/executionState/constants'
 import { loadWorkflow } from './utils/loadWorkflow'
 import { validateRoundTrip, validateSavePath } from './utils/validateRoundTrip'
 import { validateWorkflow } from './utils/validation'
@@ -422,7 +423,7 @@ export function BuilderContent(props: BuilderContentProps) {
 
         triggers.forEach((_, index) => {
           // If first activity is a parallel (either auto-generated wrapper OR user-created), connect to its branches
-          if (firstActivity.type === 'parallel') {
+          if (firstActivity.type === ACTIVITY_TYPES.PARALLEL) {
             const branches = firstActivity.branches || []
             branches.forEach((branch) => {
               // CRITICAL: Use getFirstActivityId to handle sequence wrappers that will be flattened away

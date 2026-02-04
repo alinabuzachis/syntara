@@ -61,7 +61,7 @@ export class WorkflowTransform {
     // This is complex because the backend might reorder activities (e.g., [C, M, J] instead of [C, J, M])
     // Strategy: A converge node should connect to the first top-level activity that:
     // 1. Appears after it in the array, OR
-    // 2. Is NOT referenced by the converge's branches (if converge is last in array)
+    // 2. Is NOT referenced by the converge's branches AND not a parent/ancestor of the converge (if converge is last in array)
     for (let i = 0; i < nestedActivities.length; i++) {
       const current = nestedActivities[i]
       if (current.type === 'converge') {
@@ -83,6 +83,7 @@ export class WorkflowTransform {
           } else {
             // Look BACKWARDS for an activity not in branches
             // This handles the case where backend reordered to [C, M, J] instead of [C, J, M]
+            // BUT: exclude activities that are parents/ancestors of the converge branches
             for (let j = 0; j < i; j++) {
               const candidate = nestedActivities[j]
               // Skip if this candidate is a condition/loop/parallel (structural nodes)
@@ -93,6 +94,39 @@ export class WorkflowTransform {
               if (convergeBranches.has(candidate.id)) {
                 continue
               }
+
+              // CRITICAL: Check if there's a path FROM this candidate TO the converge via the branches
+              // This prevents creating backward edges from converge to nodes that feed INTO it
+              let feedsIntoConverge = false
+
+              // Simple heuristic: if the candidate appears BEFORE any branch activity in the array,
+              // it might feed into the converge (either directly or through the branch)
+              for (const branchId of convergeBranches) {
+                // Check if branch is a top-level activity that appears after the candidate
+                const branchIndex = nestedActivities.findIndex((a) => a.id === branchId)
+                if (branchIndex !== -1 && branchIndex > j) {
+                  // Branch appears after candidate - candidate likely feeds into converge
+                  feedsIntoConverge = true
+                  break
+                }
+
+                // Check if branch is nested inside a structural node that appears after the candidate
+                for (let k = j + 1; k < nestedActivities.length; k++) {
+                  const laterActivity = nestedActivities[k]
+                  const nestedIds = this.collectAllActivityIds(laterActivity)
+                  if (nestedIds.includes(branchId)) {
+                    // Branch is nested inside an activity that appears after candidate
+                    feedsIntoConverge = true
+                    break
+                  }
+                }
+                if (feedsIntoConverge) break
+              }
+
+              if (feedsIntoConverge) {
+                continue
+              }
+
               // Found a candidate - this is likely what should come after the converge
               nextActivity = candidate
               break

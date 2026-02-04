@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { Activity, WorkflowAPI } from '@ansible/nexus-contracts'
 import { CompassPanel } from '@patternfly/react-core'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -9,7 +9,9 @@ import { useExecutionStoreActions } from '../automations/stores/useExecutionStor
 
 import { BuilderFlow } from './BuilderFlow'
 import { ExecutionViewContext } from './ExecutionViewContext'
+import { ACTIVITY_TYPES } from './utils/executionState/constants'
 import { loadWorkflow } from './utils/loadWorkflow'
+import { WorkflowTransform } from './utils/workflowTransform'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
@@ -85,17 +87,39 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
 
       // Generate trigger edges (triggers connect to first activities)
       const triggers = workflowDef.triggers || []
-      const firstActivityId = flattenedActivities[0]?.id
-      const triggerEdges =
-        firstActivityId && triggers.length > 0
-          ? triggers.map((_: unknown, index: number) => ({
-              id: `trigger-${index}-edge`,
-              source: `trigger-${index}`,
-              target: firstActivityId,
-            }))
-          : []
+      if (triggers.length > 0 && workflowDef.workflow.activities.length > 0) {
+        const firstActivity = workflowDef.workflow.activities[0]
 
-      const allEdges = [...triggerEdges, ...generatedEdges]
+        triggers.forEach((_: unknown, index: number) => {
+          // If first activity is a parallel, connect to its branches
+          if (firstActivity.type === ACTIVITY_TYPES.PARALLEL) {
+            const branches = firstActivity.branches || []
+            branches.forEach((branch: Activity) => {
+              // Use getFirstActivityId to handle sequence wrappers that will be flattened away
+              const targetId = WorkflowTransform.getFirstActivityId(branch)
+              generatedEdges.push({
+                id: `trigger-${index}-${targetId}`,
+                source: `trigger-${index}`,
+                target: targetId,
+                sourceHandle: 'source',
+                targetHandle: 'target',
+              })
+            })
+          } else {
+            // Regular activity - use getFirstActivityId to handle sequences
+            const targetId = WorkflowTransform.getFirstActivityId(firstActivity)
+            generatedEdges.push({
+              id: `trigger-${index}-${targetId}`,
+              source: `trigger-${index}`,
+              target: targetId,
+              sourceHandle: 'source',
+              targetHandle: 'target',
+            })
+          }
+        })
+      }
+
+      const allEdges = generatedEdges
 
       // Create flattened workflow with activities in execution order
       const flattenedWorkflow = {

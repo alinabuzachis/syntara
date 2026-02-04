@@ -25,300 +25,7 @@ import {
 import { CanvasControls } from '../automations/canvas/CanvasControls'
 import { edgeTypes } from '../automations/canvas/edges/EdgeType'
 import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
-import type { ActivityState } from '../automations/execution/types'
-import { deriveEdgeStatus } from '../automations/hooks/useEdgeStatus'
 import { useExecutionStore } from '../automations/stores/useExecutionStore'
-
-type ExecutionStatePayload = {
-  status: ActivityState['status']
-  started_at?: string
-  completed_at?: string
-  error_details?: string
-}
-
-// Type helper for activity data with optional metadata/execution state
-type ActivityWithMetadata<T extends Activity = Activity> = T & {
-  metadata?: Record<string, unknown>
-  __executionState?: ExecutionStatePayload
-}
-
-/**
- * Helper function to check if any downstream node is still pending or running
- *
- * @param activityId - The activity ID to check downstream from
- * @param activityStates - Map of activity states from execution store
- * @param edges - Array of edges to determine connectivity
- * @param visitedIds - Set of already visited IDs to prevent cycles
- * @returns true if any downstream node has pending/running status
- */
-function hasDownstreamPendingNodes(
-  activityId: string,
-  activityStates: Map<string, ActivityState>,
-  edges: Array<{ source: string; target: string; sourceHandle?: string | null }>,
-  visitedIds: Set<string> = new Set()
-): boolean {
-  // Prevent infinite recursion
-  if (visitedIds.has(activityId)) {
-    return false
-  }
-  visitedIds.add(activityId)
-
-  // Find all outgoing edges from this activity
-  const outgoingEdges = edges.filter((edge) => edge.source === activityId)
-
-  for (const edge of outgoingEdges) {
-    const targetState = activityStates.get(edge.target)
-
-    // If target has pending or running state, return true
-    if (targetState && (targetState.status === 'pending' || targetState.status === 'running')) {
-      return true
-    }
-
-    // Recursively check downstream nodes
-    if (hasDownstreamPendingNodes(edge.target, activityStates, edges, new Set(visitedIds))) {
-      return true
-    }
-  }
-
-  return false
-}
-
-/**
- * Determines if a node should be marked as "skipped" by checking if it's on a non-taken branch
- * or if all its incoming nodes are skipped/completed without reaching it.
- *
- * A node is skipped if:
- * 1. It's directly connected from a branching node (conditional/approval) that completed but didn't take this branch
- * 2. All of its incoming nodes are either skipped OR completed/failed/cancelled, and the node itself never started
- * 3. No downstream nodes are still pending or running
- *
- * @param activityId - The activity ID to check
- * @param activityStates - Map of activity states from execution store
- * @param edges - Array of edges to determine connectivity
- * @param visitedIds - Set of already visited IDs to prevent cycles
- * @returns true if the node should be marked as skipped
- */
-function shouldMarkAsSkipped(
-  activityId: string,
-  activityStates: Map<string, ActivityState>,
-  edges: Array<{ source: string; target: string; sourceHandle?: string | null }>,
-  visitedIds: Set<string> = new Set()
-): boolean {
-  // Prevent infinite recursion
-  if (visitedIds.has(activityId)) {
-    return false
-  }
-  visitedIds.add(activityId)
-
-  // If node has activity state (started), it's not skipped
-  const activityState = activityStates.get(activityId)
-  if (activityState) {
-    return false
-  }
-
-  // If any downstream node is still pending/running, this node should remain pending
-  if (hasDownstreamPendingNodes(activityId, activityStates, edges)) {
-    return false
-  }
-
-  // Find all incoming edges to this activity
-  const incomingEdges = edges.filter((edge) => edge.target === activityId)
-
-  if (incomingEdges.length === 0) {
-    return false // No incoming edges (trigger nodes or orphans)
-  }
-
-  // Check if there are any incoming branch edges (from conditional or approval nodes)
-  const incomingBranchEdges = incomingEdges.filter(
-    (edge) =>
-      edge.sourceHandle === 'true' ||
-      edge.sourceHandle === 'false' ||
-      edge.sourceHandle === 'approved' ||
-      edge.sourceHandle === 'rejected'
-  )
-
-  // If there are branch edges, check if all branching sources completed (meaning branch wasn't taken)
-  if (incomingBranchEdges.length > 0) {
-    const allBranchSourcesCompleted = incomingBranchEdges.every((edge) => {
-      const sourceState = activityStates.get(edge.source)
-      return (
-        sourceState &&
-        (sourceState.status === 'completed' || sourceState.status === 'failed' || sourceState.status === 'cancelled')
-      )
-    })
-
-    if (allBranchSourcesCompleted) {
-      return true // Node is on a non-taken branch
-    }
-  }
-
-  // Check if all incoming nodes (regardless of edge type) are either:
-  // 1. Skipped (recursively check)
-  // 2. Completed/failed/cancelled (terminal states)
-  // This handles cascading skips where a node's parent was skipped
-  const allIncomingNodesSkippedOrCompleted = incomingEdges.every((edge) => {
-    const sourceState = activityStates.get(edge.source)
-
-    // If source has completed/failed/cancelled, it's in a terminal state
-    if (
-      sourceState &&
-      (sourceState.status === 'completed' || sourceState.status === 'failed' || sourceState.status === 'cancelled')
-    ) {
-      return true
-    }
-
-    // If source should be skipped, this counts too
-    return shouldMarkAsSkipped(edge.source, activityStates, edges, new Set(visitedIds))
-  })
-
-  // If all incoming nodes are either completed or skipped, and this node never started,
-  // it means execution never reached this node
-  return allIncomingNodesSkippedOrCompleted
-}
-
-/**
- * Enriches activity data with execution state for visualization
- * @param activity - The activity to enrich
- * @param executionStatus - Current execution status (if in execution view)
- * @param activityStates - Map of activity states from execution store
- * @param edges - Array of edges to determine if node is on a non-taken branch
- * @returns Activity data with execution metadata and state attached
- */
-function enrichActivityWithExecutionState<T extends Activity>(
-  activity: T,
-  executionStatus: string | null | undefined,
-  activityStates: Map<string, ActivityState>,
-  edges: Array<{ source: string; target: string; sourceHandle?: string | null }>
-): ActivityWithMetadata<T> {
-  if (!executionStatus) {
-    return activity as ActivityWithMetadata<T>
-  }
-
-  // Add execution badge flag
-  const baseMetadata = (activity as ActivityWithMetadata).metadata ?? {}
-  let enrichedActivity = {
-    ...activity,
-    metadata: { ...baseMetadata, __showExecutionBadge: true },
-  } as ActivityWithMetadata<T>
-
-  // Add execution state from execution store if available
-  const activityState = activityStates.get(activity.id)
-  if (activityState) {
-    enrichedActivity = {
-      ...enrichedActivity,
-      __executionState: {
-        status: activityState.status,
-        started_at: activityState.startedAt ?? undefined,
-        completed_at: activityState.completedAt ?? undefined,
-        error_details: activityState.errorDetails ?? undefined,
-      },
-    } as ActivityWithMetadata
-  } else {
-    // For conditional and approval nodes, infer completion if any output branch has been taken
-    const isConditionalOrApproval = activity.type === 'condition' || activity.type === 'approval'
-
-    if (isConditionalOrApproval) {
-      // Find all outgoing edges from this node with branching handles
-      const outgoingBranchEdges = edges.filter(
-        (edge) =>
-          edge.source === activity.id &&
-          (edge.sourceHandle === 'true' ||
-            edge.sourceHandle === 'false' ||
-            edge.sourceHandle === 'approved' ||
-            edge.sourceHandle === 'rejected')
-      )
-
-      // Check if any target node has started (meaning this branch was taken)
-      const anyBranchTaken = outgoingBranchEdges.some((edge) => {
-        const targetState = activityStates.get(edge.target)
-        return targetState && targetState.startedAt
-      })
-
-      if (anyBranchTaken) {
-        // Mark the conditional/approval node as completed since a branch was taken
-        enrichedActivity = {
-          ...enrichedActivity,
-          __executionState: {
-            status: 'completed',
-            started_at: undefined,
-            completed_at: undefined,
-            error_details: undefined,
-          },
-        } as ActivityWithMetadata
-        return enrichedActivity
-      }
-    }
-
-    // Check if this node should be marked as "skipped"
-    if (shouldMarkAsSkipped(activity.id, activityStates, edges)) {
-      enrichedActivity = {
-        ...enrichedActivity,
-        __executionState: {
-          status: 'skipped',
-          started_at: undefined,
-          completed_at: undefined,
-          error_details: undefined,
-        },
-      } as ActivityWithMetadata
-    } else if (isConditionalOrApproval) {
-      // If conditional/approval node has no backend state, not completed, and not skipped,
-      // set default pending state so it shows a badge
-      enrichedActivity = {
-        ...enrichedActivity,
-        __executionState: {
-          status: 'pending',
-          started_at: undefined,
-          completed_at: undefined,
-          error_details: undefined,
-        },
-      } as ActivityWithMetadata
-    }
-  }
-
-  return enrichedActivity
-}
-
-/**
- * Determines edge execution status for visualization
- *
- * For regular edges: Edge is passed when source node has completed
- * For conditional node edges (sourceHandle="true" or "false"): Edge is passed only if target node has started
- * For approval node edges (sourceHandle="approved" or "rejected"): Edge is passed only if target node has started
- * This indicates that this branch was actually taken during execution
- *
- * @param edge - The edge to determine status for
- * @param activityStates - Map of activity states from execution store
- * @returns Edge execution status ('passed' | 'pending')
- */
-function determineEdgeExecutionStatus(
-  edge: { source: string; target: string; sourceHandle?: string | null },
-  activityStates: Map<string, ActivityState>
-): 'passed' | 'pending' {
-  // Trigger nodes are always "passed"
-  const isSourceTrigger = edge.source.startsWith('trigger-')
-  if (isSourceTrigger) {
-    return 'passed'
-  }
-
-  const sourceActivityState = activityStates.get(edge.source)
-
-  // For branching nodes (conditional or approval), check if target has started
-  // This determines which branch was actually taken
-  const isBranchingHandle =
-    edge.sourceHandle === 'true' ||
-    edge.sourceHandle === 'false' ||
-    edge.sourceHandle === 'approved' ||
-    edge.sourceHandle === 'rejected'
-
-  if (isBranchingHandle) {
-    const targetActivityState = activityStates.get(edge.target)
-    // If target is no longer pending, this branch was taken
-    return targetActivityState && targetActivityState.status !== 'pending' ? 'passed' : 'pending'
-  }
-
-  // For regular edges, derive status from source node
-  return sourceActivityState ? deriveEdgeStatus(sourceActivityState.status) : 'pending'
-}
 
 import { ButtonEdge } from './edges/ButtonEdge'
 import { DefaultEdge } from './edges/DefaultEdge'
@@ -339,6 +46,7 @@ import { useWorkflowInitialization } from './hooks/useWorkflowInitialization'
 import { PlaceholderNode } from './nodes/PlaceholderNode'
 import type { BuilderFlowProps, PendingEdge } from './types'
 import { detectLoopBackNodes } from './utils/detectLoopBackNodes'
+import { ExecutionStateEnricher, type ActivityWithMetadata } from './utils/executionState'
 import { getLayoutedElements } from './utils/layoutEngine'
 import { validateConnection } from './utils/validateConnection'
 import {
@@ -349,6 +57,9 @@ import {
   type TaskActivity,
   type Trigger,
 } from './utils/workflowToGraph'
+
+// Create singleton instance of execution state enricher
+const executionStateEnricher = new ExecutionStateEnricher()
 
 // Define node and edge types outside component to prevent React Flow warnings
 const builderNodeTypes = {
@@ -417,15 +128,24 @@ export function BuilderFlow(props: BuilderFlowProps) {
     const triggersList = triggers || []
     triggersList.forEach((trigger: Trigger, index: number) => {
       const triggerId = `trigger-${index}`
+      const triggerData = {
+        label: getTriggerLabel(trigger),
+        triggerType: trigger.type,
+        inputs: currentWorkflow?.inputs || {},
+      }
+      // Enrich trigger with execution state
+      const enrichedTriggerData = executionStateEnricher.enrichTriggerNode(
+        triggerId,
+        triggerData,
+        executionStatus,
+        storedEdges,
+        activityStates
+      )
       nodes.push({
         id: triggerId,
         type: 'trigger',
         position: { x: 0, y: 0 },
-        data: {
-          label: getTriggerLabel(trigger),
-          triggerType: trigger.type,
-          inputs: currentWorkflow?.inputs || {},
-        },
+        data: enrichedTriggerData,
       })
       previousIds.push(triggerId)
     })
@@ -435,27 +155,45 @@ export function BuilderFlow(props: BuilderFlowProps) {
     // Create nodes for converge, condition, and loop activities first (needed for loop-back detection)
     activities.forEach((activity: Activity) => {
       if (activity.type === 'converge') {
-        const activityData = enrichActivityWithExecutionState(activity, executionStatus, activityStates, storedEdges)
+        const activityData = executionStateEnricher.enrichActivity(
+          activity,
+          executionStatus,
+          activityStates,
+          storedEdges
+        )
         nodes.push({
           id: activity.id,
           type: 'converge',
           position: { x: 0, y: 0 },
+          // @ts-expect-error - ActivityWithMetadata extends Activity, safe to use
           data: activityData,
         })
       } else if (activity.type === 'condition') {
-        const activityData = enrichActivityWithExecutionState(activity, executionStatus, activityStates, storedEdges)
+        const activityData = executionStateEnricher.enrichActivity(
+          activity,
+          executionStatus,
+          activityStates,
+          storedEdges
+        )
         nodes.push({
           id: activity.id,
           type: 'condition',
           position: { x: 0, y: 0 },
+          // @ts-expect-error - ActivityWithMetadata extends Activity, safe to use
           data: activityData,
         })
       } else if (activity.type === 'loop') {
-        const activityData = enrichActivityWithExecutionState(activity, executionStatus, activityStates, storedEdges)
+        const activityData = executionStateEnricher.enrichActivity(
+          activity,
+          executionStatus,
+          activityStates,
+          storedEdges
+        )
         nodes.push({
           id: activity.id,
           type: 'loop',
           position: { x: 0, y: 0 },
+          // @ts-expect-error - ActivityWithMetadata extends Activity, safe to use
           data: activityData,
         })
       }
@@ -482,7 +220,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         // For conditional nodes, only mark edge as passed if target node started (branch was taken)
         let edgeExecutionStatus: 'passed' | 'pending' | undefined
         if (executionStatus) {
-          edgeExecutionStatus = determineEdgeExecutionStatus(edge, activityStates)
+          edgeExecutionStatus = executionStateEnricher.determineEdgeStatus(edge, activityStates, activities)
         }
 
         const restoredEdge: EdgeType = {
@@ -547,12 +285,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
       }
 
       // Enrich activity with execution state if in execution view
-      const activityData = enrichActivityWithExecutionState(activity, executionStatus, activityStates, storedEdges)
+      const activityData = executionStateEnricher.enrichActivity(activity, executionStatus, activityStates, storedEdges)
 
       nodes.push({
         id: activity.id,
         type: nodeType,
         position,
+        // @ts-expect-error - ActivityWithMetadata extends Activity, safe to use
         data: activityData,
       })
     })
@@ -913,10 +652,13 @@ export function BuilderFlow(props: BuilderFlowProps) {
   useEffect(() => {
     if (!executionStatus || !isInitialized) return
 
+    // Get current activities from workflow store
+    const activities = currentWorkflow?.workflow.activities || []
+
     setEdges((currentEdges) =>
       currentEdges.map((edge) => {
         // Determine edge execution status (handles conditional nodes specially)
-        const edgeExecutionStatus = determineEdgeExecutionStatus(edge, activityStates)
+        const edgeExecutionStatus = executionStateEnricher.determineEdgeStatus(edge, activityStates, activities)
 
         // Only update if status changed to avoid unnecessary re-renders
         if (edge.data?.executionStatus !== edgeExecutionStatus) {
@@ -932,7 +674,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         return edge
       })
     )
-  }, [activityStates, executionStatus, isInitialized])
+  }, [activityStates, executionStatus, isInitialized, currentWorkflow])
 
   const isValidConnection = useCallback(
     (connection: EdgeType | Connection) => {

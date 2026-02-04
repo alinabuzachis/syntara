@@ -621,4 +621,66 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
     const convergeOutgoingEdges = edges.filter((e) => e.source === 'converge1')
     expect(convergeOutgoingEdges).toHaveLength(0)
   })
+
+  it('does not create backward edge when backend returns parallel activities as flat array with converge', () => {
+    // Exact reproduction of user's reported bug
+    // Backend returns: [Script4, Script, Converge] where converge.branches = ["Script"]
+    // This represents a parallel split at trigger level
+    const activities: Activity[] = [
+      {
+        id: 'activity_7cfa1bc4_f75d_4354_8e3a_f5f5cc22c47a',
+        name: 'Script4',
+        task: {
+          config: { code: 'import time\ntime.sleep(2)', timeout: 300, language: 'python', environment: {} },
+          executor: 'script',
+        },
+        type: 'task',
+        requiresApproval: false,
+      },
+      {
+        id: 'activity_a3e13810_784b_4cf9_a91b_b54370fcdb80',
+        name: 'Script',
+        task: {
+          config: { code: 'import time\ntime.sleep(2)', timeout: 300, language: 'python', environment: {} },
+          executor: 'script',
+        },
+        type: 'task',
+        requiresApproval: false,
+      },
+      {
+        id: 'logic_1738587653833_sihq7u6g74oi6',
+        name: 'Converge',
+        type: 'converge',
+        converge: {
+          branches: ['activity_a3e13810_784b_4cf9_a91b_b54370fcdb80'],
+          strategy: 'all',
+          onTimeout: 'fail',
+          aggregateOutputs: true,
+        },
+        requiresApproval: false,
+      },
+    ]
+
+    const { edges } = WorkflowTransform.flatten(activities)
+
+    // Should have edge from Script to Converge (Script is in converge.branches)
+    const scriptToConverge = edges.find(
+      (e) =>
+        e.source === 'activity_a3e13810_784b_4cf9_a91b_b54370fcdb80' && e.target === 'logic_1738587653833_sihq7u6g74oi6'
+    )
+    expect(scriptToConverge).toBeDefined()
+
+    // CRITICAL: Should NOT have backward edge from Converge to Script4
+    // Script4 appears before Script in the array, but it's NOT in converge.branches
+    // The bug creates this incorrect edge
+    const convergeToScript4 = edges.find(
+      (e) =>
+        e.source === 'logic_1738587653833_sihq7u6g74oi6' && e.target === 'activity_7cfa1bc4_f75d_4354_8e3a_f5f5cc22c47a'
+    )
+    expect(convergeToScript4).toBeUndefined()
+
+    // Converge should have NO outgoing edges (end of workflow)
+    const convergeOutgoingEdges = edges.filter((e) => e.source === 'logic_1738587653833_sihq7u6g74oi6')
+    expect(convergeOutgoingEdges).toHaveLength(0)
+  })
 })

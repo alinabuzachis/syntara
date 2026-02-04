@@ -49,6 +49,13 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
       }
     | undefined
 
+  // Show execution badge when in execution view
+  const isExecutionView = useIsExecutionView()
+  const showExecutionBadge =
+    isExecutionView &&
+    ((props.data as Record<string, unknown>).metadata as { __showExecutionBadge?: boolean } | undefined)
+      ?.__showExecutionBadge === true
+
   return (
     <NodeComponent
       disableTarget={metadata.disableTarget}
@@ -57,7 +64,7 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
       style={triggerStyle}
       collapsible={false}
       executionState={executionState}
-      showExecutionBadge={false}
+      showExecutionBadge={showExecutionBadge}
     >
       <TriggerNodeDetails
         node={props.data}

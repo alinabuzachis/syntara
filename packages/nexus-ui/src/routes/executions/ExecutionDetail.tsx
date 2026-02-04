@@ -54,6 +54,7 @@ function ExecutionDetailContent({
   setLocation: (path: string) => void
 }) {
   const isStale = useExecutionStore((state) => state.isStale)
+  const isComplete = useExecutionStore((state) => state.isComplete)
 
   return (
     <Flex
@@ -78,7 +79,7 @@ function ExecutionDetailContent({
           overflow: 'hidden',
         }}
       >
-        {isStale && (
+        {isStale && !isComplete && (
           <Flex
             style={{
               position: 'absolute',
