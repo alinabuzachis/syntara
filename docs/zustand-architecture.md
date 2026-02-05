@@ -4,6 +4,17 @@
 
 ---
 
+## Table of Contents
+
+1. [The Big Picture](#the-big-picture)
+2. [How Data Flows](#how-data-flows)
+3. [Store State Structure](#store-state-structure)
+4. [Common Operations](#common-operations)
+5. [Best Practices](#best-practices)
+6. [Testing](#testing)
+
+---
+
 ## The Big Picture
 
 When a user opens a workflow in the builder, here's what happens:
@@ -118,7 +129,7 @@ User clicks "Save"
          ▼
 ┌─────────────────────────────────┐
 │  TanStack Query mutation:       │
-│  PUT /api/workflows/{id}        │
+│  PATCH /api/workflows/{id}      │
 └─────────────────────────────────┘
          │
          ▼

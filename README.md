@@ -94,7 +94,6 @@ This is a monorepo using npm workspaces:
 nexus-ui/
 ├── packages/
 │   ├── nexus-ui/              # Main React 19 application
-│   ├── nexus-ui-framework/    # Shared UI component library
 │   ├── nexus-contracts/       # OpenAPI TypeScript types
 │   └── nexus-mock-api/        # MSW-based mock API server
 ├── package.json               # Root workspace configuration
@@ -112,15 +111,13 @@ nexus-ui/
 
 ```bash
 # Development
-npm start                          # Start all services (framework watch + UI dev server + mock API)
-npm run start:nexus-ui             # Start UI only (requires framework to be built)
-npm run start:nexus-ui-framework   # Start framework in watch mode
+npm start                          # Start all services (UI dev server + mock API)
+npm run start:nexus-ui             # Start UI only
 npm run start:nexus-mock-api       # Start mock API server only
 
 # Building
 npm run build                      # Build all packages
 npm run build:nexus-ui             # Build UI only
-npm run build:nexus-ui-framework   # Build framework only
 
 # Testing & Linting
 npm test                           # Run all tests (format check + ESLint + TypeScript)
@@ -205,14 +202,6 @@ We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING
 - Fuse.js (fuzzy search)
 - ReactFlow/XYFlow (workflow diagrams)
 - MSW (API mocking)
-
-### Nexus UI Framework (Component Library)
-
-- Base UI primitives
-- react-hook-form (form handling)
-- Vite library mode
-- TypeScript declarations
-- ESM + UMD builds
 
 ### Nexus Contracts (Type Definitions)
 

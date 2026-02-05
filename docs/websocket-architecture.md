@@ -4,6 +4,20 @@
 
 ---
 
+## Table of Contents
+
+1. [Architecture Decision: Multiple Connections vs Singleton](#architecture-decision-multiple-connections-vs-singleton)
+2. [Quick Start](#quick-start)
+3. [Architecture](#architecture)
+4. [API Reference](#api-reference)
+5. [Connection States](#connection-states)
+6. [Reconnection](#reconnection)
+7. [Demo Page](#demo-page)
+8. [Configuration](#configuration)
+9. [Design Principles](#design-principles)
+
+---
+
 ## Architecture Decision: Multiple Connections vs Singleton
 
 ### Why Multiple WebSocket Connections?
@@ -261,28 +275,96 @@ sendRaw({ message: 'Hello' })
 // Sends: { message: 'Hello' }
 ```
 
-### `useWebSocketStore`
+### Execution Channels
 
-Direct access to the Zustand store for advanced use cases.
+For execution streaming, use the channel builder helper:
 
 ```tsx
-import { useWebSocketStore, selectConnectionState, selectIsConnected } from '../lib/websocket'
+import { buildExecutionChannelPath } from '../lib/websocket'
 
-// Actions
-const { connect, disconnect, send, sendRaw } = useWebSocketStore()
+// Build execution channel path with optional replay parameter
+const channelPath = buildExecutionChannelPath('exec-123')
+// Returns: '/ws/workflows/v1/executions/exec-123'
 
-// State with selectors (minimal re-renders)
-const connectionState = useWebSocketStore(selectConnectionState('chat'))
-const isConnected = useWebSocketStore(selectIsConnected('chat'))
+const channelPathWithReplay = buildExecutionChannelPath('exec-123', 'event-456')
+// Returns: '/ws/workflows/v1/executions/exec-123?replay=event-456'
+
+// Use with useWebSocket
+const { isConnected } = useWebSocket(
+  { id: `execution-${executionId}`, path: buildExecutionChannelPath(executionId, lastEventId) },
+  { onMessage: handleExecutionMessage }
+)
+```
+
+> 📚 **See [`docs/execution-visualizer-protocol.md`](./execution-visualizer-protocol.md) for the complete execution WebSocket protocol specification.**
+
+### `useWebSocketState(channelId)`
+
+Hook to access connection state with minimal re-renders.
+
+```tsx
+import { useWebSocketState } from '../lib/websocket'
+
+const { connectionState, isConnected, error } = useWebSocketState('chat')
+```
+
+### `useIsWebSocketConnected(channelId)`
+
+Minimal hook that returns only the connection boolean. Use when you only need to know if connected.
+
+```tsx
+import { useIsWebSocketConnected } from '../lib/websocket'
+
+const isConnected = useIsWebSocketConnected('chat')
+// Returns: boolean
 ```
 
 ### Utility Functions
 
 ```tsx
-import { getConnectionStateLabel, getConnectionStateColor } from '../lib/websocket'
+import {
+  getConnectionStateLabel,
+  getConnectionStateColor,
+  isActiveState,
+  isConnectingState,
+  isFailedState,
+} from '../lib/websocket'
 
+// Display helpers
 getConnectionStateLabel('connected') // 'Connected'
 getConnectionStateColor('connected') // 'green'
+
+// State check utilities
+isActiveState('connected') // true - checks if state is 'connected'
+isConnectingState('connecting') // true - checks if state is 'connecting' or 'reconnecting'
+isFailedState('failed') // true - checks if state is 'failed'
+```
+
+### Store (Advanced Usage)
+
+For advanced use cases, access the store directly:
+
+```tsx
+import { useWebSocketStore, selectConnectionState, selectIsConnected, selectError } from '../lib/websocket'
+
+// Actions
+const { connect, disconnect, send, sendRaw, disconnectAll, reset, updateConfig } = useWebSocketStore()
+
+// State with selectors (minimal re-renders)
+const connectionState = useWebSocketStore(selectConnectionState('chat'))
+const isConnected = useWebSocketStore(selectIsConnected('chat'))
+const error = useWebSocketStore(selectError('chat'))
+
+// Disconnect all channels
+useWebSocketStore.getState().disconnectAll()
+
+// Reset store to initial state
+useWebSocketStore.getState().reset()
+
+// Update configuration
+useWebSocketStore.getState().updateConfig({
+  reconnection: { maxAttempts: 5 },
+})
 ```
 
 ---

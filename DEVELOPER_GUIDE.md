@@ -60,7 +60,6 @@ npm start
 ### Monorepo Structure
 
 - `packages/nexus-ui`: Main React application
-- `packages/nexus-ui-framework`: Shared UI component library
 - `packages/nexus-contracts`: OpenAPI TypeScript types
 - `packages/nexus-mock-api`: MSW-based mock API server
 
@@ -160,10 +159,9 @@ npm run test          # Run tests
 npm run build         # Build package
 npm run start         # Start dev server
 
-# Framework Package
-cd packages/nexus-ui-framework
-npm run dev           # Component development
-npm run build         # Build library
+# Mock API Package
+cd packages/nexus-mock-api
+npm run start         # Start mock API server
 ```
 
 ## Testing
@@ -182,7 +180,7 @@ npm test
 
 # Run specific package tests
 npm run test:nexus-ui
-npm run test:nexus-ui-framework
+npm run test:nexus-mock-api
 
 # Run with coverage
 npm run test:coverage

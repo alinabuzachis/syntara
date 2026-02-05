@@ -160,7 +160,7 @@ flowchart TB
     subgraph API["OpenAPI Spec"]
         E1["GET /workflows/{workflow_id}"]
         E2["POST /workflows"]
-        E3["PUT /workflows/{workflow_id}"]
+        E3["PATCH /workflows/{workflow_id}"]
     end
 
     subgraph Gen["Generated Types"]
@@ -172,7 +172,7 @@ flowchart TB
     subgraph Code["TypeScript Code"]
         C1["workflowClient.useQuery('get', '/workflows/{workflow_id}', ...)"]
         C2["workflowClient.useMutation('post', '/workflows')"]
-        C3["workflowClient.useMutation('put', '/workflows/{workflow_id}')"]
+        C3["workflowClient.useMutation('patch', '/workflows/{workflow_id}')"]
     end
 
     E1 --> P1
@@ -265,19 +265,28 @@ function BuilderEdit() {
 ```typescript
 // Saving a workflow
 function handleSave() {
-  const mutation = workflowClient.useMutation('put', '/workflows/{workflow_id}')
+  // Note: Uses PATCH, not PUT
+  const mutation = workflowClient.useMutation('patch', '/workflows/{workflow_id}')
 
   const workflow = useWorkflowStore.getState().currentWorkflow
-  const payload = WorkflowTransform.nest(workflow) // Convert flat → nested
+  const edges = useWorkflowStore.getState().edges
+
+  // Convert flat → nested using the wrapper function
+  const nestedActivities = buildNestedConditionStructure(workflow.activities, edges)
 
   mutation.mutate({
     params: {
       path: { workflow_id: workflow.id },
     },
-    body: payload,
+    body: {
+      ...workflow,
+      activities: nestedActivities,
+    },
   })
 }
 ```
+
+**Note:** The actual implementation uses `buildNestedConditionStructure()` which wraps `WorkflowTransform.nest()` and handles validation.
 
 ---
 
@@ -547,11 +556,24 @@ Special handling:
 
 ### Nest Operation
 
-When saving, the flat structure is converted back to nested:
+When saving, the flat structure is converted back to nested. The implementation uses a wrapper function:
 
 ```typescript
+// packages/nexus-ui/src/routes/builder/utils/buildNestedStructure.ts
+
 /**
- * Converts flat workflow structure to nested representation.
+ * Wrapper function for converting flat → nested.
+ * This is the actual function called during save.
+ */
+export function buildNestedConditionStructure(
+  activities: Activity[],
+  edges: EdgeConnection[]
+): Activity[] {
+  return WorkflowTransform.nest(activities, edges)
+}
+
+/**
+ * WorkflowTransform.nest() - Core transformation logic
  *
  * This operation:
  * 1. Reads edges to determine which activities belong in which branches
@@ -601,28 +623,39 @@ sequenceDiagram
     participant C as BuilderContent
     participant S as Zustand Store
     participant V as Validation
-    participant T as WorkflowTransform
+    participant T as buildNestedConditionStructure
     participant M as Mutation
+    participant Q as QueryClient
     participant B as Backend
 
     U->>C: Click Save
     C->>S: Get current state
     S-->>C: { activities, edges }
-    C->>V: Validate graph
+    C->>V: validateSavePath() + validateWorkflow()
 
     alt Invalid
         V-->>C: Validation errors
-        C-->>U: Show errors
+        C-->>U: Show errors in toast
     else Valid
         V-->>C: OK
-        C->>T: nest(activities, edges)
-        T-->>C: Nested workflow
-        C->>M: mutation.mutate(nested)
-        M->>B: PUT /workflows/{id}
+        C->>T: buildNestedConditionStructure(activities, edges)
+        T-->>C: Nested activities
+        C->>C: getWorkflowDefinition() - merge metadata
+        C->>M: mutation.mutate(payload)
+        M->>B: PATCH /workflows/{workflow_id}
         B-->>M: Success
-        M-->>U: Show success message
+        M->>Q: invalidateQueries(['workflows'])
+        M-->>U: Show success toast
     end
 ```
+
+**Save flow details:**
+
+1. **Validation**: `validateSavePath()` checks graph connectivity, `validateWorkflow()` checks data integrity
+2. **Transformation**: `buildNestedConditionStructure()` converts flat activities + edges to nested format
+3. **Metadata merge**: `getWorkflowDefinition()` combines activities with workflow metadata (name, description, is_enabled, labels)
+4. **HTTP Method**: Uses `PATCH`, not `PUT`
+5. **Cache invalidation**: After success, `queryClient.invalidateQueries()` refreshes the workflow list
 
 ---
 

@@ -69,7 +69,7 @@ Check whether the changes follow:
 
 **Project-Specific:**
 
-- Components in correct package (nexus-ui-framework vs nexus-ui)
+- Components in correct location (packages/nexus-ui/src/components/)
 - Uses Base UI components as foundation for new UI
 - Uses PatternFly 6 for styling and design system
 - TanStack Query for server state, Zustand (useWorkflowStore) for workflow state

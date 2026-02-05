@@ -4,6 +4,21 @@
 
 ---
 
+## Table of Contents
+
+1. [Endpoints](#endpoints)
+2. [Sequence: User Clicks "Run"](#sequence-user-clicks-run)
+3. [Other Scenarios](#other-scenarios)
+4. [WebSocket Messages](#websocket-messages)
+5. [Data Structures](#data-structures)
+6. [Visual Mapping](#visual-mapping)
+7. [Implementation](#implementation)
+8. [Update Flow](#update-flow)
+9. [Protocol Rules](#protocol-rules)
+10. [Node State Inference (Client-Side)](#node-state-inference-client-side)
+
+---
+
 ## Endpoints
 
 ```
@@ -326,7 +341,7 @@ type WebSocketMessage = ExecutionSnapshotMessage | ActivityPatchMessage
 ```typescript
 interface ExecutionStore {
   // State
-  activityStates: Map<string, ActivityState>
+  activityStates: Map<string, ActivityState> // Keyed by activity_id
   lastEventId: string
   isConnected: boolean
 
@@ -335,13 +350,29 @@ interface ExecutionStore {
   setInitialState(activities: ActivityData[]): void
 }
 
+// Internal ActivityState type (camelCase fields)
 interface ActivityState {
-  status: ActivityStatus
-  error_details?: string
-  started_at?: string
-  completed_at?: string
+  activityId: string // The activity identifier
+  status: ActivityStatus // 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'cancelled'
+  errorDetails?: string | null // Error message if failed
+  startedAt?: string | null // ISO8601 timestamp
+  completedAt?: string | null // ISO8601 timestamp
 }
+
+// Note: API uses snake_case (error_details, started_at, completed_at)
+// Internal types use camelCase (errorDetails, startedAt, completedAt)
+// The store transforms snake_case → camelCase when processing messages
 ```
+
+**Field Name Mapping:**
+
+| API Field (snake_case) | Internal Field (camelCase) | Type             |
+| ---------------------- | -------------------------- | ---------------- |
+| `activity_id`          | `activityId`               | `string`         |
+| `status`               | `status`                   | `ActivityStatus` |
+| `error_details`        | `errorDetails`             | `string \| null` |
+| `started_at`           | `startedAt`                | `string \| null` |
+| `completed_at`         | `completedAt`              | `string \| null` |
 
 ### ReactFlow Nodes
 
@@ -361,10 +392,27 @@ const nodes = activities.map((activity) => ({
 
 ### Edge Status (Client-Side Derived)
 
+Edge status is derived based on the type of edge (see Node State Inference section for details):
+
 ```typescript
-const edgeStatus = ['completed', 'failed', 'cancelled'].includes(sourceNode.status)
-  ? 'passed' // Solid line
-  : 'pending' // Dotted line
+// Simplified - actual implementation handles multiple edge types
+function determineEdgeStatus(edge, activityStates) {
+  // Trigger edges: passed when target started
+  if (edge.source.startsWith('trigger-')) {
+    const targetState = activityStates.get(edge.target)
+    return targetState?.status !== 'pending' ? 'passed' : 'pending'
+  }
+
+  // Branching edges (true/false/done/loop): passed when target started
+  if (isBranchHandle(edge.sourceHandle)) {
+    const targetState = activityStates.get(edge.target)
+    return targetState?.status !== 'pending' ? 'passed' : 'pending'
+  }
+
+  // Regular edges: passed when source has startedAt
+  const sourceState = activityStates.get(edge.source)
+  return sourceState?.startedAt ? 'passed' : 'pending'
+}
 ```
 
 ---
@@ -488,5 +536,100 @@ Nodes re-render with new border/badge
 3. **No extra GET for live run** (workflow already in Zustand)
 4. **WebSocket closes after `final_snapshot`**
 5. **Reconnect with `?replay={lastEventId}`** to catch up
+
+---
+
+## Node State Inference (Client-Side)
+
+The backend only sends status for executable activities (tasks, agent_task, etc.). Structural nodes (loops, conditions, converge) do **not** have direct backend state. The client infers their visual state from connected activities.
+
+### Inference System Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     NODE STATE INFERENCE SYSTEM                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   WebSocket Message                   Workflow Graph                         │
+│   ═══════════════════                 ═══════════════                        │
+│   { activity_id: "task1",             [Trigger] → [Loop] → [Task1] → ...    │
+│     status: "completed" }                  │         │                       │
+│                                            ▼         ▼                       │
+│                                       has backend  inferred from             │
+│                                       state        downstream nodes          │
+│                                                                              │
+│   ExecutionStateEnricher                                                     │
+│   ══════════════════════                                                     │
+│   1. Apply direct backend states                                             │
+│   2. Infer trigger state (first activity started → trigger completed)        │
+│   3. Infer structural node states via type-specific inferrers                │
+│   4. Calculate edge statuses                                                 │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Node Type Inferrers
+
+| Node Type     | Inferrer Class                       | Logic                                                                |
+| ------------- | ------------------------------------ | -------------------------------------------------------------------- |
+| **Loop**      | `LoopNodeStateInferrer`              | Checks 'done' and 'loop' edges; completed when 'done' target started |
+| **Condition** | `ConditionalNodeStateInferrer`       | Completed when any branch target has started                         |
+| **Approval**  | `ConditionalNodeStateInferrer`       | Same logic as condition (has approved/rejected branches)             |
+| **Converge**  | `ConvergeNodeStateInferrer`          | Completed when the converge node's own `startedAt` is set            |
+| **Trigger**   | Built-in to `ExecutionStateEnricher` | Completed when any downstream activity has started                   |
+
+### Inference Examples
+
+**Loop Node:**
+
+```typescript
+// Loop is "completed" when execution exits the loop
+// (i.e., when the 'done' edge target has started)
+
+// Edges: loop → body (handle: 'loop'), loop → next (handle: 'done')
+// If 'next' node has startedAt → loop is completed
+// If 'body' node has startedAt but 'next' hasn't → loop is running
+```
+
+**Condition Node:**
+
+```typescript
+// Condition is "completed" when a branch was taken
+// (i.e., when any 'true' or 'false' edge target has started)
+
+// Edges: condition → taskA (handle: 'true'), condition → taskB (handle: 'false')
+// If taskA.startedAt OR taskB.startedAt → condition is completed
+```
+
+### Skip Detection (Traversal Algorithm)
+
+Nodes can be marked as "skipped" when they're on a branch that wasn't taken:
+
+```typescript
+// WorkflowTraversal.shouldMarkAsSkipped(nodeId, activities, edges, activityStates)
+//
+// Returns true if:
+// 1. Node is on a non-taken branch of a completed condition
+// 2. Node is downstream from a skipped node
+// 3. Node has no downstream pending nodes (cascade complete)
+```
+
+**Implementation location:** `packages/nexus-ui/src/routes/builder/utils/executionState/traversal.ts`
+
+### Edge Status Determination
+
+Edge visual status is derived from node states:
+
+```typescript
+// Edge is "passed" (solid line) when:
+// - For branching edges (from condition/approval): target node has started
+// - For converge edges (to converge node): target node has completed
+// - For trigger edges: target has startedAt
+// - For regular edges: source has startedAt (execution flowed through)
+
+// Edge is "pending" (dotted line) otherwise
+```
+
+**Implementation location:** `packages/nexus-ui/src/routes/builder/utils/executionState/ExecutionStateEnricher.ts`
 
 ---

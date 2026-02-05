@@ -235,8 +235,9 @@ import { WebhookForm } from '../../node-forms/WebhookForm'
 
 /**
  * Register the Webhook trigger node
+ * IMPORTANT: Must export as default for auto-discovery
  */
-export function registerWebhookNode() {
+export default function registerWebhookNode() {
   NodeRegistry.register(
     createCustomNode<WebhookFormData>(
       {
@@ -272,7 +273,8 @@ export function registerWebhookNode() {
 
 ### Node doesn't appear in the panel
 
-- Check that you called the registration function in `index.ts`
+- Ensure your registration file uses `export default function`
+- Verify the file is named `register*.ts` (auto-discovered by glob pattern)
 - Verify the category is valid
 - Check browser console for errors
 

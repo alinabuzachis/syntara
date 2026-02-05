@@ -332,7 +332,7 @@ flowchart LR
 
   subgraph URL["Browser URL"]
     U["/automations"]
-    U2["/automation-builder/:id"]
+    U2["/automation-builder/:workflowId"]
   end
 
   AR --> NI
@@ -811,7 +811,7 @@ flowchart LR
 
   RF -->|"onEdgesChange"| Guard
   Guard -->|"if not re-entering"| Sync
-  Sync -->|"1. syncJoinBranches"| SE
+  Sync -->|"1. syncConvergeNodeBranches"| SE
   Sync -->|"2. reorderActivities"| SE
   SE -.->|"derived updates"| RF
 ```
@@ -819,14 +819,16 @@ flowchart LR
 The synchronization logic lives in `routes/builder/hooks/useEdgeSynchronization.ts` and is designed to:
 
 - avoid feedback loops (store updates triggering edge updates triggering store updates)
-- keep derived structures up to date (like join branches and activity ordering)
+- keep derived structures up to date (like converge branches and activity ordering)
 
 **Synchronization pipeline on edge changes:**
 
-1. `syncJoinBranches()` - Wraps parallel branches in parallel containers
+1. `syncConvergeNodeBranches()` - Updates the `branches` array on converge nodes with incoming activity IDs
 2. `reorderActivitiesFromEdges()` - Topologically sorts activities based on edges
 
 The hook uses a re-entrance guard to prevent infinite loops from workflow → edge updates.
+
+**Note:** Unlike parallel containers (which are only created during API transformations), `syncConvergeNodeBranches()` only updates the `converge.branches` array during editing — it does not create `parallel_for_*` containers. Parallel containers exist only in the API format (nested structure), not during editing.
 
 #### Button edges (interactive "+" edges)
 
@@ -856,38 +858,51 @@ flowchart LR
 - **Maintenance**: `routes/builder/hooks/useButtonEdgeMaintenance.ts`
 - **Behavior**: as nodes/edges change, the builder inserts/removes these button edges at valid insertion points so users always have a place to add the next step.
 
-#### Join nodes (fan-in) and parallel wrappers
+#### Converge nodes (fan-in) and parallel wrappers
 
-Join nodes are "merge points" with special semantics:
+Converge nodes (also called "join" nodes) are "merge points" with special semantics:
 
 ```mermaid
 flowchart TB
-  subgraph Before["Before: Multiple branches to Join"]
-    B1[Task A] --> BJ[Join]
+  subgraph Editing["During Editing: Flat with edges"]
+    B1[Task A] --> BJ[Converge<br/>branches: [A, B, C]]
     B2[Task B] --> BJ
     B3[Task C] --> BJ
   end
 
-  subgraph After["After: syncJoinBranches creates parallel wrapper"]
+  subgraph API["On Save: Nested with parallel wrapper"]
     direction TB
-    P["parallel_for_join1"]
+    P["parallel_for_converge1<br/>(auto-generated)"]
     A1[Task A]
     A2[Task B]
     A3[Task C]
-    AJ[Join<br/>branches: A, B, C]
+    AJ[Converge]
     P --> A1 & A2 & A3
     A1 & A2 & A3 --> AJ
   end
 
-  Before -->|"syncJoinBranches()"| After
+  Editing -->|"buildNestedConditionStructure()"| API
 ```
 
-- **Representation**: a join can refer to multiple upstream activities by ID in `join.branches: string[]`.
-- **Derived structure**: when 2+ activities connect to a join, the builder auto-generates a parallel container.
-- **Parallel container ID**: `parallel_for_${joinId}`
-- `syncJoinBranches()` manages parallel creation/cleanup automatically.
-- Orphaned activities (edges removed) are restored to the main activities array.
-- **Sync**: the join/parallel relationship is kept consistent during editing by the edge synchronization pipeline.
+**During Editing:**
+
+- Converge nodes store incoming branch activity IDs in `converge.branches: string[]`
+- `syncConvergeNodeBranches()` updates this array when edges change
+- **No parallel containers are created** — only the `branches` array is updated
+- Activities remain in the flat `activities` array
+
+**On Save (API transformation):**
+
+- `buildNestedConditionStructure()` creates `parallel_for_${convergeId}` wrappers
+- These wrappers group parallel branches for the nested API format
+- Parallel containers exist **only in the API format**, not during editing
+
+**On Load:**
+
+- `WorkflowTransform.flatten()` extracts activities from parallel wrappers
+- Activities are placed back in the flat array with edges to the converge node
+
+**Key distinction:** `syncConvergeNodeBranches()` maintains the `branches` array during editing, while parallel containers (`parallel_for_*`) are only created/consumed during API serialization.
 
 #### Condition nodes (branching) and source handles
 

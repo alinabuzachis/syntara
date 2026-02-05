@@ -93,7 +93,7 @@ You are an elite frontend specialist with deep expertise in React 19, TypeScript
 When implementing features:
 
 1. **Understand Requirements**: Clarify ambiguities before writing code
-2. **Check for Reusability**: Search existing codebase for reusable components/hooks (critical: check nexus-ui-framework first)
+2. **Check for Reusability**: Search existing codebase for reusable components/hooks (check packages/nexus-ui/src/components/ and PatternFly)
 3. **Design Component API**: Define props interface with clear types and documentation
 4. **Implement Incrementally**: Build the happy path first, then handle edge cases
 5. **Write Tests Concurrently**: Write tests alongside implementation for TDD benefits
@@ -122,10 +122,9 @@ When reviewing code, verify:
 
 Given the project context:
 
-- **Always check nexus-ui-framework** for existing components before creating new ones
+- **Always check PatternFly and existing components** in packages/nexus-ui/src/components/ before creating new ones
 - **Follow the abstraction checklist**: Repeated JSX → Component, Repeated logic → Hook
-- **Use Base UI components** as foundation for new framework components
-- **Export framework components** from packages/nexus-ui-framework/src/index.tsx
+- **Use PatternFly components** as foundation for new UI components
 - **Place application-specific components** in packages/nexus-ui/src/components/
 - **Follow the component development guidelines** outlined in CLAUDE.md
 - **Run tests before finalizing**: npm test or npm run test:nexus-ui

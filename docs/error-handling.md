@@ -2,6 +2,20 @@
 
 This document describes the error handling implementation in the Nexus UI, including parsing 4xx/5xx API responses and surfacing meaningful messages to users.
 
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Error Parsing Utilities](#error-parsing-utilities)
+3. [Query State Hook](#query-state-hook)
+4. [Mutation Error Handlers](#mutation-error-handlers)
+5. [503 Service Unavailable Handling](#503-service-unavailable-handling)
+6. [Error Components](#error-components)
+7. [Usage Examples](#usage-examples)
+
+---
+
 ## Overview
 
 The UI provides consistent error handling across all API interactions:

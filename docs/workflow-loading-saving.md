@@ -2,6 +2,21 @@
 
 This document explains how workflows are loaded from the API, edited in the builder, and saved back to the API.
 
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Data Flow](#data-flow)
+3. [API Format (Nested Structure)](#api-format-nested-structure)
+4. [Builder Format (Flat Structure)](#builder-format-flat-structure)
+5. [Transformation Utilities](#transformation-utilities)
+6. [Loading Process](#loading-process)
+7. [Saving Process](#saving-process)
+8. [Edge Cases](#edge-cases)
+
+---
+
 ## Overview
 
 Workflows use two different representations:

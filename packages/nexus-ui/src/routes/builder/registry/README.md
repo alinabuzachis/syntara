@@ -89,27 +89,28 @@ export function registerMyNode() {
 }
 ```
 
-### Step 3: Register in Central Location
+### Step 3: That's It! (Auto-Discovery)
+
+The registration system uses **auto-discovery** via Vite's `import.meta.glob`. Any file matching `register*.ts` in `routes/builder/registry/nodes/` with a **default export** is automatically discovered and registered at app startup.
+
+**No manual imports needed** — just create the file with the correct naming pattern and export your registration function as `default`.
 
 ```typescript
-// routes/builder/registry/nodes/index.ts
-import { registerMyNode } from './registerMyNode'
-
-export function registerAllNodes() {
-  registerTriggerNode()
-  registerActionNode()
-  registerMyNode() // ← Add here
+// routes/builder/registry/nodes/index.ts (auto-discovery implementation)
+const modules = import.meta.glob('./register*.ts', { eager: true })
+for (const path in modules) {
+  const module = modules[path] as { default: () => void }
+  module.default() // Calls each registration function
 }
 ```
 
-### Step 4: Initialize in App
+### How It Works at App Startup
 
 ```typescript
-// In your app initialization (e.g., App.tsx or main route)
+// In main.tsx - called once before React renders
 import { registerAllNodes } from './routes/builder/registry/nodes'
 
-// Call once during startup
-registerAllNodes()
+registerAllNodes() // Auto-discovers and registers all nodes
 ```
 
 ## Benefits of This Architecture
