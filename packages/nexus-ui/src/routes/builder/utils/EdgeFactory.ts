@@ -94,7 +94,7 @@ export class EdgeFactory {
    * ```
    */
   static addEdge(edge: EdgeType, edges: EdgeType[]): EdgeType[] {
-    return addEdge(edge, edges as never) as EdgeType[]
+    return addEdge(edge, edges as never)
   }
 
   /**

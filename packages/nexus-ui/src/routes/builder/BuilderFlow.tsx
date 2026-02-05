@@ -727,6 +727,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         defaultEdgeOptions={{ markerEnd }}
         isValidConnection={isValidConnection}
         proOptions={{ hideAttribution: true }}
+        zIndexMode="default"
         fitView
         minZoom={0.1}
         maxZoom={1}

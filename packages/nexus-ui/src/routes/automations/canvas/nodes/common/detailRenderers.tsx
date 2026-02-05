@@ -50,7 +50,7 @@ export function renderInputs(inputs?: Record<string, unknown>) {
  */
 export function renderJson(data: unknown, show?: boolean, label = 'JSON') {
   if (!show || data === undefined || data === null) return null
-  const jsonObject = typeof data === 'object' ? (data as object) : { value: data }
+  const jsonObject = typeof data === 'object' ? data : { value: data }
   return (
     <Detail label={label}>
       <CodeBlock jsonObject={jsonObject} />

@@ -143,7 +143,7 @@ function ExecutionDetailContent({
 
 export default function ExecutionDetail() {
   const params = useParams<{ executionId: string }>()
-  const executionId = params.executionId!
+  const executionId = params.executionId
   const [, setLocation] = useLocation()
   const searchParams = useSearch()
   const queryClient = useQueryClient()
@@ -154,25 +154,28 @@ export default function ExecutionDetail() {
   // Reset execution store when executionId changes
   // This ensures WebSocket can reconnect for new executions
   useEffect(() => {
-    reset()
+    if (executionId) {
+      reset()
+    }
   }, [executionId, reset])
 
   // Fetch execution with workflow_definition and activities included
   const executionQuery = workflowClient.useQuery('get', '/executions/{execution_id}', {
     params: {
-      path: { execution_id: executionId },
+      path: { execution_id: executionId ?? '' },
       query: {
         include: 'workflow_definition,activities',
       },
     },
+    enabled: !!executionId,
   })
 
-  const execution = executionQuery.data as Execution | undefined
+  const execution = executionQuery.data
 
   // Connect to WebSocket for real-time updates (only for running/pending executions)
   const shouldStream = execution?.status === 'running' || execution?.status === 'pending'
-  useExecutionWebSocket(executionId, {
-    enabled: shouldStream,
+  useExecutionWebSocket(executionId ?? '', {
+    enabled: shouldStream && !!executionId,
     onExecutionComplete: () => {
       // Invalidate all execution queries to refresh:
       // - ExecutionDetail header status
@@ -244,6 +247,20 @@ export default function ExecutionDetail() {
       },
     }
   }, [execution])
+
+  // Guard against missing executionId
+  if (!executionId) {
+    return (
+      <AppPage>
+        <AppPageHeader title="Error" />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            <ErrorState title="Invalid execution" message="No execution ID provided" />
+          </CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
 
   // Show loading/error states
   if (executionQuery.error) {

@@ -47,7 +47,7 @@ export class ActivityTraversal {
     }
 
     if (activity.type === 'condition') {
-      const condActivity = activity as Extract<Activity, { type: 'condition' }>
+      const condActivity = activity
       // For conditions, we find the last activity in the then branch
       // (or else branch if then is empty). If both branches lead to the same converge point,
       // we can use either one.
@@ -82,7 +82,7 @@ export class ActivityTraversal {
     }
 
     if (activity.type === 'parallel') {
-      const parallelActivity = activity as Extract<Activity, { type: 'parallel' }>
+      const parallelActivity = activity
       const branches = parallelActivity.branches || []
       const lastIds: string[] = []
 
@@ -95,7 +95,7 @@ export class ActivityTraversal {
     }
 
     if (activity.type === 'condition') {
-      const condActivity = activity as Extract<Activity, { type: 'condition' }>
+      const condActivity = activity
       const thenActivities = condActivity.then || []
       const elseActivities = condActivity.else || []
       const lastIds: string[] = []

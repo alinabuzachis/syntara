@@ -299,7 +299,7 @@ describe('buildNestedConditionStructure', () => {
       expect(wrapper.branches).toHaveLength(2)
 
       // Verify condition B is in the branches
-      const conditionB = wrapper.branches![0] as Extract<Activity, { type: 'condition' }>
+      const conditionB = wrapper.branches[0] as Extract<Activity, { type: 'condition' }>
       expect(conditionB.id).toBe('B')
       expect(conditionB.type).toBe('condition')
       // Note: D may or may not be nested depending on how descendants are collected

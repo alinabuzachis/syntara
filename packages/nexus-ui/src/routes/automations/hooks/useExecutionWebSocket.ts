@@ -10,7 +10,7 @@ import { useEffect, useCallback, useState, useMemo } from 'react'
 
 import { useWebSocket } from '../../../lib/websocket'
 import { buildExecutionChannelPath } from '../../../lib/websocket/channels'
-import type { WebSocketMessage, ExecutionSnapshotMessage, ActivityPatchMessage } from '../execution/types'
+import type { WebSocketMessage } from '../execution/types'
 import { useExecutionStore } from '../stores/useExecutionStore'
 
 // ============================================================================
@@ -147,7 +147,7 @@ export function useExecutionWebSocket(
 
       switch (msg.type) {
         case 'initial_snapshot': {
-          const snapshot = msg as ExecutionSnapshotMessage
+          const snapshot = msg
           // console.debug('[WebSocket] Received initial_snapshot', snapshot.event_id)
 
           // Load full execution state
@@ -160,7 +160,7 @@ export function useExecutionWebSocket(
         }
 
         case 'activity_patch': {
-          const patch = msg as ActivityPatchMessage
+          const patch = msg
 
           // Apply incremental updates
           applyPatch(patch.ops, patch.event_id)
@@ -168,7 +168,7 @@ export function useExecutionWebSocket(
         }
 
         case 'final_snapshot': {
-          const snapshot = msg as ExecutionSnapshotMessage
+          const snapshot = msg
           // console.debug('[WebSocket] Received final_snapshot', snapshot.event_id)
 
           // Load final execution state

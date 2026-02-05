@@ -24,7 +24,7 @@ export function ApprovalNodeDetails({ taskData, nodeId, onClose }: ApprovalNodeD
         name: taskData.name,
         approvers: taskData.approval.approvers,
         prompt: taskData.approval.prompt,
-        timeout: taskData.approval.timeout as number | undefined,
+        timeout: taskData.approval.timeout,
         onTimeout: taskData.approval.onTimeout,
       }
     : undefined

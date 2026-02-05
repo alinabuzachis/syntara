@@ -65,7 +65,7 @@ export class WorkflowTransform {
     for (let i = 0; i < nestedActivities.length; i++) {
       const current = nestedActivities[i]
       if (current.type === 'converge') {
-        const convergeBranches = new Set((current as Extract<Activity, { type: 'converge' }>).converge?.branches || [])
+        const convergeBranches = new Set(current.converge?.branches || [])
 
         // Find the next activity that should follow this converge
         let nextActivity: Activity | null = null
@@ -155,9 +155,9 @@ export class WorkflowTransform {
       if (current.type === 'condition') {
         // If the next node is a converge, create edges from branch endpoints to converge
         if (next.type === 'converge') {
-          const convergeBranches = (next as Extract<Activity, { type: 'converge' }>).converge?.branches || []
+          const convergeBranches = next.converge?.branches || []
           const convergeBranchSet = new Set(convergeBranches)
-          const conditionActivity = current as Extract<Activity, { type: 'condition' }>
+          const conditionActivity = current
 
           // Get last activity IDs from both then and else branches
           const allBranchEndpoints: string[] = []
@@ -209,7 +209,7 @@ export class WorkflowTransform {
 
       // When next is parallel, create edges from current to first activity in each branch
       if (next.type === 'parallel') {
-        const parallelActivity = next as Extract<Activity, { type: 'parallel' }>
+        const parallelActivity = next
         const branches = parallelActivity.branches || []
         for (const branch of branches) {
           const firstActivityId = this.getFirstActivityId(branch)
@@ -258,13 +258,13 @@ export class WorkflowTransform {
     // Process ALL flattened activities (not just top-level) to find converge nodes at any nesting level
     for (const activity of activities) {
       if (activity.type === 'converge') {
-        const convergeBranches = (activity as Extract<Activity, { type: 'converge' }>).converge?.branches || []
+        const convergeBranches = activity.converge?.branches || []
 
         // Build a map of which parallel containers contain which branches
         const branchToParallelMap = new Map<string, Activity>()
 
         for (const parallelActivity of activities.filter((a) => a.type === 'parallel')) {
-          const parallelBranches = (parallelActivity as Extract<Activity, { type: 'parallel' }>).branches || []
+          const parallelBranches = parallelActivity.branches || []
           const parallelBranchIds = new Set<string>()
 
           // Collect all activity IDs inside this parallel container (including nested)
@@ -382,24 +382,12 @@ export class WorkflowTransform {
     return ActivityTraversal.getFirstActivityId(activity)
   }
 
-  private static getLastActivityId(activity: Activity): string {
-    return ActivityTraversal.getLastActivityId(activity)
-  }
-
   private static getAllLastActivityIds(activity: Activity): string[] {
     return ActivityTraversal.getAllLastActivityIds(activity)
   }
 
   private static searchInActivityList(activities: Activity[], targetId: string): Activity | null {
     return ActivityTraversal.searchInActivityList(activities, targetId)
-  }
-
-  private static getNestedActivities(activity: Activity): Activity[] {
-    return ActivityTraversal.getNestedActivities(activity)
-  }
-
-  private static findActivityById(root: Activity, targetId: string): Activity | null {
-    return ActivityTraversal.findActivityById(root, targetId)
   }
 
   private static collectAllActivityIds(activity: Activity): string[] {
@@ -623,7 +611,7 @@ export class WorkflowTransform {
         result[loopIndex] = {
           ...loopActivity,
           loop: {
-            ...(loopActivity as Extract<Activity, { type: 'loop' }>).loop,
+            ...loopActivity.loop,
             do: processedDo,
           },
         } as Extract<Activity, { type: 'loop' }>
@@ -991,7 +979,7 @@ export class WorkflowTransform {
     // For example: cond2 → parallel(A,B) → J means J should be in cond2.then
     if (activity.type === 'parallel') {
       // Collect all activity IDs inside the parallel branches
-      const branches = (activity as Extract<Activity, { type: 'parallel' }>).branches || []
+      const branches = activity.branches || []
       const branchActivityIds = new Set<string>()
       for (const branch of branches) {
         const ids = this.collectAllActivityIds(branch)
@@ -1028,7 +1016,7 @@ export class WorkflowTransform {
         const parallelContainer = allActivities.find((a) => {
           if (a.type !== 'parallel') return false
           if (visited.has(a.id)) return false // Already collected
-          const branches = (a as Extract<Activity, { type: 'parallel' }>).branches || []
+          const branches = a.branches || []
           return branches.some((branch) => {
             const branchIds = this.collectAllActivityIds(branch)
             return branchIds.includes(edge.target)
@@ -1106,7 +1094,7 @@ export class WorkflowTransform {
     const allActivityIds = new Set(activities.map((a) => a.id))
 
     for (const converge of convergeNodes) {
-      const branchEndIds = (converge as Extract<Activity, { type: 'converge' }>).converge?.branches || []
+      const branchEndIds = converge.converge?.branches || []
 
       if (branchEndIds.length < 2) continue
 
@@ -1138,7 +1126,7 @@ export class WorkflowTransform {
           : divergenceInfo.divergenceTargets
 
       // Collect branch activities with partial convergence handling
-      const convergeBranchSet = new Set((converge as Extract<Activity, { type: 'converge' }>).converge?.branches || [])
+      const convergeBranchSet = new Set(converge.converge?.branches || [])
       const branches = finalTargets.map((targetId) => {
         const branchActivities = this.collectBranchActivities(targetId, converge.id, edges, activities)
         const branchActivityIds = new Set(branchActivities.map((a) => a.id))
@@ -1188,7 +1176,7 @@ export class WorkflowTransform {
     const convergeNodes = activities.filter((a) => a.type === 'converge')
 
     for (const node of convergeNodes) {
-      const convergeBranches = (node as Extract<Activity, { type: 'converge' }>).converge?.branches || []
+      const convergeBranches = node.converge?.branches || []
 
       // Collect all downstream activity IDs from divergence targets
       const downstreamIds = new Set<string>()
@@ -1522,7 +1510,7 @@ export class WorkflowTransform {
         const activity = activities.find((a) => a.id === current)
         if (activity?.type === 'converge') {
           // Use the first branch's path
-          const firstBranch = (activity as Extract<Activity, { type: 'converge' }>).converge?.branches?.[0]
+          const firstBranch = activity.converge?.branches?.[0]
           if (firstBranch) {
             current = firstBranch
             continue

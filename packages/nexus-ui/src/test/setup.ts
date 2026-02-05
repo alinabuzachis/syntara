@@ -12,9 +12,6 @@ if (typeof Element !== 'undefined' && !Element.prototype.getAnimations) {
 // Polyfill for ResizeObserver (not supported in jsdom)
 if (typeof globalThis !== 'undefined' && !globalThis.ResizeObserver) {
   globalThis.ResizeObserver = class ResizeObserver {
-    constructor(callback: ResizeObserverCallback) {
-      this.callback = callback
-    }
     observe() {
       // No-op in test environment
     }
@@ -24,7 +21,6 @@ if (typeof globalThis !== 'undefined' && !globalThis.ResizeObserver) {
     disconnect() {
       // No-op in test environment
     }
-    private callback: ResizeObserverCallback
   } as typeof ResizeObserver
 }
 

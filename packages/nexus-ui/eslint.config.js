@@ -46,6 +46,8 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'error', // Catch unhandled promises
       '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }], // Allow promises in event handlers
       '@typescript-eslint/no-explicit-any': 'error', // Enforce proper TypeScript typing
+      '@typescript-eslint/no-unused-private-class-members': 'error', // Catch unused private class members (v8.54+)
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error', // Catch unnecessary type assertions (v8.54+)
       'no-console': 'error', // No console.log in production
       'no-only-tests/no-only-tests': 'error', // Prevent .only() in tests
       // SonarCloud-aligned rules

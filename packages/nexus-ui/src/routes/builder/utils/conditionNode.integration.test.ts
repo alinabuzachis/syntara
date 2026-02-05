@@ -343,7 +343,7 @@ describe('Condition Node Integration', () => {
       expect(wrapper.branches).toHaveLength(2)
 
       // Verify nested condition preserved inside wrapper
-      const conditionB = wrapper.branches![0] as Extract<Activity, { type: 'condition' }>
+      const conditionB = wrapper.branches[0] as Extract<Activity, { type: 'condition' }>
       expect(conditionB.type).toBe('condition')
       expect(conditionB.id).toBe('B')
     })

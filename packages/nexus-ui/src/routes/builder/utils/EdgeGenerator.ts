@@ -88,7 +88,7 @@ export class EdgeGenerator {
     const nextId = ActivityTraversal.getActivityId(next)
 
     if (next.type === 'converge') {
-      const convergeBranches = (next as Extract<Activity, { type: 'converge' }>).converge?.branches || []
+      const convergeBranches = next.converge?.branches || []
       const convergeBranchSet = new Set(convergeBranches)
       this.createPartialConvergenceEdges(branches, convergeBranchSet, nextId, edges)
     } else {
@@ -117,7 +117,7 @@ export class EdgeGenerator {
 
     // If first activity is a parallel, create edges to all branches
     if (firstActivity.type === 'parallel') {
-      const branches = (firstActivity as Extract<Activity, { type: 'parallel' }>).branches || []
+      const branches = firstActivity.branches || []
       for (const branch of branches) {
         edges.push({
           id: `${conditionId}-${handle}-${ActivityTraversal.getFirstActivityId(branch)}`,
@@ -153,13 +153,13 @@ export class EdgeGenerator {
 
       // Parallel nodes need special edge handling to their branches
       if (current.type === 'parallel') {
-        this.createParallelToNextEdges(current as Extract<Activity, { type: 'parallel' }>, next, edges)
+        this.createParallelToNextEdges(current, next, edges)
         continue
       }
 
       // If next is parallel, create edges from current to each branch
       if (next.type === 'parallel') {
-        const branches = (next as Extract<Activity, { type: 'parallel' }>).branches || []
+        const branches = next.branches || []
         for (const branch of branches) {
           // Use getFirstActivityId to handle sequence wrappers that will be flattened away
           const targetId = ActivityTraversal.getFirstActivityId(branch)

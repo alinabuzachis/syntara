@@ -23,6 +23,7 @@ import { AppRoute } from '../../app/AppRoute'
 import { workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { CodeBlock } from '../../components/details/CodeBlock'
+import { ErrorState } from '../../components/states/ErrorState'
 import { useQueryState } from '../../components/states/useQueryState'
 
 import { ApprovalStatusBadges } from './approvalUtils'
@@ -102,10 +103,10 @@ export default function ApprovalDetail() {
   const approvalQuery = workflowClient.useQuery('get', '/approvals/{approvalId}', {
     params: {
       path: {
-        approvalId: approvalId!,
+        approvalId: approvalId,
       },
     },
-    enabled: !USE_MOCK_APPROVALS, // Only query API if not using mock data
+    enabled: !USE_MOCK_APPROVALS && !!approvalId, // Only query API if not using mock data and approvalId exists
   })
 
   const queryState = useQueryState(approvalQuery, 'Error loading approval')
@@ -115,6 +116,20 @@ export default function ApprovalDetail() {
 
   const [pendingDecision, setPendingDecision] = useState<'approved' | 'rejected' | undefined>(undefined)
   const [pendingReason, setPendingReason] = useState('')
+
+  // Guard against missing approvalId when not using mocks
+  if (!approvalId && !USE_MOCK_APPROVALS) {
+    return (
+      <AppPage>
+        <AppPageHeader title="Error" />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            <ErrorState title="Invalid approval" message="No approval ID provided" />
+          </CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
 
   // Only show query state (loading/error) if using real API
   if (!USE_MOCK_APPROVALS && queryState) {

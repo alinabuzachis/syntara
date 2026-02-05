@@ -490,7 +490,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
         // Update converge.branches with the deduplicated branch IDs
         const convergeIndex = activities.findIndex((a) => a.id === convergeActivity.id)
         if (convergeIndex !== -1) {
-          const existing = convergeActivity as Extract<Activity, { type: 'converge' }>
+          const existing = convergeActivity
           activities[convergeIndex] = {
             ...existing,
             converge: {

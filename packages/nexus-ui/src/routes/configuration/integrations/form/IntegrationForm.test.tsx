@@ -176,9 +176,9 @@ describe('IntegrationForm Component', () => {
     it('allows users to fill out all form fields', () => {
       render(<IntegrationForm />, { wrapper })
 
-      const serverNameInput = screen.getByPlaceholderText('Enter server name / ID') as HTMLInputElement
-      const descriptionInput = screen.getByPlaceholderText('Enter description') as HTMLInputElement
-      const apiUrlInput = screen.getByPlaceholderText('Enter API URL') as HTMLInputElement
+      const serverNameInput = screen.getByPlaceholderText('Enter server name / ID')
+      const descriptionInput = screen.getByPlaceholderText('Enter description')
+      const apiUrlInput = screen.getByPlaceholderText('Enter API URL')
 
       fireEvent.change(serverNameInput, { target: { value: 'Test Server' } })
       fireEvent.change(descriptionInput, { target: { value: 'Test Description' } })

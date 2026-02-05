@@ -235,7 +235,7 @@ describe('WorkflowTransform - Loop Nesting', () => {
     const condNode = loopNode.loop.do[0] as Extract<Activity, { type: 'condition' }>
     expect(condNode.type).toBe('condition')
     expect(condNode.then).toHaveLength(1)
-    expect(condNode.then![0].id).toBe('B')
+    expect(condNode.then[0].id).toBe('B')
     expect(condNode.else).toHaveLength(1)
     expect(condNode.else![0].id).toBe('C')
   })
@@ -337,7 +337,7 @@ describe('WorkflowTransform - Loop Nesting', () => {
     const condNode = loopNode.loop.do[1] as Extract<Activity, { type: 'condition' }>
     expect(condNode.type).toBe('condition')
     expect(condNode.then).toHaveLength(1)
-    expect(condNode.then![0].id).toBe('D1')
+    expect(condNode.then[0].id).toBe('D1')
     expect(condNode.else).toBeUndefined() // Empty else branch should be undefined or empty
 
     // Step 3: Flatten again to verify round-trip

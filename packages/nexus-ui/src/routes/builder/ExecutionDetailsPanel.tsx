@@ -23,7 +23,6 @@ import { useExecutionStoreActions } from '../automations/stores/useExecutionStor
 
 import { StatusLabel } from './ExecutionStatus'
 
-type Execution = WorkflowAPI.components['schemas']['Execution']
 type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
 
 function formatElapsedTime(elapsedMs: number) {
@@ -66,7 +65,7 @@ export function ExecutionDetailsPanel({ executionId }: ExecutionDetailsPanelProp
     },
   })
 
-  const execution = executionQuery.data as Execution | undefined
+  const execution = executionQuery.data
   const isRunning = execution?.status === 'running' || execution?.status === 'pending'
   const startedAtValue = execution?.started_at ?? execution?.created_at ?? null
   const startedAtMs = startedAtValue ? Date.parse(startedAtValue) : null

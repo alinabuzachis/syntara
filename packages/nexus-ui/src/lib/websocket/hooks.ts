@@ -118,7 +118,7 @@ export function useWebSocket<T = unknown>(
     if (!onMessageRef.current && !onStateChangeRef.current) return
 
     return storeSubscribe<T>(channelId, {
-      onMessage: (msg) => onMessageRef.current?.(msg as WebSocketMessage<T>),
+      onMessage: (msg) => onMessageRef.current?.(msg),
       onStateChange: onStateChangeRef.current,
       messageTypes,
     })

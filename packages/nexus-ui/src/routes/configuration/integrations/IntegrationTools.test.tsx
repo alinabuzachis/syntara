@@ -274,7 +274,7 @@ describe('IntegrationTools Component', () => {
     it('allows searching tools', () => {
       render(<IntegrationTools />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search tools...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search tools...')
 
       // Simulate typing in the search input
       const searchTerm = 'tool_one'
@@ -287,7 +287,7 @@ describe('IntegrationTools Component', () => {
     it('filters tools with fuzzy search', () => {
       render(<IntegrationTools />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search tools...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search tools...')
 
       // Simulate searching for "tool_one"
       fireEvent.change(searchInput, { target: { value: 'tool_one' } })
@@ -299,7 +299,7 @@ describe('IntegrationTools Component', () => {
     it('shows all tools when search is empty', () => {
       render(<IntegrationTools />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search tools...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search tools...')
 
       // Clear the search input
       fireEvent.change(searchInput, { target: { value: '' } })

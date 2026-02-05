@@ -137,7 +137,7 @@ describe('Integrations Component', () => {
     it('allows searching integrations', () => {
       render(<Integrations />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search integrations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search integrations...')
 
       // Simulate typing in the search input
       const searchTerm = 'primary'
@@ -150,7 +150,7 @@ describe('Integrations Component', () => {
     it('filters integrations with fuzzy search', () => {
       render(<Integrations />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search integrations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search integrations...')
 
       // Simulate searching for "primary"
       fireEvent.change(searchInput, { target: { value: 'primary' } })
@@ -165,7 +165,7 @@ describe('Integrations Component', () => {
     it('supports partial matches in fuzzy search', () => {
       render(<Integrations />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search integrations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search integrations...')
 
       // Simulate searching for "test"
       fireEvent.change(searchInput, { target: { value: 'test' } })
@@ -178,7 +178,7 @@ describe('Integrations Component', () => {
     it('shows all integrations when search is empty', () => {
       render(<Integrations />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search integrations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search integrations...')
 
       // Clear the search input
       fireEvent.change(searchInput, { target: { value: '' } })

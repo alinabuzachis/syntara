@@ -34,6 +34,11 @@ export function useConnectionHandlers({
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
+      // Guard against null source or target
+      if (!connection.source || !connection.target) {
+        return
+      }
+
       connectionStateRef.current.successful = true
 
       setPendingEdge(null)
@@ -68,14 +73,14 @@ export function useConnectionHandlers({
         }
 
         // If source is in the loop body, this is a loop-closing connection
-        if (loopBodyNodeIds.has(connection.source!)) {
+        if (loopBodyNodeIds.has(connection.source)) {
           targetHandle = 'end'
         }
       }
 
       const newEdge = EdgeFactory.createEdge({
-        source: connection.source!,
-        target: connection.target!,
+        source: connection.source,
+        target: connection.target,
         sourceHandle: connection.sourceHandle ?? undefined,
         targetHandle,
         onAddNode: onAddNodeFromEdge,
@@ -83,11 +88,7 @@ export function useConnectionHandlers({
 
       setEdges((eds) => {
         // Pass sourceHandle to remove the correct button edge (important for condition nodes)
-        const updatedEdges = EdgeFactory.removeButtonEdge(
-          connection.source!,
-          eds as EdgeType[],
-          connection.sourceHandle ?? undefined
-        )
+        const updatedEdges = EdgeFactory.removeButtonEdge(connection.source, eds, connection.sourceHandle ?? undefined)
         return EdgeFactory.addEdge(newEdge, updatedEdges)
       })
 

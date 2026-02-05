@@ -19,7 +19,7 @@ vi.mock('../../client', () => ({
 const mockSetLocation = vi.fn()
 
 vi.mock('wouter', async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>
+  const actual = await importOriginal()
   return {
     ...actual,
     useLocation: () => ['/automations', mockSetLocation],
@@ -139,7 +139,7 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search automations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search automations...')
 
       // Simulate typing in the search input
       const searchTerm = 'project'
@@ -158,7 +158,7 @@ describe('Automations Component', () => {
       })
 
       // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search automations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search automations...')
 
       // Simulate searching for "project"
       fireEvent.change(searchInput, { target: { value: 'project' } })
@@ -190,7 +190,7 @@ describe('Automations Component', () => {
       })
 
       // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search automations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search automations...')
 
       // Simulate searching for "team"
       fireEvent.change(searchInput, { target: { value: 'team' } })
@@ -218,7 +218,7 @@ describe('Automations Component', () => {
       })
 
       // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search automations...') as HTMLInputElement
+      const searchInput = screen.getByPlaceholderText('Search automations...')
 
       // Clear the search input
       fireEvent.change(searchInput, { target: { value: '' } })

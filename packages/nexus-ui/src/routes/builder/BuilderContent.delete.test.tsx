@@ -20,7 +20,7 @@ vi.mock('../../client', () => ({
 const mockSetLocation = vi.fn()
 
 vi.mock('wouter', async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>
+  const actual = await importOriginal()
   return {
     ...actual,
     useLocation: () => ['/automation-builder/workflow-1', mockSetLocation],

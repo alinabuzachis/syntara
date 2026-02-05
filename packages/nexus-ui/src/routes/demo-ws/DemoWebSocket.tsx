@@ -427,7 +427,7 @@ function AgentEventsDemo() {
 
         // Handle subscription confirmation
         if ('status' in payload && payload.status === 'success') {
-          const response = payload as AgentEventsResponse
+          const response = payload
           dispatch({
             type: 'ADD_MESSAGE',
             payload: `[${timestamp}] ✅ ${response.action}: ${response.groups.join(', ')}`,
@@ -444,7 +444,7 @@ function AgentEventsDemo() {
 
         // Handle event
         if ('group' in payload) {
-          const event = payload as AgentEvent
+          const event = payload
           const icon = event.group === 'log' ? '📝' : '📊'
           let line = `[${timestamp}] ${icon} [${event.group}]`
 

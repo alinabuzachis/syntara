@@ -11,7 +11,7 @@ const mockSetLocation = vi.fn()
 let mockLocation = '/automation-builder/123'
 
 vi.mock('wouter', async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>
+  const actual = await importOriginal()
   return {
     ...actual,
     useLocation: () => [mockLocation, mockSetLocation],

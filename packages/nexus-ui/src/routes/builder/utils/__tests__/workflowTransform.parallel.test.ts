@@ -49,11 +49,11 @@ describe('WorkflowTransform - Parallel Detection', () => {
     expect(parallelContainer.branches).toHaveLength(2)
 
     // Branch 1 should be P1 (single activity)
-    const branch1 = parallelContainer.branches![0]
+    const branch1 = parallelContainer.branches[0]
     expect(branch1).toMatchObject({ type: 'task', id: 'P1' })
 
     // Branch 2 should be L with nested D
-    const branch2 = parallelContainer.branches![1] as Extract<Activity, { type: 'loop' }>
+    const branch2 = parallelContainer.branches[1] as Extract<Activity, { type: 'loop' }>
     expect(branch2.type).toBe('loop')
     expect(branch2.id).toBe('L')
     expect(branch2.loop.do).toHaveLength(1)
@@ -100,9 +100,9 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // Parallel container should have 3 branches
     const parallelContainer = result[1] as Extract<Activity, { type: 'parallel' }>
     expect(parallelContainer.branches).toHaveLength(3)
-    expect(parallelContainer.branches![0]).toMatchObject({ id: 'B1' })
-    expect(parallelContainer.branches![1]).toMatchObject({ id: 'B2' })
-    expect(parallelContainer.branches![2]).toMatchObject({ id: 'B3' })
+    expect(parallelContainer.branches[0]).toMatchObject({ id: 'B1' })
+    expect(parallelContainer.branches[1]).toMatchObject({ id: 'B2' })
+    expect(parallelContainer.branches[2]).toMatchObject({ id: 'B3' })
   })
 
   it('does not treat condition true/false branches as parallel', () => {
@@ -144,7 +144,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // Condition should have T1 in then, T2 in else
     const condNode = result[0] as Extract<Activity, { type: 'condition' }>
     expect(condNode.then).toHaveLength(1)
-    expect(condNode.then![0].id).toBe('T1')
+    expect(condNode.then[0].id).toBe('T1')
     expect(condNode.else).toHaveLength(1)
     expect(condNode.else![0].id).toBe('T2')
   })
@@ -199,18 +199,18 @@ describe('WorkflowTransform - Parallel Detection', () => {
     expect(parallelContainer.branches).toHaveLength(2)
 
     // Branch 1 should be sequence [B1, B2]
-    const branch1 = parallelContainer.branches![0] as Extract<Activity, { type: 'sequence' }>
+    const branch1 = parallelContainer.branches[0] as Extract<Activity, { type: 'sequence' }>
     expect(branch1.type).toBe('sequence')
     expect(branch1.steps).toHaveLength(2)
-    expect(branch1.steps![0].id).toBe('B1')
-    expect(branch1.steps![1].id).toBe('B2')
+    expect(branch1.steps[0].id).toBe('B1')
+    expect(branch1.steps[1].id).toBe('B2')
 
     // Branch 2 should be sequence [C1, C2]
-    const branch2 = parallelContainer.branches![1] as Extract<Activity, { type: 'sequence' }>
+    const branch2 = parallelContainer.branches[1] as Extract<Activity, { type: 'sequence' }>
     expect(branch2.type).toBe('sequence')
     expect(branch2.steps).toHaveLength(2)
-    expect(branch2.steps![0].id).toBe('C1')
-    expect(branch2.steps![1].id).toBe('C2')
+    expect(branch2.steps[0].id).toBe('C1')
+    expect(branch2.steps[1].id).toBe('C2')
   })
 
   it('round-trip transformation preserves workflow structure', () => {
@@ -448,13 +448,13 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // Condition P should have a parallel container in its 'then' branch
     const conditionP = result[1] as Extract<Activity, { type: 'condition' }>
     expect(conditionP.then).toHaveLength(1)
-    expect(conditionP.then![0].type).toBe('parallel')
+    expect(conditionP.then[0].type).toBe('parallel')
 
     // The parallel container should have 2 branches: A1 and A2
-    const parallelInThen = conditionP.then![0] as Extract<Activity, { type: 'parallel' }>
+    const parallelInThen = conditionP.then[0] as Extract<Activity, { type: 'parallel' }>
     expect(parallelInThen.branches).toHaveLength(2)
-    expect(parallelInThen.branches![0]).toMatchObject({ type: 'task', id: 'A1' })
-    expect(parallelInThen.branches![1]).toMatchObject({ type: 'task', id: 'A2' })
+    expect(parallelInThen.branches[0]).toMatchObject({ type: 'task', id: 'A1' })
+    expect(parallelInThen.branches[1]).toMatchObject({ type: 'task', id: 'A2' })
 
     // The else branch should be empty
     expect(conditionP.else).toBeUndefined()
@@ -503,8 +503,8 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // The parallel container should have 2 branches: B1 and B2
     const parallelInElse = conditionP.else![0] as Extract<Activity, { type: 'parallel' }>
     expect(parallelInElse.branches).toHaveLength(2)
-    expect(parallelInElse.branches![0]).toMatchObject({ type: 'task', id: 'B1' })
-    expect(parallelInElse.branches![1]).toMatchObject({ type: 'task', id: 'B2' })
+    expect(parallelInElse.branches[0]).toMatchObject({ type: 'task', id: 'B1' })
+    expect(parallelInElse.branches[1]).toMatchObject({ type: 'task', id: 'B2' })
 
     // The then branch should be empty
     expect(conditionP.then).toHaveLength(0)
@@ -549,7 +549,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
     expect(nestedActivities).toHaveLength(2)
     const conditionP = nestedActivities[1] as Extract<Activity, { type: 'condition' }>
     expect(conditionP.then).toHaveLength(1)
-    expect(conditionP.then![0].type).toBe('parallel')
+    expect(conditionP.then[0].type).toBe('parallel')
 
     // Step 2: Flatten it again (simulates load operation)
     const { activities: reloadedActivities, edges: reloadedEdges } = WorkflowTransform.flatten(nestedActivities)
@@ -573,9 +573,9 @@ describe('WorkflowTransform - Parallel Detection', () => {
     expect(renestedActivities).toHaveLength(2)
     const renestedP = renestedActivities[1] as Extract<Activity, { type: 'condition' }>
     expect(renestedP.then).toHaveLength(1)
-    expect(renestedP.then![0].type).toBe('parallel')
+    expect(renestedP.then[0].type).toBe('parallel')
 
-    const renestedParallel = renestedP.then![0] as Extract<Activity, { type: 'parallel' }>
+    const renestedParallel = renestedP.then[0] as Extract<Activity, { type: 'parallel' }>
     expect(renestedParallel.branches).toHaveLength(2)
   })
 
@@ -628,18 +628,18 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // Condition P should have a parallel container and converge node in its 'then' branch
     const conditionP = nestedActivities[1] as Extract<Activity, { type: 'condition' }>
     expect(conditionP.then).toHaveLength(2)
-    expect(conditionP.then![0].type).toBe('parallel')
-    expect(conditionP.then![1]).toMatchObject({ type: 'converge', id: 'J' })
+    expect(conditionP.then[0].type).toBe('parallel')
+    expect(conditionP.then[1]).toMatchObject({ type: 'converge', id: 'J' })
 
     // The parallel container should have 2 branches: A1 and A2
-    const parallelInThen = conditionP.then![0] as Extract<Activity, { type: 'parallel' }>
+    const parallelInThen = conditionP.then[0] as Extract<Activity, { type: 'parallel' }>
     expect(parallelInThen.branches).toHaveLength(2)
-    expect(parallelInThen.branches![0]).toMatchObject({ type: 'task', id: 'A1' })
-    expect(parallelInThen.branches![1]).toMatchObject({ type: 'task', id: 'A2' })
+    expect(parallelInThen.branches[0]).toMatchObject({ type: 'task', id: 'A1' })
+    expect(parallelInThen.branches[1]).toMatchObject({ type: 'task', id: 'A2' })
 
     // CRITICAL: Converge node J should NOT be included in the parallel branches
     // It marks the END of the parallel execution and should follow the parallel container
-    const hasConvergeInBranches = parallelInThen.branches!.some((b) => b.id === 'J')
+    const hasConvergeInBranches = parallelInThen.branches.some((b) => b.id === 'J')
     expect(hasConvergeInBranches).toBe(false)
   })
 
@@ -690,7 +690,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // Verify the nested structure has converge node
     const conditionP = nestedActivities[1] as Extract<Activity, { type: 'condition' }>
     expect(conditionP.then).toHaveLength(3) // parallel, converge, task K
-    expect(conditionP.then![1]).toMatchObject({ type: 'converge', id: 'J' })
+    expect(conditionP.then[1]).toMatchObject({ type: 'converge', id: 'J' })
 
     // Step 2: Flatten it again (simulates load operation)
     const { activities: reloadedActivities, edges: reloadedEdges } = WorkflowTransform.flatten(nestedActivities)
@@ -716,8 +716,8 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // The renested structure should match the original nested structure
     const renestedP = renestedActivities[1] as Extract<Activity, { type: 'condition' }>
     expect(renestedP.then).toHaveLength(3) // parallel, converge, task K
-    expect(renestedP.then![1]).toMatchObject({ type: 'converge', id: 'J' })
-    expect(renestedP.then![2]).toMatchObject({ type: 'task', id: 'K' })
+    expect(renestedP.then[1]).toMatchObject({ type: 'converge', id: 'J' })
+    expect(renestedP.then[2]).toMatchObject({ type: 'task', id: 'K' })
   })
 
   it('handles partial convergence: 3 branches but only 2 converge', () => {
@@ -774,14 +774,14 @@ describe('WorkflowTransform - Parallel Detection', () => {
 
     // Then branch should contain: [parallel(A1, A2, A3), J]
     expect(conditionP.then).toHaveLength(2)
-    expect(conditionP.then![0].type).toBe('parallel')
-    expect(conditionP.then![1]).toMatchObject({ type: 'converge', id: 'J' })
+    expect(conditionP.then[0].type).toBe('parallel')
+    expect(conditionP.then[1]).toMatchObject({ type: 'converge', id: 'J' })
 
     // CRITICAL: All 3 branches should be in the parallel container
-    const parallel = conditionP.then![0] as Extract<Activity, { type: 'parallel' }>
+    const parallel = conditionP.then[0] as Extract<Activity, { type: 'parallel' }>
     expect(parallel.branches).toHaveLength(3)
 
-    const branchIds = parallel.branches!.map((b) => b.id).sort()
+    const branchIds = parallel.branches.map((b) => b.id).sort()
     expect(branchIds).toEqual(['A1', 'A2', 'A3'])
   })
 
@@ -898,16 +898,16 @@ describe('WorkflowTransform - Parallel Detection', () => {
 
     // Then branch should contain: [parallel(A1, A2, sequence(A3, D)), J]
     expect(conditionP.then).toHaveLength(2)
-    expect(conditionP.then![0].type).toBe('parallel')
-    expect(conditionP.then![1]).toMatchObject({ type: 'converge', id: 'J' })
+    expect(conditionP.then[0].type).toBe('parallel')
+    expect(conditionP.then[1]).toMatchObject({ type: 'converge', id: 'J' })
 
     // CRITICAL: All branches should be in the parallel container
     // A3 branch should be a sequence containing A3 and D
-    const parallel = conditionP.then![0] as Extract<Activity, { type: 'parallel' }>
+    const parallel = conditionP.then[0] as Extract<Activity, { type: 'parallel' }>
     expect(parallel.branches).toHaveLength(3)
 
     // Find A3 branch - should be a sequence
-    const a3Branch = parallel.branches!.find(
+    const a3Branch = parallel.branches.find(
       (b) => b.id === 'A3' || (b.type === 'sequence' && b.steps?.some((s) => s.id === 'A3'))
     )
     expect(a3Branch).toBeDefined()
@@ -915,8 +915,8 @@ describe('WorkflowTransform - Parallel Detection', () => {
     if (a3Branch?.type === 'sequence') {
       // A3 is wrapped in a sequence with D
       expect(a3Branch.steps).toHaveLength(2)
-      expect(a3Branch.steps![0].id).toBe('A3')
-      expect(a3Branch.steps![1].id).toBe('D')
+      expect(a3Branch.steps[0].id).toBe('A3')
+      expect(a3Branch.steps[1].id).toBe('D')
     } else {
       // If A3 is not in a sequence, D should be a separate branch or somehow nested
       // This would be a bug - we need A3 and D to be together in the same branch
@@ -1647,10 +1647,10 @@ describe('WorkflowTransform - Parallel Detection', () => {
     function findCondition(activities: Activity[]): Extract<Activity, { type: 'condition' }> | undefined {
       for (const activity of activities) {
         if (activity.type === 'condition' && activity.id === 'cond1') {
-          return activity as Extract<Activity, { type: 'condition' }>
+          return activity
         }
         if (activity.type === 'parallel') {
-          const parallelActivity = activity as Extract<Activity, { type: 'parallel' }>
+          const parallelActivity = activity
           const found = findCondition(parallelActivity.branches || [])
           if (found) return found
         }
@@ -1661,7 +1661,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
     const conditionNode = findCondition(nested)
     expect(conditionNode).toBeDefined()
     expect(conditionNode!.then).toHaveLength(1)
-    expect(conditionNode!.then![0].id).toBe('B')
+    expect(conditionNode!.then[0].id).toBe('B')
   })
 
   it('flattens parallel with condition where ELSE branch converges (not then)', () => {
@@ -1967,7 +1967,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
 
     // Then branch should have T1
     expect(condition.then).toHaveLength(1)
-    expect(condition.then![0].id).toBe('T1')
+    expect(condition.then[0].id).toBe('T1')
 
     // Else branch should have parallel and converge
     expect(condition.else).toHaveLength(2)
@@ -2168,7 +2168,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
 
         // Check nested structures
         if (activity.type === 'condition') {
-          const cond = activity as Extract<Activity, { type: 'condition' }>
+          const cond = activity
           if (cond.then) {
             occurrences.push(...findAllOccurrences(cond.then, targetId, `${currentPath}.then`))
           }
@@ -2176,12 +2176,12 @@ describe('WorkflowTransform - Parallel Detection', () => {
             occurrences.push(...findAllOccurrences(cond.else, targetId, `${currentPath}.else`))
           }
         } else if (activity.type === 'loop') {
-          const loop = activity as Extract<Activity, { type: 'loop' }>
+          const loop = activity
           if (loop.do) {
             occurrences.push(...findAllOccurrences(loop.do, targetId, `${currentPath}.do`))
           }
         } else if (activity.type === 'parallel') {
-          const parallel = activity as Extract<Activity, { type: 'parallel' }>
+          const parallel = activity
           if (parallel.branches) {
             parallel.branches.forEach((branch, branchIndex) => {
               if (typeof branch !== 'string') {
@@ -2190,7 +2190,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
             })
           }
         } else if (activity.type === 'sequence') {
-          const seq = activity as Extract<Activity, { type: 'sequence' }>
+          const seq = activity
           if (seq.steps) {
             occurrences.push(...findAllOccurrences(seq.steps, targetId, `${currentPath}.steps`))
           }
@@ -2230,18 +2230,18 @@ describe('WorkflowTransform - Parallel Detection', () => {
     const cond = reNested[0] as Extract<Activity, { type: 'condition' }>
     expect(cond.then).toHaveLength(2) // Demo2 and cond1
 
-    const cond1 = cond.then![1] as Extract<Activity, { type: 'condition' }>
+    const cond1 = cond.then[1] as Extract<Activity, { type: 'condition' }>
     expect(cond1.id).toBe('cond1')
     expect(cond1.then).toHaveLength(1) // parallel
 
-    const parallel = cond1.then![0] as Extract<Activity, { type: 'parallel' }>
+    const parallel = cond1.then[0] as Extract<Activity, { type: 'parallel' }>
     expect(parallel.type).toBe('parallel')
     expect(parallel.branches).toHaveLength(3) // loop1, D, E
 
     // Verify branches don't contain the converge node
-    const branch1 = parallel.branches![0] as Activity
-    const branch2 = parallel.branches![1] as Activity
-    const branch3 = parallel.branches![2] as Activity
+    const branch1 = parallel.branches[0]
+    const branch2 = parallel.branches[1]
+    const branch3 = parallel.branches[2]
 
     expect(branch1.id).toBe('loop1')
     expect(branch2.id).toBe('D')
@@ -2352,7 +2352,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
     const loopActivity = nested.find((a) => a.id === 'L3') as Extract<Activity, { type: 'loop' }>
     expect(loopActivity).toBeDefined()
     expect(loopActivity.loop.do).toHaveLength(1)
-    expect(loopActivity.loop.do![0].id).toBe('D4')
+    expect(loopActivity.loop.do[0].id).toBe('D4')
 
     // Edges from L3 to AD should be deduplicated (only one edge)
     const l3ToAdEdges = reflattenedEdges.filter((e) => e.source === 'L3' && e.target === 'AD')
@@ -2893,7 +2893,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
     expect(cond.then).toHaveLength(3) // Script2, parallel, converge
 
     // Verify then branch contents
-    const thenBranch = cond.then!
+    const thenBranch = cond.then
     expect(thenBranch[0].id).toBe('Script2')
     expect(thenBranch[0].type).toBe('task')
 
@@ -2902,8 +2902,8 @@ describe('WorkflowTransform - Parallel Detection', () => {
     expect(parallel.branches).toHaveLength(2)
 
     // Verify parallel branches contain the correct activities
-    const branch1 = parallel.branches![0] as Activity
-    const branch2 = parallel.branches![1] as Activity
+    const branch1 = parallel.branches[0]
+    const branch2 = parallel.branches[1]
     expect([branch1.id, branch2.id].sort()).toEqual(['Script4', 'Script5'])
 
     expect(thenBranch[2].id).toBe('J')

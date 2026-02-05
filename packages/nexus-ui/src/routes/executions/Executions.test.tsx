@@ -17,7 +17,7 @@ vi.mock('../../client', () => ({
 
 // Mock wouter
 vi.mock('wouter', async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>
+  const actual = await importOriginal()
   return {
     ...actual,
     useLocation: vi.fn(() => ['/executions', vi.fn()]),
