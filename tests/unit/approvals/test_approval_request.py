@@ -1,0 +1,124 @@
+"""Unit tests for ApprovalRequest model field validation and constraints.
+
+Tests required field validation, length limits, optional fields,
+default values, and test helper functionality.
+"""
+
+from uuid import uuid4
+
+import pytest
+from pydantic import ValidationError
+
+from nexus.approvals.models.approval_request import (
+    ApprovalRequest,
+    ApprovalRequestStatus,
+)
+from nexus.core.constants import FieldLimits
+from tests.helpers.approval import (
+    create_approved_approval_request,
+    create_test_approval_request,
+)
+
+
+class TestApprovalRequestValidation:
+    """Test ApprovalRequest field validation and constraints."""
+
+    def test_required_fields(self) -> None:
+        """Test that required fields cannot be None or empty."""
+        execution_id = uuid4()
+
+        # Test empty name
+        with pytest.raises(ValidationError):
+            ApprovalRequest(
+                execution_id=execution_id,
+                approval_node_id="test",
+                name="",  # Empty name should fail min_length validation
+                next_step_approved={"id": "test"},
+                workflow_context={},
+            )
+
+        # Test empty approval_node_id
+        with pytest.raises(ValidationError):
+            ApprovalRequest(
+                execution_id=execution_id,
+                approval_node_id="",  # Empty approval_node_id should fail
+                name="Test",
+                next_step_approved={"id": "test"},
+                workflow_context={},
+            )
+
+    def test_string_field_length_limits(self) -> None:
+        """Test string field length constraints."""
+        execution_id = uuid4()
+
+        # Test name length limit (max NAME_MAX_LENGTH)
+        long_name = "x" * (FieldLimits.NAME_MAX_LENGTH + 1)
+        with pytest.raises(ValidationError):
+            ApprovalRequest(
+                execution_id=execution_id,
+                approval_node_id="test",
+                name=long_name,
+                next_step_approved={"id": "test"},
+                workflow_context={},
+            )
+
+        # Test approval_node_id length limit (max NAME_MAX_LENGTH)
+        long_node_id = "x" * (FieldLimits.NAME_MAX_LENGTH + 1)
+        with pytest.raises(ValidationError):
+            ApprovalRequest(
+                execution_id=execution_id,
+                approval_node_id=long_node_id,
+                name="Test",
+                next_step_approved={"id": "test"},
+                workflow_context={},
+            )
+
+    def test_optional_fields(self) -> None:
+        """Test that optional fields can be None."""
+        # Create a non-pending approval so timeout_at can be None
+        approval = create_test_approval_request(
+            status=ApprovalRequestStatus.APPROVED,  # Non-pending status
+            description=None,
+            timeout_at=None,
+            next_step_rejected=None,
+            decided_by=None,
+            decided_at=None,
+            decision_notes=None,
+        )
+
+        assert approval.description is None
+        assert approval.timeout_at is None
+        assert approval.next_step_rejected is None
+        assert approval.decided_by is None
+        assert approval.decided_at is None
+        assert approval.decision_notes is None
+
+    def test_default_values(self) -> None:
+        """Test model default values."""
+        execution_id = uuid4()
+        approval = ApprovalRequest(
+            execution_id=execution_id,
+            approval_node_id="test",
+            name="Test",
+            next_step_approved={"id": "test"},
+            workflow_context={},
+        )
+
+        assert approval.status == ApprovalRequestStatus.PENDING
+        assert approval.workflow_context == {}
+
+
+class TestApprovalRequestHelperFactories:
+    """Test the helper factory functions work correctly."""
+
+    def test_factory_override_defaults(self) -> None:
+        """Test factories accept overrides for default values."""
+        custom_execution_id = uuid4()
+        approval = create_approved_approval_request(
+            execution_id=custom_execution_id,
+            name="Custom Approval",
+        )
+
+        assert approval.execution_id == custom_execution_id
+        assert approval.name == "Custom Approval"
+        assert approval.status == ApprovalRequestStatus.APPROVED

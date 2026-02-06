@@ -34,21 +34,21 @@ These tasks create the directory structure, models, and shared infrastructure th
 
 ### Directory Structure
 
-- [ ] T001 Create approvals component directory structure: `src/nexus/approvals/__init__.py`, `src/nexus/approvals/models/__init__.py`, `src/nexus/approvals/services/__init__.py`, `src/nexus/approvals/clients/__init__.py`, and `tests/unit/approvals/__init__.py`, `tests/contract/approvals/__init__.py`, `tests/integration/approvals/__init__.py`
+- [x] T001 Create approvals component directory structure: `src/nexus/approvals/__init__.py`, `src/nexus/approvals/models/__init__.py`, `src/nexus/approvals/services/__init__.py`, `src/nexus/approvals/clients/__init__.py`, and `tests/unit/approvals/__init__.py`, `tests/contract/approvals/__init__.py`, `tests/integration/approvals/__init__.py`
 - [x] T002 [P] ~~Create OpenAPI specification at `src/nexus/schemas/approvals/approvals-api.yaml`~~ (ALREADY EXISTS)
 
 ### Tests First (TDD) ⚠️ MUST FAIL BEFORE IMPLEMENTATION
 
-- [ ] T003 [P] Add unit tests for ApprovalRequestStatus enum values and ApprovalRequest model (field validation, all valid status transitions pending→approved/rejected/expired/cancelled, verify invalid transitions raise exceptions e.g. approved→pending, filterable/sortable fields, relationship definitions) in `tests/unit/approvals/test_approval_request.py`; create test factory helpers in `tests/helpers/approval.py`
+- [x] T003 [P] Add unit tests for ApprovalRequestStatus enum values and ApprovalRequest model (field validation, all valid status transitions pending→approved/rejected/expired/cancelled, verify invalid transitions raise exceptions e.g. approved→pending, filterable/sortable fields, relationship definitions) in `tests/unit/approvals/test_approval_request.py`; create test factory helpers in `tests/helpers/approval.py`
 
 ### Model Implementation (make tests pass)
 
-- [ ] T004 Create ApprovalRequestStatus enum in `src/nexus/approvals/models/approval_request.py` (sequential with T005 - same file)
-- [ ] T005 Create ApprovalRequest SQLModel extending BaseResource in `src/nexus/approvals/models/approval_request.py`; include `__filterable_fields__` (execution_id, status, timeout_at) and `__sortable_fields__` (timeout_at, decided_at) class attributes per BaseResource pattern (sequential with T004 - same file)
-- [ ] T006 [P] Create ApprovalListParams query params model in `src/nexus/approvals/models/query_params.py`
-- [ ] T007 [P] Create approval exceptions (ApprovalNotFoundError, ApprovalAlreadyDecidedError) in `src/nexus/approvals/exceptions.py`
-- [ ] T008 Add approval_requests relationship to Execution model in `src/nexus/workflows/models/execution.py`
-- [ ] T009 Create Alembic migration for approval_requests table (include approvalrequeststatus enum type, indexes, foreign keys)
+- [x] T004 Create ApprovalRequestStatus enum in `src/nexus/approvals/models/approval_request.py` (sequential with T005 - same file)
+- [x] T005 Create ApprovalRequest SQLModel extending BaseResource in `src/nexus/approvals/models/approval_request.py`; include `__filterable_fields__` (execution_id, status, timeout_at) and `__sortable_fields__` (timeout_at, decided_at) class attributes per BaseResource pattern (sequential with T004 - same file)
+- [x] T006 [P] Create ApprovalListParams query params model in `src/nexus/approvals/models/query_params.py`
+- [x] T007 [P] Create approval exceptions (ApprovalNotFoundError, ApprovalAlreadyDecidedError) in `src/nexus/approvals/exceptions.py`
+- [x] ~~T008 Add approval_requests relationship to Execution model in `src/nexus/workflows/models/execution.py`~~ (PR REVIEW - Not required)
+- [x] T009 Create Alembic migration for approval_requests table (include approvalrequeststatus enum type, indexes, foreign keys)
 
 ---
 
@@ -325,14 +325,14 @@ This enables testing the core approval flow without UI.
 
 | Phase     | Description                    | Task Count | Completed |
 | --------- | ------------------------------ | ---------- | --------- |
-| 1         | Setup, Tests & Models (TDD)    | 9          | 1         |
+| 1         | Setup, Tests & Models (TDD)    | 9          | 9         |
 | 2         | US1 - Workflow Engine          | 15         | 1         |
 | 3         | Tests & US2 - Approvals (TDD)  | 32         | 3         |
 | 4         | US1 Extended - Builder         | 5          | 5         |
 | 5         | Integration Tests              | 3          | 0         |
-| **Total** |                                | **64**     | **10**    |
+| **Total** |                                | **64**     | **18**    |
 
-**Remaining Tasks: 54**
+**Remaining Tasks: 46**
 
 ### Per User Story
 
@@ -340,7 +340,7 @@ This enables testing the core approval flow without UI.
 | ---------- | ---------- | --------- | --------- | -------------------------------------------------------- |
 | US1        | 20         | 6         | 14        | Workflow designer adds approval nodes (builder complete) |
 | US2        | 32         | 3         | 29        | Approver views and decides requests                      |
-| Shared     | 12         | 1         | 11        | Setup, foundational, integration tests                   |
+| Shared     | 12         | 9         | 3         | Setup, foundational, integration tests                   |
 
 ### Test Tasks (TDD)
 

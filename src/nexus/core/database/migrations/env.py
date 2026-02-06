@@ -11,6 +11,7 @@ from sqlmodel import SQLModel
 
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
+from nexus.approvals.models.approval_request import ApprovalRequest
 from nexus.core.config.base import get_settings
 from nexus.core.models import User
 from nexus.files.models import FileMetadata
@@ -41,6 +42,7 @@ _ = (
     UserTokenConfig,
     TokenUsageRecord,
     FileMetadata,
+    ApprovalRequest,
 )
 
 # this is the Alembic Config object, which provides
