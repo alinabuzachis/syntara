@@ -6,7 +6,10 @@ import {
   getErrorTitle,
   getValidationFieldErrors,
   isAdminConfigurationError,
+  isConflictError,
+  isRetryableError,
   isServiceUnavailableError,
+  isValidationError,
 } from './apiErrors'
 
 describe('apiErrors', () => {
@@ -16,17 +19,14 @@ describe('apiErrors', () => {
       expect(isServiceUnavailableError({ statusCode: 503 })).toBe(true)
     })
 
-    it('returns true for service_unavailable error code', () => {
-      expect(isServiceUnavailableError({ error: 'service_unavailable' })).toBe(true)
-    })
-
-    it('returns true for nested detail with service_unavailable', () => {
-      expect(isServiceUnavailableError({ detail: { error: 'service_unavailable' } })).toBe(true)
+    it('returns true for RFC 9457 service unavailable error codes', () => {
+      expect(isServiceUnavailableError({ code: 'LLM_CONFIGURATION_ERROR' })).toBe(true)
+      expect(isServiceUnavailableError({ code: 'TEMPORAL_UNAVAILABLE' })).toBe(true)
     })
 
     it('returns false for other errors', () => {
       expect(isServiceUnavailableError({ status: 404 })).toBe(false)
-      expect(isServiceUnavailableError({ error: 'not_found' })).toBe(false)
+      expect(isServiceUnavailableError({ code: 'WORKFLOW_NOT_FOUND' })).toBe(false)
       expect(isServiceUnavailableError(null)).toBe(false)
       expect(isServiceUnavailableError(undefined)).toBe(false)
       expect(isServiceUnavailableError('error string')).toBe(false)
@@ -34,20 +34,16 @@ describe('apiErrors', () => {
   })
 
   describe('getErrorMessage', () => {
-    it('extracts message from direct message property', () => {
-      expect(getErrorMessage({ message: 'Direct message' })).toBe('Direct message')
+    it('extracts message from RFC 9457 detail field', () => {
+      expect(getErrorMessage({ detail: 'Field "name" is required' })).toBe('Field "name" is required')
     })
 
-    it('extracts message from nested detail object', () => {
-      expect(getErrorMessage({ detail: { message: 'Nested message' } })).toBe('Nested message')
-    })
-
-    it('extracts message from string detail (FastAPI format)', () => {
-      expect(getErrorMessage({ detail: 'FastAPI error' })).toBe('FastAPI error')
+    it('extracts message from RFC 9457 title as fallback', () => {
+      expect(getErrorMessage({ title: 'Validation Error' })).toBe('Validation Error')
     })
 
     it('extracts message from cause (openapi-fetch format)', () => {
-      expect(getErrorMessage({ cause: { message: 'Cause message' } })).toBe('Cause message')
+      expect(getErrorMessage({ cause: { detail: 'Cause message' } })).toBe('Cause message')
     })
 
     it('extracts message from FastAPI validation error detail arrays', () => {
@@ -65,10 +61,6 @@ describe('apiErrors', () => {
         detail: [{ loc: ['body', 'configuration', 'api_key'], msg: 'Field required', type: 'missing' }],
       }
       expect(getErrorMessage(validationError)).toBe('configuration.api_key: Field required')
-    })
-
-    it('extracts message from details field when present', () => {
-      expect(getErrorMessage({ details: 'More context here' })).toBe('More context here')
     })
 
     it('returns string errors directly', () => {
@@ -89,19 +81,22 @@ describe('apiErrors', () => {
       expect(getErrorMessage({})).toBe('An unexpected error occurred')
     })
 
-    it('handles real 503 error format from backend', () => {
-      const backendError = {
-        error: 'service_unavailable',
-        message:
-          'OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys',
+    it('handles RFC 9457 503 error format from backend', () => {
+      const rfc9457Error = {
+        type: 'https://api.nexus.com/errors/configuration-error',
+        title: 'Configuration Error',
+        detail: 'OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys',
+        code: 'LLM_CONFIGURATION_ERROR',
+        status: 503,
+        retryable: true,
       }
-      expect(getErrorMessage(backendError)).toBe(
+      expect(getErrorMessage(rfc9457Error)).toBe(
         'OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys'
       )
     })
 
     it('handles circular references without infinite recursion', () => {
-      const circular: Record<string, unknown> = { message: 'Top level error' }
+      const circular: Record<string, unknown> = { detail: 'Top level error' }
       circular.cause = circular // Create circular reference
 
       // Should return the message from the top level before hitting the cycle
@@ -144,16 +139,21 @@ describe('apiErrors', () => {
   })
 
   describe('getErrorCode', () => {
-    it('extracts error code from direct error property', () => {
-      expect(getErrorCode({ error: 'service_unavailable' })).toBe('service_unavailable')
+    it('extracts error code from RFC 9457 code field', () => {
+      expect(getErrorCode({ code: 'VALIDATION_ERROR' })).toBe('VALIDATION_ERROR')
+      expect(getErrorCode({ code: 'WORKFLOW_NOT_FOUND' })).toBe('WORKFLOW_NOT_FOUND')
     })
 
-    it('extracts error code from nested detail', () => {
-      expect(getErrorCode({ detail: { error: 'not_found' } })).toBe('not_found')
+    it('extracts error code from openapi-fetch wrapper', () => {
+      expect(getErrorCode({ cause: { code: 'INTERNAL_ERROR' } })).toBe('INTERNAL_ERROR')
+    })
+
+    it('extracts error code from data wrapper', () => {
+      expect(getErrorCode({ data: { code: 'FILE_TOO_LARGE' } })).toBe('FILE_TOO_LARGE')
     })
 
     it('returns undefined for missing error code', () => {
-      expect(getErrorCode({ message: 'No code' })).toBeUndefined()
+      expect(getErrorCode({ detail: 'No code' })).toBeUndefined()
       expect(getErrorCode(null)).toBeUndefined()
       expect(getErrorCode(undefined)).toBeUndefined()
       expect(getErrorCode('string')).toBeUndefined()
@@ -161,17 +161,25 @@ describe('apiErrors', () => {
   })
 
   describe('getErrorTitle', () => {
-    it('returns human-readable title for known error codes', () => {
-      expect(getErrorTitle({ error: 'service_unavailable' })).toBe('Service Unavailable')
-      expect(getErrorTitle({ error: 'not_found' })).toBe('Not Found')
-      expect(getErrorTitle({ error: 'validation_error' })).toBe('Validation Error')
-      expect(getErrorTitle({ error: 'unauthorized' })).toBe('Unauthorized')
-      expect(getErrorTitle({ error: 'forbidden' })).toBe('Access Denied')
+    it('returns RFC 9457 explicit title when present', () => {
+      expect(getErrorTitle({ title: 'Workflow Not Found' })).toBe('Workflow Not Found')
+      expect(getErrorTitle({ title: 'Validation Error' })).toBe('Validation Error')
+    })
+
+    it('derives title from RFC 9457 error codes', () => {
+      expect(getErrorTitle({ code: 'WORKFLOW_NAME_CONFLICT' })).toBe('Workflow Name Conflict')
+      expect(getErrorTitle({ code: 'VALIDATION_ERROR' })).toBe('Validation Error')
+      expect(getErrorTitle({ code: 'LLM_CONFIGURATION_ERROR' })).toBe('Configuration Error')
+      expect(getErrorTitle({ code: 'FILE_TOO_LARGE' })).toBe('File Too Large')
+    })
+
+    it('prioritizes explicit title over derived title', () => {
+      expect(getErrorTitle({ title: 'Custom Title', code: 'VALIDATION_ERROR' })).toBe('Custom Title')
     })
 
     it('returns "Error" for unknown error codes', () => {
-      expect(getErrorTitle({ error: 'unknown_code' })).toBe('Error')
-      expect(getErrorTitle({ message: 'No code' })).toBe('Error')
+      expect(getErrorTitle({ code: 'UNKNOWN_CODE' })).toBe('Error')
+      expect(getErrorTitle({ detail: 'No code' })).toBe('Error')
       expect(getErrorTitle(null)).toBe('Error')
     })
   })
@@ -179,22 +187,88 @@ describe('apiErrors', () => {
   describe('isAdminConfigurationError', () => {
     it('returns true for 503 errors', () => {
       expect(isAdminConfigurationError({ status: 503 })).toBe(true)
-      expect(isAdminConfigurationError({ error: 'service_unavailable' })).toBe(true)
+      expect(isAdminConfigurationError({ code: 'LLM_CONFIGURATION_ERROR' })).toBe(true)
     })
 
     it('returns true for API key related messages', () => {
-      expect(isAdminConfigurationError({ message: 'OPENROUTER_API_KEY is required' })).toBe(true)
-      expect(isAdminConfigurationError({ message: 'Missing API key' })).toBe(true)
+      expect(isAdminConfigurationError({ detail: 'OPENROUTER_API_KEY is required' })).toBe(true)
+      expect(isAdminConfigurationError({ detail: 'Missing API key' })).toBe(true)
     })
 
     it('returns true for configuration related messages', () => {
-      expect(isAdminConfigurationError({ message: 'Service not configured properly' })).toBe(true)
-      expect(isAdminConfigurationError({ message: 'Environment variable missing' })).toBe(true)
+      expect(isAdminConfigurationError({ detail: 'Service not configured properly' })).toBe(true)
+      expect(isAdminConfigurationError({ detail: 'Environment variable missing' })).toBe(true)
     })
 
     it('returns false for regular errors', () => {
-      expect(isAdminConfigurationError({ error: 'not_found', message: 'Resource not found' })).toBe(false)
-      expect(isAdminConfigurationError({ message: 'Validation failed' })).toBe(false)
+      expect(isAdminConfigurationError({ code: 'WORKFLOW_NOT_FOUND', detail: 'Resource not found' })).toBe(false)
+      expect(isAdminConfigurationError({ detail: 'Validation failed' })).toBe(false)
+    })
+  })
+
+  describe('isRetryableError', () => {
+    it('returns true when retryable flag is true', () => {
+      expect(isRetryableError({ retryable: true })).toBe(true)
+    })
+
+    it('returns false when retryable flag is false', () => {
+      expect(isRetryableError({ retryable: false })).toBe(false)
+    })
+
+    it('returns true for 5xx errors by default', () => {
+      expect(isRetryableError({ status: 500 })).toBe(true)
+      expect(isRetryableError({ status: 503 })).toBe(true)
+      expect(isRetryableError({ statusCode: 502 })).toBe(true)
+    })
+
+    it('returns false for 4xx errors by default', () => {
+      expect(isRetryableError({ status: 400 })).toBe(false)
+      expect(isRetryableError({ status: 404 })).toBe(false)
+      expect(isRetryableError({ status: 422 })).toBe(false)
+    })
+
+    it('checks retryable in nested wrappers', () => {
+      expect(isRetryableError({ data: { retryable: true } })).toBe(true)
+      expect(isRetryableError({ cause: { retryable: false } })).toBe(false)
+    })
+  })
+
+  describe('isConflictError', () => {
+    it('returns true for 409 status code', () => {
+      expect(isConflictError({ status: 409 })).toBe(true)
+    })
+
+    it('returns true for conflict error codes', () => {
+      expect(isConflictError({ code: 'WORKFLOW_NAME_CONFLICT' })).toBe(true)
+      expect(isConflictError({ code: 'PROVIDER_NAME_CONFLICT' })).toBe(true)
+    })
+
+    it('returns false for other errors', () => {
+      expect(isConflictError({ status: 400 })).toBe(false)
+      expect(isConflictError({ code: 'VALIDATION_ERROR' })).toBe(false)
+      expect(isConflictError(null)).toBe(false)
+    })
+  })
+
+  describe('isValidationError', () => {
+    it('returns true for 422 status code', () => {
+      expect(isValidationError({ status: 422 })).toBe(true)
+    })
+
+    it('returns true for validation error codes', () => {
+      expect(isValidationError({ code: 'VALIDATION_ERROR' })).toBe(true)
+      expect(isValidationError({ code: 'FILE_VALIDATION_ERROR' })).toBe(true)
+      expect(isValidationError({ code: 'TOOL_VALIDATION_ERROR' })).toBe(true)
+    })
+
+    it('returns true for FastAPI detail arrays', () => {
+      expect(isValidationError({ detail: [{ loc: ['body', 'name'], msg: 'required' }] })).toBe(true)
+    })
+
+    it('returns false for other errors', () => {
+      expect(isValidationError({ status: 404 })).toBe(false)
+      expect(isValidationError({ code: 'WORKFLOW_NOT_FOUND' })).toBe(false)
+      expect(isValidationError(null)).toBe(false)
     })
   })
 })

@@ -1,33 +1,72 @@
 /**
  * API Error Parsing Utilities
  *
- * Provides consistent error parsing for various API error formats including:
- * - Structured API errors: { error: "...", message: "..." }
- * - FastAPI standard errors: { detail: "..." }
- * - Nested detail objects: { detail: { error: "...", message: "..." } }
- * - openapi-fetch errors with cause: { cause: { message: "..." } }
+ * Provides consistent error parsing for RFC 9457 Problem Details format including:
+ * - RFC 9457 Problem Details: { type: "...", title: "...", detail: "...", code: "...", retryable: boolean }
+ * - FastAPI validation errors: { detail: [...] }
+ * - openapi-fetch wrapped errors: { cause: { ... }, response: { status: ... } }
+ * - WebSocket error events: { data: { ... } }
  */
 
-/** Error codes returned by the API */
-export type ApiErrorCode = 'service_unavailable' | 'not_found' | 'validation_error' | 'unauthorized' | 'forbidden'
+/** RFC 9457 Problem Details format */
+export interface ProblemDetails {
+  type: string
+  title: string
+  detail: string
+  instance?: string | null
+  status?: number
+  code: string
+  retryable: boolean
+}
 
-/** Structured API error format */
+/** Error codes returned by the API (RFC 9457 codes) */
+export type ApiErrorCode =
+  // Workflow errors
+  | 'WORKFLOW_NAME_CONFLICT'
+  | 'WORKFLOW_DISABLED'
+  | 'WORKFLOW_NOT_FOUND'
+  | 'WORKFLOW_VERSION_NOT_FOUND'
+  // Provider/Tool errors
+  | 'PROVIDER_NAME_CONFLICT'
+  | 'PROVIDER_NOT_FOUND'
+  | 'TOOL_NOT_FOUND'
+  | 'TOOL_VALIDATION_ERROR'
+  // Validation errors
+  | 'VALIDATION_ERROR'
+  | 'FILE_VALIDATION_ERROR'
+  | 'FILE_TOO_LARGE'
+  | 'UNSUPPORTED_FILE_FORMAT'
+  | 'TOO_MANY_FILES'
+  // System errors
+  | 'LLM_CONFIGURATION_ERROR'
+  | 'TEMPORAL_UNAVAILABLE'
+  | 'EXECUTION_NOT_FOUND'
+  | 'INTERNAL_ERROR'
+
+/** API error format (RFC 9457 + wrappers) */
 export interface ApiError {
-  error?: string
-  message?: string
-  // FastAPI can return `detail` as a string, object, or list (validation errors)
-  detail?: unknown
-  // Some APIs use `details` as the long-form message/context
-  details?: unknown
-  // Some wrappers (and some WS envelopes) nest the actual error payload under `data`
-  data?: unknown
-  // RFC 9457 / problem-details style errors
+  // RFC 9457 Problem Details fields
+  type?: string
   title?: string
-  // openapi-fetch/openapi-react-query wraps errors with response object
-  response?: { status?: number; statusText?: string }
-  cause?: { message?: string; error?: string; status?: number }
+  detail?: unknown // Can be string (RFC 9457) or array (FastAPI validation)
+  instance?: string | null
+  code?: string
+  retryable?: boolean
   status?: number
   statusCode?: number
+
+  // Wrapper fields
+  data?: unknown // WebSocket/envelope wrappers
+  response?: { status?: number; statusText?: string } // openapi-fetch
+  cause?: {
+    message?: string
+    error?: string
+    status?: number
+    code?: string
+    title?: string
+    detail?: unknown
+    retryable?: boolean
+  } // openapi-fetch nested
 }
 
 export interface ApiValidationFieldError {
@@ -93,7 +132,7 @@ export function getErrorStatus(error: unknown): number | undefined {
  *
  * Checks for:
  * - HTTP status code 503
- * - error code "service_unavailable"
+ * - RFC 9457 error codes: LLM_CONFIGURATION_ERROR, TEMPORAL_UNAVAILABLE
  *
  * @param error - The error object to check
  * @returns true if the error is a 503 Service Unavailable error
@@ -108,53 +147,28 @@ export function isServiceUnavailableError(error: unknown): boolean {
     return false
   }
 
-  const err = error as ApiError
-
   // Check status code
   if (getErrorStatus(error) === 503) {
     return true
   }
 
-  // Check error code
-  if (err.error === 'service_unavailable') {
+  // Check RFC 9457 error codes
+  const code = getErrorCode(error)
+  if (code === 'LLM_CONFIGURATION_ERROR' || code === 'TEMPORAL_UNAVAILABLE') {
     return true
-  }
-
-  // Check nested detail
-  if (err.detail && typeof err.detail === 'object') {
-    const detail = err.detail as { error?: unknown }
-    if (detail.error === 'service_unavailable') {
-      return true
-    }
-  }
-
-  // Check cause (openapi-fetch wraps errors with cause containing the response body)
-  if (err.cause && typeof err.cause === 'object') {
-    if (err.cause.status === 503 || err.cause.error === 'service_unavailable') {
-      return true
-    }
-  }
-
-  // Some envelopes/wrappers nest the error payload under `data`
-  if (err.data && typeof err.data === 'object') {
-    const data = err.data as { status?: number; statusCode?: number; error?: unknown; detail?: unknown }
-    if (data.status === 503 || data.statusCode === 503) return true
-    if (data.error === 'service_unavailable') return true
-    if (typeof data.detail === 'object' && (data.detail as { error?: unknown }).error === 'service_unavailable')
-      return true
   }
 
   return false
 }
 
 /**
- * Extracts a user-friendly message from various error formats.
+ * Extracts a user-friendly message from RFC 9457 error formats.
  *
  * Tries to extract message from (in order):
- * 1. error.message
- * 2. error.detail.message (if detail is object)
- * 3. error.detail (if detail is string)
- * 4. error.cause.message
+ * 1. error.detail (RFC 9457 detail field - string)
+ * 2. error.detail (FastAPI validation array)
+ * 3. error.title (RFC 9457 title as fallback)
+ * 4. Wrapped errors (data, cause)
  * 5. Falls back to "An unexpected error occurred"
  *
  * @param error - The error object to extract message from
@@ -185,7 +199,6 @@ export function getErrorMessage(error: unknown): string {
   }
 
   // Track visited objects to prevent infinite recursion from circular references
-  // (e.g. openapi-fetch `cause`, WS `data` envelopes with cycles)
   const visited = new WeakSet<object>()
 
   const extractMessage = (value: unknown): string => {
@@ -200,7 +213,7 @@ export function getErrorMessage(error: unknown): string {
 
     const err = value as ApiError
 
-    // Some wrappers/envelopes nest the actual error under `data` (e.g. WS error events: { event_type, data: { title, detail, ... } })
+    // Check data wrapper first (WS error events: { event_type, data: { title, detail, ... } })
     if (err.data) {
       const dataMessage = extractMessage(err.data)
       if (dataMessage !== fallback) {
@@ -208,31 +221,12 @@ export function getErrorMessage(error: unknown): string {
       }
     }
 
-    // Direct message
-    if (err.message && typeof err.message === 'string') {
-      return err.message
-    }
-
-    // RFC/problem-details "detail" (string) or "details" (string)
-    if (typeof err.details === 'string' && err.details) {
-      return err.details
-    }
-
-    // Nested detail object
-    if (typeof err.detail === 'object' && err.detail) {
-      const d = err.detail as { message?: unknown; error?: unknown; detail?: unknown; details?: unknown }
-      if (typeof d.message === 'string' && d.message) return d.message
-      if (typeof d.detail === 'string' && d.detail) return d.detail
-      if (typeof d.details === 'string' && d.details) return d.details
-      if (typeof d.error === 'string' && d.error) return d.error
-    }
-
-    // String detail (FastAPI standard)
+    // RFC 9457 detail (string)
     if (typeof err.detail === 'string' && err.detail) {
       return err.detail
     }
 
-    // Validation errors: FastAPI often returns `detail: [{ msg, ... }, ...]`
+    // FastAPI validation errors: detail array [{ msg, loc, ... }, ...]
     if (Array.isArray(err.detail)) {
       const msgs = err.detail
         .map((item) => {
@@ -249,8 +243,7 @@ export function getErrorMessage(error: unknown): string {
 
           if (!message) return null
 
-          // If present, include a hint about which field failed validation.
-          // FastAPI typically uses `loc: ["body", "fieldName"]` (or longer paths).
+          // Include field path if present
           if (Array.isArray(it.loc) && it.loc.length > 0) {
             const locParts = it.loc
               .map((p) => (typeof p === 'string' || typeof p === 'number' ? String(p) : null))
@@ -273,17 +266,12 @@ export function getErrorMessage(error: unknown): string {
       }
     }
 
-    // Some APIs use `error` as a human message when `message` is absent
-    if (err.error && typeof err.error === 'string') {
-      return err.error
-    }
-
-    // Problem-details: if we only have a title, treat it as the message fallback
+    // RFC 9457 title as fallback (if no detail found)
     if (err.title && typeof err.title === 'string') {
       return err.title
     }
 
-    // Cause from openapi-fetch (may contain structured error with detail/message)
+    // openapi-fetch cause wrapper
     if (err.cause && typeof err.cause === 'object') {
       const causeMessage = extractMessage(err.cause)
       if (causeMessage !== fallback) {
@@ -326,15 +314,12 @@ function extractValidationDetailArray(error: unknown): unknown[] | undefined {
 }
 
 /**
- * Detects if an error is a validation error (422 with FastAPI detail array).
+ * Detects if an error is a validation error.
  *
  * Checks for:
  * - HTTP status code 422
- * - FastAPI validation error format (detail array) in various locations:
- *   - error.detail (top level)
- *   - error.cause.detail (openapi-fetch wrapper)
- *   - error.data.detail (envelope wrapper)
- *   - error.detail.detail (nested detail object)
+ * - RFC 9457 validation error codes (VALIDATION_ERROR, FILE_VALIDATION_ERROR, TOOL_VALIDATION_ERROR)
+ * - FastAPI validation error format (detail array)
  *
  * @param error - The error object to check
  * @returns true if the error is a validation error
@@ -350,8 +335,13 @@ export function isValidationError(error: unknown): boolean {
     return true
   }
 
+  // Check for RFC 9457 validation error codes
+  const code = getErrorCode(error)
+  if (code === 'VALIDATION_ERROR' || code === 'FILE_VALIDATION_ERROR' || code === 'TOOL_VALIDATION_ERROR') {
+    return true
+  }
+
   // Check for FastAPI validation error format (detail array)
-  // Reuse extractValidationDetailArray for consistency with getValidationFieldErrors
   const detailArray = extractValidationDetailArray(error)
   return detailArray !== undefined
 }
@@ -394,14 +384,14 @@ export function getValidationFieldErrors(error: unknown): ApiValidationFieldErro
 }
 
 /**
- * Extracts the error code from an API error.
+ * Extracts the RFC 9457 error code from an API error.
  *
  * @param error - The error object
  * @returns The error code or undefined if not found
  *
  * @example
  * const code = getErrorCode(error)
- * if (code === 'service_unavailable') {
+ * if (code === 'LLM_CONFIGURATION_ERROR') {
  *   // Handle configuration error
  * }
  */
@@ -412,42 +402,57 @@ export function getErrorCode(error: unknown): string | undefined {
 
   const err = error as ApiError
 
-  // Direct error code
-  if (err.error && typeof err.error === 'string') {
-    return err.error
+  // RFC 9457 code field (direct)
+  if (err.code && typeof err.code === 'string') {
+    return err.code
   }
 
-  // Some wrappers/envelopes nest the error payload under `data`
-  if (err.data && typeof err.data === 'object') {
-    const data = err.data as { error?: unknown; detail?: unknown }
-    if (typeof data.error === 'string') return data.error
-    if (typeof data.detail === 'object' && (data.detail as { error?: unknown }).error) {
-      return (data.detail as { error: string }).error
+  // openapi-fetch wrapper (cause.code)
+  if (err.cause && typeof err.cause === 'object') {
+    const cause = err.cause as { code?: unknown }
+    if (typeof cause.code === 'string') {
+      return cause.code
     }
   }
 
-  // Nested in detail
-  if (err.detail && typeof err.detail === 'object') {
-    const detail = err.detail as { error?: unknown }
-    if (typeof detail.error === 'string') {
-      return detail.error
+  // Data wrapper (WS errors, etc.)
+  if (err.data && typeof err.data === 'object') {
+    const data = err.data as { code?: unknown }
+    if (typeof data.code === 'string') {
+      return data.code
     }
   }
 
   return undefined
 }
 
-/** Human-readable titles for error codes */
+/** Human-readable titles for RFC 9457 error codes */
 const ERROR_TITLES: Record<string, string> = {
-  service_unavailable: 'Service Unavailable',
-  not_found: 'Not Found',
-  validation_error: 'Validation Error',
-  unauthorized: 'Unauthorized',
-  forbidden: 'Access Denied',
+  // Workflow errors
+  WORKFLOW_NAME_CONFLICT: 'Workflow Name Conflict',
+  WORKFLOW_DISABLED: 'Workflow Disabled',
+  WORKFLOW_NOT_FOUND: 'Workflow Not Found',
+  WORKFLOW_VERSION_NOT_FOUND: 'Workflow Version Not Found',
+  // Provider/Tool errors
+  PROVIDER_NAME_CONFLICT: 'Provider Name Conflict',
+  PROVIDER_NOT_FOUND: 'Provider Not Found',
+  TOOL_NOT_FOUND: 'Tool Not Found',
+  TOOL_VALIDATION_ERROR: 'Tool Validation Error',
+  // Validation errors
+  VALIDATION_ERROR: 'Validation Error',
+  FILE_VALIDATION_ERROR: 'File Validation Error',
+  FILE_TOO_LARGE: 'File Too Large',
+  UNSUPPORTED_FILE_FORMAT: 'Unsupported File Format',
+  TOO_MANY_FILES: 'Too Many Files',
+  // System errors
+  LLM_CONFIGURATION_ERROR: 'Configuration Error',
+  TEMPORAL_UNAVAILABLE: 'Workflow Engine Unavailable',
+  EXECUTION_NOT_FOUND: 'Execution Not Found',
+  INTERNAL_ERROR: 'Internal Error',
 }
 
 /**
- * Returns a human-readable title for an error code.
+ * Returns a human-readable title for an RFC 9457 error.
  *
  * @param error - The error object
  * @returns Human-readable title or "Error" as fallback
@@ -457,16 +462,36 @@ const ERROR_TITLES: Record<string, string> = {
  * showAlert({ title, message: getErrorMessage(error) })
  */
 export function getErrorTitle(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const err = error as ApiError
+
+    // RFC 9457 explicit title (priority)
+    if (err.title && typeof err.title === 'string') {
+      return err.title
+    }
+
+    // Check wrapped (data, cause)
+    if (err.data && typeof err.data === 'object') {
+      const data = err.data as { title?: unknown }
+      if (typeof data.title === 'string') {
+        return data.title
+      }
+    }
+
+    if (err.cause && typeof err.cause === 'object') {
+      const cause = err.cause as { title?: unknown }
+      if (typeof cause.title === 'string') {
+        return cause.title
+      }
+    }
+  }
+
+  // Derive from error code
   const code = getErrorCode(error)
   if (code && ERROR_TITLES[code]) {
     return ERROR_TITLES[code]
   }
-  if (error && typeof error === 'object') {
-    const err = error as ApiError
-    if (err.title && typeof err.title === 'string') {
-      return err.title
-    }
-  }
+
   return 'Error'
 }
 
@@ -497,4 +522,77 @@ export function isAdminConfigurationError(error: unknown): boolean {
   const configKeywords = ['api_key', 'api key', 'not configured', 'configuration', 'environment variable']
 
   return configKeywords.some((keyword) => message.includes(keyword))
+}
+
+/**
+ * Detects if an error is retryable based on RFC 9457 'retryable' flag.
+ *
+ * @param error - The error object to check
+ * @returns true if the error has retryable=true or is a 5xx error
+ *
+ * @example
+ * if (isRetryableError(error)) {
+ *   return <Button onClick={retry}>Retry</Button>
+ * }
+ */
+export function isRetryableError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const err = error as ApiError
+
+  // Check retryable flag directly (RFC 9457)
+  if (typeof err.retryable === 'boolean') {
+    return err.retryable
+  }
+
+  // Check in nested locations (data wrapper, cause wrapper)
+  if (err.data && typeof err.data === 'object') {
+    const data = err.data as { retryable?: unknown }
+    if (typeof data.retryable === 'boolean') {
+      return data.retryable
+    }
+  }
+
+  if (err.cause && typeof err.cause === 'object') {
+    const cause = err.cause as { retryable?: unknown }
+    if (typeof cause.retryable === 'boolean') {
+      return cause.retryable
+    }
+  }
+
+  // Default: treat 5xx errors as retryable (conservative fallback)
+  const status = getErrorStatus(error)
+  if (status && status >= 500 && status < 600) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Detects if an error is a 409 Conflict error (name conflicts).
+ *
+ * @param error - The error object to check
+ * @returns true if the error is a 409 Conflict error
+ *
+ * @example
+ * if (isConflictError(error)) {
+ *   showAlert({ title: 'Name already exists', variant: 'warning' })
+ * }
+ */
+export function isConflictError(error: unknown): boolean {
+  // Check status code
+  if (getErrorStatus(error) === 409) {
+    return true
+  }
+
+  // Check RFC 9457 conflict error codes
+  const code = getErrorCode(error)
+  if (code === 'WORKFLOW_NAME_CONFLICT' || code === 'PROVIDER_NAME_CONFLICT') {
+    return true
+  }
+
+  return false
 }

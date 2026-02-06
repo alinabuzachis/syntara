@@ -109,7 +109,19 @@ export const handlers = [
     const providerList = providers
 
     const body = providerList.find((p) => p.id === providerId)
-    if (!body) return HttpResponse.json({ error: 'Integration not found' }, { status: 404 })
+    if (!body) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/provider-not-found',
+          title: 'Provider Not Found',
+          detail: `Integration with id '${providerId}' not found`,
+          code: 'PROVIDER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/tool_manager/tool_providers/${providerId}`,
+        },
+        { status: 404 }
+      )
+    }
     return HttpResponse.json(body)
   }),
 
@@ -148,7 +160,19 @@ export const handlers = [
   http.get('/api/v1/workflows/:workflowId', (request) => {
     const workflowId = request.params.workflowId
     const body = workflows.find((w) => w.id === workflowId)
-    if (!body) return HttpResponse.json({ error: 'Workflow not found' }, { status: 404 })
+    if (!body) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/workflow-not-found',
+          title: 'Workflow Not Found',
+          detail: `Workflow with id '${workflowId}' not found`,
+          code: 'WORKFLOW_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/workflows/${workflowId}`,
+        },
+        { status: 404 }
+      )
+    }
     return HttpResponse.json(body)
   }),
 
@@ -167,7 +191,19 @@ export const handlers = [
   http.get('/api/v1/executions/:executionId', (request) => {
     const executionId = request.params.executionId
     const body = executions.find((e) => e.id === executionId)
-    if (!body) return HttpResponse.json({ error: 'Execution not found' }, { status: 404 })
+    if (!body) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/execution-not-found',
+          title: 'Execution Not Found',
+          detail: `Execution with id '${executionId}' not found`,
+          code: 'EXECUTION_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/executions/${executionId}`,
+        },
+        { status: 404 }
+      )
+    }
     return HttpResponse.json(body)
   }),
 
@@ -228,14 +264,38 @@ export const handlers = [
   http.get('/api/v1/approvals/:approvalId', (request) => {
     const approvalId = request.params.approvalId
     const body = approvals.find((a) => a.id === approvalId)
-    if (!body) return HttpResponse.json({ error: 'Approval not found' }, { status: 404 })
+    if (!body) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/approval-not-found',
+          title: 'Approval Not Found',
+          detail: `Approval with id '${approvalId}' not found`,
+          code: 'APPROVAL_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/approvals/${approvalId}`,
+        },
+        { status: 404 }
+      )
+    }
     return HttpResponse.json(body)
   }),
 
   http.patch('/api/v1/approvals/:approvalId', async (request) => {
     const approvalId = request.params.approvalId
     const approval = approvals.find((a) => a.id === approvalId)
-    if (!approval) return HttpResponse.json({ error: 'Approval not found' }, { status: 404 })
+    if (!approval) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/approval-not-found',
+          title: 'Approval Not Found',
+          detail: `Approval with id '${approvalId}' not found`,
+          code: 'APPROVAL_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/approvals/${approvalId}`,
+        },
+        { status: 404 }
+      )
+    }
 
     const body = (await request.request.json()) as {
       status: 'approved' | 'rejected' | 'cancelled'
@@ -252,7 +312,17 @@ export const handlers = [
     }
 
     if (approvalData.status && approvalData.status !== 'pending' && approvalData.status !== 'expired') {
-      return HttpResponse.json({ error: 'Approval already decided or workflow cancelled' }, { status: 409 })
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/approval-conflict',
+          title: 'Approval Conflict',
+          detail: 'Approval already decided or workflow cancelled',
+          code: 'APPROVAL_CONFLICT',
+          retryable: false,
+          instance: `/api/v1/approvals/${approvalId}`,
+        },
+        { status: 409 }
+      )
     }
 
     approvalData.status = body.status
@@ -274,7 +344,17 @@ export const handlers = [
     }
 
     if (!body.decisions || body.decisions.length === 0 || body.decisions.length > 100) {
-      return HttpResponse.json({ error: 'Invalid payload: decisions array must contain 1-100 items' }, { status: 400 })
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/validation-error',
+          title: 'Validation Error',
+          detail: 'Invalid payload: decisions array must contain 1-100 items',
+          code: 'VALIDATION_ERROR',
+          retryable: false,
+          instance: '/api/v1/approvals/batch',
+        },
+        { status: 400 }
+      )
     }
 
     const mockUser = { id: '770e8400-e29b-41d4-a716-446655440001', name: 'Current User' }

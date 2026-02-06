@@ -573,6 +573,98 @@ npm run podman:run:nexus-mock-api       # Run API on port 3000
 ./build-multiarch.sh push               # Build and push to registry
 ```
 
+## Error Handling with RFC 9457 Problem Details
+
+The application uses RFC 9457 Problem Details for API error responses:
+
+### Error Format
+
+All API errors follow the RFC 9457 Problem Details format:
+
+```typescript
+{
+  type: "https://api.nexus.com/errors/validation-error",
+  title: "Validation Error",
+  detail: "Field 'name' must be between 1 and 255 characters",
+  code: "VALIDATION_ERROR",
+  retryable: false,
+  instance: "/api/v1/workflows"
+}
+```
+
+### Error Handling Utilities
+
+**Always use error utilities** - never access error fields directly:
+
+```typescript
+import {
+  getErrorMessage,
+  getErrorTitle,
+  getErrorCode,
+  isRetryableError,
+  isServiceUnavailableError,
+  isValidationError,
+  isConflictError,
+} from '../utils/apiErrors'
+
+// ✅ GOOD
+const message = getErrorMessage(error)
+const title = getErrorTitle(error)
+
+// ❌ BAD
+const message = error.detail || error.message // Don't access directly
+```
+
+### Error Codes
+
+| Code                    | HTTP Status | Description                      | Retryable |
+| ----------------------- | ----------- | -------------------------------- | --------- |
+| VALIDATION_ERROR        | 422         | Input validation failed          | No        |
+| WORKFLOW_NAME_CONFLICT  | 409         | Workflow name already exists     | No        |
+| WORKFLOW_DISABLED       | 400         | Cannot execute disabled workflow | No        |
+| PROVIDER_NAME_CONFLICT  | 409         | Provider name already exists     | No        |
+| FILE_TOO_LARGE          | 413         | File exceeds size limit          | No        |
+| LLM_CONFIGURATION_ERROR | 503         | LLM service not configured       | Yes       |
+| TEMPORAL_UNAVAILABLE    | 503         | Workflow engine unavailable      | Yes       |
+| INTERNAL_ERROR          | 500         | Internal server error            | Yes       |
+
+### Retry Support
+
+For retryable errors, pass an `onRetry` callback:
+
+```typescript
+// Query retry support
+const query = workflowClient.useQuery('get', '/workflows')
+const queryState = useQueryState(query, {
+  title: 'Error loading workflows',
+  onRetry: () => query.refetch(),
+})
+
+// Mutation retry support
+const handleError = useMutationErrorHandler()
+const { mutate } = workflowClient.useMutation('post', '/workflows')
+
+mutate(data, {
+  onError: handleError({
+    title: 'Failed to create workflow',
+    onRetryable: () => setShowRetry(true),
+  }),
+})
+```
+
+### Retry Button in Error States
+
+The `ErrorState` component automatically shows a retry button for retryable errors when `onRetry` is provided:
+
+```typescript
+// Retry button appears automatically for 5xx errors or errors with retryable=true
+<ErrorState
+  title="Failed to load data"
+  message={error}
+  onRetry={() => refetch()}
+/>
+```
+
 ## Performance Notes
 
 - React Compiler for automatic optimization

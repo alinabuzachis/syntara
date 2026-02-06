@@ -1,7 +1,13 @@
 import { useCallback } from 'react'
 
 import { useAlerts } from '../components/alerts'
-import { getErrorMessage, getErrorTitle, isServiceUnavailableError, isValidationError } from '../utils/apiErrors'
+import {
+  getErrorMessage,
+  getErrorTitle,
+  isRetryableError,
+  isServiceUnavailableError,
+  isValidationError,
+} from '../utils/apiErrors'
 
 export interface MutationErrorHandlerOptions {
   /** Title for the error alert */
@@ -10,6 +16,8 @@ export interface MutationErrorHandlerOptions {
   context?: string
   /** Custom handler for 503 Service Unavailable errors */
   on503?: () => void
+  /** Custom handler for retryable errors */
+  onRetryable?: () => void
   /**
    * If true, the alert will NOT auto-dismiss (user must dismiss it).
    * If omitted, validation errors (typically 422 / FastAPI detail arrays) default to persistent.
@@ -60,7 +68,7 @@ export function useMutationErrorHandler() {
 
   return useCallback(
     (options: MutationErrorHandlerOptions = {}) => {
-      const { title, context, on503, persist } = options
+      const { title, context, on503, onRetryable, persist } = options
 
       return (error: unknown) => {
         const errorMessage = getErrorMessage(error)
@@ -71,6 +79,9 @@ export function useMutationErrorHandler() {
 
         // Default: keep validation errors visible until user dismisses them.
         const autoDismiss = !(persist ?? isValidationError(error))
+
+        // Check if error is retryable
+        const retryable = isRetryableError(error)
 
         if (isServiceUnavailableError(error)) {
           // 503 errors get a warning (amber) instead of error (red)
@@ -84,6 +95,11 @@ export function useMutationErrorHandler() {
         } else {
           // Regular errors (map 'error' to 'danger' for PatternFly)
           showAlert({ variant: 'danger', title: errorTitle, description: fullMessage, autoDismiss })
+        }
+
+        // Call retryable handler if provided
+        if (retryable && onRetryable) {
+          onRetryable()
         }
       }
     },

@@ -477,28 +477,48 @@ export interface components {
       components['schemas']['SoftDeletableResource'] &
       components['schemas']['UserOwnedResource']
     /**
-     * Error Response
-     * @description Standardized error response structure
+     * RFC 9457 Problem Details
+     * @description RFC 9457 Problem Details format for error responses.
+     *     This format provides machine-readable and human-readable error information
+     *     with consistent structure for all API error responses.
      */
-    Error: {
+    ErrorData: {
       /**
-       * Error Code
-       * @description Error category/code in snake_case format
-       * @example validation_error
+       * Problem Type URI
+       * @description URI reference identifying the problem type
+       * @example https://api.nexus.com/errors/validation-error
        */
-      error: string
+      type: string
       /**
-       * Error Message
-       * @description Human-readable error message
-       * @example The 'name' field is required
+       * Problem Title
+       * @description Short, human-readable summary of the problem
+       * @example Validation Error
        */
-      message: string
+      title: string
       /**
-       * Error Details
-       * @description Additional error details or context
+       * Problem Detail
+       * @description Human-readable explanation specific to this occurrence
        * @example Field 'name' must be between 1 and 255 characters
        */
-      details?: string | null
+      detail: string
+      /**
+       * Error Code
+       * @description Machine-readable error code for programmatic handling
+       * @example VALIDATION_ERROR
+       */
+      code: string
+      /**
+       * Retryable Flag
+       * @description Whether this error can be retried
+       * @example false
+       */
+      retryable: boolean
+      /**
+       * Problem Instance
+       * @description URI reference identifying the specific occurrence
+       * @example /api/v1/workflows
+       */
+      instance?: string | null
     }
   }
   responses: never
@@ -723,7 +743,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -754,7 +774,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Tool not found */
@@ -763,7 +783,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -798,7 +818,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Admin access required */
@@ -807,7 +827,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Tool not found */
@@ -816,7 +836,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -849,7 +869,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Admin access required */
@@ -858,7 +878,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -945,7 +965,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -978,7 +998,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Admin access required */
@@ -987,7 +1007,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Provider name already exists */
@@ -996,7 +1016,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -1027,7 +1047,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Provider not found */
@@ -1036,7 +1056,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -1071,7 +1091,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Admin access required */
@@ -1080,7 +1100,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Provider not found */
@@ -1089,7 +1109,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -1118,7 +1138,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Provider not found */
@@ -1127,7 +1147,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -1162,7 +1182,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Admin access required */
@@ -1171,7 +1191,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Provider not found */
@@ -1180,7 +1200,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -1211,7 +1231,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Provider not found */
@@ -1220,7 +1240,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -1251,7 +1271,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Admin access required */
@@ -1260,7 +1280,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
       /** @description Provider not found */
@@ -1269,7 +1289,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
@@ -1302,7 +1322,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
