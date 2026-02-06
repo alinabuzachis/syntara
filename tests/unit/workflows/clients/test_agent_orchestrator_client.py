@@ -388,6 +388,30 @@ class TestAgentOrchestratorClientRetryLogic:
             assert 0.08 < backoff1 < 0.15  # ~0.1s backoff
             assert 0.18 < backoff2 < 0.25  # ~0.2s backoff (2x first)
 
+    @pytest.mark.asyncio
+    async def test_retry_not_triggered_on_validation_error(self) -> None:
+        """Test that response validation errors (permanent) don't trigger retry."""
+        attempt_count = 0
+
+        async def mock_post_invalid_response(url: str, **kwargs: object) -> MagicMock:
+            nonlocal attempt_count
+            attempt_count += 1
+            # Return response missing required 'id' field
+            return create_mock_http_response(json_data={"status": "pending"})
+
+        async with AgentOrchestratorClient(max_retries=3, retry_backoff_base=0.01) as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post_invalid_response)  # type: ignore[method-assign]
+
+            with pytest.raises(AgentOrchestratorError) as exc_info:
+                await client.invoke_agent_async(
+                    prompt="Test",
+                    user_id="test-user",
+                )
+
+            # Should fail immediately without retry
+            assert exc_info.value.code == ErrorCode.MISSING_FIELD
+            assert attempt_count == 1  # No retries for validation errors
+
 
 class TestAgentOrchestratorClientResponseValidation:
     """Test suite for response validation."""
@@ -617,6 +641,55 @@ class TestAgentOrchestratorClientEdgeCases:
         assert captured_payload["contextData"]["file_ids"] == ["file1", "file2"]
         assert captured_payload["contextData"]["metadata"] == {"custom": "data"}
 
+    @pytest.mark.asyncio
+    async def test_correlation_id_from_metadata_fallback(self) -> None:
+        """Test that correlation_id falls back to metadata.correlation_id when not provided."""
+        captured_payload: dict[str, Any] = {}
+        metadata_correlation_id = "from-metadata-123"
+
+        mock_post = create_payload_capturing_mock(captured_payload)
+
+        async with AgentOrchestratorClient() as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post)  # type: ignore[method-assign]
+
+            await client.invoke_agent_async(
+                prompt="Test",
+                user_id="test-user",
+                metadata={"correlation_id": metadata_correlation_id, "other": "value"},
+            )
+
+        # Should use correlation_id from metadata
+        assert captured_payload["contextData"]["correlation_id"] == metadata_correlation_id
+        # Metadata should still contain all original keys (correlation_id is not removed)
+        assert captured_payload["contextData"]["metadata"] == {
+            "correlation_id": metadata_correlation_id,
+            "other": "value",
+        }
+
+    @pytest.mark.asyncio
+    async def test_correlation_id_explicit_overrides_metadata(self) -> None:
+        """Test that explicit correlation_id parameter takes precedence over metadata."""
+        captured_payload: dict[str, Any] = {}
+        explicit_correlation_id = "explicit-123"
+        metadata_correlation_id = "from-metadata-456"
+
+        mock_post = create_payload_capturing_mock(captured_payload)
+
+        async with AgentOrchestratorClient() as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post)  # type: ignore[method-assign]
+
+            await client.invoke_agent_async(
+                prompt="Test",
+                user_id="test-user",
+                correlation_id=explicit_correlation_id,
+                metadata={"correlation_id": metadata_correlation_id},
+            )
+
+        # Should use explicit correlation_id, not the one from metadata
+        assert captured_payload["contextData"]["correlation_id"] == explicit_correlation_id
+        # Metadata correlation_id remains (it's not removed, just not used for top-level)
+        assert captured_payload["contextData"]["metadata"]["correlation_id"] == metadata_correlation_id
+
 
 class TestAgentOrchestratorClientConfiguration:
     """Test suite for client configuration."""
@@ -663,3 +736,327 @@ class TestAgentOrchestratorClientConfiguration:
         assert client.base_url == "http://test.com/api/v1"
 
         await client.close()
+
+
+class TestAgentOrchestratorClientErrorHandling:
+    """Test suite for error handling and error conversion."""
+
+    @pytest.mark.asyncio
+    async def test_json_decode_error_raises_unexpected_error(self) -> None:
+        """Test that non-JSON response raises AgentOrchestratorError with UNEXPECTED_ERROR code."""
+
+        async def mock_post_invalid_json(url: str, **kwargs: object) -> MagicMock:
+            response = MagicMock()
+            response.json.side_effect = ValueError("Invalid JSON")
+            response.raise_for_status = MagicMock()
+            return response
+
+        async with AgentOrchestratorClient() as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post_invalid_json)  # type: ignore[method-assign]
+
+            with pytest.raises(AgentOrchestratorError) as exc_info:
+                await client.invoke_agent_async(
+                    prompt="Test",
+                    user_id="test-user",
+                )
+
+            assert exc_info.value.code == ErrorCode.UNEXPECTED_ERROR
+            assert "ValueError" in exc_info.value.message
+
+    @pytest.mark.asyncio
+    async def test_agentorchestrator_error_re_raised_unchanged(self) -> None:
+        """Test that AgentOrchestratorError instances are re-raised without modification."""
+        original_error = AgentOrchestratorError(
+            "Original error message",
+            code=ErrorCode.MISSING_FIELD,
+            details="Original details",
+        )
+
+        async def mock_post_raises_orchestrator_error(url: str, **kwargs: object) -> MagicMock:
+            raise original_error
+
+        async with AgentOrchestratorClient() as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post_raises_orchestrator_error)  # type: ignore[method-assign]
+
+            with pytest.raises(AgentOrchestratorError) as exc_info:
+                await client.invoke_agent_async(
+                    prompt="Test",
+                    user_id="test-user",
+                )
+
+            # Verify it's the same error instance with unchanged properties
+            assert exc_info.value.code == ErrorCode.MISSING_FIELD
+            assert exc_info.value.message == "Original error message"
+            assert exc_info.value.details == "Original details"
+
+    @pytest.mark.asyncio
+    async def test_unexpected_exception_converted_to_orchestrator_error(self) -> None:
+        """Test that unexpected exceptions (non-HTTP) are converted to AgentOrchestratorError."""
+
+        async def mock_post_raises_value_error(url: str, **kwargs: object) -> MagicMock:
+            raise ValueError("Unexpected error")  # noqa: EM101, TRY003
+
+        async with AgentOrchestratorClient() as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post_raises_value_error)  # type: ignore[method-assign]
+
+            with pytest.raises(AgentOrchestratorError) as exc_info:
+                await client.invoke_agent_async(
+                    prompt="Test",
+                    user_id="test-user",
+                )
+
+            assert exc_info.value.code == ErrorCode.UNEXPECTED_ERROR
+            assert "ValueError" in exc_info.value.message
+            assert "Unexpected error" in exc_info.value.message
+
+    @pytest.mark.asyncio
+    async def test_http_server_error_exhausts_retries(self) -> None:
+        """Test that 5xx errors persisting through all retries raise appropriate error."""
+
+        async def mock_post_always_500(url: str, **kwargs: object) -> MagicMock:
+            response = MagicMock()
+            response.status_code = 500
+            response.text = "Internal Server Error"
+            error = httpx.HTTPStatusError("500 Server Error", request=MagicMock(), response=response)
+            return create_mock_http_response(status_code=500, raise_for_status_error=error)
+
+        async with AgentOrchestratorClient(max_retries=2, retry_backoff_base=0.01) as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post_always_500)  # type: ignore[method-assign]
+
+            with pytest.raises(AgentOrchestratorError) as exc_info:
+                await client.invoke_agent_async(
+                    prompt="Test",
+                    user_id="test-user",
+                )
+
+            assert exc_info.value.code == ErrorCode.HTTP_SERVER_ERROR
+            assert "HTTP 500" in exc_info.value.message
+            # Verify retries were exhausted
+            assert client.http_client.post.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_timeout_error_exhausts_retries(self) -> None:
+        """Test that TimeoutException persisting through all retries raises ConnectionError."""
+
+        async def mock_post_always_timeout(url: str, **kwargs: object) -> MagicMock:
+            raise httpx.TimeoutException("Request timeout")  # noqa: EM101, TRY003
+
+        async with AgentOrchestratorClient(max_retries=2, retry_backoff_base=0.01) as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post_always_timeout)  # type: ignore[method-assign]
+
+            with pytest.raises(AgentOrchestratorConnectionError) as exc_info:
+                await client.invoke_agent_async(
+                    prompt="Test",
+                    user_id="test-user",
+                )
+
+            assert exc_info.value.code == ErrorCode.CONNECTION_FAILED
+            assert "Failed to connect" in exc_info.value.message
+            # Verify retries were exhausted
+            assert client.http_client.post.call_count == 2
+
+
+class TestAgentOrchestratorClientStateManagement:
+    """Test suite for client state management and reusability."""
+
+    @pytest.mark.asyncio
+    async def test_multiple_invocations_with_same_client(self) -> None:
+        """Test that client can be reused for multiple sequential invocations without state pollution."""
+        invocation_count = 0
+        invocation_ids = []
+
+        async def mock_post_sequential(url: str, **kwargs: object) -> MagicMock:
+            nonlocal invocation_count
+            invocation_count += 1
+            invocation_id = f"inv_test_{invocation_count}"
+            invocation_ids.append(invocation_id)
+            return create_mock_http_response(
+                json_data={
+                    "id": invocation_id,
+                    "status": "completed",
+                    "result": {"answer": f"Response {invocation_count}"},
+                }
+            )
+
+        async with AgentOrchestratorClient() as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post_sequential)  # type: ignore[method-assign]
+
+            # First invocation
+            id1 = await client.invoke_agent_async(
+                prompt="First prompt",
+                user_id="test-user",
+            )
+
+            # Second invocation
+            id2 = await client.invoke_agent_async(
+                prompt="Second prompt",
+                user_id="test-user",
+            )
+
+        # Both should succeed with unique IDs
+        assert id1 != id2
+        assert set(invocation_ids) == {id1, id2}
+
+    @pytest.mark.asyncio
+    async def test_concurrent_invocations(self) -> None:
+        """Test that multiple concurrent invocations work correctly (thread safety)."""
+        call_count = 0
+
+        async def mock_post_concurrent(url: str, **kwargs: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            # Capture the ID before async delay to ensure uniqueness
+            invocation_id = f"inv_concurrent_{call_count}"
+            # Simulate async delay
+            await asyncio.sleep(0.01)
+            return create_mock_http_response(
+                json_data={
+                    "id": invocation_id,
+                    "status": "completed",
+                    "result": {"answer": "Test response"},
+                }
+            )
+
+        async with AgentOrchestratorClient() as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post_concurrent)  # type: ignore[method-assign]
+
+            # Launch 3 concurrent invocations
+            results = await asyncio.gather(
+                client.invoke_agent_async(prompt="Prompt 1", user_id="test-user"),
+                client.invoke_agent_async(prompt="Prompt 2", user_id="test-user"),
+                client.invoke_agent_async(prompt="Prompt 3", user_id="test-user"),
+            )
+
+        # All should complete successfully
+        assert len(results) == 3
+        assert all(result.startswith("inv_concurrent_") for result in results)
+        # All should have unique IDs
+        assert len(set(results)) == 3
+
+
+class TestAgentOrchestratorClientLogging:
+    """Test suite for logging behavior and security."""
+
+    @pytest.mark.asyncio
+    async def test_prompt_length_logged_not_content(self) -> None:
+        """Test that prompt length is logged but sensitive prompt content is NOT leaked to logs."""
+        sensitive_prompt = "SECRET_API_KEY=12345 and PASSWORD=secret"
+        mock_post = create_simple_mock_post()
+
+        with patch("nexus.workflows.clients.agent_orchestrator_client.logger") as mock_logger:
+            async with AgentOrchestratorClient() as client:
+                client.http_client.post = AsyncMock(side_effect=mock_post)  # type: ignore[method-assign]
+
+                await client.invoke_agent_async(
+                    prompt=sensitive_prompt,
+                    user_id="test-user",
+                )
+
+            # Verify logger.info was called for invocation (second call after client init)
+            assert mock_logger.info.call_count >= 2
+            invocation_call_args = mock_logger.info.call_args_list[1]
+
+            # Check that prompt_length is logged (structlog uses keyword arguments)
+            assert invocation_call_args[0][0] == "Invoking agent asynchronously"
+            assert "prompt_length" in invocation_call_args[1]
+            assert invocation_call_args[1]["prompt_length"] == len(sensitive_prompt)
+
+            # CRITICAL: Verify sensitive prompt content is NOT in any log calls
+            all_log_calls = (
+                mock_logger.debug.call_args_list + mock_logger.info.call_args_list + mock_logger.warning.call_args_list
+            )
+            for call_args in all_log_calls:
+                log_message = str(call_args)
+                assert "SECRET_API_KEY" not in log_message
+                assert "PASSWORD=secret" not in log_message
+                assert sensitive_prompt not in log_message
+
+
+class TestAgentOrchestratorClientPayloadConstruction:
+    """Test suite for payload construction with complex data."""
+
+    @pytest.mark.asyncio
+    async def test_special_characters_in_prompt(self) -> None:
+        """Test that prompts with special characters, unicode, and newlines are handled correctly."""
+        special_prompt = 'Test with "quotes", \n newlines, and emoji 🚀 and unicode: ñ'
+        captured_payload: dict[str, Any] = {}
+
+        mock_post = create_payload_capturing_mock(captured_payload)
+
+        async with AgentOrchestratorClient() as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post)  # type: ignore[method-assign]
+
+            await client.invoke_agent_async(
+                prompt=special_prompt,
+                user_id="test-user",
+            )
+
+        # Verify prompt is correctly included in payload
+        assert captured_payload["prompt"] == special_prompt
+        # Verify all special characters are preserved
+        assert '"quotes"' in captured_payload["prompt"]
+        assert "\n" in captured_payload["prompt"]
+        assert "🚀" in captured_payload["prompt"]
+        assert "ñ" in captured_payload["prompt"]
+
+    @pytest.mark.asyncio
+    async def test_deeply_nested_input_data(self) -> None:
+        """Test that complex nested data structures in input_data are handled correctly."""
+        complex_input = {
+            "level1": {
+                "level2": {
+                    "level3": [
+                        1,
+                        2,
+                        {"key": "value", "nested_list": [{"a": 1}, {"b": 2}]},
+                    ]
+                },
+                "another_field": "value",
+            },
+            "array": [1, 2, 3],
+        }
+        captured_payload: dict[str, Any] = {}
+
+        mock_post = create_payload_capturing_mock(captured_payload)
+
+        async with AgentOrchestratorClient() as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post)  # type: ignore[method-assign]
+
+            await client.invoke_agent_async(
+                prompt="Test",
+                user_id="test-user",
+                input_data=complex_input,
+            )
+
+        # Verify complex structure is preserved in contextData
+        assert captured_payload["contextData"]["input_data"] == complex_input
+        # Spot check nested values
+        assert captured_payload["contextData"]["input_data"]["level1"]["level2"]["level3"][2]["key"] == "value"
+
+    @pytest.mark.asyncio
+    async def test_metadata_with_reserved_keys(self) -> None:
+        """Test that metadata with reserved contextData keys doesn't cause collisions."""
+        captured_payload: dict[str, Any] = {}
+
+        mock_post = create_payload_capturing_mock(captured_payload)
+
+        async with AgentOrchestratorClient() as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post)  # type: ignore[method-assign]
+
+            await client.invoke_agent_async(
+                prompt="Test",
+                user_id="test-user",
+                input_data={"real": "input"},
+                metadata={
+                    "input_data": "metadata_input",  # Reserved key
+                    "model": "metadata_model",  # Reserved key
+                    "custom": "value",
+                },
+            )
+
+        # Top-level input_data should be from the actual parameter, not metadata
+        assert captured_payload["contextData"]["input_data"] == {"real": "input"}
+        # Metadata should be nested and contain its own keys
+        assert captured_payload["contextData"]["metadata"]["input_data"] == "metadata_input"
+        assert captured_payload["contextData"]["metadata"]["model"] == "metadata_model"
+        assert captured_payload["contextData"]["metadata"]["custom"] == "value"
