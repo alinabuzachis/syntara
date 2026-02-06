@@ -107,9 +107,9 @@ paths:
         '400':
           description: Bad Request - Validation or file processing error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
               examples:
                 validation:
                   summary: Standard validation error
@@ -134,17 +134,17 @@ paths:
         '401':
           description: Unauthorized
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
         '500':
           $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
         '503':
           description: Service Unavailable - LLM provider not configured
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
               examples:
                 openrouterNotConfigured:
                   summary: OpenRouter API key not configured
@@ -357,21 +357,21 @@ paths:
                     result:
                     error_message: GenericAgent not configured. Set NEXUS_OPENROUTER_API_KEY environment variable.
                     checkpointData:
-        '400':
-          description: Invalid UUID format
+        '422':
+          description: Invalid UUID format or validation error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
               example:
-                error: Invalid UUID format
+                error: Validation Error
                 detail: Invalid UUID provided (not-a-uuid)
         '404':
           description: Invocation not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
               example:
                 error: Not Found
                 detail: Invocation 550e8400-e29b-41d4-a716-446655440000 not found
@@ -427,27 +427,27 @@ paths:
                   value:
                     success: true
                     message: Invocation 550e8400-e29b-41d4-a716-446655440000 cancelled successfully
-        '400':
-          description: Invalid UUID format
+        '422':
+          description: Invalid UUID format or validation error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
               examples:
                 invalid_uuid:
                   summary: Invalid UUID format
                   value:
-                    type: https://nexus.example.com/errors/validation
-                    title: Invalid Request Format
-                    status: 400
+                    type: https://nexus.example.com/errors/validation-error
+                    title: Validation Error
+                    status: 422
                     detail: 'Invalid UUID format: abc123'
                     instance: /api/v1/invocations/abc123/cancel
         '404':
           description: Invocation not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
               examples:
                 not_found:
                   summary: Invocation not found
@@ -460,9 +460,9 @@ paths:
         '409':
           description: Invocation cannot be cancelled (wrong state)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
               examples:
                 wrong_state:
                   summary: Invocation not in cancellable state
@@ -475,9 +475,9 @@ paths:
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
               examples:
                 server_error:
                   summary: Internal server error

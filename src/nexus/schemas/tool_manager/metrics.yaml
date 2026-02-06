@@ -109,9 +109,9 @@ paths:
         '403':
           description: Admin access required
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   /metrics/executions:
     get:
@@ -196,9 +196,9 @@ paths:
         '403':
           description: Admin access required
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   /rate-limits:
     get:
@@ -283,9 +283,9 @@ paths:
         '403':
           description: Admin access required
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
     post:
       summary: Create rate limit configuration
@@ -306,15 +306,15 @@ paths:
         '400':
           description: Invalid rate limit configuration
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
         '403':
           description: Admin access required
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   /rate-limits/{limit_id}:
     get:
@@ -337,15 +337,15 @@ paths:
         '403':
           description: Admin access required
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
         '404':
           description: Rate limit not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
     put:
       summary: Update rate limit configuration
@@ -373,21 +373,21 @@ paths:
         '400':
           description: Invalid rate limit configuration
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
         '403':
           description: Admin access required
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
         '404':
           description: Rate limit not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
     delete:
       summary: Delete rate limit configuration
@@ -405,15 +405,15 @@ paths:
         '403':
           description: Admin access required
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
         '404':
           description: Rate limit not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
 components:
   schemas:

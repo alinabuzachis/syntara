@@ -67,16 +67,16 @@ class TestToolProvidersCreateContract:
         # Contract: Must return 422 Unprocessable
         assert response.status_code == 422
         data = response.json()
+
+        # New RFC 9457 Problem Details format
         assert "detail" in data
-        assert isinstance(data["detail"], list)
-        details: list[Any] = data["detail"]
-        assert len(details) == 1
-        assert isinstance(details[0], dict)
-        result: dict[str, Any] = details[0]
-        assert "loc" in result
-        assert result.get("loc") == ["body", "description"]
-        assert "msg" in result
-        assert "String should have at most 2000 characters" in result.get("msg", "")
+        assert isinstance(data["detail"], str)
+        assert "body -> description: String should have at most 2000 characters" in data["detail"]
+
+        # Check RFC 9457 fields
+        assert "type" in data
+        assert "title" in data
+        assert "code" in data
 
     @pytest.mark.asyncio
     async def test_create_provider_without_api_key_success_contract(
@@ -269,10 +269,13 @@ class TestToolProvidersCreateContract:
         # Contract: Must return 400 Bad Request for non-name-conflict IntegrityError
         assert response.status_code == 400
 
-        # Contract: Must return error message with IntegrityError details
+        # Contract: Must return RFC 9457 format with IntegrityError details
         data = response.json()
-        error_message = str(data.get("error", data.get("detail", "")))
-        assert "CHECK constraint failed" in error_message
+        assert data["type"] == "https://api.nexus.com/errors/integrity-constraint"
+        assert data["title"] == "Integrity Constraint Violation"
+        assert data["code"] == "INTEGRITY_CONSTRAINT_VIOLATION"
+        assert data["retryable"] is False
+        assert data["detail"] == "A database constraint was violated - please check your input data"
 
     @pytest.mark.asyncio
     async def test_create_provider_validation_status_contract(

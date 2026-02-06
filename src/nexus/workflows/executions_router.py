@@ -4,19 +4,13 @@ from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.service import RPCError
 
 from nexus.api.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
-from nexus.workflows.exceptions import (
-    ExecutionNotFoundError,
-    TemporalUnavailableError,
-    WorkflowDisabledError,
-    WorkflowNotFoundError,
-)
 from nexus.workflows.models import ActivitySignalPayload, ExecutionListParams, SignalResponse
 from nexus.workflows.models.activity_execution import ActivityExecution
 from nexus.workflows.models.execution import (
@@ -109,19 +103,13 @@ async def list_executions(
 
     """
     # Use unified list method with query parameters
-    try:
-        return await service.list_executions(
-            limit=params.limit,
-            cursor=params.cursor,
-            sort=params.sort,
-            query_params_items=request.query_params.items(),
-            include_total=params.include_total,
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(e),
-        ) from e
+    return await service.list_executions(
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        query_params_items=request.query_params.items(),
+        include_total=params.include_total,
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -159,29 +147,11 @@ async def create_execution(
         user_id=current_user.id,
     )
 
-    try:
-        execution: ExecutionRead = await service.create_execution(
-            workflow_id=request.workflow_id,
-            input_data=request.input_data,
-        )
-        return execution
-
-    except WorkflowNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
-    except WorkflowDisabledError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
-    except Exception as e:
-        logger.exception("Failed to create execution")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create execution: {e}",
-        ) from e
+    execution: ExecutionRead = await service.create_execution(
+        workflow_id=request.workflow_id,
+        input_data=request.input_data,
+    )
+    return execution
 
 
 @router.get("/{execution_id}")
@@ -204,15 +174,8 @@ async def get_execution(
         HTTPException: 404 if execution not found
 
     """
-    try:
-        include_set = include_params.get_include_set()
-        return await service.get_execution(execution_id, include=include_set)
-
-    except ExecutionNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
+    include_set = include_params.get_include_set()
+    return await service.get_execution(execution_id, include=include_set)
 
 
 @router.get("/{execution_id}/activities")
@@ -239,19 +202,7 @@ async def list_execution_activities(
     """
     logger.info("Listing activities for execution", execution_id=execution_id)
 
-    try:
-        return await service.get_execution_activities(execution_id)
-    except ExecutionNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
-    except Exception as e:
-        logger.exception("Failed to list activities for execution", execution_id=execution_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list activities: {e}",
-        ) from e
+    return await service.get_execution_activities(execution_id)
 
 
 @router.post("/{execution_id}/activities/{activity_id}/signal")
@@ -288,33 +239,12 @@ async def signal_activity(
         execution_id=execution_id,
     )
 
-    try:
-        await service.send_activity_signal(
-            execution_id=execution_id,
-            activity_id=activity_id,
-            signal_data=payload.signal_data,
-        )
-        return SignalResponse(
-            status="signal_sent",
-            message=f"Signal sent to activity {activity_id}",
-        )
-    except ExecutionNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
-    except TemporalUnavailableError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e),
-        ) from e
-    except Exception as e:
-        logger.exception(
-            "Failed to send signal to activity in execution",
-            activity_id=activity_id,
-            execution_id=execution_id,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to send signal: {e}",
-        ) from e
+    await service.send_activity_signal(
+        execution_id=execution_id,
+        activity_id=activity_id,
+        signal_data=payload.signal_data,
+    )
+    return SignalResponse(
+        status="signal_sent",
+        message=f"Signal sent to activity {activity_id}",
+    )

@@ -260,10 +260,13 @@ class TestToolProvidersPatchContract:
         # Contract: Must return 400 Bad Request for non-name-conflict IntegrityError
         assert response.status_code == 400
 
-        # Contract: Must return error message with IntegrityError details
+        # Contract: Must return RFC 9457 format with IntegrityError details
         data = response.json()
-        error_message = str(data.get("error", data.get("detail", "")))
-        assert "CHECK constraint failed" in error_message
+        assert data["type"] == "https://api.nexus.com/errors/integrity-constraint"
+        assert data["title"] == "Integrity Constraint Violation"
+        assert data["code"] == "INTEGRITY_CONSTRAINT_VIOLATION"
+        assert data["retryable"] is False
+        assert data["detail"] == "A database constraint was violated - please check your input data"
 
     @pytest.mark.asyncio
     async def test_patch_provider_without_enabled_preserves_existing_value_contract(

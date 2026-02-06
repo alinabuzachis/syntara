@@ -525,8 +525,7 @@ class TestToolProvidersListContract:
         # Contract: Must return error details
         data = response.json()
         assert "detail" in data
-        assert "Invalid value 'nonexistent'" in data["detail"]
-        assert "Valid values are:" in data["detail"]
+        assert "Invalid input value" in data["detail"]
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_providers")

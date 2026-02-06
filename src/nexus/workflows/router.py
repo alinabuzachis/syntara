@@ -4,18 +4,12 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import ValidationError as PydanticValidationError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
-from nexus.workflows.exceptions import (
-    WorkflowNameConflictError,
-    WorkflowNotFoundError,
-    WorkflowVersionNotFoundError,
-)
 from nexus.workflows.models import WorkflowListParams
 from nexus.workflows.models.workflow import (
     Workflow,
@@ -32,7 +26,6 @@ from nexus.workflows.models.workflow_version import (
 )
 from nexus.workflows.services import WorkflowService
 from nexus.workflows.utils.serialization import deserialize_workflow_version
-from nexus.workflows.validators import ValidationError
 
 router = APIRouter(prefix="/workflows", tags=["workflows", "workflow-versions"])
 
@@ -86,30 +79,14 @@ async def create_workflow(
         HTTPException: 400 if validation fails or name already exists
 
     """
-    try:
-        workflow, _ = await service.create_workflow(
-            name=request.name,
-            description=request.description,
-            labels=request.labels,
-            workflow_definition=request.workflow_definition,
-            is_enabled=request.is_enabled,
-        )
-        return workflow
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=e.message,
-        ) from e
-    except WorkflowNameConflictError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
-    except PydanticValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(e),
-        ) from e
+    workflow, _ = await service.create_workflow(
+        name=request.name,
+        description=request.description,
+        labels=request.labels,
+        workflow_definition=request.workflow_definition,
+        is_enabled=request.is_enabled,
+    )
+    return workflow
 
 
 @router.get("")
@@ -136,19 +113,13 @@ async def list_workflows(
         WorkflowListResponse with workflows, pagination metadata, and optional total
 
     """
-    try:
-        return await service.list_workflows_cursor(
-            limit=params.limit,
-            cursor=params.cursor,
-            sort=params.sort,
-            query_params_items=request.query_params.items(),
-            include_total=params.include_total,
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(e),
-        ) from e
+    return await service.list_workflows_cursor(
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        query_params_items=request.query_params.items(),
+        include_total=params.include_total,
+    )
 
 
 @router.get("/{workflow_id}")
@@ -169,18 +140,7 @@ async def get_workflow(
         HTTPException: 404 if workflow not found or deleted
 
     """
-    try:
-        workflow, current_version = await service.get_workflow_with_version(workflow_id)
-    except WorkflowNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=WORKFLOW_NOT_FOUND,
-        ) from e
-    except WorkflowVersionNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Current version {e.version} not found",
-        ) from e
+    workflow, current_version = await service.get_workflow_with_version(workflow_id)
 
     # Return workflow with version data - deserialize workflow_definition from JSON
     return WorkflowReadWithVersion.model_validate(
@@ -226,36 +186,15 @@ async def update_workflow(
         HTTPException: 404 if workflow not found, 400 for validation errors
 
     """
-    try:
-        workflow, current_version = await service.update_workflow(
-            workflow_id=workflow_id,
-            name=request.name,
-            description=request.description,
-            labels=request.labels,
-            is_enabled=request.is_enabled,
-            workflow_definition=request.workflow_definition,
-            change_description=request.change_description,
-        )
-    except WorkflowNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=WORKFLOW_NOT_FOUND,
-        ) from e
-    except WorkflowNameConflictError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=e.message,
-        ) from e
-    except PydanticValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(e),
-        ) from e
+    workflow, current_version = await service.update_workflow(
+        workflow_id=workflow_id,
+        name=request.name,
+        description=request.description,
+        labels=request.labels,
+        is_enabled=request.is_enabled,
+        workflow_definition=request.workflow_definition,
+        change_description=request.change_description,
+    )
 
     # Return workflow with version data - deserialize workflow_definition from JSON
     return WorkflowReadWithVersion.model_validate(
@@ -291,13 +230,7 @@ async def delete_workflow(
         HTTPException: 404 if workflow not found
 
     """
-    try:
-        await service.delete_workflow(workflow_id)
-    except WorkflowNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=WORKFLOW_NOT_FOUND,
-        ) from e
+    await service.delete_workflow(workflow_id)
 
 
 # ============================================================================

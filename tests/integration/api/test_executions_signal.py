@@ -170,7 +170,7 @@ class TestSignalActivity:
         data = response.json()
         assert "detail" in data
         # Validation error should mention signal_data
-        assert any("signal_data" in str(error) for error in data["detail"])
+        assert "signal_data" in data["detail"]
 
     async def test_signal_activity_invalid_signal_data_type_returns_422(
         self,

@@ -101,15 +101,42 @@ paths:
         '400':
           description: Invalid workflow definition
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Invalid workflow definition
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Name conflict - workflow with this name already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+              example:
+                type: https://api.nexus.com/errors/name-conflict
+                title: Workflow Name Conflict
+                detail: A workflow with this name already exists
+                code: WORKFLOW_NAME_CONFLICT
+                retryable: false
+                instance: /api/v1/workflows
         '422':
           description: Validation error (e.g., invalid label types)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field validation failed
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
 
   /workflows/{workflow_id}:
     get:
@@ -133,9 +160,9 @@ paths:
         '404':
           description: Workflow not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
     patch:
       summary: Update workflow
       description: |
@@ -163,24 +190,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkflowWithVersion'
-        '404':
-          description: Workflow not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '400':
           description: Invalid workflow definition or validation error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '404':
+          description: Workflow not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '409':
+          description: Name conflict - workflow with this name already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
         '422':
           description: Validation error (e.g., invalid label types)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
     delete:
       summary: Delete workflow (soft delete)
       description: Soft delete a workflow by setting deleted_at and deleted_by fields. The workflow remains in the database for audit purposes but is excluded from normal queries.
@@ -198,15 +231,15 @@ paths:
         '404':
           description: Workflow not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
         '409':
           description: Workflow cannot be deleted (has running executions)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   /workflows/{workflow_id}/versions:
     get:
@@ -248,9 +281,9 @@ paths:
         '404':
           description: Workflow not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   /workflows/{workflow_id}/versions/{version}:
     get:
@@ -281,9 +314,9 @@ paths:
         '404':
           description: Workflow or version not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   # Note: Approval endpoints are in a separate API
   # See: src/nexus/schemas/approvals/approvals-api.yaml
@@ -388,9 +421,6 @@ components:
 
     PatchWorkflowRequest:
       $ref: ./shared-schemas.yaml#/components/schemas/PatchWorkflowRequest
-
-    Error:
-      $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
 
   securitySchemes:
     bearerAuth:

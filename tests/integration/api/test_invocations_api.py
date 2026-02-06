@@ -29,8 +29,12 @@ async def test_invoke_returns_503_when_openrouter_not_configured(
 
     assert response.status_code == 503
     data = response.json()
-    assert data["error"] == "service_unavailable"
-    assert "OPENROUTER_API_KEY" in data["message"]
+    # RFC 9457 format
+    assert data["type"] == "https://api.nexus.com/errors/service-unavailable"
+    assert data["title"] == "LLM Configuration Error"
+    assert data["code"] == "LLM_CONFIGURATION_ERROR"
+    assert data["retryable"] is False
+    assert data["detail"] == "Language model service is not properly configured"
 
 
 @pytest.mark.asyncio

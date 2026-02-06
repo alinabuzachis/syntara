@@ -148,7 +148,7 @@ async def test_patch_workflow_labels_not_strings(base_client: AsyncClient) -> No
     assert response.status_code == 422
     data = response.json()
     assert "detail" in data
-    assert "validation error for Workflow" in data["detail"]
+    assert "Validation failed" in data["detail"]
     assert "labels value for key 'env' must be a string" in data["detail"]
 
 
@@ -457,9 +457,11 @@ async def test_patch_workflow_duplicate_name_error(base_client: AsyncClient) -> 
     update_data = {"name": "workflow-one"}
     response = await base_client.patch(f"/api/v1/workflows/{workflow2_id}", json=update_data)
 
-    # Should return 400 Bad Request (user error), not 500 (server error)
-    assert response.status_code == 400
-    assert "already exists" in response.json()["detail"].lower()
+    # Should return 409 Conflict for duplicate name
+    assert response.status_code == 409
+    data = response.json()
+    assert "title" in data
+    assert data["title"] == "Workflow Name Conflict"
 
     # Verify workflow1 is unchanged
     get_response = await base_client.get(f"/api/v1/workflows/{workflow1_id}")

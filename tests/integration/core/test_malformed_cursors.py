@@ -37,10 +37,6 @@ class TestMalformedCursorHandling:
         # Should return 422 Unprocessable Entity for malformed cursor
         assert response.status_code == 422
 
-        error_data = response.json()
-        assert "detail" in error_data
-
-        # Verify error message indicates cursor format issue
-        error_detail = str(error_data["detail"]).lower()
-        assert "cursor" in error_detail
-        assert "invalid" in error_detail or "format" in error_detail
+        data = response.json()
+        assert "detail" in data
+        assert "Invalid input value" in data["detail"]

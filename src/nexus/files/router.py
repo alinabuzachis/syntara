@@ -29,7 +29,6 @@ from nexus.core.models import User
 from nexus.core.utils.session_factory import create_session_factory_from_request
 from nexus.files import FileManager, get_file_manager
 from nexus.files.document_conversion.tasks import DocumentConversionTask
-from nexus.files.validators import ValidationError as FileValidationError
 
 router = APIRouter(prefix="/files", tags=["Files"])
 logger = structlog.stdlib.get_logger(__name__)
@@ -128,62 +127,41 @@ async def upload_files(
             detail="At least one file must be provided",
         )
 
-    try:
-        # Validate and save files (returns in-memory FileMetadata objects)
-        file_metadata_list = await file_manager.validate_and_save_files(files)
+    # Validate and save files (returns in-memory FileMetadata objects)
+    file_metadata_list = await file_manager.validate_and_save_files(files)
 
-        # Persist FileMetadata records to database
-        for metadata in file_metadata_list:
-            db.add(metadata)
+    # Persist FileMetadata records to database
+    for metadata in file_metadata_list:
+        db.add(metadata)
 
-        await db.commit()
+    await db.commit()
 
-        # Refresh to get database-assigned values
-        for metadata in file_metadata_list:
-            await db.refresh(metadata)
+    # Refresh to get database-assigned values
+    for metadata in file_metadata_list:
+        await db.refresh(metadata)
 
-        # Schedule document conversion for each file as a background task (AAP-60780)
-        # This enables pre-conversion so files are ready when attached to invocations
-        for metadata in file_metadata_list:
-            logger.info(
-                "Scheduling document conversion for standalone file upload",
-                file_id=metadata.id,
-            )
-            background_tasks.add_task(document_conversion_task.convert, metadata.id)
-
-        # Build response (exclude file_path for security)
-        file_upload_infos = [
-            FileUploadInfo(
-                file_id=str(metadata.id),
-                filename=metadata.filename,
-                size_bytes=metadata.size_bytes,
-                mime_type=metadata.mime_type,
-                status=metadata.status.value,
-            )
-            for metadata in file_metadata_list
-        ]
-
-        return FileUploadResponse(
-            file_ids=[str(m.id) for m in file_metadata_list],
-            files=file_upload_infos,
+    # Schedule document conversion for each file as a background task (AAP-60780)
+    # This enables pre-conversion so files are ready when attached to invocations
+    for metadata in file_metadata_list:
+        logger.info(
+            "Scheduling document conversion for standalone file upload",
+            file_id=metadata.id,
         )
+        background_tasks.add_task(document_conversion_task.convert, metadata.id)
 
-    except FileValidationError as e:
-        logger.warning("File validation error", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
-    except OSError as e:
-        # Storage failures (disk full, permission denied, I/O errors) - 500 Internal Server Error
-        logger.exception("File storage error during upload")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process file upload",
-        ) from e
-    except Exception as e:
-        logger.exception("Unexpected error during file upload")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
-        ) from e
+    # Build response (exclude file_path for security)
+    file_upload_infos = [
+        FileUploadInfo(
+            file_id=str(metadata.id),
+            filename=metadata.filename,
+            size_bytes=metadata.size_bytes,
+            mime_type=metadata.mime_type,
+            status=metadata.status.value,
+        )
+        for metadata in file_metadata_list
+    ]
+
+    return FileUploadResponse(
+        file_ids=[str(m.id) for m in file_metadata_list],
+        files=file_upload_infos,
+    )

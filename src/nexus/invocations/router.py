@@ -19,11 +19,9 @@ from fastapi import (
     UploadFile,
     status,
 )
-from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
-from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.agent_orchestrator.models import (
     Invocation,
     InvocationCancelRequest,
@@ -38,14 +36,9 @@ from nexus.api.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.utils.session_factory import create_session_factory_from_request
-from nexus.files.validators import (
-    ValidationError as FileValidationError,
-)
 
 router = APIRouter(prefix="/invocations", tags=["Invocation"])
 logger = structlog.stdlib.get_logger(__name__)
-
-INTERNAL_SERVER_ERROR: str = "Internal server error"
 
 # ============================================================================
 # Dependency Injection Providers
@@ -161,96 +154,54 @@ async def create_invocation(
     """
     # Fail fast if LLM is not configured - return 503 Service Unavailable
     # This prevents creating invocations that will immediately fail during execution
-    try:
-        get_openrouter_llm()
-    except LLMConfigurationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"error": "service_unavailable", "message": str(e)},
-        ) from e
+    # The LLMConfigurationError will be handled by the global error handler
+    get_openrouter_llm()
 
-    try:
-        # Check content type to determine request format
-        content_type = request.headers.get("content-type", "")
-        is_json_request = "application/json" in content_type
-        is_multipart_request = "multipart/form-data" in content_type
+    # Check content type to determine request format
+    content_type = request.headers.get("content-type", "")
+    is_json_request = "application/json" in content_type
+    is_multipart_request = "multipart/form-data" in content_type
 
-        # Determine request format and extract data
-        final_prompt: str
-        final_session_id: str
-        final_context_data: dict[str, object] | None
-        final_files: list[UploadFile] | None
+    # Determine request format and extract data
+    final_prompt: str
+    final_session_id: str
+    final_context_data: dict[str, object] | None
+    final_files: list[UploadFile] | None
 
-        if is_json_request:
-            # JSON request (backward compatible, no file support)
-            # Parse JSON manually because FastAPI gets confused with mixed Body() and Form() params
-            if request_body is not None:
-                # FastAPI successfully parsed it
-                body = request_body
-            else:
-                # Manually parse JSON from request
-                json_data = await request.json()
-                body = InvocationCreateRequest.model_validate(json_data)
-
-            final_prompt = body.prompt
-            final_session_id = body.session_id
-            final_context_data = body.context_data
-            final_files = None  # Files not supported in JSON mode
-        elif is_multipart_request or prompt is not None or session_id is not None:
-            # Multipart form data request (supports files)
-            final_prompt, final_session_id = _validate_multipart_required_fields(prompt, session_id)
-            # Parse context_data JSON string if provided
-            parsed_context: dict[str, object] | None = json.loads(context_data) if context_data else None
-            final_context_data = parsed_context
-            final_files = files
+    if is_json_request:
+        # JSON request (backward compatible, no file support)
+        # Parse JSON manually because FastAPI gets confused with mixed Body() and Form() params
+        if request_body is not None:
+            # FastAPI successfully parsed it
+            body = request_body
         else:
-            raise HTTPException(  # noqa: TRY301
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Request must be either application/json or multipart/form-data",
-            )
+            # Manually parse JSON from request
+            json_data = await request.json()
+            body = InvocationCreateRequest.model_validate(json_data)
 
-        return await service.create_invocation(
-            prompt=final_prompt,
-            session_id=final_session_id,
-            context_data=final_context_data,
-            files=final_files,
+        final_prompt = body.prompt
+        final_session_id = body.session_id
+        final_context_data = body.context_data
+        final_files = None  # Files not supported in JSON mode
+    elif is_multipart_request or prompt is not None or session_id is not None:
+        # Multipart form data request (supports files)
+        final_prompt, final_session_id = _validate_multipart_required_fields(prompt, session_id)
+        # Parse context_data JSON string if provided
+        parsed_context: dict[str, object] | None = json.loads(context_data) if context_data else None
+        final_context_data = parsed_context
+        final_files = files
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Request must be either application/json or multipart/form-data",
         )
 
-    except FileValidationError as e:
-        # File validation errors (count, size, MIME type) - 400 Bad Request
-        logger.warning("File validation error in invocation request", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
-    except ValidationError as e:
-        # Pydantic validation errors (invalid request data) - 422 Unprocessable Entity
-        # NOTE: Must be caught BEFORE ValueError since ValidationError is a subclass of ValueError
-        logger.warning("Pydantic validation error in invocation request", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Invalid request data",
-        ) from e
-    except ValueError as e:
-        # file_ids validation error (files not found) - 400 Bad Request
-        logger.warning("File ID validation error in invocation request", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
-    except OSError as e:
-        # Storage failures (disk full, permission denied, I/O errors) - 500 Internal Server Error
-        logger.exception("File storage error creating invocation")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process file upload",
-        ) from e
-    except Exception as e:
-        logger.exception("Unexpected error creating invocation")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=INTERNAL_SERVER_ERROR,
-        ) from e
+    return await service.create_invocation(
+        prompt=final_prompt,
+        session_id=final_session_id,
+        context_data=final_context_data,
+        files=final_files,
+    )
 
 
 @router.get(
@@ -285,29 +236,13 @@ async def list_invocations(
         InvocationListResponse with invocations, pagination metadata, and optional total
 
     """
-    try:
-        return await service.list_invocations(
-            limit=params.limit,
-            cursor=params.cursor,
-            sort=params.sort,
-            query_params_items=request.query_params.items(),
-            include_total=params.include_total,
-        )
-
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(e),
-        ) from e
-    except HTTPException:
-        # Re-raise HTTPExceptions without wrapping
-        raise
-    except Exception as e:
-        logger.exception("Unexpected error listing invocations")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=INTERNAL_SERVER_ERROR,
-        ) from e
+    return await service.list_invocations(
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        query_params_items=request.query_params.items(),
+        include_total=params.include_total,
+    )
 
 
 # NOTE: This endpoint is primarily for TESTING and DEBUGGING purposes.
@@ -359,23 +294,10 @@ async def get_invocation(
 
     """
     # Parse UUID
-    try:
-        uuid_obj = UUID(invocation_id)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid UUID format: {invocation_id}",
-        ) from e
+    uuid_obj = UUID(invocation_id)
 
     # Retrieve invocation from database
-    try:
-        invocation = await service.get_invocation(uuid_obj)
-    except Exception as e:
-        logger.exception("Unexpected error retrieving invocation", invocation_id=invocation_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=INTERNAL_SERVER_ERROR,
-        ) from e
+    invocation = await service.get_invocation(uuid_obj)
 
     # Check if invocation exists
     if not invocation:
@@ -420,51 +342,34 @@ async def cancel_invocation(
 
     """
     # Parse UUID
-    try:
-        uuid_obj = UUID(invocation_id)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid UUID format: {invocation_id}",
-        ) from e
+    uuid_obj = UUID(invocation_id)
 
     # Attempt cancellation
-    try:
-        result = await service.cancel_invocation(uuid_obj, request_body.reason)
+    result = await service.cancel_invocation(uuid_obj, request_body.reason)
 
-        if result == CancellationResult.SUCCESS:
-            return InvocationCancelResponse(
-                success=True,
-                message=f"Invocation {invocation_id} cancelled successfully",
-            )
-
-        if result == CancellationResult.NOT_FOUND:
-            raise HTTPException(  # noqa: TRY301
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Invocation {invocation_id} not found",
-            )
-
-        if result == CancellationResult.NOT_CANCELLABLE:
-            # Get the invocation to provide current status in error message
-            invocation = await service.get_invocation(uuid_obj)
-            current_status = invocation.status.value if invocation else "unknown"
-            raise HTTPException(  # noqa: TRY301
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Invocation {invocation_id} cannot be cancelled (status: {current_status})",
-            )
-
-        # Should never happen, but defensive programming
-        raise HTTPException(  # noqa: TRY301
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Unexpected cancellation result",
+    if result == CancellationResult.SUCCESS:
+        return InvocationCancelResponse(
+            success=True,
+            message=f"Invocation {invocation_id} cancelled successfully",
         )
 
-    except HTTPException:
-        # Re-raise HTTPExceptions without wrapping
-        raise
-    except Exception as e:
-        logger.exception("Unexpected error cancelling invocation", invocation_id=invocation_id)
+    if result == CancellationResult.NOT_FOUND:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=INTERNAL_SERVER_ERROR,
-        ) from e
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Invocation {invocation_id} not found",
+        )
+
+    if result == CancellationResult.NOT_CANCELLABLE:
+        # Get the invocation to provide current status in error message
+        invocation = await service.get_invocation(uuid_obj)
+        current_status = invocation.status.value if invocation else "unknown"
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Invocation {invocation_id} cannot be cancelled (status: {current_status})",
+        )
+
+    # Should never happen, but defensive programming
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Unexpected cancellation result",
+    )

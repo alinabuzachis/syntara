@@ -230,12 +230,14 @@ async def test_llm_not_configured_returns_503(auth_client: AsyncClient, test_use
             },
         )
 
-    # Assert - must match schema example exactly
+    # Assert - must match RFC 9457 format
     assert response.status_code == 503
     error_data = response.json()
 
-    # Exact match with schema example from openapi.yaml
-    assert error_data == {
-        "error": "service_unavailable",
-        "message": error_message,
-    }
+    # RFC 9457 compliant format
+    assert error_data["type"] == "https://api.nexus.com/errors/service-unavailable"
+    assert error_data["title"] == "LLM Configuration Error"
+    assert error_data["detail"] == "Language model service is not properly configured"
+    assert error_data["code"] == "LLM_CONFIGURATION_ERROR"
+    assert error_data["retryable"] is False
+    assert "instance" in error_data

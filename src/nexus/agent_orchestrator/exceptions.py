@@ -2,6 +2,8 @@
 
 from uuid import UUID
 
+from nexus.core.exception_registry import fastapi_exception
+
 
 class AgentError(Exception):
     """Base exception for all agent-related errors."""
@@ -39,6 +41,7 @@ class OrchestrationError(AgentError):
     """Exception for orchestration service failures."""
 
 
+@fastapi_exception(handler="nexus.agent_orchestrator.error_handlers.llm_configuration_error_handler")
 class LLMConfigurationError(Exception):
     """Raised when LLM model configuration is missing or invalid.
 

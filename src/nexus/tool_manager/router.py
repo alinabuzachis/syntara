@@ -4,20 +4,12 @@ from typing import Annotated, Any
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy.exc import IntegrityError
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
-from nexus.tool_manager.lib.exceptions import (
-    ProviderError,
-    ProviderNameConflictError,
-    ProviderNotFoundError,
-    ToolNotFoundError,
-    ValidationError,
-)
 from nexus.tool_manager.lib.providers import ProviderFactory, get_provider_factory
 from nexus.tool_manager.models import ToolListParams, ToolProviderListParams
 from nexus.tool_manager.models.tool import (
@@ -119,21 +111,13 @@ async def get_tools(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.list_tools(
-            limit=params.limit,
-            cursor=params.cursor,
-            sort=params.sort,
-            query_params_items=request.query_params.items(),
-            include_total=params.include_total,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e)) from e
-    except Exception as e:
-        logger.exception("Unexpected error listing tools", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error listing tools"
-        ) from e
+    return await service.list_tools(
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        query_params_items=request.query_params.items(),
+        include_total=params.include_total,
+    )
 
 
 @router.get("/tools/{tool_id}")
@@ -160,16 +144,7 @@ async def get_tool(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.get_tool_detail(tool_id)
-
-    except ToolNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
-    except Exception as e:
-        logger.exception("Unexpected error getting tool details", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error getting tool details"
-        ) from e
+    return await service.get_tool_detail(tool_id)
 
 
 @router.patch("/tools/bulk_update")
@@ -196,15 +171,7 @@ async def bulk_update_tools(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.bulk_update_tools(bulk_update.tool_ids, enabled=bulk_update.enabled)
-    except ValidationError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
-    except Exception as e:
-        logger.exception("Unexpected error bulk updating tools", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error bulk updating tools"
-        ) from e
+    return await service.bulk_update_tools(bulk_update.tool_ids, enabled=bulk_update.enabled)
 
 
 @router.patch("/tools/{tool_id}")
@@ -233,21 +200,10 @@ async def patch_tool(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.update_tool(
-            tool_id,
-            tool_update,
-        )
-
-    except ToolNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
-    except ValidationError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
-    except Exception as e:
-        logger.exception("Unexpected error updating tool", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error updating tool"
-        ) from e
+    return await service.update_tool(
+        tool_id,
+        tool_update,
+    )
 
 
 @router.get("/tool_providers")
@@ -279,21 +235,13 @@ async def get_tool_providers(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.list_providers(
-            limit=params.limit,
-            cursor=params.cursor,
-            sort=params.sort,
-            query_params_items=request.query_params.items(),
-            include_total=params.include_total,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e)) from e
-    except Exception as e:
-        logger.exception("Unexpected error listing tool providers", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error listing tool providers"
-        ) from e
+    return await service.list_providers(
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        query_params_items=request.query_params.items(),
+        include_total=params.include_total,
+    )
 
 
 @router.post("/tool_providers", status_code=status.HTTP_201_CREATED)
@@ -320,19 +268,7 @@ async def register_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.create_provider(provider_create)
-    except ValidationError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
-    except IntegrityError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
-    except ProviderNameConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message) from e
-    except Exception as e:
-        logger.exception("Unexpected error creating tool provider", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error creating tool provider"
-        ) from e
+    return await service.create_provider(provider_create)
 
 
 @router.get("/tool_providers/{provider_id}")
@@ -359,15 +295,7 @@ async def get_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.get_provider(provider_id)
-    except ProviderNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    except Exception as e:
-        logger.exception("Unexpected error getting tool provider details", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error getting tool provider details"
-        ) from e
+    return await service.get_provider(provider_id)
 
 
 @router.put("/tool_providers/{provider_id}")
@@ -396,19 +324,7 @@ async def update_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.update_provider(provider_id, provider_update)
-    except ProviderNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
-    except ValidationError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
-    except ProviderNameConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message) from e
-    except Exception as e:
-        logger.exception("Unexpected error updating tool provider", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error updating tool provider"
-        ) from e
+    return await service.update_provider(provider_id, provider_update)
 
 
 @router.patch("/tool_providers/{provider_id}")
@@ -437,21 +353,7 @@ async def patch_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.patch_provider(provider_id, provider_patch)
-    except ProviderNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
-    except ValidationError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
-    except IntegrityError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
-    except ProviderNameConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message) from e
-    except Exception as e:
-        logger.exception("Unexpected error patching tool provider", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error patching tool provider"
-        ) from e
+    return await service.patch_provider(provider_id, provider_patch)
 
 
 @router.delete("/tool_providers/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -475,15 +377,7 @@ async def delete_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        await service.delete_provider(provider_id)
-    except ProviderNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    except Exception as e:
-        logger.exception("Unexpected error deleting tool provider", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error deleting tool provider"
-        ) from e
+    await service.delete_provider(provider_id)
 
 
 @router.post("/tool_providers/{provider_id}/validate")
@@ -510,15 +404,7 @@ async def validate_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.validate_provider(provider_id)
-    except ProviderNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    except Exception as e:
-        logger.exception("Unexpected error validating tool provider", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error validating tool provider"
-        ) from e
+    return await service.validate_provider(provider_id)
 
 
 @router.post("/tool_providers/test")
@@ -545,14 +431,7 @@ async def test_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.validate_provider_definition(provider_create)
-    except Exception as e:
-        logger.exception("Unexpected error validating tool provider definition", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Unexpected error validating tool provider definition",
-        ) from e
+    return await service.validate_provider_definition(provider_create)
 
 
 @router.post("/tool_providers/{provider_id}/refresh_tools")
@@ -579,14 +458,4 @@ async def refresh_tool_provider(
     # TODO(manstis): Implement proper admin role checking: AAP-56797
     # For now, allowing all authenticated users
 
-    try:
-        return await service.refresh_tools(provider_id)
-    except ProviderNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    except ProviderError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
-    except Exception as e:
-        logger.exception("Unexpected error refreshing tools from provider", exc_info=e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error refreshing tools from provider"
-        ) from e
+    return await service.refresh_tools(provider_id)

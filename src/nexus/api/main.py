@@ -11,17 +11,34 @@ from typing import Any
 import structlog
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from pydantic import ValidationError as PydanticValidationError
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import text
+from starlette.responses import JSONResponse
+from temporalio.service import RPCError
 
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import get_db
+from nexus.core.error_handlers import (
+    generic_exception_handler,
+    integrity_error_handler,
+    validation_error_handler,
+    value_error_handler,
+)
+from nexus.core.error_handlers import (
+    http_exception_handler as core_http_exception_handler,
+)
+from nexus.core.exception_registry import register_exceptions
 from nexus.core.logging.logging import configure_structlog
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
+from nexus.workflows.error_handlers import (
+    temporal_rpc_error_handler,
+)
 
 configure_structlog()
 logger = structlog.stdlib.get_logger(__name__)
@@ -108,6 +125,19 @@ app.add_middleware(
     allow_methods=_cors_settings.cors_allow_methods,
     allow_headers=_cors_settings.cors_allow_headers,
 )
+
+# RFC 9457 compliant error handlers
+# Register decorated exceptions automatically
+register_exceptions(app)
+
+# Non-decorated exceptions that still need manual registration
+app.add_exception_handler(RPCError, temporal_rpc_error_handler)  # type: ignore[arg-type]
+app.add_exception_handler(PydanticValidationError, validation_error_handler)  # type: ignore[arg-type]
+app.add_exception_handler(RequestValidationError, validation_error_handler)  # type: ignore[arg-type]
+app.add_exception_handler(IntegrityError, integrity_error_handler)  # type: ignore[arg-type]
+app.add_exception_handler(ValueError, value_error_handler)  # type: ignore[arg-type]
+app.add_exception_handler(HTTPException, core_http_exception_handler)  # type: ignore[arg-type]
+app.add_exception_handler(Exception, generic_exception_handler)
 
 # Routers are automatically discovered and registered via router_discovery system
 # See lifespan function above for router registration logic

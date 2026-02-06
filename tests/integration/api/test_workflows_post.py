@@ -4,8 +4,6 @@ These tests verify the API contract for creating workflows.
 Tests MUST FAIL before implementation (TDD approach).
 """
 
-from typing import Any
-
 import pytest
 from httpx import AsyncClient
 
@@ -56,7 +54,7 @@ async def test_post_workflow_invalid_definition(base_client: AsyncClient) -> Non
 
     response = await base_client.post("/api/v1/workflows", json=invalid_workflow)
 
-    assert response.status_code == 400
+    assert response.status_code == 422
     data = response.json()
     assert "detail" in data
 
@@ -85,7 +83,7 @@ async def test_post_workflow_missing_name(base_client: AsyncClient) -> None:
 async def test_post_workflow_duplicate_name(base_client: AsyncClient) -> None:
     """Test creating a workflow with a duplicate name.
 
-    Expected: 400 Bad Request with conflict error
+    Expected: 409 Conflict with RFC 9457 format
     """
     workflow = {
         "name": "duplicate-workflow",
@@ -101,10 +99,11 @@ async def test_post_workflow_duplicate_name(base_client: AsyncClient) -> None:
 
     # Try to create duplicate
     response2 = await base_client.post("/api/v1/workflows", json=workflow)
-    assert response2.status_code == 400
+    assert response2.status_code == 409
     data = response2.json()
     assert "detail" in data
-    assert "duplicate" in data["detail"].lower() or "exists" in data["detail"].lower()
+    assert "title" in data
+    assert data["title"] == "Workflow Name Conflict"
 
 
 @pytest.mark.asyncio
@@ -124,7 +123,7 @@ async def test_post_workflow_missing_required_fields(base_client: AsyncClient) -
 
     response = await base_client.post("/api/v1/workflows", json=workflow_missing_fields)
 
-    assert response.status_code == 400
+    assert response.status_code == 422
     data = response.json()
     assert "detail" in data
 
@@ -221,7 +220,7 @@ async def test_post_workflow_with_labels_not_strings(base_client: AsyncClient) -
     assert response.status_code == 422
     data = response.json()
     assert "detail" in data
-    assert "validation error for Workflow" in data["detail"]
+    assert "Validation failed" in data["detail"]
     assert "labels value for key 'invalid' must be a string" in data["detail"]
 
 
@@ -244,13 +243,13 @@ async def ***REMOVED***(base_client: AsyncClient) -> None:
 
     assert response.status_code == 422
     data = response.json()
+
+    # New RFC 9457 Problem Details format
     assert "detail" in data
-    assert isinstance(data["detail"], list)
-    details: list[Any] = data["detail"]
-    assert len(details) == 1
-    assert isinstance(details[0], dict)
-    result: dict[str, Any] = details[0]
-    assert "loc" in result
-    assert result.get("loc") == ["body", "description"]
-    assert "msg" in result
-    assert "String should have at most 2000 characters" in result.get("msg", "")
+    assert isinstance(data["detail"], str)
+    assert "body -> description: String should have at most 2000 characters" in data["detail"]
+
+    # Check RFC 9457 fields
+    assert "type" in data
+    assert "title" in data
+    assert "code" in data

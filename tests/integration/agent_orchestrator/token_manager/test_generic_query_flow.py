@@ -149,4 +149,4 @@ class TestGenericQueryErrorHandling:
         response = await base_client_with_mocked_llm.post("/api/v1/invocations", json=invalid_request)
 
         # Assert
-        assert response.status_code == 422  # Unprocessable Entity (Pydantic validation error)
+        assert response.status_code == 422  # Unprocessable Entity (validation error)

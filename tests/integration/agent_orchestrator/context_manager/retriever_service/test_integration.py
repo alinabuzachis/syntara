@@ -156,7 +156,7 @@ async def test_invocation_with_invalid_file_id_fails_gracefully(auth_client_with
         data=data,
     )
 
-    assert response.status_code == 400, f"Expected 400 for invalid file_id, got {response.status_code}"
+    assert response.status_code == 422, f"Expected 422 for invalid file_id, got {response.status_code}"
 
     error_data = response.json()
     assert "detail" in error_data or "title" in error_data, "Error response should follow RFC 9457 format"

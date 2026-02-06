@@ -77,7 +77,7 @@ paths:
         "400":
           description: Invalid query parameters
           content:
-            application/json:
+            application/problem+json:
               schema:
                 $ref: "#/components/schemas/Error"
     post:
@@ -107,13 +107,13 @@ paths:
         "400":
           description: Invalid request
           content:
-            application/json:
+            application/problem+json:
               schema:
                 $ref: "#/components/schemas/Error"
         "409":
           description: Approval request already exists for this execution and approval node
           content:
-            application/json:
+            application/problem+json:
               schema:
                 $ref: "#/components/schemas/Error"
 
@@ -148,7 +148,7 @@ paths:
         "404":
           description: Approval request not found
           content:
-            application/json:
+            application/problem+json:
               schema:
                 $ref: "#/components/schemas/Error"
 
@@ -191,19 +191,19 @@ paths:
         "400":
           description: Invalid request payload (e.g., invalid status value)
           content:
-            application/json:
+            application/problem+json:
               schema:
                 $ref: "#/components/schemas/Error"
         "404":
           description: Approval request not found
           content:
-            application/json:
+            application/problem+json:
               schema:
                 $ref: "#/components/schemas/Error"
         "409":
           description: Approval already decided or workflow cancelled
           content:
-            application/json:
+            application/problem+json:
               schema:
                 $ref: "#/components/schemas/Error"
 
@@ -239,7 +239,7 @@ paths:
         "400":
           description: Invalid request format
           content:
-            application/json:
+            application/problem+json:
               schema:
                 $ref: "#/components/schemas/Error"
 
@@ -612,7 +612,7 @@ components:
           description: User's display name at time of action
 
     Error:
-      $ref: "../base/shared-resources.openapi.yaml#/components/schemas/Error"
+      $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
   securitySchemes:
     bearerAuth:

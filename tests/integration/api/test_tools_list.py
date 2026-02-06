@@ -329,8 +329,7 @@ class TestToolsListContract:
         # Contract: Must return error details
         data = response.json()
         assert "detail" in data
-        assert "Invalid value 'nonexistent'" in data["detail"]
-        assert "Valid values are:" in data["detail"]
+        assert "Invalid input value" in data["detail"]
 
     @pytest.mark.asyncio
     async def test_list_tools_include_total_with_filters_contract(

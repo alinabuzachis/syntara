@@ -83,7 +83,8 @@ async def test_create_execution_workflow_not_found(
     )
 
     assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
+    data = response.json()
+    assert data["detail"] == "The requested workflow was not found"
 
 
 @pytest.mark.asyncio
@@ -106,7 +107,8 @@ async def test_create_execution_workflow_disabled(
     )
 
     assert response.status_code == 400
-    assert "disabled" in response.json()["detail"].lower()
+    data = response.json()
+    assert data["detail"] == "The requested workflow is currently disabled"
 
 
 @pytest.mark.asyncio
@@ -261,9 +263,17 @@ async def test_create_execution_temporal_workflow_start_failure(
             },
         )
 
-    # Should fail with 500 error
+    # Should fail with 500 error and RFC 9457 format
     assert response.status_code == 500
-    assert "Failed to create execution" in response.json()["detail"]
+    data = response.json()
+
+    # Verify RFC 9457 Problem Details format
+    assert "type" in data
+    assert "title" in data
+    assert "detail" in data
+    assert "code" in data
+    assert data["code"] == "TEMPORAL_WORKFLOW_ERROR"
+    assert data["detail"] == "Temporal workflow operation failed"
 
     # Verify no execution was created in the database (two-phase invariant)
     result = await test_db_session.exec(select(func.count()).select_from(Execution))

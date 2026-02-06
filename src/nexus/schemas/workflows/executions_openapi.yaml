@@ -112,12 +112,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Execution'
+        '400':
+          description: Workflow is disabled
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+              example:
+                type: https://api.nexus.com/errors/workflow-disabled
+                title: Workflow Disabled
+                detail: Cannot execute a disabled workflow
+                code: WORKFLOW_DISABLED
+                retryable: false
+                instance: /api/v1/executions
         '404':
           description: Workflow not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Workflow Not Found
+                detail: No workflow exists with the provided identifier
+                code: WORKFLOW_NOT_FOUND
+                retryable: false
+                instance: /api/v1/executions
 
   /executions/{execution_id}:
     get:
@@ -159,9 +179,9 @@ paths:
         '404':
           description: Execution not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
     patch:
       summary: Control execution
       description: Pause, resume, or cancel a workflow execution
@@ -189,9 +209,9 @@ paths:
         '404':
           description: Execution not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   /executions/{execution_id}/activities:
     get:
@@ -231,9 +251,9 @@ paths:
         '404':
           description: Execution not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   /executions/{execution_id}/signals/approval-decision:
     post:
@@ -275,17 +295,17 @@ paths:
         '404':
           description: Execution not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
         '409':
           description: |
             Execution is not in a state that can receive approval signals
             (e.g., already completed, cancelled, or not waiting for approval)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   /executions/{execution_id}/activities/{activity_id}/signal:
     post:
@@ -332,21 +352,21 @@ paths:
         '404':
           description: Execution not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
         '500':
           description: Failed to send signal
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
         '503':
           description: Temporal workflow engine unavailable
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   # Note: Approval endpoints are in a separate API
   # See: src/nexus/schemas/approvals/approvals-api.yaml
@@ -441,9 +461,6 @@ components:
             status: "completed"
             result:
               value: 42
-
-    Error:
-      $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Error
 
   securitySchemes:
     bearerAuth:
