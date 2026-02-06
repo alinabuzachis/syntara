@@ -17,12 +17,12 @@ import {
 } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
 import {
-  CheckCircleIcon,
+  RhUiCheckCircleIcon,
   RhUiEllipsisVerticalFillIcon,
-  EyeIcon,
+  RhUiViewIcon,
   RhUiTrashIcon,
-  SyncAltIcon,
-  TimesCircleIcon,
+  RhUiSyncIcon,
+  RhUiCloseCircleIcon,
 } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -49,9 +49,9 @@ import { IntegrationEmptyState } from './IntegrationEmptyState'
 type ProviderStatus = 'available' | 'error' | 'validating'
 
 const statusIcons: Record<ProviderStatus, React.ComponentType<{ className?: string }>> = {
-  available: CheckCircleIcon,
-  error: TimesCircleIcon,
-  validating: SyncAltIcon,
+  available: RhUiCheckCircleIcon,
+  error: RhUiCloseCircleIcon,
+  validating: RhUiSyncIcon,
 }
 
 const statusColors: Record<ProviderStatus, string> = {
@@ -62,7 +62,7 @@ const statusColors: Record<ProviderStatus, string> = {
 
 function StatusLabel({ status }: { status: string }) {
   const providerStatus = status as ProviderStatus
-  const Icon = statusIcons[providerStatus] || TimesCircleIcon
+  const Icon = statusIcons[providerStatus] || RhUiCloseCircleIcon
   const color = statusColors[providerStatus] || 'var(--pf-t--global--color--status--default--default)'
   const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1)
 
@@ -242,11 +242,11 @@ export default function Integrations() {
   // Row actions for PF ActionsColumn
   const getRowActions = (provider: ToolProvider): IAction[] => [
     {
-      title: <IconLabel icon={<EyeIcon />}>View and enable/disable tools</IconLabel>,
+      title: <IconLabel icon={<RhUiViewIcon />}>View and enable/disable tools</IconLabel>,
       onClick: () => navigate(`/configuration/integrations/${provider.id}/tools`),
     },
     {
-      title: <IconLabel icon={<CheckCircleIcon />}>Validate connection</IconLabel>,
+      title: <IconLabel icon={<RhUiCheckCircleIcon />}>Validate connection</IconLabel>,
       onClick: () => {
         dispatch({ type: 'OPEN_VALIDATE_DIALOG', payload: provider })
       },

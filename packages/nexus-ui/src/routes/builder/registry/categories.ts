@@ -3,7 +3,7 @@ import {
   RhUiBranchFillIcon,
   RhUiElectricityFillIcon,
   RhUiPlayIcon,
-  UserCheckIcon,
+  RhUiUserCheckIcon,
 } from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
 
@@ -83,7 +83,7 @@ export const CATEGORY_METADATA: Record<NodeCategory, CategoryMetadata> = {
   approval: {
     id: NodeCategories.APPROVAL,
     label: 'Approvals',
-    icon: UserCheckIcon,
+    icon: RhUiUserCheckIcon,
     description: 'Require human approval before continuing',
     order: 5,
     color: 'yellow',

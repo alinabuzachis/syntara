@@ -601,7 +601,7 @@ export default function registerApprovalNode() {
     createBasicNode({
       id: 'approval',
       label: 'Approval',
-      icon: UserCheckIcon,
+      icon: RhUiUserCheckIcon,
       category: 'logic', // Type-safe - must be a valid NodeCategory
       description: 'Require human approval before continuing workflow',
       keywords: ['approve', 'approval', 'review', 'manual'],

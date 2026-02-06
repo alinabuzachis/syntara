@@ -1,13 +1,14 @@
 import {
   RhUiRobotIcon,
-  RhUiBranchFillIcon,
+  RhUiMergeNodesIcon,
   RhUiCodeIcon,
   RhUiCalendarIcon,
   RhUiPlayIcon,
   RhUiPlugFillIcon,
   RhUiServerFillIcon,
-  RhUiSyncIcon,
-  UserCheckIcon,
+  RhUiConditionNodeIcon,
+  RhUiLoopIcon,
+  RhUiUserCheckIcon,
 } from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
 
@@ -41,12 +42,12 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
     expandable: true,
   },
   condition: {
-    icon: RhUiBranchFillIcon,
+    icon: RhUiConditionNodeIcon,
     label: 'Condition',
     expandable: true,
   },
   loop: {
-    icon: RhUiSyncIcon,
+    icon: RhUiLoopIcon,
     label: 'Loop',
     enableEnd: true,
     expandable: false,
@@ -56,7 +57,7 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
     expandable: false,
   },
   converge: {
-    icon: RhUiBranchFillIcon,
+    icon: RhUiMergeNodesIcon,
     label: 'Converge',
     expandable: false,
   },
@@ -69,5 +70,5 @@ export const executorMetadata: Record<string, { icon: ComponentType<{ className?
   api: { icon: RhUiServerFillIcon, label: 'REST Api' },
   connector: { icon: RhUiPlugFillIcon, label: 'Connector' },
   aap_job_template: { icon: AnsibleIcon, label: 'AAP Job' },
-  approval: { icon: UserCheckIcon, label: 'Approval' }, // Human approval gate
+  approval: { icon: RhUiUserCheckIcon, label: 'Approval' }, // Human approval gate
 }

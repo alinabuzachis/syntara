@@ -56,7 +56,7 @@ For nodes where you're not ready to implement the full logic yet:
 
 ```typescript
 // registerMyNewNode.ts
-import { RhStandardGlobeAbstractIcon } from '@patternfly/react-icons'
+import { RhUiRobotIcon } from '@patternfly/react-icons'
 import { createBasicNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 import { MyNewNodeForm } from '../../node-forms/MyNewNodeForm'
@@ -67,7 +67,7 @@ export default function registerMyNewNode() {
     createBasicNode({
       id: 'my-new-node',
       label: 'My New Node',
-      icon: RhStandardGlobeAbstractIcon,
+      icon: RhUiRobotIcon,
       category: 'action', // Type-safe category
       description: 'Does something amazing',
       keywords: ['api', 'http', 'request', 'web'],
@@ -84,7 +84,7 @@ For nodes that need to interact with the workflow store or perform complex logic
 
 ```typescript
 // registerMyNewNode.ts
-import { RhStandardGlobeAbstractIcon } from '@patternfly/react-icons'
+import { RhUiRobotIcon } from '@patternfly/react-icons'
 import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore'
@@ -98,7 +98,7 @@ export default function registerMyNewNode() {
       {
         id: 'my-new-node',
         label: 'My New Node',
-        icon: RhStandardGlobeAbstractIcon,
+        icon: RhUiRobotIcon,
         category: 'action', // Type-safe category
         description: 'Does something amazing',
         keywords: ['api', 'http', 'request', 'web'],
@@ -145,12 +145,11 @@ Use [PatternFly React icons](https://patternfly.org/) for consistency:
 
 ```typescript
 import {
-  RhStandardGlobeAbstractIcon,
   RhUiPlay,
   RhUiRobotIcon,
   RhUiElectricityIcon,
   RhUiBranchIcon,
-  UserCheckIcon,
+  RhUiUserCheckIcon,
 } from '@patternfly/react-icons'
 ```
 

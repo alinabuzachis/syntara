@@ -66,7 +66,7 @@ export function MyCustomForm({
 
 ```typescript
 // routes/builder/registry/nodes/registerMyNode.ts
-import { MyIcon } from '@patternfly/react-icons'
+import { RhUiMyIcon } from '@patternfly/react-icons'
 import { NodeRegistry } from '../NodeRegistry'
 import { MyCustomForm } from '../../node-forms/MyCustomForm'
 import type { MyCustomFormData } from '../../node-forms/MyCustomForm'
@@ -75,7 +75,7 @@ export function registerMyNode() {
   NodeRegistry.register<MyCustomFormData>({
     id: 'my-node',
     label: 'My Custom Node',
-    icon: MyIcon,
+    icon: RhUiMyIcon,
     category: 'action',
     description: 'Does something custom',
     keywords: ['custom', 'special'],

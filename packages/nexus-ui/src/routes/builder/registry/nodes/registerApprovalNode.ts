@@ -1,4 +1,4 @@
-import { UserCheckIcon } from '@patternfly/react-icons'
+import { RhUiUserCheckIcon } from '@patternfly/react-icons'
 
 import { createApprovalActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import type { ApprovalFormSubmitData } from '../../node-forms/ApprovalNodeForm'
@@ -14,7 +14,7 @@ export default function registerApprovalNode() {
   NodeRegistry.register<ApprovalFormSubmitData>({
     id: 'approval',
     label: 'Approval',
-    icon: UserCheckIcon,
+    icon: RhUiUserCheckIcon,
     category: 'logic',
     description: 'Wait for approval or human input before continuing',
     keywords: ['approve', 'approval', 'review', 'manual', 'gate', 'checkpoint'],

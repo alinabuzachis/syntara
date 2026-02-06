@@ -24,7 +24,7 @@ import {
   StackItem,
   TextInput,
 } from '@patternfly/react-core'
-import { ConnectedIcon, DisconnectedIcon, ExclamationCircleIcon, SyncAltIcon } from '@patternfly/react-icons'
+import { RhUiConnectedIcon, RhUiDisconnectedIcon, RhUiErrorIcon, RhUiSyncIcon } from '@patternfly/react-icons'
 import { useCallback, useReducer } from 'react'
 
 import { AppPage } from '../../app/AppPage'
@@ -84,11 +84,11 @@ function ConnectionStatusBadge({ state }: { state: ConnectionState }) {
   const label = getConnectionStateLabel(state)
 
   const iconMap = {
-    connected: <ConnectedIcon />,
-    connecting: <SyncAltIcon className="pf-v6-u-icon-spin" />,
-    reconnecting: <SyncAltIcon className="pf-v6-u-icon-spin" />,
-    disconnected: <DisconnectedIcon />,
-    failed: <ExclamationCircleIcon />,
+    connected: <RhUiConnectedIcon />,
+    connecting: <RhUiSyncIcon className="pf-v6-u-icon-spin" />,
+    reconnecting: <RhUiSyncIcon className="pf-v6-u-icon-spin" />,
+    disconnected: <RhUiDisconnectedIcon />,
+    failed: <RhUiErrorIcon />,
   }
 
   const colorMap = {

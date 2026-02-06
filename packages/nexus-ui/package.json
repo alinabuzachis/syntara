@@ -23,8 +23,8 @@
   "dependencies": {
     "@ansible/nexus-contracts": "file:../nexus-contracts",
     "@dagrejs/dagre": "^1.1.8",
-    "@patternfly/react-core": "^6.5.0-prerelease.28",
-    "@patternfly/react-table": "^6.5.0-prerelease.29",
+    "@patternfly/react-core": "^6.5.0-prerelease.29",
+    "@patternfly/react-table": "^6.5.0-prerelease.30",
     "@tanstack/react-query": "^5.90.20",
     "@xyflow/react": "^12.10.0",
     "fuse.js": "^7.1.0",
