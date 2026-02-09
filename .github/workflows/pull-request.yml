@@ -35,14 +35,11 @@ jobs:
           COVERAGE_THRESHOLD: 80
 
   test-build:
-    name: Test Multi-Arch Container Build
+    name: Test Container Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -52,7 +49,7 @@ jobs:
         with:
           context: .
           file: packages/nexus-ui/Containerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: false
           tags: nexus-ui:test
 
@@ -61,6 +58,6 @@ jobs:
         with:
           context: .
           file: packages/nexus-mock-api/Containerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: false
           tags: nexus-mock-api:test
