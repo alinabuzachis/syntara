@@ -7,7 +7,7 @@ import {
   RhUiPlugFillIcon,
   RhUiServerFillIcon,
   RhUiConditionNodeIcon,
-  RhUiLoopIcon,
+  RhUiLoopNodeIcon,
   RhUiUserCheckIcon,
 } from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
@@ -47,7 +47,7 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
     expandable: true,
   },
   loop: {
-    icon: RhUiLoopIcon,
+    icon: RhUiLoopNodeIcon,
     label: 'Loop',
     enableEnd: true,
     expandable: false,
