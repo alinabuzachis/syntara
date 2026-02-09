@@ -66,8 +66,8 @@ async def load_sample_workflows(
             logger.info("Using user '%s' (ID: %s) as workflow creator", user.username, creator_id)
 
             # First, get existing workflows to check for duplicates
-            result = await session.execute(select(Workflow).filter(Workflow.deleted_at.is_(None)))
-            existing_workflows = result.scalars().all()
+            existing_workflows_result = await session.exec(select(Workflow).filter(Workflow.deleted_at.is_(None)))
+            existing_workflows = existing_workflows_result.all()
             existing_names = {w.name for w in existing_workflows}
             logger.info("Found %d existing workflows in the system", len(existing_names))
 
