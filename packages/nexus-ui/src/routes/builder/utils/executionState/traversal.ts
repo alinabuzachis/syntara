@@ -2,7 +2,7 @@ import type { ActivityState } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../../types/edge'
 
-import { isBranchHandle } from './constants'
+import { ACTIVITY_STATUS, isBranchHandle, isTerminalState } from './executionHelpers'
 
 /**
  * Utility class for traversing workflow graphs to determine execution state.
@@ -53,7 +53,10 @@ export class WorkflowTraversal {
       const targetState = activityStates.get(edge.target)
 
       // If target is pending or running, we found a downstream pending node
-      if (targetState && (targetState.status === 'pending' || targetState.status === 'running')) {
+      if (
+        targetState &&
+        (targetState.status === ACTIVITY_STATUS.PENDING || targetState.status === ACTIVITY_STATUS.RUNNING)
+      ) {
         return true
       }
 
@@ -163,7 +166,7 @@ export class WorkflowTraversal {
     // If they completed and this node never started, they took a different branch
     const allBranchSourcesCompleted = branchEdges.every((edge) => {
       const sourceState = activityStates.get(edge.source)
-      return sourceState && this.isTerminalState(sourceState.status)
+      return sourceState && isTerminalState(sourceState.status)
     })
 
     return allBranchSourcesCompleted
@@ -190,21 +193,12 @@ export class WorkflowTraversal {
       const sourceState = activityStates.get(edge.source)
 
       // If source is in a terminal state, it's done
-      if (sourceState && this.isTerminalState(sourceState.status)) {
+      if (sourceState && isTerminalState(sourceState.status)) {
         return true
       }
 
       // If source should be skipped, this counts too (cascading skip)
       return this.shouldMarkAsSkipped(edge.source, activityStates, edges, new Set(visited))
     })
-  }
-
-  /**
-   * Check if a status is a terminal state (execution completed, no further changes).
-   *
-   * @private
-   */
-  private static isTerminalState(status: string): boolean {
-    return status === 'completed' || status === 'failed' || status === 'cancelled'
   }
 }

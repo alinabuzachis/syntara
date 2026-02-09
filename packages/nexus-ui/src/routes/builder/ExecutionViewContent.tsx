@@ -9,7 +9,7 @@ import { useExecutionStoreActions } from '../automations/stores/useExecutionStor
 
 import { BuilderFlow } from './BuilderFlow'
 import { ExecutionViewContext } from './ExecutionViewContext'
-import { ACTIVITY_TYPES } from './utils/executionState/constants'
+import { ACTIVITY_TYPES } from './utils/executionState/executionHelpers'
 import { loadWorkflow } from './utils/loadWorkflow'
 import { WorkflowTransform } from './utils/workflowTransform'
 

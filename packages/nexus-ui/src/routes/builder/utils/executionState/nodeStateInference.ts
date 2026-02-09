@@ -3,6 +3,7 @@ import type { Activity, ActivityState, WorkflowAPI } from '@ansible/nexus-contra
 import type { EdgeConnection } from '../../types/edge'
 
 import { EdgeHelpers } from './edgeHelpers'
+import { isTerminalState } from './executionHelpers'
 
 type ActivityStatus = WorkflowAPI.components['schemas']['ActivityStatus']
 
@@ -101,9 +102,9 @@ export class LoopNodeStateInferrer implements NodeStateInferrer {
  * They have multiple incoming edges and typically one outgoing edge.
  *
  * State logic:
- * - completed: When ALL incoming nodes completed/failed OR outgoing node started
- * - running: When at least one incoming node completed/failed (but not all)
- * - pending: When no incoming nodes have completed/failed
+ * - completed: When ALL incoming nodes are in terminal state (completed/failed/cancelled/skipped) OR outgoing node started
+ * - running: When at least one incoming node is in terminal state (but not all)
+ * - pending: When no incoming nodes are in terminal state
  */
 export class ConvergeNodeStateInferrer implements NodeStateInferrer {
   inferState(
@@ -118,23 +119,23 @@ export class ConvergeNodeStateInferrer implements NodeStateInferrer {
     const outgoingEdges = EdgeHelpers.getOutgoingEdges(activity.id, edges)
     const outgoingEdge = outgoingEdges[0] // Typically only one
 
-    // Check if any incoming node has completed or failed
-    const anyIncomingCompletedOrFailed = incomingEdges.some((edge) => {
+    // Check if any incoming node is in a terminal state (completed/failed/cancelled/skipped)
+    const anyIncomingTerminal = incomingEdges.some((edge) => {
       const sourceState = activityStates.get(edge.source)
-      return sourceState && this.isCompletedOrFailed(sourceState.status)
+      return sourceState && isTerminalState(sourceState.status)
     })
 
-    // Check if all incoming nodes have completed or failed
-    const allIncomingCompletedOrFailed = incomingEdges.every((edge) => {
+    // Check if all incoming nodes are in a terminal state (completed/failed/cancelled/skipped)
+    const allIncomingTerminal = incomingEdges.every((edge) => {
       const sourceState = activityStates.get(edge.source)
-      return sourceState && this.isCompletedOrFailed(sourceState.status)
+      return sourceState && isTerminalState(sourceState.status)
     })
 
     // Check if the outgoing node has started (not pending)
     const outgoingTargetStarted = EdgeHelpers.hasTargetStarted(outgoingEdge, activityStates)
 
-    // Converge is completed if: all inputs are complete/failed OR output node has started
-    if (allIncomingCompletedOrFailed || outgoingTargetStarted) {
+    // Converge is completed if: all inputs are in terminal state OR output node has started
+    if (allIncomingTerminal || outgoingTargetStarted) {
       return {
         status: 'completed',
         started_at: undefined,
@@ -143,8 +144,8 @@ export class ConvergeNodeStateInferrer implements NodeStateInferrer {
       }
     }
 
-    // Converge is running if at least one input is complete/failed but not all
-    if (anyIncomingCompletedOrFailed) {
+    // Converge is running if at least one input is in terminal state but not all
+    if (anyIncomingTerminal) {
       return {
         status: 'running',
         started_at: undefined,
@@ -155,10 +156,6 @@ export class ConvergeNodeStateInferrer implements NodeStateInferrer {
 
     // Cannot determine state - return null (will default to pending or skipped later)
     return null
-  }
-
-  private isCompletedOrFailed(status: string): boolean {
-    return status === 'completed' || status === 'failed'
   }
 }
 

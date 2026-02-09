@@ -59,3 +59,55 @@ export const ACTIVITY_TYPES = {
 } as const
 
 export type ActivityTypeValue = (typeof ACTIVITY_TYPES)[keyof typeof ACTIVITY_TYPES]
+
+/**
+ * Activity status values used in execution state management.
+ *
+ * These constants represent the different states an activity can be in during execution.
+ * Using these constants instead of string literals prevents typos and provides better type safety.
+ *
+ * @example
+ * if (activityState.status === ACTIVITY_STATUS.COMPLETED) {
+ *   // Handle completed activity
+ * }
+ */
+export const ACTIVITY_STATUS = {
+  PENDING: 'pending',
+  RUNNING: 'running',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+  RETRYING: 'retrying',
+  SKIPPED: 'skipped',
+  CANCELLED: 'cancelled',
+} as const
+
+export type ActivityStatusValue = (typeof ACTIVITY_STATUS)[keyof typeof ACTIVITY_STATUS]
+
+/**
+ * Terminal activity statuses that indicate the activity has finished execution.
+ *
+ * These are states where the activity will not change anymore during the current execution.
+ * Used for edge status determination and skip logic.
+ */
+export const TERMINAL_ACTIVITY_STATUSES: readonly ActivityStatusValue[] = [
+  ACTIVITY_STATUS.COMPLETED,
+  ACTIVITY_STATUS.FAILED,
+  ACTIVITY_STATUS.CANCELLED,
+] as const
+
+/**
+ * Check if a status is a terminal state (execution completed, no further changes).
+ *
+ * Terminal states are: completed, failed, or cancelled.
+ *
+ * @param status - The activity status to check
+ * @returns true if the status is terminal
+ *
+ * @example
+ * if (isTerminalState(activity.status)) {
+ *   // Activity won't change anymore
+ * }
+ */
+export function isTerminalState(status: string): boolean {
+  return TERMINAL_ACTIVITY_STATUSES.includes(status as ActivityStatusValue)
+}

@@ -245,4 +245,631 @@ describe('BuilderFlow execution view', () => {
     expect(props.nodesDraggable).toBe(true)
     expect(props.nodesConnectable).toBe(true)
   })
+
+  it('marks loop node as running when loop body node has started', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-loop',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            { id: 'loop-1', type: 'loop', name: 'My Loop', loop: { do: [] } },
+            {
+              id: 'task-loop-body',
+              type: 'task',
+              name: 'Loop Body Task',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo loop' } },
+            },
+            {
+              id: 'task-done',
+              type: 'task',
+              name: 'Done Task',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo done' } },
+            },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [
+        { id: 'edge-trigger-loop', source: 'trigger-0', target: 'loop-1' },
+        { id: 'edge-loop-body', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop' },
+        { id: 'edge-loop-done', source: 'loop-1', target: 'task-done', sourceHandle: 'done' },
+      ],
+    })
+
+    // Loop body task is running, done task is still pending
+    setExecutionState(
+      new Map([
+        ['task-loop-body', { status: 'running' }],
+        ['task-done', { status: 'pending' }],
+      ])
+    )
+
+    render(
+      <ExecutionViewContext.Provider value={true}>
+        <BuilderFlow workflowId="workflow-loop" panelOpen={false} executionStatus="running" />
+      </ExecutionViewContext.Provider>
+    )
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const nodes = props.nodes as Array<Record<string, unknown>>
+    const loopNode = nodes.find((node) => node.id === 'loop-1')
+
+    expect(loopNode).toBeDefined()
+    expect((loopNode?.data as Record<string, unknown>)?.__executionState).toEqual({
+      status: 'running',
+      started_at: undefined,
+      completed_at: undefined,
+      error_details: undefined,
+    })
+  })
+
+  it('marks loop node as completed when done path node has started', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-loop',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            { id: 'loop-1', type: 'loop', name: 'My Loop', loop: { do: [] } },
+            {
+              id: 'task-loop-body',
+              type: 'task',
+              name: 'Loop Body Task',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo loop' } },
+            },
+            {
+              id: 'task-done',
+              type: 'task',
+              name: 'Done Task',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo done' } },
+            },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [
+        { id: 'edge-trigger-loop', source: 'trigger-0', target: 'loop-1' },
+        { id: 'edge-loop-body', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop' },
+        { id: 'edge-loop-done', source: 'loop-1', target: 'task-done', sourceHandle: 'done' },
+      ],
+    })
+
+    // Loop completed, done task has started
+    setExecutionState(
+      new Map([
+        ['task-loop-body', { status: 'completed' }],
+        ['task-done', { status: 'running' }],
+      ])
+    )
+
+    render(
+      <ExecutionViewContext.Provider value={true}>
+        <BuilderFlow workflowId="workflow-loop" panelOpen={false} executionStatus="running" />
+      </ExecutionViewContext.Provider>
+    )
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const nodes = props.nodes as Array<Record<string, unknown>>
+    const loopNode = nodes.find((node) => node.id === 'loop-1')
+
+    expect(loopNode).toBeDefined()
+    expect((loopNode?.data as Record<string, unknown>)?.__executionState).toEqual({
+      status: 'completed',
+      started_at: undefined,
+      completed_at: undefined,
+      error_details: undefined,
+    })
+  })
+
+  it('marks loop node as pending when neither loop body nor done path has started', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-loop',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            { id: 'loop-1', type: 'loop', name: 'My Loop', loop: { do: [] } },
+            {
+              id: 'task-loop-body',
+              type: 'task',
+              name: 'Loop Body Task',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo loop' } },
+            },
+            {
+              id: 'task-done',
+              type: 'task',
+              name: 'Done Task',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo done' } },
+            },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [
+        { id: 'edge-trigger-loop', source: 'trigger-0', target: 'loop-1' },
+        { id: 'edge-loop-body', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop' },
+        { id: 'edge-loop-done', source: 'loop-1', target: 'task-done', sourceHandle: 'done' },
+      ],
+    })
+
+    // Both tasks still pending
+    setExecutionState(
+      new Map([
+        ['task-loop-body', { status: 'pending' }],
+        ['task-done', { status: 'pending' }],
+      ])
+    )
+
+    render(
+      <ExecutionViewContext.Provider value={true}>
+        <BuilderFlow workflowId="workflow-loop" panelOpen={false} executionStatus="running" />
+      </ExecutionViewContext.Provider>
+    )
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const nodes = props.nodes as Array<Record<string, unknown>>
+    const loopNode = nodes.find((node) => node.id === 'loop-1')
+
+    expect(loopNode).toBeDefined()
+    expect((loopNode?.data as Record<string, unknown>)?.__executionState).toEqual({
+      status: 'pending',
+      started_at: undefined,
+      completed_at: undefined,
+      error_details: undefined,
+    })
+  })
+
+  it('marks loop edge as passed when loop body node has started', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-loop',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            { id: 'loop-1', type: 'loop', name: 'My Loop', loop: { do: [] } },
+            {
+              id: 'task-loop-body',
+              type: 'task',
+              name: 'Loop Body Task',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo loop' } },
+            },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [
+        { id: 'edge-trigger-loop', source: 'trigger-0', target: 'loop-1' },
+        { id: 'edge-loop-body', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop' },
+      ],
+    })
+
+    // Loop body has started
+    setExecutionState(new Map([['task-loop-body', { status: 'running' }]]))
+
+    render(
+      <ExecutionViewContext.Provider value={true}>
+        <BuilderFlow workflowId="workflow-loop" panelOpen={false} executionStatus="running" />
+      </ExecutionViewContext.Provider>
+    )
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const edges = props.edges as Array<Record<string, unknown>>
+    const loopEdge = edges.find((edge) => edge.sourceHandle === 'loop' && edge.source === 'loop-1')
+
+    expect(loopEdge).toBeDefined()
+    expect(loopEdge?.data).toHaveProperty('executionStatus', 'passed')
+  })
+
+  it('marks done edge as passed when done path node has started', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-loop',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            { id: 'loop-1', type: 'loop', name: 'My Loop', loop: { do: [] } },
+            {
+              id: 'task-done',
+              type: 'task',
+              name: 'Done Task',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo done' } },
+            },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [
+        { id: 'edge-trigger-loop', source: 'trigger-0', target: 'loop-1' },
+        { id: 'edge-loop-done', source: 'loop-1', target: 'task-done', sourceHandle: 'done' },
+      ],
+    })
+
+    // Done task has started
+    setExecutionState(new Map([['task-done', { status: 'completed' }]]))
+
+    render(
+      <ExecutionViewContext.Provider value={true}>
+        <BuilderFlow workflowId="workflow-loop" panelOpen={false} executionStatus="running" />
+      </ExecutionViewContext.Provider>
+    )
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const edges = props.edges as Array<Record<string, unknown>>
+    const doneEdge = edges.find((edge) => edge.sourceHandle === 'done' && edge.source === 'loop-1')
+
+    expect(doneEdge).toBeDefined()
+    expect(doneEdge?.data).toHaveProperty('executionStatus', 'passed')
+  })
+
+  it('marks loop edges as pending when target nodes are pending', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-loop',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            { id: 'loop-1', type: 'loop', name: 'My Loop', loop: { do: [] } },
+            {
+              id: 'task-loop-body',
+              type: 'task',
+              name: 'Loop Body Task',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo loop' } },
+            },
+            {
+              id: 'task-done',
+              type: 'task',
+              name: 'Done Task',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo done' } },
+            },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [
+        { id: 'edge-trigger-loop', source: 'trigger-0', target: 'loop-1' },
+        { id: 'edge-loop-body', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop' },
+        { id: 'edge-loop-done', source: 'loop-1', target: 'task-done', sourceHandle: 'done' },
+      ],
+    })
+
+    // Both tasks still pending
+    setExecutionState(
+      new Map([
+        ['task-loop-body', { status: 'pending' }],
+        ['task-done', { status: 'pending' }],
+      ])
+    )
+
+    render(
+      <ExecutionViewContext.Provider value={true}>
+        <BuilderFlow workflowId="workflow-loop" panelOpen={false} executionStatus="running" />
+      </ExecutionViewContext.Provider>
+    )
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const edges = props.edges as Array<Record<string, unknown>>
+    const loopEdge = edges.find((edge) => edge.sourceHandle === 'loop' && edge.source === 'loop-1')
+    const doneEdge = edges.find((edge) => edge.sourceHandle === 'done' && edge.source === 'loop-1')
+
+    expect(loopEdge).toBeDefined()
+    expect(loopEdge?.data).toHaveProperty('executionStatus', 'pending')
+
+    expect(doneEdge).toBeDefined()
+    expect(doneEdge?.data).toHaveProperty('executionStatus', 'pending')
+  })
+
+  it('marks converge node as running when any incoming node is completed or failed', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-converge',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            {
+              id: 'task-1',
+              type: 'task',
+              name: 'Task 1',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo task1' } },
+            },
+            {
+              id: 'task-2',
+              type: 'task',
+              name: 'Task 2',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo task2' } },
+            },
+            { id: 'converge-1', type: 'converge', name: 'Converge', converge: { strategy: 'all', branches: [] } },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [
+        { id: 'edge-trigger-task1', source: 'trigger-0', target: 'task-1' },
+        { id: 'edge-trigger-task2', source: 'trigger-0', target: 'task-2' },
+        { id: 'edge-task1-converge', source: 'task-1', target: 'converge-1' },
+        { id: 'edge-task2-converge', source: 'task-2', target: 'converge-1' },
+      ],
+    })
+
+    // Task 1 completed, Task 2 still pending
+    setExecutionState(
+      new Map([
+        ['task-1', { status: 'completed' }],
+        ['task-2', { status: 'pending' }],
+      ])
+    )
+
+    render(
+      <ExecutionViewContext.Provider value={true}>
+        <BuilderFlow workflowId="workflow-converge" panelOpen={false} executionStatus="running" />
+      </ExecutionViewContext.Provider>
+    )
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const nodes = props.nodes as Array<Record<string, unknown>>
+    const convergeNode = nodes.find((node) => node.id === 'converge-1')
+
+    expect(convergeNode).toBeDefined()
+    expect((convergeNode?.data as Record<string, unknown>)?.__executionState).toEqual({
+      status: 'running',
+      started_at: undefined,
+      completed_at: undefined,
+      error_details: undefined,
+    })
+  })
+
+  it('marks converge node as completed when all incoming nodes are completed or failed', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-converge',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            {
+              id: 'task-1',
+              type: 'task',
+              name: 'Task 1',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo task1' } },
+            },
+            {
+              id: 'task-2',
+              type: 'task',
+              name: 'Task 2',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo task2' } },
+            },
+            { id: 'converge-1', type: 'converge', name: 'Converge', converge: { strategy: 'all', branches: [] } },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [
+        { id: 'edge-trigger-task1', source: 'trigger-0', target: 'task-1' },
+        { id: 'edge-trigger-task2', source: 'trigger-0', target: 'task-2' },
+        { id: 'edge-task1-converge', source: 'task-1', target: 'converge-1' },
+        { id: 'edge-task2-converge', source: 'task-2', target: 'converge-1' },
+      ],
+    })
+
+    // Both tasks completed
+    setExecutionState(
+      new Map([
+        ['task-1', { status: 'completed' }],
+        ['task-2', { status: 'completed' }],
+      ])
+    )
+
+    render(
+      <ExecutionViewContext.Provider value={true}>
+        <BuilderFlow workflowId="workflow-converge" panelOpen={false} executionStatus="running" />
+      </ExecutionViewContext.Provider>
+    )
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const nodes = props.nodes as Array<Record<string, unknown>>
+    const convergeNode = nodes.find((node) => node.id === 'converge-1')
+
+    expect(convergeNode).toBeDefined()
+    expect((convergeNode?.data as Record<string, unknown>)?.__executionState).toEqual({
+      status: 'completed',
+      started_at: undefined,
+      completed_at: undefined,
+      error_details: undefined,
+    })
+  })
+
+  it('marks converge node as completed when outgoing node has started', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-converge',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            {
+              id: 'task-1',
+              type: 'task',
+              name: 'Task 1',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo task1' } },
+            },
+            {
+              id: 'task-2',
+              type: 'task',
+              name: 'Task 2',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo task2' } },
+            },
+            { id: 'converge-1', type: 'converge', name: 'Converge', converge: { strategy: 'all', branches: [] } },
+            {
+              id: 'task-after',
+              type: 'task',
+              name: 'Task After',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo after' } },
+            },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [
+        { id: 'edge-trigger-task1', source: 'trigger-0', target: 'task-1' },
+        { id: 'edge-trigger-task2', source: 'trigger-0', target: 'task-2' },
+        { id: 'edge-task1-converge', source: 'task-1', target: 'converge-1' },
+        { id: 'edge-task2-converge', source: 'task-2', target: 'converge-1' },
+        { id: 'edge-converge-after', source: 'converge-1', target: 'task-after' },
+      ],
+    })
+
+    // Task after converge has started (so converge must be completed)
+    setExecutionState(
+      new Map([
+        ['task-1', { status: 'completed' }],
+        ['task-2', { status: 'pending' }],
+        ['task-after', { status: 'running' }],
+      ])
+    )
+
+    render(
+      <ExecutionViewContext.Provider value={true}>
+        <BuilderFlow workflowId="workflow-converge" panelOpen={false} executionStatus="running" />
+      </ExecutionViewContext.Provider>
+    )
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const nodes = props.nodes as Array<Record<string, unknown>>
+    const convergeNode = nodes.find((node) => node.id === 'converge-1')
+
+    expect(convergeNode).toBeDefined()
+    expect((convergeNode?.data as Record<string, unknown>)?.__executionState).toEqual({
+      status: 'completed',
+      started_at: undefined,
+      completed_at: undefined,
+      error_details: undefined,
+    })
+  })
+
+  it('marks converge node as running when one incoming is failed and others are pending', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-converge',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            {
+              id: 'task-1',
+              type: 'task',
+              name: 'Task 1',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo task1' } },
+            },
+            {
+              id: 'task-2',
+              type: 'task',
+              name: 'Task 2',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo task2' } },
+            },
+            { id: 'converge-1', type: 'converge', name: 'Converge', converge: { strategy: 'all', branches: [] } },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [
+        { id: 'edge-trigger-task1', source: 'trigger-0', target: 'task-1' },
+        { id: 'edge-trigger-task2', source: 'trigger-0', target: 'task-2' },
+        { id: 'edge-task1-converge', source: 'task-1', target: 'converge-1' },
+        { id: 'edge-task2-converge', source: 'task-2', target: 'converge-1' },
+      ],
+    })
+
+    // Task 1 failed, Task 2 still pending
+    setExecutionState(
+      new Map([
+        ['task-1', { status: 'failed' }],
+        ['task-2', { status: 'pending' }],
+      ])
+    )
+
+    render(
+      <ExecutionViewContext.Provider value={true}>
+        <BuilderFlow workflowId="workflow-converge" panelOpen={false} executionStatus="running" />
+      </ExecutionViewContext.Provider>
+    )
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const nodes = props.nodes as Array<Record<string, unknown>>
+    const convergeNode = nodes.find((node) => node.id === 'converge-1')
+
+    expect(convergeNode).toBeDefined()
+    expect((convergeNode?.data as Record<string, unknown>)?.__executionState).toEqual({
+      status: 'running',
+      started_at: undefined,
+      completed_at: undefined,
+      error_details: undefined,
+    })
+  })
+
+  it('marks converge node as pending when all incoming nodes are pending', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-converge',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            {
+              id: 'task-1',
+              type: 'task',
+              name: 'Task 1',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo task1' } },
+            },
+            {
+              id: 'task-2',
+              type: 'task',
+              name: 'Task 2',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo task2' } },
+            },
+            { id: 'converge-1', type: 'converge', name: 'Converge', converge: { strategy: 'all', branches: [] } },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [
+        { id: 'edge-trigger-task1', source: 'trigger-0', target: 'task-1' },
+        { id: 'edge-trigger-task2', source: 'trigger-0', target: 'task-2' },
+        { id: 'edge-task1-converge', source: 'task-1', target: 'converge-1' },
+        { id: 'edge-task2-converge', source: 'task-2', target: 'converge-1' },
+      ],
+    })
+
+    // All tasks still pending
+    setExecutionState(
+      new Map([
+        ['task-1', { status: 'pending' }],
+        ['task-2', { status: 'pending' }],
+      ])
+    )
+
+    render(
+      <ExecutionViewContext.Provider value={true}>
+        <BuilderFlow workflowId="workflow-converge" panelOpen={false} executionStatus="running" />
+      </ExecutionViewContext.Provider>
+    )
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const nodes = props.nodes as Array<Record<string, unknown>>
+    const convergeNode = nodes.find((node) => node.id === 'converge-1')
+
+    expect(convergeNode).toBeDefined()
+    expect((convergeNode?.data as Record<string, unknown>)?.__executionState).toEqual({
+      status: 'pending',
+      started_at: undefined,
+      completed_at: undefined,
+      error_details: undefined,
+    })
+  })
 })

@@ -2,7 +2,7 @@ import type { Activity, ActivityState } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../../types/edge'
 
-import { isBranchHandle } from './constants'
+import { ACTIVITY_STATUS, TERMINAL_ACTIVITY_STATUSES, isBranchHandle } from './executionHelpers'
 import {
   ConditionalNodeStateInferrer,
   ConvergeNodeStateInferrer,
@@ -128,7 +128,7 @@ export class ExecutionStateEnricher {
       enrichedActivity = {
         ...enrichedActivity,
         __executionState: {
-          status: 'skipped',
+          status: ACTIVITY_STATUS.SKIPPED,
           started_at: undefined,
           completed_at: undefined,
           error_details: undefined,
@@ -144,7 +144,7 @@ export class ExecutionStateEnricher {
       enrichedActivity = {
         ...enrichedActivity,
         __executionState: {
-          status: 'pending',
+          status: ACTIVITY_STATUS.PENDING,
           started_at: undefined,
           completed_at: undefined,
           error_details: undefined,
@@ -186,11 +186,11 @@ export class ExecutionStateEnricher {
     // Check if any target node has started
     const anyTargetStarted = outgoingEdges.some((edge) => {
       const targetState = activityStates.get(edge.target)
-      return targetState && targetState.status !== 'pending'
+      return targetState && targetState.status !== ACTIVITY_STATUS.PENDING
     })
 
     // Trigger is 'completed' if any connected node started, 'pending' otherwise
-    const status = anyTargetStarted ? 'completed' : 'pending'
+    const status = anyTargetStarted ? ACTIVITY_STATUS.COMPLETED : ACTIVITY_STATUS.PENDING
 
     return {
       ...triggerData,
@@ -239,7 +239,7 @@ export class ExecutionStateEnricher {
     const isSourceTrigger = edge.source.startsWith('trigger-')
     if (isSourceTrigger) {
       const targetState = activityStates.get(edge.target)
-      return targetState && targetState.status !== 'pending' ? 'passed' : 'pending'
+      return targetState && targetState.status !== ACTIVITY_STATUS.PENDING ? 'passed' : 'pending'
     }
 
     // For branching nodes (conditional, approval, or loop), check if target has started
@@ -247,7 +247,7 @@ export class ExecutionStateEnricher {
     if (isBranchHandle(edge.sourceHandle)) {
       const targetState = activityStates.get(edge.target)
       // If target is no longer pending, this branch was taken
-      return targetState && targetState.status !== 'pending' ? 'passed' : 'pending'
+      return targetState && targetState.status !== ACTIVITY_STATUS.PENDING ? 'passed' : 'pending'
     }
 
     // For converge nodes, check if target has started (not source)
@@ -264,13 +264,14 @@ export class ExecutionStateEnricher {
 
     if (isSourceConverge) {
       const targetState = activityStates.get(edge.target)
-      return targetState && targetState.status !== 'pending' ? 'passed' : 'pending'
+      return targetState && targetState.status !== ACTIVITY_STATUS.PENDING ? 'passed' : 'pending'
     }
 
-    // For regular edges, edge is "passed" if source activity has started
+    // For regular edges, edge is "passed" if source activity completed/failed/cancelled
+    // This matches the logic in useEdgeStatus.deriveEdgeStatus
     const sourceState = activityStates.get(edge.source)
-    if (sourceState && sourceState.startedAt) {
-      return 'passed'
+    if (sourceState) {
+      return TERMINAL_ACTIVITY_STATUSES.includes(sourceState.status) ? 'passed' : 'pending'
     }
 
     return 'pending'

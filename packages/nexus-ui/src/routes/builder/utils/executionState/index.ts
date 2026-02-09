@@ -9,8 +9,19 @@
  * - ExecutionStateEnricher: Orchestrator class that enriches activities with execution state
  * - ActivityWithMetadata: Type for activities enriched with execution metadata
  * - Constants: Branch handles and activity type constants
+ * - Utilities: Helper functions for execution state (isTerminalState, isBranchHandle)
  */
 
-export { ACTIVITY_TYPES, BRANCH_HANDLES, isBranchHandle, type ActivityTypeValue, type BranchHandle } from './constants'
+export {
+  ACTIVITY_TYPES,
+  ACTIVITY_STATUS,
+  BRANCH_HANDLES,
+  TERMINAL_ACTIVITY_STATUSES,
+  isBranchHandle,
+  isTerminalState,
+  type ActivityTypeValue,
+  type ActivityStatusValue,
+  type BranchHandle,
+} from './executionHelpers'
 export { ExecutionStateEnricher, type ActivityWithMetadata } from './ExecutionStateEnricher'
 export type { ExecutionState, NodeStateInferrer } from './nodeStateInference'
