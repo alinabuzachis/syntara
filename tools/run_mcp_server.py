@@ -3,7 +3,9 @@
 import asyncio
 import logging
 import os
+import signal
 import sys
+from contextlib import suppress
 from pathlib import Path
 
 # Add the project root to the Python path
@@ -22,6 +24,16 @@ async def main() -> None:
     port = int(os.getenv("MCP_PORT", "8765"))
 
     server = ExampleMCPServer(host=host, port=port)
+    stop_event = asyncio.Event()
+
+    loop = asyncio.get_running_loop()
+
+    def _request_shutdown(sig: signal.Signals) -> None:
+        logger.info("Received %s, shutting down", sig.name)
+        stop_event.set()
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, _request_shutdown, sig)
 
     logger.info("Starting MCP server on %s:%s", host, port)
     logger.info("MCP endpoint: http://%s:%s/mcp", host, port)
@@ -30,10 +42,11 @@ async def main() -> None:
     try:
         await server.start()
         # Keep server running until interrupted
-        await asyncio.Event().wait()
-    except KeyboardInterrupt:
+        await stop_event.wait()
+    finally:
         logger.info("Stopping MCP server...")
-        await server.stop()
+        with suppress(asyncio.CancelledError):
+            await server.stop()
         logger.info("MCP server stopped")
 
 
