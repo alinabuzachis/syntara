@@ -289,6 +289,7 @@ export default function Integrations() {
           <Dropdown
             isOpen={isViewMenuOpen}
             onOpenChange={(isOpen) => dispatch({ type: 'SET_VIEW_MENU_OPEN', payload: isOpen })}
+            popperProps={{ position: 'right' }}
             toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
               <MenuToggle
                 ref={toggleRef}
