@@ -48,7 +48,7 @@ As an Automation Designer, I want to execute AAP Job Templates as workflow tasks
 ### Acceptance Scenarios
 
 **AAP Job Template Execution**
-1. **Given** a workflow definition with an AAP Job Template task, **When** the workflow executes, **Then** the specified job template launches in Ansible Automation Platform with provided parameters (job template ID, inventory, credentials, extra variables)
+1. **Given** a workflow definition with an AAP Job Template task, **When** the workflow executes, **Then** the specified job template launches in Ansible Automation Platform with provided parameters (job template ID or name, optional inventory ID or name, credentials, extra variables)
 
 2. **Given** an AAP job template task with optional parameters (limit, tags, skipTags, verbosity), **When** the workflow executes, **Then** these parameters are passed correctly to the AAP job launch
 
@@ -73,7 +73,7 @@ As an Automation Designer, I want to execute AAP Job Templates as workflow tasks
 
 **AAP Job Template Executor (NEW)**
 - **FR-001**: System MUST support AAP Job Template task executor that launches job templates in Ansible Automation Platform
-- **FR-002**: System MUST accept required job template configuration: job template ID, inventory, credentials, and extra variables
+- **FR-002**: System MUST accept job template configuration with either job template ID or name (with organization), and optional inventory reference by ID or name (with organization)
 - **FR-003**: System MUST support optional job template parameters: limit, tags, skipTags, and verbosity
 - **FR-004**: System MUST poll AAP job status until completion and capture job output for subsequent workflow tasks
 - **FR-005**: System MUST handle AAP job failures and timeouts with appropriate error handling and retry capabilities
@@ -86,7 +86,7 @@ As an Automation Designer, I want to execute AAP Job Templates as workflow tasks
 
 **New Entities**:
 - **AAP Job Template Task**: Executor type that launches Ansible Automation Platform job templates
-- **Job Template Configuration**: Configuration model including job template ID, inventory, credentials, extra variables, limit, tags, skipTags, verbosity
+- **Job Template Configuration**: Configuration model including job template reference (ID or name with organization), optional inventory reference (ID or name with organization), credentials, extra variables, limit, tags, skipTags, verbosity
 
 **Existing Entities** (mentioned for context):
 - **Python Script Task**: Existing executor for Python code (no changes needed)
@@ -102,7 +102,7 @@ As an Automation Designer, I want to execute AAP Job Templates as workflow tasks
 graph TB
     subgraph New["🆕 New Functionality"]
         AAP[AAP Job Template Executor]
-        AAPCONF[Job Template Config<br/>ID, Inventory, Credentials, Vars]
+        AAPCONF[Job Template Config<br/>ID or Name, Inventory ID/Name, Credentials, Vars]
     end
 
     subgraph Schema["📋 Schema Updates"]

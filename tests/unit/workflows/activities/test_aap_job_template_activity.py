@@ -758,33 +758,34 @@ class TestAAPJobTemplateNameBasedReference:
             ({"job_template_id": 42}, True, None),
             ({"job_template_name": "Deploy", "organization_name": "Default"}, True, None),
             ({"job_template_name": "  Deploy  ", "organization_name": "  Default  "}, True, None),
+            # Both ID and name is valid - ID takes precedence
+            ({"job_template_id": 42, "job_template_name": "Deploy", "organization_name": "Default"}, True, None),
             # Invalid cases - should raise ValidationError
-            (
-                {"job_template_id": 42, "job_template_name": "Deploy", "organization_name": "Default"},
-                False,
-                "Cannot specify both",
-            ),
-            ({"job_template_name": "Deploy"}, False, "organization_name is required"),
-            ({"organization_name": "Default"}, False, "job_template_name is required"),
+            ({"job_template_name": "Deploy"}, False, "organization_name is required when using job_template_name"),
+            ({"organization_name": "Default"}, False, "Must specify either"),
             ({"extra_vars": {"foo": "bar"}}, False, "Must specify either"),
-            ({"job_template_name": "", "organization_name": "Default"}, False, "job_template_name is required"),
-            ({"job_template_name": "Deploy", "organization_name": ""}, False, "organization_name is required"),
+            ({"job_template_name": "", "organization_name": "Default"}, False, "Must specify either"),
+            (
+                {"job_template_name": "Deploy", "organization_name": ""},
+                False,
+                "organization_name is required when using job_template_name",
+            ),
             (
                 {"job_template_name": "   ", "organization_name": "Default"},
                 False,
-                "job_template_name is required",
+                "Must specify either",
             ),
             (
                 {"job_template_name": "Deploy", "organization_name": "   "},
                 False,
-                "organization_name is required",
+                "organization_name is required when using job_template_name",
             ),
         ],
         ids=[
             "valid_id_only",
             "valid_name_and_org",
             "valid_name_and_org_with_whitespace",
-            "invalid_both_id_and_name",
+            "valid_both_id_and_name",
             "invalid_name_without_org",
             "invalid_org_without_name",
             "invalid_neither_id_nor_name",
@@ -800,7 +801,7 @@ class TestAAPJobTemplateNameBasedReference:
         should_pass: bool,  # noqa: FBT001
         error_match: str | None,
     ) -> None:
-        """Test config validation enforces mutual exclusivity and whitespace stripping."""
+        """Test config validation and whitespace stripping."""
         if should_pass:
             config = build_config(**config_kwargs)
             assert config is not None
@@ -890,3 +891,377 @@ class TestAAPJobTemplateNameBasedReference:
             post_url = mock_post.call_args.args[0]
             assert "/job_templates/42/launch/" in post_url
             assert "++" not in post_url  # No named URL separator
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_id_takes_precedence_over_name(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Test that job_template_id takes precedence over job_template_name when both are provided."""
+        mocks = create_successful_job_mocks(job_id=777, output_text="")
+
+        with (
+            override_settings(**build_aap_settings_overrides()),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            # Only status and output calls - no lookup should happen
+            mock_get.side_effect = [mocks["status"], mocks["output"]]
+
+            # Provide both ID and name - ID should take precedence
+            activity_config = build_activity_config(
+                job_template_id=42,
+                job_template_name="Ignored Template",
+                organization_name="Ignored Org",
+            )
+
+            result = await execute_aap_job_template_activity(activity_config, {})
+            assert result["job_id"] == 777
+
+            # Verify POST was called with ID 42 (not name lookup)
+            post_url = mock_post.call_args.args[0]
+            assert "/job_templates/42/launch/" in post_url
+
+            # Verify no lookup was performed (only 2 GET calls: status + output, not 3)
+            assert mock_get.call_count == 2
+
+
+class TestAAPInventoryNameBasedReference:
+    """Test name-based inventory references."""
+
+    @pytest.mark.parametrize(
+        ("config_kwargs", "should_pass", "error_match"),
+        [
+            # Valid cases
+            ({"job_template_id": 42, "inventory_id": 123}, True, None),
+            ({"job_template_id": 42, "inventory_name": "Prod", "organization_name": "Default"}, True, None),
+            ({"job_template_id": 42}, True, None),  # No inventory is optional
+            # Both ID and name is valid - ID takes precedence
+            (
+                {"job_template_id": 42, "inventory_id": 123, "inventory_name": "Prod", "organization_name": "Default"},
+                True,
+                None,
+            ),
+            # Invalid cases
+            (
+                {"job_template_id": 42, "inventory_name": "Prod"},
+                False,
+                "organization_name is required when using inventory_name",
+            ),
+        ],
+    )
+    def test_inventory_config_validation(
+        self,
+        config_kwargs: dict[str, Any],
+        should_pass: bool,  # noqa: FBT001
+        error_match: str | None,
+    ) -> None:
+        """Test inventory config validation and requires org_name."""
+        if should_pass:
+            config = build_config(**config_kwargs)
+            assert config is not None
+        else:
+            with pytest.raises(ValidationError, match=error_match):
+                build_config(**config_kwargs)
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_inventory_name_lookup_and_job_execution(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Test successful inventory lookup by name and job execution."""
+        mocks = create_successful_job_mocks(job_id=456)
+        inventory_lookup = create_http_response(200, {"count": 1, "results": [{"id": 789, "name": "Production"}]})
+
+        with (
+            override_settings(**build_aap_settings_overrides()),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            mock_get.side_effect = [inventory_lookup, mocks["status"], mocks["output"]]
+
+            activity_config = build_activity_config(
+                job_template_id=42,
+                inventory_name="Production",
+                organization_name="Default",
+            )
+
+            result = await execute_aap_job_template_activity(activity_config, {})
+
+            assert result["job_id"] == 456
+            assert result["status"] == "successful"
+            # Verify inventory lookup
+            assert "inventories" in str(mock_get.call_args_list[0].args[0])
+            # Verify resolved inventory ID in POST body
+            assert mock_post.call_args.kwargs["json"]["inventory"] == 789
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_combined_job_template_and_inventory_name_lookup(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Test both job template and inventory using name-based lookups share organization."""
+        mocks = create_successful_job_mocks(job_id=666)
+        jt_lookup = create_http_response(200, {"count": 1, "results": [{"id": 111, "name": "Deploy"}]})
+        inv_lookup = create_http_response(200, {"count": 1, "results": [{"id": 222, "name": "Staging"}]})
+
+        with (
+            override_settings(**build_aap_settings_overrides()),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            mock_get.side_effect = [jt_lookup, inv_lookup, mocks["status"], mocks["output"]]
+
+            activity_config = build_activity_config(
+                job_template_name="Deploy",
+                inventory_name="Staging",
+                organization_name="Default",
+            )
+
+            result = await execute_aap_job_template_activity(activity_config, {})
+
+            assert result["status"] == "successful"
+            # Verify both lookups used same organization
+            assert mock_get.call_args_list[0].kwargs["params"]["organization__name"] == "Default"
+            assert mock_get.call_args_list[1].kwargs["params"]["organization__name"] == "Default"
+            # Verify POST used both resolved IDs
+            assert "/job_templates/111/launch/" in mock_post.call_args.args[0]
+            assert mock_post.call_args.kwargs["json"]["inventory"] == 222
+
+    @pytest.mark.parametrize(
+        ("lookup_results", "error_match"),
+        [
+            ({"count": 0, "results": []}, "Inventory 'Missing' not found"),
+            ({"count": 2, "results": [{"id": 1, "name": "Dup"}, {"id": 2, "name": "Dup"}]}, "Multiple inventories"),
+        ],
+    )
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_inventory_lookup_error_cases(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
+        lookup_results: dict[str, Any],
+        error_match: str,
+    ) -> None:
+        """Test inventory lookup errors (not found, multiple found)."""
+        with (
+            override_settings(**build_aap_settings_overrides()),
+            patch(
+                "httpx.AsyncClient.get", new_callable=AsyncMock, return_value=create_http_response(200, lookup_results)
+            ),
+        ):
+            activity_config = build_activity_config(
+                job_template_id=42,
+                inventory_name="Missing" if "not found" in error_match else "Dup",
+                organization_name="Default",
+            )
+
+            with pytest.raises(AAPJobExecutionError, match=error_match):
+                await execute_aap_job_template_activity(activity_config, {})
+
+    @pytest.mark.parametrize(
+        ("resource_type", "config_kwargs", "status_code", "error_match"),
+        [
+            # Job template lookup HTTP errors
+            ("job_template", {"job_template_name": "Deploy", "organization_name": "Default"}, 401, "Failed to lookup"),
+            ("job_template", {"job_template_name": "Deploy", "organization_name": "Default"}, 403, "Failed to lookup"),
+            ("job_template", {"job_template_name": "Deploy", "organization_name": "Default"}, 404, "Failed to lookup"),
+            ("job_template", {"job_template_name": "Deploy", "organization_name": "Default"}, 500, "Failed to lookup"),
+            # Inventory lookup HTTP errors
+            (
+                "inventory",
+                {"job_template_id": 42, "inventory_name": "Prod", "organization_name": "Default"},
+                401,
+                "Failed to lookup",
+            ),
+            (
+                "inventory",
+                {"job_template_id": 42, "inventory_name": "Prod", "organization_name": "Default"},
+                403,
+                "Failed to lookup",
+            ),
+            (
+                "inventory",
+                {"job_template_id": 42, "inventory_name": "Prod", "organization_name": "Default"},
+                500,
+                "Failed to lookup",
+            ),
+        ],
+        ids=[
+            "job_template_401_unauthorized",
+            "job_template_403_forbidden",
+            "job_template_404_not_found",
+            "job_template_500_server_error",
+            "inventory_401_unauthorized",
+            "inventory_403_forbidden",
+            "inventory_500_server_error",
+        ],
+    )
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_lookup_http_status_errors(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
+        resource_type: str,  # noqa: ARG002
+        config_kwargs: dict[str, Any],
+        status_code: int,
+        error_match: str,
+    ) -> None:
+        """Test HTTP status errors during resource lookup (job template or inventory)."""
+        with (
+            override_settings(**build_aap_settings_overrides()),
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                side_effect=httpx.HTTPStatusError(
+                    f"{status_code} Error",
+                    request=MagicMock(),
+                    response=create_http_response(status_code, text=f"Error {status_code}"),
+                ),
+            ),
+        ):
+            activity_config = build_activity_config(**config_kwargs)
+
+            with pytest.raises(AAPJobExecutionError, match=error_match):
+                await execute_aap_job_template_activity(activity_config, {})
+
+    @pytest.mark.parametrize(
+        ("resource_type", "config_kwargs", "error_type", "error_message", "error_match"),
+        [
+            # Job template lookup connection errors
+            (
+                "job_template",
+                {"job_template_name": "Deploy", "organization_name": "Default"},
+                httpx.ConnectError,
+                "Connection refused",
+                "Failed to connect to AAP",
+            ),
+            (
+                "job_template",
+                {"job_template_name": "Deploy", "organization_name": "Default"},
+                httpx.TimeoutException,
+                "Request timeout",
+                "Failed to connect to AAP",
+            ),
+            (
+                "job_template",
+                {"job_template_name": "Deploy", "organization_name": "Default"},
+                httpx.NetworkError,
+                "Network unreachable",
+                "Failed to connect to AAP",
+            ),
+            # Inventory lookup connection errors
+            (
+                "inventory",
+                {"job_template_id": 42, "inventory_name": "Prod", "organization_name": "Default"},
+                httpx.ConnectError,
+                "Connection refused",
+                "Failed to connect to AAP",
+            ),
+            (
+                "inventory",
+                {"job_template_id": 42, "inventory_name": "Prod", "organization_name": "Default"},
+                httpx.TimeoutException,
+                "Request timeout",
+                "Failed to connect to AAP",
+            ),
+            (
+                "inventory",
+                {"job_template_id": 42, "inventory_name": "Prod", "organization_name": "Default"},
+                httpx.NetworkError,
+                "Network unreachable",
+                "Failed to connect to AAP",
+            ),
+        ],
+        ids=[
+            "job_template_connect_error",
+            "job_template_timeout_error",
+            "job_template_network_error",
+            "inventory_connect_error",
+            "inventory_timeout_error",
+            "inventory_network_error",
+        ],
+    )
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_lookup_connection_errors(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
+        resource_type: str,  # noqa: ARG002
+        config_kwargs: dict[str, Any],
+        error_type: type[httpx.HTTPError],
+        error_message: str,
+        error_match: str,
+    ) -> None:
+        """Test connection errors during resource lookup (job template or inventory)."""
+        with (
+            override_settings(**build_aap_settings_overrides()),
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                side_effect=error_type(error_message),
+            ),
+        ):
+            activity_config = build_activity_config(**config_kwargs)
+
+            with pytest.raises(AAPJobExecutionError, match=error_match):
+                await execute_aap_job_template_activity(activity_config, {})
+
+    @pytest.mark.asyncio
+    @patch("temporalio.activity.is_cancelled", return_value=False)
+    @patch("temporalio.activity.heartbeat")
+    async def test_inventory_id_takes_precedence_over_name(
+        self,
+        mock_heartbeat: object,  # noqa: ARG002
+        mock_is_cancelled: object,  # noqa: ARG002
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Test that inventory_id takes precedence over inventory_name when both are provided."""
+        mocks = create_successful_job_mocks(job_id=888, output_text="")
+
+        with (
+            override_settings(**build_aap_settings_overrides()),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mocks["launch"]) as mock_post,
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get,
+        ):
+            # Only status and output calls - no inventory lookup should happen
+            mock_get.side_effect = [mocks["status"], mocks["output"]]
+
+            # Provide both inventory_id and inventory_name - ID should take precedence
+            activity_config = build_activity_config(
+                job_template_id=42,
+                inventory_id=555,
+                inventory_name="Ignored Inventory",
+                organization_name="Ignored Org",
+            )
+
+            result = await execute_aap_job_template_activity(activity_config, {})
+            assert result["job_id"] == 888
+
+            # Verify POST body used inventory ID 555 (not name lookup)
+            post_body = mock_post.call_args.kwargs["json"]
+            assert post_body["inventory"] == 555
+
+            # Verify no inventory lookup was performed (only 2 GET calls: status + output)
+            assert mock_get.call_count == 2

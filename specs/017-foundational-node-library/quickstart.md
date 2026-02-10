@@ -32,7 +32,8 @@ tasks:
     executor: aap_job_template
     config:
       job_template_id: 42
-      inventory: "production-servers"
+      inventory_name: "Production Servers"
+      organization_name: "Operations"
       extra_vars:
         app_version: "2.1.0"
         deploy_environment: "production"
@@ -43,7 +44,7 @@ tasks:
 ### Expected Behavior
 
 1. Workflow triggers manually via API: `POST /api/v1/executions`
-2. AAP job template #42 launches with specified inventory and extra vars
+2. AAP job template #42 launches with specified inventory name (resolved to ID) and extra vars
 3. Activity polls job status every 5 seconds until completion
 4. Job output captured and available to subsequent tasks
 5. Workflow completes when job finishes
@@ -98,7 +99,8 @@ tasks:
     executor: aap_job_template
     config:
       job_template_id: 42
-      inventory: "production-servers"
+      inventory_name: "Production Servers"
+      organization_name: "Operations"
       extra_vars:
         app_version: "${workflow.inputs.version}"
         previous_version: "${pre_deployment_check.output.current_version}"
@@ -192,7 +194,8 @@ tasks:
     executor: aap_job_template
     config:
       job_template_id: 99
-      inventory: "staging-servers"
+      inventory_name: "Staging Servers"
+      organization_name: "Operations"
       extra_vars:
         force_deploy: true
     retry_policy:
@@ -204,7 +207,8 @@ tasks:
     executor: aap_job_template
     config:
       job_template_id: 100  # Rollback playbook
-      inventory: "staging-servers"
+      inventory_name: "Staging Servers"
+      organization_name: "Operations"
     condition: "${risky_deployment.status == 'failed'}"
 ```
 
@@ -274,8 +278,11 @@ Check AAP connectivity and credentials.
 | Field | Type | Required | Description | Example |
 |-------|------|----------|-------------|---------|
 | `executor` | string | Yes | Must be "aap_job_template" | `"aap_job_template"` |
-| `job_template_id` | integer | Yes | AAP job template ID | `42` |
-| `inventory` | string | No | Override default inventory | `"production-servers"` |
+| `job_template_id` | integer | Either ID or name | AAP job template ID | `42` |
+| `job_template_name` | string | Either ID or name | AAP job template name (requires organization_name) | `"Deploy App"` |
+| `organization_name` | string | When using names | AAP organization name | `"Operations"` |
+| `inventory_id` | integer | No | Override inventory by ID | `123` |
+| `inventory_name` | string | No | Override inventory by name (requires organization_name) | `"Production Servers"` |
 | `credentials` | array | No | List of credential IDs | `[1, 2, 3]` |
 | `extra_vars` | object | No | Extra variables for job | `{"version": "1.2.3"}` |
 | `limit` | string | No | Host pattern to limit execution | `"web-*.prod"` |
@@ -303,7 +310,8 @@ tasks:
     timeout: "PT2H"  # 2 hours for this specific job (ISO 8601 duration)
     config:
       job_template_id: 123
-      inventory: "production"
+      inventory_name: "Production Servers"
+      organization_name: "Operations"
 ```
 
 ## Troubleshooting

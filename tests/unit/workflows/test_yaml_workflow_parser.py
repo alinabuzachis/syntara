@@ -766,7 +766,7 @@ class TestAAPExecutorValidation:
         """Test valid AAP executor configuration."""
         config = {
             "job_template_id": 42,
-            "inventory": 123,
+            "inventory_id": 123,
             "extra_vars": {"version": "1.0.0", "environment": "prod"},
             "limit": "webservers",
             "tags": "deploy,configure",
@@ -781,7 +781,7 @@ class TestAAPExecutorValidation:
         assert isinstance(task.config, AAPJobTemplateExecutorConfig)
         assert task.executor.value == "aap_job_template"
         assert task.config.job_template_id == 42
-        assert task.config.inventory == 123
+        assert task.config.inventory_id == 123
         assert task.config.extra_vars["version"] == "1.0.0"
         assert task.config.limit == "webservers"
         assert task.config.tags == "deploy,configure"
@@ -804,7 +804,7 @@ class TestAAPExecutorValidation:
 
     def test_aap_executor_missing_job_template_id(self) -> None:
         """Test AAP executor fails without job_template_id."""
-        yaml_str = self._build_aap_workflow_yaml({"inventory": 123})
+        yaml_str = self._build_aap_workflow_yaml({"inventory_id": 123})
         with pytest.raises(WorkflowParseError, match=r"(job_template_id|jobTemplateId)"):
             parse_workflow_yaml(yaml_str)
 

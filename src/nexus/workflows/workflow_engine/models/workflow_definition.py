@@ -15,6 +15,7 @@ from pydantic.functional_validators import ModelWrapValidatorHandler
 
 from nexus.workflows.utils.activity_traversal import traverse_activities
 from nexus.workflows.workflow_engine import constants
+from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
 
 # Template expression pattern - matches ${...} expressions
 TEMPLATE_PATTERN = re.compile(r"\$\{[^}]+\}")
@@ -295,11 +296,16 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
     - job_template_id (numeric ID), OR
     - job_template_name + organization_name
 
+    Inventories can be referenced either by numeric ID or by name with organization:
+    - inventory_id (numeric ID), OR
+    - inventory_name + organization_name
+
     Attributes:
         job_template_id: AAP job template ID to launch (mutually exclusive with name-based)
         job_template_name: AAP job template name (requires organization_name)
-        organization_name: AAP organization name (requires job_template_name)
-        inventory: Override default inventory (name or ID)
+        organization_name: AAP organization name (used with job_template_name or inventory_name)
+        inventory_id: Override default inventory by ID (mutually exclusive with inventory_name)
+        inventory_name: Override default inventory by name (requires organization_name)
         credentials: List of credential IDs to use
         extra_vars: Extra variables to pass to job
         limit: Limit job execution to specific hosts
@@ -318,10 +324,16 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
         description="AAP job template ID to launch",
         alias="jobTemplateId",
     )
-    inventory: int | None = Field(
+    inventory_id: int | None = Field(
         default=None,
         ge=1,
-        description="Override default inventory (ID only)",
+        description="Override default inventory by ID (mutually exclusive with inventory_name)",
+        alias="inventoryId",
+    )
+    inventory_name: str | None = Field(
+        default=None,
+        description="Override default inventory by name (requires organization_name)",
+        alias="inventoryName",
     )
     credentials: list[int] | None = Field(
         default=None,
@@ -363,39 +375,87 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
     )
     organization_name: str | None = Field(
         default=None,
-        description="AAP organization name (used with job_template_name)",
+        description="AAP organization name (used with job_template_name or inventory_name)",
         alias="organizationName",
     )
 
+    def _validate_id_or_name_reference(
+        self,
+        id_value: int | str | None,
+        name_value: str | None,
+        org_value: str | None,
+        resource_type: str,
+        *,
+        required: bool = True,
+    ) -> None:
+        """Validate resource reference by ID or name.
+
+        ID takes precedence over name. When using name-based lookup, organization is required.
+
+        Args:
+            id_value: Resource ID (e.g., job_template_id, inventory_id)
+            name_value: Resource name (e.g., job_template_name, inventory_name)
+            org_value: Organization name
+            resource_type: Type of resource for error messages (e.g., "job_template", "inventory")
+            required: Whether at least one reference method must be specified
+
+        Raises:
+            ValueError: If validation fails
+
+        """
+        # Skip validation if any value is a template expression
+        # Template expressions are validated at runtime when values are known
+        is_id_template = isinstance(id_value, str) and TEMPLATE_PATTERN.search(id_value)
+        is_name_template = isinstance(name_value, str) and TEMPLATE_PATTERN.search(name_value)
+        is_org_template = isinstance(org_value, str) and TEMPLATE_PATTERN.search(org_value)
+
+        if is_id_template or is_name_template or is_org_template:
+            # Allow template expressions to be present simultaneously
+            # At runtime, only one set will be evaluated to actual values
+            return
+
+        has_id = id_value is not None
+        has_name = bool(name_value)
+
+        # Check that name requires organization (only when ID not provided)
+        if not has_id and has_name and not org_value:
+            msg = f"organization_name is required when using {resource_type}_name"
+            raise ValueError(msg)
+
+        # Check that at least one is specified (if required)
+        if required and not has_id and not has_name:
+            msg = f"Must specify either {resource_type}_id or ({resource_type}_name + organization_name)"
+            raise ValueError(msg)
+
     @model_validator(mode="after")
     def validate_template_reference(self) -> Self:
-        """Validate EITHER job_template_id OR (job_template_name + organization_name)."""
+        """Validate job template and inventory references."""
         # Strip whitespace from name fields
         # Use object.__setattr__ to avoid triggering validate_assignment recursion
         if self.job_template_name:
             object.__setattr__(self, "job_template_name", self.job_template_name.strip())
+        if self.inventory_name:
+            object.__setattr__(self, "inventory_name", self.inventory_name.strip())
         if self.organization_name:
             object.__setattr__(self, "organization_name", self.organization_name.strip())
 
-        has_id = self.job_template_id is not None
-        has_name = bool(self.job_template_name)
-        has_org = bool(self.organization_name)
+        # Validate job template reference (required)
+        self._validate_id_or_name_reference(
+            self.job_template_id,
+            self.job_template_name,
+            self.organization_name,
+            AAPResourceType.JOB_TEMPLATES.field_prefix,
+            required=True,
+        )
 
-        if has_id and (has_name or has_org):
-            msg = "Cannot specify both job_template_id and job_template_name/organization_name"
-            raise ValueError(msg)
-
-        if has_name and not has_org:
-            msg = "organization_name is required when using job_template_name"
-            raise ValueError(msg)
-
-        if has_org and not has_name:
-            msg = "job_template_name is required when using organization_name"
-            raise ValueError(msg)
-
-        if not has_id and not has_name:
-            msg = "Must specify either job_template_id or (job_template_name + organization_name)"
-            raise ValueError(msg)
+        # Validate inventory reference (optional)
+        self._validate_id_or_name_reference(
+            self.inventory_id,
+            self.inventory_name,
+            self.organization_name,
+            AAPResourceType.INVENTORIES.field_prefix,
+            required=False,
+        )
 
         return self
 

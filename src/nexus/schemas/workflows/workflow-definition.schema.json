@@ -647,25 +647,32 @@
         },
         "config": {
           "type": "object",
-          "description": "Configuration for AAP job template execution. Must specify either jobTemplateId OR both jobTemplateName and organizationName.",
+          "description": "Configuration for AAP job template execution. Job template must be specified by ID or name. When both are provided, ID takes precedence. Inventory can be specified by ID or name; when both are provided, ID takes precedence.",
           "properties": {
             "jobTemplateId": {
               "type": "integer",
-              "description": "AAP job template ID to launch (mutually exclusive with jobTemplateName/organizationName)",
+              "description": "AAP job template ID to launch. Takes precedence over jobTemplateName if both are provided.",
               "minimum": 1
             },
             "jobTemplateName": {
               "type": "string",
-              "description": "AAP job template name (requires organizationName, mutually exclusive with jobTemplateId)"
+              "description": "AAP job template name. Requires organizationName. Ignored if jobTemplateId is also provided.",
+              "minLength": 1
             },
             "organizationName": {
               "type": "string",
-              "description": "AAP organization name (requires jobTemplateName, mutually exclusive with jobTemplateId)"
+              "description": "AAP organization name. Required when using jobTemplateName or inventoryName for name-based lookups.",
+              "minLength": 1
             },
-            "inventory": {
+            "inventoryId": {
               "type": "integer",
               "minimum": 1,
-              "description": "Override default inventory (ID only)"
+              "description": "Override default inventory by ID. Takes precedence over inventoryName if both are provided."
+            },
+            "inventoryName": {
+              "type": "string",
+              "description": "Override default inventory by name. Requires organizationName. Ignored if inventoryId is also provided.",
+              "minLength": 1
             },
             "credentials": {
               "type": "array",
@@ -699,20 +706,34 @@
               "default": 0
             }
           },
-          "oneOf": [
+          "allOf": [
             {
-              "required": ["jobTemplateId"],
-              "not": {
-                "anyOf": [
-                  { "required": ["jobTemplateName"] },
-                  { "required": ["organizationName"] }
-                ]
+              "description": "At least one of jobTemplateId or jobTemplateName must be provided",
+              "anyOf": [
+                {
+                  "required": ["jobTemplateId"]
+                },
+                {
+                  "required": ["jobTemplateName"]
+                }
+              ]
+            },
+            {
+              "if": {
+                "required": ["jobTemplateName"]
+              },
+              "then": {
+                "description": "When job template is specified by name, organizationName is required",
+                "required": ["organizationName"]
               }
             },
             {
-              "required": ["jobTemplateName", "organizationName"],
-              "not": {
-                "required": ["jobTemplateId"]
+              "if": {
+                "required": ["inventoryName"]
+              },
+              "then": {
+                "description": "When inventory is specified by name, organizationName is required",
+                "required": ["organizationName"]
               }
             }
           ],

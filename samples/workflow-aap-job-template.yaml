@@ -65,9 +65,19 @@ inputs:
       - backup
 
   # AAP execution parameters
-  inventory:
+  inventory_id:
+    type: integer
+    description: "Override inventory by ID - optional"
+    required: false
+
+  inventory_name:
     type: string
-    description: "Override inventory (name or ID) - optional"
+    description: "Override inventory by name (requires organization_name) - optional"
+    required: false
+
+  organization_name:
+    type: string
+    description: "AAP organization name (required when using inventory_name) - optional"
     required: false
 
   limit:
@@ -109,9 +119,12 @@ workflow:
           # Required: Job Template ID from AAP
           jobTemplateId: ${input.job_template_id}
 
-          # Optional: Override inventory (use inventory name or ID from AAP)
-          # Leave null to use the default inventory configured in the Job Template
-          inventory: ${input.inventory}
+          # Optional: Override inventory by ID or name (from AAP)
+          # Use either inventoryId OR (inventoryName + organizationName)
+          # Leave both null to use the default inventory configured in the Job Template
+          inventoryId: ${input.inventory_id}
+          inventoryName: ${input.inventory_name}
+          organizationName: ${input.organization_name}
 
           # Optional: Pass extra variables to the playbook
           # These override the default vars defined in the playbook
@@ -271,14 +284,15 @@ workflow:
 #      "verbosity": 3
 #    }
 #
-# 6. Production deployment with custom inventory:
+# 6. Production deployment with custom inventory (by name):
 #    {
 #      "job_template_id": 42,
 #      "app_name": "myapp",
 #      "app_version": "2.0.0",
 #      "deployment_env": "production",
 #      "operation": "deploy",
-#      "inventory": "production-servers",
+#      "inventory_name": "Production Servers",
+#      "organization_name": "Operations",
 #      "limit": "web-prod-01,web-prod-02",
 #      "tags": "deploy,config"
 #    }

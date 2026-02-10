@@ -245,8 +245,14 @@ class AAPJobTemplateExecutorConfig(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     executor: Literal["aap_job_template"] = "aap_job_template"
-    job_template_id: int = Field(..., description="AAP job template ID to launch", gt=0)
-    inventory: Optional[str] = Field(default=None, description="Override default inventory (name or ID)")
+    # Job Template Reference
+    job_template_id: Optional[int] = Field(default=None, description="AAP job template ID (mutually exclusive with name)", gt=0)
+    job_template_name: Optional[str] = Field(default=None, description="AAP job template name (requires organization_name)")
+    organization_name: Optional[str] = Field(default=None, description="AAP organization name")
+    # Inventory Override
+    inventory_id: Optional[int] = Field(default=None, description="Override inventory by ID (mutually exclusive with name)", gt=0)
+    inventory_name: Optional[str] = Field(default=None, description="Override inventory by name (requires organization_name)")
+    # Other fields
     credentials: Optional[List[int]] = Field(default=None, description="List of credential IDs to use")
     extra_vars: Dict[str, Any] = Field(default_factory=dict, description="Extra variables to pass to job")
     limit: Optional[str] = Field(default=None, description="Limit job execution to specific hosts")
@@ -337,10 +343,13 @@ async def execute_aap_job_template_activity(
     # Initialize AAP client (inject via settings)
     aap_client = get_aap_client()
 
-    # Launch job
+    # Launch job (handles both ID and name-based lookups)
     job_id = await aap_client.launch_job_template(
         job_template_id=config.job_template_id,
-        inventory=config.inventory,
+        job_template_name=config.job_template_name,
+        organization_name=config.organization_name,
+        inventory_id=config.inventory_id,
+        inventory_name=config.inventory_name,
         credentials=config.credentials,
         extra_vars=config.extra_vars,
         limit=config.limit,
@@ -397,18 +406,32 @@ async def execute_aap_job_template_activity(
 ```json
 "aapJobTemplateExecutorConfig": {
   "type": "object",
-  "required": ["executor", "job_template_id"],
+  "required": ["executor"],
   "properties": {
     "executor": {"const": "aap_job_template"},
     "job_template_id": {"type": "integer", "minimum": 1},
-    "inventory": {"type": "string"},
+    "job_template_name": {"type": "string"},
+    "organization_name": {"type": "string"},
+    "inventory_id": {"type": "integer", "minimum": 1},
+    "inventory_name": {"type": "string"},
     "credentials": {"type": "array", "items": {"type": "integer"}},
     "extra_vars": {"type": "object"},
     "limit": {"type": "string"},
     "tags": {"type": "string"},
     "skip_tags": {"type": "string"},
     "verbosity": {"type": "integer", "minimum": 0, "maximum": 5}
-  }
+  },
+  "allOf": [
+    {
+      "oneOf": [
+        {"required": ["job_template_id"]},
+        {"required": ["job_template_name", "organization_name"]}
+      ]
+    },
+    {
+      "not": {"required": ["inventory_id", "inventory_name"]}
+    }
+  ]
 }
 ```
 

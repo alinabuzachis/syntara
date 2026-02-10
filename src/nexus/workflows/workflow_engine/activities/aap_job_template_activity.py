@@ -21,6 +21,7 @@ from temporalio.exceptions import CancelledError
 from nexus.core.config.base import Settings, get_settings
 from nexus.workflows.utils.template_resolution import resolve_config_templates
 from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
 
 from .common import ActivityExecutionError
 
@@ -43,39 +44,44 @@ class JobStatus(StrEnum):
 TERMINAL_STATUSES = {status.lower() for status in JobStatus}
 
 
-async def _lookup_job_template_by_name(
+async def _lookup_resource_by_name(
     client: httpx.AsyncClient,
-    job_template_name: str,
+    resource_name: str,
     organization_name: str,
+    resource_type: AAPResourceType,
     auth_headers: dict[str, str],
     basic_auth: httpx.BasicAuth | None,
     base_url: str,
 ) -> int:
-    """Lookup job template ID by name and organization.
+    """Lookup AAP resource ID by name and organization.
 
     Args:
         client: HTTP client
-        job_template_name: Name of job template
+        resource_name: Name of the resource (job template or inventory)
         organization_name: Name of organization
+        resource_type: Type of resource (AAPResourceType.JOB_TEMPLATES or AAPResourceType.INVENTORIES)
         auth_headers: Authentication headers
         basic_auth: Basic authentication object
         base_url: Base URL for AAP controller
 
     Returns:
-        Job template ID
+        Resource ID
 
     Raises:
-        AAPJobExecutionError: If template not found or multiple templates found
+        AAPJobExecutionError: If resource not found or multiple resources found
 
     """
     auth_param = basic_auth or httpx.USE_CLIENT_DEFAULT
 
-    # Query AAP API for job templates by name and organization
-    lookup_url = f"{base_url}/api/controller/v2/job_templates/"
+    # Query AAP API for resources by name and organization
+    lookup_url = f"{base_url}/api/controller/v2/{resource_type.value}/"
     params = {
-        "name": job_template_name,
+        "name": resource_name,
         "organization__name": organization_name,
     }
+
+    # Get display name from enum for error messages
+    display_name = resource_type.display_name
 
     try:
         response = await client.get(lookup_url, params=params, headers=auth_headers, auth=auth_param)
@@ -85,31 +91,35 @@ async def _lookup_job_template_by_name(
 
         # Validate exactly one result
         if len(results) == 0:
-            msg = f"Job template '{job_template_name}' not found in organization '{organization_name}'"
+            msg = f"{display_name.capitalize()} '{resource_name}' not found in organization '{organization_name}'"
             raise AAPJobExecutionError(msg, status=None)
 
         if len(results) > 1:
-            msg = f"Multiple job templates named '{job_template_name}' found in organization '{organization_name}'"
+            msg = (
+                f"Multiple {resource_type.display_name_plural} named '{resource_name}' "
+                f"found in organization '{organization_name}'"
+            )
             raise AAPJobExecutionError(msg, status=None)
 
-        # Return the job template ID
-        job_template_id = int(results[0]["id"])
+        # Return the resource ID
+        resource_id = int(results[0]["id"])
         logger.info(
-            "Resolved job template to ID",
-            job_template_name=job_template_name,
+            "Resolved %s to ID",
+            display_name,
+            resource_name=resource_name,
             organization_name=organization_name,
-            job_template_id=job_template_id,
+            resource_id=resource_id,
         )
-        return job_template_id
+        return resource_id
 
     except httpx.HTTPStatusError as e:
         msg = (
-            f"Failed to lookup job template '{job_template_name}' in org '{organization_name}': "
+            f"Failed to lookup {display_name} '{resource_name}' in org '{organization_name}': "
             f"HTTP {e.response.status_code}"
         )
         raise AAPJobExecutionError(msg, status=None) from e
     except httpx.HTTPError as e:
-        msg = f"Failed to connect to AAP for template lookup: {e}"
+        msg = f"Failed to connect to AAP for {display_name} lookup: {e}"
         raise AAPJobExecutionError(msg) from e
 
 
@@ -177,19 +187,21 @@ def _get_aap_basic_auth(settings: Settings) -> httpx.BasicAuth | None:
     return None
 
 
-def _build_launch_body(config: AAPJobTemplateExecutorConfig) -> dict[str, Any]:
+def _build_launch_body(config: AAPJobTemplateExecutorConfig, inventory_id: int | None) -> dict[str, Any]:
     """Build request body for job launch.
 
     Args:
         config: AAP job template configuration (with already-resolved templates)
+        inventory_id: Resolved inventory ID (from direct ID or name lookup)
 
     Returns:
         Request body dictionary with snake_case keys for AAP API
 
     """
     body: dict[str, Any] = {}
-    if config.inventory:
-        body["inventory"] = config.inventory
+    # Use the single resolved inventory_id
+    if inventory_id is not None:
+        body["inventory"] = inventory_id
     if config.credentials:
         body["credentials"] = config.credentials
     if config.extra_vars:
@@ -209,7 +221,6 @@ def _build_launch_body(config: AAPJobTemplateExecutorConfig) -> dict[str, Any]:
 async def _launch_aap_job(
     client: httpx.AsyncClient,
     config: AAPJobTemplateExecutorConfig,
-    body: dict[str, Any],
     auth_headers: dict[str, str],
     basic_auth: httpx.BasicAuth | None,
     base_url: str,
@@ -219,7 +230,6 @@ async def _launch_aap_job(
     Args:
         client: HTTP client
         config: AAP job template configuration
-        body: Request body
         auth_headers: Authentication headers
         basic_auth: Basic authentication object
         base_url: Base URL for AAP controller
@@ -231,21 +241,56 @@ async def _launch_aap_job(
         AAPJobExecutionError: If launch fails
 
     """
-    # Resolve job template ID - either use provided ID or lookup by name/org
-    if config.job_template_name:
+    # Resolve job template ID - ID takes precedence over name if both provided
+    if config.job_template_id is not None:
+        # Use numeric ID directly (takes precedence per schema)
+        job_template_id = config.job_template_id
+    elif config.job_template_name:
         # Lookup job template by name and organization
-        job_template_id = await _lookup_job_template_by_name(
+        job_template_id = await _lookup_resource_by_name(
             client,
             config.job_template_name,
             # we ignore arg-type because Pydantic ensures this is not None if name is provided
             config.organization_name,  # type: ignore[arg-type]
+            AAPResourceType.JOB_TEMPLATES,
             auth_headers,
             basic_auth,
             base_url,
         )
     else:
-        # Use numeric ID (validated to be non-None by model)
-        job_template_id = config.job_template_id  # type: ignore[assignment]
+        # Should never reach here due to model validation
+        msg = "Either job_template_id or job_template_name must be provided"
+        raise AAPJobExecutionError(msg)
+
+    # Resolve inventory ID - ID takes precedence over name if both provided
+    if config.inventory_id is not None:
+        # Use inventory ID directly (takes precedence per schema)
+        inventory_id: int | None = config.inventory_id
+    elif config.inventory_name:
+        # Lookup inventory by name and organization
+        inventory_id = await _lookup_resource_by_name(
+            client,
+            config.inventory_name,
+            # we ignore arg-type because Pydantic ensures this is not None if name is provided
+            config.organization_name,  # type: ignore[arg-type]
+            AAPResourceType.INVENTORIES,
+            auth_headers,
+            basic_auth,
+            base_url,
+        )
+    else:
+        # No inventory override specified - will use job template's default
+        inventory_id = None
+
+    # Build launch body with single source of truth for inventory_id
+    body = _build_launch_body(config, inventory_id)
+
+    # Log the launch body for debugging
+    logger.debug(
+        "Launching job template with body",
+        job_template_id=job_template_id,
+        launch_body=body,
+    )
 
     launch_url = f"{base_url}/api/controller/v2/job_templates/{job_template_id}/launch/"
 
@@ -257,8 +302,12 @@ async def _launch_aap_job(
         launch_data: dict[str, Any] = response.json()
         job_id = int(launch_data["id"])
 
-        # Log based on reference type
-        if config.job_template_name:
+        # Log based on which reference method was actually used
+        if config.job_template_id is not None:
+            # Was resolved via ID
+            logger.info("Launched AAP job template by ID", job_template_id=job_template_id, job_id=job_id)
+        else:
+            # Was resolved via name lookup
             logger.info(
                 "Launched job template by name",
                 job_template_name=config.job_template_name,
@@ -266,16 +315,14 @@ async def _launch_aap_job(
                 job_template_id=job_template_id,
                 job_id=job_id,
             )
-        else:
-            logger.info("Launched AAP job template", job_template_id=job_template_id, job_id=job_id)
 
         return job_id
     except httpx.HTTPStatusError as e:
-        # Build reference info for error message
-        if config.job_template_name:
-            ref_info = f"'{config.job_template_name}' in org '{config.organization_name}'"
+        # Build reference info for error message based on which method was used
+        if config.job_template_id is not None:
+            ref_info = f"ID {job_template_id}"
         else:
-            ref_info = str(job_template_id)
+            ref_info = f"'{config.job_template_name}' in org '{config.organization_name}'"
         msg = f"Failed to launch job template {ref_info}: HTTP {e.response.status_code}"
         raise AAPJobExecutionError(msg, status=None) from e
     except httpx.HTTPError as e:
@@ -563,11 +610,8 @@ async def execute_aap_job_template_activity(
             auth_headers = _get_aap_auth_headers(settings)
             basic_auth = _get_aap_basic_auth(settings)
 
-            # Build launch body (config already has resolved templates)
-            body = _build_launch_body(config)
-
-            # Launch job
-            job_id = await _launch_aap_job(client, config, body, auth_headers, basic_auth, base_url)
+            # Launch job (handles both job template and inventory lookups)
+            job_id = await _launch_aap_job(client, config, auth_headers, basic_auth, base_url)
 
             # Poll until complete
             job_data = await _poll_until_complete(

@@ -19,13 +19,14 @@
   - `job_template_id`: Integer ID of the job template (in URL path)
   - Authentication credentials (in header)
 - **Optional Parameters** (in request body):
-  - `inventory`: Override default inventory (string or ID)
+  - `inventory`: Override default inventory (integer ID, resolved from inventory_id or inventory_name)
   - `credentials`: Array of credential IDs to use
   - `extra_vars`: Dictionary of extra variables (JSON object)
   - `limit`: Host pattern to limit execution (string)
   - `tags`: Ansible tags to run (comma-separated string)
   - `skip_tags`: Ansible tags to skip (comma-separated string)
   - `verbosity`: Job verbosity level (0-5, integer)
+- **Note**: Job template and inventory can be referenced by ID or by name (requires lookup via `/api/v2/job_templates/` or `/api/v2/inventories/` with organization name filter)
 
 **Decision**: Use httpx async client for AAP API calls
 **Rationale**:
@@ -188,8 +189,8 @@
 
 3. **AAPJobTemplateExecutorConfig** (`src/nexus/workflows/workflow_engine/models/executor_config.py`)
    - SQLModel class extending ExecutorConfig
-   - Fields: job_template_id, inventory, credentials, extra_vars, etc.
-   - Validates configuration before execution
+   - Fields: job_template_id/name, inventory_id/name, organization_name, credentials, extra_vars, etc.
+   - Validates configuration before execution (mutual exclusivity of ID vs name references)
 
 4. **Schema Updates** (`schemas/workflows/workflow-definition.schema.json`)
    - Add aap_job_template to executor enum

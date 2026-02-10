@@ -35,17 +35,33 @@ class AAPJobTemplateExecutorConfig(BaseModel):
 
     executor: Literal["aap_job_template"] = "aap_job_template"
 
-    # Required fields
-    job_template_id: int = Field(
-        ...,
-        description="AAP job template ID to launch",
+    # Required: Job Template Reference (ID or Name)
+    job_template_id: Optional[int] = Field(
+        default=None,
+        description="AAP job template ID to launch (mutually exclusive with job_template_name)",
         gt=0
     )
 
-    # Optional override fields
-    inventory: Optional[str] = Field(
+    job_template_name: Optional[str] = Field(
         default=None,
-        description="Override default inventory (name or ID)"
+        description="AAP job template name (requires organization_name)"
+    )
+
+    organization_name: Optional[str] = Field(
+        default=None,
+        description="AAP organization name (required with job_template_name or inventory_name)"
+    )
+
+    # Optional: Inventory Override (ID or Name)
+    inventory_id: Optional[int] = Field(
+        default=None,
+        description="Override default inventory by ID (mutually exclusive with inventory_name)",
+        gt=0
+    )
+
+    inventory_name: Optional[str] = Field(
+        default=None,
+        description="Override default inventory by name (requires organization_name)"
     )
 
     credentials: Optional[List[int]] = Field(
@@ -88,7 +104,8 @@ class AAPJobTemplateExecutorConfig(BaseModel):
                 {
                     "executor": "aap_job_template",
                     "job_template_id": 123,
-                    "inventory": "production",
+                    "inventory_name": "Production Servers",
+                    "organization_name": "Operations",
                     "extra_vars": {
                         "app_version": "1.2.3",
                         "deploy_environment": "prod"
@@ -102,7 +119,12 @@ class AAPJobTemplateExecutorConfig(BaseModel):
 ```
 
 **Validation Rules**:
-- `job_template_id` must be positive integer
+- Must specify EITHER `job_template_id` OR (`job_template_name` + `organization_name`)
+- Cannot specify both `job_template_id` and `job_template_name`
+- If using `job_template_name`, `organization_name` is required
+- Cannot specify both `inventory_id` and `inventory_name`
+- If using `inventory_name`, `organization_name` is required
+- `job_template_id` and `inventory_id` (if provided) must be positive integers
 - `verbosity` must be between 0 and 5
 - `executor` must be exactly "aap_job_template"
 - `extra_vars` must be valid JSON object
@@ -322,12 +344,29 @@ stateDiagram-v2
 
 ## Validation Examples
 
-### Valid Configuration
+### Valid Configurations
+
+**Using IDs**:
 ```json
 {
   "executor": "aap_job_template",
   "job_template_id": 123,
-  "inventory": "production",
+  "inventory_id": 456,
+  "extra_vars": {
+    "app_version": "1.2.3"
+  },
+  "tags": "deploy",
+  "verbosity": 1
+}
+```
+
+**Using Names**:
+```json
+{
+  "executor": "aap_job_template",
+  "job_template_name": "Deploy Application",
+  "inventory_name": "Production Servers",
+  "organization_name": "Operations",
   "extra_vars": {
     "app_version": "1.2.3"
   },
@@ -338,14 +377,45 @@ stateDiagram-v2
 
 ### Invalid Configurations
 
-**Missing job_template_id**:
+**Missing job template reference**:
 ```json
 {
   "executor": "aap_job_template",
-  "inventory": "production"
+  "inventory_id": 456
 }
 ```
-Error: "Field 'job_template_id' is required"
+Error: "Must specify either job_template_id or (job_template_name + organization_name)"
+
+**Both ID and name specified**:
+```json
+{
+  "executor": "aap_job_template",
+  "job_template_id": 123,
+  "job_template_name": "Deploy App",
+  "organization_name": "Operations"
+}
+```
+Error: "Cannot specify both job_template_id and job_template_name"
+
+**Name without organization**:
+```json
+{
+  "executor": "aap_job_template",
+  "job_template_name": "Deploy App"
+}
+```
+Error: "organization_name is required when using job_template_name"
+
+**Both inventory ID and name**:
+```json
+{
+  "executor": "aap_job_template",
+  "job_template_id": 123,
+  "inventory_id": 456,
+  "inventory_name": "Production"
+}
+```
+Error: "Cannot specify both inventory_id and inventory_name"
 
 **Invalid verbosity**:
 ```json

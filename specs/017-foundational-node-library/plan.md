@@ -270,8 +270,14 @@ Task 4: Research JSON schema oneOf discriminator for executor types
 # AAPJobTemplateExecutorConfig (SQLModel)
 class AAPJobTemplateExecutorConfig(ExecutorConfig):
     executor: Literal["aap_job_template"] = "aap_job_template"
-    job_template_id: int  # AAP job template ID
-    inventory: Optional[str] = None  # Override default inventory
+    # Job Template Reference (ID or Name)
+    job_template_id: Optional[int] = None  # Mutually exclusive with job_template_name
+    job_template_name: Optional[str] = None  # Requires organization_name
+    organization_name: Optional[str] = None  # Required with name references
+    # Inventory Override (ID or Name)
+    inventory_id: Optional[int] = None  # Mutually exclusive with inventory_name
+    inventory_name: Optional[str] = None  # Requires organization_name
+    # Other fields
     credentials: Optional[List[int]] = None  # Credential IDs
     extra_vars: Dict[str, Any] = Field(default_factory=dict)
     limit: Optional[str] = None  # Host limit pattern
@@ -303,18 +309,32 @@ class AAPJobResult(BaseModel):
     },
     "aapJobTemplateExecutorConfig": {
       "type": "object",
-      "required": ["executor", "job_template_id"],
+      "required": ["executor"],
       "properties": {
         "executor": {"const": "aap_job_template"},
         "job_template_id": {"type": "integer"},
-        "inventory": {"type": "string"},
+        "job_template_name": {"type": "string"},
+        "organization_name": {"type": "string"},
+        "inventory_id": {"type": "integer"},
+        "inventory_name": {"type": "string"},
         "credentials": {"type": "array", "items": {"type": "integer"}},
         "extra_vars": {"type": "object"},
         "limit": {"type": "string"},
         "tags": {"type": "string"},
         "skip_tags": {"type": "string"},
         "verbosity": {"type": "integer", "minimum": 0, "maximum": 5}
-      }
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            {"required": ["job_template_id"]},
+            {"required": ["job_template_name", "organization_name"]}
+          ]
+        },
+        {
+          "not": {"required": ["inventory_id", "inventory_name"]}
+        }
+      ]
     },
     "scriptExecutorConfig": {
       "properties": {
@@ -396,7 +416,8 @@ tasks:
     executor: aap_job_template
     config:
       job_template_id: 123
-      inventory: "production"
+      inventory_name: "Production Servers"
+      organization_name: "Operations"
       extra_vars:
         app_version: "1.2.3"
       tags: "deploy"
