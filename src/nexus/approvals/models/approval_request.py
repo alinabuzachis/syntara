@@ -5,7 +5,6 @@ decision points in workflow executions, and the associated status enumeration.
 """
 
 from datetime import datetime
-from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
@@ -13,37 +12,27 @@ from sqlalchemy import Column, String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, Relationship
 
+from nexus.approvals.models.api_models import ApprovalRequestStatus
 from nexus.core.constants import FieldLimits
-from nexus.core.models.base import NamedResource
+from nexus.core.models.base import BaseResource, ResourcesResponse
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
 if TYPE_CHECKING:
     from nexus.core.models import User
 
 
-class ApprovalRequestStatus(str, Enum):
-    """Approval request status enumeration."""
-
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    EXPIRED = "expired"
-    CANCELLED = "cancelled"
-
-
-class ApprovalRequest(NamedResource, table=True):
+class ApprovalRequest(BaseResource, table=True):
     """ApprovalRequest model representing human-in-the-loop decision points.
 
-    Extends NamedResource with approval-specific fields for tracking workflow
+    Extends BaseResource with approval-specific fields for tracking workflow
     execution pauses requiring human oversight and decision-making.
 
     Attributes:
-        id: Primary key UUID (from NamedResource)
-        created_at: When approval was requested (from NamedResource)
-        updated_at: Last update timestamp (from NamedResource)
-        labels: JSONB key-value labels (from NamedResource)
-        name: Display name for the approval request (from NamedResource)
-        description: Optional detailed description (from NamedResource)
+        id: Primary key UUID (from BaseResource)
+        created_at: When approval was requested (from BaseResource)
+        updated_at: Last update timestamp (from BaseResource)
+        labels: JSONB key-value labels (from BaseResource)
+        name: Display name for the approval request
         execution_id: Soft reference to parent execution (no foreign key constraint)
         approval_node_id: Activity ID from workflow definition
         status: Current approval status
@@ -64,17 +53,28 @@ class ApprovalRequest(NamedResource, table=True):
 
     # Filterable and sortable fields for API endpoints
     __filterable_fields__: ClassVar[list[str]] = [
-        *NamedResource.__filterable_fields__,
+        *BaseResource.__filterable_fields__,
+        "name",
         "execution_id",
         "status",
         "timeout_at",
     ]
 
     __sortable_fields__: ClassVar[list[str]] = [
-        *NamedResource.__sortable_fields__,
+        *BaseResource.__sortable_fields__,
+        "name",
         "timeout_at",
         "decided_at",
     ]
+
+    # User-provided identification
+    name: str = Field(
+        min_length=1,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Human-readable name for the approval request",
+        index=True,
+    )
 
     # Soft reference to parent execution (no foreign key constraint)
     execution_id: UUID = Field(
@@ -158,3 +158,10 @@ class ApprovalRequest(NamedResource, table=True):
     decider: "User" = Relationship(
         sa_relationship_kwargs={"foreign_keys": "[ApprovalRequest.decided_by]"},
     )
+
+
+# ============================================================================
+# List Response Type Alias
+# ============================================================================
+
+ApprovalListResponse = ResourcesResponse[ApprovalRequest]

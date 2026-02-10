@@ -111,26 +111,26 @@ These tasks create the directory structure, models, and shared infrastructure th
 
 ### Tests First (TDD) ⚠️ MUST FAIL BEFORE IMPLEMENTATION
 
-- [ ] T025 [P] [US2] Add unit tests for ApprovalService methods (list, get, create, decide, batch_decide, cancel_for_execution) in `tests/unit/approvals/test_approval_service.py`
+- [x] T025 [P] [US2] Add unit tests for ApprovalService methods (list, get, create, decide, batch_decide, cancel_for_execution) in `tests/unit/approvals/test_approval_service.py`
 - [ ] T026 [P] [US2] Add contract tests for GET /api/v1/approvals validating OpenAPI schema compliance (response shape, pagination fields, status enum values, filter params) in `tests/contract/approvals/test_list_approvals.py`
 - [ ] T027 [P] [US2] Add contract tests for POST /api/v1/approvals validating request/response schema (required fields, UUID formats, ActivitySummary structure) in `tests/contract/approvals/test_create_approval.py`
 - [ ] T028 [P] [US2] Add contract tests for GET /api/v1/approvals/{id} validating response schema (all fields present, nullable fields, WorkflowContext structure) in `tests/contract/approvals/test_get_approval.py`
-- [ ] T029 [P] [US2] Add contract tests for PATCH /api/v1/approvals/{id} validating request schema (status enum restricted to approved/rejected/cancelled), error responses (400, 404, 409) in `tests/contract/approvals/test_decide_approval.py`
+- [ ] T029 [P] [US2] Add contract tests for PATCH /api/v1/approvals/{id} validating request schema (ApprovalDecisionStatus enum: approved/rejected), error responses (400, 404, 409) in `tests/contract/approvals/test_decide_approval.py`
 - [ ] T030 [P] [US2] Add contract tests for POST /api/v1/approvals/batch validating BatchApprovalRequest/Response schema (decisions array, results with success/error, counts) in `tests/contract/approvals/test_batch_approval.py`
 
 ### Approvals Service Layer (make tests pass)
 
-- [ ] T031 [P] [US2] Create ApprovalService extending BaseService with list method in `src/nexus/approvals/services/approval_service.py` (follow patterns from WorkflowService)
-- [ ] T032 [P] [US2] Create ApprovalService.get method in `src/nexus/approvals/services/approval_service.py`
-- [ ] T033 [US2] Create ApprovalService.create method (internal) in `src/nexus/approvals/services/approval_service.py`
-- [ ] T034 [US2] Create ApprovalService.decide method with state validation in `src/nexus/approvals/services/approval_service.py`
-- [ ] T035 [US2] Create ApprovalService.batch_decide method with row-level locking (SKIP LOCKED or FOR UPDATE) to prevent deadlocks in `src/nexus/approvals/services/approval_service.py`
-- [ ] T036 [US2] Create ApprovalService.cancel_for_execution method in `src/nexus/approvals/services/approval_service.py`
+- [x] T031 [P] [US2] Create ApprovalService extending BaseService with list method in `src/nexus/approvals/services/approval_service.py` (follow patterns from WorkflowService)
+- [x] T032 [P] [US2] Create ApprovalService.get method in `src/nexus/approvals/services/approval_service.py`
+- [x] T033 [US2] Create ApprovalService.create method (internal) in `src/nexus/approvals/services/approval_service.py`
+- [x] T034 [US2] Create ApprovalService.decide method with state validation in `src/nexus/approvals/services/approval_service.py`
+- [x] T035 [US2] Create ApprovalService.batch_decide method with row-level locking (SKIP LOCKED or FOR UPDATE) to prevent deadlocks in `src/nexus/approvals/services/approval_service.py`
+- [x] T036 [US2] Create ApprovalService.cancel_for_execution method in `src/nexus/approvals/services/approval_service.py` (NO LONGER NEEDED)
 
 ### Inter-Component Communication (Approvals -> Workflows)
 
 - [ ] T037 [US2] Create WorkflowApiClient HTTP client with retry logic (5 retries, exponential backoff per research.md - higher than workflow→approvals due to signal criticality) and async context manager pattern in `src/nexus/approvals/clients/workflow_api_client.py`; uses existing `POST /executions/{execution_id}/activities/{approval_node_id}/signal` endpoint (follow AgentOrchestratorClient patterns)
-- [ ] T038 [US2] Integrate signal sending into ApprovalService.decide: call WorkflowApiClient to send signal with `{"status": "approved"|"rejected", "approval_id": "...", "notes": "..."}` to existing activity signal endpoint; log error and leave approval decided if signal fails (graceful degradation per research.md) in `src/nexus/approvals/services/approval_service.py`
+- [x] T038 [US2] Integrate signal sending into ApprovalService.decide: call WorkflowApiClient to send signal with `{"status": "approved"|"rejected", "approval_id": "...", "notes": "..."}` to existing activity signal endpoint; log error and leave approval decided if signal fails (graceful degradation per research.md) in `src/nexus/approvals/services/approval_service.py`
 
 ### Schema Cleanup (Workflows Component)
 

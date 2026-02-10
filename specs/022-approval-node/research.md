@@ -638,15 +638,21 @@ The constitution requires RFC 9457 compliance, but this would create inconsisten
 
 **Implementation**:
 
-- `approvals-api.yaml` defines: ApprovalRequest, ApprovalStatus, ApprovalDecisionRequest, BatchApproval\* schemas
+- `approvals-api.yaml` defines: ApprovalRequest, ApprovalRequestStatus, ApprovalDecisionStatus, ApprovalDecisionRequest, BatchApprovalDecisionStatus, BatchApproval\* schemas
 - `shared-schemas.yaml` includes comments pointing to approvals-api.yaml (no duplicates)
 - WebSocket message types that include approval data reference the canonical schema
 
+**Status Enums**:
+- `ApprovalRequestStatus`: Full lifecycle enum (pending, approved, rejected, expired, cancelled)
+- `ApprovalDecisionStatus`: User-actionable subset (approved, rejected) for decision requests
+- `BatchApprovalDecisionStatus`: System-actionable subset (approved, rejected, expired, cancelled) for decision requests
+
 **Naming Convention**:
 
-- Database model: `ApprovalRequest` with `ApprovalRequestStatus` enum
-- API schema: `ApprovalRequest` with `ApprovalStatus` enum
-- The slight naming difference (`ApprovalRequestStatus` vs `ApprovalStatus`) follows existing patterns where database enums include the full model name while API schemas use shorter names
+- Database model: `ApprovalRequest` with `ApprovalRequestStatus` enum  
+- API schemas: `ApprovalRequest` with `ApprovalRequestStatus` and `ApprovalDecisionStatus` enums
+- `ApprovalDecisionStatus` is a subset of `ApprovalRequestStatus` containing only user-actionable values
+- `BatchApprovalDecisionStatus` is a subset of `ApprovalRequestStatus` containing only system-actionable values
 
 ---
 
@@ -676,11 +682,14 @@ OAuth2 scopes are not explicitly documented per-endpoint because:
 - Scope-based authorization is a future enhancement (when RBAC is implemented)
 - All authenticated users can currently access all approval endpoints
 
-**M6: Enum Naming (ApprovalRequestStatus vs ApprovalStatus)**
+**M6: Status Enum Strategy**
 
-- Database enum: `ApprovalRequestStatus` (includes model name for PostgreSQL enum type uniqueness)
+- Database enum: `ApprovalRequestStatus` (full lifecycle: pending, approved, rejected, expired, cancelled)
 - API schema: `ApprovalStatus` (shorter, user-friendly)
 - This follows existing patterns in the codebase (e.g., `ExecutionStatus`)
+- Decision API enum: `ApprovalDecisionStatus` (user-actionable subset: approved, rejected)
+- Batch Decision API enum: `BatchApprovalDecisionStatus` (system-actionable subset: approved, rejected, expired, cancelled)
+- This separation provides type safety while distinguishing between system-managed and user-actionable status values
 
 ---
 

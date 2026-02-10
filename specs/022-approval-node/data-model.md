@@ -152,7 +152,6 @@ When the workflow engine reaches an approval activity, it creates an `ApprovalRe
 | ----------------------- | --------------------- | ------------------------------------ |
 | `id`                    | `approval_node_id`    | Activity ID from workflow definition |
 | `name`                  | `name`                | Display name (FR-002)                |
-| `description`           | `description`         | Detailed context/prompt (FR-003)     |
 | `timeout`               | `timeout_at`          | Computed as `now() + seconds`        |
 | `onApproved[0]`         | `next_step_approved`  | Next activity to execute if approved |
 | `onRejected[0]`         | `next_step_rejected`  | Next activity to execute if rejected |
@@ -198,7 +197,6 @@ Primary entity representing a human approval decision point in a workflow execut
 | `execution_id`       | UUID              | No       | FK to `executions.id` - parent workflow execution                    |
 | `approval_node_id`   | VARCHAR(255)      | No       | Activity ID from workflow definition                                 |
 | `name`               | VARCHAR(255)      | No       | Display name for the approval request                                |
-| `description`        | TEXT              | Yes      | Detailed description/context for approvers                           |
 | `status`             | ENUM              | No       | Current status (pending, approved, rejected, expired, cancelled)     |
 | `timeout_at`         | TIMESTAMP WITH TZ | Yes      | When this request expires (null = no timeout)                        |
 | `next_step_approved` | JSONB             | No       | Next activity that executes if approved                              |
@@ -238,17 +236,15 @@ The `next_step_approved` and `next_step_rejected` fields store a single activity
 {
   "id": "apply_changes",
   "name": "Apply Changes",
-  "type": "task",
-  "description": "Applies the reviewed changes to production"
+  "type": "task"
 }
 ```
 
-| Field         | Type   | Required | Description                                    |
-| ------------- | ------ | -------- | ---------------------------------------------- |
-| `id`          | string | Yes      | Activity ID from workflow definition           |
-| `name`        | string | Yes      | Human-readable activity name for display       |
-| `type`        | string | Yes      | Activity type (task, approval, parallel, etc.) |
-| `description` | string | No       | Optional activity description if available     |
+| Field | Type   | Required | Description                                     |
+| ----- | ------ | -------- | ----------------------------------------------- |
+| `id`  | string | Yes      | Activity ID from workflow definition            |
+| `name` | string | Yes      | Human-readable activity name for display        |
+| `type` | string | Yes      | Activity type (task, approval, parallel, etc.) |
 
 **Notes**:
 
@@ -434,7 +430,6 @@ class ApprovalRequest(BaseResource, table=True):
         execution_id: Foreign key to parent Execution
         approval_node_id: Activity ID from workflow definition
         name: Display name for the approval request
-        description: Optional detailed description for approvers
         status: Current approval status
         timeout_at: When this request expires (optional)
         next_step_approved: Next activity that executes if approved
@@ -485,12 +480,6 @@ class ApprovalRequest(BaseResource, table=True):
         description="Display name for approval request",
     )
 
-    description: str | None = Field(
-        default=None,
-        nullable=True,
-        sa_type=Text(),
-        description="Detailed context for approvers",
-    )
 
     # Status
     status: ApprovalRequestStatus = Field(
@@ -515,7 +504,7 @@ class ApprovalRequest(BaseResource, table=True):
     )
 
     # Context for approvers - single ActivitySummary dict
-    # Structure: {"id": "...", "name": "...", "type": "...", "description": "..."}
+    # Structure: {"id": "...", "name": "...", "type": "..."}
     next_step_approved: dict[str, Any] = Field(
         sa_column=Column(JSONB, nullable=False),
         description="First activity that executes if approved",
@@ -581,10 +570,14 @@ class ApprovalRequest(BaseResource, table=True):
 
 ### Decision Validation
 
-1. **Status**: Must be "approved" or "rejected" (terminal states "expired" and "cancelled" are system-managed)
+1. **Status**: Must be one of the `ApprovalDecisionStatus` enum values: "approved" or "rejected" (terminal states "cancelled" and "expired" are system-managed)
 2. **Notes**: Optional, max 2000 characters
 3. **Current status**: Must be "pending" to accept a decision
 4. **Execution status**: Parent execution must not be cancelled/completed/failed
+
+**Notes**:
+- The API uses a separate `ApprovalDecisionStatus` enum for decision requests, which is a subset of the full `ApprovalRequestStatus` enum that includes only user-actionable values.
+- The API uses a separate `BatchApprovalDecisionStatus` enum for batch decision requests, which is a subset of the full `ApprovalRequestStatus` enum that includes only system-actionable values.
 
 ---
 

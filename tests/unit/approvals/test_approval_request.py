@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from nexus.approvals.models.approval_request import (
+from nexus.approvals.models import (
     ApprovalRequest,
     ApprovalRequestStatus,
 )
@@ -78,7 +78,6 @@ class TestApprovalRequestValidation:
         # Create a non-pending approval so timeout_at can be None
         approval = create_test_approval_request(
             status=ApprovalRequestStatus.APPROVED,  # Non-pending status
-            description=None,
             timeout_at=None,
             next_step_rejected=None,
             decided_by=None,
@@ -86,7 +85,6 @@ class TestApprovalRequestValidation:
             decision_notes=None,
         )
 
-        assert approval.description is None
         assert approval.timeout_at is None
         assert approval.next_step_rejected is None
         assert approval.decided_by is None

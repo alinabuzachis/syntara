@@ -6,7 +6,7 @@ following the project's exception handling patterns.
 
 from uuid import UUID
 
-from nexus.approvals.models.approval_request import ApprovalRequestStatus
+from nexus.approvals.models import ApprovalRequestStatus
 
 
 class ApprovalNotFoundError(Exception):

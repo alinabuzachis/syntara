@@ -34,7 +34,6 @@ def upgrade() -> None:
             "labels", postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=False
         ),
         sa.Column("name", sa.String(length=255), nullable=False),
-        sa.Column("description", sa.String(length=2000), nullable=True),
         sa.Column("execution_id", sa.Uuid(), nullable=False),
         sa.Column("approval_node_id", sa.String(length=255), nullable=False),
         sa.Column(

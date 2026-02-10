@@ -56,6 +56,7 @@ from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
 from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
 from tests.fixtures.mock_mcp_provider import MockMCPProvider
+from tests.helpers.approval import ApprovalsFactory
 from tests.helpers.tool_manager import ToolFactory
 from tests.helpers.workflow import ExecutionsFactory
 
@@ -652,9 +653,13 @@ async def test_workflow_definition() -> dict[str, Any]:
                     "id": "test_activity",
                     "name": "test_activity",
                     "type": "task",
-                    "executor": "script",
-                    "language": "bash",
-                    "script": "echo 'test'",
+                    "task": {
+                        "executor": "script",
+                        "config": {
+                            "language": "bash",
+                            "code": "echo 'test'",
+                        },
+                    },
                 }
             ],
         },
@@ -1281,6 +1286,34 @@ async def executions_factory(
         )
     """
     return ExecutionsFactory(test_db_session, test_workflow, test_user)
+
+
+@pytest_asyncio.fixture
+async def approvals_factory(test_db_session: AsyncSession, test_user: User) -> ApprovalsFactory:
+    """Create a factory fixture for multiple test approval requests with configurable properties.
+
+    Returns an ApprovalsFactory instance that can create approval requests with various
+    configurations for different test scenarios.
+
+    Usage:
+        # Create pending approvals with default settings
+        approvals = await approvals_factory.create_pending_approvals(count=3)
+
+        # Create approvals with mixed statuses
+        approvals = await approvals_factory.create_mixed_status_approvals(
+            pending_count=2,
+            approved_count=1,
+            rejected_count=1
+        )
+
+        # Create custom approvals
+        approvals = await approvals_factory.create_approvals(
+            count=5,
+            name_prefix="Custom Approval",
+            statuses=[ApprovalRequestStatus.PENDING, ApprovalRequestStatus.APPROVED]
+        )
+    """
+    return ApprovalsFactory(test_db_session, test_user)
 
 
 # ============================================================================

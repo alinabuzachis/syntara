@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlmodel import Field
 
-from nexus.approvals.models.approval_request import ApprovalRequestStatus
+from nexus.approvals.models import ApprovalRequestStatus
 from nexus.core.models.base import BaseListParams
 
 

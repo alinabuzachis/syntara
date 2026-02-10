@@ -1,1 +1,1 @@
-"""Approvals component HTTP clients."""
+"""Approvals client modules."""

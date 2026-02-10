@@ -272,10 +272,6 @@ components:
               type: string
               maxLength: 255
               description: Display name for the approval request
-            description:
-              type: string
-              nullable: true
-              description: Detailed context/prompt for approvers
             status:
               $ref: "#/components/schemas/ApprovalStatus"
             timeout_at:
@@ -345,11 +341,6 @@ components:
           type: string
           description: Activity type (task, approval, parallel, etc.)
           example: task
-        description:
-          type: string
-          nullable: true
-          description: Optional activity description if available
-          example: Applies the reviewed changes to production
 
     ApprovalCreateRequest:
       type: object
@@ -375,18 +366,13 @@ components:
           type: string
           maxLength: 255
           description: Display name for the approval request
-        description:
-          type: string
-          nullable: true
-          description: Detailed context/prompt for approvers
         timeout_at:
           type: string
           format: date-time
           nullable: true
           description: When this request expires (null = no timeout)
         next_step_approved:
-          nullable: true
-          description: First activity that executes if approved (null for non-workflow sources)
+          description: First activity that executes if approved
           allOf:
             - $ref: "#/components/schemas/ActivitySummary"
         next_step_rejected:
@@ -467,6 +453,16 @@ components:
           additionalProperties: true
           nullable: true
 
+    ApprovalDecisionStatus:
+      type: string
+      title: Approval Decision Status
+      description: |
+        Status values that can be submitted in approval decisions.
+        This is a subset of ApprovalRequestStatus containing only user-actionable values.
+      enum:
+        - approved
+        - rejected
+
     ApprovalDecisionRequest:
       type: object
       title: Approval Decision Request
@@ -482,17 +478,24 @@ components:
         - status
       properties:
         status:
-          type: string
-          enum:
-            - approved
-            - rejected
-            - cancelled
-          description: Decision status (cancelled is for internal workflow engine use only)
+          $ref: "#/components/schemas/ApprovalDecisionStatus"
         notes:
           type: string
           maxLength: 2000
           nullable: true
           description: Optional notes explaining the decision
+
+    BatchApprovalDecisionStatus:
+      type: string
+      title: Batch Approval Decision Status
+      description: |
+        Status values that can be submitted in batch approval decisions.
+        This is a subset of ApprovalRequestStatus containing only system-actionable values.
+      enum:
+        - approved
+        - rejected
+        - expired
+        - cancelled
 
     BatchApprovalDecision:
       type: object
@@ -507,12 +510,7 @@ components:
           format: uuid
           description: ID of the approval request
         status:
-          type: string
-          enum:
-            - approved
-            - rejected
-            - cancelled
-          description: Decision status (cancelled is for internal workflow engine use only)
+          $ref: "#/components/schemas/BatchApprovalDecisionStatus"
         notes:
           type: string
           maxLength: 2000
