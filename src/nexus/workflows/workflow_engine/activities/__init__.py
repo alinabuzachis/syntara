@@ -1,6 +1,7 @@
 """Workflow activity implementations."""
 
 from .agentic_activity import execute_agentic_activity
+from .approval_activity import create_approval_request_activity
 from .execution_tracker import (
     cancel_execution_activities,
     create_activity_execution,
@@ -13,6 +14,7 @@ from .script_activity import execute_bash_script
 __all__ = [
     "cancel_execution_activities",
     "create_activity_execution",
+    "create_approval_request_activity",
     "execute_agentic_activity",
     "execute_bash_script",
     "get_activity_execution",

@@ -20,6 +20,7 @@ from nexus.workflows.workflow_engine.activities.aap_job_template_activity import
 )
 from nexus.workflows.workflow_engine.activities.agentic_activity import execute_agentic_activity
 from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
+from nexus.workflows.workflow_engine.activities.approval_activity import create_approval_request_activity
 from nexus.workflows.workflow_engine.activities.internal import register_activity_monitoring
 from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
 from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
@@ -111,6 +112,7 @@ class TemporalWorkerService:
                     execute_api_request,
                     execute_bash_script,
                     execute_python_script,
+                    create_approval_request_activity,
                 ],
                 interceptors=[MonitoringWorkflowInterceptor()],
             )

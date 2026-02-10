@@ -1,8 +1,12 @@
 """Test fixtures and helpers for workflow tests."""
 
+import asyncio
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Any
 from uuid import uuid4
 
+from httpx import AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -149,3 +153,56 @@ class ExecutionsFactory:
         self.session.add_all(executions)
         await self.session.commit()
         return executions
+
+
+@asynccontextmanager
+async def wait_for_execution_status(
+    client: AsyncClient,
+    execution_id: str,
+    target_status: str,
+    max_wait_time: float = 30.0,
+    wait_interval: float = 0.5,
+) -> AsyncGenerator[dict[str, Any] | None, None]:
+    """Context manager that waits for an execution to reach target status.
+
+    This ensures consistent testing patterns with invocation helpers and
+    provides clean resource management.
+
+    Args:
+        client: The HTTP client to use for polling
+        execution_id: Execution ID to poll
+        target_status: Target status to wait for (e.g., "COMPLETED", "FAILED")
+        max_wait_time: Maximum time to wait in seconds (default: 30.0)
+        wait_interval: Time between polls in seconds (default: 0.5)
+
+    Yields:
+        The final execution data after reaching target status or timeout
+
+    Example:
+        async with wait_for_execution_status(
+            client, exec_id, "COMPLETED", max_wait_time=10.0
+        ) as execution:
+            assert execution["status"] == "COMPLETED"
+
+    """
+    elapsed_time = 0.0
+    final_data: dict[str, Any] | None = None
+
+    while elapsed_time < max_wait_time:
+        response = await client.get(f"/api/v1/executions/{execution_id}")
+        if response.status_code == 200:
+            data = response.json()
+            if data["status"] == target_status:
+                final_data = data
+                break
+
+        await asyncio.sleep(wait_interval)
+        elapsed_time += wait_interval
+
+    # If we didn't reach target status, get final state for timeout case
+    if final_data is None:
+        response = await client.get(f"/api/v1/executions/{execution_id}")
+        if response.status_code == 200:
+            final_data = response.json()
+
+    yield final_data

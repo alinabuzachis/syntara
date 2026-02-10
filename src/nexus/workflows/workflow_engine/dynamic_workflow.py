@@ -26,6 +26,7 @@ with workflow.unsafe.imports_passed_through():
     from .activities.aap_job_template_activity import execute_aap_job_template_activity
     from .activities.agentic_activity import execute_agentic_activity
     from .activities.api_activity import execute_api_request
+    from .activities.approval_activity import create_approval_request_activity
 
 # Import template resolution utilities
 from nexus.workflows.utils.template_resolution import resolve_config_templates
@@ -244,7 +245,7 @@ class DynamicWorkflow:
             # Re-raise the exception
             raise
 
-    async def _execute_activity(
+    async def _execute_activity(  # noqa: PLR0911
         self,
         activity: Activity,
         execution_id: str,
@@ -277,6 +278,8 @@ class DynamicWorkflow:
             return await self._execute_condition_activity(activity, execution_id, workflow_state)
         if activity.type == ActivityType.LOOP:
             return await self._execute_loop_activity(activity, execution_id, workflow_state)
+        if activity.type == ActivityType.APPROVAL:
+            return await self._execute_approval_activity(activity, execution_id, workflow_state)
         return await self._execute_converge_activity(activity, workflow_state)
 
     async def _execute_script_executor(
@@ -586,6 +589,226 @@ class DynamicWorkflow:
                 extra=log_extra,
             )
             raise
+
+    def _get_previous_activity_output(self, activity: Activity, workflow_state: JsonDict) -> JsonDict | None:
+        """Get the output from the previous activity in the workflow.
+
+        Args:
+            activity: Current activity
+            workflow_state: Current workflow state
+
+        Returns:
+            Previous activity output or None if this is the first activity
+
+        """
+        current_index = self.workflow_definition.workflow.activities.index(activity)
+        if current_index > 0:
+            prev_activity = self.workflow_definition.workflow.activities[current_index - 1]
+            result = workflow_state["activity_outputs"].get(prev_activity.id)
+            return cast("JsonDict | None", result)
+        return None
+
+    def _prepare_approval_context(
+        self,
+        activity: Activity,
+        execution_id: str,
+        workflow_state: JsonDict,
+    ) -> tuple[JsonDict, int | None]:
+        """Prepare workflow context and timeout for approval activity.
+
+        Args:
+            activity: Approval activity definition
+            execution_id: Workflow execution ID
+            workflow_state: Current workflow state
+
+        Returns:
+            Tuple of (workflow_context, timeout_seconds)
+
+        """
+        previous_output = self._get_previous_activity_output(activity, workflow_state)
+
+        workflow_context = {
+            "workflow_inputs": workflow_state.get("inputs", {}),
+            "previous_step": previous_output,
+            "execution_id": execution_id,
+            "workflow_name": self.workflow_definition.metadata.name,
+        }
+
+        # Resolve timeout template expression
+        timeout_seconds: int | None = None
+        if activity.timeout:
+            resolved = self.expression_resolver.resolve_expression(activity.timeout, workflow_state)
+            if resolved is not None:
+                timeout_seconds = int(str(resolved)) if not isinstance(resolved, int) else resolved
+
+        return workflow_context, timeout_seconds
+
+    async def _wait_for_approval_signal(
+        self,
+        activity: Activity,
+        timeout_seconds: int | None,
+    ) -> None:
+        """Wait for approval signal with optional timeout.
+
+        Args:
+            activity: Approval activity definition
+            timeout_seconds: Optional timeout in seconds
+
+        Raises:
+            TimeoutError: If timeout occurs before signal is received
+
+        """
+        if timeout_seconds:
+            await workflow.wait_condition(
+                lambda: activity.id in self._activity_signals,
+                timeout=timedelta(seconds=timeout_seconds),
+            )
+        else:
+            await workflow.wait_condition(
+                lambda: activity.id in self._activity_signals,
+            )
+
+    def _normalize_approval_status(
+        self,
+        activity: Activity,
+        execution_id: str,
+        signal_data: dict[str, Any],
+    ) -> str:
+        """Extract and normalize approval status from signal data.
+
+        Args:
+            activity: Approval activity definition
+            execution_id: Workflow execution ID
+            signal_data: Signal data containing status
+
+        Returns:
+            Normalized status ('approved' or 'rejected')
+
+        """
+        approval_status = signal_data.get("status")
+
+        workflow.logger.info(
+            f"Approval signal received: {approval_status}",
+            extra={"activity_id": activity.id, "execution_id": execution_id},
+        )
+
+        # Validate and normalize approval status
+        if approval_status not in ("approved", "rejected"):
+            workflow.logger.warning(
+                f"Invalid approval status '{approval_status}', treating as rejected",
+                extra={"activity_id": activity.id, "execution_id": execution_id},
+            )
+            return "rejected"
+
+        return str(approval_status)
+
+    async def _execute_approval_branch(
+        self,
+        branch_activities: list[Activity],
+        branch_name: str,
+        activity_id: str,
+        execution_id: str,
+        workflow_state: JsonDict,
+    ) -> dict[str, JsonDict]:
+        """Execute activities in an approval branch.
+
+        Args:
+            branch_activities: Activities to execute
+            branch_name: Branch name for logging
+            activity_id: Parent approval activity ID
+            execution_id: Workflow execution ID
+            workflow_state: Current workflow state
+
+        Returns:
+            Dictionary mapping activity IDs to their results
+
+        """
+        workflow.logger.info(
+            f"Executing {branch_name} branch",
+            extra={"activity_id": activity_id, "execution_id": execution_id},
+        )
+
+        branch_results = {}
+        for branch_activity in branch_activities:
+            result = await self._execute_activity(branch_activity, execution_id, workflow_state)
+            branch_results[branch_activity.id] = result
+            workflow_state["activity_outputs"][branch_activity.id] = result
+
+        return branch_results
+
+    async def _execute_approval_activity(
+        self,
+        activity: Activity,
+        execution_id: str,
+        workflow_state: JsonDict,
+    ) -> JsonDict:
+        """Execute approval activity - waits for human approval/rejection.
+
+        Flow:
+        1. Create approval request via Temporal activity
+        2. Wait for approval signal (with timeout)
+        3. On timeout: raise TimeoutError (workflow fails)
+        4. Execute appropriate branch (on_approved or on_rejected)
+
+        Args:
+            activity: Approval activity definition
+            execution_id: Workflow execution ID
+            workflow_state: Current workflow state
+
+        Returns:
+            Result from executed branch
+
+        Raises:
+            TimeoutError: If timeout occurs before approval decision
+
+        """
+        # Prepare context and timeout
+        workflow_context, timeout_seconds = self._prepare_approval_context(activity, execution_id, workflow_state)
+
+        # Create approval request (returns immediately with metadata)
+        approval_config = {
+            "description": activity.name or f"Approval for {activity.id}",
+            "timeout": timeout_seconds,
+        }
+
+        approval_metadata = await workflow.execute_activity(
+            create_approval_request_activity,
+            args=[approval_config, workflow_context],
+            activity_id=activity.id,
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=build_retry_policy(
+                activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
+            ),
+        )
+
+        workflow.logger.info(
+            f"Approval request created, waiting for signal (approval_id={approval_metadata.get('approval_id')})",
+            extra={"activity_id": activity.id, "execution_id": execution_id},
+        )
+
+        # Wait for signal
+        await self._wait_for_approval_signal(activity, timeout_seconds)
+
+        # Extract and normalize approval status
+        signal_data = self._activity_signals[activity.id][-1]
+        approval_status = self._normalize_approval_status(activity, execution_id, signal_data)
+
+        # Execute appropriate branch
+        branch_results = {}
+        if approval_status == "approved" and activity.on_approved:
+            branch_results = await self._execute_approval_branch(
+                activity.on_approved, "on_approved", activity.id, execution_id, workflow_state
+            )
+        elif approval_status == "rejected" and activity.on_rejected:
+            branch_results = await self._execute_approval_branch(
+                activity.on_rejected, "on_rejected", activity.id, execution_id, workflow_state
+            )
+
+        return {
+            "type": "approval",
+            "status": approval_status,
+            "results": branch_results,
+        }
 
     def _resolve_retry_policy_templates(self, retry_policy: RetryPolicy, workflow_state: JsonDict) -> None:
         """Resolve template expressions in retry policy fields.

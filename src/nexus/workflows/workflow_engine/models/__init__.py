@@ -5,6 +5,7 @@ This package contains:
 - Response models for workflow execution service operations
 """
 
+from .approval import ApprovalResult
 from .responses import (
     WorkflowCancellationResponse,
     WorkflowResultResponse,
@@ -51,6 +52,7 @@ __all__ = [
     "ActivityType",
     "AgenticExecutorConfig",
     "ApprovalDefinition",
+    "ApprovalResult",
     "Authentication",
     "AuthenticationType",
     "BackoffStrategy",

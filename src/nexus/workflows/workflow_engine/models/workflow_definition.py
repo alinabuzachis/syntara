@@ -78,6 +78,7 @@ class ActivityType(str, Enum):
     CONDITION = "condition"
     LOOP = "loop"
     CONVERGE = "converge"
+    APPROVAL = "approval"
 
 
 class LoopType(str, Enum):
@@ -472,6 +473,7 @@ class Activity(TemplateAwareBaseModel):
     - condition: Conditional branching (if/then/else)
     - loop: Loop execution (forEach, while)
     - converge: Wait for multiple activities to complete
+    - approval: Human approval node (pauses branch execution until approved or rejected)
     """
 
     model_config = ConfigDict(populate_by_name=True)
@@ -516,66 +518,95 @@ class Activity(TemplateAwareBaseModel):
     converge: ConvergeDefinition | None = Field(
         default=None, description="Converge definition (required for type=converge)"
     )
+    on_approved: list["Activity"] | None = Field(
+        default=None,
+        alias="onApproved",
+        description="Activities to execute when approval is granted (required for type=approval)",
+        min_length=1,
+    )
+    on_rejected: list["Activity"] | None = Field(
+        default=None,
+        alias="onRejected",
+        description="Activities to execute when approval is rejected or expires (for type=approval)",
+    )
 
-    @field_validator("task")
-    @classmethod
-    def validate_task_required(cls, v: TaskDefinition | None, info: ValidationInfo) -> TaskDefinition | None:
-        """Ensure task is provided when type=task."""
-        if info.data.get("type") == "task" and v is None:
-            msg = "task field is required when type='task'"
+    def _validate_field_required(self, field_value: object, field_name: str) -> None:
+        """Validate that a field is not None.
+
+        Args:
+            field_value: Field value to check
+            field_name: Name of the field for error message
+
+        Raises:
+            ValueError: If field is None
+
+        """
+        if field_value is None:
+            msg = f"{field_name} field is required when type='{self.type.value}'"
             raise ValueError(msg)
-        return v
 
-    @field_validator("branches")
-    @classmethod
-    def validate_branches_required(cls, v: list[Any] | None, info: ValidationInfo) -> list[Any] | None:
-        """Ensure branches is provided when type=parallel."""
-        if info.data.get("type") == "parallel" and v is None:
-            msg = "branches field is required when type='parallel'"
-            raise ValueError(msg)
-        return v
+    def _validate_task_type(self) -> None:
+        """Validate task activity has required fields."""
+        self._validate_field_required(self.task, "task")
 
-    @field_validator("steps")
-    @classmethod
-    def validate_steps_required(cls, v: list[Any] | None, info: ValidationInfo) -> list[Any] | None:
-        """Ensure steps is provided when type=sequence."""
-        if info.data.get("type") == "sequence" and v is None:
-            msg = "steps field is required when type='sequence'"
-            raise ValueError(msg)
-        return v
+    def _validate_parallel_type(self) -> None:
+        """Validate parallel activity has required fields."""
+        self._validate_field_required(self.branches, "branches")
 
-    @field_validator("then")
-    @classmethod
-    def validate_then_required(cls, v: list[Any] | None, info: ValidationInfo) -> list[Any] | None:
-        """Ensure then and condition are provided when type=condition."""
-        if info.data.get("type") == "condition":
-            if v is None:
-                msg = "then field is required when type='condition'"
-                raise ValueError(msg)
-            if not info.data.get("condition"):
-                msg = "condition field is required when type='condition'"
-                raise ValueError(msg)
-        return v
+    def _validate_sequence_type(self) -> None:
+        """Validate sequence activity has required fields."""
+        self._validate_field_required(self.steps, "steps")
 
-    @field_validator("loop")
-    @classmethod
-    def validate_loop_required(cls, v: LoopDefinition | None, info: ValidationInfo) -> LoopDefinition | None:
-        """Ensure loop is provided when type=loop."""
-        if info.data.get("type") == "loop" and v is None:
-            msg = "loop field is required when type='loop'"
-            raise ValueError(msg)
-        return v
+    def _validate_condition_type(self) -> None:
+        """Validate condition activity has required fields."""
+        self._validate_field_required(self.then, "then")
+        self._validate_field_required(self.condition, "condition")
 
-    @field_validator("converge")
-    @classmethod
-    def validate_converge_required(
-        cls, v: ConvergeDefinition | None, info: ValidationInfo
-    ) -> ConvergeDefinition | None:
-        """Ensure converge is provided when type=converge."""
-        if info.data.get("type") == "converge" and v is None:
-            msg = "converge field is required when type='converge'"
-            raise ValueError(msg)
-        return v
+    def _validate_loop_type(self) -> None:
+        """Validate loop activity has required fields."""
+        self._validate_field_required(self.loop, "loop")
+
+    def _validate_converge_type(self) -> None:
+        """Validate converge activity has required fields."""
+        self._validate_field_required(self.converge, "converge")
+
+    def _validate_approval_type(self) -> None:
+        """Validate approval activity has required fields."""
+        self._validate_field_required(self.on_approved, "on_approved")
+
+    @model_validator(mode="after")
+    def validate_type_specific_fields(self) -> Self:
+        """Validate that type-specific required fields are present.
+
+        This validator runs after all fields are populated and checks that:
+        - task activities have a task definition
+        - parallel activities have branches
+        - sequence activities have steps
+        - condition activities have condition and then
+        - loop activities have a loop definition
+        - converge activities have a converge definition
+        - approval activities have on_approved
+
+        Raises:
+            ValueError: If required fields are missing for the activity type
+
+        """
+        # Dispatch to type-specific validators
+        validators = {
+            ActivityType.TASK: self._validate_task_type,
+            ActivityType.PARALLEL: self._validate_parallel_type,
+            ActivityType.SEQUENCE: self._validate_sequence_type,
+            ActivityType.CONDITION: self._validate_condition_type,
+            ActivityType.LOOP: self._validate_loop_type,
+            ActivityType.CONVERGE: self._validate_converge_type,
+            ActivityType.APPROVAL: self._validate_approval_type,
+        }
+
+        validator = validators.get(self.type)
+        if validator:
+            validator()
+
+        return self
 
 
 class WorkflowSpec(TemplateAwareBaseModel):

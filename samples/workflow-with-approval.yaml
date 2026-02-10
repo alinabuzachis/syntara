@@ -1,0 +1,125 @@
+---
+schemaVersion: "1.0.0"
+version: 1
+
+metadata:
+  name: approval-demo-workflow
+  description: |
+    Demonstration workflow with approval node for Human-in-the-Loop oversight.
+
+    This workflow shows how to:
+    1. Execute a task to prepare data
+    2. Pause for human approval before proceeding
+    3. Continue on approved path OR rejected path based on decision
+    4. Handle timeout if no decision is made
+  tags:
+    - approval
+    - demo
+    - human-in-the-loop
+
+triggers:
+  - type: manual
+
+inputs:
+  environment:
+    type: string
+    description: "Target environment for deployment"
+    required: true
+    enum:
+      - development
+      - staging
+      - production
+
+  change_description:
+    type: string
+    description: "Description of changes to be deployed"
+    required: true
+
+workflow:
+  activities:
+    # Step 1: Prepare deployment data
+    - id: prepare_deployment
+      type: task
+      name: "Prepare Deployment"
+      task:
+        executor: script
+        config:
+          language: python
+          code: |
+            import json
+            import os
+            import sys
+
+            # Read inputs from environment variables (passed by script executor)
+            environment = os.getenv('INPUT_ENVIRONMENT', 'unknown')
+            description = os.getenv('INPUT_CHANGE_DESCRIPTION', 'No description')
+
+            # Simulate deployment preparation
+            deployment_plan = {
+                "environment": environment,
+                "changes": description,
+                "estimated_downtime": "5 minutes",
+                "backup_required": True,
+                "rollback_plan": "Automatic rollback on failure"
+            }
+
+            print(json.dumps(deployment_plan))
+        inputs:
+          environment: ${input.environment}
+          change_description: ${input.change_description}
+
+    # Step 2: Request approval for production deployments
+    - id: review_deployment
+      type: approval
+      name: "Review Deployment Plan"
+      timeout: 3600 # 1 hour timeout in seconds
+      onApproved:
+        # Step 3a: Execute deployment (approved path)
+        - id: execute_deployment
+          type: task
+          name: "Execute Deployment"
+          task:
+            executor: script
+            config:
+              language: python
+              code: |
+                import json
+                import os
+
+                environment = os.getenv('INPUT_ENVIRONMENT', 'unknown')
+                print(json.dumps({
+                    "status": "deployed",
+                    "environment": environment,
+                    "deployed_at": "2024-01-15T10:30:00Z"
+                }))
+            inputs:
+              environment: ${input.environment}
+
+        # Step 4: Send success notification
+        - id: notify_success
+          type: task
+          name: "Notify Success"
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "Deployment approved and completed successfully!"
+                echo "Environment: $INPUT_ENVIRONMENT"
+            inputs:
+              environment: ${input.environment}
+
+      onRejected:
+        # Step 3b: Log rejection (rejected path)
+        - id: log_rejection
+          type: task
+          name: "Log Rejection"
+          task:
+            executor: script
+            config:
+              language: bash
+              code: |
+                echo "Deployment rejected by approver"
+                echo "No changes were deployed to $INPUT_ENVIRONMENT"
+            inputs:
+              environment: ${input.environment}

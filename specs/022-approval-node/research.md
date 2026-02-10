@@ -387,7 +387,7 @@ This ensures users see accurate status: `running` when work is happening, `pause
 
 | What the approver needs to know    | How we represent it                                                    |
 | ---------------------------------- | ---------------------------------------------------------------------- |
-| What am I approving?               | `name`, `description` from approval node config                        |
+| What am I approving?               | `name` from approval node config (serves as description)               |
 | What happens if I approve/reject?  | `next_step_approved`, `next_step_rejected` (immediate next activity)   |
 | What led to this approval?         | `previous_step` - output from the activity that preceded this approval |
 | Why was this workflow started?     | `inputs` - original workflow input parameters                          |

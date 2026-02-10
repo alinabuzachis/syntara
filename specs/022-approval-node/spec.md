@@ -89,7 +89,7 @@ As an Approver, I want to view pending approval requests in the application UI s
 
 - **FR-001**: Automation Designers MUST be able to add a standalone "Approval" node to a workflow
 - **FR-002**: The Approval node MUST be configurable with a descriptive name/title that appears in approval requests
-- **FR-003**: The Approval node MUST support an optional description field to provide context for approvers
+- **FR-003**: The Approval node name field serves as the description to provide context for approvers
 - **FR-004**: The Approval node MUST have two distinct output ports: "Approved" and "Rejected". The Approved port MUST have downstream activities. The Rejected port may be left unconnected, in which case the branch simply ends on rejection.
 - **FR-005**: The Approval node MUST have exactly one input connection.
 
@@ -111,7 +111,7 @@ As an Approver, I want to view pending approval requests in the application UI s
 
 - **FR-014**: Users MUST be able to view a detailed approval page by clicking on an approval
 - **FR-015**: The approval detail view MUST display the next step(s) in both the "Approved" and "Rejected" paths so approvers understand the consequences of their decision
-- **FR-016**: The approval detail view MUST display a summary description of the approval request if present
+- **FR-016**: The approval detail view MUST display the approval name (which serves as the description) if present
 - **FR-017**: The system MUST support batch approval, allowing users to review and submit multiple approval requests at once
 - **FR-018**: Each approval MUST have Approve and Reject actions
 - **FR-019**: Users MUST be able to undo an Approve/Reject selection before final submission

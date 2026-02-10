@@ -124,10 +124,6 @@ Add the following `approvalActivity` definition to the `definitions` section (fo
     "type": {
       "const": "approval"
     },
-    "description": {
-      "type": "string",
-      "description": "Detailed context/prompt for approvers explaining what they are approving"
-    },
     "onApproved": {
       "type": "array",
       "description": "Activities to execute when approval is granted",
@@ -165,7 +161,7 @@ When the workflow engine reaches an approval activity, it creates an `ApprovalRe
 
 - **FR-001** (Add Approval node to workflow): Covered by `approvalActivity` schema definition
 - **FR-002** (Configurable name/title): Covered by `name` field inherited from `baseActivity`
-- **FR-003** (Optional description): Covered by `description` field added to `approvalActivity`
+- **FR-003** (Name serves as description): Covered by `name` field inherited from `baseActivity`
 - **FR-004** (Two output ports): Implicit in workflow graph - approval node connects to both approval and rejection path activities
 - **FR-005** (Single input connection): Validated by workflow definition schema - activities have single input by default
 

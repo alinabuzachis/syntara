@@ -130,7 +130,6 @@ curl -X POST http://localhost:8000/api/v1/workflows/workflows \
             "id": "review_changes",
             "type": "approval",
             "name": "Review Destructive Changes",
-            "description": "Please review the following changes before proceeding",
             "timeout": 86400,
             "onApproved": [
               {
@@ -322,7 +321,6 @@ curl -X POST http://localhost:8000/api/v1/workflows/workflows \
             "id": "quick_approval",
             "type": "approval",
             "name": "Quick Approval",
-            "description": "Approve within 30 seconds",
             "timeout": 30,
             "onApproved": [
               {
@@ -594,7 +592,6 @@ curl -X POST http://localhost:8000/api/v1/workflows/workflows \
                     "id": "approval_branch",
                     "type": "approval",
                     "name": "Approval Branch",
-                    "description": "Approve this",
                     "timeout": 86400,
                     "onApproved": [
                       {
@@ -690,7 +687,6 @@ curl -X POST http://localhost:8000/api/v1/workflows \
                     "id": "approval_branch",
                     "type": "approval",
                     "name": "Approval Branch",
-                    "description": "Approve this",
                     "timeout": 86400,
                     "onApproved": [
                       {

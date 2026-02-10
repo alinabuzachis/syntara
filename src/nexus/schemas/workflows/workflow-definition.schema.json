@@ -390,10 +390,6 @@
         "type": {
           "const": "approval"
         },
-        "description": {
-          "type": "string",
-          "description": "Detailed context/prompt for approvers explaining what they are approving"
-        },
         "onApproved": {
           "type": "array",
           "description": "Activities to execute when approval is granted",
