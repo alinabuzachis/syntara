@@ -124,6 +124,19 @@ describe('AddNodePanel Component', () => {
       },
     ]
 
+    it('forces trigger selection and hides close/back when workflow is empty', () => {
+      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodes as never)
+      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodes[1] as never)
+
+      render(<AddNodePanel onClose={mockOnClose} hasNoWorkflowNodes />)
+
+      expect(NodeRegistry.get).toHaveBeenCalledWith('trigger')
+      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
+      expect(screen.queryByText('Action')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Close')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /back/i })).not.toBeInTheDocument()
+    })
+
     it('filters out trigger nodes when sourceNodeId is provided', () => {
       vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodes as never)
 

@@ -2,14 +2,11 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
-  Content,
   Flex,
   FlexItem,
   Icon,
   PanelMain,
   PanelMainBody,
-  Split,
-  SplitItem,
   Stack,
   StackItem,
   Title,
@@ -22,6 +19,7 @@ import { useWorkflowStore, useWorkflowStoreActions } from '../../stores/useWorkf
 
 type Activity = WorkflowAPI.components['schemas']['activity']
 
+import { NodeTypeOptionsList } from './NodeTypeOptionsList'
 import { NodeRegistry } from './registry/NodeRegistry'
 
 interface AddNodePanelProps {
@@ -30,6 +28,8 @@ interface AddNodePanelProps {
   onNodeError?: (error: string, title: string) => void
   sourceNodeId?: string | null
   onConnect?: (sourceId: string, targetId: string) => void
+  /** Project has no nodes in the builder */
+  hasNoWorkflowNodes?: boolean
   /** ID of the node to replace (for generic node conversion) */
   replacementNodeId?: string | null
   /** Callback when a node is successfully replaced */
@@ -47,11 +47,14 @@ export function AddNodePanel(props: AddNodePanelProps) {
   // because triggers cannot be target nodes
   const nodeTypes = useMemo(() => {
     const allNodes = NodeRegistry.getAll()
+    if (props.hasNoWorkflowNodes) {
+      return allNodes.filter((node) => node.category === 'trigger')
+    }
     if (props.sourceNodeId || props.replacementNodeId) {
       return allNodes.filter((node) => node.category !== 'trigger')
     }
     return allNodes
-  }, [props.sourceNodeId, props.replacementNodeId])
+  }, [props.replacementNodeId, props.hasNoWorkflowNodes, props.sourceNodeId])
 
   const handleNodeClick = (nodeId: string) => {
     setSelectedNodeType(selectedNodeType === nodeId ? null : nodeId)
@@ -62,7 +65,8 @@ export function AddNodePanel(props: AddNodePanelProps) {
   }
 
   // Get the selected node type definition
-  const selectedNode = selectedNodeType ? NodeRegistry.get(selectedNodeType) : null
+  const enforcedSelectedNodeType = props.hasNoWorkflowNodes ? 'trigger' : selectedNodeType
+  const selectedNode = enforcedSelectedNodeType ? NodeRegistry.get(enforcedSelectedNodeType) : null
 
   const renderForm = () => {
     if (!selectedNode) return null
@@ -200,13 +204,15 @@ export function AddNodePanel(props: AddNodePanelProps) {
                 </FlexItem>
               </Flex>
             </FlexItem>
-            <FlexItem>
-              <Button variant="plain" onClick={props.onClose} aria-label="Close">
-                <Icon>
-                  <RhUiCloseIcon />
-                </Icon>
-              </Button>
-            </FlexItem>
+            {!props.hasNoWorkflowNodes && (
+              <FlexItem>
+                <Button variant="plain" onClick={props.onClose} aria-label="Close">
+                  <Icon>
+                    <RhUiCloseIcon />
+                  </Icon>
+                </Button>
+              </FlexItem>
+            )}
           </Flex>
         </StackItem>
         <StackItem
@@ -220,111 +226,48 @@ export function AddNodePanel(props: AddNodePanelProps) {
           }}
         >
           <Stack hasGutter>
-            {selectedNodeType
-              ? // When a form is selected, only show that form
-                (() => {
-                  const selectedNode = NodeRegistry.get(selectedNodeType)
-                  if (!selectedNode) return null
-
-                  return (
-                    <StackItem>
-                      <CompassPanel>
-                        <PanelMain>
-                          <PanelMainBody>
-                            <Stack hasGutter>
-                              <StackItem>
-                                <Flex gap={{ default: 'gapXs' }}>
-                                  <FlexItem>
-                                    <Button
-                                      variant="plain"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleFormCancel()
-                                      }}
-                                      aria-label="Back"
-                                    >
-                                      <Icon>
-                                        <RhUiArrowLeftIcon />
-                                      </Icon>
-                                    </Button>
-                                  </FlexItem>
-                                  <FlexItem grow={{ default: 'grow' }}>
-                                    <Title headingLevel="h3" size="md">
-                                      Configure {selectedNode.label}
-                                    </Title>
-                                  </FlexItem>
-                                </Flex>
-                              </StackItem>
-                              <StackItem>{renderForm()}</StackItem>
-                            </Stack>
-                          </PanelMainBody>
-                        </PanelMain>
-                      </CompassPanel>
-                    </StackItem>
-                  )
-                })()
-              : // When no form is selected, show all node type cards
-                nodeTypes.map((nodeType) => {
-                  const IconComponent = nodeType.icon
-                  const isCustomIcon = nodeType.id === 'aap'
-
-                  return (
-                    <StackItem key={nodeType.id}>
-                      <CompassPanel
-                        isScrollable={false}
-                        onClick={() => handleNodeClick(nodeType.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
-                            handleNodeClick(nodeType.id)
-                          }
-                        }}
-                        style={{ cursor: 'pointer' }}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={nodeType.label}
-                      >
-                        <PanelMain>
-                          <PanelMainBody>
-                            <Stack hasGutter>
-                              <StackItem>
-                                <Split hasGutter>
-                                  <SplitItem isFilled={false} style={{ width: '1.5rem', flexShrink: 0 }}>
-                                    {isCustomIcon ? (
-                                      <IconComponent
-                                        style={{
-                                          width: '1.5rem',
-                                          height: '1.5rem',
-                                          display: 'block',
-                                        }}
-                                      />
-                                    ) : (
-                                      <Icon>
-                                        <IconComponent />
-                                      </Icon>
-                                    )}
-                                  </SplitItem>
-                                  <SplitItem>
-                                    <Title headingLevel="h3" size="md">
-                                      {nodeType.label}
-                                    </Title>
-                                  </SplitItem>
-                                </Split>
-                              </StackItem>
-                              <StackItem>
-                                {nodeType.description && (
-                                  <Content>
-                                    <small>{nodeType.description}</small>
-                                  </Content>
-                                )}
-                              </StackItem>
-                            </Stack>
-                          </PanelMainBody>
-                        </PanelMain>
-                      </CompassPanel>
-                    </StackItem>
-                  )
-                })}
+            {selectedNode ? (
+              // When a form is selected, only show that form
+              <StackItem>
+                <CompassPanel>
+                  <PanelMain>
+                    <PanelMainBody>
+                      <Stack hasGutter>
+                        <StackItem>
+                          <Flex gap={{ default: 'gapXs' }}>
+                            {!props.hasNoWorkflowNodes && (
+                              <FlexItem>
+                                <Button
+                                  variant="plain"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleFormCancel()
+                                  }}
+                                  aria-label="Back"
+                                >
+                                  <Icon>
+                                    <RhUiArrowLeftIcon />
+                                  </Icon>
+                                </Button>
+                              </FlexItem>
+                            )}
+                            <FlexItem grow={{ default: 'grow' }}>
+                              <Title headingLevel="h3" size="md">
+                                Configure {selectedNode.label}
+                              </Title>
+                            </FlexItem>
+                          </Flex>
+                        </StackItem>
+                        <StackItem>{renderForm()}</StackItem>
+                      </Stack>
+                    </PanelMainBody>
+                  </PanelMain>
+                </CompassPanel>
+              </StackItem>
+            ) : (
+              // When no form is selected, show all node type cards
+              <NodeTypeOptionsList nodeTypes={nodeTypes} onSelect={handleNodeClick} />
+            )}
           </Stack>
         </StackItem>
       </Stack>

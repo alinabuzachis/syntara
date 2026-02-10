@@ -348,6 +348,15 @@ export function BuilderContent(props: BuilderContentProps) {
 
   const expandAllEvent = useMemo(() => new EventTarget(), [])
   const collapseAllEvent = useMemo(() => new EventTarget(), [])
+  const hasNoWorkflowNodes = useMemo(() => {
+    if (!currentWorkflow) {
+      return false
+    }
+    const triggers = currentWorkflow.triggers ?? []
+    const activities = currentWorkflow.workflow?.activities ?? []
+    return triggers.length === 0 && activities.length === 0
+  }, [currentWorkflow])
+  const isAddNodePanelOpen = addNodePanelOpen || hasNoWorkflowNodes
 
   // Fetch executions for history panel (only if not new workflow)
   const executionsQuery = workflowClient.useQuery(
@@ -980,10 +989,10 @@ export function BuilderContent(props: BuilderContentProps) {
                     >
                       <BuilderFlow
                         workflowId={workflowId}
-                        panelOpen={addNodePanelOpen || !!selectedNode}
-                        activeEdgeButtonNodeId={addNodePanelOpen ? sourceNodeId : null}
-                        activeEdgeButtonHandle={addNodePanelOpen ? sourceHandle : null}
-                        activeEdgeId={addNodePanelOpen ? edgeIdToReplace : null}
+                        panelOpen={isAddNodePanelOpen || !!selectedNode}
+                        activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
+                        activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
+                        activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
                         executionStatus={null}
                         onNodeClick={handleNodeClick}
                         onAddNodeFromEdge={handleAddNodeFromEdge}
@@ -994,7 +1003,7 @@ export function BuilderContent(props: BuilderContentProps) {
                 </Stack>
               </FlexItem>
 
-              {addNodePanelOpen && (
+              {isAddNodePanelOpen && (
                 <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
                   <AddNodePanel
                     onClose={() => {
@@ -1004,6 +1013,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     onNodeError={showError}
                     sourceNodeId={sourceNodeId}
                     replacementNodeId={replacementNodeId}
+                    hasNoWorkflowNodes={hasNoWorkflowNodes}
                     onNodeReplaced={(nodeId) => {
                       // Close add node panel first
                       dispatch({ type: 'CLOSE_ADD_NODE_PANEL' })

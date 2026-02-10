@@ -25,7 +25,7 @@ export default function registerTriggerNode() {
         category: 'trigger',
         description: 'Start workflow execution with manual, scheduled, or event triggers',
         keywords: ['start', 'begin', 'manual', 'schedule', 'event', 'webhook'],
-        order: 10,
+        order: 100,
         formComponent: TriggerNodeForm,
       },
       (data, onSuccess, onError) => {
