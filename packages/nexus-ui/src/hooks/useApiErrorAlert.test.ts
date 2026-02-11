@@ -1,0 +1,111 @@
+import { renderHook } from '@testing-library/react'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+
+import { useApiErrorAlert } from './useApiErrorAlert'
+
+// Mock useAlerts
+const mockShowError = vi.fn()
+const mockShowWarning = vi.fn()
+vi.mock('../components/alerts', () => ({
+  useAlerts: () => ({
+    showError: mockShowError,
+    showWarning: mockShowWarning,
+  }),
+}))
+
+describe('useApiErrorAlert', () => {
+  beforeEach(() => {
+    mockShowError.mockClear()
+    mockShowWarning.mockClear()
+  })
+
+  it('does nothing when error is null', () => {
+    renderHook(() => useApiErrorAlert(null))
+
+    expect(mockShowError).not.toHaveBeenCalled()
+    expect(mockShowWarning).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when error is undefined', () => {
+    renderHook(() => useApiErrorAlert(undefined))
+
+    expect(mockShowError).not.toHaveBeenCalled()
+    expect(mockShowWarning).not.toHaveBeenCalled()
+  })
+
+  it('shows error alert for regular errors', () => {
+    renderHook(() => useApiErrorAlert({ detail: 'Something went wrong' }))
+
+    expect(mockShowError).toHaveBeenCalledWith('Error', 'Something went wrong')
+  })
+
+  it('shows warning alert for 503 errors', () => {
+    renderHook(() => useApiErrorAlert({ status: 503, detail: 'Service unavailable' }))
+
+    expect(mockShowWarning).toHaveBeenCalledWith('Error', 'Service unavailable')
+    expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('uses custom title when provided', () => {
+    renderHook(() => useApiErrorAlert({ detail: 'Failed' }, { title: 'Custom Title' }))
+
+    expect(mockShowError).toHaveBeenCalledWith('Custom Title', 'Failed')
+  })
+
+  it('includes context in message when provided', () => {
+    renderHook(() => useApiErrorAlert({ detail: 'Failed' }, { context: 'Loading data' }))
+
+    expect(mockShowError).toHaveBeenCalledWith('Error', 'Loading data: Failed')
+  })
+
+  it('suppresses 503 errors when suppress503 is true', () => {
+    renderHook(() => useApiErrorAlert({ status: 503, detail: 'Service unavailable' }, { suppress503: true }))
+
+    expect(mockShowWarning).not.toHaveBeenCalled()
+    expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('dedupes repeated errors with same key', () => {
+    const error = { detail: 'Same error' }
+    const { rerender } = renderHook(({ e }) => useApiErrorAlert(e), {
+      initialProps: { e: error },
+    })
+
+    expect(mockShowError).toHaveBeenCalledTimes(1)
+
+    // Same error object reference
+    rerender({ e: error })
+    expect(mockShowError).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows alert for different errors', () => {
+    const { rerender } = renderHook(({ e }) => useApiErrorAlert(e), {
+      initialProps: { e: { detail: 'Error 1' } as unknown },
+    })
+
+    expect(mockShowError).toHaveBeenCalledTimes(1)
+
+    rerender({ e: { detail: 'Error 2' } })
+    expect(mockShowError).toHaveBeenCalledTimes(2)
+  })
+
+  it('resets deduplication when error becomes null', () => {
+    const { rerender } = renderHook(({ e }) => useApiErrorAlert(e), {
+      initialProps: { e: { detail: 'Error' } as unknown },
+    })
+
+    expect(mockShowError).toHaveBeenCalledTimes(1)
+
+    rerender({ e: null })
+    expect(mockShowError).toHaveBeenCalledTimes(1)
+
+    rerender({ e: { detail: 'Error' } })
+    expect(mockShowError).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses error title from error object', () => {
+    renderHook(() => useApiErrorAlert({ title: 'Validation Error', detail: 'Field required' }))
+
+    expect(mockShowError).toHaveBeenCalledWith('Validation Error', 'Field required')
+  })
+})
