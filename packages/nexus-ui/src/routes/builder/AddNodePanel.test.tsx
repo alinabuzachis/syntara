@@ -124,15 +124,34 @@ describe('AddNodePanel Component', () => {
       },
     ]
 
-    it('forces trigger selection and hides close/back when workflow is empty', () => {
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodes[1] as never)
+    it('forces trigger subtype selection and hides close/back when workflow is empty', () => {
+      const triggerNodeWithSubtypes = {
+        ...mockNodes[1],
+        subtypes: [
+          {
+            id: 'trigger-manual',
+            label: 'Manual trigger',
+            icon: () => <div>ManualIcon</div>,
+            description: 'Automation will start when run is clicked.',
+          },
+          {
+            id: 'trigger-scheduled',
+            label: 'Schedule trigger',
+            icon: () => <div>ScheduleIcon</div>,
+            description: 'Automation will start based on a schedule.',
+          },
+        ],
+      }
+
+      vi.mocked(NodeRegistry.getAll).mockReturnValue([triggerNodeWithSubtypes] as never)
+      vi.mocked(NodeRegistry.get).mockReturnValue(triggerNodeWithSubtypes as never)
 
       render(<AddNodePanel onClose={mockOnClose} hasNoWorkflowNodes />)
 
       expect(NodeRegistry.get).toHaveBeenCalledWith('trigger')
-      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
-      expect(screen.queryByText('Action')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('mock-form')).not.toBeInTheDocument()
+      expect(screen.getByText('Manual trigger')).toBeInTheDocument()
+      expect(screen.getByText('Schedule trigger')).toBeInTheDocument()
       expect(screen.queryByLabelText('Close')).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /back/i })).not.toBeInTheDocument()
     })

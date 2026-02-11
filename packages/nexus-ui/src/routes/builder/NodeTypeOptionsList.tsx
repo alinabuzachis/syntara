@@ -10,11 +10,14 @@ import {
   StackItem,
   Title,
 } from '@patternfly/react-core'
+import type { ComponentType } from 'react'
 
-import type { NodeTypeDefinition } from './registry/NodeRegistry'
+import type { NodeSubtypeDefinition, NodeTypeDefinition } from './registry/NodeRegistry'
+
+export type NodeTypeOption = Pick<NodeTypeDefinition | NodeSubtypeDefinition, 'id' | 'label' | 'icon' | 'description'>
 
 interface NodeTypeOptionsListProps {
-  nodeTypes: NodeTypeDefinition[]
+  nodeTypes: NodeTypeOption[]
   onSelect: (nodeId: string) => void
 }
 
@@ -46,15 +49,20 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
                   <Split hasGutter>
                     <SplitItem isFilled={false} style={{ width: '1.5rem', flexShrink: 0 }}>
                       {isCustomIcon ? (
-                        <IconComponent
-                          style={{
-                            width: '1.5rem',
-                            height: '1.5rem',
-                            display: 'block',
-                          }}
-                        />
+                        (() => {
+                          const StyledIcon = IconComponent as ComponentType<{ style?: React.CSSProperties }>
+                          return (
+                            <StyledIcon
+                              style={{
+                                width: '1.5rem',
+                                height: '1.5rem',
+                                display: 'block',
+                              }}
+                            />
+                          )
+                        })()
                       ) : (
-                        <Icon>
+                        <Icon style={{ width: '1.5rem', height: '1.5rem' }}>
                           <IconComponent />
                         </Icon>
                       )}

@@ -1,11 +1,6 @@
-import { RhUiPlayIcon } from '@patternfly/react-icons'
+import { RhUiCalendarIcon, RhUiPlayIcon } from '@patternfly/react-icons'
 
-import {
-  createEventTrigger,
-  createManualTrigger,
-  createScheduledTrigger,
-  useWorkflowStore,
-} from '../../../../stores/useWorkflowStore'
+import { createManualTrigger, createScheduledTrigger, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import type { TriggerFormData } from '../../hooks/useNodeCreation'
 import { TriggerNodeForm } from '../../node-forms/TriggerNodeForm'
 import { buildNamedTrigger } from '../../utils/nodeCreationHelpers'
@@ -26,6 +21,25 @@ export default function registerTriggerNode() {
         description: 'Start workflow execution with manual, scheduled, or event triggers',
         keywords: ['start', 'begin', 'manual', 'schedule', 'event', 'webhook'],
         order: 100,
+        selectionTitle: 'Select a trigger node',
+        subtypes: [
+          {
+            id: 'trigger-manual',
+            label: 'Manual trigger',
+            icon: RhUiPlayIcon,
+            description: 'Automation will start when run is clicked.',
+            formTitle: 'Configure Manual Triggers',
+            initialData: { triggerType: 'manual' },
+          },
+          {
+            id: 'trigger-scheduled',
+            label: 'Schedule trigger',
+            icon: RhUiCalendarIcon,
+            description: 'Automation will start based on a schedule.',
+            formTitle: 'Configure Schedule Triggers',
+            initialData: { triggerType: 'scheduled' },
+          },
+        ],
         formComponent: TriggerNodeForm,
       },
       (data, onSuccess, onError) => {
@@ -44,9 +58,6 @@ export default function registerTriggerNode() {
                 },
                 name
               )
-            }
-            if (data.triggerType === 'event' && data.eventSource && data.eventType) {
-              return createEventTrigger(data.eventSource, data.eventType, undefined, name)
             }
             return null
           })

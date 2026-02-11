@@ -12,6 +12,30 @@ export interface BaseNodeFormProps<TData = unknown> {
   submitButtonText?: string
 }
 
+export interface NodeSubtypeDefinition<TFormData = unknown> {
+  /** Unique identifier for this subtype */
+  id: string
+  /** Display label in UI */
+  label: string
+  /** Icon component to display */
+  icon: ComponentType
+  /** Description shown in UI (optional) */
+  description?: string
+  /** Keywords for search (optional) */
+  keywords?: string[]
+  /**
+   * Optional order for display (lower = earlier).
+   * Subtypes fall back to declaration order when order is not set.
+   */
+  order?: number
+  /** Optional form panel title */
+  formTitle?: string
+  /** Optional form props for subtype-specific defaults */
+  formProps?: Record<string, unknown>
+  /** Optional initial form data */
+  initialData?: Partial<TFormData>
+}
+
 /**
  * Node type definition for the registry
  */
@@ -35,7 +59,13 @@ export interface NodeTypeDefinition<TFormData = unknown> {
   keywords?: string[]
 
   /** Form component to render when selected */
-  formComponent: ComponentType<BaseNodeFormProps<TFormData>>
+  formComponent: ComponentType<BaseNodeFormProps<TFormData> & Record<string, unknown>>
+
+  /** Optional subtype options */
+  subtypes?: NodeSubtypeDefinition<TFormData>[]
+
+  /** Optional selection panel title */
+  selectionTitle?: string
 
   /** Handler function when form is submitted */
   onSubmit: (data: TFormData, onSuccess: (newNodeId?: string) => void, onError: (error: string) => void) => void

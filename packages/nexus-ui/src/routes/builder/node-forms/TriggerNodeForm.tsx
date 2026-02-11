@@ -16,7 +16,7 @@ export interface TriggerFormData {
 interface TriggerNodeFormProps {
   onSubmit: (data: TriggerFormData) => void
   onCancel: () => void
-  initialData?: TriggerFormData
+  initialData?: Partial<TriggerFormData>
   submitButtonText?: string
 }
 
@@ -27,31 +27,13 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
 
   return (
     <Stack hasGutter>
-      <ActivityNameField
+      <ActivityNameField<TriggerFormData>
         register={register}
         fieldId="trigger-name"
         label="Trigger name"
         placeholder="Enter trigger name"
       />
-      <StackItem>
-        <FormGroup label="Trigger type" fieldId="trigger-type">
-          <Controller
-            control={control}
-            name="triggerType"
-            render={({ field }) => (
-              <FormSelect
-                id="trigger-type"
-                aria-label="Trigger type"
-                value={field.value}
-                onChange={(_event, value) => field.onChange(value)}
-              >
-                <FormSelectOption value="manual" label="Manual" />
-                <FormSelectOption value="scheduled" label="Scheduled" />
-              </FormSelect>
-            )}
-          />
-        </FormGroup>
-      </StackItem>
+      <input type="hidden" {...register('triggerType')} />
 
       {triggerType === 'scheduled' && (
         <>
@@ -99,7 +81,7 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
 export function TriggerNodeForm(props: TriggerNodeFormProps) {
   const defaultValues: TriggerFormData = {
     name: '',
-    triggerType: 'manual',
+    triggerType: props.initialData?.triggerType ?? 'manual',
     scheduleType: 'interval',
     interval: '',
     ...props.initialData,

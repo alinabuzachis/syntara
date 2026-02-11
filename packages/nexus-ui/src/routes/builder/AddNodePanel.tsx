@@ -38,6 +38,7 @@ interface AddNodePanelProps {
 
 export function AddNodePanel(props: AddNodePanelProps) {
   const [selectedNodeType, setSelectedNodeType] = useState<string | null>(null)
+  const [selectedNodeSubtypeId, setSelectedNodeSubtypeId] = useState<string | null>(null)
   // Use action accessor - component won't re-render when store state changes
   const { moveActivityAfter, updateActivity, removeActivity } = useWorkflowStoreActions()
 
@@ -57,25 +58,44 @@ export function AddNodePanel(props: AddNodePanelProps) {
   }, [props.replacementNodeId, props.hasNoWorkflowNodes, props.sourceNodeId])
 
   const handleNodeClick = (nodeId: string) => {
-    setSelectedNodeType(selectedNodeType === nodeId ? null : nodeId)
+    setSelectedNodeType(nodeId)
+    setSelectedNodeSubtypeId(null)
   }
 
   const handleFormCancel = () => {
+    if (selectedNode?.subtypes?.length) {
+      setSelectedNodeSubtypeId(null)
+      return
+    }
     setSelectedNodeType(null)
   }
 
   // Get the selected node type definition
   const enforcedSelectedNodeType = props.hasNoWorkflowNodes ? 'trigger' : selectedNodeType
   const selectedNode = enforcedSelectedNodeType ? NodeRegistry.get(enforcedSelectedNodeType) : null
+  const selectedSubtype = selectedNode?.subtypes?.find((subtype) => subtype.id === selectedNodeSubtypeId) ?? null
+  const isShowingSubtypeList = !!(selectedNode?.subtypes?.length && !selectedSubtype)
+
+  const configureTitle = selectedSubtype
+    ? (selectedSubtype.formTitle ?? `Configure ${selectedSubtype.label}`)
+    : selectedNode
+      ? `Configure ${selectedNode.label}`
+      : null
+
+  const panelTitle =
+    isShowingSubtypeList && selectedNode ? (selectedNode.selectionTitle ?? 'Select a node') : 'Add node'
 
   const renderForm = () => {
     if (!selectedNode) return null
 
     const FormComponent = selectedNode.formComponent
+    const subtypeFormProps = selectedSubtype?.formProps ?? {}
 
     return (
       <FormComponent
+        {...subtypeFormProps}
         submitButtonText={props.replacementNodeId ? 'Update node' : 'Add node'}
+        initialData={selectedSubtype?.initialData}
         onSubmit={(data) => {
           selectedNode.onSubmit(
             data,
@@ -155,6 +175,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
                 }
               }
               setSelectedNodeType(null)
+              setSelectedNodeSubtypeId(null)
               props.onClose()
             },
             (error) => {
@@ -193,13 +214,28 @@ export function AddNodePanel(props: AddNodePanelProps) {
             <FlexItem>
               <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
                 <FlexItem>
-                  <Icon>
-                    <RhUiAddSquareIcon />
-                  </Icon>
+                  {isShowingSubtypeList && !props.hasNoWorkflowNodes ? (
+                    <Button
+                      variant="plain"
+                      onClick={() => {
+                        setSelectedNodeType(null)
+                        setSelectedNodeSubtypeId(null)
+                      }}
+                      aria-label="Back"
+                    >
+                      <Icon>
+                        <RhUiArrowLeftIcon />
+                      </Icon>
+                    </Button>
+                  ) : !isShowingSubtypeList ? (
+                    <Icon>
+                      <RhUiAddSquareIcon />
+                    </Icon>
+                  ) : null}
                 </FlexItem>
                 <FlexItem>
                   <Title headingLevel="h2" size={TitleSizes.lg}>
-                    Add node
+                    {panelTitle}
                   </Title>
                 </FlexItem>
               </Flex>
@@ -227,15 +263,23 @@ export function AddNodePanel(props: AddNodePanelProps) {
         >
           <Stack hasGutter>
             {selectedNode ? (
-              // When a form is selected, only show that form
-              <StackItem>
-                <CompassPanel>
-                  <PanelMain>
-                    <PanelMainBody>
-                      <Stack hasGutter>
-                        <StackItem>
-                          <Flex gap={{ default: 'gapXs' }}>
-                            {!props.hasNoWorkflowNodes && (
+              selectedNode.subtypes?.length && !selectedSubtype ? (
+                <NodeTypeOptionsList
+                  nodeTypes={selectedNode.subtypes
+                    .map((subtype, index) => ({ subtype, index }))
+                    .sort((a, b) => (a.subtype.order ?? a.index) - (b.subtype.order ?? b.index))
+                    .map(({ subtype }) => subtype)}
+                  onSelect={(subtypeId) => setSelectedNodeSubtypeId(subtypeId)}
+                />
+              ) : (
+                // When a form is selected, only show that form
+                <StackItem>
+                  <CompassPanel>
+                    <PanelMain>
+                      <PanelMainBody>
+                        <Stack hasGutter>
+                          <StackItem>
+                            <Flex gap={{ default: 'gapXs' }}>
                               <FlexItem>
                                 <Button
                                   variant="plain"
@@ -250,20 +294,20 @@ export function AddNodePanel(props: AddNodePanelProps) {
                                   </Icon>
                                 </Button>
                               </FlexItem>
-                            )}
-                            <FlexItem grow={{ default: 'grow' }}>
-                              <Title headingLevel="h3" size="md">
-                                Configure {selectedNode.label}
-                              </Title>
-                            </FlexItem>
-                          </Flex>
-                        </StackItem>
-                        <StackItem>{renderForm()}</StackItem>
-                      </Stack>
-                    </PanelMainBody>
-                  </PanelMain>
-                </CompassPanel>
-              </StackItem>
+                              <FlexItem grow={{ default: 'grow' }}>
+                                <Title headingLevel="h3" size="md">
+                                  {configureTitle}
+                                </Title>
+                              </FlexItem>
+                            </Flex>
+                          </StackItem>
+                          <StackItem>{renderForm()}</StackItem>
+                        </Stack>
+                      </PanelMainBody>
+                    </PanelMain>
+                  </CompassPanel>
+                </StackItem>
+              )
             ) : (
               // When no form is selected, show all node type cards
               <NodeTypeOptionsList nodeTypes={nodeTypes} onSelect={handleNodeClick} />

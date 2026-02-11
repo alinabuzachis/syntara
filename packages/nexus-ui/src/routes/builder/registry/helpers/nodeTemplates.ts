@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 
 import type { NodeCategory } from '../categories'
-import type { BaseNodeFormProps, NodeTypeDefinition } from '../NodeRegistry'
+import type { BaseNodeFormProps, NodeSubtypeDefinition, NodeTypeDefinition } from '../NodeRegistry'
 
 /**
  * Configuration for creating a node type
@@ -22,7 +22,11 @@ interface NodeConfig<TFormData = unknown> {
   /** Order for display (lower = earlier) */
   order?: number
   /** Form component to render when selected */
-  formComponent: ComponentType<BaseNodeFormProps<TFormData>>
+  formComponent: ComponentType<BaseNodeFormProps<TFormData> & Record<string, unknown>>
+  /** Optional subtype options */
+  subtypes?: NodeSubtypeDefinition<TFormData>[]
+  /** Optional selection panel title */
+  selectionTitle?: string
   /** Whether this node type is enabled (default: true) */
   enabled?: boolean
 }

@@ -39,6 +39,14 @@ Each node type consists of:
 - **order**: Display order (lower = earlier)
 - **enabled**: Whether the node type is available
 
+### 3. Subtypes
+
+Node types can optionally define **subtypes** (e.g. Logic → Conditional/Loop/Converge).
+Subtype options are rendered by `order` when provided (lower = earlier). If `order` is
+not set, declaration order is preserved.
+
+Note: the `order` default of `100` applies to top-level node types only, not subtypes.
+
 ## How to Add a New Node Type
 
 ### Step 1: Create Your Form Component

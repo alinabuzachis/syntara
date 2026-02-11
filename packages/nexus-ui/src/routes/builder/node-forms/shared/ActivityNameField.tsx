@@ -1,7 +1,7 @@
 import { FormGroup, StackItem, TextInput } from '@patternfly/react-core'
 import type { Path, UseFormReturn } from 'react-hook-form'
 
-interface ActivityNameFieldProps<T extends { name: string }> {
+interface ActivityNameFieldProps<T extends { name: string | undefined }> {
   register: UseFormReturn<T>['register']
   fieldId: string
   label?: string
@@ -12,7 +12,7 @@ interface ActivityNameFieldProps<T extends { name: string }> {
  * Standardized "Activity Name" field used across most node forms.
  * Optional by default with consistent placeholder and styling.
  */
-export function ActivityNameField<T extends { name: string }>({
+export function ActivityNameField<T extends { name: string | undefined }>({
   register,
   fieldId,
   label = 'Activity name',
