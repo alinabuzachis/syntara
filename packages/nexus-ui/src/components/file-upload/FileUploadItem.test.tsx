@@ -120,4 +120,28 @@ describe('FileUploadItem', () => {
       expect(container.firstChild).toHaveClass('custom-class')
     })
   })
+
+  describe('edge cases', () => {
+    it('handles file without extension', () => {
+      const file = new File(['content'], 'README', { type: 'text/plain' })
+      render(<FileUploadItem file={file} fileId="1" />)
+      // File name appears as both display name and extension (getFileExtension returns the whole name)
+      expect(screen.getAllByText('README').length).toBeGreaterThanOrEqual(1)
+      // Should show the file size
+      expect(screen.getByText(/7 B/)).toBeInTheDocument()
+    })
+
+    it('does not show progress bar when progress is undefined', () => {
+      const file = createFile('test.png')
+      render(<FileUploadItem file={file} fileId="1" status="uploading" />)
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    })
+
+    it('uses default pending status when not provided', () => {
+      const file = createFile('test.png')
+      render(<FileUploadItem file={file} fileId="1" progress={50} />)
+      // pending status doesn't show progress bar
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    })
+  })
 })
