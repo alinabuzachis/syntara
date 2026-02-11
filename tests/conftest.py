@@ -1316,6 +1316,28 @@ async def approvals_factory(test_db_session: AsyncSession, test_user: User) -> A
     return ApprovalsFactory(test_db_session, test_user)
 
 
+@pytest.fixture
+def fast_workflow_client_settings(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> Generator[None, None, None]:
+    """Configure fast workflow client settings for approval tests.
+
+    This fixture applies fast retry settings for WorkflowApiClient tests
+    to make retry operations run much faster for testing.
+
+    Patches get_settings() to return a Settings object with fast workflow client retry values
+    while preserving access to all other settings.
+    """
+    with override_settings(
+        workflow_client_max_retries=2,
+        workflow_client_initial_backoff_seconds=0.01,
+        workflow_client_backoff_growth_factor=2.0,
+        workflow_client_max_backoff_seconds=0.1,
+        workflow_client_request_timeout_seconds=1.0,
+    ):
+        yield
+
+
 # ============================================================================
 # Mock Fixtures
 # ============================================================================

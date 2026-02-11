@@ -1074,6 +1074,66 @@ class ToolManagerSettings(BaseSettings):
 
 
 # =============================================================================
+# Workflow Client Configuration
+# =============================================================================
+
+
+class WorkflowClientSettings(BaseSettings):
+    """Workflow API client configuration settings.
+
+    Configures the HTTP client for sending approval signals to workflow engine.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    workflow_client_max_retries: int = Field(
+        default=5,
+        description="Maximum number of retry attempts (0 disables retries)",
+        ge=0,
+    )
+
+    workflow_client_initial_backoff_seconds: float = Field(
+        default=1.0,
+        description="Initial delay before first retry in seconds",
+        gt=0,
+    )
+
+    workflow_client_backoff_growth_factor: float = Field(
+        default=2.0,
+        description="Exponential growth factor for backoff delays (1.0 = fixed, >1.0 = exponential)",
+        ge=1.0,
+    )
+
+    workflow_client_max_backoff_seconds: float = Field(
+        default=10.0,
+        description="Maximum cap for backoff delay in seconds",
+        gt=0,
+    )
+
+    workflow_client_request_timeout_seconds: float = Field(
+        default=30.0,
+        description="Per-attempt timeout to prevent unbounded wait times (applies to initial + all retries)",
+        gt=0,
+    )
+
+    @model_validator(mode="after")
+    def validate_backoff_relationship(self) -> "WorkflowClientSettings":
+        """Validate that max_backoff >= initial_backoff.
+
+        This ensures exponential backoff works as intended. If max < initial,
+        all retry attempts would be immediately capped to max, defeating the
+        purpose of exponential growth.
+        """
+        if self.workflow_client_max_backoff_seconds < self.workflow_client_initial_backoff_seconds:
+            msg = (
+                f"workflow_client_max_backoff_seconds ({self.workflow_client_max_backoff_seconds}) "
+                f"must be >= workflow_client_initial_backoff_seconds ({self.workflow_client_initial_backoff_seconds})"
+            )
+            raise ValueError(msg)
+        return self
+
+
+# =============================================================================
 # Main Settings
 # =============================================================================
 
@@ -1099,6 +1159,7 @@ class Settings(
     ContextManagerSettings,
     WorkflowEngineSettings,
     ToolManagerSettings,
+    WorkflowClientSettings,
 ):
     """Application-wide settings.
 

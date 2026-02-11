@@ -384,7 +384,7 @@ class AgentOrchestratorClient:
         # Invoke with retry logic for transient failures
         last_error: Exception | None = None
 
-        for attempt in range(1, self.max_retries + 1):
+        for attempt in range(self.max_retries + 1):
             try:
                 return await self._attempt_invocation(payload, correlation_id, attempt)
 
@@ -398,7 +398,7 @@ class AgentOrchestratorClient:
 
                 # Retry with exponential backoff
                 last_error = e
-                backoff = self.retry_backoff_base * (2 ** (attempt - 1))
+                backoff = self.retry_backoff_base * (2**attempt)
                 logger.warning(
                     "Retryable error, retrying with backoff",
                     attempt=attempt,

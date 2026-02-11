@@ -129,12 +129,12 @@ These tasks create the directory structure, models, and shared infrastructure th
 
 ### Inter-Component Communication (Approvals -> Workflows)
 
-- [ ] T037 [US2] Create WorkflowApiClient HTTP client with retry logic (5 retries, exponential backoff per research.md - higher than workflow→approvals due to signal criticality) and async context manager pattern in `src/nexus/approvals/clients/workflow_api_client.py`; uses existing `POST /executions/{execution_id}/activities/{approval_node_id}/signal` endpoint (follow AgentOrchestratorClient patterns)
+- [x] T037 [US2] Create WorkflowApiClient HTTP client with retry logic (5 retries, exponential backoff per research.md - higher than workflow→approvals due to signal criticality) and async context manager pattern in `src/nexus/approvals/clients/workflow_api_client.py`; uses existing `POST /executions/{execution_id}/activities/{approval_node_id}/signal` endpoint (follow AgentOrchestratorClient patterns)
 - [x] T038 [US2] Integrate signal sending into ApprovalService.decide: call WorkflowApiClient to send signal with `{"status": "approved"|"rejected", "approval_id": "...", "notes": "..."}` to existing activity signal endpoint; log error and leave approval decided if signal fails (graceful degradation per research.md) in `src/nexus/approvals/services/approval_service.py`
 
 ### Schema Cleanup (Workflows Component)
 
-- [ ] T039 [US2] Remove unused `/executions/{execution_id}/signals/approval-decision` endpoint and `ApprovalDecisionSignal` schema from `src/nexus/schemas/workflows/executions_openapi.yaml` (using existing generic activity signal endpoint instead)
+- [x] T039 [US2] Remove unused `/executions/{execution_id}/signals/approval-decision` endpoint and `ApprovalDecisionSignal` schema from `src/nexus/schemas/workflows/executions_openapi.yaml` (now using existing `/executions/{execution_id}/activities/{activity_id}/signal` endpoint per src/nexus/workflows/utils/url.py)
 
 ### Approvals API Endpoints (make contract tests pass)
 

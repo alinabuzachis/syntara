@@ -36,7 +36,7 @@ Inter-component HTTP calls use asymmetric retry strategies based on criticality:
 | Direction            | Call                                       | Retry Config                               | On Failure                                                 |
 | -------------------- | ------------------------------------------ | ------------------------------------------ | ---------------------------------------------------------- |
 | Workflow → Approvals | `POST /api/v1/approvals`                   | Default to 3 attempts, exponential backoff | Activity fails, Temporal retries per workflow retry policy |
-| Approvals → Workflow | `POST /api/v1/executions/{id}/signals/...` | Default to 5 attempts, exponential backoff | Log error, approval stays decided (manual reconciliation)  |
+| Approvals → Workflow | `POST /api/v1/executions/{id}/activities/{activity_id}/signal` | Default to 5 attempts, exponential backoff | Log error, approval stays decided (manual reconciliation)  |
 
 **Why asymmetric?**
 
@@ -121,7 +121,7 @@ sequenceDiagram
 
     Note over AP, DB: Phase 3: Process Decision
     AP->>DB: Update status, decided_by, decided_at
-    AP->>ES: POST /executions/{id}/signals/approval-decision
+    AP->>ES: POST /executions/{id}/activities/{approval_node_id}/signal
 
     Note over ES, WF: Phase 4: Signal Reaches Workflow
     ES->>WF: Send Temporal signal

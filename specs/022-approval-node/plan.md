@@ -48,7 +48,7 @@ Implement a standalone "Approval" node for the workflow engine that allows Autom
 4. **ActivityType.APPROVAL** - new activity type in workflow engine
 5. **`_execute_approval_activity`** - creates approval via HTTP, waits for signal
 6. **Temporal signal handler** - `@workflow.signal` for receiving approval decisions
-7. **Signal endpoint** - `POST /executions/{id}/signals/approval-decision`
+7. **Signal endpoint** - `POST /executions/{id}/activities/{activity_id}/signal`
 8. **TemporalExecutionService.send_approval_decision** - sends signal to running workflow
 9. **Execution status computation** - `paused` when all branches waiting, `running` when any branch active
 
@@ -67,7 +67,7 @@ Components communicate exclusively via HTTP APIs, even within the monolith:
 ```text
 Workflows → Approvals: POST /api/v1/approvals (create approval request)
 Workflows → Approvals: POST /api/v1/approvals/batch (cancel approvals on workflow cancel)
-Approvals → Workflows: POST /executions/{id}/signals/approval-decision (signal decision)
+Approvals → Workflows: POST /executions/{id}/activities/{approval_node_id}/signal (signal decision)
 ```
 
 This enforces true decoupling and enables deployment as separate microservices without code changes.

@@ -290,6 +290,39 @@ class TestAgentOrchestratorClientRetryLogic:
             assert attempt_count == expected_attempts
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("error_type", "error_args"),
+        [
+            (httpx.ConnectError, ("Connection refused",)),
+            (httpx.TimeoutException, ("Request timeout",)),
+        ],
+    )
+    async def test_retryable_errors_no_retries_when_max_retries_zero(
+        self,
+        error_type: type[Exception],
+        error_args: tuple[str, ...],
+    ) -> None:
+        """Test that retryable errors do not retry when max_retries=0."""
+        attempt_count = 0
+
+        async def mock_post_always_fails(url: str, **kwargs: object) -> MagicMock:
+            nonlocal attempt_count
+            attempt_count += 1
+            raise error_type(*error_args)
+
+        async with AgentOrchestratorClient(max_retries=0, retry_backoff_base=0.01) as client:
+            client.http_client.post = AsyncMock(side_effect=mock_post_always_fails)  # type: ignore[method-assign]
+
+            with pytest.raises(AgentOrchestratorConnectionError):
+                await client.invoke_agent_async(
+                    prompt="Test",
+                    user_id="test-user",
+                )
+
+            # Should only make 1 attempt (no retries)
+            assert attempt_count == 1
+
+    @pytest.mark.asyncio
     async def test_max_retries_exhausted_raises_connection_error(self) -> None:
         """Test that exhausting retries raises AgentOrchestratorConnectionError."""
 
@@ -368,7 +401,7 @@ class TestAgentOrchestratorClientRetryLogic:
 
         async def mock_post_track_timing(url: str, **kwargs: object) -> MagicMock:
             attempt_times.append(asyncio.get_event_loop().time())
-            if len(attempt_times) < 3:
+            if len(attempt_times) < 4:
                 raise httpx.ConnectError("Connection refused")  # noqa: EM101, TRY003
             return create_mock_http_response()
 
@@ -382,11 +415,13 @@ class TestAgentOrchestratorClientRetryLogic:
 
             # Verify exponential backoff: 0.1s, 0.2s between attempts
             # Allow some tolerance for timing
-            assert len(attempt_times) == 3
+            assert len(attempt_times) == 4  # Initial attempt + 3 re-tries
             backoff1 = attempt_times[1] - attempt_times[0]
             backoff2 = attempt_times[2] - attempt_times[1]
+            backoff3 = attempt_times[3] - attempt_times[2]
             assert 0.08 < backoff1 < 0.15  # ~0.1s backoff
             assert 0.18 < backoff2 < 0.25  # ~0.2s backoff (2x first)
+            assert 0.30 < backoff3 < 0.50  # ~0.4s backoff (4x first)
 
     @pytest.mark.asyncio
     async def test_retry_not_triggered_on_validation_error(self) -> None:
@@ -832,7 +867,7 @@ class TestAgentOrchestratorClientErrorHandling:
             assert exc_info.value.code == ErrorCode.HTTP_SERVER_ERROR
             assert "HTTP 500" in exc_info.value.message
             # Verify retries were exhausted
-            assert client.http_client.post.call_count == 2
+            assert client.http_client.post.call_count == 3  # Initial attempt + 2 re-tries
 
     @pytest.mark.asyncio
     async def test_timeout_error_exhausts_retries(self) -> None:
@@ -853,7 +888,7 @@ class TestAgentOrchestratorClientErrorHandling:
             assert exc_info.value.code == ErrorCode.CONNECTION_FAILED
             assert "Failed to connect" in exc_info.value.message
             # Verify retries were exhausted
-            assert client.http_client.post.call_count == 2
+            assert client.http_client.post.call_count == 3  # Initial attempt + 2 re-tries
 
 
 class TestAgentOrchestratorClientStateManagement:

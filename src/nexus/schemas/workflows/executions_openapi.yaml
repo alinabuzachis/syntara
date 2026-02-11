@@ -255,58 +255,6 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
-  /executions/{execution_id}/signals/approval-decision:
-    post:
-      summary: Signal approval decision to workflow
-      description: |
-        Send an approval decision signal to a running workflow execution.
-
-        This endpoint is called by the approvals component (via WorkflowAPIClient)
-        to notify a paused workflow that an approval decision has been made.
-        The workflow will resume on either the approved or rejected path based
-        on the decision.
-
-        The signal is durable - if the workflow is temporarily unavailable,
-        the signal will be delivered when it becomes available again.
-      operationId: signalApprovalDecision
-      tags:
-        - Executions
-      parameters:
-        - name: execution_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: Execution ID of the workflow awaiting approval
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ApprovalDecisionSignal'
-      responses:
-        '200':
-          description: Signal sent successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SignalResponse'
-        '404':
-          description: Execution not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-        '409':
-          description: |
-            Execution is not in a state that can receive approval signals
-            (e.g., already completed, cancelled, or not waiting for approval)
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-
   /executions/{execution_id}/activities/{activity_id}/signal:
     post:
       summary: Send signal to activity in workflow
@@ -394,36 +342,6 @@ components:
     ExecutionControlRequest:
       $ref: ./shared-schemas.yaml#/components/schemas/ExecutionControlRequest
 
-    ApprovalDecisionSignal:
-      type: object
-      title: Approval Decision Signal
-      description: |
-        Signal payload for notifying a workflow of an approval decision.
-        Sent by the approvals component when a user approves or rejects a request.
-      required:
-        - approval_id
-        - approval_node_id
-        - status
-      properties:
-        approval_id:
-          type: string
-          format: uuid
-          description: ID of the approval request that was decided
-        approval_node_id:
-          type: string
-          description: Activity ID of the approval node in the workflow definition
-        status:
-          type: string
-          enum:
-            - approved
-            - rejected
-          description: |
-            Decision status from the approvals component.
-        notes:
-          type: string
-          maxLength: 2000
-          nullable: true
-          description: Optional notes provided with the decision
 
     SignalResponse:
       type: object

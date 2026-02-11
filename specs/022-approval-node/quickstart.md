@@ -55,7 +55,7 @@ STEP 3: User Submits Decision (Approvals Component)
 
 STEP 4: Signal Sent to Workflow Execution (Approvals → Workflows)
 ─────────────────────────────────────────────────────────────────────────────
-• ApprovalService calls: POST /api/v1/executions/{id}/signals/approval-decision
+• ApprovalService calls: POST /api/v1/executions/{id}/activities/{approval_node_id}/signal
   Body: { approval_id, status, notes }
 • ExecutionService receives signal request
 • TemporalExecutionService.send_approval_decision() sends Temporal signal
