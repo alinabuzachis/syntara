@@ -1,0 +1,491 @@
+import { describe, expect, it } from 'vitest'
+
+import {
+  createAgenticActivity,
+  createAAPJobTemplateActivity,
+  createApiActivity,
+  createApprovalActivity,
+  createConditionActivity,
+  createConnectorActivity,
+  createConvergeActivity,
+  createEventTrigger,
+  createGenericActivity,
+  createLoopActivity,
+  createManualTrigger,
+  createScheduledTrigger,
+  createScriptActivity,
+} from './workflowFactories'
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Using 'any' type in tests to access properties on complex union types returned by factory functions
+
+describe('workflowFactories', () => {
+  describe('Trigger Factories', () => {
+    describe('createManualTrigger', () => {
+      it('creates a manual trigger without approval', () => {
+        const trigger = createManualTrigger()
+
+        expect(trigger.type).toBe('manual')
+        expect(trigger.requiresApproval).toBeUndefined()
+      })
+
+      it('creates a manual trigger with approval required', () => {
+        const trigger = createManualTrigger(true)
+
+        expect(trigger.type).toBe('manual')
+        expect(trigger.requiresApproval).toBe(true)
+      })
+
+      it('creates a manual trigger with approval not required', () => {
+        const trigger = createManualTrigger(false)
+
+        expect(trigger.type).toBe('manual')
+        expect(trigger.requiresApproval).toBe(false)
+      })
+
+      it('creates a manual trigger with name', () => {
+        const trigger = createManualTrigger(undefined, 'My Trigger')
+
+        expect(trigger.type).toBe('manual')
+        expect(trigger.name).toBe('My Trigger')
+      })
+    })
+
+    describe('createScheduledTrigger', () => {
+      it('creates a cron scheduled trigger', () => {
+        const trigger = createScheduledTrigger('cron', { cron: '0 9 * * *', timezone: 'UTC' }) as any
+
+        expect(trigger.type).toBe('scheduled')
+        expect(trigger.schedule.scheduleType).toBe('cron')
+        expect(trigger.schedule.cron).toBe('0 9 * * *')
+        expect(trigger.schedule.timezone).toBe('UTC')
+      })
+
+      it('creates a cron trigger without timezone', () => {
+        const trigger = createScheduledTrigger('cron', { cron: '0 9 * * *' }) as any
+
+        expect(trigger.schedule.scheduleType).toBe('cron')
+        expect(trigger.schedule.cron).toBe('0 9 * * *')
+        expect(trigger.schedule).not.toHaveProperty('timezone')
+      })
+
+      it('creates an interval scheduled trigger', () => {
+        const trigger = createScheduledTrigger('interval', { interval: 'PT1H' })
+
+        expect(trigger.type).toBe('scheduled')
+        expect(trigger.schedule.scheduleType).toBe('interval')
+        expect(trigger.schedule.interval).toBe('PT1H')
+      })
+
+      it('creates a continuous scheduled trigger', () => {
+        const trigger = createScheduledTrigger('continuous', {})
+
+        expect(trigger.type).toBe('scheduled')
+        expect(trigger.schedule.scheduleType).toBe('continuous')
+        expect(trigger.schedule.continuous).toBe(true)
+      })
+
+      it('creates a scheduled trigger with name', () => {
+        const trigger = createScheduledTrigger('cron', { cron: '0 9 * * *' }, 'Daily Job')
+
+        expect(trigger.name).toBe('Daily Job')
+      })
+
+      it('falls back to continuous when cron config is missing', () => {
+        const trigger = createScheduledTrigger('cron', {})
+
+        expect(trigger.schedule.scheduleType).toBe('continuous')
+      })
+
+      it('falls back to continuous when interval config is missing', () => {
+        const trigger = createScheduledTrigger('interval', {})
+
+        expect(trigger.schedule.scheduleType).toBe('continuous')
+      })
+    })
+
+    describe('createEventTrigger', () => {
+      it('creates an event trigger', () => {
+        const trigger = createEventTrigger('github', 'push')
+
+        expect(trigger.type).toBe('event')
+        expect(trigger.event.source).toBe('github')
+        expect(trigger.event.eventType).toBe('push')
+      })
+
+      it('creates an event trigger with filter', () => {
+        const trigger = createEventTrigger('github', 'push', { branch: 'main' })
+
+        expect(trigger.event.filter).toEqual({ branch: 'main' })
+      })
+
+      it('creates an event trigger with name', () => {
+        const trigger = createEventTrigger('github', 'push', undefined, 'GitHub Push')
+
+        expect(trigger.name).toBe('GitHub Push')
+      })
+    })
+  })
+
+  describe('Activity Factories', () => {
+    describe('createScriptActivity', () => {
+      it('creates a script activity', () => {
+        const activity = createScriptActivity('task-1', 'My Script', 'python', 'print("hello")') as any
+
+        expect(activity.type).toBe('task')
+        expect(activity.id).toBe('task-1')
+        expect(activity.name).toBe('My Script')
+        expect(activity.task.executor).toBe('script')
+        expect(activity.task.config.language).toBe('python')
+        expect(activity.task.config.code).toBe('print("hello")')
+      })
+
+      it('creates a bash script activity', () => {
+        const activity = createScriptActivity('task-2', 'Bash Script', 'bash', 'echo hello') as any
+
+        expect(activity.task.config.language).toBe('bash')
+      })
+
+      it('parses valid JSON inputs', () => {
+        const activity = createScriptActivity('task-1', 'Script', 'python', 'code', '{"key": "value"}')
+
+        expect(activity.task.inputs).toEqual({ key: 'value' })
+      })
+
+      it('ignores invalid JSON inputs', () => {
+        const activity = createScriptActivity('task-1', 'Script', 'python', 'code', 'not valid json')
+
+        expect(activity.task.inputs).toBeUndefined()
+      })
+    })
+
+    describe('createApiActivity', () => {
+      it('creates an API activity', () => {
+        const activity = createApiActivity('api-1', 'API Call', 'GET', 'https://api.example.com') as any
+
+        expect(activity.type).toBe('task')
+        expect(activity.id).toBe('api-1')
+        expect(activity.task.executor).toBe('api')
+        expect(activity.task.config.method).toBe('GET')
+        expect(activity.task.config.url).toBe('https://api.example.com')
+      })
+
+      it('creates an API activity with headers', () => {
+        const activity = createApiActivity(
+          'api-1',
+          'API Call',
+          'POST',
+          'https://api.example.com',
+          '{"Authorization": "Bearer token"}'
+        ) as any
+
+        expect(activity.task.config.headers).toEqual({ Authorization: 'Bearer token' })
+      })
+
+      it('creates an API activity with body', () => {
+        const activity = createApiActivity(
+          'api-1',
+          'API Call',
+          'POST',
+          'https://api.example.com',
+          undefined,
+          '{"data": "value"}'
+        ) as any
+
+        expect(activity.task.config.body).toEqual({ data: 'value' })
+      })
+
+      it('uses string body when JSON parsing fails', () => {
+        const activity = createApiActivity(
+          'api-1',
+          'API Call',
+          'POST',
+          'https://api.example.com',
+          undefined,
+          'plain text body'
+        ) as any
+
+        expect(activity.task.config.body).toBe('plain text body')
+      })
+
+      it('ignores invalid JSON headers', () => {
+        const activity = createApiActivity('api-1', 'API Call', 'GET', 'https://api.example.com', 'invalid json') as any
+
+        expect(activity.task.config.headers).toBeUndefined()
+      })
+
+      it('parses valid JSON inputs', () => {
+        const activity = createApiActivity(
+          'api-1',
+          'API Call',
+          'GET',
+          'https://api.example.com',
+          undefined,
+          undefined,
+          '{"param": "value"}'
+        )
+
+        expect(activity.task.inputs).toEqual({ param: 'value' })
+      })
+    })
+
+    describe('createAgenticActivity', () => {
+      it('creates an agentic activity', () => {
+        const activity = createAgenticActivity('agent-1', 'AI Agent') as any
+
+        expect(activity.type).toBe('task')
+        expect(activity.id).toBe('agent-1')
+        expect(activity.task.executor).toBe('agentic')
+        expect(activity.task.config.agent).toBe('')
+      })
+
+      it('creates an agentic activity with tools', () => {
+        const activity = createAgenticActivity('agent-1', 'AI Agent', ['tool1', 'tool2']) as any
+
+        expect(activity.task.config.tools).toEqual(['tool1', 'tool2'])
+      })
+
+      it('creates an agentic activity with prompt', () => {
+        const activity = createAgenticActivity('agent-1', 'AI Agent', undefined, 'Do something') as any
+
+        expect(activity.task.config.prompt).toBe('Do something')
+      })
+
+      it('creates an agentic activity with model', () => {
+        const activity = createAgenticActivity('agent-1', 'AI Agent', undefined, undefined, 'gpt-4') as any
+
+        expect(activity.task.config.model).toBe('gpt-4')
+      })
+
+      it('creates an agentic activity with fileIds', () => {
+        const activity = createAgenticActivity('agent-1', 'AI Agent', undefined, undefined, undefined, undefined, [
+          'file-1',
+          'file-2',
+        ]) as any
+
+        expect(activity.task.config.fileIds).toEqual(['file-1', 'file-2'])
+      })
+
+      it('does not include empty tools array', () => {
+        const activity = createAgenticActivity('agent-1', 'AI Agent', []) as any
+
+        expect(activity.task.config.tools).toBeUndefined()
+      })
+
+      it('parses valid JSON inputs', () => {
+        const activity = createAgenticActivity('agent-1', 'AI Agent', undefined, undefined, undefined, '{"key": "val"}')
+
+        expect(activity.task.inputs).toEqual({ key: 'val' })
+      })
+    })
+
+    describe('createConditionActivity', () => {
+      it('creates a condition activity', () => {
+        const activity = createConditionActivity('cond-1', 'Check Status', 'status === "active"')
+
+        expect(activity.type).toBe('condition')
+        expect(activity.id).toBe('cond-1')
+        expect(activity.name).toBe('Check Status')
+        expect(activity.condition).toBe('status === "active"')
+        expect(activity.then).toEqual([])
+        expect(activity.else).toEqual([])
+      })
+    })
+
+    describe('createLoopActivity', () => {
+      it('creates a forEach loop activity', () => {
+        const activity = createLoopActivity('loop-1', 'Process Items', 'forEach', {
+          items: '{{ items }}',
+          itemVariable: 'item',
+          indexVariable: 'idx',
+        }) as any
+
+        expect(activity.type).toBe('loop')
+        expect(activity.id).toBe('loop-1')
+        expect(activity.loop.type).toBe('forEach')
+        expect(activity.loop.items).toBe('{{ items }}')
+        expect(activity.loop.itemVariable).toBe('item')
+        expect(activity.loop.indexVariable).toBe('idx')
+      })
+
+      it('creates a while loop activity', () => {
+        const activity = createLoopActivity('loop-1', 'While Loop', 'while', {
+          condition: 'count < 10',
+          maxIterations: 100,
+        }) as any
+
+        expect(activity.loop.type).toBe('while')
+        expect(activity.loop.condition).toBe('count < 10')
+        expect(activity.loop.maxIterations).toBe(100)
+      })
+
+      it('does not include invalid maxIterations', () => {
+        const activity = createLoopActivity('loop-1', 'While Loop', 'while', {
+          condition: 'count < 10',
+          maxIterations: Number.NaN,
+        }) as any
+
+        expect(activity.loop).not.toHaveProperty('maxIterations')
+      })
+
+      it('falls back to forEach with empty items when config is missing', () => {
+        const activity = createLoopActivity('loop-1', 'Loop', 'forEach', {}) as any
+
+        expect(activity.loop.type).toBe('forEach')
+        expect(activity.loop.items).toBe('')
+      })
+
+      it('falls back when while has no condition', () => {
+        const activity = createLoopActivity('loop-1', 'Loop', 'while', {}) as any
+
+        expect(activity.loop.type).toBe('forEach')
+      })
+    })
+
+    describe('createConvergeActivity', () => {
+      it('creates a converge activity', () => {
+        const activity = createConvergeActivity('conv-1', 'Wait for All')
+
+        expect(activity.type).toBe('converge')
+        expect(activity.id).toBe('conv-1')
+        expect(activity.name).toBe('Wait for All')
+        expect(activity.converge.branches).toEqual([])
+        expect(activity.converge.strategy).toBe('all')
+      })
+
+      it('creates a converge activity with config', () => {
+        const activity = createConvergeActivity('conv-1', 'Converge', {
+          timeout: 3600,
+          onTimeout: 'fail',
+          aggregateOutputs: true,
+        })
+
+        expect(activity.converge.timeout).toBe(3600)
+        expect(activity.converge.onTimeout).toBe('fail')
+        expect(activity.converge.aggregateOutputs).toBe(true)
+      })
+    })
+
+    describe('createAAPJobTemplateActivity', () => {
+      it('creates an AAP job template activity', () => {
+        const activity = createAAPJobTemplateActivity('aap-1', 'Run Playbook', 123) as any
+
+        expect(activity.type).toBe('task')
+        expect(activity.id).toBe('aap-1')
+        expect(activity.task.executor).toBe('aap_job_template')
+        expect(activity.task.config.jobTemplateId).toBe(123)
+      })
+
+      it('creates an AAP activity with full config', () => {
+        const activity = createAAPJobTemplateActivity('aap-1', 'Run Playbook', 123, {
+          inventory: 456,
+          credentials: [789],
+          extraVars: { env: 'prod' },
+          limit: 'web-servers',
+          tags: 'deploy',
+          skipTags: 'test',
+          verbosity: 2,
+        }) as any
+
+        expect(activity.task.config.inventory).toBe(456)
+        expect(activity.task.config.credentials).toEqual([789])
+        expect(activity.task.config.extraVars).toEqual({ env: 'prod' })
+        expect(activity.task.config.limit).toBe('web-servers')
+        expect(activity.task.config.tags).toBe('deploy')
+        expect(activity.task.config.skipTags).toBe('test')
+        expect(activity.task.config.verbosity).toBe(2)
+      })
+    })
+
+    describe('createConnectorActivity', () => {
+      it('creates a connector activity', () => {
+        const activity = createConnectorActivity('conn-1', 'Slack Message', 'slack', 'send_message') as any
+
+        expect(activity.type).toBe('task')
+        expect(activity.id).toBe('conn-1')
+        expect(activity.task.executor).toBe('connector')
+        expect(activity.task.config.connectorId).toBe('slack')
+        expect(activity.task.config.operation).toBe('send_message')
+      })
+
+      it('creates a connector activity with parameters', () => {
+        const activity = createConnectorActivity(
+          'conn-1',
+          'Slack Message',
+          'slack',
+          'send_message',
+          '{"channel": "#general"}'
+        ) as any
+
+        expect(activity.task.config.parameters).toEqual({ channel: '#general' })
+      })
+
+      it('ignores invalid JSON parameters', () => {
+        const activity = createConnectorActivity('conn-1', 'Slack Message', 'slack', 'send_message', 'invalid') as any
+
+        expect(activity.task.config.parameters).toBeUndefined()
+      })
+    })
+
+    describe('createGenericActivity', () => {
+      it('creates a generic placeholder activity', () => {
+        const activity = createGenericActivity('gen-1') as any
+
+        expect(activity.type).toBe('task')
+        expect(activity.id).toBe('gen-1')
+        expect(activity.name).toBe('New Node')
+        expect(activity.metadata.__isGeneric).toBe(true)
+      })
+
+      it('creates a generic activity with custom name', () => {
+        const activity = createGenericActivity('gen-1', 'Custom Name') as any
+
+        expect(activity.name).toBe('Custom Name')
+      })
+
+      it('creates a generic activity with custom message', () => {
+        const activity = createGenericActivity('gen-1', 'Node', 'Select a node type') as any
+
+        expect(activity.metadata.__customMessage).toBe('Select a node type')
+      })
+    })
+
+    describe('createApprovalActivity', () => {
+      it('creates an approval activity', () => {
+        const activity = createApprovalActivity(
+          'appr-1',
+          'Approval Gate',
+          ['admin@example.com'],
+          'Please approve'
+        ) as any
+
+        expect(activity.type).toBe('task')
+        expect(activity.id).toBe('appr-1')
+        expect(activity.name).toBe('Approval Gate')
+        expect(activity.requiresApproval).toBe(true)
+        expect(activity.approval.approvers).toEqual(['admin@example.com'])
+        expect(activity.approval.prompt).toBe('Please approve')
+        expect(activity.metadata.__executorType).toBe('approval')
+      })
+
+      it('creates an approval activity with timeout', () => {
+        const activity = createApprovalActivity('appr-1', 'Approval', ['admin@example.com'], 'Approve?', 3600) as any
+
+        expect(activity.approval.timeout).toBe(3600)
+      })
+
+      it('creates an approval activity with onTimeout action', () => {
+        const activity = createApprovalActivity(
+          'appr-1',
+          'Approval',
+          ['admin@example.com'],
+          'Approve?',
+          3600,
+          'reject'
+        ) as any
+
+        expect(activity.approval.onTimeout).toBe('reject')
+      })
+    })
+  })
+})

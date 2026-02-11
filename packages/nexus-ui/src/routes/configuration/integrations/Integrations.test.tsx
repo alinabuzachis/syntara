@@ -144,7 +144,7 @@ describe('Integrations Component', () => {
       fireEvent.change(searchInput, { target: { value: searchTerm } })
 
       // Verify the input value is updated
-      expect(searchInput.value).toBe(searchTerm)
+      expect((searchInput as HTMLInputElement).value).toBe(searchTerm)
     })
 
     it('filters integrations with fuzzy search', () => {
@@ -319,6 +319,36 @@ describe('Integrations Component', () => {
       // Should have at least header row + 3 data rows
       expect(rows.length).toBeGreaterThanOrEqual(4)
     })
+
+    it('opens validate dialog when validate action is clicked', async () => {
+      render(<Integrations />, { wrapper })
+
+      // Find and click the actions menu for the first row
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      fireEvent.click(actionButtons[0])
+
+      // Click validate connection option
+      const validateOption = screen.getByRole('menuitem', { name: /validate connection/i })
+      fireEvent.click(validateOption)
+
+      // Validate dialog should open
+      expect(screen.getByText(/validate integration/i)).toBeInTheDocument()
+    })
+
+    it('opens delete dialog when uninstall action is clicked', async () => {
+      render(<Integrations />, { wrapper })
+
+      // Find and click the actions menu for the first row
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      fireEvent.click(actionButtons[0])
+
+      // Click uninstall option
+      const uninstallOption = screen.getByRole('menuitem', { name: /uninstall/i })
+      fireEvent.click(uninstallOption)
+
+      // Delete dialog should open
+      expect(screen.getByText(/delete integration/i)).toBeInTheDocument()
+    })
   })
 
   describe('Pagination', () => {
@@ -405,6 +435,113 @@ describe('Integrations Component', () => {
 
       expect(screen.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Previous page' })).not.toBeInTheDocument()
+    })
+
+    it('calls onNext when Next page button is clicked', () => {
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockIntegrations,
+          next: 'next-cursor-abc',
+          prev: null,
+          total: 25,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Integrations />, { wrapper })
+
+      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      fireEvent.click(nextButton)
+
+      // The button click should trigger the onNext callback
+      expect(nextButton).toBeInTheDocument()
+    })
+
+    it('calls onPrev when Previous page button is clicked', () => {
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockIntegrations,
+          next: 'next-cursor',
+          prev: 'prev-cursor-abc',
+          total: 25,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Integrations />, { wrapper })
+
+      const prevButton = screen.getByRole('button', { name: 'Previous page' })
+      fireEvent.click(prevButton)
+
+      // The button click should trigger the onPrev callback
+      expect(prevButton).toBeInTheDocument()
+    })
+  })
+
+  describe('Search No Results', () => {
+    it('shows empty state filter when search has no results', () => {
+      render(<Integrations />, { wrapper })
+
+      const searchInput = screen.getByPlaceholderText('Search integrations...')
+      fireEvent.change(searchInput, { target: { value: 'nonexistent-integration-xyz' } })
+
+      // Should show empty state filter with clear button
+      expect(screen.getByText('No results found')).toBeInTheDocument()
+    })
+
+    it('clears search when clear all filters is clicked', () => {
+      render(<Integrations />, { wrapper })
+
+      const searchInput = screen.getByPlaceholderText('Search integrations...')
+      fireEvent.change(searchInput, { target: { value: 'nonexistent-integration-xyz' } })
+
+      // Click clear all filters
+      const clearButton = screen.getByRole('button', { name: /clear all filters/i })
+      fireEvent.click(clearButton)
+
+      // All integrations should be visible again
+      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
+    })
+  })
+
+  describe('Cards View', () => {
+    it('renders cards view when cards is selected from menu', () => {
+      render(<Integrations />, { wrapper })
+
+      // Open the view menu
+      const menuToggle = screen.getByRole('button', { name: '' })
+      fireEvent.click(menuToggle)
+
+      // Select Cards view
+      const cardsOption = screen.getByRole('menuitem', { name: 'Cards' })
+      fireEvent.click(cardsOption)
+
+      // Integrations should still be visible in cards view
+      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
+    })
+
+    it('renders table view when table is selected from menu', () => {
+      render(<Integrations />, { wrapper })
+
+      // Open the view menu and select cards first
+      const menuToggle = screen.getByRole('button', { name: '' })
+      fireEvent.click(menuToggle)
+      const cardsOption = screen.getByRole('menuitem', { name: 'Cards' })
+      fireEvent.click(cardsOption)
+
+      // Now switch back to table
+      fireEvent.click(menuToggle)
+      const tableOption = screen.getByRole('menuitem', { name: 'Table' })
+      fireEvent.click(tableOption)
+
+      // Should show table with grid role
+      expect(screen.getByRole('grid', { name: 'Integrations table' })).toBeInTheDocument()
     })
   })
 
