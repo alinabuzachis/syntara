@@ -1,6 +1,7 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
 import {
   CompassPanel,
+  Divider,
   Dropdown,
   DropdownItem,
   DropdownList,
@@ -10,11 +11,25 @@ import {
   Title,
 } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
-import { RhUiEllipsisVerticalFillIcon } from '@patternfly/react-icons'
+import { RhUiCheckCircleIcon, RhUiViewIcon, RhUiEllipsisVerticalFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 
-export function IntegrationCard(props: { integration: ToolProvider }) {
+import { IconLabel } from '../../../components/IconLabel'
+
+interface IntegrationCardProps {
+  integration: ToolProvider
+  onViewTools: () => void
+  onValidateConnection: () => void
+  onUninstall: () => void
+}
+
+export function IntegrationCard({ integration, onViewTools, onValidateConnection, onUninstall }: IntegrationCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  const handleAction = (action: () => void) => {
+    setIsMenuOpen(false)
+    action()
+  }
 
   const headerActions = (
     <Dropdown
@@ -33,14 +48,15 @@ export function IntegrationCard(props: { integration: ToolProvider }) {
       )}
     >
       <DropdownList>
-        <DropdownItem key="start" onClick={() => setIsMenuOpen(false)}>
-          Start Server
+        <DropdownItem key="view-tools" onClick={() => handleAction(onViewTools)}>
+          <IconLabel icon={<RhUiViewIcon />}>View and enable/disable tools</IconLabel>
         </DropdownItem>
-        <DropdownItem key="stop" onClick={() => setIsMenuOpen(false)}>
-          Stop Server
+        <DropdownItem key="validate" onClick={() => handleAction(onValidateConnection)}>
+          <IconLabel icon={<RhUiCheckCircleIcon />}>Validate connection</IconLabel>
         </DropdownItem>
-        <DropdownItem key="remove" onClick={() => setIsMenuOpen(false)}>
-          Remove Server
+        <Divider component="li" key="separator" />
+        <DropdownItem key="uninstall" onClick={() => handleAction(onUninstall)}>
+          <IconLabel icon={<RhUiTrashIcon />}>Uninstall</IconLabel>
         </DropdownItem>
       </DropdownList>
     </Dropdown>
@@ -49,10 +65,10 @@ export function IntegrationCard(props: { integration: ToolProvider }) {
     <CompassPanel style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
       <Flex direction={{ default: 'column' }} gap={{ default: 'gapMd' }}>
         <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
-          <Title headingLevel="h3">{props.integration.name}</Title>
+          <Title headingLevel="h3">{integration.name}</Title>
           <FlexItem>{headerActions}</FlexItem>
         </Flex>
-        <div>{props.integration.description}</div>
+        <div>{integration.description}</div>
       </Flex>
     </CompassPanel>
   )

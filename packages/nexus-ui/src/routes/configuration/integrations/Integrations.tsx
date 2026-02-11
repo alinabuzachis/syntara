@@ -391,12 +391,30 @@ export default function Integrations() {
             </Tbody>
           </ScrollableTableContainer>
         )
+      ) : results.length === 0 ? (
+        search ? (
+          <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+            <CompassPanel isFullHeight>
+              <EmptyStateFilter clearAllFilters={() => setSearch('')} imageSrc={noResultsImage} imageAlt="No results" />
+            </CompassPanel>
+          </StackItem>
+        ) : (
+          <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+            <IntegrationEmptyState />
+          </StackItem>
+        )
       ) : (
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel>
             <Gallery hasGutter minWidths={{ default: '500px' }} style={{ padding: 'var(--pf-t--global--spacer--2xl)' }}>
               {results.map((integration) => (
-                <IntegrationCard key={integration.id} integration={integration} />
+                <IntegrationCard
+                  key={integration.id}
+                  integration={integration}
+                  onViewTools={() => navigate(`/configuration/integrations/${integration.id}/tools`)}
+                  onValidateConnection={() => dispatch({ type: 'OPEN_VALIDATE_DIALOG', payload: integration })}
+                  onUninstall={() => dispatch({ type: 'OPEN_DELETE_DIALOG', payload: integration })}
+                />
               ))}
             </Gallery>
           </CompassPanel>
