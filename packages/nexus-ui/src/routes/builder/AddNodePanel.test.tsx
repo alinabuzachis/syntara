@@ -2,15 +2,29 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useWorkflowStore } from '../../stores/useWorkflowStore'
+
 import { AddNodePanel } from './AddNodePanel'
 import { NodeRegistry } from './registry/NodeRegistry'
 
-// Mock the NodeRegistryAdd
+// Mock the NodeRegistry
 vi.mock('./registry/NodeRegistry', () => ({
   NodeRegistry: {
     getAll: vi.fn(),
     get: vi.fn(),
   },
+}))
+
+// Mock the workflow store
+vi.mock('../../stores/useWorkflowStore', () => ({
+  useWorkflowStore: {
+    getState: vi.fn(),
+  },
+  useWorkflowStoreActions: vi.fn(() => ({
+    moveActivityAfter: vi.fn(),
+    updateActivity: vi.fn(),
+    removeActivity: vi.fn(),
+  })),
 }))
 
 // Mock form component that will be used in tests
@@ -571,6 +585,322 @@ describe('AddNodePanel Component', () => {
       await user.click(actionButton)
       expect(screen.queryByRole('button', { name: /action/i })).not.toBeInTheDocument() // Cards hidden
       expect(screen.getByTestId('mock-form')).toBeInTheDocument() // Form shown
+    })
+  })
+
+  describe('Keyboard Navigation', () => {
+    it('selects node when Enter key is pressed', async () => {
+      const user = userEvent.setup()
+      const mockNodeTypes = [
+        {
+          id: 'action',
+          label: 'Action',
+          icon: () => <div>ActionIcon</div>,
+          category: 'action',
+          description: 'Execute scripts',
+          keywords: ['script'],
+          order: 30,
+          formComponent: MockFormComponent,
+          onSubmit: vi.fn(),
+        },
+      ]
+
+      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
+      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
+
+      render(<AddNodePanel onClose={mockOnClose} />)
+
+      const actionButton = screen.getByRole('button', { name: /action/i })
+      actionButton.focus()
+      await user.keyboard('{Enter}')
+
+      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
+    })
+
+    it('selects node when Space key is pressed', async () => {
+      const user = userEvent.setup()
+      const mockNodeTypes = [
+        {
+          id: 'action',
+          label: 'Action',
+          icon: () => <div>ActionIcon</div>,
+          category: 'action',
+          description: 'Execute scripts',
+          keywords: ['script'],
+          order: 30,
+          formComponent: MockFormComponent,
+          onSubmit: vi.fn(),
+        },
+      ]
+
+      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
+      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
+
+      render(<AddNodePanel onClose={mockOnClose} />)
+
+      const actionButton = screen.getByRole('button', { name: /action/i })
+      actionButton.focus()
+      await user.keyboard(' ')
+
+      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
+    })
+  })
+
+  describe('Connect Mode', () => {
+    it('calls moveActivityAfter and onConnect when sourceNodeId is provided', async () => {
+      const user = userEvent.setup()
+      const mockMoveActivityAfter = vi.fn()
+      const mockOnConnect = vi.fn()
+
+      // Re-mock to capture the function
+      const { useWorkflowStoreActions } = await import('../../stores/useWorkflowStore')
+      vi.mocked(useWorkflowStoreActions).mockReturnValue({
+        moveActivityAfter: mockMoveActivityAfter,
+        updateActivity: vi.fn(),
+        removeActivity: vi.fn(),
+      } as never)
+
+      const mockOnSubmit = vi.fn((_data, onSuccess) => {
+        onSuccess('new-node-123')
+      })
+
+      const mockNodeTypes = [
+        {
+          id: 'action',
+          label: 'Action',
+          icon: () => <div>ActionIcon</div>,
+          category: 'action',
+          description: 'Execute scripts',
+          keywords: ['script'],
+          order: 30,
+          formComponent: MockFormComponent,
+          onSubmit: mockOnSubmit,
+        },
+      ]
+
+      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
+      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
+
+      render(<AddNodePanel onClose={mockOnClose} sourceNodeId="source-123" onConnect={mockOnConnect} />)
+
+      await user.click(screen.getByRole('button', { name: /action/i }))
+      await user.click(screen.getByTestId('form-submit'))
+
+      expect(mockMoveActivityAfter).toHaveBeenCalledWith('new-node-123', 'source-123')
+      expect(mockOnConnect).toHaveBeenCalledWith('source-123', 'new-node-123')
+    })
+  })
+
+  describe('Replacement Mode', () => {
+    it('filters out trigger nodes when replacementNodeId is provided', () => {
+      const mockNodes = [
+        {
+          id: 'action',
+          label: 'Action',
+          icon: () => <div>ActionIcon</div>,
+          category: 'action',
+          description: 'Execute scripts',
+          keywords: ['script'],
+          order: 30,
+          formComponent: MockFormComponent,
+          onSubmit: vi.fn(),
+        },
+        {
+          id: 'trigger',
+          label: 'Trigger',
+          icon: () => <div>TriggerIcon</div>,
+          category: 'trigger',
+          description: 'Start workflow',
+          keywords: ['event'],
+          order: 10,
+          formComponent: MockFormComponent,
+          onSubmit: vi.fn(),
+        },
+      ]
+
+      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodes as never)
+
+      render(<AddNodePanel onClose={mockOnClose} replacementNodeId="generic-123" />)
+
+      expect(screen.getByText('Action')).toBeInTheDocument()
+      expect(screen.queryByText('Trigger')).not.toBeInTheDocument()
+    })
+
+    it('calls onNodeReplaced after successful replacement', async () => {
+      const user = userEvent.setup()
+      const mockOnNodeReplaced = vi.fn()
+      const mockUpdateActivity = vi.fn()
+      const mockRemoveActivity = vi.fn()
+
+      const { useWorkflowStoreActions } = await import('../../stores/useWorkflowStore')
+      vi.mocked(useWorkflowStoreActions).mockReturnValue({
+        moveActivityAfter: vi.fn(),
+        updateActivity: mockUpdateActivity,
+        removeActivity: mockRemoveActivity,
+      } as never)
+
+      vi.mocked(useWorkflowStore.getState).mockReturnValue({
+        currentWorkflow: {
+          workflow: {
+            activities: [
+              { id: 'new-activity-id', name: 'New Activity', metadata: { __isGeneric: true, other: 'data' } },
+              { id: 'generic-123', name: 'Generic', metadata: { __isGeneric: true } },
+            ],
+          },
+        },
+      } as never)
+
+      const mockOnSubmit = vi.fn((_data, onSuccess) => {
+        onSuccess('new-activity-id')
+      })
+
+      const mockNodeTypes = [
+        {
+          id: 'action',
+          label: 'Action',
+          icon: () => <div>ActionIcon</div>,
+          category: 'action',
+          description: 'Execute scripts',
+          keywords: ['script'],
+          order: 30,
+          formComponent: MockFormComponent,
+          onSubmit: mockOnSubmit,
+        },
+      ]
+
+      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
+      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
+
+      render(<AddNodePanel onClose={mockOnClose} replacementNodeId="generic-123" onNodeReplaced={mockOnNodeReplaced} />)
+
+      await user.click(screen.getByRole('button', { name: /action/i }))
+      await user.click(screen.getByTestId('form-submit'))
+
+      expect(mockRemoveActivity).toHaveBeenCalledWith('new-activity-id')
+      expect(mockUpdateActivity).toHaveBeenCalled()
+      expect(mockOnNodeReplaced).toHaveBeenCalledWith('generic-123')
+    })
+
+    it('handles replacement when no newNodeId is returned', async () => {
+      const user = userEvent.setup()
+      const mockOnNodeReplaced = vi.fn()
+      const mockUpdateActivity = vi.fn()
+
+      const { useWorkflowStoreActions } = await import('../../stores/useWorkflowStore')
+      vi.mocked(useWorkflowStoreActions).mockReturnValue({
+        moveActivityAfter: vi.fn(),
+        updateActivity: mockUpdateActivity,
+        removeActivity: vi.fn(),
+      } as never)
+
+      vi.mocked(useWorkflowStore.getState).mockReturnValue({
+        currentWorkflow: {
+          workflow: {
+            activities: [{ id: 'generic-123', name: 'Generic', metadata: { __isGeneric: true, keepThis: 'value' } }],
+          },
+        },
+      } as never)
+
+      const mockOnSubmit = vi.fn((_data, onSuccess) => {
+        onSuccess() // No newNodeId
+      })
+
+      const mockNodeTypes = [
+        {
+          id: 'action',
+          label: 'Action',
+          icon: () => <div>ActionIcon</div>,
+          category: 'action',
+          description: 'Execute scripts',
+          keywords: ['script'],
+          order: 30,
+          formComponent: MockFormComponent,
+          onSubmit: mockOnSubmit,
+        },
+      ]
+
+      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
+      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
+
+      render(<AddNodePanel onClose={mockOnClose} replacementNodeId="generic-123" onNodeReplaced={mockOnNodeReplaced} />)
+
+      await user.click(screen.getByRole('button', { name: /action/i }))
+      await user.click(screen.getByTestId('form-submit'))
+
+      expect(mockUpdateActivity).toHaveBeenCalledWith('generic-123', { metadata: { keepThis: 'value' } })
+      expect(mockOnNodeReplaced).toHaveBeenCalledWith('generic-123')
+    })
+
+    it('handles replacement when activity has no metadata', async () => {
+      const user = userEvent.setup()
+      const mockUpdateActivity = vi.fn()
+
+      const { useWorkflowStoreActions } = await import('../../stores/useWorkflowStore')
+      vi.mocked(useWorkflowStoreActions).mockReturnValue({
+        moveActivityAfter: vi.fn(),
+        updateActivity: mockUpdateActivity,
+        removeActivity: vi.fn(),
+      } as never)
+
+      vi.mocked(useWorkflowStore.getState).mockReturnValue({
+        currentWorkflow: {
+          workflow: {
+            activities: [{ id: 'generic-123', name: 'Generic' }], // No metadata
+          },
+        },
+      } as never)
+
+      const mockOnSubmit = vi.fn((_data, onSuccess) => {
+        onSuccess()
+      })
+
+      const mockNodeTypes = [
+        {
+          id: 'action',
+          label: 'Action',
+          icon: () => <div>ActionIcon</div>,
+          category: 'action',
+          description: 'Execute scripts',
+          keywords: ['script'],
+          order: 30,
+          formComponent: MockFormComponent,
+          onSubmit: mockOnSubmit,
+        },
+      ]
+
+      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
+      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
+
+      render(<AddNodePanel onClose={mockOnClose} replacementNodeId="generic-123" />)
+
+      await user.click(screen.getByRole('button', { name: /action/i }))
+      await user.click(screen.getByTestId('form-submit'))
+
+      expect(mockUpdateActivity).toHaveBeenCalledWith('generic-123', { metadata: undefined })
+    })
+  })
+
+  describe('Custom Icon Rendering', () => {
+    it('renders AAP node with custom icon styling', () => {
+      const mockNodeTypes = [
+        {
+          id: 'aap',
+          label: 'AAP',
+          icon: () => <div data-testid="aap-icon">AAPIcon</div>,
+          category: 'action',
+          description: 'Ansible Automation Platform',
+          keywords: ['ansible'],
+          order: 20,
+          formComponent: MockFormComponent,
+          onSubmit: vi.fn(),
+        },
+      ]
+
+      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
+
+      render(<AddNodePanel onClose={mockOnClose} />)
+
+      expect(screen.getByTestId('aap-icon')).toBeInTheDocument()
     })
   })
 })

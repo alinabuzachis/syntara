@@ -82,6 +82,7 @@ export function validateWorkflow(activities: Activity[], edges: EdgeConnection[]
   }
 
   // Run all warning-level validation rules (if any are defined)
+  // v8 ignore start - WARNING_RULES is currently empty, code path preserved for future use
   if (WARNING_RULES.length > 0) {
     for (const rule of WARNING_RULES) {
       try {
@@ -94,6 +95,7 @@ export function validateWorkflow(activities: Activity[], edges: EdgeConnection[]
       }
     }
   }
+  // v8 ignore stop
 
   return {
     valid: errors.length === 0,

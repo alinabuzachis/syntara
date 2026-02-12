@@ -160,7 +160,7 @@ describe('validateLoopNodes', () => {
   })
 
   it('returns error for loop with missing do property', () => {
-    const activities: Activity[] = [
+    const activities = [
       {
         type: 'loop',
         id: 'loop-1',
@@ -171,7 +171,7 @@ describe('validateLoopNodes', () => {
           // do property is missing
         },
       },
-    ]
+    ] as unknown as Activity[]
 
     const errors = validateLoopNodes(activities)
     expect(errors).toHaveLength(1)
@@ -462,5 +462,93 @@ describe('validateLoopNodes', () => {
 
     const errors = validateLoopNodes(activities)
     expect(errors).toEqual([])
+  })
+
+  // Flat format tests (with edges)
+  describe('flat format validation (with edges)', () => {
+    it('returns no errors when loop has edges from loop handle', () => {
+      const activities = [
+        {
+          type: 'loop',
+          id: 'loop-1',
+          name: 'Loop with Body',
+          loop: {
+            type: 'forEach',
+            items: '${input.items}',
+          },
+        },
+      ] as unknown as Activity[]
+
+      const edges = [{ id: 'e1', source: 'loop-1', target: 'task-1', sourceHandle: 'loop' }]
+
+      const errors = validateLoopNodes(activities, edges)
+      expect(errors).toEqual([])
+    })
+
+    it('returns error when loop has no edges from loop handle', () => {
+      const activities = [
+        {
+          type: 'loop',
+          id: 'loop-1',
+          name: 'Empty Loop',
+          loop: {
+            type: 'forEach',
+            items: '${input.items}',
+          },
+        },
+      ] as unknown as Activity[]
+
+      const edges = [{ id: 'e1', source: 'loop-1', target: 'task-1', sourceHandle: 'done' }]
+
+      const errors = validateLoopNodes(activities, edges)
+      expect(errors).toHaveLength(1)
+      expect(errors[0].nodeId).toBe('loop-1')
+    })
+
+    it('returns error when loop has no edges at all', () => {
+      const activities = [
+        {
+          type: 'loop',
+          id: 'loop-1',
+          name: 'Disconnected Loop',
+          loop: {
+            type: 'forEach',
+            items: '${input.items}',
+          },
+        },
+      ] as unknown as Activity[]
+
+      const edges: { id: string; source: string; target: string; sourceHandle?: string }[] = []
+
+      const errors = validateLoopNodes(activities, edges)
+      expect(errors).toHaveLength(1)
+      expect(errors[0].nodeId).toBe('loop-1')
+    })
+
+    it('validates multiple loops with edges correctly', () => {
+      const activities = [
+        {
+          type: 'loop',
+          id: 'loop-1',
+          name: 'Loop 1',
+          loop: { type: 'forEach', items: '${input.items1}' },
+        },
+        {
+          type: 'loop',
+          id: 'loop-2',
+          name: 'Loop 2',
+          loop: { type: 'forEach', items: '${input.items2}' },
+        },
+      ] as unknown as Activity[]
+
+      const edges = [
+        { id: 'e1', source: 'loop-1', target: 'task-1', sourceHandle: 'loop' },
+        // loop-2 has no loop handle edge
+      ]
+
+      const errors = validateLoopNodes(activities, edges)
+      expect(errors).toHaveLength(1)
+      expect(errors[0].nodeId).toBe('loop-2')
+    })
   })
 })

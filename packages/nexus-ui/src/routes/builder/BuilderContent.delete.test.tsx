@@ -185,7 +185,7 @@ describe('BuilderContent - Delete Automation', () => {
     await waitFor(() => {
       expect(mockDeleteMutate).toHaveBeenCalledWith(
         expect.objectContaining({
-          params: { path: { workflowId: 'workflow-1' } },
+          params: { path: { workflow_id: 'workflow-1' } },
         }),
         expect.any(Object)
       )

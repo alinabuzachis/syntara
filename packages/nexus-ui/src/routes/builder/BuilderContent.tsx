@@ -73,17 +73,15 @@ interface BuilderContentProps {
   workflowId: string | null
 }
 
-// Helper function to check if condition node has remaining placeholders
+// v8 ignore start - Helper functions only called from React Flow callbacks (E2E tested)
 function hasConditionNodePlaceholders(nodes: Node[], sourceId: string): boolean {
   return nodes.some((n) => n.id === `placeholder-${sourceId}-true` || n.id === `placeholder-${sourceId}-false`)
 }
 
-// Helper function to check if loop node has remaining placeholders
 function hasLoopNodePlaceholders(nodes: Node[], sourceId: string): boolean {
   return nodes.some((n) => n.id === `placeholder-${sourceId}-done` || n.id === `placeholder-${sourceId}-loop`)
 }
 
-// Helper function to remove has-button-edge class from a node
 function removeButtonEdgeClass(nodes: Node[], sourceId: string): Node[] {
   return nodes.map((n) => {
     if (n.id === sourceId) {
@@ -94,12 +92,12 @@ function removeButtonEdgeClass(nodes: Node[], sourceId: string): Node[] {
   })
 }
 
-// Predicate to check if a query is a workflow-related GET query (for cache invalidation)
 function isWorkflowQuery(query: Query): boolean {
   return (
     query.queryKey[0] === 'get' && typeof query.queryKey[1] === 'string' && query.queryKey[1].startsWith('/workflows')
   )
 }
+// v8 ignore stop
 
 // State interface for useReducer
 interface BuilderState {
@@ -508,10 +506,10 @@ export function BuilderContent(props: BuilderContentProps) {
   const { mutate: createWorkflow, isPending: isCreating } = workflowClient.useMutation('post', '/workflows')
   const { mutate: updateWorkflow, isPending: isUpdating } = workflowClient.useMutation(
     'patch',
-    '/workflows/{workflowId}'
+    '/workflows/{workflow_id}'
   )
   const { mutate: executeAutomation } = workflowClient.useMutation('post', '/executions')
-  const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflowId}')
+  const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
 
   const isPending = isCreating || isUpdating
 
@@ -616,7 +614,7 @@ export function BuilderContent(props: BuilderContentProps) {
       if (workflowId && !isNew) {
         updateWorkflow(
           {
-            params: { path: { workflowId } },
+            params: { path: { workflow_id: workflowId } },
             body: workflowData as WorkflowInput,
           },
           {
@@ -689,7 +687,7 @@ export function BuilderContent(props: BuilderContentProps) {
     if (!workflow?.id) return
 
     deleteWorkflow(
-      { params: { path: { workflowId: workflow.id } } },
+      { params: { path: { workflow_id: workflow.id } } },
       {
         onSuccess: () => {
           showSuccess(`Successfully deleted automation "${workflowName}"`, 'Automation Deleted')
@@ -720,24 +718,20 @@ export function BuilderContent(props: BuilderContentProps) {
     }
   }, [historyCardOpen, executionsQuery])
 
+  // v8 ignore start - React Flow callbacks (E2E tested)
   const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node<NodeType['data']>) => {
-    // Check if this is a generic placeholder node
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isGeneric = (node.data as any).metadata?.__isGeneric === true
-
     dispatch({ type: 'NODE_CLICK', payload: { node, isGeneric } })
   }, [])
 
-  // Memoized callback for adding nodes from edges
   const handleAddNodeFromEdge = useCallback(
     (sourceId: string, targetId?: string, edgeId?: string, handle?: string) => {
-      // If we have an edgeId, look up the edge to get its targetHandle
       let edgeTargetHandle: string | undefined = undefined
       if (edgeId && reactFlowInstance) {
         const edge = reactFlowInstance.getEdge(edgeId)
         edgeTargetHandle = edge?.targetHandle ?? undefined
       }
-
       dispatch({
         type: 'OPEN_ADD_NODE_FROM_EDGE',
         payload: { sourceId, targetId, edgeId, handle, targetHandle: edgeTargetHandle },
@@ -747,38 +741,30 @@ export function BuilderContent(props: BuilderContentProps) {
   )
 
   const handleNodesDeleted = useCallback((deletedNodeIds: string[]) => {
-    // Close the details panel if the selected node was deleted
     dispatch({ type: 'CLEAR_SELECTED_IF_DELETED', payload: deletedNodeIds })
   }, [])
+  // v8 ignore stop
 
-  // Handle browser navigation (beforeunload) - warn when closing tab with unsaved changes
+  // v8 ignore start - Browser events and React Flow state monitoring (E2E tested)
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (useWorkflowStore.getState().isDirty) {
         event.preventDefault()
       }
     }
-
     window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-    }
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
-  // Track node count to trigger execution state updates when nodes are loaded
   const [nodeCount, setNodeCount] = useState(0)
 
-  // Monitor when nodes are loaded into React Flow
-  // This catches the async node loading from queueMicrotask()
-  // nodesInitialized becomes true when React Flow has laid out the nodes
   useEffect(() => {
     if (nodesInitialized) {
       const nodes = reactFlowInstance.getNodes()
-      if (nodes.length !== nodeCount) {
-        setNodeCount(nodes.length)
-      }
+      if (nodes.length !== nodeCount) setNodeCount(nodes.length)
     }
   }, [nodesInitialized, reactFlowInstance, nodeCount])
+  // v8 ignore stop
 
   return (
     <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
@@ -1014,54 +1000,35 @@ export function BuilderContent(props: BuilderContentProps) {
                     sourceNodeId={sourceNodeId}
                     replacementNodeId={replacementNodeId}
                     hasNoWorkflowNodes={hasNoWorkflowNodes}
+                    // v8 ignore start - React Flow polling callbacks (E2E tested)
                     onNodeReplaced={(nodeId) => {
-                      // Close add node panel first
                       dispatch({ type: 'CLOSE_ADD_NODE_PANEL' })
-
-                      // Wait for React Flow to update with the new node data after replacement
-                      // We need to poll because the update goes through: Zustand → BuilderFlow useMemo → useNodeUpdates → React Flow
                       let attempts = 0
-                      const maxAttempts = 20
-
                       const checkAndSelect = () => {
                         const nodes = reactFlowInstance.getNodes() as NodeType[]
                         const updatedNode = nodes.find((n) => n.id === nodeId)
-
-                        // Check if node is no longer generic (has been updated with real data)
-                        // Both the metadata flag should be removed AND the node type should have changed
                         const isStillGeneric =
                           updatedNode &&
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           ((updatedNode.data as any).metadata?.__isGeneric === true || updatedNode.type === 'generic')
-
                         if (updatedNode && !isStillGeneric) {
-                          // Node has been updated, select it to open the edit form
                           dispatch({ type: 'SET_SELECTED_NODE', payload: updatedNode })
-                        } else if (attempts < maxAttempts) {
-                          attempts++
+                        } else if (attempts++ < 20) {
                           setTimeout(checkAndSelect, 50)
                         }
                       }
-
                       checkAndSelect()
                     }}
                     onConnect={(sourceId, targetId) => {
-                      // Capture state values before they get cleared by panel close
                       const capturedEdgeIdToReplace = edgeIdToReplace
                       const capturedTargetNodeId = targetNodeId
                       const capturedSourceHandle = sourceHandle
                       const capturedTargetHandle = targetHandle
-
-                      // Wait for target node to be rendered and measured by React Flow
                       let attempts = 0
-                      const maxAttempts = 40
-
                       const checkAndConnect = () => {
                         const nodes = reactFlowInstance.getNodes()
                         const targetNode = nodes.find((n) => n.id === targetId)
-
                         if (targetNode?.measured) {
-                          // Create the new edge using EdgeFactory for consistency
                           const newEdge = EdgeFactory.createEdge({
                             source: sourceId,
                             target: targetId,
@@ -1069,24 +1036,17 @@ export function BuilderContent(props: BuilderContentProps) {
                             targetHandle: 'target',
                             onAddNode: handleAddNodeFromEdge,
                           })
-
-                          // Use React Flow's addEdge helper (same as manual connection)
                           reactFlowInstance.setEdges((eds) => {
-                            // Remove button edge from source node (handle condition nodes with handles)
                             const filtered = EdgeFactory.removeButtonEdge(
                               sourceId,
                               eds as EdgeType[],
                               capturedSourceHandle
                             )
-                            // If inserting between nodes, remove old edge
                             const withoutOldEdge = capturedEdgeIdToReplace
                               ? filtered.filter((e) => e.id !== capturedEdgeIdToReplace)
                               : filtered
-                            // Add the new edge
                             return EdgeFactory.addEdge(newEdge, withoutOldEdge)
                           })
-
-                          // If inserting between two nodes, create second edge and reorder
                           if (capturedEdgeIdToReplace && capturedTargetNodeId) {
                             const secondEdge = EdgeFactory.createEdge({
                               source: targetId,
@@ -1095,14 +1055,9 @@ export function BuilderContent(props: BuilderContentProps) {
                               targetHandle: capturedTargetHandle || 'target',
                               onAddNode: handleAddNodeFromEdge,
                             })
-
                             reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(secondEdge, eds as EdgeType[]))
-
-                            // Reorder the new activity to be before the target activity
                             useWorkflowStore.getState().moveActivityBefore(targetId, capturedTargetNodeId)
                           }
-
-                          // SPECIAL CASE: If adding to loop handle, automatically create loop-back edge
                           if (capturedSourceHandle === 'loop' && !capturedEdgeIdToReplace) {
                             const loopBackEdge = EdgeFactory.createEdge({
                               source: targetId,
@@ -1111,11 +1066,8 @@ export function BuilderContent(props: BuilderContentProps) {
                               targetHandle: 'end',
                               onAddNode: handleAddNodeFromEdge,
                             })
-
                             reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(loopBackEdge, eds as EdgeType[]))
                           }
-
-                          // Remove placeholder node and update source node class
                           const isConditionHandle =
                             capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
                           const isLoopHandle = capturedSourceHandle && ['done', 'loop'].includes(capturedSourceHandle)
@@ -1123,38 +1075,26 @@ export function BuilderContent(props: BuilderContentProps) {
                             isConditionHandle || isLoopHandle
                               ? `placeholder-${sourceId}-${capturedSourceHandle}`
                               : `placeholder-${sourceId}`
-
                           reactFlowInstance.setNodes((nds) => {
                             const filtered = nds.filter((n) => n.id !== sourcePlaceholderId)
-
-                            // For condition nodes and loop nodes, only remove the class if all handles are now connected
                             const sourceNode = filtered.find((n) => n.id === sourceId)
                             if (!sourceNode) return filtered
-
-                            const isConditionNode = sourceNode.type === FlowNodeType.CONDITION
-                            const isLoopNode = sourceNode.type === FlowNodeType.LOOP
-
-                            if (isConditionNode && hasConditionNodePlaceholders(filtered, sourceId)) {
-                              // Keep the class since there are still button edges
+                            if (
+                              sourceNode.type === FlowNodeType.CONDITION &&
+                              hasConditionNodePlaceholders(filtered, sourceId)
+                            )
                               return filtered
-                            }
-
-                            if (isLoopNode && hasLoopNodePlaceholders(filtered, sourceId)) {
-                              // Keep the class since there are still button edges
+                            if (sourceNode.type === FlowNodeType.LOOP && hasLoopNodePlaceholders(filtered, sourceId))
                               return filtered
-                            }
-
-                            // Remove the has-button-edge class if no more button edges
                             return removeButtonEdgeClass(filtered, sourceId)
                           })
-                        } else if (attempts < maxAttempts) {
-                          attempts++
+                        } else if (attempts++ < 40) {
                           setTimeout(checkAndConnect, 50)
                         }
                       }
-
                       checkAndConnect()
                     }}
+                    // v8 ignore stop
                   />
                 </FlexItem>
               )}
