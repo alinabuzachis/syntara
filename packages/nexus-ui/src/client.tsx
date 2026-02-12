@@ -1,4 +1,4 @@
-import type { FilesAPI, ToolManagerAPI, WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ApprovalsAPI, FilesAPI, ToolManagerAPI, WorkflowAPI } from '@ansible/nexus-contracts'
 import createFetchClient from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 
@@ -14,3 +14,6 @@ export const toolProvidersClient = toolManagerClient
 
 const filesFetchClient = createFetchClient<FilesAPI.paths>({ baseUrl: '/api/v1/' })
 export const filesClient = createClient(filesFetchClient)
+
+const approvalsFetchClient = createFetchClient<ApprovalsAPI.paths>({ baseUrl: '/api/v1/' })
+export const approvalsClient = createClient(approvalsFetchClient)

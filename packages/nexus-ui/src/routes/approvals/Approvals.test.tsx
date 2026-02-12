@@ -2,13 +2,13 @@ import type { Approval } from '@ansible/nexus-contracts'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { workflowClient } from '../../client'
+import { approvalsClient } from '../../client'
 
 import Approvals from './Approvals'
 
-// Mock the workflowClient
+// Mock the approvalsClient
 vi.mock('../../client', () => ({
-  workflowClient: {
+  approvalsClient: {
     useQuery: vi.fn(),
   },
 }))
@@ -143,12 +143,10 @@ describe('Approvals Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    // Disable mock approvals in tests so we can test with mocked query data
-    vi.stubEnv('VITE_USE_MOCK_APPROVALS', 'false')
   })
 
   const mockApprovalsQuery = (data: Approval[], isPending = false, error: unknown = null) => {
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(approvalsClient.useQuery).mockReturnValue({
       data: { resources: data, next: null, prev: null, total: data.length },
       isPending,
       error,

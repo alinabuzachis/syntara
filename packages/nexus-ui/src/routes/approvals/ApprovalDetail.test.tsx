@@ -4,13 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { useLocation, useParams } from 'wouter'
 
-import { workflowClient } from '../../client'
+import { approvalsClient } from '../../client'
 
 import ApprovalDetail from './ApprovalDetail'
 
-// Mock the workflowClient
+// Mock the approvalsClient
 vi.mock('../../client', () => ({
-  workflowClient: {
+  approvalsClient: {
     useQuery: vi.fn(),
   },
 }))
@@ -69,12 +69,10 @@ describe('ApprovalDetail Component', () => {
     vi.clearAllMocks()
     vi.mocked(useParams).mockReturnValue({ approvalId: '550e8400-e29b-41d4-a716-446655440001' })
     vi.mocked(useLocation).mockReturnValue(['/', vi.fn()])
-    // Disable mock approvals in tests so we can test with mocked query data
-    vi.stubEnv('VITE_USE_MOCK_APPROVALS', 'false')
   })
 
   const mockApprovalQuery = (data: Approval | null, isPending = false, error: unknown = null) => {
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(approvalsClient.useQuery).mockReturnValue({
       data: data,
       isPending,
       error,

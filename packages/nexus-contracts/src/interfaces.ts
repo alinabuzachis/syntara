@@ -1,12 +1,13 @@
+import * as ApprovalsAPI from './approvals-api.js'
 import * as ToolProvidersAPI from './tool-providers.js'
 import * as ToolsAPI from './tools.js'
 import * as WorkflowAPI from './workflow-api.js'
 
 export type Execution = WorkflowAPI.components['schemas']['Execution']
 export type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
-export type Approval = WorkflowAPI.components['schemas']['Approval']
+export type Approval = ApprovalsAPI.components['schemas']['ApprovalRequest']
 export type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
-export type ApprovalStatus = WorkflowAPI.components['schemas']['ApprovalStatus']
+export type ApprovalStatus = ApprovalsAPI.components['schemas']['ApprovalStatus']
 export type ActivityType = WorkflowAPI.components['schemas']['ActivityType']
 export type Workflow = WorkflowAPI.components['schemas']['Workflow']
 export type WorkflowsResponse =

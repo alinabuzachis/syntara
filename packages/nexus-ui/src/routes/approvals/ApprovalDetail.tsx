@@ -20,18 +20,13 @@ import { useLocation, useParams } from 'wouter'
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
-import { workflowClient } from '../../client'
+import { approvalsClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { CodeBlock } from '../../components/details/CodeBlock'
 import { ErrorState } from '../../components/states/ErrorState'
 import { useQueryState } from '../../components/states/useQueryState'
 
 import { ApprovalStatusBadges } from './approvalUtils'
-import { mockApprovals } from './mockApprovals'
-
-// Feature flag: Set to false when backend endpoints are ready
-// Check at runtime to allow testing
-const getUseMockApprovals = () => import.meta.env.VITE_USE_MOCK_APPROVALS !== 'false'
 
 const formatDateTime = (dateString?: string | null) => {
   if (!dateString) return '-'
@@ -95,30 +90,28 @@ function ApprovalSummaryList(props: {
 }
 
 export default function ApprovalDetail() {
-  const USE_MOCK_APPROVALS = getUseMockApprovals()
   const { approvalId } = useParams<{ approvalId: string }>()
   const [, setLocation] = useLocation()
   const { showAlert } = useAlerts()
 
-  const approvalQuery = workflowClient.useQuery('get', '/approvals/{approvalId}', {
+  const approvalQuery = approvalsClient.useQuery('get', '/approvals/{approval_id}', {
     params: {
       path: {
-        approvalId: approvalId,
+        approval_id: approvalId || '',
       },
     },
-    enabled: !USE_MOCK_APPROVALS && !!approvalId, // Only query API if not using mock data and approvalId exists
+    enabled: !!approvalId,
   })
 
   const queryState = useQueryState(approvalQuery, 'Error loading approval')
 
-  // Use mock data if enabled, otherwise use API data
-  const approval = USE_MOCK_APPROVALS ? mockApprovals.find((a) => a.id === approvalId) : approvalQuery.data
+  const approval = approvalQuery.data
 
   const [pendingDecision, setPendingDecision] = useState<'approved' | 'rejected' | undefined>(undefined)
   const [pendingReason, setPendingReason] = useState('')
 
-  // Guard against missing approvalId when not using mocks
-  if (!approvalId && !USE_MOCK_APPROVALS) {
+  // Guard against missing approvalId
+  if (!approvalId) {
     return (
       <AppPage>
         <AppPageHeader title="Error" />
@@ -131,8 +124,8 @@ export default function ApprovalDetail() {
     )
   }
 
-  // Only show query state (loading/error) if using real API
-  if (!USE_MOCK_APPROVALS && queryState) {
+  // Show query state (loading/error)
+  if (queryState) {
     return (
       <AppPage>
         <AppPageHeader title="Approval details" />

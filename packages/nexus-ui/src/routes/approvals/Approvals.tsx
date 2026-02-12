@@ -13,7 +13,7 @@ import { useMemo, useState } from 'react'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
-import { workflowClient } from '../../client'
+import { approvalsClient } from '../../client'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
@@ -24,7 +24,6 @@ import { useFuse } from '../../hooks/useFuse'
 import { useTableSort } from '../../hooks/useTableSort'
 
 import { ApprovalStatusBadges } from './approvalUtils'
-import { mockApprovals } from './mockApprovals'
 
 type ApprovalWithDetails = Approval & {
   approvalName?: string
@@ -88,12 +87,7 @@ const DecidedCell = ({ approval }: { approval: ApprovalWithDetails }) => {
   )
 }
 
-// Feature flag: Set to false when backend endpoints are ready
-// Check at runtime to allow testing
-const getUseMockApprovals = () => import.meta.env.VITE_USE_MOCK_APPROVALS !== 'false'
-
 export default function Approvals() {
-  const USE_MOCK_APPROVALS = getUseMockApprovals()
   const [cursor, setCursor] = useState<string | null>(null)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
@@ -104,7 +98,7 @@ export default function Approvals() {
   })
   const sortColumn = SORT_COLUMNS[activeSortIndex]
 
-  const approvalsQuery = workflowClient.useQuery('get', '/approvals', {
+  const approvalsQuery = approvalsClient.useQuery('get', '/approvals', {
     params: {
       query: {
         cursor: cursor ?? undefined,
@@ -112,13 +106,9 @@ export default function Approvals() {
         include_total: true,
       },
     },
-    enabled: !USE_MOCK_APPROVALS, // Only query API if not using mock data
   })
 
-  // Use mock data if enabled, otherwise use API data
-  const approvalsData = USE_MOCK_APPROVALS
-    ? { resources: mockApprovals, total: mockApprovals.length, next: null, prev: null }
-    : approvalsQuery.data
+  const approvalsData = approvalsQuery.data
 
   const enrichedApprovals = useMemo(() => {
     const approvals = (approvalsData?.resources ?? []) as ApprovalWithDetails[]
@@ -164,8 +154,8 @@ export default function Approvals() {
 
   const queryState = useQueryState(approvalsQuery, 'Error loading approvals')
 
-  // Only show query state (loading/error) if using real API
-  if (!USE_MOCK_APPROVALS && queryState) {
+  // Show query state (loading/error)
+  if (queryState) {
     return (
       <AppPage>
         <AppPageHeader title="Approvals" />
