@@ -19,10 +19,11 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
 }))
 
 // Mock the alerts hook
+const mockShowError = vi.fn()
 vi.mock('../../../components/alerts', () => ({
   useAlerts: vi.fn(() => ({
     showSuccess: vi.fn(),
-    showError: vi.fn(),
+    showError: mockShowError,
   })),
 }))
 
@@ -117,5 +118,24 @@ describe('ConditionNodeDetails Component', () => {
     await user.click(screen.getByTestId('cancel-button'))
 
     expect(mockOnClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows error when updateActivity throws', async () => {
+    const user = userEvent.setup()
+    mockUpdateActivity.mockImplementationOnce(() => {
+      throw new Error('Update failed')
+    })
+    const conditionData = {
+      type: 'condition' as const,
+      id: 'condition-1',
+      name: 'Condition',
+      condition: 'test',
+    }
+
+    render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
+
+    await user.click(screen.getByTestId('submit-button'))
+
+    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'Update Failed')
   })
 })

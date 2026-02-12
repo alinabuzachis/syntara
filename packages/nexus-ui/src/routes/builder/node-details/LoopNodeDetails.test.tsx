@@ -19,10 +19,11 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
 }))
 
 // Mock the alerts hook
+const mockShowError = vi.fn()
 vi.mock('../../../components/alerts', () => ({
   useAlerts: vi.fn(() => ({
     showSuccess: vi.fn(),
-    showError: vi.fn(),
+    showError: mockShowError,
   })),
 }))
 
@@ -145,5 +146,43 @@ describe('LoopNodeDetails Component', () => {
     await user.click(screen.getByTestId('cancel-button'))
 
     expect(mockOnClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows error and closes when loop data is missing', () => {
+    const loopData = {
+      type: 'loop' as const,
+      id: 'loop-1',
+      name: 'Invalid Loop',
+      loop: undefined,
+    }
+
+    // @ts-expect-error Testing invalid data
+    render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
+
+    expect(mockShowError).toHaveBeenCalledWith('Invalid loop node data', 'Error')
+    expect(mockOnClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows error when updateActivity throws', async () => {
+    const user = userEvent.setup()
+    mockUpdateActivity.mockImplementationOnce(() => {
+      throw new Error('Update failed')
+    })
+    const loopData = {
+      type: 'loop' as const,
+      id: 'loop-1',
+      name: 'Loop',
+      loop: {
+        type: 'forEach' as const,
+        items: 'items',
+        do: [],
+      },
+    }
+
+    render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
+
+    await user.click(screen.getByTestId('submit-button'))
+
+    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'Update Failed')
   })
 })

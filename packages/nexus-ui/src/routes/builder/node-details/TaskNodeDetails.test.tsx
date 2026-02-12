@@ -41,10 +41,11 @@ vi.spyOn(workflowStore, 'useWorkflowStoreActions').mockImplementation(() => ({
 vi.spyOn(workflowStore, 'createAAPJobTemplateActivity').mockImplementation(mockCreateAAPJobTemplateActivity)
 
 // Mock the alerts hook
+const mockShowError = vi.fn()
 vi.mock('../../../components/alerts', () => ({
   useAlerts: vi.fn(() => ({
     showSuccess: vi.fn(),
-    showError: vi.fn(),
+    showError: mockShowError,
   })),
 }))
 
@@ -60,8 +61,37 @@ vi.mock('../node-forms/ActionNodeForm', () => ({
     submitButtonText?: string
   }) => (
     <div data-testid="action-node-form">
-      <button onClick={() => onSubmit({ name: 'Updated Task' })} data-testid="submit-button">
+      <button onClick={() => onSubmit({ name: 'Updated Task', executor: 'script' })} data-testid="submit-button">
         {submitButtonText || 'Add node'}
+      </button>
+      <button
+        onClick={() =>
+          onSubmit({
+            name: 'Updated API Task',
+            executor: 'api',
+            method: 'POST',
+            url: 'https://api.test.com',
+            headers: '{"Content-Type": "application/json"}',
+            body: '{"data": "test"}',
+          })
+        }
+        data-testid="submit-api-button"
+      >
+        Submit API
+      </button>
+      <button
+        onClick={() =>
+          onSubmit({
+            name: 'API with Invalid Body',
+            executor: 'api',
+            method: 'POST',
+            url: 'https://api.test.com',
+            body: 'plain text body',
+          })
+        }
+        data-testid="submit-api-plain-body-button"
+      >
+        Submit API Plain Body
       </button>
       <button onClick={onCancel} data-testid="cancel-button">
         Cancel
@@ -353,5 +383,121 @@ describe('TaskNodeDetails Component', () => {
     await user.click(screen.getByTestId('cancel-button'))
 
     expect(mockOnClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns null for approval node (script executor with approval)', () => {
+    const taskData = {
+      type: 'task' as const,
+      id: 'task-approval',
+      name: 'Approval Task',
+      requiresApproval: true,
+      approval: {
+        approvers: ['admin'],
+        prompt: 'Please approve',
+      },
+      task: {
+        executor: 'script' as const,
+        config: {
+          language: 'python' as const,
+          code: '',
+        },
+      },
+    }
+
+    const { container } = render(<TaskNodeDetails taskData={taskData} nodeId="task-approval" onClose={mockOnClose} />)
+
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('handles API form submission with headers and body', async () => {
+    const user = userEvent.setup()
+    const taskData = {
+      type: 'task' as const,
+      id: 'task-api',
+      name: 'API Task',
+      task: {
+        executor: 'api' as const,
+        config: {
+          method: 'GET' as const,
+          url: 'https://api.example.com',
+        },
+      },
+    }
+
+    render(<TaskNodeDetails taskData={taskData} nodeId="task-api" onClose={mockOnClose} />)
+
+    await user.click(screen.getByTestId('submit-api-button'))
+
+    expect(mockUpdateActivity).toHaveBeenCalledWith(
+      'task-api',
+      expect.objectContaining({
+        name: 'Updated API Task',
+        task: expect.objectContaining({
+          executor: 'api',
+          config: expect.objectContaining({
+            method: 'POST',
+            url: 'https://api.test.com',
+            headers: { 'Content-Type': 'application/json' },
+            body: { data: 'test' },
+          }),
+        }),
+      })
+    )
+  })
+
+  it('handles API form submission with plain text body', async () => {
+    const user = userEvent.setup()
+    const taskData = {
+      type: 'task' as const,
+      id: 'task-api',
+      name: 'API Task',
+      task: {
+        executor: 'api' as const,
+        config: {
+          method: 'GET' as const,
+          url: 'https://api.example.com',
+        },
+      },
+    }
+
+    render(<TaskNodeDetails taskData={taskData} nodeId="task-api" onClose={mockOnClose} />)
+
+    await user.click(screen.getByTestId('submit-api-plain-body-button'))
+
+    expect(mockUpdateActivity).toHaveBeenCalledWith(
+      'task-api',
+      expect.objectContaining({
+        task: expect.objectContaining({
+          config: expect.objectContaining({
+            body: 'plain text body',
+          }),
+        }),
+      })
+    )
+  })
+
+  it('shows error when updateActivity throws', async () => {
+    const user = userEvent.setup()
+    mockUpdateActivity.mockImplementationOnce(() => {
+      throw new Error('Update failed')
+    })
+    const taskData = {
+      type: 'task' as const,
+      id: 'task-1',
+      name: 'Task',
+      task: {
+        executor: 'script' as const,
+        config: {
+          language: 'python' as const,
+          code: 'print("test")',
+        },
+      },
+    }
+
+    render(<TaskNodeDetails taskData={taskData} nodeId="task-1" onClose={mockOnClose} />)
+
+    await user.click(screen.getByTestId('submit-button'))
+
+    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'Update Failed')
   })
 })
