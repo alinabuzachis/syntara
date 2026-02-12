@@ -1,188 +1,313 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
-import { detectNodeType } from './detectNodeType'
+import { detectNodeType, type TaskActivityWithMetadata } from './detectNodeType'
 
 describe('detectNodeType', () => {
-  it('returns the executor type for a standard task', () => {
-    const task = {
-      type: 'task',
-      id: 'task-1',
-      name: 'Script Task',
-      task: {
-        executor: 'script',
-        config: { language: 'python', code: 'print("hello")' },
+  const createBaseTask = (overrides: Partial<TaskActivity> = {}): TaskActivity => ({
+    type: 'task',
+    id: 'test-task-1',
+    name: 'Test Task',
+    task: {
+      executor: 'script',
+      config: {
+        language: 'python',
+        code: 'print("hello")',
       },
-    } as TaskActivity
-
-    const result = detectNodeType(task)
-
-    expect(result.actualExecutor).toBe('script')
-    expect(result.detectedExecutorType).toBeUndefined()
-    expect(result.connectorData).toBeNull()
+    },
+    ...overrides,
   })
 
-  it('detects approval nodes from metadata', () => {
-    const task = {
-      type: 'task',
-      id: 'approval-1',
-      name: 'Approval',
-      requiresApproval: true,
-      approval: { approvers: ['admin@example.com'], prompt: 'Approve?' },
-      metadata: { __executorType: 'approval' },
-      task: {
-        executor: 'script',
-        config: { language: 'python', code: '' },
-      },
-    } as unknown as TaskActivity
+  describe('basic detection', () => {
+    it('returns the executor type for a basic task', () => {
+      const task = createBaseTask()
+      const result = detectNodeType(task)
 
-    const result = detectNodeType(task)
+      expect(result).toEqual({
+        detectedExecutorType: undefined,
+        connectorData: null,
+        actualExecutor: 'script',
+      })
+    })
 
-    expect(result.actualExecutor).toBe('approval')
-    expect(result.detectedExecutorType).toBe('approval')
-  })
-
-  it('detects approval nodes without metadata when requiresApproval and approval exist', () => {
-    const task = {
-      type: 'task',
-      id: 'approval-1',
-      name: 'Approval',
-      requiresApproval: true,
-      approval: { approvers: ['admin@example.com'], prompt: 'Approve?' },
-      task: {
-        executor: 'script',
-        config: { language: 'python', code: '' },
-      },
-    } as unknown as TaskActivity
-
-    const result = detectNodeType(task)
-
-    expect(result.actualExecutor).toBe('approval')
-    expect(result.detectedExecutorType).toBe('approval')
-  })
-
-  it('detects connector nodes from agentic executor with prompt', () => {
-    const task = {
-      type: 'task',
-      id: 'conn-1',
-      name: 'Connector',
-      task: {
-        executor: 'agentic',
-        config: {
-          agent: 'default',
-          prompt: JSON.stringify({
-            __type: 'connector',
-            connectorId: 'slack',
-            operation: 'send_message',
-            parameters: { channel: '#general' },
-          }),
+    it('returns agentic executor for agentic tasks', () => {
+      const task = createBaseTask({
+        task: {
+          executor: 'agentic',
+          config: {
+            agent: 'default-agent',
+            prompt: 'Do something',
+          },
         },
-      },
-    } as TaskActivity
+      })
+      const result = detectNodeType(task)
 
-    const result = detectNodeType(task)
+      expect(result.actualExecutor).toBe('agentic')
+    })
 
-    expect(result.connectorData).toEqual({
-      connectorId: 'slack',
-      operation: 'send_message',
-      parameters: { channel: '#general' },
+    it('returns api executor for API tasks', () => {
+      const task = createBaseTask({
+        task: {
+          executor: 'api',
+          config: { method: 'GET', url: 'https://api.example.com' },
+        },
+      })
+      const result = detectNodeType(task)
+
+      expect(result.actualExecutor).toBe('api')
     })
   })
 
-  it('detects AAP nodes from agentic executor with ansible connectorId', () => {
-    const task = {
-      type: 'task',
-      id: 'aap-1',
-      name: 'AAP Task',
-      task: {
-        executor: 'agentic',
-        config: {
-          agent: 'default',
-          prompt: JSON.stringify({
-            __type: 'connector',
-            connectorId: 'ansible-automation-platform',
-            operation: 'run_job',
-          }),
+  describe('metadata override detection', () => {
+    it('uses __executorType from metadata when present', () => {
+      const task = createBaseTask() as TaskActivityWithMetadata
+      task.metadata = { __executorType: 'custom-executor' }
+
+      const result = detectNodeType(task)
+
+      expect(result).toEqual({
+        detectedExecutorType: 'custom-executor',
+        connectorData: null,
+        actualExecutor: 'custom-executor',
+      })
+    })
+  })
+
+  describe('approval node detection', () => {
+    it('detects approval nodes from requiresApproval flag', () => {
+      const task = createBaseTask({
+        requiresApproval: true,
+        approval: {
+          approvers: ['admin'],
+          prompt: 'Please approve',
         },
-      },
-    } as TaskActivity
+      })
 
-    const result = detectNodeType(task)
+      const result = detectNodeType(task)
 
-    expect(result.actualExecutor).toBe('aap')
-    expect(result.detectedExecutorType).toBe('aap')
-  })
+      expect(result).toEqual({
+        detectedExecutorType: 'approval',
+        connectorData: null,
+        actualExecutor: 'approval',
+      })
+    })
 
-  it('handles invalid JSON in prompt gracefully', () => {
-    const task = {
-      type: 'task',
-      id: 'agentic-1',
-      name: 'Agentic',
-      task: {
-        executor: 'agentic',
-        config: {
-          agent: 'default',
-          prompt: 'not valid json',
+    it('does not detect approval without approval config', () => {
+      const task = createBaseTask({
+        requiresApproval: true,
+        // No approval config
+      })
+
+      const result = detectNodeType(task)
+
+      expect(result.detectedExecutorType).toBeUndefined()
+      expect(result.actualExecutor).toBe('script')
+    })
+
+    it('metadata __executorType takes precedence over approval detection', () => {
+      const task = createBaseTask({
+        requiresApproval: true,
+        approval: {
+          approvers: ['admin'],
+          prompt: 'Please approve',
         },
-      },
-    } as TaskActivity
+      }) as TaskActivityWithMetadata
+      task.metadata = { __executorType: 'custom' }
 
-    const result = detectNodeType(task)
+      const result = detectNodeType(task)
 
-    expect(result.actualExecutor).toBe('agentic')
-    expect(result.connectorData).toBeNull()
+      expect(result.detectedExecutorType).toBe('custom')
+      expect(result.actualExecutor).toBe('custom')
+    })
   })
 
-  it('handles empty prompt gracefully', () => {
-    const task = {
-      type: 'task',
-      id: 'agentic-1',
-      name: 'Agentic',
-      task: {
-        executor: 'agentic',
-        config: {
-          agent: 'default',
-          prompt: '',
+  describe('connector node detection', () => {
+    it('detects connector nodes from agentic prompt JSON', () => {
+      const task = createBaseTask({
+        task: {
+          executor: 'agentic',
+          config: {
+            agent: 'default-agent',
+            prompt: JSON.stringify({
+              __type: 'connector',
+              connectorId: 'my-connector',
+              operation: 'fetch',
+              parameters: { url: 'https://example.com' },
+            }),
+          },
         },
-      },
-    } as TaskActivity
+      })
 
-    const result = detectNodeType(task)
+      const result = detectNodeType(task)
 
-    expect(result.actualExecutor).toBe('agentic')
+      expect(result.connectorData).toEqual({
+        connectorId: 'my-connector',
+        operation: 'fetch',
+        parameters: { url: 'https://example.com' },
+      })
+      expect(result.actualExecutor).toBe('agentic')
+    })
+
+    it('detects AAP connector nodes', () => {
+      const task = createBaseTask({
+        task: {
+          executor: 'agentic',
+          config: {
+            agent: 'default-agent',
+            prompt: JSON.stringify({
+              __type: 'connector',
+              connectorId: 'ansible-automation-platform',
+              operation: 'run-job',
+              parameters: { jobId: '123' },
+            }),
+          },
+        },
+      })
+
+      const result = detectNodeType(task)
+
+      expect(result.detectedExecutorType).toBe('aap')
+      expect(result.actualExecutor).toBe('aap')
+      expect(result.connectorData).toEqual({
+        connectorId: 'ansible-automation-platform',
+        operation: 'run-job',
+        parameters: { jobId: '123' },
+      })
+    })
+
+    it('detects AAP connector nodes with partial match', () => {
+      const task = createBaseTask({
+        task: {
+          executor: 'agentic',
+          config: {
+            agent: 'default-agent',
+            prompt: JSON.stringify({
+              __type: 'connector',
+              connectorId: 'my-ansible-connector',
+              operation: 'run',
+            }),
+          },
+        },
+      })
+
+      const result = detectNodeType(task)
+
+      expect(result.detectedExecutorType).toBe('aap')
+    })
+
+    it('does not detect AAP for non-ansible connectors', () => {
+      const task = createBaseTask({
+        task: {
+          executor: 'agentic',
+          config: {
+            agent: 'default-agent',
+            prompt: JSON.stringify({
+              __type: 'connector',
+              connectorId: 'slack-connector',
+              operation: 'post',
+            }),
+          },
+        },
+      })
+
+      const result = detectNodeType(task)
+
+      expect(result.detectedExecutorType).toBeUndefined()
+      expect(result.actualExecutor).toBe('agentic')
+    })
   })
 
-  it('respects metadata override over detected type', () => {
-    const task = {
-      type: 'task',
-      id: 'task-1',
-      name: 'Custom',
-      metadata: { __executorType: 'custom' },
-      task: {
-        executor: 'script',
-        config: { language: 'python', code: '' },
-      },
-    } as unknown as TaskActivity
+  describe('edge cases', () => {
+    it('handles invalid JSON in prompt gracefully', () => {
+      const task = createBaseTask({
+        task: {
+          executor: 'agentic',
+          config: {
+            agent: 'default-agent',
+            prompt: 'not valid json {{{',
+          },
+        },
+      })
 
-    const result = detectNodeType(task)
+      const result = detectNodeType(task)
 
-    expect(result.actualExecutor).toBe('custom')
-    expect(result.detectedExecutorType).toBe('custom')
-  })
+      expect(result).toEqual({
+        detectedExecutorType: undefined,
+        connectorData: null,
+        actualExecutor: 'agentic',
+      })
+    })
 
-  it('returns api executor for API tasks', () => {
-    const task = {
-      type: 'task',
-      id: 'api-1',
-      name: 'API Call',
-      task: {
-        executor: 'api',
-        config: { method: 'GET', url: 'https://api.example.com' },
-      },
-    } as TaskActivity
+    it('handles empty prompt', () => {
+      const task = createBaseTask({
+        task: {
+          executor: 'agentic',
+          config: {
+            agent: 'default-agent',
+            prompt: '',
+          },
+        },
+      })
 
-    const result = detectNodeType(task)
+      const result = detectNodeType(task)
 
-    expect(result.actualExecutor).toBe('api')
+      expect(result.connectorData).toBeNull()
+    })
+
+    it('handles undefined prompt', () => {
+      const task = createBaseTask({
+        task: {
+          executor: 'agentic',
+          config: {
+            agent: 'default-agent',
+          },
+        },
+      })
+
+      const result = detectNodeType(task)
+
+      expect(result.connectorData).toBeNull()
+    })
+
+    it('handles JSON without __type connector', () => {
+      const task = createBaseTask({
+        task: {
+          executor: 'agentic',
+          config: {
+            agent: 'default-agent',
+            prompt: JSON.stringify({
+              __type: 'something-else',
+              data: 'value',
+            }),
+          },
+        },
+      })
+
+      const result = detectNodeType(task)
+
+      expect(result.connectorData).toBeNull()
+    })
+
+    it('metadata override takes precedence over AAP detection', () => {
+      const task = createBaseTask({
+        task: {
+          executor: 'agentic',
+          config: {
+            agent: 'default-agent',
+            prompt: JSON.stringify({
+              __type: 'connector',
+              connectorId: 'ansible-automation-platform',
+            }),
+          },
+        },
+      }) as TaskActivityWithMetadata
+      task.metadata = { __executorType: 'connector' }
+
+      const result = detectNodeType(task)
+
+      // Should use metadata override, not auto-detect AAP
+      expect(result.detectedExecutorType).toBe('connector')
+      expect(result.actualExecutor).toBe('connector')
+    })
   })
 })
