@@ -23,6 +23,7 @@ REQUEST_VALIDATION_ERROR: str = "Request Validation Error"
 PROBLEM_TYPES = {
     "resource_not_found": "https://api.nexus.com/errors/resource-not-found",
     "name_conflict": "https://api.nexus.com/errors/name-conflict",
+    "resource_conflict": "https://api.nexus.com/errors/resource-conflict",
     "validation_error": "https://api.nexus.com/errors/validation-error",
     "integrity_constraint": "https://api.nexus.com/errors/integrity-constraint",
     "service_unavailable": "https://api.nexus.com/errors/service-unavailable",

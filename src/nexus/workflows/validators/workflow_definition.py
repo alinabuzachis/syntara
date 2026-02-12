@@ -6,10 +6,11 @@ from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
 from nexus.core.exception_registry import fastapi_exception
+from nexus.workflows.error_handlers import validation_error_handler
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
 
 
-@fastapi_exception(handler="nexus.workflows.error_handlers.validation_error_handler")
+@fastapi_exception(handler=validation_error_handler)
 class ValidationError(Exception):
     """Workflow validation error."""
 

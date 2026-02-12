@@ -805,7 +805,7 @@ export const approvalsClient = createClient(approvalsFetchClient);
 
 ```json
 {
-  "gen:approvals": "npx openapi-typescript ./nexus/src/nexus/schemas/approvals/approvals-api.yaml --output ./src/approvals-api.ts --default-non-nullable false"
+  "gen:approvals": "npx openapi-typescript ./nexus/src/nexus/schemas/approvals/openapi.yaml --output ./src/approvals-api.ts --default-non-nullable false"
 }
 ```
 

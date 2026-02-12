@@ -7,9 +7,17 @@ following DRY principle by centralizing exception definitions.
 from uuid import UUID
 
 from nexus.core.exception_registry import fastapi_exception
+from nexus.workflows.error_handlers import (
+    execution_not_found_handler,
+    temporal_unavailable_handler,
+    workflow_disabled_handler,
+    workflow_name_conflict_handler,
+    workflow_not_found_handler,
+    workflow_version_not_found_handler,
+)
 
 
-@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_not_found_handler")
+@fastapi_exception(handler=workflow_not_found_handler)
 class WorkflowNotFoundError(Exception):
     """Raised when a workflow is not found."""
 
@@ -19,7 +27,7 @@ class WorkflowNotFoundError(Exception):
         super().__init__(f"Workflow {workflow_id} not found")
 
 
-@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_name_conflict_handler")
+@fastapi_exception(handler=workflow_name_conflict_handler)
 class WorkflowNameConflictError(Exception):
     """Raised when a workflow name already exists."""
 
@@ -29,7 +37,7 @@ class WorkflowNameConflictError(Exception):
         super().__init__(f"Workflow with name '{name}' already exists")
 
 
-@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_version_not_found_handler")
+@fastapi_exception(handler=workflow_version_not_found_handler)
 class WorkflowVersionNotFoundError(Exception):
     """Raised when a workflow version is not found."""
 
@@ -40,7 +48,7 @@ class WorkflowVersionNotFoundError(Exception):
         super().__init__(f"Workflow {workflow_id} version {version} not found")
 
 
-@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_disabled_handler")
+@fastapi_exception(handler=workflow_disabled_handler)
 class WorkflowDisabledError(Exception):
     """Raised when attempting to execute a disabled workflow."""
 
@@ -50,7 +58,7 @@ class WorkflowDisabledError(Exception):
         super().__init__(f"Workflow {workflow_id} is disabled")
 
 
-@fastapi_exception(handler="nexus.workflows.error_handlers.execution_not_found_handler")
+@fastapi_exception(handler=execution_not_found_handler)
 class ExecutionNotFoundError(Exception):
     """Raised when an execution is not found."""
 
@@ -60,7 +68,7 @@ class ExecutionNotFoundError(Exception):
         super().__init__(f"Execution {execution_id} not found")
 
 
-@fastapi_exception(handler="nexus.workflows.error_handlers.temporal_unavailable_handler")
+@fastapi_exception(handler=temporal_unavailable_handler)
 class TemporalUnavailableError(Exception):
     """Raised when Temporal service is unavailable."""
 

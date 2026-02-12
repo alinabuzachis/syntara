@@ -319,7 +319,7 @@ paths:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   # Note: Approval endpoints are in a separate API
-  # See: src/nexus/schemas/approvals/approvals-api.yaml
+  # See: src/nexus/schemas/approvals/openapi.yaml
 
 components:
   schemas:
@@ -414,7 +414,7 @@ components:
             $ref: '#/components/schemas/WorkflowVersionResponse'
           description: Array of workflow versions
 
-    # Note: Approval schemas are in src/nexus/schemas/approvals/approvals-api.yaml
+    # Note: Approval schemas are in src/nexus/schemas/approvals/openapi.yaml
 
     CreateWorkflowRequest:
       $ref: ./shared-schemas.yaml#/components/schemas/CreateWorkflowRequest

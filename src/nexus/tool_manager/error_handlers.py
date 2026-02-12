@@ -3,26 +3,30 @@
 This module provides error handling for tool and provider-specific exceptions.
 """
 
+from typing import TYPE_CHECKING
+
 import structlog
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
-from nexus.tool_manager.lib.exceptions import (
-    ProviderError,
-    ProviderNameConflictError,
-    ProviderNotFoundError,
-    ToolManagerError,
-    ToolNotFoundError,
-)
-from nexus.tool_manager.lib.exceptions import (
-    ValidationError as ToolValidationError,
-)
+
+if TYPE_CHECKING:
+    from nexus.tool_manager.lib.exceptions import (
+        ProviderError,
+        ProviderNameConflictError,
+        ProviderNotFoundError,
+        ToolManagerError,
+        ToolNotFoundError,
+    )
+    from nexus.tool_manager.lib.exceptions import (
+        ValidationError as ToolValidationError,
+    )
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-def tool_not_found_handler(request: Request, exc: ToolNotFoundError) -> JSONResponse:
+def tool_not_found_handler(request: Request, exc: "ToolNotFoundError") -> JSONResponse:
     """Handle ToolNotFoundError with RFC 9457 format."""
     logger.error("Tool not found", exc_info=exc)
     return create_problem_details_response(
@@ -36,7 +40,7 @@ def tool_not_found_handler(request: Request, exc: ToolNotFoundError) -> JSONResp
     )
 
 
-def tool_provider_not_found_handler(request: Request, exc: ProviderNotFoundError) -> JSONResponse:
+def tool_provider_not_found_handler(request: Request, exc: "ProviderNotFoundError") -> JSONResponse:
     """Handle ProviderNotFoundError with RFC 9457 format."""
     logger.error("Provider not found", exc_info=exc)
     return create_problem_details_response(
@@ -50,7 +54,7 @@ def tool_provider_not_found_handler(request: Request, exc: ProviderNotFoundError
     )
 
 
-def tool_provider_name_conflict_handler(request: Request, exc: ProviderNameConflictError) -> JSONResponse:
+def tool_provider_name_conflict_handler(request: Request, exc: "ProviderNameConflictError") -> JSONResponse:
     """Handle ProviderNameConflictError with RFC 9457 format."""
     logger.error("Provider name conflict", exc_info=exc)
     return create_problem_details_response(
@@ -64,7 +68,7 @@ def tool_provider_name_conflict_handler(request: Request, exc: ProviderNameConfl
     )
 
 
-def tool_provider_error_handler(request: Request, exc: ProviderError) -> JSONResponse:
+def tool_provider_error_handler(request: Request, exc: "ProviderError") -> JSONResponse:
     """Handle ProviderError with RFC 9457 format."""
     logger.error("Provider error", exc_info=exc)
     return create_problem_details_response(
@@ -78,7 +82,7 @@ def tool_provider_error_handler(request: Request, exc: ProviderError) -> JSONRes
     )
 
 
-def tool_validation_error_handler(request: Request, exc: ToolValidationError) -> JSONResponse:
+def tool_validation_error_handler(request: Request, exc: "ToolValidationError") -> JSONResponse:
     """Handle tool ValidationError with RFC 9457 format."""
     logger.error("Tool validation error", exc_info=exc)
     return create_problem_details_response(
@@ -92,7 +96,7 @@ def tool_validation_error_handler(request: Request, exc: ToolValidationError) ->
     )
 
 
-def tool_manager_error_handler(request: Request, exc: ToolManagerError) -> JSONResponse:
+def tool_manager_error_handler(request: Request, exc: "ToolManagerError") -> JSONResponse:
     """Handle generic ToolManagerError with RFC 9457 format."""
     logger.error("Tool manager error", exc_info=exc)
     return create_problem_details_response(

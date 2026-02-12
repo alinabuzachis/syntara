@@ -36,7 +36,7 @@ paths:
         - View pending approvals requiring action
         - Review historical approval decisions
         - Filter by execution, status, or date range
-      operationId: listApprovals
+      operationId: list_approvals
       tags:
         - Approvals
       parameters:
@@ -79,7 +79,7 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
     post:
       summary: Create approval request
       description: |
@@ -88,7 +88,7 @@ paths:
         This is an internal endpoint called by the Workflows component when
         a workflow execution reaches an approval node. It should not be called
         directly by end users.
-      operationId: createApproval
+      operationId: create_approval
       tags:
         - Approvals
       requestBody:
@@ -109,13 +109,13 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
         "409":
           description: Approval request already exists for this execution and approval node
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
   /approvals/{approval_id}:
     get:
@@ -127,7 +127,7 @@ paths:
         - Full request context (workflow inputs, completed step outputs)
         - Next steps for both approval and rejection paths
         - Decision history if already decided
-      operationId: getApproval
+      operationId: get_approval
       tags:
         - Approvals
       parameters:
@@ -150,7 +150,7 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
     patch:
       summary: Submit approval decision
@@ -164,7 +164,7 @@ paths:
         1. The approval request status is updated
         2. The decided_by, decided_at, and decision_notes fields are populated
         3. A signal is sent to the workflow to resume execution on the appropriate path
-      operationId: decideApproval
+      operationId: decide_approval
       tags:
         - Approvals
       parameters:
@@ -193,19 +193,19 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
         "404":
           description: Approval request not found
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
         "409":
           description: Approval already decided or workflow cancelled
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
   /approvals/batch:
     post:
@@ -220,7 +220,7 @@ paths:
         Use cases:
         - Approving multiple related requests at once
         - Bulk rejection of stale or irrelevant requests
-      operationId: batchDecideApprovals
+      operationId: batch_decide_approvals
       tags:
         - Approvals
       requestBody:
@@ -241,7 +241,7 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
 components:
   schemas:
@@ -608,9 +608,6 @@ components:
         name:
           type: string
           description: User's display name at time of action
-
-    Error:
-      $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
   securitySchemes:
     bearerAuth:

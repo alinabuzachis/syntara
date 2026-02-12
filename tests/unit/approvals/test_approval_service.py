@@ -11,13 +11,13 @@ from uuid import UUID, uuid4
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.approvals.exceptions import ApprovalAlreadyDecidedError, ApprovalNotFoundError
+from nexus.approvals.exceptions import ApprovalAlreadyDecidedError, ApprovalAlreadyRequestedError, ApprovalNotFoundError
 from nexus.approvals.models import (
     ActivitySummary,
     ApprovalCreateRequest,
     ApprovalDecisionRequest,
     ApprovalDecisionStatus,
-    ApprovalRequest,
+    ApprovalRequestRead,
     ApprovalRequestStatus,
     BatchApprovalDecision,
     BatchApprovalDecisionStatus,
@@ -267,7 +267,7 @@ class TestApprovalServiceCreate(TestApprovalServiceBase):
 
         result = await service.create(request)
 
-        assert isinstance(result, ApprovalRequest)
+        assert isinstance(result, ApprovalRequestRead)
         assert result.execution_id == execution_id
         assert result.approval_node_id == "approval_1"
         assert result.name == "Test Create Approval"
@@ -305,6 +305,47 @@ class TestApprovalServiceCreate(TestApprovalServiceBase):
         assert result.timeout_at is None
         assert result.next_step_rejected is None
 
+    @pytest.mark.asyncio
+    async def test_create_duplicate_approval_raises_exception(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        executions_factory: ExecutionsFactory,
+    ) -> None:
+        """Test that creating a duplicate approval request raises ApprovalAlreadyRequestedError."""
+        service = self._create_test_service(test_db_session, test_user)
+
+        # Create a test execution first
+        executions = await executions_factory.create_executions(count=1)
+        execution_id = executions[0].id
+
+        # Create the first approval request
+        request1 = self._create_approval_request(
+            execution_id=execution_id,
+            approval_node_id="duplicate_test",
+            name="First Approval",
+        )
+
+        # Create the first approval successfully
+        result1 = await service.create(request1)
+        assert result1.execution_id == execution_id
+        assert result1.approval_node_id == "duplicate_test"
+
+        # Attempt to create a duplicate approval request with the same execution_id and approval_node_id
+        request2 = self._create_approval_request(
+            execution_id=execution_id,
+            approval_node_id="duplicate_test",  # Same approval_node_id
+            name="Second Approval (should fail)",
+        )
+
+        # This should raise ApprovalAlreadyRequestedError
+        with pytest.raises(ApprovalAlreadyRequestedError) as exc_info:
+            await service.create(request2)
+
+        # Verify the exception contains the correct execution_id and approval_node_id
+        assert exc_info.value.execution_id == execution_id
+        assert exc_info.value.approval_node_id == "duplicate_test"
+
 
 class TestApprovalServiceDecide(TestApprovalServiceBase):
     """Test ApprovalService.decide method."""
@@ -340,7 +381,9 @@ class TestApprovalServiceDecide(TestApprovalServiceBase):
             result = await service.decide(approval.id, decision_request)
 
             assert result.status == ApprovalRequestStatus.APPROVED
-            assert result.decided_by == test_user.id
+            assert result.decided_by is not None
+            assert result.decided_by.id == test_user.id
+            assert result.decided_by.name == test_user.full_name
             assert result.decision_notes == "Looks good to proceed!"
             assert result.decided_at is not None
 
@@ -383,7 +426,9 @@ class TestApprovalServiceDecide(TestApprovalServiceBase):
             result = await service.decide(approval.id, decision_request)
 
             assert result.status == ApprovalRequestStatus.REJECTED
-            assert result.decided_by == test_user.id
+            assert result.decided_by is not None
+            assert result.decided_by.id == test_user.id
+            assert result.decided_by.name == test_user.full_name
             assert result.decision_notes == "Insufficient justification"
 
             # Verify workflow signal was sent with rejection
@@ -470,7 +515,9 @@ class TestApprovalServiceDecide(TestApprovalServiceBase):
 
             # Decision should still be recorded as successful even if signal fails
             assert result.status == ApprovalRequestStatus.APPROVED
-            assert result.decided_by == test_user.id
+            assert result.decided_by is not None
+            assert result.decided_by.id == test_user.id
+            assert result.decided_by.name == test_user.full_name
             assert result.decision_notes == "Should succeed despite signal failure"
 
             # Verify approval was updated in database
@@ -531,7 +578,9 @@ class TestApprovalServiceBatchDecide(TestApprovalServiceBase):
             assert result.results[0].success is True
             assert result.results[0].status == ApprovalRequestStatus.APPROVED
             assert result.results[0].decision_notes == "Looks good"
-            assert result.results[0].decided_by == test_user
+            assert result.results[0].decided_by is not None
+            assert result.results[0].decided_by.id == test_user.id
+            assert result.results[0].decided_by.name == test_user.full_name
             assert result.results[0].decided_at is not None
             assert result.results[0].error is None
 

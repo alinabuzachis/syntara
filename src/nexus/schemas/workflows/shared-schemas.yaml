@@ -202,7 +202,7 @@ components:
               nullable: true
               description: Iteration number if activity is within a loop (0-indexed)
 
-    # NOTE: Approval schemas are defined in ../approvals/approvals-api.yaml
+    # NOTE: Approval schemas are defined in ../approvals/openapi.yaml
     # Do not duplicate here - use $ref to the approvals API when needed
 
     ExecutionStatus:
@@ -217,7 +217,7 @@ components:
       description: Current state of an individual activity execution
       enum: [pending, running, completed, failed, retrying, skipped, cancelled]
 
-    # NOTE: ApprovalStatus is defined in ../approvals/approvals-api.yaml
+    # NOTE: ApprovalStatus is defined in ../approvals/openapi.yaml
 
     ActivityType:
       type: object
@@ -366,7 +366,7 @@ components:
           type: string
           enum: [pause, resume, cancel]
 
-    # NOTE: Approval request/response schemas are defined in ../approvals/approvals-api.yaml
+    # NOTE: Approval request/response schemas are defined in ../approvals/openapi.yaml
     # Including: ApprovalDecisionRequest, BatchApprovalDecision, BatchApprovalRequest,
     # BatchApprovalResult, BatchApprovalResponse
 

@@ -3,17 +3,21 @@
 This module provides error handling for LLM and agent-specific exceptions.
 """
 
+from typing import TYPE_CHECKING
+
 import structlog
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
-from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
+
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-def llm_configuration_error_handler(request: Request, exc: LLMConfigurationError) -> JSONResponse:
+def llm_configuration_error_handler(request: Request, exc: "LLMConfigurationError") -> JSONResponse:
     """Handle LLMConfigurationError with RFC 9457 format."""
     logger.error("LLM configuration error", exc_info=exc)
     return create_problem_details_response(

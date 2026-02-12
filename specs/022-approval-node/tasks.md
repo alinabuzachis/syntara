@@ -112,11 +112,11 @@ These tasks create the directory structure, models, and shared infrastructure th
 ### Tests First (TDD) ⚠️ MUST FAIL BEFORE IMPLEMENTATION
 
 - [x] T025 [P] [US2] Add unit tests for ApprovalService methods (list, get, create, decide, batch_decide, cancel_for_execution) in `tests/unit/approvals/test_approval_service.py`
-- [ ] T026 [P] [US2] Add contract tests for GET /api/v1/approvals validating OpenAPI schema compliance (response shape, pagination fields, status enum values, filter params) in `tests/contract/approvals/test_list_approvals.py`
-- [ ] T027 [P] [US2] Add contract tests for POST /api/v1/approvals validating request/response schema (required fields, UUID formats, ActivitySummary structure) in `tests/contract/approvals/test_create_approval.py`
-- [ ] T028 [P] [US2] Add contract tests for GET /api/v1/approvals/{id} validating response schema (all fields present, nullable fields, WorkflowContext structure) in `tests/contract/approvals/test_get_approval.py`
-- [ ] T029 [P] [US2] Add contract tests for PATCH /api/v1/approvals/{id} validating request schema (ApprovalDecisionStatus enum: approved/rejected), error responses (400, 404, 409) in `tests/contract/approvals/test_decide_approval.py`
-- [ ] T030 [P] [US2] Add contract tests for POST /api/v1/approvals/batch validating BatchApprovalRequest/Response schema (decisions array, results with success/error, counts) in `tests/contract/approvals/test_batch_approval.py`
+- [x] T026 [P] [US2] Add contract tests for GET /api/v1/approvals validating OpenAPI schema compliance (response shape, pagination fields, status enum values, filter params) in `tests/contract/approvals/test_list_approvals.py`
+- [x] T027 [P] [US2] Add contract tests for POST /api/v1/approvals validating request/response schema (required fields, UUID formats, ActivitySummary structure) in `tests/contract/approvals/test_create_approval.py`
+- [x] T028 [P] [US2] Add contract tests for GET /api/v1/approvals/{id} validating response schema (all fields present, nullable fields, WorkflowContext structure) in `tests/contract/approvals/test_get_approval.py`
+- [x] T029 [P] [US2] Add contract tests for PATCH /api/v1/approvals/{id} validating request schema (ApprovalDecisionStatus enum: approved/rejected), error responses (400, 404, 409) in `tests/contract/approvals/test_decide_approval.py`
+- [x] T030 [P] [US2] Add contract tests for POST /api/v1/approvals/batch validating BatchApprovalRequest/Response schema (decisions array, results with success/error, counts) in `tests/contract/approvals/test_batch_approval.py`
 
 ### Approvals Service Layer (make tests pass)
 
@@ -138,11 +138,11 @@ These tasks create the directory structure, models, and shared infrastructure th
 
 ### Approvals API Endpoints (make contract tests pass)
 
-- [ ] T041 [P] [US2] Create get_approval_service dependency injection provider and GET /api/v1/approvals list endpoint in `src/nexus/approvals/router.py`
-- [ ] T042 [P] [US2] Create POST /api/v1/approvals create endpoint in `src/nexus/approvals/router.py`
-- [ ] T043 [P] [US2] Create GET /api/v1/approvals/{id} detail endpoint in `src/nexus/approvals/router.py`
-- [ ] T044 [US2] Create PATCH /api/v1/approvals/{id} decide endpoint in `src/nexus/approvals/router.py`
-- [ ] T045 [US2] Create POST /api/v1/approvals/batch batch decision endpoint in `src/nexus/approvals/router.py`
+- [x] T041 [P] [US2] Create get_approval_service dependency injection provider and GET /api/v1/approvals list endpoint in `src/nexus/approvals/router.py`
+- [x] T042 [P] [US2] Create POST /api/v1/approvals create endpoint in `src/nexus/approvals/router.py`
+- [x] T043 [P] [US2] Create GET /api/v1/approvals/{id} detail endpoint in `src/nexus/approvals/router.py`
+- [x] T044 [US2] Create PATCH /api/v1/approvals/{id} decide endpoint in `src/nexus/approvals/router.py`
+- [x] T045 [US2] Create POST /api/v1/approvals/batch batch decision endpoint in `src/nexus/approvals/router.py`
 - [x] T046 [US2] ~~Register approvals router in FastAPI app~~ (NOT NEEDED - Router Discovery Framework auto-discovers `src/nexus/approvals/router.py`)
 
 ### Frontend - API Client & Types

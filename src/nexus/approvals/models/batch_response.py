@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlmodel import Field, SQLModel
 
 from nexus.approvals.models import ApprovalRequestStatus
-from nexus.core.models import User
+from nexus.approvals.models.api_models import UserReference
 
 
 class BatchApprovalResult(SQLModel):
@@ -21,7 +21,7 @@ class BatchApprovalResult(SQLModel):
         default=None, description="New status after the decision (if successful)"
     )
     decided_at: datetime | None = Field(default=None, description="When decision was recorded (if successful)")
-    decided_by: User | None = Field(default=None, description="User who made the decision (if successful)")
+    decided_by: UserReference | None = Field(default=None, description="User who made the decision (if successful)")
     decision_notes: str | None = Field(
         default=None, description="Notes provided with the decision (echoed back from request)"
     )

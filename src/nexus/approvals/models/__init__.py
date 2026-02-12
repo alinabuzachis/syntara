@@ -10,9 +10,10 @@ from .api_models import (
     BatchApprovalDecisionStatus,
     BatchApprovalRequest,
     PreviousStepContext,
+    UserReference,
     WorkflowContext,
 )
-from .approval_request import ApprovalListResponse, ApprovalRequest
+from .approval_request import ApprovalListResponse, ApprovalRequest, ApprovalRequestRead
 from .batch_response import BatchApprovalResponse, BatchApprovalResult
 
 __all__ = [
@@ -22,6 +23,7 @@ __all__ = [
     "ApprovalDecisionStatus",
     "ApprovalListResponse",
     "ApprovalRequest",
+    "ApprovalRequestRead",
     "ApprovalRequestStatus",
     "BatchApprovalDecision",
     "BatchApprovalDecisionStatus",
@@ -29,5 +31,6 @@ __all__ = [
     "BatchApprovalResponse",
     "BatchApprovalResult",
     "PreviousStepContext",
+    "UserReference",
     "WorkflowContext",
 ]

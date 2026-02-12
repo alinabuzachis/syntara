@@ -15,6 +15,20 @@ from sqlmodel import SQLModel
 from nexus.core.constants import FieldLimits
 
 
+class UserReference(SQLModel):
+    """Minimal user identification for embedding in other resources.
+
+    Matches the UserReference schema from the OpenAPI specification.
+    This model captures user identity at the time of an action, providing
+    a snapshot that doesn't change even if the user's details are updated later.
+    """
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
+
+    id: UUID = Field(..., description="User's unique identifier")
+    name: str = Field(..., description="User's display name at time of action")
+
+
 class ApprovalRequestStatus(str, Enum):
     """Approval request status enumeration."""
 

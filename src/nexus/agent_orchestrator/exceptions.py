@@ -2,6 +2,7 @@
 
 from uuid import UUID
 
+from nexus.agent_orchestrator.error_handlers import llm_configuration_error_handler
 from nexus.core.exception_registry import fastapi_exception
 
 
@@ -41,7 +42,7 @@ class OrchestrationError(AgentError):
     """Exception for orchestration service failures."""
 
 
-@fastapi_exception(handler="nexus.agent_orchestrator.error_handlers.llm_configuration_error_handler")
+@fastapi_exception(handler=llm_configuration_error_handler)
 class LLMConfigurationError(Exception):
     """Raised when LLM model configuration is missing or invalid.
 

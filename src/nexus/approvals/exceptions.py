@@ -6,9 +6,16 @@ following the project's exception handling patterns.
 
 from uuid import UUID
 
+from nexus.approvals.error_handlers import (
+    approval_already_decided_handler,
+    approval_already_requested_handler,
+    approval_not_found_handler,
+)
 from nexus.approvals.models import ApprovalRequestStatus
+from nexus.core.exception_registry import fastapi_exception
 
 
+@fastapi_exception(handler=approval_not_found_handler)
 class ApprovalNotFoundError(Exception):
     """Raised when an approval request is not found."""
 
@@ -18,6 +25,7 @@ class ApprovalNotFoundError(Exception):
         super().__init__(f"Approval request {approval_id} not found")
 
 
+@fastapi_exception(handler=approval_already_decided_handler)
 class ApprovalAlreadyDecidedError(Exception):
     """Raised when attempting to decide an already-decided approval."""
 
@@ -26,3 +34,16 @@ class ApprovalAlreadyDecidedError(Exception):
         self.approval_id = approval_id
         self.current_status = current_status
         super().__init__(f"Approval request {approval_id} is already decided with status '{current_status}'")
+
+
+@fastapi_exception(handler=approval_already_requested_handler)
+class ApprovalAlreadyRequestedError(Exception):
+    """Raised when attempting to create an approval that already exists for the execution and node."""
+
+    def __init__(self, execution_id: UUID, approval_node_id: str) -> None:
+        """Initialize exception with execution ID and approval node ID."""
+        self.execution_id = execution_id
+        self.approval_node_id = approval_node_id
+        super().__init__(
+            f"Approval request already exists for execution {execution_id} and approval node '{approval_node_id}'"
+        )

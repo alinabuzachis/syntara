@@ -3,26 +3,30 @@
 This module provides error handling for workflow and execution-specific exceptions.
 """
 
+from typing import TYPE_CHECKING
+
 import structlog
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from temporalio.service import RPCError
 
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
-from nexus.workflows.exceptions import (
-    ExecutionNotFoundError,
-    TemporalUnavailableError,
-    WorkflowDisabledError,
-    WorkflowNameConflictError,
-    WorkflowNotFoundError,
-    WorkflowVersionNotFoundError,
-)
-from nexus.workflows.validators import ValidationError
+
+if TYPE_CHECKING:
+    from nexus.workflows.exceptions import (
+        ExecutionNotFoundError,
+        TemporalUnavailableError,
+        WorkflowDisabledError,
+        WorkflowNameConflictError,
+        WorkflowNotFoundError,
+        WorkflowVersionNotFoundError,
+    )
+    from nexus.workflows.validators import ValidationError
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-def validation_error_handler(request: Request, exc: ValidationError) -> JSONResponse:
+def validation_error_handler(request: Request, exc: "ValidationError") -> JSONResponse:
     """Handle core ValidationError with RFC 9457 format."""
     logger.error("Core validation error", exc_info=exc)
     return create_problem_details_response(
@@ -36,7 +40,7 @@ def validation_error_handler(request: Request, exc: ValidationError) -> JSONResp
     )
 
 
-def workflow_not_found_handler(request: Request, exc: WorkflowNotFoundError) -> JSONResponse:
+def workflow_not_found_handler(request: Request, exc: "WorkflowNotFoundError") -> JSONResponse:
     """Handle WorkflowNotFoundError with RFC 9457 format."""
     # Log the full exception for debugging but don't expose workflow IDs to users
     logger.error("Workflow not found", exc_info=exc)
@@ -51,7 +55,7 @@ def workflow_not_found_handler(request: Request, exc: WorkflowNotFoundError) -> 
     )
 
 
-def execution_not_found_handler(request: Request, exc: ExecutionNotFoundError) -> JSONResponse:
+def execution_not_found_handler(request: Request, exc: "ExecutionNotFoundError") -> JSONResponse:
     """Handle ExecutionNotFoundError with RFC 9457 format."""
     # Log the full exception for debugging but don't expose execution IDs to users
     logger.error("Execution not found", exc_info=exc)
@@ -66,7 +70,7 @@ def execution_not_found_handler(request: Request, exc: ExecutionNotFoundError) -
     )
 
 
-def workflow_version_not_found_handler(request: Request, exc: WorkflowVersionNotFoundError) -> JSONResponse:
+def workflow_version_not_found_handler(request: Request, exc: "WorkflowVersionNotFoundError") -> JSONResponse:
     """Handle WorkflowVersionNotFoundError with RFC 9457 format."""
     # Log the full exception for debugging but don't expose workflow IDs to users
     logger.error("Workflow version not found", exc_info=exc)
@@ -81,7 +85,7 @@ def workflow_version_not_found_handler(request: Request, exc: WorkflowVersionNot
     )
 
 
-def workflow_name_conflict_handler(request: Request, exc: WorkflowNameConflictError) -> JSONResponse:
+def workflow_name_conflict_handler(request: Request, exc: "WorkflowNameConflictError") -> JSONResponse:
     """Handle WorkflowNameConflictError with RFC 9457 format."""
     logger.error("Workflow name conflict", exc_info=exc)
     return create_problem_details_response(
@@ -95,7 +99,7 @@ def workflow_name_conflict_handler(request: Request, exc: WorkflowNameConflictEr
     )
 
 
-def workflow_disabled_handler(request: Request, exc: WorkflowDisabledError) -> JSONResponse:
+def workflow_disabled_handler(request: Request, exc: "WorkflowDisabledError") -> JSONResponse:
     """Handle WorkflowDisabledError with RFC 9457 format."""
     # Log the full exception for debugging but don't expose workflow IDs to users
     logger.error("Workflow disabled", exc_info=exc)
@@ -110,7 +114,7 @@ def workflow_disabled_handler(request: Request, exc: WorkflowDisabledError) -> J
     )
 
 
-def temporal_unavailable_handler(request: Request, exc: TemporalUnavailableError) -> JSONResponse:
+def temporal_unavailable_handler(request: Request, exc: "TemporalUnavailableError") -> JSONResponse:
     """Handle TemporalUnavailableError with RFC 9457 format."""
     logger.error("Temporal service unavailable", exc_info=exc)
     return create_problem_details_response(

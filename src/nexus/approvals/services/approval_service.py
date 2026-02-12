@@ -2,13 +2,14 @@
 
 This service encapsulates approval-related business logic, separating it from
 HTTP/API concerns in the FastAPI endpoints. It handles all approval request
-operations including creating, listing, deciding, and canceling approvals.
+operations including creating, listing, deciding, and cancelling approvals.
 """
 
 import asyncio
 import builtins
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 import structlog
@@ -16,23 +17,49 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.approvals.clients.workflow_client import WorkflowApiClient
-from nexus.approvals.exceptions import ApprovalAlreadyDecidedError, ApprovalNotFoundError
+from nexus.approvals.exceptions import ApprovalAlreadyDecidedError, ApprovalAlreadyRequestedError, ApprovalNotFoundError
 from nexus.approvals.models import (
     ApprovalCreateRequest,
     ApprovalDecisionRequest,
     ApprovalListResponse,
     ApprovalRequest,
+    ApprovalRequestRead,
     ApprovalRequestStatus,
     BatchApprovalDecision,
     BatchApprovalDecisionStatus,
     BatchApprovalRequest,
     BatchApprovalResponse,
     BatchApprovalResult,
+    UserReference,
 )
 from nexus.core.models import User
 from nexus.core.services import BaseService
+from nexus.core.services.extensions import ConvertResourceMixin
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+class ApprovalServiceConvertResourceMixin(ConvertResourceMixin):
+    """Mixin for converting ApprovalRequest resources to ApprovalRequestRead format."""
+
+    def __init__(self, user: User) -> None:
+        """Initialize ApprovalServiceConvertResourceMixin with current user."""
+        super().__init__()
+        self.user = user
+
+    def convert_resource(self, resource: ApprovalRequest) -> ApprovalRequestRead:  # type: ignore[override]
+        """Convert ApprovalRequest to ApprovalRequestRead format."""
+        # Extract data from the resource, excluding decided_by field
+        resource_data = resource.model_dump(exclude={"decided_by"})
+
+        # Create the ApprovalRequestRead instance with the base data
+        result = ApprovalRequestRead(**resource_data)
+
+        # Set the decided_by field with UserReference if there's a decider
+        if resource.decider is not None:
+            result.decided_by = UserReference(id=resource.decider.id, name=resource.decider.full_name)
+
+        return result
 
 
 class ApprovalService(BaseService):
@@ -44,7 +71,7 @@ class ApprovalService(BaseService):
 
     def __init__(self, session: AsyncSession, user: User) -> None:
         """Initialize ApprovalService with database session and user context."""
-        super().__init__(session, user)
+        super().__init__(session, user, convert_resource_mixin=ApprovalServiceConvertResourceMixin(user))
 
     async def list(
         self,
@@ -78,7 +105,19 @@ class ApprovalService(BaseService):
             include_total=include_total,
         )
 
-    async def get(self, approval_id: UUID) -> ApprovalRequest:
+    async def _get_approval_by_id(self, approval_id: UUID) -> ApprovalRequest | None:
+        query = select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
+        result = await self.session.exec(query)
+        return result.one_or_none()
+
+    async def _get_approval_request(self, execution_id: UUID, approval_node_id: str) -> ApprovalRequest | None:
+        query = select(ApprovalRequest).where(
+            ApprovalRequest.execution_id == execution_id, ApprovalRequest.approval_node_id == approval_node_id
+        )
+        result = await self.session.exec(query)
+        return result.one_or_none()
+
+    async def get(self, approval_id: UUID) -> ApprovalRequestRead:
         """Get a single approval request by ID.
 
         Args:
@@ -91,19 +130,17 @@ class ApprovalService(BaseService):
             ApprovalNotFoundError: If approval request not found
 
         """
-        query = select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
-        result = await self.session.exec(query)
-        approval = result.one_or_none()
+        approval: ApprovalRequest | None = await self._get_approval_by_id(approval_id)
 
         if not approval:
             raise ApprovalNotFoundError(approval_id)
 
-        return approval
+        return cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
 
     async def create(
         self,
         request: ApprovalCreateRequest,
-    ) -> ApprovalRequest:
+    ) -> ApprovalRequestRead:
         """Create a new approval request.
 
         Args:
@@ -112,7 +149,15 @@ class ApprovalService(BaseService):
         Returns:
             Created approval request
 
+        Raises:
+            ApprovalAlreadyRequestedError: If approval already exists for this execution and approval node
+
         """
+        # Check if an approval already exists for this execution and approval node
+        existing_approval = await self._get_approval_request(request.execution_id, request.approval_node_id)
+        if existing_approval is not None:
+            raise ApprovalAlreadyRequestedError(request.execution_id, request.approval_node_id)
+
         # Convert typed models to dicts for database storage
         next_step_approved_dict = (
             request.next_step_approved.model_dump(mode="json") if request.next_step_approved else {}
@@ -143,13 +188,13 @@ class ApprovalService(BaseService):
             approval_node_id=request.approval_node_id,
         )
 
-        return approval
+        return cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
 
     async def decide(
         self,
         approval_id: UUID,
         request: ApprovalDecisionRequest,
-    ) -> ApprovalRequest:
+    ) -> ApprovalRequestRead:
         """Make a decision on an approval request.
 
         Args:
@@ -165,7 +210,9 @@ class ApprovalService(BaseService):
 
         """
         # Get the approval request
-        approval = await self.get(approval_id)
+        approval: ApprovalRequest | None = await self._get_approval_by_id(approval_id)
+        if not approval:
+            raise ApprovalNotFoundError(approval_id)
 
         # Check if already decided
         if approval.status != ApprovalRequestStatus.PENDING:
@@ -206,7 +253,7 @@ class ApprovalService(BaseService):
                 error=str(e),
             )
 
-        return approval
+        return cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
 
     def _process_single_decision(
         self,
@@ -271,7 +318,7 @@ class ApprovalService(BaseService):
             success=True,
             status=status,
             decided_at=approval.decided_at,
-            decided_by=self.user,
+            decided_by=UserReference(id=self.user.id, name=self.user.full_name),
             decision_notes=notes,
         )
 

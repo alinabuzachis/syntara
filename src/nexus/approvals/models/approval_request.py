@@ -12,7 +12,7 @@ from sqlalchemy import Column, String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, Relationship
 
-from nexus.approvals.models.api_models import ApprovalRequestStatus
+from nexus.approvals.models.api_models import ApprovalRequestStatus, UserReference
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource, ResourcesResponse
 from nexus.core.utils.sqlmodel import postgres_enum_column
@@ -21,51 +21,12 @@ if TYPE_CHECKING:
     from nexus.core.models import User
 
 
-class ApprovalRequest(BaseResource, table=True):
-    """ApprovalRequest model representing human-in-the-loop decision points.
+class BaseApprovalRequest(BaseResource, table=False):
+    """Base approval request model with common fields.
 
-    Extends BaseResource with approval-specific fields for tracking workflow
-    execution pauses requiring human oversight and decision-making.
-
-    Attributes:
-        id: Primary key UUID (from BaseResource)
-        created_at: When approval was requested (from BaseResource)
-        updated_at: Last update timestamp (from BaseResource)
-        labels: JSONB key-value labels (from BaseResource)
-        name: Display name for the approval request
-        execution_id: Soft reference to parent execution (no foreign key constraint)
-        approval_node_id: Activity ID from workflow definition
-        status: Current approval status
-        timeout_at: When this request expires (optional)
-        next_step_approved: Next activity that executes if approved
-        next_step_rejected: Next activity that executes if rejected
-        workflow_context: Workflow inputs and previous step output
-        decided_by: User who made the decision
-        decided_at: When decision was made
-        decision_notes: Notes provided with decision
-
-    Relationships:
-        decider: User who made the decision (many-to-one to User)
-
+    Contains all approval request fields except decided_by, allowing for different
+    representations of the deciding user (UUID in database vs UserReference in API).
     """
-
-    __tablename__ = "approval_requests"
-
-    # Filterable and sortable fields for API endpoints
-    __filterable_fields__: ClassVar[list[str]] = [
-        *BaseResource.__filterable_fields__,
-        "name",
-        "execution_id",
-        "status",
-        "timeout_at",
-    ]
-
-    __sortable_fields__: ClassVar[list[str]] = [
-        *BaseResource.__sortable_fields__,
-        "name",
-        "timeout_at",
-        "decided_at",
-    ]
 
     # User-provided identification
     name: str = Field(
@@ -131,15 +92,7 @@ class ApprovalRequest(BaseResource, table=True):
         description="Workflow inputs and previous step output",
     )
 
-    # Decision fields
-    decided_by: UUID | None = Field(
-        default=None,
-        foreign_key="users.id",
-        nullable=True,
-        ondelete="SET NULL",
-        description="User who made the decision",
-    )
-
+    # Decision fields (without decided_by)
     decided_at: datetime | None = Field(
         default=None,
         nullable=True,
@@ -154,9 +107,58 @@ class ApprovalRequest(BaseResource, table=True):
         description="Notes provided with decision",
     )
 
+
+class ApprovalRequest(BaseApprovalRequest, table=True):
+    """ApprovalRequest database model with UUID foreign key for decided_by.
+
+    Extends BaseApprovalRequest with the database-specific decided_by field
+    that stores a UUID foreign key to the users table.
+    """
+
+    __tablename__ = "approval_requests"
+
+    # Filterable and sortable fields for API endpoints
+    __filterable_fields__: ClassVar[list[str]] = [
+        *BaseResource.__filterable_fields__,
+        "name",
+        "execution_id",
+        "status",
+        "timeout_at",
+    ]
+
+    __sortable_fields__: ClassVar[list[str]] = [
+        *BaseResource.__sortable_fields__,
+        "name",
+        "timeout_at",
+        "decided_at",
+    ]
+
+    # Decision field - database stores UUID foreign key
+    decided_by: UUID | None = Field(
+        default=None,
+        foreign_key="users.id",
+        nullable=True,
+        ondelete="SET NULL",
+        description="User who made the decision",
+    )
+
     # Relationships
     decider: "User" = Relationship(
         sa_relationship_kwargs={"foreign_keys": "[ApprovalRequest.decided_by]"},
+    )
+
+
+class ApprovalRequestRead(BaseApprovalRequest, table=False):
+    """ApprovalRequest API response model with UserReference for decided_by.
+
+    Extends BaseApprovalRequest with the API-specific decided_by field
+    that contains a UserReference object for API responses.
+    """
+
+    # Decision field - API returns UserReference object
+    decided_by: UserReference | None = Field(
+        default=None,
+        description="User who made the decision",
     )
 
 

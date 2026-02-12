@@ -16,6 +16,7 @@ from fastapi import UploadFile
 from nexus.core.config.base import Settings
 from nexus.core.constants import MIME_TYPE_DETECTION_MIN_BYTES
 from nexus.core.exception_registry import fastapi_exception
+from nexus.files.error_handlers import file_validation_error_handler
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -41,7 +42,7 @@ class SeekableFile(Protocol):
         ...
 
 
-@fastapi_exception(handler="nexus.files.error_handlers.file_validation_error_handler")
+@fastapi_exception(handler=file_validation_error_handler)
 class ValidationError(Exception):
     """File validation error with actionable messages.
 

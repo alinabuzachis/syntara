@@ -3,17 +3,21 @@
 This module provides error handling for file processing and validation exceptions.
 """
 
+from typing import TYPE_CHECKING
+
 import structlog
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
-from nexus.files.validators import ValidationError as FileValidationError
+
+if TYPE_CHECKING:
+    from nexus.files.validators import ValidationError as FileValidationError
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-def file_validation_error_handler(request: Request, exc: FileValidationError) -> JSONResponse:
+def file_validation_error_handler(request: Request, exc: "FileValidationError") -> JSONResponse:
     """Handle file ValidationError with RFC 9457 format."""
     logger.error("File validation error", exc_info=exc)
     return create_problem_details_response(

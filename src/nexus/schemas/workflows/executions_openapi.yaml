@@ -317,7 +317,7 @@ paths:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
   # Note: Approval endpoints are in a separate API
-  # See: src/nexus/schemas/approvals/approvals-api.yaml
+  # See: src/nexus/schemas/approvals/openapi.yaml
 
 components:
   schemas:
@@ -331,7 +331,7 @@ components:
     ActivityExecution:
       $ref: ./shared-schemas.yaml#/components/schemas/ActivityExecution
 
-    # Note: Approval schemas are in src/nexus/schemas/approvals/approvals-api.yaml
+    # Note: Approval schemas are in src/nexus/schemas/approvals/openapi.yaml
 
     ExecutionStatus:
       $ref: ./shared-schemas.yaml#/components/schemas/ExecutionStatus
