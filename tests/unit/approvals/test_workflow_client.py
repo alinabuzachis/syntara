@@ -1,31 +1,20 @@
 """Unit tests for WorkflowApiClient."""
 
+import json
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from typing import Never
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import httpx
 import pytest
+import respx
 
 from nexus.approvals.clients.workflow_client import WorkflowApiClient
 
 
 class TestWorkflowApiClient:
     """Test WorkflowApiClient functionality."""
-
-    def _create_server_error_mock(self) -> AsyncMock:
-        """Create a mock response that raises HTTPStatusError with 500 status."""
-        mock_error_response = AsyncMock()
-        mock_error_response.status_code = 500
-
-        def error_side_effect() -> Never:
-            error_message = "Server Error"
-            raise httpx.HTTPStatusError(error_message, request=AsyncMock(), response=mock_error_response)
-
-        mock_error_response.raise_for_status = Mock(side_effect=error_side_effect)
-        return mock_error_response
 
     @pytest.mark.usefixtures("fast_workflow_client_settings")
     async def test_send_approval_signal_success(self) -> None:
@@ -39,13 +28,9 @@ class TestWorkflowApiClient:
         with patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url:
             mock_generate_url.return_value = "http://localhost:8000/api/v1/signal"
 
-            # Mock successful HTTP response
-            mock_response = AsyncMock()
-            mock_response.status_code = 200
-            mock_response.raise_for_status = Mock()
-
-            with patch("httpx.AsyncClient.post") as mock_post:
-                mock_post.return_value = mock_response
+            with respx.mock:
+                # Mock successful HTTP response
+                signal_route = respx.post("http://localhost:8000/api/v1/signal").mock(return_value=httpx.Response(200))
 
                 async with WorkflowApiClient() as client:
                     await client.send_approval_signal(
@@ -60,20 +45,22 @@ class TestWorkflowApiClient:
                 mock_generate_url.assert_called_once_with(execution_id, approval_node_id)
 
                 # Verify the HTTP request was made correctly
-                mock_post.assert_called_once_with(
-                    "http://localhost:8000/api/v1/signal",
-                    json={
-                        "signal_data": {
-                            "status": status,
-                            "approval_id": str(approval_id),
-                            "notes": notes,
-                        }
-                    },
-                    headers={"Content-Type": "application/json"},
-                )
+                assert signal_route.called
+                request = signal_route.calls[0].request
+                assert request.method == "POST"
+                assert str(request.url) == "http://localhost:8000/api/v1/signal"
+                assert request.headers["content-type"] == "application/json"
 
-                # Verify response was checked for success
-                mock_response.raise_for_status.assert_called_once()
+                # Verify the request payload
+                request_json = json.loads(request.content)
+                expected_payload = {
+                    "signal_data": {
+                        "status": status,
+                        "approval_id": str(approval_id),
+                        "notes": notes,
+                    }
+                }
+                assert request_json == expected_payload
 
     @pytest.mark.usefixtures("fast_workflow_client_settings")
     async def test_send_approval_signal_success_after_retries(self) -> None:
@@ -86,22 +73,14 @@ class TestWorkflowApiClient:
         with patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url:
             mock_generate_url.return_value = "http://localhost:8000/api/v1/signal"
 
-            # First call fails with server error, second succeeds
-            mock_error_response = AsyncMock()
-            mock_error_response.status_code = 500
-
-            def error_side_effect() -> Never:
-                error_message = "Server Error"
-                raise httpx.HTTPStatusError(error_message, request=AsyncMock(), response=mock_error_response)
-
-            mock_error_response.raise_for_status = Mock(side_effect=error_side_effect)
-
-            mock_success_response = AsyncMock()
-            mock_success_response.status_code = 200
-            mock_success_response.raise_for_status = Mock()
-
-            with patch("httpx.AsyncClient.post") as mock_post:
-                mock_post.side_effect = [mock_error_response, mock_success_response]
+            with respx.mock:
+                # First call fails with server error, second succeeds
+                signal_route = respx.post("http://localhost:8000/api/v1/signal").mock(
+                    side_effect=[
+                        httpx.Response(500, text="Server Error"),
+                        httpx.Response(200),
+                    ]
+                )
 
                 with patch("asyncio.sleep") as mock_sleep:
                     async with WorkflowApiClient() as client:
@@ -113,13 +92,10 @@ class TestWorkflowApiClient:
                         )
 
                 # Should have made 2 requests (1 failure + 1 success)
-                assert mock_post.call_count == 2
+                assert len(signal_route.calls) == 2
 
                 # Verify sleep was called for backoff
                 mock_sleep.assert_called_once()
-
-                # Verify final success response was checked
-                mock_success_response.raise_for_status.assert_called_once()
 
     @pytest.mark.usefixtures("fast_workflow_client_settings")
     async def test_send_approval_signal_failure_retries_exhausted(self) -> None:
@@ -131,10 +107,11 @@ class TestWorkflowApiClient:
 
         with patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url:
             mock_generate_url.return_value = "http://localhost:8000/api/v1/signal"
-            mock_error_response = self._create_server_error_mock()
 
-            with patch("httpx.AsyncClient.post") as mock_post:
-                mock_post.return_value = mock_error_response
+            with respx.mock:
+                signal_route = respx.post("http://localhost:8000/api/v1/signal").mock(
+                    return_value=httpx.Response(500, text="Server Error")
+                )
 
                 with patch("asyncio.sleep") as mock_sleep:
                     async with WorkflowApiClient() as client:
@@ -146,8 +123,8 @@ class TestWorkflowApiClient:
                                 approval_id=approval_id,
                             )
 
-                # Should have made max_retries + 1 requests (2 in fast settings)
-                assert mock_post.call_count == 3
+                # Should have made max_retries + 1 requests (3 in fast settings)
+                assert len(signal_route.calls) == 3
 
                 # Should have slept max_retries times (2 times for fast settings)
                 assert mock_sleep.call_count == 2
@@ -166,10 +143,11 @@ class TestWorkflowApiClient:
             patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url,
         ):
             mock_generate_url.return_value = "http://localhost:8000/api/v1/signal"
-            mock_error_response = self._create_server_error_mock()
 
-            with patch("httpx.AsyncClient.post") as mock_post:
-                mock_post.return_value = mock_error_response
+            with respx.mock:
+                signal_route = respx.post("http://localhost:8000/api/v1/signal").mock(
+                    return_value=httpx.Response(500, text="Server Error")
+                )
 
                 with patch("asyncio.sleep") as mock_sleep:
                     async with WorkflowApiClient() as client:
@@ -182,7 +160,7 @@ class TestWorkflowApiClient:
                             )
 
                     # Should have made only 1 request (no retries)
-                    assert mock_post.call_count == 1
+                    assert len(signal_route.calls) == 1
 
                     # Should not have slept (no retries)
                     mock_sleep.assert_not_called()
@@ -198,18 +176,11 @@ class TestWorkflowApiClient:
         with patch("nexus.approvals.clients.workflow_client.generate_activity_signal_url") as mock_generate_url:
             mock_generate_url.return_value = "http://localhost:8000/api/v1/signal"
 
-            # Client error (4xx) - not retryable
-            mock_error_response = AsyncMock()
-            mock_error_response.status_code = 400
-
-            def error_side_effect() -> Never:
-                error_message = "Bad Request"
-                raise httpx.HTTPStatusError(error_message, request=AsyncMock(), response=mock_error_response)
-
-            mock_error_response.raise_for_status = Mock(side_effect=error_side_effect)
-
-            with patch("httpx.AsyncClient.post") as mock_post:
-                mock_post.return_value = mock_error_response
+            with respx.mock:
+                # Client error (4xx) - not retryable
+                signal_route = respx.post("http://localhost:8000/api/v1/signal").mock(
+                    return_value=httpx.Response(400, text="Bad Request")
+                )
 
                 with patch("asyncio.sleep") as mock_sleep:
                     async with WorkflowApiClient() as client:
@@ -222,7 +193,7 @@ class TestWorkflowApiClient:
                             )
 
                 # Should have made only 1 request (no retries for client errors)
-                mock_post.assert_called_once()
+                assert len(signal_route.calls) == 1
 
                 # Should not have slept (no retries)
                 mock_sleep.assert_not_called()
@@ -231,32 +202,28 @@ class TestWorkflowApiClient:
         """Test that server errors (5xx) are retryable."""
         async with WorkflowApiClient() as client:
             # 500 Server Error
-            mock_response = AsyncMock()
-            mock_response.status_code = 500
-            error_message = "Server Error"
-            server_error = httpx.HTTPStatusError(error_message, request=AsyncMock(), response=mock_response)
+            response_500 = httpx.Response(500, text="Server Error")
+            request = httpx.Request("POST", "http://test")
+            server_error = httpx.HTTPStatusError("Server Error", request=request, response=response_500)
             assert client._is_retryable_error(server_error)
 
             # 502 Bad Gateway
-            mock_response.status_code = 502
-            error_message = "Bad Gateway"
-            bad_gateway = httpx.HTTPStatusError(error_message, request=AsyncMock(), response=mock_response)
+            response_502 = httpx.Response(502, text="Bad Gateway")
+            bad_gateway = httpx.HTTPStatusError("Bad Gateway", request=request, response=response_502)
             assert client._is_retryable_error(bad_gateway)
 
     async def test_is_retryable_error_client_errors(self) -> None:
         """Test that client errors (4xx) are not retryable."""
         async with WorkflowApiClient() as client:
             # 400 Bad Request
-            mock_response = AsyncMock()
-            mock_response.status_code = 400
-            error_message = "Bad Request"
-            client_error = httpx.HTTPStatusError(error_message, request=AsyncMock(), response=mock_response)
+            response_400 = httpx.Response(400, text="Bad Request")
+            request = httpx.Request("POST", "http://test")
+            client_error = httpx.HTTPStatusError("Bad Request", request=request, response=response_400)
             assert not client._is_retryable_error(client_error)
 
             # 404 Not Found
-            mock_response.status_code = 404
-            error_message = "Not Found"
-            not_found = httpx.HTTPStatusError(error_message, request=AsyncMock(), response=mock_response)
+            response_404 = httpx.Response(404, text="Not Found")
+            not_found = httpx.HTTPStatusError("Not Found", request=request, response=response_404)
             assert not client._is_retryable_error(not_found)
 
     async def test_is_retryable_error_connection_errors(self) -> None:
