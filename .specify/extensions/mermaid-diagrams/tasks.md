@@ -1,1 +1,0 @@
-Add a mermaid diagram to the tasks file that visualizes the task dependencies, parallel execution possibilities, and the overall implementation workflow. Embed the diagram directly in the tasks file using a markdown code block with mermaid syntax, not as a separate file.

@@ -1,1 +1,0 @@
-Add a mermaid diagram to the specification file that visualizes the clarification process, showing the taxonomy categories, their resolution status, and the impact on different parts of the specification. Embed the diagram directly in the spec file using a markdown code block with mermaid syntax, not as a separate file.

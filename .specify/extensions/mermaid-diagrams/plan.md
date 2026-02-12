@@ -1,1 +1,0 @@
-Add a mermaid diagram to the implementation plan file that visualizes the implementation plan architecture, showing the relationships between generated artifacts (data model, contracts, tasks) and the overall system design. Embed the diagram directly in the plan file using a markdown code block with mermaid syntax, not as a separate file.

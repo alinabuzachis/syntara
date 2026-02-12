@@ -91,6 +91,9 @@ consistency, maintainability, and interoperability.
   - Realistic examples for request and response payloads
   - Expected response codes and their meanings
 
+#### Data Models
+- **SQLModel for Data Models**: All data models use SQLModel (not separate Pydantic + SQLAlchemy)
+
 #### Error Handling
 
 - **Error Format**: All error responses MUST follow RFC 9457 Problem Details standard with consistent structure including:
