@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LogicNodeForm } from './LogicNodeForm'
 
@@ -12,12 +12,12 @@ describe('LogicNodeForm', () => {
     vi.clearAllMocks()
   })
 
-  it('renders form with condition fields by default', () => {
+  it('renders condition fields by default and hides loop/converge fields', () => {
     render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
-    expect(screen.getByPlaceholderText(/Enter activity name/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Logic type/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/output.status/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Condition expression/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Items expression/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Timeout \(seconds\)/i)).not.toBeInTheDocument()
   })
 
   it('submits condition form data', async () => {
@@ -37,23 +37,31 @@ describe('LogicNodeForm', () => {
     )
   })
 
-  it('switches to loop type and shows loop fields', async () => {
-    const user = userEvent.setup()
-    render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+  it('renders loop fields when initialData sets logicType to loop', () => {
+    render(
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: 'loop', type: 'forEach' }}
+      />
+    )
 
-    await user.selectOptions(screen.getByLabelText(/Logic type/i), 'loop')
-
-    expect(screen.getByLabelText(/^Type$/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/input.item_list/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/^item$/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/^index$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Items expression/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Item variable/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Index variable/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Timeout \(seconds\)/i)).not.toBeInTheDocument()
   })
 
   it('submits forEach loop data', async () => {
     const user = userEvent.setup()
-    render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    render(
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: 'loop', type: 'forEach' }}
+      />
+    )
 
-    await user.selectOptions(screen.getByLabelText(/Logic type/i), 'loop')
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Loop')
     await user.type(screen.getByPlaceholderText(/input.item_list/i), 'myArray')
     await user.clear(screen.getByPlaceholderText(/^item$/i))
@@ -74,12 +82,14 @@ describe('LogicNodeForm', () => {
     )
   })
 
-  it('switches to while loop and shows while fields', async () => {
-    const user = userEvent.setup()
-    render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
-
-    await user.selectOptions(screen.getByLabelText(/Logic type/i), 'loop')
-    await user.selectOptions(screen.getByLabelText(/^Type$/i), 'while')
+  it('renders while loop fields when initialData sets type to while', () => {
+    render(
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: 'loop', type: 'while' }}
+      />
+    )
 
     expect(screen.getByPlaceholderText(/counter < 10/i)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/1000/i)).toBeInTheDocument()
@@ -87,10 +97,14 @@ describe('LogicNodeForm', () => {
 
   it('submits while loop data', async () => {
     const user = userEvent.setup()
-    render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    render(
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: 'loop', type: 'while' }}
+      />
+    )
 
-    await user.selectOptions(screen.getByLabelText(/Logic type/i), 'loop')
-    await user.selectOptions(screen.getByLabelText(/^Type$/i), 'while')
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'While Loop')
     await user.type(screen.getByPlaceholderText(/counter < 10/i), 'x < 100')
     await user.type(screen.getByPlaceholderText(/1000/i), '500')
@@ -107,11 +121,37 @@ describe('LogicNodeForm', () => {
     )
   })
 
-  it('switches to converge type and shows converge fields', async () => {
+  it('submits while loop data without maxIterations', async () => {
     const user = userEvent.setup()
-    render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    render(
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: 'loop', type: 'while' }}
+      />
+    )
 
-    await user.selectOptions(screen.getByLabelText(/Logic type/i), 'converge')
+    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Simple While')
+    await user.type(screen.getByPlaceholderText(/counter < 10/i), 'running')
+    await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+    expect(mockOnSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        logicType: 'loop',
+        type: 'while',
+        maxIterations: undefined,
+      })
+    )
+  })
+
+  it('renders converge fields when initialData sets logicType to converge', () => {
+    render(
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: 'converge' }}
+      />
+    )
 
     expect(screen.getByPlaceholderText(/300/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/On timeout/i)).toBeInTheDocument()
@@ -121,9 +161,14 @@ describe('LogicNodeForm', () => {
 
   it('submits converge data', async () => {
     const user = userEvent.setup()
-    render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    render(
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: 'converge' }}
+      />
+    )
 
-    await user.selectOptions(screen.getByLabelText(/Logic type/i), 'converge')
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Join Branches')
     await user.type(screen.getByPlaceholderText(/300/i), '600')
     await user.selectOptions(screen.getByLabelText(/On timeout/i), 'continue')
@@ -203,45 +248,5 @@ describe('LogicNodeForm', () => {
     render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} submitButtonText="Update node" />)
 
     expect(screen.getByRole('button', { name: /Update node/i })).toBeInTheDocument()
-  })
-
-  it('cleans up data when switching between logic types', async () => {
-    const user = userEvent.setup()
-    render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
-
-    // Fill condition
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test')
-    await user.type(screen.getByPlaceholderText(/output.status/i), 'my condition')
-
-    // Switch to converge
-    await user.selectOptions(screen.getByLabelText(/Logic type/i), 'converge')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        logicType: 'converge',
-        // Condition should be undefined for converge
-        condition: undefined,
-      })
-    )
-  })
-
-  it('handles while loop without maxIterations', async () => {
-    const user = userEvent.setup()
-    render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
-
-    await user.selectOptions(screen.getByLabelText(/Logic type/i), 'loop')
-    await user.selectOptions(screen.getByLabelText(/^Type$/i), 'while')
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Simple While')
-    await user.type(screen.getByPlaceholderText(/counter < 10/i), 'running')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        logicType: 'loop',
-        type: 'while',
-        maxIterations: undefined,
-      })
-    )
   })
 })

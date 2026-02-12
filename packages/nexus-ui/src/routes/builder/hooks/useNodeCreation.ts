@@ -23,11 +23,13 @@ export interface TriggerFormData {
 
 export interface ActionFormData {
   name: string
-  executor: string
+  executor: 'script' | 'api'
+  // Allow legacy or custom values to round-trip existing data.
   language?: string
   code?: string
-  method?: string
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   url?: string
+  authentication?: string
   headers?: string
   body?: string
   parameters?: string
@@ -74,16 +76,18 @@ export function useNodeCreation(onSuccess: () => void) {
       const baseName = data.executor === 'api' ? 'REST Api' : 'Script'
       const { activity } = buildNamedActivity(baseName, data.name, (id, name) => {
         if (data.executor === 'script' && data.language && data.code) {
-          return createScriptActivity(id, name, data.language as 'python' | 'javascript', data.code)
+          return createScriptActivity(id, name, data.language, data.code)
         }
         if (data.executor === 'api' && data.method && data.url) {
           return createApiActivity(
             id,
             name,
-            data.method as 'GET' | 'POST' | 'PUT' | 'DELETE',
+            data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
             data.url,
             data.headers,
-            data.body
+            data.body,
+            data.parameters,
+            data.authentication
           )
         }
         return null

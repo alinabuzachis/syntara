@@ -18,7 +18,7 @@ import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'rea
 import { ActivityNameField } from './shared/ActivityNameField'
 import { FormSubmitButton } from './shared/FormSubmitButton'
 
-interface LogicFormData {
+export interface LogicFormData {
   name: string
   logicType: string
   condition?: string
@@ -47,26 +47,7 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
   return (
     <Stack hasGutter>
       <ActivityNameField register={register} fieldId="logic-name" />
-      <StackItem>
-        <FormGroup label="Logic type" fieldId="logic-logicType">
-          <Controller
-            control={control}
-            name="logicType"
-            render={({ field }) => (
-              <FormSelect
-                id="logic-logicType"
-                aria-label="Logic type"
-                value={field.value}
-                onChange={(_event, value) => field.onChange(value)}
-              >
-                <FormSelectOption value="condition" label="Condition (If/Else)" />
-                <FormSelectOption value="loop" label="Loop" />
-                <FormSelectOption value="converge" label="Converge (Join)" />
-              </FormSelect>
-            )}
-          />
-        </FormGroup>
-      </StackItem>
+      <input type="hidden" {...register('logicType')} />
 
       {logicType === 'condition' && (
         <StackItem>
@@ -257,7 +238,7 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
 export function LogicNodeForm(props: LogicNodeFormProps) {
   const defaultValues: LogicFormData = {
     name: '',
-    logicType: 'condition',
+    logicType: props.initialData?.logicType ?? 'condition',
     type: 'forEach',
     indexVariable: 'index',
     itemVariable: 'item',

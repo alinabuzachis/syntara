@@ -182,6 +182,24 @@ describe('workflowFactories', () => {
         expect(activity.task.config.headers).toEqual({ Authorization: 'Bearer token' })
       })
 
+      it('merges authentication into headers when provided', () => {
+        const activity = createApiActivity(
+          'api-1',
+          'API Call',
+          'GET',
+          'https://api.example.com',
+          '{"Content-Type": "application/json"}',
+          undefined,
+          undefined,
+          'Bearer token'
+        ) as any
+
+        expect(activity.task.config.headers).toEqual({
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer token',
+        })
+      })
+
       it('creates an API activity with body', () => {
         const activity = createApiActivity(
           'api-1',

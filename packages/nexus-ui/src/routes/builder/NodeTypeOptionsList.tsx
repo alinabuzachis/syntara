@@ -10,7 +10,7 @@ import {
   StackItem,
   Title,
 } from '@patternfly/react-core'
-import type { ComponentType } from 'react'
+import type { ComponentType, CSSProperties } from 'react'
 
 import type { NodeSubtypeDefinition, NodeTypeDefinition } from './registry/NodeRegistry'
 
@@ -25,6 +25,13 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
   return props.nodeTypes.map((nodeType) => {
     const IconComponent = nodeType.icon
     const isCustomIcon = nodeType.id === 'aap'
+    const shouldRotateIcon = nodeType.id === 'logic-condition' || nodeType.id === 'logic-converge'
+    const iconStyle: CSSProperties = {
+      width: '1.5rem',
+      height: '1.5rem',
+      display: 'block',
+      ...(shouldRotateIcon ? { transform: 'rotate(90deg)' } : {}),
+    }
 
     return (
       <StackItem key={nodeType.id}>
@@ -50,19 +57,11 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
                     <SplitItem isFilled={false} style={{ width: '1.5rem', flexShrink: 0 }}>
                       {isCustomIcon ? (
                         (() => {
-                          const StyledIcon = IconComponent as ComponentType<{ style?: React.CSSProperties }>
-                          return (
-                            <StyledIcon
-                              style={{
-                                width: '1.5rem',
-                                height: '1.5rem',
-                                display: 'block',
-                              }}
-                            />
-                          )
+                          const StyledIcon = IconComponent as ComponentType<{ style?: CSSProperties }>
+                          return <StyledIcon style={iconStyle} />
                         })()
                       ) : (
-                        <Icon style={{ width: '1.5rem', height: '1.5rem' }}>
+                        <Icon style={iconStyle}>
                           <IconComponent />
                         </Icon>
                       )}

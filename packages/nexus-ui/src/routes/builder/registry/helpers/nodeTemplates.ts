@@ -67,7 +67,7 @@ export function createBasicNode<TFormData = unknown>(
  */
 export function createCustomNode<TFormData = unknown>(
   config: NodeConfig<TFormData>,
-  onSubmit: (data: TFormData, onSuccess: () => void, onError: (error: string) => void) => void
+  onSubmit: (data: TFormData, onSuccess: (newNodeId?: string) => void, onError: (error: string) => void) => void
 ): NodeTypeDefinition<TFormData> {
   return {
     ...config,

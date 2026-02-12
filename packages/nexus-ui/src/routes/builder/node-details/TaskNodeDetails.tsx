@@ -107,10 +107,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
   const initialData: Partial<ActionFormData> = {
     name: taskData.name,
     executor: executor as 'script' | 'api',
-    language:
-      executor === 'script'
-        ? ((taskData.task.config as { language?: string }).language as 'python' | 'bash' | undefined)
-        : undefined,
+    language: executor === 'script' ? (taskData.task.config as { language?: string }).language : undefined,
     code: executor === 'script' ? (taskData.task.config as { code?: string }).code : undefined,
     method:
       executor === 'api'
@@ -138,6 +135,14 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
 
   const handleSubmit = (data: ActionFormData) => {
     try {
+      const apiHeaders =
+        data.executor === 'api' && data.headers ? (JSON.parse(data.headers) as Record<string, string>) : undefined
+
+      const mergedApiHeaders =
+        data.executor === 'api' && data.authentication
+          ? { ...(apiHeaders ?? {}), Authorization: data.authentication }
+          : apiHeaders
+
       const updatedActivity = {
         ...taskData,
         name: data.name,
@@ -147,13 +152,13 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
           config:
             data.executor === 'script'
               ? {
-                  language: data.language as 'python' | 'bash',
+                  language: data.language ?? 'python',
                   code: data.code!,
                 }
               : {
                   method: data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
                   url: data.url!,
-                  ...(data.headers && { headers: JSON.parse(data.headers) }),
+                  ...(mergedApiHeaders && { headers: mergedApiHeaders }),
                   ...(data.body && {
                     body: (() => {
                       try {

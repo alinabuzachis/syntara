@@ -176,16 +176,16 @@ describe('AddNodePanel Component', () => {
   })
 
   describe('Node Selection', () => {
-    it('shows form when node type is clicked', async () => {
+    it('shows form when node type without subtypes is clicked', async () => {
       const user = userEvent.setup()
       const mockNodeTypes = [
         {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts or make API calls',
-          keywords: ['script'],
+          id: 'approval',
+          label: 'Approval',
+          icon: () => <div>ApprovalIcon</div>,
+          category: 'approval',
+          description: 'Require approval before continuing',
+          keywords: ['approval'],
           order: 30,
           formComponent: MockFormComponent,
           onSubmit: vi.fn(),
@@ -197,9 +197,111 @@ describe('AddNodePanel Component', () => {
 
       render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
 
-      const actionButton = screen.getByRole('button', { name: /action/i })
-      await user.click(actionButton)
+      const approvalButton = screen.getByRole('button', { name: /approval/i })
+      await user.click(approvalButton)
 
+      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
+    })
+
+    it('shows action subtypes and opens form when subtype is selected', async () => {
+      const user = userEvent.setup()
+      const actionNode = {
+        id: 'action',
+        label: 'Action',
+        icon: () => <div>ActionIcon</div>,
+        category: 'action',
+        description: 'Execute scripts or make API calls',
+        keywords: ['script', 'api'],
+        order: 30,
+        selectionTitle: 'Select an action node',
+        formComponent: MockFormComponent,
+        onSubmit: vi.fn(),
+        subtypes: [
+          {
+            id: 'action-script',
+            label: 'Script',
+            icon: () => <div>ScriptIcon</div>,
+            description: 'Execute code to manage complex conditions.',
+            formTitle: 'Configure Script Actions',
+          },
+          {
+            id: 'action-api',
+            label: 'REST API',
+            icon: () => <div>ApiIcon</div>,
+            description: 'Trigger an action or retrieve data.',
+            formTitle: 'Configure REST API Actions',
+          },
+        ],
+      }
+
+      vi.mocked(NodeRegistry.getAll).mockReturnValue([actionNode] as never)
+      vi.mocked(NodeRegistry.get).mockReturnValue(actionNode as never)
+
+      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
+
+      await user.click(screen.getByRole('button', { name: /action/i }))
+
+      expect(screen.getByText('Select an action node')).toBeInTheDocument()
+      expect(screen.getByText('Script')).toBeInTheDocument()
+      expect(screen.getByText('REST API')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /script/i }))
+
+      expect(screen.getByText('Configure Script Actions')).toBeInTheDocument()
+      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
+    })
+
+    it('shows logic subtypes and opens form when subtype is selected', async () => {
+      const user = userEvent.setup()
+      const logicNode = {
+        id: 'logic',
+        label: 'Logic',
+        icon: () => <div>LogicIcon</div>,
+        category: 'logic',
+        description: 'Add conditional logic and branching',
+        keywords: ['condition', 'loop', 'converge'],
+        order: 20,
+        selectionTitle: 'Select a logic node',
+        formComponent: MockFormComponent,
+        onSubmit: vi.fn(),
+        subtypes: [
+          {
+            id: 'logic-condition',
+            label: 'Conditional',
+            icon: () => <div>ConditionalIcon</div>,
+            description: 'Set parameters to branch the automation.',
+            formTitle: 'Configure Conditional Logic',
+          },
+          {
+            id: 'logic-converge',
+            label: 'Converge',
+            icon: () => <div>ConvergeIcon</div>,
+            description: 'Converge automation to single path.',
+          },
+          {
+            id: 'logic-loop',
+            label: 'Loop',
+            icon: () => <div>LoopIcon</div>,
+            description: 'Batch automation to repeat specific actions.',
+          },
+        ],
+      }
+
+      vi.mocked(NodeRegistry.getAll).mockReturnValue([logicNode] as never)
+      vi.mocked(NodeRegistry.get).mockReturnValue(logicNode as never)
+
+      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
+
+      await user.click(screen.getByRole('button', { name: /logic/i }))
+
+      expect(screen.getByText('Select a logic node')).toBeInTheDocument()
+      expect(screen.getByText('Conditional')).toBeInTheDocument()
+      expect(screen.getByText('Converge')).toBeInTheDocument()
+      expect(screen.getByText('Loop')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /conditional/i }))
+
+      expect(screen.getByText('Configure Conditional Logic')).toBeInTheDocument()
       expect(screen.getByTestId('mock-form')).toBeInTheDocument()
     })
 

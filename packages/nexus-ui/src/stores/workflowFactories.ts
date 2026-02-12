@@ -108,7 +108,7 @@ export function createEventTrigger(source: string, eventType: string, filter?: R
  * Create a script activity.
  * @param id - Unique activity identifier
  * @param name - Display name for the activity
- * @param language - Script language: 'python', 'javascript', 'bash', or 'powershell'
+ * @param language - Script language (e.g., 'python', 'bash', 'javascript', 'powershell')
  * @param code - Script code to execute
  * @param inputs - Optional JSON string of input parameters
  * @note API schema currently only supports 'python' and 'bash' - using type assertion for forward compatibility
@@ -116,7 +116,7 @@ export function createEventTrigger(source: string, eventType: string, filter?: R
 export function createScriptActivity(
   id: string,
   name: string,
-  language: 'python' | 'javascript' | 'bash' | 'powershell',
+  language: string,
   code: string,
   inputs?: string
 ): TaskActivity {
@@ -153,6 +153,7 @@ export function createScriptActivity(
  * @param headers - Optional JSON string of HTTP headers
  * @param body - Optional JSON string of request body
  * @param inputs - Optional JSON string of input parameters
+ * @param authentication - Optional authentication value (merged into headers)
  */
 export function createApiActivity(
   id: string,
@@ -161,7 +162,8 @@ export function createApiActivity(
   url: string,
   headers?: string,
   body?: string,
-  inputs?: string
+  inputs?: string,
+  authentication?: string
 ): TaskActivity {
   const config: {
     method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -178,6 +180,13 @@ export function createApiActivity(
       config.headers = JSON.parse(headers) as { [key: string]: string }
     } catch {
       // If headers is not valid JSON, skip it
+    }
+  }
+
+  if (authentication) {
+    config.headers = {
+      ...(config.headers ?? {}),
+      Authorization: authentication,
     }
   }
 

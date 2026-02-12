@@ -24,7 +24,8 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 export interface ActionFormData {
   name: string
   executor: ExecutorType
-  language?: ScriptLanguage
+  // Allow legacy or custom values to round-trip existing data.
+  language?: string
   code?: string
   method?: HttpMethod
   url?: string
@@ -42,11 +43,6 @@ interface ActionNodeFormProps {
 }
 
 // Constants (Priority 4)
-const EXECUTOR_OPTIONS: Array<{ label: string; value: ExecutorType }> = [
-  { label: 'Script', value: 'script' },
-  { label: 'REST Api', value: 'api' },
-]
-
 const SCRIPT_LANGUAGE_OPTIONS: Array<{ label: string; value: ScriptLanguage }> = [
   { label: 'Python', value: 'python' },
   { label: 'Bash', value: 'bash' },
@@ -79,27 +75,7 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
         paddingRight: 'var(--pf-t--global--spacer--xs)',
       }}
     >
-      <StackItem>
-        <FormGroup label="Action type" fieldId="action-executor">
-          <Controller
-            control={control}
-            name="executor"
-            render={({ field }) => (
-              <FormSelect
-                id="action-executor"
-                aria-label="Action type"
-                value={field.value}
-                onChange={(_event, value) => field.onChange(value)}
-              >
-                {EXECUTOR_OPTIONS.map((option) => (
-                  <FormSelectOption key={option.value} value={option.value} label={option.label} />
-                ))}
-              </FormSelect>
-            )}
-          />
-        </FormGroup>
-      </StackItem>
-
+      <input type="hidden" {...register('executor')} />
       <StackItem>
         <FormGroup label="Name" fieldId="action-name">
           <TextInput {...register('name')} id="action-name" placeholder="Enter activity name" type="text" />
@@ -237,7 +213,7 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
 export function ActionNodeForm(props: ActionNodeFormProps) {
   const defaultValues: ActionFormData = {
     name: '',
-    executor: 'script',
+    executor: props.initialData?.executor ?? 'script',
     language: 'python',
     method: 'GET',
     ...props.initialData,

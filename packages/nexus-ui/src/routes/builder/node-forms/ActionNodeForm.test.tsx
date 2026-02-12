@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ActionNodeForm } from './ActionNodeForm'
 
@@ -12,14 +12,14 @@ describe('ActionNodeForm', () => {
     vi.clearAllMocks()
   })
 
-  it('renders form with script fields by default', () => {
+  it('renders script fields by default and hides the action type selector', () => {
     render(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
-    expect(screen.getByLabelText(/Action type/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/Enter activity name/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Action type/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/Language/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/Enter your code/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('{"key": "value"}')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Code/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/URL/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/HTTP Method/i)).not.toBeInTheDocument()
   })
 
   it('submits script form data', async () => {
@@ -40,23 +40,22 @@ describe('ActionNodeForm', () => {
     )
   })
 
-  it('switches to API executor and shows API fields', async () => {
-    const user = userEvent.setup()
-    render(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+  it('renders API fields when initialData sets executor to api', () => {
+    render(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ executor: 'api' }} />)
 
-    await user.selectOptions(screen.getByLabelText(/Action type/i), 'api')
-
-    expect(screen.getByPlaceholderText(/https:\/\/api.example.com/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Action type/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/URL/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/HTTP Method/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/Bearer token/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/Content-Type/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Language/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Code/i)).not.toBeInTheDocument()
   })
 
   it('submits API form data', async () => {
     const user = userEvent.setup()
-    render(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    render(
+      <ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ executor: 'api' }} />
+    )
 
-    await user.selectOptions(screen.getByLabelText(/Action type/i), 'api')
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test API')
     await user.type(screen.getByPlaceholderText(/https:\/\/api.example.com/i), 'https://api.test.com/data')
     await user.selectOptions(screen.getByLabelText(/HTTP Method/i), 'POST')
@@ -70,33 +69,6 @@ describe('ActionNodeForm', () => {
         method: 'POST',
         url: 'https://api.test.com/data',
         authentication: 'my-secret-token',
-      })
-    )
-  })
-
-  it('cleans up data when switching executor types', async () => {
-    const user = userEvent.setup()
-    render(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
-
-    // Fill out script fields
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Action')
-    await user.type(screen.getByPlaceholderText(/Enter your code/i), 'some code')
-
-    // Switch to API and fill URL
-    await user.selectOptions(screen.getByLabelText(/Action type/i), 'api')
-    await user.type(screen.getByPlaceholderText(/https:\/\/api.example.com/i), 'https://api.test.com')
-
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        executor: 'api',
-        // Script fields should be undefined
-        language: undefined,
-        code: undefined,
-        // API fields should be present
-        url: 'https://api.test.com',
-        method: 'GET',
       })
     )
   })
@@ -152,21 +124,9 @@ describe('ActionNodeForm', () => {
     expect(screen.getByRole('button', { name: /Update node/i })).toBeInTheDocument()
   })
 
-  it('has code field for script executor', () => {
-    render(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+  it('validates URL field for API executor', () => {
+    render(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ executor: 'api' }} />)
 
-    // The Code field should exist for script executor
-    expect(screen.getByPlaceholderText(/Enter your code/i)).toBeInTheDocument()
-  })
-
-  it('validates URL field for API executor', async () => {
-    const user = userEvent.setup()
-    render(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
-
-    await user.selectOptions(screen.getByLabelText(/Action type/i), 'api')
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test')
-
-    // URL field should be required
     expect(screen.getByPlaceholderText(/https:\/\/api.example.com/i)).toHaveAttribute('type', 'url')
   })
 

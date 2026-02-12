@@ -1,4 +1,9 @@
-import { RhUiBranchFillIcon } from '@patternfly/react-icons'
+import {
+  RhUiBranchFillIcon,
+  RhUiConditionNodeIcon,
+  RhUiLoopNodeIcon,
+  RhUiMergeNodesIcon,
+} from '@patternfly/react-icons'
 
 import {
   createConditionActivity,
@@ -7,24 +12,10 @@ import {
   createLoopActivity,
   useWorkflowStore,
 } from '../../../../stores/useWorkflowStore'
-import { LogicNodeForm } from '../../node-forms/LogicNodeForm'
+import { LogicNodeForm, type LogicFormData } from '../../node-forms/LogicNodeForm'
 import { getNodeDisplayName } from '../../utils/nodeNaming'
 import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
-
-type LogicFormData = {
-  name: string
-  logicType: string
-  condition?: string
-  type?: string
-  items?: string
-  maxIterations?: number
-  indexVariable?: string
-  itemVariable?: string
-  timeout?: string
-  onTimeout?: 'continue' | 'fail'
-  aggregateOutputs?: boolean
-}
 
 /**
  * Generate a cryptographically secure random ID suffix
@@ -51,7 +42,34 @@ export default function registerLogicNode() {
         description: 'Add conditional logic and branching to workflows',
         keywords: ['if', 'else', 'condition', 'branch', 'switch', 'case', 'decision', 'converge', 'join'],
         order: 50,
+        selectionTitle: 'Select a logic node',
         formComponent: LogicNodeForm,
+        subtypes: [
+          {
+            id: 'logic-condition',
+            label: 'Conditional',
+            icon: RhUiConditionNodeIcon,
+            description: 'Set parameters to branch the automation.',
+            formTitle: 'Configure Conditional Logic',
+            initialData: { logicType: 'condition' },
+          },
+          {
+            id: 'logic-converge',
+            label: 'Converge',
+            icon: RhUiMergeNodesIcon,
+            description: 'Converge automation to single path.',
+            formTitle: 'Configure Converge Logic',
+            initialData: { logicType: 'converge' },
+          },
+          {
+            id: 'logic-loop',
+            label: 'Loop',
+            icon: RhUiLoopNodeIcon,
+            description: 'Batch automation to repeat specific actions.',
+            formTitle: 'Configure Loop Logic',
+            initialData: { logicType: 'loop' },
+          },
+        ],
       },
       (data, onSuccess, onError) => {
         try {
