@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
 
 /**
  * Utility class for navigating and traversing Activity structures.
@@ -23,7 +23,7 @@ export class ActivityTraversal {
    * // For a single activity, returns its ID
    */
   static getFirstActivityId(activity: Activity): string {
-    if (activity.type === 'sequence') {
+    if (activity.type === ActivityTypeEnum.SEQUENCE) {
       const steps = activity.steps || []
       if (steps.length > 0) {
         return this.getFirstActivityId(steps[0])
@@ -39,14 +39,14 @@ export class ActivityTraversal {
    * For loops, we return the loop node itself (it's the last activity via 'done' handle).
    */
   static getLastActivityId(activity: Activity): string {
-    if (activity.type === 'sequence') {
+    if (activity.type === ActivityTypeEnum.SEQUENCE) {
       const steps = activity.steps || []
       if (steps.length > 0) {
         return this.getLastActivityId(steps[steps.length - 1])
       }
     }
 
-    if (activity.type === 'condition') {
+    if (activity.type === ActivityTypeEnum.CONDITION) {
       const condActivity = activity
       // For conditions, we find the last activity in the then branch
       // (or else branch if then is empty). If both branches lead to the same converge point,
@@ -74,14 +74,14 @@ export class ActivityTraversal {
    * This returns all potential endpoints.
    */
   static getAllLastActivityIds(activity: Activity): string[] {
-    if (activity.type === 'sequence') {
+    if (activity.type === ActivityTypeEnum.SEQUENCE) {
       const steps = activity.steps || []
       if (steps.length > 0) {
         return this.getAllLastActivityIds(steps[steps.length - 1])
       }
     }
 
-    if (activity.type === 'parallel') {
+    if (activity.type === ActivityTypeEnum.PARALLEL) {
       const parallelActivity = activity
       const branches = parallelActivity.branches || []
       const lastIds: string[] = []
@@ -94,7 +94,7 @@ export class ActivityTraversal {
       return lastIds.length > 0 ? lastIds : [activity.id]
     }
 
-    if (activity.type === 'condition') {
+    if (activity.type === ActivityTypeEnum.CONDITION) {
       const condActivity = activity
       const thenActivities = condActivity.then || []
       const elseActivities = condActivity.else || []
@@ -127,13 +127,13 @@ export class ActivityTraversal {
    */
   static getNestedActivities(activity: Activity): Activity[] {
     switch (activity.type) {
-      case 'sequence':
+      case ActivityTypeEnum.SEQUENCE:
         return activity.steps || []
-      case 'parallel':
+      case ActivityTypeEnum.PARALLEL:
         return activity.branches || []
-      case 'loop':
+      case ActivityTypeEnum.LOOP:
         return activity.loop?.do || []
-      case 'condition':
+      case ActivityTypeEnum.CONDITION:
         return [...(activity.then || []), ...(activity.else || [])]
       default:
         return []

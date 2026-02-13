@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
 
 import type { ValidationError } from '../types'
 
@@ -24,12 +24,12 @@ function findActivities(activities: Activity[], predicate: (activity: Activity) 
       }
 
       // Recursively traverse nested structures
-      if (activity.type === 'loop' && activity.loop?.do) {
+      if (activity.type === ActivityTypeEnum.LOOP && activity.loop?.do) {
         traverse(activity.loop.do)
-      } else if (activity.type === 'condition') {
+      } else if (activity.type === ActivityTypeEnum.CONDITION) {
         if (activity.then) traverse(activity.then)
         if (activity.else) traverse(activity.else)
-      } else if (activity.type === 'parallel' && activity.branches) {
+      } else if (activity.type === ActivityTypeEnum.PARALLEL && activity.branches) {
         traverse(activity.branches)
       }
     }

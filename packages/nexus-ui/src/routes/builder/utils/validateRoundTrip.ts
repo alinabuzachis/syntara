@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
 
 import { buildNestedConditionStructure } from './buildNestedStructure'
 import { WorkflowTransform, type EdgeConnection } from './workflowTransform'
@@ -7,9 +7,9 @@ import { WorkflowTransform, type EdgeConnection } from './workflowTransform'
  * Check if an activity is a legacy type (sequence/loop/user-created parallel)
  */
 function isLegacyActivity(activity: Activity): boolean {
-  if (activity.type === 'sequence' || activity.type === 'loop') return true
+  if (activity.type === ActivityTypeEnum.SEQUENCE || activity.type === ActivityTypeEnum.LOOP) return true
   // User-created parallel nodes (not auto-generated parallel_for_* wrappers)
-  return activity.type === 'parallel' && !activity.id.startsWith('parallel_for_')
+  return activity.type === ActivityTypeEnum.PARALLEL && !activity.id.startsWith('parallel_for_')
 }
 
 /**
@@ -17,13 +17,13 @@ function isLegacyActivity(activity: Activity): boolean {
  */
 function getNestedActivities(activity: Activity): Activity[][] {
   switch (activity.type) {
-    case 'condition':
+    case ActivityTypeEnum.CONDITION:
       return [activity.then || [], activity.else || []]
-    case 'parallel':
+    case ActivityTypeEnum.PARALLEL:
       return activity.branches ? [activity.branches] : []
-    case 'sequence':
+    case ActivityTypeEnum.SEQUENCE:
       return activity.steps ? [activity.steps] : []
-    case 'loop':
+    case ActivityTypeEnum.LOOP:
       return activity.loop.do ? [activity.loop.do] : []
     default:
       return []
@@ -234,7 +234,7 @@ export function validateSavePath(activities: Activity[], edges: EdgeConnection[]
 
     // Verify all condition nodes have been processed
     for (const activity of nested) {
-      if (activity.type === 'condition') {
+      if (activity.type === ActivityTypeEnum.CONDITION) {
         // Nested conditions should have non-empty then/else arrays
         // (unless the condition truly has no branches)
         const hasOutgoingEdges = edges.some(

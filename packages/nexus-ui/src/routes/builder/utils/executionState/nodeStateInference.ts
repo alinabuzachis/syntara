@@ -1,4 +1,4 @@
-import type { Activity, ActivityState, WorkflowAPI } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, type Activity, type ActivityState, type WorkflowAPI } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../../types/edge'
 
@@ -207,10 +207,10 @@ export class ConditionalNodeStateInferrer implements NodeStateInferrer {
     if (edge.source !== activityId) return false
 
     return (
-      edge.sourceHandle === 'true' ||
-      edge.sourceHandle === 'false' ||
-      edge.sourceHandle === 'approved' ||
-      edge.sourceHandle === 'rejected'
+      edge.sourceHandle === EdgeHandleEnum.TRUE ||
+      edge.sourceHandle === EdgeHandleEnum.FALSE ||
+      edge.sourceHandle === EdgeHandleEnum.APPROVED ||
+      edge.sourceHandle === EdgeHandleEnum.REJECTED
     )
   }
 }

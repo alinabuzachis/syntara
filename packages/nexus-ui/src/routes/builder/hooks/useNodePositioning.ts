@@ -1,3 +1,4 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { useEffect, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
@@ -116,7 +117,7 @@ export function useNodePositioning({
       // Build a Map of loop body nodes for O(1) lookup instead of O(n) edges.some() calls
       const loopBodyNodeMap = new Map<string, string>() // body node ID -> loop node ID
       edges.forEach((e) => {
-        if (e.sourceHandle === 'loop') {
+        if (e.sourceHandle === EdgeHandleEnum.LOOP) {
           loopBodyNodeMap.set(e.target, e.source)
         }
       })

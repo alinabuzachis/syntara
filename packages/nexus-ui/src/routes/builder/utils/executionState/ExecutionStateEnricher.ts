@@ -1,4 +1,4 @@
-import type { Activity, ActivityState } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity, type ActivityState } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../../types/edge'
 
@@ -256,7 +256,7 @@ export class ExecutionStateEnricher {
     if (activities) {
       // Check activity type directly (most reliable)
       const sourceActivity = activities.find((a) => a.id === edge.source)
-      isSourceConverge = sourceActivity?.type === 'converge'
+      isSourceConverge = sourceActivity?.type === ActivityTypeEnum.CONVERGE
     } else {
       // Fallback to ID pattern matching
       isSourceConverge = edge.source.startsWith('converge-')

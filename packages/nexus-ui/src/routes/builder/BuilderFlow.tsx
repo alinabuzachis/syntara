@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
 import { Spinner } from '@patternfly/react-core'
 import {
   applyEdgeChanges,
@@ -154,7 +154,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     // Create nodes for converge, condition, and loop activities first (needed for loop-back detection)
     activities.forEach((activity: Activity) => {
-      if (activity.type === 'converge') {
+      if (activity.type === ActivityTypeEnum.CONVERGE) {
         const activityData = executionStateEnricher.enrichActivity(
           activity,
           executionStatus,
@@ -163,12 +163,12 @@ export function BuilderFlow(props: BuilderFlowProps) {
         )
         nodes.push({
           id: activity.id,
-          type: 'converge',
+          type: ActivityTypeEnum.CONVERGE,
           position: { x: 0, y: 0 },
           // @ts-expect-error - ActivityWithMetadata extends Activity, safe to use
           data: activityData,
         })
-      } else if (activity.type === 'condition') {
+      } else if (activity.type === ActivityTypeEnum.CONDITION) {
         const activityData = executionStateEnricher.enrichActivity(
           activity,
           executionStatus,
@@ -177,12 +177,12 @@ export function BuilderFlow(props: BuilderFlowProps) {
         )
         nodes.push({
           id: activity.id,
-          type: 'condition',
+          type: ActivityTypeEnum.CONDITION,
           position: { x: 0, y: 0 },
           // @ts-expect-error - ActivityWithMetadata extends Activity, safe to use
           data: activityData,
         })
-      } else if (activity.type === 'loop') {
+      } else if (activity.type === ActivityTypeEnum.LOOP) {
         const activityData = executionStateEnricher.enrichActivity(
           activity,
           executionStatus,
@@ -191,7 +191,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         )
         nodes.push({
           id: activity.id,
-          type: 'loop',
+          type: ActivityTypeEnum.LOOP,
           position: { x: 0, y: 0 },
           // @ts-expect-error - ActivityWithMetadata extends Activity, safe to use
           data: activityData,
@@ -551,7 +551,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
           return { ...node, type: 'task-reversed' as const }
         } else if (!shouldBeReversed && isCurrentlyReversed) {
           hasChanges = true
-          return { ...node, type: 'task' as const }
+          return { ...node, type: ActivityTypeEnum.TASK }
         }
 
         return node

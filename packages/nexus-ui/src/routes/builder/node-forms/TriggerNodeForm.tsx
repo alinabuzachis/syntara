@@ -1,3 +1,4 @@
+import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { Form, FormGroup, FormSelect, FormSelectOption, Stack, StackItem } from '@patternfly/react-core'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
@@ -35,7 +36,7 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
       />
       <input type="hidden" {...register('triggerType')} />
 
-      {triggerType === 'scheduled' && (
+      {triggerType === TriggerTypeEnum.SCHEDULED && (
         <>
           <StackItem>
             <FormGroup label="Schedule type" fieldId="schedule-type">
@@ -95,8 +96,9 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
     const cleanedData: TriggerFormData = {
       name: data.name,
       triggerType: data.triggerType,
-      scheduleType: data.triggerType === 'scheduled' ? data.scheduleType : undefined,
-      interval: data.triggerType === 'scheduled' && data.scheduleType === 'interval' ? data.interval : undefined,
+      scheduleType: data.triggerType === TriggerTypeEnum.SCHEDULED ? data.scheduleType : undefined,
+      interval:
+        data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType === 'interval' ? data.interval : undefined,
     }
     props.onSubmit(cleanedData)
   }

@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
 
 // ============================================================================
 // Workflow Entity Factory Functions
@@ -121,7 +121,7 @@ export function createScriptActivity(
   inputs?: string
 ): TaskActivity {
   const activity: TaskActivity = {
-    type: 'task',
+    type: ActivityTypeEnum.TASK,
     id,
     name,
     task: {
@@ -200,7 +200,7 @@ export function createApiActivity(
   }
 
   const activity: TaskActivity = {
-    type: 'task',
+    type: ActivityTypeEnum.TASK,
     id,
     name,
     task: {
@@ -266,7 +266,7 @@ export function createAgenticActivity(
   }
 
   const activity: TaskActivity = {
-    type: 'task',
+    type: ActivityTypeEnum.TASK,
     id,
     name,
     task: {
@@ -301,7 +301,7 @@ export function createConditionActivity(
   // This is a workflow domain object representing conditional branching, NOT a JavaScript Promise.
   // SonarCloud flags 'then' properties as potential Promise confusion - suppressing this false positive.
   return {
-    type: 'condition',
+    type: ActivityTypeEnum.CONDITION,
     id,
     name,
     condition,
@@ -330,7 +330,7 @@ export function createLoopActivity(
   }
 ): Extract<Activity, { type: 'loop' }> {
   const baseActivity = {
-    type: 'loop' as const,
+    type: ActivityTypeEnum.LOOP,
     id,
     name,
     loop: {
@@ -396,7 +396,7 @@ export function createConvergeActivity(
   }
 ): Extract<Activity, { type: 'converge' }> {
   const convergeActivity: Extract<Activity, { type: 'converge' }> = {
-    type: 'converge',
+    type: ActivityTypeEnum.CONVERGE,
     id,
     name,
     converge: {
@@ -435,7 +435,7 @@ export function createAAPJobTemplateActivity(
 ): TaskActivity {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const activity: any = {
-    type: 'task',
+    type: ActivityTypeEnum.TASK,
     id,
     name,
     task: {
@@ -476,7 +476,7 @@ export function createConnectorActivity(
   }
 
   const activity: TaskActivity = {
-    type: 'task',
+    type: ActivityTypeEnum.TASK,
     id,
     name,
     task: {
@@ -503,7 +503,7 @@ export function createGenericActivity(id: string, name: string = 'New Node', cus
   // The __isGeneric metadata flag marks this as a placeholder that should be replaced
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const activity: any = {
-    type: 'task',
+    type: ActivityTypeEnum.TASK,
     id,
     name,
     metadata: {
@@ -541,7 +541,7 @@ export function createApprovalActivity(
   // Note: metadata is not in the API schema but is used by the UI to identify node types
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const activity: any = {
-    type: 'task',
+    type: ActivityTypeEnum.TASK,
     id,
     name,
     // Mark this activity as requiring approval

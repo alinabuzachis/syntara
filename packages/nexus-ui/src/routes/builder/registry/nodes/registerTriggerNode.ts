@@ -1,3 +1,4 @@
+import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { RhUiCalendarIcon, RhUiPlayIcon } from '@patternfly/react-icons'
 
 import { createManualTrigger, createScheduledTrigger, useWorkflowStore } from '../../../../stores/useWorkflowStore'
@@ -29,7 +30,7 @@ export default function registerTriggerNode() {
             icon: RhUiPlayIcon,
             description: 'Automation will start when run is clicked.',
             formTitle: 'Configure Manual Triggers',
-            initialData: { triggerType: 'manual' },
+            initialData: { triggerType: TriggerTypeEnum.MANUAL },
           },
           {
             id: 'trigger-scheduled',
@@ -37,7 +38,7 @@ export default function registerTriggerNode() {
             icon: RhUiCalendarIcon,
             description: 'Automation will start based on a schedule.',
             formTitle: 'Configure Schedule Triggers',
-            initialData: { triggerType: 'scheduled' },
+            initialData: { triggerType: TriggerTypeEnum.SCHEDULED },
           },
         ],
         formComponent: TriggerNodeForm,
@@ -45,10 +46,10 @@ export default function registerTriggerNode() {
       (data, onSuccess, onError) => {
         try {
           const { trigger } = buildNamedTrigger('Trigger', data.name, (name) => {
-            if (data.triggerType === 'manual') {
+            if (data.triggerType === TriggerTypeEnum.MANUAL) {
               return createManualTrigger(undefined, name)
             }
-            if (data.triggerType === 'scheduled' && data.scheduleType) {
+            if (data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType) {
               return createScheduledTrigger(
                 data.scheduleType as 'cron' | 'interval' | 'continuous',
                 {

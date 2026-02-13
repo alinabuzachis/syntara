@@ -1,3 +1,4 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import Dagre from '@dagrejs/dagre'
 
 import { filterRealEdges, filterRealNodes } from './filterHelpers'
@@ -82,7 +83,7 @@ function identifyLoopStructures(realNodes: NodeType[], realEdges: EdgeType[]) {
   realNodes.forEach((node) => {
     if (node.type === 'loop') {
       // Find all edges from this loop's 'loop' handle
-      const loopEdges = realEdges.filter((e) => e.source === node.id && e.sourceHandle === 'loop')
+      const loopEdges = realEdges.filter((e) => e.source === node.id && e.sourceHandle === EdgeHandleEnum.LOOP)
       const bodyNodeIds: string[] = []
 
       loopEdges.forEach((loopEdge) => {
@@ -102,7 +103,9 @@ function identifyLoopStructures(realNodes: NodeType[], realEdges: EdgeType[]) {
           // Find outgoing edges (but don't follow edges back to loop's end)
           const outgoing = realEdges.filter(
             (e) =>
-              e.source === nodeId && e.sourceHandle === 'source' && !(e.target === node.id && e.targetHandle === 'end')
+              e.source === nodeId &&
+              e.sourceHandle === EdgeHandleEnum.SOURCE &&
+              !(e.target === node.id && e.targetHandle === EdgeHandleEnum.END)
           )
 
           outgoing.forEach((e) => {

@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../../workflowTransform'
 import type { ValidationError } from '../types'
@@ -43,7 +43,8 @@ function traceToConditions(
 
     // If source is a condition node, record which branch we came from
     if (sourceNode.type === 'condition') {
-      const branch = edge.sourceHandle === 'true' ? 'then' : edge.sourceHandle === 'false' ? 'else' : null
+      const branch =
+        edge.sourceHandle === EdgeHandleEnum.TRUE ? 'then' : edge.sourceHandle === EdgeHandleEnum.FALSE ? 'else' : null
       if (branch) {
         results.push({
           conditionId: sourceNode.id,
@@ -97,7 +98,12 @@ export function validateConvergeInputs(activities: Activity[], edges: EdgeConnec
       // First check if the direct source is a condition node
       const sourceNode = activities.find((a) => a.id === edge.source)
       if (sourceNode?.type === 'condition') {
-        const branch = edge.sourceHandle === 'true' ? 'then' : edge.sourceHandle === 'false' ? 'else' : null
+        const branch =
+          edge.sourceHandle === EdgeHandleEnum.TRUE
+            ? 'then'
+            : edge.sourceHandle === EdgeHandleEnum.FALSE
+              ? 'else'
+              : null
         if (branch) {
           if (!conditionBranches.has(sourceNode.id)) {
             conditionBranches.set(sourceNode.id, new Set())

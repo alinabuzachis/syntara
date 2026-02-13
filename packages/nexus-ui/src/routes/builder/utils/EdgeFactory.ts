@@ -1,3 +1,4 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { addEdge } from '@xyflow/react'
 
 import type { EdgeConnection } from '../types/edge'
@@ -49,7 +50,7 @@ export class EdgeFactory {
 
     // Generate edge ID based on sourceHandle
     const edgeId =
-      sourceHandle && ['true', 'false'].includes(sourceHandle)
+      sourceHandle && [EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE].includes(sourceHandle)
         ? `${source}-${sourceHandle}-${target}`
         : `${source}-${target}`
 
@@ -59,11 +60,11 @@ export class EdgeFactory {
     // - loopDone: edges FROM loop's done handle (exiting the loop when complete)
     // - default: all other edges
     let edgeType: string = 'default'
-    if (targetHandle === 'end') {
+    if (targetHandle === EdgeHandleEnum.END) {
       edgeType = 'loopBack'
-    } else if (sourceHandle === 'loop') {
+    } else if (sourceHandle === EdgeHandleEnum.LOOP) {
       edgeType = 'loopOutgoing'
-    } else if (sourceHandle === 'done') {
+    } else if (sourceHandle === EdgeHandleEnum.DONE) {
       edgeType = 'loopDone'
     }
 
@@ -72,7 +73,7 @@ export class EdgeFactory {
       source,
       target,
       ...(sourceHandle ? { sourceHandle } : {}),
-      targetHandle: targetHandle || 'target',
+      targetHandle: targetHandle || EdgeHandleEnum.TARGET,
       type: edgeType,
       markerEnd,
       ...(onAddNode ? { data: { onAddNode } } : {}),
@@ -166,7 +167,10 @@ export class EdgeFactory {
    * ```
    */
   static removeButtonEdge(nodeId: string, edges: EdgeType[], sourceHandle?: string): EdgeType[] {
-    if (sourceHandle && ['true', 'false', 'done', 'loop'].includes(sourceHandle)) {
+    if (
+      sourceHandle &&
+      [EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE, EdgeHandleEnum.DONE, EdgeHandleEnum.LOOP].includes(sourceHandle)
+    ) {
       // Remove specific handle button edge for condition/loop nodes
       return edges.filter((e) => e.id !== `button-${nodeId}-${sourceHandle}`)
     }

@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../types/edge'
 
@@ -20,7 +20,7 @@ export class EdgeGenerator {
    * Loop nodes use 'done' handle, all other nodes use 'source' handle.
    */
   static getSourceHandle(activity: Activity): string {
-    return activity.type === 'loop' ? 'done' : 'source'
+    return activity.type === ActivityTypeEnum.LOOP ? 'done' : 'source'
   }
 
   /**

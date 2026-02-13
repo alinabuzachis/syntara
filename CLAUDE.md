@@ -317,6 +317,153 @@ Before writing conditional logic with strings:
 3. ❌ Is this string shown to users in the UI? → **Do NOT use in logic**
 4. ❌ Would this string be translated to other languages? → **Do NOT use in logic**
 
+### Prefer Enum Constants Over String Literals
+
+**CRITICAL: Use centralized enum constants instead of string literals for discriminators and identifiers to prevent typos.**
+
+String literals in comparisons and assignments are error-prone. A single typo in a string comparison (`activity.type === 'converge'` vs `activity.type === 'convege'`) will silently fail without any TypeScript error, leading to bugs that are hard to track down.
+
+#### Why Use Enum Constants
+
+**Problem with string literals:**
+
+```typescript
+// ❌ BAD: Typo-prone, no compile-time safety
+if (activity.type === 'condition') {
+  // ✓ works
+  // ...
+}
+if (activity.type === 'condtion') {
+  // ✗ typo! No TypeScript error
+  // This condition will never match - silent bug
+}
+
+// ❌ BAD: Inconsistent casing
+if (edge.sourceHandle === 'Loop') {
+  // ✗ Should be 'loop'
+  // Never matches - silent bug
+}
+```
+
+**Solution with enum constants:**
+
+```typescript
+// ✅ GOOD: TypeScript catches typos at compile time
+if (activity.type === ActivityTypeEnum.CONDITION) {
+  // ✓ autocomplete + type checking
+  // ...
+}
+if (activity.type === ActivityTypeEnum.CONDTION) {
+  // ✗ TypeScript error!
+  // Property 'CONDTION' does not exist
+}
+```
+
+#### Available Enum Constants
+
+The codebase provides centralized enum constants in `@ansible/nexus-contracts`:
+
+```typescript
+import { ActivityTypeEnum, TriggerTypeEnum, ExecutorTypeEnum, EdgeHandleEnum } from '@ansible/nexus-contracts'
+
+// Activity types
+ActivityTypeEnum.TASK // 'task'
+ActivityTypeEnum.PARALLEL // 'parallel'
+ActivityTypeEnum.SEQUENCE // 'sequence'
+ActivityTypeEnum.CONDITION // 'condition'
+ActivityTypeEnum.LOOP // 'loop'
+ActivityTypeEnum.CONVERGE // 'converge'
+ActivityTypeEnum.APPROVAL // 'approval'
+
+// Trigger types
+TriggerTypeEnum.MANUAL // 'manual'
+TriggerTypeEnum.SCHEDULED // 'scheduled'
+TriggerTypeEnum.EVENT // 'event'
+
+// Executor types
+ExecutorTypeEnum.SCRIPT // 'script'
+ExecutorTypeEnum.API // 'api'
+ExecutorTypeEnum.AGENTIC // 'agentic'
+ExecutorTypeEnum.CONNECTOR // 'connector'
+ExecutorTypeEnum.AAP_JOB_TEMPLATE // 'aap_job_template'
+
+// Edge handles
+EdgeHandleEnum.SOURCE // 'source'
+EdgeHandleEnum.TARGET // 'target'
+EdgeHandleEnum.LOOP // 'loop'
+EdgeHandleEnum.DONE // 'done'
+EdgeHandleEnum.END // 'end'
+EdgeHandleEnum.TRUE // 'true'
+EdgeHandleEnum.FALSE // 'false'
+EdgeHandleEnum.APPROVED // 'approved'
+EdgeHandleEnum.REJECTED // 'rejected'
+```
+
+#### When to Use Enum Constants
+
+**Always use enum constants for:**
+
+1. **Type discriminators** - `activity.type`, `trigger.type`, `task.executor`
+2. **Handle identifiers** - `edge.sourceHandle`, `edge.targetHandle`
+3. **Type assignments** - Creating new activities, edges, triggers
+4. **Switch statements** - Pattern matching on discriminated unions
+
+**Examples:**
+
+```typescript
+// ✅ GOOD: Comparisons
+if (activity.type === ActivityTypeEnum.LOOP) {
+  // ...
+}
+
+if (edge.sourceHandle === EdgeHandleEnum.LOOP) {
+  // ...
+}
+
+switch (activity.type) {
+  case ActivityTypeEnum.CONDITION:
+    return handleCondition(activity)
+  case ActivityTypeEnum.LOOP:
+    return handleLoop(activity)
+}
+
+// ✅ GOOD: Assignments
+const activity = {
+  type: ActivityTypeEnum.TASK,
+  id: generateId(),
+  name: 'My Task',
+}
+
+const edge = {
+  source: nodeId,
+  target: targetId,
+  sourceHandle: EdgeHandleEnum.LOOP,
+  targetHandle: EdgeHandleEnum.END,
+}
+
+// ✅ GOOD: Function parameters
+function createEdge(sourceHandle: string = EdgeHandleEnum.SOURCE) {
+  // ...
+}
+```
+
+#### Benefits
+
+1. **Autocomplete** - IDE suggests available values
+2. **Type safety** - TypeScript catches typos at compile time
+3. **Refactoring** - Rename all usages in one place
+4. **Documentation** - Single source of truth for valid values
+5. **Consistency** - Prevents case mismatches (`'Loop'` vs `'loop'`)
+
+#### Quick Checklist
+
+Before writing a string comparison or assignment:
+
+1. ❓ Is this a type discriminator, handle identifier, or status value?
+2. ✅ If yes → Check if an enum constant exists (ActivityTypeEnum, TriggerTypeEnum, etc.)
+3. ✅ If enum exists → Use it instead of string literal
+4. ❌ If no enum exists → Consider creating one if the value is reused
+
 ### Testing Guidelines
 
 #### Core Principle: Test Behavior, Not Implementation

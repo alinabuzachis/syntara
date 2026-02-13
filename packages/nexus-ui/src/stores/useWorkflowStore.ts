@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
 import { create } from 'zustand'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
@@ -91,15 +91,15 @@ function findActivityById(activities: Activity[], targetId: string): Activity | 
     if (activity.id === targetId) {
       return activity
     }
-    if (activity.type === 'parallel' && activity.branches) {
+    if (activity.type === ActivityTypeEnum.PARALLEL && activity.branches) {
       for (const branch of activity.branches) {
         const found = findActivityById([branch], targetId)
         if (found) return found
       }
-    } else if (activity.type === 'sequence' && activity.steps) {
+    } else if (activity.type === ActivityTypeEnum.SEQUENCE && activity.steps) {
       const found = findActivityById(activity.steps, targetId)
       if (found) return found
-    } else if (activity.type === 'condition') {
+    } else if (activity.type === ActivityTypeEnum.CONDITION) {
       if (activity.then) {
         const found = findActivityById(activity.then, targetId)
         if (found) return found
@@ -108,7 +108,7 @@ function findActivityById(activities: Activity[], targetId: string): Activity | 
         const found = findActivityById(activity.else, targetId)
         if (found) return found
       }
-    } else if (activity.type === 'loop' && activity.loop.do) {
+    } else if (activity.type === ActivityTypeEnum.LOOP && activity.loop.do) {
       const found = findActivityById(activity.loop.do, targetId)
       if (found) return found
     }
@@ -129,7 +129,7 @@ function removeActivityFromList(activities: Activity[], activityId: string): Act
     }
 
     // For other activities, recursively check nested structures
-    if (activity.type === 'parallel') {
+    if (activity.type === ActivityTypeEnum.PARALLEL) {
       const updatedBranches = activity.branches
         ?.map((branch) => removeActivityFromList([branch], activityId)[0])
         .filter((branch): branch is Activity => branch !== undefined)
@@ -146,7 +146,7 @@ function removeActivityFromList(activities: Activity[], activityId: string): Act
         ...activity,
         branches: updatedBranches,
       })
-    } else if (activity.type === 'sequence') {
+    } else if (activity.type === ActivityTypeEnum.SEQUENCE) {
       const updatedSteps = activity.steps ? removeActivityFromList(activity.steps, activityId) : []
 
       // If sequence has no steps, skip it. If only one step, promote it
@@ -162,7 +162,7 @@ function removeActivityFromList(activities: Activity[], activityId: string): Act
         ...activity,
         steps: updatedSteps,
       })
-    } else if (activity.type === 'condition') {
+    } else if (activity.type === ActivityTypeEnum.CONDITION) {
       const updatedThen = activity.then ? removeActivityFromList(activity.then, activityId) : []
       const updatedElse = activity.else ? removeActivityFromList(activity.else, activityId) : undefined
 
@@ -171,7 +171,7 @@ function removeActivityFromList(activities: Activity[], activityId: string): Act
         then: updatedThen,
         else: updatedElse,
       })
-    } else if (activity.type === 'loop') {
+    } else if (activity.type === ActivityTypeEnum.LOOP) {
       const updatedDo = activity.loop.do ? removeActivityFromList(activity.loop.do, activityId) : []
 
       // IMPORTANT: Keep loop nodes even with empty do arrays
@@ -204,23 +204,23 @@ function updateActivityInList(activities: Activity[], activityId: string, update
     }
 
     // Otherwise, recursively search nested structures
-    if (activity.type === 'parallel') {
+    if (activity.type === ActivityTypeEnum.PARALLEL) {
       return {
         ...activity,
         branches: activity.branches ? updateActivityInList(activity.branches, activityId, updates) : activity.branches,
       }
-    } else if (activity.type === 'sequence') {
+    } else if (activity.type === ActivityTypeEnum.SEQUENCE) {
       return {
         ...activity,
         steps: activity.steps ? updateActivityInList(activity.steps, activityId, updates) : activity.steps,
       }
-    } else if (activity.type === 'condition') {
+    } else if (activity.type === ActivityTypeEnum.CONDITION) {
       return {
         ...activity,
         then: activity.then ? updateActivityInList(activity.then, activityId, updates) : activity.then,
         else: activity.else ? updateActivityInList(activity.else, activityId, updates) : activity.else,
       }
-    } else if (activity.type === 'loop') {
+    } else if (activity.type === ActivityTypeEnum.LOOP) {
       return {
         ...activity,
         loop: {
@@ -362,7 +362,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
 
       // Check if we're removing a converge activity
       const activityToRemove = findActivityById(activities, activityId)
-      if (activityToRemove?.type === 'converge') {
+      if (activityToRemove?.type === ActivityTypeEnum.CONVERGE) {
         // Find and cleanup the associated parallel container
         const parallelId = `parallel_for_${activityId}`
         const parallelIndex = activities.findIndex((a) => a.id === parallelId)
@@ -426,23 +426,23 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
       if (!state.currentWorkflow) return state
 
       const activities = [...state.currentWorkflow.workflow.activities]
-      const convergeActivities = activities.filter((a) => a.type === 'converge')
+      const convergeActivities = activities.filter((a) => a.type === ActivityTypeEnum.CONVERGE)
 
       // Build a map of activity ID → parallel container ID
       // This allows us to detect when multiple incoming edges belong to the same parallel group
       const activityToParallelMap = new Map<string, string>()
       activities.forEach((activity) => {
-        if (activity.type === 'parallel' && activity.branches) {
+        if (activity.type === ActivityTypeEnum.PARALLEL && activity.branches) {
           activity.branches.forEach((branch) => {
             // For each activity in the parallel branch, map it to the parallel container ID
             const collectActivityIds = (act: Activity): void => {
               activityToParallelMap.set(act.id, activity.id)
-              if (act.type === 'sequence' && act.steps) {
+              if (act.type === ActivityTypeEnum.SEQUENCE && act.steps) {
                 act.steps.forEach(collectActivityIds)
-              } else if (act.type === 'condition') {
+              } else if (act.type === ActivityTypeEnum.CONDITION) {
                 ;(act.then || []).forEach(collectActivityIds)
                 ;(act.else || []).forEach(collectActivityIds)
-              } else if (act.type === 'loop' && act.loop.do) {
+              } else if (act.type === ActivityTypeEnum.LOOP && act.loop.do) {
                 act.loop.do.forEach(collectActivityIds)
               }
             }
@@ -599,15 +599,15 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
       // Build a map of nested activity ID -> top-level parent activity ID
       const activityToParentMap = new Map<string, string>()
       activities.forEach((activity) => {
-        if (activity.type === 'parallel' && activity.branches) {
+        if (activity.type === ActivityTypeEnum.PARALLEL && activity.branches) {
           activity.branches.forEach((branch) => {
             activityToParentMap.set(branch.id, activity.id)
           })
-        } else if (activity.type === 'sequence' && activity.steps) {
+        } else if (activity.type === ActivityTypeEnum.SEQUENCE && activity.steps) {
           activity.steps.forEach((step) => {
             activityToParentMap.set(step.id, activity.id)
           })
-        } else if (activity.type === 'condition') {
+        } else if (activity.type === ActivityTypeEnum.CONDITION) {
           if (activity.then) {
             activity.then.forEach((step) => {
               activityToParentMap.set(step.id, activity.id)
@@ -618,7 +618,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
               activityToParentMap.set(step.id, activity.id)
             })
           }
-        } else if (activity.type === 'loop' && activity.loop.do) {
+        } else if (activity.type === ActivityTypeEnum.LOOP && activity.loop.do) {
           activity.loop.do.forEach((step) => {
             activityToParentMap.set(step.id, activity.id)
           })
@@ -644,12 +644,12 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
         // - Approval branch edges (sourceHandle='approved'/'rejected')
         // - Loop-back edges (targetHandle='end')
         const isBranchEdge =
-          edge.sourceHandle === 'loop' ||
-          edge.sourceHandle === 'true' ||
-          edge.sourceHandle === 'false' ||
-          edge.sourceHandle === 'approved' ||
-          edge.sourceHandle === 'rejected'
-        const isLoopBackEdge = edge.targetHandle === 'end'
+          edge.sourceHandle === EdgeHandleEnum.LOOP ||
+          edge.sourceHandle === EdgeHandleEnum.TRUE ||
+          edge.sourceHandle === EdgeHandleEnum.FALSE ||
+          edge.sourceHandle === EdgeHandleEnum.APPROVED ||
+          edge.sourceHandle === EdgeHandleEnum.REJECTED
+        const isLoopBackEdge = edge.targetHandle === EdgeHandleEnum.END
         const isSequentialEdge = !isBranchEdge && !isLoopBackEdge
 
         if (!isSequentialEdge) {
@@ -770,7 +770,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
       nodeIds.forEach((nodeId) => {
         // Check if we're removing a converge activity
         const activityToRemove = findActivityById(activities, nodeId)
-        if (activityToRemove?.type === 'converge') {
+        if (activityToRemove?.type === ActivityTypeEnum.CONVERGE) {
           // Find and cleanup the associated parallel container
           const parallelId = `parallel_for_${nodeId}`
           const parallelIndex = activities.findIndex((a) => a.id === parallelId)

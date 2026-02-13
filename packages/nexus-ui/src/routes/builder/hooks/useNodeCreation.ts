@@ -1,3 +1,4 @@
+import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { useCallback } from 'react'
 
 import {
@@ -43,10 +44,10 @@ export function useNodeCreation(onSuccess: () => void) {
   const handleTriggerSubmit = useCallback(
     (data: TriggerFormData) => {
       const { trigger } = buildNamedTrigger('Trigger', data.name, (name) => {
-        if (data.triggerType === 'manual') {
+        if (data.triggerType === TriggerTypeEnum.MANUAL) {
           return createManualTrigger(undefined, name)
         }
-        if (data.triggerType === 'scheduled' && data.scheduleType) {
+        if (data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType) {
           return createScheduledTrigger(
             data.scheduleType as 'cron' | 'interval' | 'continuous',
             {
@@ -57,7 +58,7 @@ export function useNodeCreation(onSuccess: () => void) {
             name
           )
         }
-        if (data.triggerType === 'event' && data.eventSource && data.eventType) {
+        if (data.triggerType === TriggerTypeEnum.EVENT && data.eventSource && data.eventType) {
           return createEventTrigger(data.eventSource, data.eventType, undefined, name)
         }
         return null

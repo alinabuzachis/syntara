@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { TriggerTypeEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
 import { FlexItem, Content, ContentVariants, Title, TitleSizes } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 import type { CSSProperties } from 'react'
@@ -21,7 +21,7 @@ export type TriggerNode = { type: 'trigger' } & Node<{
 
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   const { type: triggerType, details: triggerDetails } = parseTriggerLabel(props.data.label)
-  const isScheduled = props.data.triggerType === 'scheduled'
+  const isScheduled = props.data.triggerType === TriggerTypeEnum.SCHEDULED
   const metadata = isScheduled ? nodeMetadata.scheduledTrigger : nodeMetadata.trigger
   const Icon = metadata.icon!
   const triggerStyle: CSSProperties = {

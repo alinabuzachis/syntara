@@ -5,6 +5,7 @@ import {
   RhUiMergeNodesIcon,
 } from '@patternfly/react-icons'
 
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import {
   createConditionActivity,
   createConvergeActivity,
@@ -127,15 +128,15 @@ export default function registerLogicNode() {
                   id: `${activityId}-loop-${genericNodeId}`,
                   source: activityId,
                   target: genericNodeId,
-                  sourceHandle: 'loop',
-                  targetHandle: 'target',
+                  sourceHandle: EdgeHandleEnum.LOOP,
+                  targetHandle: EdgeHandleEnum.TARGET,
                 },
                 {
                   id: `${genericNodeId}-${activityId}-end`,
                   source: genericNodeId,
                   target: activityId,
-                  sourceHandle: 'source',
-                  targetHandle: 'end',
+                  sourceHandle: EdgeHandleEnum.SOURCE,
+                  targetHandle: EdgeHandleEnum.END,
                 },
               ],
             })

@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
 import { MarkerType } from '@xyflow/react'
 
 // Type aliases from API contracts
@@ -73,16 +73,16 @@ export type EdgeType = {
 export function extractTaskActivities(activities: Activity[]): TaskActivity[] {
   const tasks: TaskActivity[] = []
   for (const activity of activities) {
-    if (activity.type === 'task') {
+    if (activity.type === ActivityTypeEnum.TASK) {
       tasks.push(activity)
-    } else if (activity.type === 'parallel' && activity.branches) {
+    } else if (activity.type === ActivityTypeEnum.PARALLEL && activity.branches) {
       tasks.push(...extractTaskActivities(activity.branches))
-    } else if (activity.type === 'sequence' && activity.steps) {
+    } else if (activity.type === ActivityTypeEnum.SEQUENCE && activity.steps) {
       tasks.push(...extractTaskActivities(activity.steps))
-    } else if (activity.type === 'condition') {
+    } else if (activity.type === ActivityTypeEnum.CONDITION) {
       if (activity.then) tasks.push(...extractTaskActivities(activity.then))
       if (activity.else) tasks.push(...extractTaskActivities(activity.else))
-    } else if (activity.type === 'loop' && activity.loop.do) {
+    } else if (activity.type === ActivityTypeEnum.LOOP && activity.loop.do) {
       tasks.push(...extractTaskActivities(activity.loop.do))
     }
   }

@@ -1,3 +1,4 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import type { Connection, OnConnect } from '@xyflow/react'
 import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
 
@@ -49,10 +50,10 @@ export function useConnectionHandlers({
       let targetHandle = connection.targetHandle ?? undefined
       const targetNode = nodes.find((n) => n.id === connection.target)
 
-      if (targetNode?.type === FlowNodeType.LOOP && targetHandle === 'target') {
+      if (targetNode?.type === FlowNodeType.LOOP && targetHandle === EdgeHandleEnum.TARGET) {
         // Check if source node is inside the loop body
         // A node is inside the loop body if there's a path from the loop's 'loop' handle to this node
-        const loopEdges = edges.filter((e) => e.source === connection.target && e.sourceHandle === 'loop')
+        const loopEdges = edges.filter((e) => e.source === connection.target && e.sourceHandle === EdgeHandleEnum.LOOP)
         const loopBodyNodeIds = new Set<string>()
 
         // BFS to find all nodes reachable from the loop handle
@@ -67,14 +68,14 @@ export function useConnectionHandlers({
 
           // Find outgoing edges (but don't follow edges back to the loop's target handle)
           const outgoing = edges.filter(
-            (e) => e.source === nodeId && !(e.target === connection.target && e.targetHandle === 'target')
+            (e) => e.source === nodeId && !(e.target === connection.target && e.targetHandle === EdgeHandleEnum.TARGET)
           )
           queue.push(...outgoing.map((e) => e.target))
         }
 
         // If source is in the loop body, this is a loop-closing connection
         if (loopBodyNodeIds.has(connection.source)) {
-          targetHandle = 'end'
+          targetHandle = EdgeHandleEnum.END
         }
       }
 
@@ -144,11 +145,11 @@ export function useConnectionHandlers({
           pendingHandle && pendingHandle.nodeId === params.nodeId ? pendingHandle.handleId : params.handleId
 
         // Prevent starting a new connection from the loop handle if it already has a connection
-        if (handleId === 'loop') {
+        if (handleId === EdgeHandleEnum.LOOP) {
           const hasExistingLoopConnection = edges.some(
             (edge) =>
               edge.source === params.nodeId &&
-              edge.sourceHandle === 'loop' &&
+              edge.sourceHandle === EdgeHandleEnum.LOOP &&
               edge.type !== 'buttonEdge' &&
               !edge.id.startsWith('button-')
           )

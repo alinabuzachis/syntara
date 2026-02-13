@@ -1,3 +1,4 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { useEffect, useMemo, useRef } from 'react'
 import { flushSync } from 'react-dom'
 
@@ -408,18 +409,19 @@ export function useButtonEdgeMaintenance({
             const newEdge = {
               id: buttonEdgeId,
               source: nodeId,
-              sourceHandle: 'source',
+              sourceHandle: EdgeHandleEnum.SOURCE,
               target: placeholderId,
-              targetHandle: 'target',
+              targetHandle: EdgeHandleEnum.TARGET,
               type: 'buttonEdge',
               selectable: false,
               data: {
                 sourceNodeId: nodeId,
-                sourceHandle: 'source',
-                onButtonClick: () => onAddNodeFromEdge?.(nodeId, undefined, undefined, 'source'),
+                sourceHandle: EdgeHandleEnum.SOURCE,
+                onButtonClick: () => onAddNodeFromEdge?.(nodeId, undefined, undefined, EdgeHandleEnum.SOURCE),
                 // For regular nodes, active when nodeId matches and handle is 'source' or not specified
                 isActive:
-                  activeEdgeButtonNodeId === nodeId && (activeEdgeButtonHandle === 'source' || !activeEdgeButtonHandle),
+                  activeEdgeButtonNodeId === nodeId &&
+                  (activeEdgeButtonHandle === EdgeHandleEnum.SOURCE || !activeEdgeButtonHandle),
               },
             } as unknown
             buttonEdgesToAdd.push(newEdge as EdgeType)

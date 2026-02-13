@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../types/edge'
 
@@ -64,7 +64,7 @@ export class WorkflowTransform {
     // 2. Is NOT referenced by the converge's branches AND not a parent/ancestor of the converge (if converge is last in array)
     for (let i = 0; i < nestedActivities.length; i++) {
       const current = nestedActivities[i]
-      if (current.type === 'converge') {
+      if (current.type === ActivityTypeEnum.CONVERGE) {
         const convergeBranches = new Set(current.converge?.branches || [])
 
         // Find the next activity that should follow this converge
@@ -77,7 +77,7 @@ export class WorkflowTransform {
           // Converge is last in array - check if previous node is a parallel
           // If so, don't create any outgoing edge (converge is the end of the parallel)
           const previousActivity = i > 0 ? nestedActivities[i - 1] : null
-          if (previousActivity && previousActivity.type === 'parallel') {
+          if (previousActivity && previousActivity.type === ActivityTypeEnum.PARALLEL) {
             // Converge immediately follows parallel - no outgoing edge needed
             nextActivity = null
           } else {
@@ -87,7 +87,11 @@ export class WorkflowTransform {
             for (let j = 0; j < i; j++) {
               const candidate = nestedActivities[j]
               // Skip if this candidate is a condition/loop/parallel (structural nodes)
-              if (candidate.type === 'condition' || candidate.type === 'loop' || candidate.type === 'parallel') {
+              if (
+                candidate.type === ActivityTypeEnum.CONDITION ||
+                candidate.type === ActivityTypeEnum.LOOP ||
+                candidate.type === ActivityTypeEnum.PARALLEL
+              ) {
                 continue
               }
               // Skip if this candidate is in the converge's branches
@@ -152,9 +156,9 @@ export class WorkflowTransform {
       const next = nestedActivities[i + 1]
 
       // Handle condition nodes followed by converge nodes
-      if (current.type === 'condition') {
+      if (current.type === ActivityTypeEnum.CONDITION) {
         // If the next node is a converge, create edges from branch endpoints to converge
-        if (next.type === 'converge') {
+        if (next.type === ActivityTypeEnum.CONVERGE) {
           const convergeBranches = next.converge?.branches || []
           const convergeBranchSet = new Set(convergeBranches)
           const conditionActivity = current
@@ -197,18 +201,18 @@ export class WorkflowTransform {
       }
 
       // Skip approval nodes - they have explicit branch edges (approved/rejected)
-      if (current.type === 'task' && current.requiresApproval && current.approval) {
+      if (current.type === ActivityTypeEnum.TASK && current.requiresApproval && current.approval) {
         continue
       }
 
       // CRITICAL: Parallel containers are REMOVED during flattening
       // When current is parallel, skip (edges FROM parallel branches are handled elsewhere)
-      if (current.type === 'parallel') {
+      if (current.type === ActivityTypeEnum.PARALLEL) {
         continue
       }
 
       // When next is parallel, create edges from current to first activity in each branch
-      if (next.type === 'parallel') {
+      if (next.type === ActivityTypeEnum.PARALLEL) {
         const parallelActivity = next
         const branches = parallelActivity.branches || []
         for (const branch of branches) {
@@ -225,14 +229,14 @@ export class WorkflowTransform {
       }
 
       // CRITICAL: Skip if current is a converge node (already handled in first pass above)
-      if (current.type === 'converge') {
+      if (current.type === ActivityTypeEnum.CONVERGE) {
         continue
       }
 
       // CRITICAL: If next is a converge node, skip creating sequential edge
       // Edges TO converge nodes come from the activities in its branches array
       // Edges FROM converge nodes are handled in the first pass above
-      if (next.type === 'converge') {
+      if (next.type === ActivityTypeEnum.CONVERGE) {
         continue
       }
 
@@ -257,13 +261,13 @@ export class WorkflowTransform {
     // ALSO handle mixed cases: converge(J) where J.converge.branches=['A','C'] and A is in parallel but C is not
     // Process ALL flattened activities (not just top-level) to find converge nodes at any nesting level
     for (const activity of activities) {
-      if (activity.type === 'converge') {
+      if (activity.type === ActivityTypeEnum.CONVERGE) {
         const convergeBranches = activity.converge?.branches || []
 
         // Build a map of which parallel containers contain which branches
         const branchToParallelMap = new Map<string, Activity>()
 
-        for (const parallelActivity of activities.filter((a) => a.type === 'parallel')) {
+        for (const parallelActivity of activities.filter((a) => a.type === ActivityTypeEnum.PARALLEL)) {
           const parallelBranches = parallelActivity.branches || []
           const parallelBranchIds = new Set<string>()
 
@@ -399,16 +403,16 @@ export class WorkflowTransform {
    */
   private static flattenActivity(activity: Activity, flatActivities: Activity[], edges: EdgeConnection[]): void {
     switch (activity.type) {
-      case 'condition':
+      case ActivityTypeEnum.CONDITION:
         this.flattenCondition(activity, flatActivities, edges)
         break
-      case 'parallel':
+      case ActivityTypeEnum.PARALLEL:
         this.flattenParallel(activity, flatActivities, edges)
         break
-      case 'sequence':
+      case ActivityTypeEnum.SEQUENCE:
         this.flattenSequence(activity, flatActivities, edges)
         break
-      case 'loop':
+      case ActivityTypeEnum.LOOP:
         this.flattenLoop(activity, flatActivities, edges)
         break
       default:
@@ -571,7 +575,7 @@ export class WorkflowTransform {
    */
   private static nestLoops(flatActivities: Activity[], edges: EdgeConnection[]): Activity[] {
     let result = [...flatActivities]
-    const loopActivities = result.filter((a) => a.type === 'loop')
+    const loopActivities = result.filter((a) => a.type === ActivityTypeEnum.LOOP)
 
     for (const loopActivity of loopActivities) {
       // Skip if already moved into another loop's body
@@ -580,7 +584,7 @@ export class WorkflowTransform {
       }
 
       // Find edge from loop handle (sourceHandle === 'loop')
-      const loopEdges = edges.filter((e) => e.source === loopActivity.id && e.sourceHandle === 'loop')
+      const loopEdges = edges.filter((e) => e.source === loopActivity.id && e.sourceHandle === EdgeHandleEnum.LOOP)
       const loopStartIds = loopEdges.map((e) => e.target)
 
       if (loopStartIds.length === 0) {
@@ -681,7 +685,7 @@ export class WorkflowTransform {
     isRecursiveCall: boolean = false
   ): Activity[] {
     let result = [...flatActivities]
-    const conditionActivities = result.filter((a) => a.type === 'condition')
+    const conditionActivities = result.filter((a) => a.type === ActivityTypeEnum.CONDITION)
 
     for (const conditionActivity of conditionActivities) {
       // Skip if already moved into another condition's branches
@@ -690,8 +694,10 @@ export class WorkflowTransform {
       }
 
       // Find edges from true/false handles
-      const trueEdges = edges.filter((e) => e.source === conditionActivity.id && e.sourceHandle === 'true')
-      const falseEdges = edges.filter((e) => e.source === conditionActivity.id && e.sourceHandle === 'false')
+      const trueEdges = edges.filter((e) => e.source === conditionActivity.id && e.sourceHandle === EdgeHandleEnum.TRUE)
+      const falseEdges = edges.filter(
+        (e) => e.source === conditionActivity.id && e.sourceHandle === EdgeHandleEnum.FALSE
+      )
 
       const trueStartIds = trueEdges.map((e) => e.target)
       const falseStartIds = falseEdges.map((e) => e.target)
@@ -747,7 +753,7 @@ export class WorkflowTransform {
     rootActivities: Activity[]
   ): Activity | undefined {
     return rootActivities.find((a) => {
-      if (a.type !== 'parallel') return false
+      if (a.type !== ActivityTypeEnum.PARALLEL) return false
       const branches = a.branches || []
 
       return startIds.every((startId) => {
@@ -780,7 +786,7 @@ export class WorkflowTransform {
       return activities
     }
 
-    const convergeIndex = activities.findIndex((a) => a.type === 'converge')
+    const convergeIndex = activities.findIndex((a) => a.type === ActivityTypeEnum.CONVERGE)
     if (convergeIndex !== -1) {
       return activities.slice(0, convergeIndex)
     }
@@ -939,7 +945,7 @@ export class WorkflowTransform {
     // CRITICAL: Converge node collection logic
     // Don't collect converge nodes that have incoming edges from OUTSIDE the current traversal scope
     // This prevents duplicates when collecting individual parallel branches
-    if (activity.type === 'converge') {
+    if (activity.type === ActivityTypeEnum.CONVERGE) {
       const incomingEdges = edges.filter((e) => e.target === startId)
 
       const hasUnvisitedIncoming = incomingEdges.some((e) => {
@@ -977,7 +983,7 @@ export class WorkflowTransform {
 
     // CRITICAL: For parallel containers, collect activities that follow the parallel
     // For example: cond2 → parallel(A,B) → J means J should be in cond2.then
-    if (activity.type === 'parallel') {
+    if (activity.type === ActivityTypeEnum.PARALLEL) {
       // Collect all activity IDs inside the parallel branches
       const branches = activity.branches || []
       const branchActivityIds = new Set<string>()
@@ -1014,7 +1020,7 @@ export class WorkflowTransform {
         // Target doesn't exist - it might be wrapped in a parallel container
         // Check if there's a parallel at the same level that contains this target
         const parallelContainer = allActivities.find((a) => {
-          if (a.type !== 'parallel') return false
+          if (a.type !== ActivityTypeEnum.PARALLEL) return false
           if (visited.has(a.id)) return false // Already collected
           const branches = a.branches || []
           return branches.some((branch) => {
@@ -1037,7 +1043,9 @@ export class WorkflowTransform {
           // Structural handles indicate the parallel is nested (e.g., in a condition's branch),
           // and we shouldn't automatically collect what follows it.
           const isStructuralEdge =
-            edge.sourceHandle === 'true' || edge.sourceHandle === 'false' || edge.sourceHandle === 'loop'
+            edge.sourceHandle === EdgeHandleEnum.TRUE ||
+            edge.sourceHandle === EdgeHandleEnum.FALSE ||
+            edge.sourceHandle === EdgeHandleEnum.LOOP
 
           if (!isStructuralEdge) {
             // Find edges FROM parallel branches TO activities outside the parallel
@@ -1090,7 +1098,7 @@ export class WorkflowTransform {
    * Find parallel group from converge nodes
    */
   private static findParallelFromConverge(activities: Activity[], edges: EdgeConnection[]): ParallelGroup | null {
-    const convergeNodes = activities.filter((a) => a.type === 'converge')
+    const convergeNodes = activities.filter((a) => a.type === ActivityTypeEnum.CONVERGE)
     const allActivityIds = new Set(activities.map((a) => a.id))
 
     for (const converge of convergeNodes) {
@@ -1109,7 +1117,10 @@ export class WorkflowTransform {
       // These should be handled by condition/loop nesting, not parallel nesting
       const divergenceEdges = edges.filter((e) => e.source === divergenceInfo.divergenceSource)
       const usesStructuralHandles = divergenceEdges.some(
-        (e) => e.sourceHandle === 'true' || e.sourceHandle === 'false' || e.sourceHandle === 'loop'
+        (e) =>
+          e.sourceHandle === EdgeHandleEnum.TRUE ||
+          e.sourceHandle === EdgeHandleEnum.FALSE ||
+          e.sourceHandle === EdgeHandleEnum.LOOP
       )
       if (usesStructuralHandles) continue
 
@@ -1173,7 +1184,7 @@ export class WorkflowTransform {
     edges: EdgeConnection[],
     activities: Activity[]
   ): { convergencePoint: string; convergeNode: Activity } | null {
-    const convergeNodes = activities.filter((a) => a.type === 'converge')
+    const convergeNodes = activities.filter((a) => a.type === ActivityTypeEnum.CONVERGE)
 
     for (const node of convergeNodes) {
       const convergeBranches = node.converge?.branches || []
@@ -1231,7 +1242,10 @@ export class WorkflowTransform {
   private static hasStructuralHandles(sourceId: string, edges: EdgeConnection[]): boolean {
     return edges.some(
       (e) =>
-        e.source === sourceId && (e.sourceHandle === 'true' || e.sourceHandle === 'false' || e.sourceHandle === 'loop')
+        e.source === sourceId &&
+        (e.sourceHandle === EdgeHandleEnum.TRUE ||
+          e.sourceHandle === EdgeHandleEnum.FALSE ||
+          e.sourceHandle === EdgeHandleEnum.LOOP)
     )
   }
 
@@ -1247,7 +1261,7 @@ export class WorkflowTransform {
     if (outgoingEdges.length < 2) return null
 
     const regularHandles = outgoingEdges.filter(
-      (e) => !e.sourceHandle || e.sourceHandle === 'source' || e.sourceHandle === 'done'
+      (e) => !e.sourceHandle || e.sourceHandle === EdgeHandleEnum.SOURCE || e.sourceHandle === EdgeHandleEnum.DONE
     )
     if (regularHandles.length < 2) return null
 
@@ -1363,10 +1377,10 @@ export class WorkflowTransform {
    */
   private static getParallelHandles(outgoingEdges: EdgeConnection[]): EdgeConnection[] | null {
     const regularHandles = outgoingEdges.filter(
-      (e) => !e.sourceHandle || e.sourceHandle === 'source' || e.sourceHandle === 'done'
+      (e) => !e.sourceHandle || e.sourceHandle === EdgeHandleEnum.SOURCE || e.sourceHandle === EdgeHandleEnum.DONE
     )
-    const trueHandles = outgoingEdges.filter((e) => e.sourceHandle === 'true')
-    const falseHandles = outgoingEdges.filter((e) => e.sourceHandle === 'false')
+    const trueHandles = outgoingEdges.filter((e) => e.sourceHandle === EdgeHandleEnum.TRUE)
+    const falseHandles = outgoingEdges.filter((e) => e.sourceHandle === EdgeHandleEnum.FALSE)
 
     if (regularHandles.length >= 2) return regularHandles
     if (trueHandles.length >= 2) return trueHandles
@@ -1426,7 +1440,7 @@ export class WorkflowTransform {
           // No convergence point - collect all downstream but exclude any converge nodes
           const allDownstream = this.collectAllDownstream(targetId, edges, activities)
           // Filter out converge nodes that might be downstream (they should be at parent level)
-          return allDownstream.filter((a) => a.type !== 'converge')
+          return allDownstream.filter((a) => a.type !== ActivityTypeEnum.CONVERGE)
         }
       })
 
@@ -1508,7 +1522,7 @@ export class WorkflowTransform {
       if (incoming.length > 1) {
         // Multiple incoming edges
         const activity = activities.find((a) => a.id === current)
-        if (activity?.type === 'converge') {
+        if (activity?.type === ActivityTypeEnum.CONVERGE) {
           // Use the first branch's path
           const firstBranch = activity.converge?.branches?.[0]
           if (firstBranch) {
@@ -1756,7 +1770,7 @@ export class WorkflowTransform {
 
       // Wrap multiple activities in sequence
       return {
-        type: 'sequence',
+        type: ActivityTypeEnum.SEQUENCE,
         id: generateActivityId('sequence'),
         name: 'Branch sequence',
         steps: nestedBranch,
@@ -1765,7 +1779,7 @@ export class WorkflowTransform {
 
     // Create parallel container
     const parallelContainer: Extract<Activity, { type: 'parallel' }> = {
-      type: 'parallel',
+      type: ActivityTypeEnum.PARALLEL,
       id: generateActivityId('parallel'),
       name: 'Parallel execution',
       branches: processedBranches,

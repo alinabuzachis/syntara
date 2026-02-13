@@ -1,3 +1,4 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import type { Connection } from '@xyflow/react'
 
 import type { EdgeType } from './workflowToGraph'
@@ -16,12 +17,12 @@ export function validateConnection(connection: EdgeType | Connection, existingEd
 
   // Allow only one edge from the 'loop' handle
   // The 'loop' handle is for the loop body - only one path should enter the loop
-  if (connection.sourceHandle === 'loop' && existingEdges) {
+  if (connection.sourceHandle === EdgeHandleEnum.LOOP && existingEdges) {
     // Check if there's already an edge from this loop handle
     const hasExistingLoopEdge = existingEdges.some(
       (edge) =>
         edge.source === connection.source &&
-        edge.sourceHandle === 'loop' &&
+        edge.sourceHandle === EdgeHandleEnum.LOOP &&
         edge.type !== 'buttonEdge' &&
         !edge.id.startsWith('button-') &&
         // Exclude the edge we're potentially replacing (for reconnections)

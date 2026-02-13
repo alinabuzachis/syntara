@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../../workflowTransform'
 import type { ValidationError } from '../types'
@@ -17,12 +17,12 @@ function findActivities(activities: Activity[], predicate: (activity: Activity) 
       }
 
       // Recursively traverse nested structures
-      if (activity.type === 'loop' && activity.loop?.do) {
+      if (activity.type === ActivityTypeEnum.LOOP && activity.loop?.do) {
         traverse(activity.loop.do)
-      } else if (activity.type === 'condition') {
+      } else if (activity.type === ActivityTypeEnum.CONDITION) {
         if (activity.then) traverse(activity.then)
         if (activity.else) traverse(activity.else)
-      } else if (activity.type === 'parallel' && activity.branches) {
+      } else if (activity.type === ActivityTypeEnum.PARALLEL && activity.branches) {
         traverse(activity.branches)
       }
     }
@@ -46,7 +46,7 @@ function findActivities(activities: Activity[], predicate: (activity: Activity) 
  */
 export function validateLoopNodes(activities: Activity[], edges?: EdgeConnection[]): ValidationError[] {
   const errors: ValidationError[] = []
-  const loopNodes = findActivities(activities, (activity) => activity.type === 'loop')
+  const loopNodes = findActivities(activities, (activity) => activity.type === ActivityTypeEnum.LOOP)
 
   for (const loopNode of loopNodes) {
     let hasBody = false
@@ -54,7 +54,7 @@ export function validateLoopNodes(activities: Activity[], edges?: EdgeConnection
     // If edges are provided, we're validating the flat format
     if (edges) {
       // Check if there are edges from the loop's 'loop' handle
-      const loopEdges = edges.filter((e) => e.source === loopNode.id && e.sourceHandle === 'loop')
+      const loopEdges = edges.filter((e) => e.source === loopNode.id && e.sourceHandle === EdgeHandleEnum.LOOP)
       hasBody = loopEdges.length > 0
     } else {
       // No edges provided - validating nested format, check the 'do' array

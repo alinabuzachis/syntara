@@ -1,3 +1,4 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import type { OnNodesDelete } from '@xyflow/react'
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
 
@@ -56,7 +57,9 @@ export function useNodeDeletion({
 
       deletedNodeIds.forEach((deletedNodeId) => {
         // Find if this deleted node had an edge TO a loop's 'end' handle (was the last activity in a loop)
-        const loopBackEdge = storedEdges.find((edge) => edge.source === deletedNodeId && edge.targetHandle === 'end')
+        const loopBackEdge = storedEdges.find(
+          (edge) => edge.source === deletedNodeId && edge.targetHandle === EdgeHandleEnum.END
+        )
 
         if (loopBackEdge) {
           // Find the node that connects TO the deleted node (the new last activity)
@@ -67,7 +70,8 @@ export function useNodeDeletion({
           if (incomingEdge) {
             // CRITICAL: Don't create a loop-back edge if the incoming edge is from the loop node itself
             // This means the deleted node was the only activity in the loop, so no loop-back edge should exist
-            const isFromLoopNode = incomingEdge.source === loopBackEdge.target && incomingEdge.sourceHandle === 'loop'
+            const isFromLoopNode =
+              incomingEdge.source === loopBackEdge.target && incomingEdge.sourceHandle === EdgeHandleEnum.LOOP
 
             if (!isFromLoopNode) {
               // Get the new last node to determine the correct source handle

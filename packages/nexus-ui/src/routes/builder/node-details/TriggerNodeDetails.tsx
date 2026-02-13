@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { TriggerTypeEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
 
 import { useAlerts } from '../../../components/alerts'
 import { createManualTrigger, createScheduledTrigger, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
@@ -55,7 +55,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
     if (trigger.type === 'manual') {
       return {
         name: trigger.name,
-        triggerType: 'manual',
+        triggerType: TriggerTypeEnum.MANUAL,
       }
     }
 
@@ -63,7 +63,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
       if (trigger.schedule.scheduleType === 'interval') {
         return {
           name: trigger.name,
-          triggerType: 'scheduled',
+          triggerType: TriggerTypeEnum.SCHEDULED,
           scheduleType: 'interval',
           interval: trigger.schedule.interval,
         }
@@ -72,7 +72,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
       if (trigger.schedule.scheduleType === 'continuous') {
         return {
           name: trigger.name,
-          triggerType: 'scheduled',
+          triggerType: TriggerTypeEnum.SCHEDULED,
           scheduleType: 'continuous',
         }
       }
@@ -81,7 +81,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
     // Default fallback
     return {
       name: trigger.name,
-      triggerType: 'manual',
+      triggerType: TriggerTypeEnum.MANUAL,
     }
   }
 
@@ -91,9 +91,9 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
 
       const name = getNodeDisplayNameForEdit('Trigger', data.name, trigger.name)
 
-      if (data.triggerType === 'manual') {
+      if (data.triggerType === TriggerTypeEnum.MANUAL) {
         updatedTrigger = createManualTrigger(undefined, name)
-      } else if (data.triggerType === 'scheduled') {
+      } else if (data.triggerType === TriggerTypeEnum.SCHEDULED) {
         updatedTrigger = createScheduledTrigger(
           data.scheduleType as 'interval' | 'continuous',
           {

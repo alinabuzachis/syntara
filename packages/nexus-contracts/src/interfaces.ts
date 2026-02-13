@@ -10,6 +10,60 @@ export type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus
 export type ApprovalStatus = ApprovalsAPI.components['schemas']['ApprovalStatus']
 export type ActivityType = WorkflowAPI.components['schemas']['ActivityType']
 export type Workflow = WorkflowAPI.components['schemas']['Workflow']
+
+/**
+ * Constants for activity type discriminators
+ * Use these constants instead of string literals when comparing activity.type values
+ */
+export const ActivityTypeEnum = {
+  TASK: 'task',
+  PARALLEL: 'parallel',
+  SEQUENCE: 'sequence',
+  CONDITION: 'condition',
+  LOOP: 'loop',
+  CONVERGE: 'converge',
+  APPROVAL: 'approval',
+} as const
+
+/**
+ * Constants for trigger type discriminators
+ * Use these constants instead of string literals when comparing trigger.type values
+ */
+export const TriggerTypeEnum = {
+  MANUAL: 'manual',
+  SCHEDULED: 'scheduled',
+  EVENT: 'event',
+} as const
+
+/**
+ * Constants for task executor types
+ * Use these constants instead of string literals when comparing task.executor values
+ */
+export const ExecutorTypeEnum = {
+  SCRIPT: 'script',
+  API: 'api',
+  AGENTIC: 'agentic',
+  CONNECTOR: 'connector',
+  AAP_JOB_TEMPLATE: 'aap_job_template',
+} as const
+
+/**
+ * Constants for edge handle types
+ * Use these constants instead of string literals when comparing edge.sourceHandle or edge.targetHandle values
+ */
+export const EdgeHandleEnum = {
+  // Source handles
+  SOURCE: 'source',
+  LOOP: 'loop',
+  TRUE: 'true',
+  FALSE: 'false',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+  DONE: 'done',
+  // Target handles
+  TARGET: 'target',
+  END: 'end',
+} as const
 export type WorkflowsResponse =
   WorkflowAPI.paths['/workflows']['get']['responses']['200']['content']['application/json']
 export type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
