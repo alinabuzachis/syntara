@@ -11,8 +11,8 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.exc import IntegrityError
 
-from nexus.agent_orchestrator.utils import is_retryable_error
 from nexus.core.models.base.error import ErrorData
+from nexus.core.utils.retry import is_retryable_error
 
 logger = structlog.stdlib.get_logger(__name__)
 
