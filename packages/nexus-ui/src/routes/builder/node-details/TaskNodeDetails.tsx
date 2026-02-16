@@ -1,4 +1,5 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
+import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
 import { detectNodeType } from '../../../routes/automations/canvas/nodes/common/detectNodeType'
@@ -15,9 +16,10 @@ interface TaskNodeDetailsProps {
   taskData: TaskActivity & { task: { executor: string; config: unknown } }
   nodeId: string
   onClose: () => void
+  onHeaderContentChange: (content: ReactNode | null) => void
 }
 
-export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsProps) {
+export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChange }: TaskNodeDetailsProps) {
   const { showError } = useAlerts()
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
@@ -33,6 +35,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
         taskData={taskData as TaskActivity & { task: { executor: 'agentic'; config: unknown } }}
         nodeId={nodeId}
         onClose={onClose}
+        onHeaderContentChange={onHeaderContentChange}
       />
     )
   }
@@ -87,6 +90,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
         submitButtonText="Update node"
         onSubmit={handleAAPSubmit}
         onCancel={onClose}
+        onHeaderContentChange={onHeaderContentChange}
       />
     )
   }
@@ -186,6 +190,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose }: TaskNodeDetailsPr
       submitButtonText="Update node"
       onSubmit={handleSubmit}
       onCancel={onClose}
+      onHeaderContentChange={onHeaderContentChange}
     />
   )
 }

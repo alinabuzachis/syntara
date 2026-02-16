@@ -1,11 +1,14 @@
 import { TriggerTypeEnum } from '@ansible/nexus-contracts'
-import { Form, FormGroup, FormSelect, FormSelectOption, Stack, StackItem } from '@patternfly/react-core'
+import { FormGroup, FormSelect, FormSelectOption, Stack, StackItem } from '@patternfly/react-core'
+import type { ReactNode } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { DateRangeCadencePicker } from '../../../components/forms/DateRangeCadencePicker'
 
 import { ActivityNameField } from './shared/ActivityNameField'
-import { FormSubmitButton } from './shared/FormSubmitButton'
+import { NodeFormContainer } from './shared/NodeFormContainer'
+import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
 export interface TriggerFormData {
   name?: string
@@ -19,21 +22,41 @@ interface TriggerNodeFormProps {
   onCancel: () => void
   initialData?: Partial<TriggerFormData>
   submitButtonText?: string
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
-function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) {
+function TriggerFormFields({
+  submitButtonText,
+  onHeaderContentChange,
+}: {
+  submitButtonText?: string
+  onHeaderContentChange?: (content: ReactNode | null) => void
+}) {
   const { control, register } = useFormContext<TriggerFormData>()
   const triggerType = useWatch({ control, name: 'triggerType' })
   const scheduleType = useWatch({ control, name: 'scheduleType' })
 
-  return (
-    <Stack hasGutter>
+  const nameField = useMemo(
+    () => (
       <ActivityNameField<TriggerFormData>
         register={register}
         fieldId="trigger-name"
-        label="Trigger name"
         placeholder="Enter trigger name"
+        ariaLabel="Name"
       />
+    ),
+    [register]
+  )
+
+  useEffect(() => {
+    onHeaderContentChange?.(nameField)
+    return () => {
+      onHeaderContentChange?.(null)
+    }
+  }, [nameField, onHeaderContentChange])
+
+  const parametersContent = (
+    <Stack hasGutter>
       <input type="hidden" {...register('triggerType')} />
 
       {triggerType === TriggerTypeEnum.SCHEDULED && (
@@ -60,7 +83,6 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
 
           {scheduleType === 'interval' && (
             <StackItem>
-              {/* <FormGroup label="Interval" fieldId="trigger-interval" isRequired> */}
               <Controller
                 control={control}
                 name="interval"
@@ -68,15 +90,14 @@ function TriggerFormFields({ submitButtonText }: { submitButtonText?: string }) 
                   <DateRangeCadencePicker value={field.value || ''} onChange={field.onChange} required showTime />
                 )}
               />
-              {/* </FormGroup> */}
             </StackItem>
           )}
         </>
       )}
-
-      <FormSubmitButton submitButtonText={submitButtonText} />
     </Stack>
   )
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
 }
 
 export function TriggerNodeForm(props: TriggerNodeFormProps) {
@@ -105,9 +126,12 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
 
   return (
     <FormProvider {...methods}>
-      <Form id="trigger-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <TriggerFormFields submitButtonText={props.submitButtonText} />
-      </Form>
+      <NodeFormContainer formId="trigger-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+        <TriggerFormFields
+          submitButtonText={props.submitButtonText}
+          onHeaderContentChange={props.onHeaderContentChange}
+        />
+      </NodeFormContainer>
     </FormProvider>
   )
 }

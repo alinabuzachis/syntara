@@ -7,12 +7,13 @@ import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { nodeMetadata } from './nodeMetadata'
+import { renderNodeIcon } from './renderNodeIcon'
 
 export type LoopNode = { type: 'loop' } & Node<LoopActivity>
 
 export function LoopNodeComponent(props: NodeProps<LoopNode>) {
   const metadata = nodeMetadata.loop
-  const Icon = metadata.icon!
+  const iconNode = renderNodeIcon(metadata.icon, 'logic-loop')
   const menuActions = useNodeMenuActions({
     nodeId: props.data.id,
     nodeType: MenuNodeType.ACTIVITY,
@@ -39,7 +40,7 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
       executionState={executionState}
     >
       <StandardNodeHeader
-        icon={<Icon />}
+        icon={iconNode}
         title={props.data.name ?? ''}
         subtitle={metadata.label}
         menuActions={menuActions}

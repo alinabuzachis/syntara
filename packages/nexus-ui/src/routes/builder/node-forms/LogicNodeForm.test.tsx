@@ -1,8 +1,26 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { cloneElement, useState } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LogicNodeForm } from './LogicNodeForm'
+
+function renderWithHeader(ui: ReactElement) {
+  function Wrapper() {
+    const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
+    return (
+      <>
+        {headerContent}
+        {cloneElement(ui as ReactElement<{ onHeaderContentChange?: (content: ReactNode | null) => void }>, {
+          onHeaderContentChange: setHeaderContent,
+        })}
+      </>
+    )
+  }
+
+  render(<Wrapper />)
+}
 
 describe('LogicNodeForm', () => {
   const mockOnSubmit = vi.fn()
@@ -13,7 +31,7 @@ describe('LogicNodeForm', () => {
   })
 
   it('renders condition fields by default and hides loop/converge fields', () => {
-    render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     expect(screen.getByLabelText(/Condition expression/i)).toBeInTheDocument()
     expect(screen.queryByLabelText(/Items expression/i)).not.toBeInTheDocument()
@@ -22,7 +40,7 @@ describe('LogicNodeForm', () => {
 
   it('submits condition form data', async () => {
     const user = userEvent.setup()
-    render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Condition')
     await user.type(screen.getByPlaceholderText(/output.status/i), 'result > 0')
@@ -38,7 +56,7 @@ describe('LogicNodeForm', () => {
   })
 
   it('renders loop fields when initialData sets logicType to loop', () => {
-    render(
+    renderWithHeader(
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -54,7 +72,7 @@ describe('LogicNodeForm', () => {
 
   it('submits forEach loop data', async () => {
     const user = userEvent.setup()
-    render(
+    renderWithHeader(
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -83,7 +101,7 @@ describe('LogicNodeForm', () => {
   })
 
   it('renders while loop fields when initialData sets type to while', () => {
-    render(
+    renderWithHeader(
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -97,7 +115,7 @@ describe('LogicNodeForm', () => {
 
   it('submits while loop data', async () => {
     const user = userEvent.setup()
-    render(
+    renderWithHeader(
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -123,7 +141,7 @@ describe('LogicNodeForm', () => {
 
   it('submits while loop data without maxIterations', async () => {
     const user = userEvent.setup()
-    render(
+    renderWithHeader(
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -145,12 +163,8 @@ describe('LogicNodeForm', () => {
   })
 
   it('renders converge fields when initialData sets logicType to converge', () => {
-    render(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: 'converge' }}
-      />
+    renderWithHeader(
+      <LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ logicType: 'converge' }} />
     )
 
     expect(screen.getByPlaceholderText(/300/i)).toBeInTheDocument()
@@ -161,12 +175,8 @@ describe('LogicNodeForm', () => {
 
   it('submits converge data', async () => {
     const user = userEvent.setup()
-    render(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: 'converge' }}
-      />
+    renderWithHeader(
+      <LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ logicType: 'converge' }} />
     )
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Join Branches')
@@ -187,7 +197,7 @@ describe('LogicNodeForm', () => {
   })
 
   it('populates form with initial data for condition', () => {
-    render(
+    renderWithHeader(
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -204,7 +214,7 @@ describe('LogicNodeForm', () => {
   })
 
   it('populates form with initial data for loop', () => {
-    render(
+    renderWithHeader(
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -226,7 +236,7 @@ describe('LogicNodeForm', () => {
   })
 
   it('populates form with initial data for converge', () => {
-    render(
+    renderWithHeader(
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -245,7 +255,7 @@ describe('LogicNodeForm', () => {
   })
 
   it('uses custom submit button text when provided', () => {
-    render(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} submitButtonText="Update node" />)
+    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} submitButtonText="Update node" />)
 
     expect(screen.getByRole('button', { name: /Update node/i })).toBeInTheDocument()
   })

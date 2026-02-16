@@ -12,7 +12,7 @@ interface FormSubmitButtonProps {
 export function FormSubmitButton({ submitButtonText, isDisabled }: FormSubmitButtonProps) {
   return (
     <StackItem>
-      <Button type="submit" variant="primary" style={{ width: '100%' }} isDisabled={isDisabled}>
+      <Button type="submit" variant="secondary" style={{ width: '100%' }} isDisabled={isDisabled}>
         {submitButtonText ?? 'Add node'}
       </Button>
     </StackItem>

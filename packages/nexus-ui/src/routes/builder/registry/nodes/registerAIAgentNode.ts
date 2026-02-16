@@ -5,6 +5,7 @@ import { AIAgentNodeForm } from '../../node-forms/AIAgentNodeForm'
 import type { AIAgentFormSubmitData } from '../../node-forms/AIAgentNodeForm'
 import { parseToolsString } from '../../utils/agentHelpers'
 import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
+import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
@@ -26,7 +27,8 @@ export default function registerAIAgentNode() {
       try {
         // Parse comma-separated tools into array
         const toolsArray = parseToolsString(data.tools)
-        const { activityId, activity } = buildNamedActivity('AI Agent', data.name, (id, name) =>
+        const baseName = getDefaultNodeBaseName({ nodeTypeId: 'agent', label: 'AI Agent' })
+        const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
           createAgenticActivity(
             id,
             name,

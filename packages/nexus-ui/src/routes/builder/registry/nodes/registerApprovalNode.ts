@@ -4,6 +4,7 @@ import { createApprovalActivity, useWorkflowStore } from '../../../../stores/use
 import type { ApprovalFormSubmitData } from '../../node-forms/ApprovalNodeForm'
 import { ApprovalNodeForm } from '../../node-forms/ApprovalNodeForm'
 import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
+import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
@@ -24,7 +25,8 @@ export default function registerApprovalNode() {
     onSubmit: (data, onSuccess, onError) => {
       try {
         // Create approval activity with workflow store helper
-        const { activityId, activity } = buildNamedActivity('Approval', data.name, (id, name) =>
+        const baseName = getDefaultNodeBaseName({ nodeTypeId: 'approval', label: 'Approval' })
+        const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
           createApprovalActivity(id, name, data.approvers, data.prompt, data.timeout, data.onTimeout)
         )
 

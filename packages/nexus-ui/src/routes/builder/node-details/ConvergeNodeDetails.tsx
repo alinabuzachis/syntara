@@ -1,4 +1,5 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
@@ -10,9 +11,15 @@ interface ConvergeNodeDetailsProps {
   convergeData: ConvergeActivity
   nodeId: string
   onClose: () => void
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
-export function ConvergeNodeDetails({ convergeData, nodeId, onClose }: ConvergeNodeDetailsProps) {
+export function ConvergeNodeDetails({
+  convergeData,
+  nodeId,
+  onClose,
+  onHeaderContentChange,
+}: ConvergeNodeDetailsProps) {
   const { showError } = useAlerts()
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
@@ -56,6 +63,7 @@ export function ConvergeNodeDetails({ convergeData, nodeId, onClose }: ConvergeN
       submitButtonText="Update node"
       onSubmit={handleSubmit}
       onCancel={onClose}
+      onHeaderContentChange={onHeaderContentChange}
     />
   )
 }

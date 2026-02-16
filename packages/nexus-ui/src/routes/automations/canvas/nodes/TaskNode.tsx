@@ -9,7 +9,9 @@ import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
+import { getTaskIconDescriptor } from './nodeIconResolver'
 import { nodeMetadata, executorMetadata } from './nodeMetadata'
+import { renderNodeIcon } from './renderNodeIcon'
 
 type AAPJobTemplateConfig = {
   jobTemplateId?: string | number
@@ -74,11 +76,10 @@ export function TaskActivityDetails(
   const { detectedExecutorType, connectorData, actualExecutor } = detectNodeType(props.data)
   const dataWithMetadata = props.data as TaskActivityWithMetadata
   const executorMeta = executorMetadata[actualExecutor] || executorMetadata[props.data.task.executor]
-  const Icon = executorMeta?.icon
+  const { id: iconId } = getTaskIconDescriptor(props.data)
+  const iconNode = renderNodeIcon(executorMeta?.icon, iconId)
   const taskExecutor = executorMeta?.label || 'Task'
-  // Check if this is an AAP task by checking the detected executor type
-  const isAAPTask = detectedExecutorType === 'aap' || actualExecutor === 'aap_job_template'
-  const aapTask = isAAPTask ? (props.data as unknown as AAPJobTemplateTask) : null
+  const aapTask = iconId === 'aap' ? (props.data as unknown as AAPJobTemplateTask) : null
   const agentConfig = props.data.task.executor === 'agentic' ? (props.data.task.config as AgenticTaskConfig) : undefined
 
   const formatCount = (count: number, singular: string, plural = `${singular}s`) =>
@@ -89,19 +90,7 @@ export function TaskActivityDetails(
   return (
     <>
       <StandardNodeHeader
-        icon={
-          Icon ? (
-            <div
-              style={
-                isAAPTask
-                  ? { width: '32px', height: '32px', marginLeft: '-8px', display: 'flex', alignItems: 'center' }
-                  : undefined
-              }
-            >
-              <Icon />
-            </div>
-          ) : undefined
-        }
+        icon={iconNode}
         title={props.data.name}
         subtitle={taskExecutor}
         expandable

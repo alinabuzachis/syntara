@@ -1,4 +1,5 @@
 import { TriggerTypeEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
 import { createManualTrigger, createScheduledTrigger, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
@@ -43,9 +44,10 @@ interface TriggerNodeDetailsProps {
   trigger: Trigger
   triggerIndex: number
   onClose: () => void
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
-export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNodeDetailsProps) {
+export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderContentChange }: TriggerNodeDetailsProps) {
   const { showError } = useAlerts()
   // Use action accessor - component won't re-render when store state changes
   const { updateTrigger } = useWorkflowStoreActions()
@@ -118,6 +120,7 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose }: TriggerNo
       submitButtonText="Update trigger"
       onSubmit={handleSubmit}
       onCancel={onClose}
+      onHeaderContentChange={onHeaderContentChange}
     />
   )
 }

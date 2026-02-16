@@ -107,6 +107,9 @@ interface BuilderState {
   historyCardOpen: boolean
   isKebabOpen: boolean
   addNodePanelOpen: boolean
+  nodeEditorMode: 'add' | 'edit' | null
+  nodeEditorNodeTypeId: string | null
+  nodeEditorNodeSubtypeId: string | null
   selectedNode: Node<NodeType['data']> | null
   sourceNodeId: string | null
   targetNodeId: string | null
@@ -129,6 +132,8 @@ type BuilderAction =
   | { type: 'TOGGLE_HISTORY' }
   | { type: 'SET_KEBAB_OPEN'; payload: boolean }
   | { type: 'SET_ADD_NODE_PANEL'; payload: boolean }
+  | { type: 'OPEN_NODE_EDITOR_ADD'; payload: { nodeTypeId: string; nodeSubtypeId: string | null } }
+  | { type: 'CLOSE_NODE_EDITOR' }
   | { type: 'SET_SELECTED_NODE'; payload: Node<NodeType['data']> | null }
   | { type: 'SET_SOURCE_NODE_ID'; payload: string | null }
   | { type: 'SET_TARGET_NODE_ID'; payload: string | null }
@@ -181,6 +186,23 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
       return { ...state, isKebabOpen: action.payload }
     case 'SET_ADD_NODE_PANEL':
       return { ...state, addNodePanelOpen: action.payload }
+    case 'OPEN_NODE_EDITOR_ADD':
+      return {
+        ...state,
+        nodeEditorMode: 'add',
+        nodeEditorNodeTypeId: action.payload.nodeTypeId,
+        nodeEditorNodeSubtypeId: action.payload.nodeSubtypeId,
+        selectedNode: null,
+        addNodePanelOpen: false,
+      }
+    case 'CLOSE_NODE_EDITOR':
+      return {
+        ...state,
+        nodeEditorMode: null,
+        nodeEditorNodeTypeId: null,
+        nodeEditorNodeSubtypeId: null,
+        selectedNode: null,
+      }
     case 'SET_SELECTED_NODE':
       return { ...state, selectedNode: action.payload }
     case 'SET_SOURCE_NODE_ID':
@@ -204,6 +226,9 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
     case 'OPEN_ADD_NODE_FROM_EDGE':
       return {
         ...state,
+        nodeEditorMode: null,
+        nodeEditorNodeTypeId: null,
+        nodeEditorNodeSubtypeId: null,
         selectedNode: null,
         detailsOpen: false,
         historyCardOpen: false,
@@ -218,6 +243,9 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
     case 'OPEN_ADD_NODE_PANEL':
       return {
         ...state,
+        nodeEditorMode: null,
+        nodeEditorNodeTypeId: null,
+        nodeEditorNodeSubtypeId: null,
         selectedNode: null,
         detailsOpen: false,
         historyCardOpen: false,
@@ -233,6 +261,9 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
       return {
         ...state,
         addNodePanelOpen: false,
+        nodeEditorMode: null,
+        nodeEditorNodeTypeId: null,
+        nodeEditorNodeSubtypeId: null,
         sourceNodeId: null,
         targetNodeId: null,
         edgeIdToReplace: null,
@@ -251,6 +282,9 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
       if (action.payload.isGeneric) {
         return {
           ...state,
+          nodeEditorMode: null,
+          nodeEditorNodeTypeId: null,
+          nodeEditorNodeSubtypeId: null,
           selectedNode: null,
           detailsOpen: false,
           historyCardOpen: false,
@@ -262,6 +296,9 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         return {
           ...state,
           selectedNode: action.payload.node,
+          nodeEditorMode: 'edit',
+          nodeEditorNodeTypeId: null,
+          nodeEditorNodeSubtypeId: null,
           addNodePanelOpen: false,
           detailsOpen: false,
           historyCardOpen: false,
@@ -294,6 +331,9 @@ function getInitialState(): BuilderState {
     historyCardOpen: false,
     isKebabOpen: false,
     addNodePanelOpen: false,
+    nodeEditorMode: null,
+    nodeEditorNodeTypeId: null,
+    nodeEditorNodeSubtypeId: null,
     selectedNode: null,
     sourceNodeId: null,
     targetNodeId: null,
@@ -332,6 +372,9 @@ export function BuilderContent(props: BuilderContentProps) {
     historyCardOpen,
     isKebabOpen,
     addNodePanelOpen,
+    nodeEditorMode,
+    nodeEditorNodeTypeId,
+    nodeEditorNodeSubtypeId,
     selectedNode,
     sourceNodeId,
     targetNodeId,
@@ -355,6 +398,7 @@ export function BuilderContent(props: BuilderContentProps) {
     return triggers.length === 0 && activities.length === 0
   }, [currentWorkflow])
   const isAddNodePanelOpen = addNodePanelOpen || hasNoWorkflowNodes
+  const isNodeEditorOpen = nodeEditorMode !== null
 
   // Fetch executions for history panel (only if not new workflow)
   const executionsQuery = workflowClient.useQuery(
@@ -946,79 +990,116 @@ export function BuilderContent(props: BuilderContentProps) {
                 flexDirection: 'row',
               }}
             >
-              <FlexItem
-                style={{
-                  position: 'relative',
-                  minWidth: 0,
-                  flexGrow: 1,
-                  height: '100%',
-                  overflow: 'hidden',
-                }}
-              >
-                <Stack style={{ height: '100%', overflow: 'hidden', gap: 'var(--pf-t--global--spacer--sm)' }}>
-                  <StackItem
-                    isFilled
-                    style={{
-                      minHeight: 0,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <CompassPanel
-                      hasNoPadding
+              {!isNodeEditorOpen && (
+                <FlexItem
+                  style={{
+                    position: 'relative',
+                    minWidth: 0,
+                    flexGrow: 1,
+                    height: '100%',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Stack style={{ height: '100%', overflow: 'hidden', gap: 'var(--pf-t--global--spacer--sm)' }}>
+                    <StackItem
+                      isFilled
                       style={{
-                        position: 'relative',
-                        minWidth: 0,
-                        width: '100%',
-                        height: '100%',
+                        minHeight: 0,
                         overflow: 'hidden',
                       }}
                     >
-                      <BuilderFlow
-                        workflowId={workflowId}
-                        panelOpen={isAddNodePanelOpen || !!selectedNode}
-                        activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
-                        activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
-                        activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
-                        executionStatus={null}
-                        onNodeClick={handleNodeClick}
-                        onAddNodeFromEdge={handleAddNodeFromEdge}
-                        onNodesDeleted={handleNodesDeleted}
-                      />
-                    </CompassPanel>
-                  </StackItem>
-                </Stack>
-              </FlexItem>
+                      <CompassPanel
+                        hasNoPadding
+                        style={{
+                          position: 'relative',
+                          minWidth: 0,
+                          width: '100%',
+                          height: '100%',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <BuilderFlow
+                          workflowId={workflowId}
+                          panelOpen={isAddNodePanelOpen || !!selectedNode}
+                          activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
+                          activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
+                          activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
+                          executionStatus={null}
+                          onNodeClick={handleNodeClick}
+                          onAddNodeFromEdge={handleAddNodeFromEdge}
+                          onNodesDeleted={handleNodesDeleted}
+                        />
+                      </CompassPanel>
+                    </StackItem>
+                  </Stack>
+                </FlexItem>
+              )}
 
-              {isAddNodePanelOpen && (
+              {isAddNodePanelOpen && !isNodeEditorOpen && (
                 <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
                   <AddNodePanel
                     onClose={() => {
                       dispatch({ type: 'CLOSE_ADD_NODE_PANEL' })
                     }}
-                    onNodeSelect={showSuccess}
-                    onNodeError={showError}
+                    onSelectNode={(nodeTypeId, nodeSubtypeId) => {
+                      dispatch({
+                        type: 'OPEN_NODE_EDITOR_ADD',
+                        payload: { nodeTypeId, nodeSubtypeId: nodeSubtypeId ?? null },
+                      })
+                    }}
                     sourceNodeId={sourceNodeId}
                     replacementNodeId={replacementNodeId}
                     hasNoWorkflowNodes={hasNoWorkflowNodes}
-                    // v8 ignore start - React Flow polling callbacks (E2E tested)
-                    onNodeReplaced={(nodeId) => {
-                      dispatch({ type: 'CLOSE_ADD_NODE_PANEL' })
-                      let attempts = 0
-                      const checkAndSelect = () => {
-                        const nodes = reactFlowInstance.getNodes() as NodeType[]
-                        const updatedNode = nodes.find((n) => n.id === nodeId)
-                        const isStillGeneric =
-                          updatedNode &&
-                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                          ((updatedNode.data as any).metadata?.__isGeneric === true || updatedNode.type === 'generic')
-                        if (updatedNode && !isStillGeneric) {
-                          dispatch({ type: 'SET_SELECTED_NODE', payload: updatedNode })
-                        } else if (attempts++ < 20) {
-                          setTimeout(checkAndSelect, 50)
-                        }
-                      }
-                      checkAndSelect()
+                  />
+                </FlexItem>
+              )}
+
+              {!isNodeEditorOpen && historyCardOpen && !isNew && (
+                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
+                  <AutomationHistoryCard
+                    executions={executionsQuery.data?.resources ?? []}
+                    onClose={() => dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })}
+                    onExecutionSelect={(executionId) => {
+                      setLocation(`/executions/${executionId}`)
                     }}
+                  />
+                </FlexItem>
+              )}
+
+              {!isNodeEditorOpen && detailsOpen && workflow && (
+                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
+                  <WorkflowSidepanel
+                    workflow={workflow}
+                    workflowName={workflowName}
+                    workflowDescription={workflowDescription}
+                    onNameChange={(name) => {
+                      dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
+                      markDirty()
+                    }}
+                    onDescriptionChange={(desc) => {
+                      dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: desc })
+                      markDirty()
+                    }}
+                    onClose={() => dispatch({ type: 'SET_DETAILS_OPEN', payload: false })}
+                  />
+                </FlexItem>
+              )}
+
+              {isNodeEditorOpen && (
+                <FlexItem
+                  style={{
+                    flexGrow: 1,
+                    minWidth: 0,
+                    height: '100%',
+                  }}
+                >
+                  <NodeDetailsPanel
+                    mode={nodeEditorMode === 'edit' ? 'edit' : 'add'}
+                    node={nodeEditorMode === 'edit' ? (selectedNode ?? undefined) : undefined}
+                    nodeTypeId={nodeEditorMode === 'add' ? nodeEditorNodeTypeId : null}
+                    nodeSubtypeId={nodeEditorMode === 'add' ? nodeEditorNodeSubtypeId : null}
+                    sourceNodeId={sourceNodeId}
+                    replacementNodeId={replacementNodeId}
                     onConnect={(sourceId, targetId) => {
                       const capturedEdgeIdToReplace = edgeIdToReplace
                       const capturedTargetNodeId = targetNodeId
@@ -1094,48 +1175,7 @@ export function BuilderContent(props: BuilderContentProps) {
                       }
                       checkAndConnect()
                     }}
-                    // v8 ignore stop
-                  />
-                </FlexItem>
-              )}
-
-              {historyCardOpen && !isNew && (
-                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-                  <AutomationHistoryCard
-                    executions={executionsQuery.data?.resources ?? []}
-                    onClose={() => dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })}
-                    onExecutionSelect={(executionId) => {
-                      setLocation(`/executions/${executionId}`)
-                    }}
-                  />
-                </FlexItem>
-              )}
-
-              {detailsOpen && workflow && (
-                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-                  <WorkflowSidepanel
-                    workflow={workflow}
-                    workflowName={workflowName}
-                    workflowDescription={workflowDescription}
-                    onNameChange={(name) => {
-                      dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
-                      markDirty()
-                    }}
-                    onDescriptionChange={(desc) => {
-                      dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: desc })
-                      markDirty()
-                    }}
-                    onClose={() => dispatch({ type: 'SET_DETAILS_OPEN', payload: false })}
-                  />
-                </FlexItem>
-              )}
-
-              {selectedNode && (
-                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-                  <NodeDetailsPanel
-                    key={selectedNode.id}
-                    node={selectedNode}
-                    onClose={() => dispatch({ type: 'SET_SELECTED_NODE', payload: null })}
+                    onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
                   />
                 </FlexItem>
               )}

@@ -4,6 +4,7 @@ import { AAPNodeForm } from '../../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../../node-forms/AAPNodeForm'
 import { buildAAPConfig, parsePositiveInt } from '../../utils/aapHelpers'
 import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
+import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
@@ -28,7 +29,8 @@ export default function registerAAPNode() {
         }
 
         const config = buildAAPConfig(data)
-        const { activityId, activity } = buildNamedActivity('AAP Job Execution', data.name, (id, name) =>
+        const baseName = getDefaultNodeBaseName({ nodeTypeId: 'aap', label: 'AAP Job Execution' })
+        const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
           createAAPJobTemplateActivity(id, name, jobTemplateId, config)
         )
 

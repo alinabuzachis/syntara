@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 
 import type { NodeCategory } from './categories'
 
@@ -10,6 +10,7 @@ export interface BaseNodeFormProps<TData = unknown> {
   onCancel: () => void
   initialData?: Partial<TData>
   submitButtonText?: string
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
 export interface NodeSubtypeDefinition<TFormData = unknown> {

@@ -4,6 +4,7 @@ import { createApiActivity, createScriptActivity, useWorkflowStore } from '../..
 import type { ActionFormData } from '../../hooks/useNodeCreation'
 import { ActionNodeForm } from '../../node-forms/ActionNodeForm'
 import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
+import { getDefaultNodeBaseName, getNodeDisplayName } from '../../utils/nodeNaming'
 import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 
@@ -44,7 +45,11 @@ export default function registerActionNode() {
       },
       (data, onSuccess, onError) => {
         try {
-          const baseName = data.executor === 'api' ? 'REST API' : 'Script'
+          const baseName = getDefaultNodeBaseName({
+            nodeTypeId: 'action',
+            initialData: { executor: data.executor },
+            label: data.executor === 'api' ? 'REST API' : 'Script',
+          })
           const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) => {
             if (data.executor === 'script' && data.language && data.code) {
               return createScriptActivity(id, name, data.language, data.code, data.parameters)
@@ -53,7 +58,7 @@ export default function registerActionNode() {
               return createApiActivity(
                 id,
                 name,
-                data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+                data.method,
                 data.url,
                 data.headers,
                 data.body,

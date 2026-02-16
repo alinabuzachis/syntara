@@ -1,4 +1,5 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
+import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
 import { createAgenticActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
@@ -10,13 +11,14 @@ interface AIAgentNodeDetailsProps {
   taskData: TaskActivity & { task: { executor: 'agentic'; config: unknown } }
   nodeId: string
   onClose: () => void
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
 /**
  * Node details component for AI Agent nodes (agentic executor).
  * Handles viewing and editing AI agent configuration including MCP server, tools, model, prompt, and files.
  */
-export function AIAgentNodeDetails({ taskData, nodeId, onClose }: AIAgentNodeDetailsProps) {
+export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentChange }: AIAgentNodeDetailsProps) {
   const { showError } = useAlerts()
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
@@ -71,6 +73,7 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose }: AIAgentNodeDet
       submitButtonText="Update node"
       onSubmit={handleSubmit}
       onCancel={onClose}
+      onHeaderContentChange={onHeaderContentChange}
     />
   )
 }

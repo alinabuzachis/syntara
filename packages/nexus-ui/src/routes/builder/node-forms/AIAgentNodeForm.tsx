@@ -1,6 +1,7 @@
 import type { FilesAPI } from '@ansible/nexus-contracts'
-import { Form, FormGroup, FormSelect, FormSelectOption, Stack, StackItem, TextArea } from '@patternfly/react-core'
-import { createContext, useContext, useState } from 'react'
+import { FormGroup, FormSelect, FormSelectOption, Stack, StackItem, TextArea } from '@patternfly/react-core'
+import type { ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
 import { FileUpload, type UploadedFile } from '../../../components/file-upload'
@@ -8,7 +9,8 @@ import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgr
 import { generateUUID } from '../../../utils/generateUUID'
 
 import { ActivityNameField } from './shared/ActivityNameField'
-import { FormSubmitButton } from './shared/FormSubmitButton'
+import { NodeFormContainer } from './shared/NodeFormContainer'
+import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
 type FileUploadInfo = FilesAPI.components['schemas']['FileUploadInfo']
 
@@ -39,9 +41,16 @@ interface AIAgentNodeFormProps {
   onCancel: () => void
   submitButtonText?: string
   initialData?: AIAgentFormInitialData
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
-function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) {
+function AIAgentFormFields({
+  submitButtonText,
+  onHeaderContentChange,
+}: {
+  submitButtonText?: string
+  onHeaderContentChange?: (content: ReactNode | null) => void
+}) {
   const { register, control } = useFormContext<AIAgentFormData>()
   const fileContext = useContext(FileContext)
   if (!fileContext) throw new Error('AIAgentFormFields must be used within FileContext.Provider')
@@ -113,9 +122,22 @@ function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) 
     setUploadingFiles((prev) => prev.filter((f) => f.id !== fileId))
   }
 
-  return (
+  const nameField = useMemo(
+    () => (
+      <ActivityNameField register={register} fieldId="agent-name" placeholder="Enter agent name" ariaLabel="Name" />
+    ),
+    [register]
+  )
+
+  useEffect(() => {
+    onHeaderContentChange?.(nameField)
+    return () => {
+      onHeaderContentChange?.(null)
+    }
+  }, [nameField, onHeaderContentChange])
+
+  const parametersContent = (
     <Stack hasGutter>
-      <ActivityNameField register={register} fieldId="agent-name" label="Agent name" placeholder="Enter agent name" />
       <StackItem>
         <FormGroup label="Prompt" fieldId="agent-prompt" isRequired>
           <TextArea
@@ -157,9 +179,10 @@ function AIAgentFormFields({ submitButtonText }: { submitButtonText?: string }) 
           />
         </FormGroup>
       </StackItem>
-      <FormSubmitButton submitButtonText={submitButtonText} />
     </Stack>
   )
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
 }
 
 export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
@@ -190,9 +213,12 @@ export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
   return (
     <FileContext.Provider value={{ completedFiles, setCompletedFiles }}>
       <FormProvider {...methods}>
-        <Form id="ai-agent-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-          <AIAgentFormFields submitButtonText={props.submitButtonText} />
-        </Form>
+        <NodeFormContainer formId="ai-agent-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+          <AIAgentFormFields
+            submitButtonText={props.submitButtonText}
+            onHeaderContentChange={props.onHeaderContentChange}
+          />
+        </NodeFormContainer>
       </FormProvider>
     </FileContext.Provider>
   )

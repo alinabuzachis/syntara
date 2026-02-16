@@ -83,7 +83,7 @@ export function useNodeCreation(onSuccess: () => void) {
           return createApiActivity(
             id,
             name,
-            data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+            data.method,
             data.url,
             data.headers,
             data.body,

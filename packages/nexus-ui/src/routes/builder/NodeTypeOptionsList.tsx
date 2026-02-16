@@ -1,7 +1,6 @@
 import {
   CompassPanel,
   Content,
-  Icon,
   PanelMain,
   PanelMainBody,
   Split,
@@ -10,9 +9,11 @@ import {
   StackItem,
   Title,
 } from '@patternfly/react-core'
-import type { ComponentType, CSSProperties } from 'react'
+
+import { renderNodeIcon } from '../automations/canvas/nodes/renderNodeIcon'
 
 import type { NodeSubtypeDefinition, NodeTypeDefinition } from './registry/NodeRegistry'
+import { resolveIconForType } from './utils/nodeIcons'
 
 export type NodeTypeOption = Pick<NodeTypeDefinition | NodeSubtypeDefinition, 'id' | 'label' | 'icon' | 'description'>
 
@@ -23,15 +24,8 @@ interface NodeTypeOptionsListProps {
 
 export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
   return props.nodeTypes.map((nodeType) => {
-    const IconComponent = nodeType.icon
-    const isCustomIcon = nodeType.id === 'aap'
-    const shouldRotateIcon = nodeType.id === 'logic-condition' || nodeType.id === 'logic-converge'
-    const iconStyle: CSSProperties = {
-      width: '1.5rem',
-      height: '1.5rem',
-      display: 'block',
-      ...(shouldRotateIcon ? { transform: 'rotate(90deg)' } : {}),
-    }
+    const { icon, id } = resolveIconForType({ nodeTypeId: nodeType.id })
+    const nodeIcon = renderNodeIcon(icon, id, 'list')
 
     return (
       <StackItem key={nodeType.id}>
@@ -54,17 +48,8 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
               <Stack hasGutter>
                 <StackItem>
                   <Split hasGutter>
-                    <SplitItem isFilled={false} style={{ width: '1.5rem', flexShrink: 0 }}>
-                      {isCustomIcon ? (
-                        (() => {
-                          const StyledIcon = IconComponent as ComponentType<{ style?: CSSProperties }>
-                          return <StyledIcon style={iconStyle} />
-                        })()
-                      ) : (
-                        <Icon style={iconStyle}>
-                          <IconComponent />
-                        </Icon>
-                      )}
+                    <SplitItem isFilled={false} style={{ width: '2rem', flexShrink: 0 }}>
+                      {nodeIcon}
                     </SplitItem>
                     <SplitItem>
                       <Title headingLevel="h3" size="md">

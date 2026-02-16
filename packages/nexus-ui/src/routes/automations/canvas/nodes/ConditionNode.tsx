@@ -11,12 +11,13 @@ import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { nodeMetadata } from './nodeMetadata'
+import { renderNodeIcon } from './renderNodeIcon'
 
 export type ConditionNode = { type: 'condition' } & Node<ConditionActivity>
 
 export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
   const metadata = nodeMetadata.condition
-  const Icon = metadata.icon!
+  const iconNode = renderNodeIcon(metadata.icon, 'logic-condition')
   const menuActions = useNodeMenuActions({
     nodeId: props.data.id,
     nodeType: MenuNodeType.ACTIVITY,
@@ -35,15 +36,7 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
 
   return (
     <NodeComponent className={metadata.className} nodeProps={props} disableSource executionState={executionState}>
-      <ConditionNodeDetails
-        conditionActivity={props.data}
-        icon={
-          <div style={{ transform: 'rotate(90deg)', display: 'inline-block' }}>
-            <Icon />
-          </div>
-        }
-        menuActions={menuActions}
-      >
+      <ConditionNodeDetails conditionActivity={props.data} icon={iconNode} menuActions={menuActions}>
         <BranchHandles>
           <BranchHandle id="true">True</BranchHandle>
           <BranchHandle id="false">False</BranchHandle>

@@ -5,6 +5,7 @@ import { createManualTrigger, createScheduledTrigger, useWorkflowStore } from '.
 import type { TriggerFormData } from '../../hooks/useNodeCreation'
 import { TriggerNodeForm } from '../../node-forms/TriggerNodeForm'
 import { buildNamedTrigger } from '../../utils/nodeCreationHelpers'
+import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 
@@ -45,7 +46,8 @@ export default function registerTriggerNode() {
       },
       (data, onSuccess, onError) => {
         try {
-          const { trigger } = buildNamedTrigger('Trigger', data.name, (name) => {
+          const baseName = getDefaultNodeBaseName({ nodeTypeId: 'trigger', label: 'Trigger' })
+          const { trigger } = buildNamedTrigger(baseName, data.name, (name) => {
             if (data.triggerType === TriggerTypeEnum.MANUAL) {
               return createManualTrigger(undefined, name)
             }

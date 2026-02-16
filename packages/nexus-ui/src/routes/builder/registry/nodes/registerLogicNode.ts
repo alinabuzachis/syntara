@@ -1,3 +1,4 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import {
   RhUiBranchFillIcon,
   RhUiConditionNodeIcon,
@@ -5,7 +6,6 @@ import {
   RhUiMergeNodesIcon,
 } from '@patternfly/react-icons'
 
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import {
   createConditionActivity,
   createConvergeActivity,
@@ -14,7 +14,7 @@ import {
   useWorkflowStore,
 } from '../../../../stores/useWorkflowStore'
 import { LogicNodeForm, type LogicFormData } from '../../node-forms/LogicNodeForm'
-import { getNodeDisplayName } from '../../utils/nodeNaming'
+import { getDefaultNodeBaseName, getNodeDisplayName } from '../../utils/nodeNaming'
 import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 
@@ -78,9 +78,14 @@ export default function registerLogicNode() {
 
           let activity
 
-          const baseName =
-            data.logicType === 'condition' ? 'Condition' : data.logicType === 'loop' ? 'Loop' : 'Converge'
-          const name = getNodeDisplayName(baseName, data.name)
+          const name = getNodeDisplayName(
+            getDefaultNodeBaseName({
+              nodeTypeId: 'logic',
+              initialData: { logicType: data.logicType },
+              label: data.logicType === 'condition' ? 'Conditional' : data.logicType === 'loop' ? 'Loop' : 'Converge',
+            }),
+            data.name
+          )
 
           if (data.logicType === 'condition') {
             if (!data.condition) {

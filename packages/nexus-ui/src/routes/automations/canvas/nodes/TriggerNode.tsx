@@ -12,6 +12,7 @@ import { NodeHeader } from './common/NodeHeader'
 import { NodeMenu } from './common/NodeMenu'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { nodeMetadata } from './nodeMetadata'
+import { renderNodeIcon } from './renderNodeIcon'
 
 export type TriggerNode = { type: 'trigger' } & Node<{
   label: string
@@ -23,7 +24,8 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   const { type: triggerType, details: triggerDetails } = parseTriggerLabel(props.data.label)
   const isScheduled = props.data.triggerType === TriggerTypeEnum.SCHEDULED
   const metadata = isScheduled ? nodeMetadata.scheduledTrigger : nodeMetadata.trigger
-  const Icon = metadata.icon!
+  const iconId = isScheduled ? 'trigger-scheduled' : 'trigger-manual'
+  const iconNode = renderNodeIcon(metadata.icon, iconId)
   const triggerStyle: CSSProperties = {
     borderTopLeftRadius: '75px',
     borderBottomLeftRadius: '75px',
@@ -68,7 +70,7 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
     >
       <TriggerNodeDetails
         node={props.data}
-        icon={<Icon />}
+        icon={iconNode}
         menuActions={menuActions}
         triggerType={triggerType}
         triggerDetails={triggerDetails}

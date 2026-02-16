@@ -1,4 +1,5 @@
 import type { ConditionActivity } from '@ansible/nexus-contracts'
+import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
@@ -8,9 +9,15 @@ interface ConditionNodeDetailsProps {
   conditionData: ConditionActivity
   nodeId: string
   onClose: () => void
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
-export function ConditionNodeDetails({ conditionData, nodeId, onClose }: ConditionNodeDetailsProps) {
+export function ConditionNodeDetails({
+  conditionData,
+  nodeId,
+  onClose,
+  onHeaderContentChange,
+}: ConditionNodeDetailsProps) {
   const { showError } = useAlerts()
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
@@ -42,6 +49,7 @@ export function ConditionNodeDetails({ conditionData, nodeId, onClose }: Conditi
       submitButtonText="Update node"
       onSubmit={handleSubmit}
       onCancel={onClose}
+      onHeaderContentChange={onHeaderContentChange}
     />
   )
 }

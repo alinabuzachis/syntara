@@ -2,12 +2,9 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useWorkflowStore } from '../../stores/useWorkflowStore'
-
 import { AddNodePanel } from './AddNodePanel'
 import { NodeRegistry } from './registry/NodeRegistry'
 
-// Mock the NodeRegistry
 vi.mock('./registry/NodeRegistry', () => ({
   NodeRegistry: {
     getAll: vi.fn(),
@@ -15,892 +12,112 @@ vi.mock('./registry/NodeRegistry', () => ({
   },
 }))
 
-// Mock the workflow store
-vi.mock('../../stores/useWorkflowStore', () => ({
-  useWorkflowStore: {
-    getState: vi.fn(),
+const mockNodeTypes = [
+  {
+    id: 'action',
+    label: 'Action',
+    icon: () => <div>ActionIcon</div>,
+    category: 'task',
+    description: 'Execute scripts or make API calls',
+    order: 30,
+    formComponent: () => null,
+    onSubmit: vi.fn(),
   },
-  useWorkflowStoreActions: vi.fn(() => ({
-    moveActivityAfter: vi.fn(),
-    updateActivity: vi.fn(),
-    removeActivity: vi.fn(),
-  })),
-}))
-
-// Mock form component that will be used in tests
-const MockFormComponent = ({
-  onSubmit,
-  onCancel,
-}: {
-  onSubmit: (data: Record<string, unknown>) => void
-  onCancel: () => void
-}) => (
-  <div data-testid="mock-form">
-    <button onClick={() => onSubmit({ name: 'Test Node' })} data-testid="form-submit">
-      Submit
-    </button>
-    <button onClick={onCancel} data-testid="form-cancel">
-      Cancel
-    </button>
-  </div>
-)
+  {
+    id: 'trigger',
+    label: 'Trigger',
+    icon: () => <div>TriggerIcon</div>,
+    category: 'trigger',
+    description: 'Start the workflow',
+    order: 10,
+    formComponent: () => null,
+    onSubmit: vi.fn(),
+    subtypes: [
+      {
+        id: 'trigger-manual',
+        label: 'Manual',
+        icon: () => <div>ManualIcon</div>,
+      },
+    ],
+  },
+]
 
 describe('AddNodePanel Component', () => {
   const mockOnClose = vi.fn()
-  const mockOnNodeSelect = vi.fn()
-  const mockOnNodeError = vi.fn()
+  const mockOnSelectNode = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never[])
+    vi.mocked(NodeRegistry.get).mockImplementation(
+      (id: string) => mockNodeTypes.find((node) => node.id === id) as never
+    )
   })
 
-  describe('Rendering', () => {
-    it('renders the panel with title and close button', () => {
-      vi.mocked(NodeRegistry.getAll).mockReturnValue([])
+  it('renders the panel with title and close button', () => {
+    render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} />)
 
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      expect(screen.getByText('Add node')).toBeInTheDocument()
-      // The close button exists (SidePanel renders it)
-      const buttons = screen.getAllByRole('button')
-      expect(buttons.length).toBeGreaterThan(0)
-    })
-
-    it('renders all registered node types', () => {
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts or make API calls',
-          keywords: ['script', 'api'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-        {
-          id: 'trigger',
-          label: 'Trigger',
-          icon: () => <div>TriggerIcon</div>,
-          category: 'trigger',
-          description: 'Start workflow on an event',
-          keywords: ['event', 'manual'],
-          order: 10,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      expect(screen.getByText('Action')).toBeInTheDocument()
-      expect(screen.getByText('Execute scripts or make API calls')).toBeInTheDocument()
-      expect(screen.getByText('Trigger')).toBeInTheDocument()
-      expect(screen.getByText('Start workflow on an event')).toBeInTheDocument()
-    })
-
-    it('renders empty panel when no node types are registered', () => {
-      vi.mocked(NodeRegistry.getAll).mockReturnValue([])
-
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      expect(screen.getByText('Add node')).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /action/i })).not.toBeInTheDocument()
-    })
+    expect(screen.getByText('Add node')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Close/i })).toBeInTheDocument()
   })
 
-  describe('Node Filtering', () => {
-    const mockNodes = [
-      {
-        id: 'action',
-        label: 'Action',
-        icon: () => <div>ActionIcon</div>,
-        category: 'action',
-        description: 'Execute scripts or make API calls',
-        keywords: ['script'],
-        order: 30,
-        formComponent: MockFormComponent,
-        onSubmit: vi.fn(),
-      },
-      {
-        id: 'trigger',
-        label: 'Trigger',
-        icon: () => <div>TriggerIcon</div>,
-        category: 'trigger',
-        description: 'Start workflow on an event',
-        keywords: ['event'],
-        order: 10,
-        formComponent: MockFormComponent,
-        onSubmit: vi.fn(),
-      },
-    ]
+  it('calls onSelectNode when a base node is selected', async () => {
+    const user = userEvent.setup()
+    render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} />)
 
-    it('forces trigger subtype selection and hides close/back when workflow is empty', () => {
-      const triggerNodeWithSubtypes = {
-        ...mockNodes[1],
-        subtypes: [
-          {
-            id: 'trigger-manual',
-            label: 'Manual trigger',
-            icon: () => <div>ManualIcon</div>,
-            description: 'Automation will start when run is clicked.',
-          },
-          {
-            id: 'trigger-scheduled',
-            label: 'Schedule trigger',
-            icon: () => <div>ScheduleIcon</div>,
-            description: 'Automation will start based on a schedule.',
-          },
-        ],
-      }
+    await user.click(screen.getByRole('button', { name: 'Action' }))
 
-      vi.mocked(NodeRegistry.getAll).mockReturnValue([triggerNodeWithSubtypes] as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(triggerNodeWithSubtypes as never)
-
-      render(<AddNodePanel onClose={mockOnClose} hasNoWorkflowNodes />)
-
-      expect(NodeRegistry.get).toHaveBeenCalledWith('trigger')
-      expect(screen.queryByTestId('mock-form')).not.toBeInTheDocument()
-      expect(screen.getByText('Manual trigger')).toBeInTheDocument()
-      expect(screen.getByText('Schedule trigger')).toBeInTheDocument()
-      expect(screen.queryByLabelText('Close')).not.toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /back/i })).not.toBeInTheDocument()
-    })
-
-    it('filters out trigger nodes when sourceNodeId is provided', () => {
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodes as never)
-
-      render(<AddNodePanel onClose={mockOnClose} sourceNodeId="node-123" />)
-
-      expect(screen.getByText('Action')).toBeInTheDocument()
-      expect(screen.queryByText('Trigger')).not.toBeInTheDocument()
-    })
-
-    it('includes all node types when sourceNodeId is not provided', () => {
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodes as never)
-
-      render(<AddNodePanel onClose={mockOnClose} />)
-
-      expect(screen.getByText('Action')).toBeInTheDocument()
-      expect(screen.getByText('Trigger')).toBeInTheDocument()
-    })
+    expect(mockOnSelectNode).toHaveBeenCalledWith('action', null)
   })
 
-  describe('Node Selection', () => {
-    it('shows form when node type without subtypes is clicked', async () => {
-      const user = userEvent.setup()
-      const mockNodeTypes = [
-        {
-          id: 'approval',
-          label: 'Approval',
-          icon: () => <div>ApprovalIcon</div>,
-          category: 'approval',
-          description: 'Require approval before continuing',
-          keywords: ['approval'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-      ]
+  it('shows subtypes and calls onSelectNode with subtype', async () => {
+    const user = userEvent.setup()
+    render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} />)
 
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
+    await user.click(screen.getByRole('button', { name: 'Trigger' }))
+    await user.click(screen.getByRole('button', { name: 'Manual' }))
 
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      const approvalButton = screen.getByRole('button', { name: /approval/i })
-      await user.click(approvalButton)
-
-      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
-    })
-
-    it('shows action subtypes and opens form when subtype is selected', async () => {
-      const user = userEvent.setup()
-      const actionNode = {
-        id: 'action',
-        label: 'Action',
-        icon: () => <div>ActionIcon</div>,
-        category: 'action',
-        description: 'Execute scripts or make API calls',
-        keywords: ['script', 'api'],
-        order: 30,
-        selectionTitle: 'Select an action node',
-        formComponent: MockFormComponent,
-        onSubmit: vi.fn(),
-        subtypes: [
-          {
-            id: 'action-script',
-            label: 'Script',
-            icon: () => <div>ScriptIcon</div>,
-            description: 'Execute code to manage complex conditions.',
-            formTitle: 'Configure Script Actions',
-          },
-          {
-            id: 'action-api',
-            label: 'REST API',
-            icon: () => <div>ApiIcon</div>,
-            description: 'Trigger an action or retrieve data.',
-            formTitle: 'Configure REST API Actions',
-          },
-        ],
-      }
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue([actionNode] as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(actionNode as never)
-
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      await user.click(screen.getByRole('button', { name: /action/i }))
-
-      expect(screen.getByText('Select an action node')).toBeInTheDocument()
-      expect(screen.getByText('Script')).toBeInTheDocument()
-      expect(screen.getByText('REST API')).toBeInTheDocument()
-
-      await user.click(screen.getByRole('button', { name: /script/i }))
-
-      expect(screen.getByText('Configure Script Actions')).toBeInTheDocument()
-      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
-    })
-
-    it('shows logic subtypes and opens form when subtype is selected', async () => {
-      const user = userEvent.setup()
-      const logicNode = {
-        id: 'logic',
-        label: 'Logic',
-        icon: () => <div>LogicIcon</div>,
-        category: 'logic',
-        description: 'Add conditional logic and branching',
-        keywords: ['condition', 'loop', 'converge'],
-        order: 20,
-        selectionTitle: 'Select a logic node',
-        formComponent: MockFormComponent,
-        onSubmit: vi.fn(),
-        subtypes: [
-          {
-            id: 'logic-condition',
-            label: 'Conditional',
-            icon: () => <div>ConditionalIcon</div>,
-            description: 'Set parameters to branch the automation.',
-            formTitle: 'Configure Conditional Logic',
-          },
-          {
-            id: 'logic-converge',
-            label: 'Converge',
-            icon: () => <div>ConvergeIcon</div>,
-            description: 'Converge automation to single path.',
-          },
-          {
-            id: 'logic-loop',
-            label: 'Loop',
-            icon: () => <div>LoopIcon</div>,
-            description: 'Batch automation to repeat specific actions.',
-          },
-        ],
-      }
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue([logicNode] as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(logicNode as never)
-
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      await user.click(screen.getByRole('button', { name: /logic/i }))
-
-      expect(screen.getByText('Select a logic node')).toBeInTheDocument()
-      expect(screen.getByText('Conditional')).toBeInTheDocument()
-      expect(screen.getByText('Converge')).toBeInTheDocument()
-      expect(screen.getByText('Loop')).toBeInTheDocument()
-
-      await user.click(screen.getByRole('button', { name: /conditional/i }))
-
-      expect(screen.getByText('Configure Conditional Logic')).toBeInTheDocument()
-      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
-    })
-
-    it('hides form when same node type is clicked again', async () => {
-      const user = userEvent.setup()
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts or make API calls',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
-
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      const actionButton = screen.getByRole('button', { name: /action/i })
-
-      // Click to show form
-      await user.click(actionButton)
-      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
-
-      // Click back button to hide form
-      const backButton = screen.getByRole('button', { name: /back/i })
-      await user.click(backButton)
-      expect(screen.queryByTestId('mock-form')).not.toBeInTheDocument()
-    })
-
-    it('switches forms when different node type is clicked', async () => {
-      const user = userEvent.setup()
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-        {
-          id: 'trigger',
-          label: 'Trigger',
-          icon: () => <div>TriggerIcon</div>,
-          category: 'trigger',
-          description: 'Start workflow',
-          keywords: ['event'],
-          order: 10,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockImplementation((id: string) => mockNodeTypes.find((n) => n.id === id) as never)
-
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      // Click first node type
-      await user.click(screen.getByRole('button', { name: /action/i }))
-      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
-
-      // Click back button to return to node type list
-      const backButton = screen.getByRole('button', { name: /back/i })
-      await user.click(backButton)
-
-      // Click second node type
-      await user.click(screen.getByRole('button', { name: /trigger/i }))
-      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
-    })
+    expect(mockOnSelectNode).toHaveBeenCalledWith('trigger', 'trigger-manual')
   })
 
-  describe('Form Submission', () => {
-    it('calls onSubmit and deselects node on successful form submission', async () => {
-      const user = userEvent.setup()
-      const mockOnSubmit = vi.fn((_data, onSuccess) => {
-        onSuccess()
-      })
+  it('shows back button for subtype list and returns to main list', async () => {
+    const user = userEvent.setup()
+    render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} />)
 
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: mockOnSubmit,
-        },
-      ]
+    await user.click(screen.getByRole('button', { name: 'Trigger' }))
 
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
+    expect(screen.getByRole('button', { name: /Back/i })).toBeInTheDocument()
 
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
+    await user.click(screen.getByRole('button', { name: /Back/i }))
 
-      // Open form
-      await user.click(screen.getByRole('button', { name: /action/i }))
-
-      // Submit form
-      await user.click(screen.getByTestId('form-submit'))
-
-      expect(mockOnSubmit).toHaveBeenCalled()
-      // Form should be hidden after successful submission
-      expect(screen.queryByTestId('mock-form')).not.toBeInTheDocument()
-    })
-
-    it('calls onNodeError callback when submission fails', async () => {
-      const user = userEvent.setup()
-      const errorMessage = 'Failed to create node'
-      const mockOnSubmit = vi.fn((_data, _onSuccess, onError) => {
-        onError(errorMessage)
-      })
-
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: mockOnSubmit,
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
-
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      // Open form
-      await user.click(screen.getByRole('button', { name: /action/i }))
-
-      // Submit form
-      await user.click(screen.getByTestId('form-submit'))
-
-      expect(mockOnSubmit).toHaveBeenCalled()
-      expect(mockOnNodeError).toHaveBeenCalledWith(errorMessage, 'Failed to add node')
-    })
-
-    it('does not call onNodeError when onNodeError prop is not provided', async () => {
-      const user = userEvent.setup()
-      const mockOnSubmit = vi.fn((_data, _onSuccess, onError) => {
-        onError('Error')
-      })
-
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: mockOnSubmit,
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
-
-      // Render without onNodeError prop
-      render(<AddNodePanel onClose={mockOnClose} />)
-
-      await user.click(screen.getByRole('button', { name: /action/i }))
-      await user.click(screen.getByTestId('form-submit'))
-
-      // Should not throw error even though onNodeError is not provided
-      expect(mockOnSubmit).toHaveBeenCalled()
-    })
+    expect(screen.getByRole('button', { name: 'Action' })).toBeInTheDocument()
   })
 
-  describe('Form Cancellation', () => {
-    it('hides form when cancel button is clicked', async () => {
-      const user = userEvent.setup()
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-      ]
+  it('filters to trigger nodes when no workflow nodes exist', () => {
+    render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} hasNoWorkflowNodes />)
 
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
-
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      // Open form
-      await user.click(screen.getByRole('button', { name: /action/i }))
-      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
-
-      // Cancel form
-      await user.click(screen.getByTestId('form-cancel'))
-      expect(screen.queryByTestId('mock-form')).not.toBeInTheDocument()
-    })
+    expect(screen.getByRole('button', { name: 'Manual' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Action' })).not.toBeInTheDocument()
   })
 
-  describe('Panel Close', () => {
-    it('calls onClose when close button is clicked', async () => {
-      const user = userEvent.setup()
-      vi.mocked(NodeRegistry.getAll).mockReturnValue([])
+  it('hides close and back buttons when no workflow nodes exist', () => {
+    render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} hasNoWorkflowNodes />)
 
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      // The close button is the first button in the header (rendered by SidePanel)
-      const buttons = screen.getAllByRole('button')
-      const closeButton = buttons[0] // The X button in the header
-      await user.click(closeButton)
-
-      expect(mockOnClose).toHaveBeenCalledTimes(1)
-    })
+    expect(screen.queryByRole('button', { name: /Close/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Back/i })).not.toBeInTheDocument()
   })
 
-  describe('Node Highlighting', () => {
-    it('applies selected styling to selected node', async () => {
-      const user = userEvent.setup()
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-      ]
+  it('filters out triggers when adding from edge', () => {
+    render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} sourceNodeId="node-123" />)
 
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
-
-      render(<AddNodePanel onClose={mockOnClose} onNodeSelect={mockOnNodeSelect} onNodeError={mockOnNodeError} />)
-
-      const actionButton = screen.getByRole('button', { name: /action/i })
-
-      // Initially not selected (cards are visible, no form)
-      expect(actionButton).toBeInTheDocument()
-      expect(screen.queryByTestId('mock-form')).not.toBeInTheDocument()
-
-      // Click to select - cards should be hidden, form should show
-      await user.click(actionButton)
-      expect(screen.queryByRole('button', { name: /action/i })).not.toBeInTheDocument() // Cards hidden
-      expect(screen.getByTestId('mock-form')).toBeInTheDocument() // Form shown
-    })
+    expect(screen.queryByRole('button', { name: 'Trigger' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Action' })).toBeInTheDocument()
   })
 
-  describe('Keyboard Navigation', () => {
-    it('selects node when Enter key is pressed', async () => {
-      const user = userEvent.setup()
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-      ]
+  it('filters out triggers when replacing a generic node', () => {
+    render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} replacementNodeId="node-456" />)
 
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
-
-      render(<AddNodePanel onClose={mockOnClose} />)
-
-      const actionButton = screen.getByRole('button', { name: /action/i })
-      actionButton.focus()
-      await user.keyboard('{Enter}')
-
-      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
-    })
-
-    it('selects node when Space key is pressed', async () => {
-      const user = userEvent.setup()
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
-
-      render(<AddNodePanel onClose={mockOnClose} />)
-
-      const actionButton = screen.getByRole('button', { name: /action/i })
-      actionButton.focus()
-      await user.keyboard(' ')
-
-      expect(screen.getByTestId('mock-form')).toBeInTheDocument()
-    })
-  })
-
-  describe('Connect Mode', () => {
-    it('calls moveActivityAfter and onConnect when sourceNodeId is provided', async () => {
-      const user = userEvent.setup()
-      const mockMoveActivityAfter = vi.fn()
-      const mockOnConnect = vi.fn()
-
-      // Re-mock to capture the function
-      const { useWorkflowStoreActions } = await import('../../stores/useWorkflowStore')
-      vi.mocked(useWorkflowStoreActions).mockReturnValue({
-        moveActivityAfter: mockMoveActivityAfter,
-        updateActivity: vi.fn(),
-        removeActivity: vi.fn(),
-      } as never)
-
-      const mockOnSubmit = vi.fn((_data, onSuccess) => {
-        onSuccess('new-node-123')
-      })
-
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: mockOnSubmit,
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
-
-      render(<AddNodePanel onClose={mockOnClose} sourceNodeId="source-123" onConnect={mockOnConnect} />)
-
-      await user.click(screen.getByRole('button', { name: /action/i }))
-      await user.click(screen.getByTestId('form-submit'))
-
-      expect(mockMoveActivityAfter).toHaveBeenCalledWith('new-node-123', 'source-123')
-      expect(mockOnConnect).toHaveBeenCalledWith('source-123', 'new-node-123')
-    })
-  })
-
-  describe('Replacement Mode', () => {
-    it('filters out trigger nodes when replacementNodeId is provided', () => {
-      const mockNodes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-        {
-          id: 'trigger',
-          label: 'Trigger',
-          icon: () => <div>TriggerIcon</div>,
-          category: 'trigger',
-          description: 'Start workflow',
-          keywords: ['event'],
-          order: 10,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodes as never)
-
-      render(<AddNodePanel onClose={mockOnClose} replacementNodeId="generic-123" />)
-
-      expect(screen.getByText('Action')).toBeInTheDocument()
-      expect(screen.queryByText('Trigger')).not.toBeInTheDocument()
-    })
-
-    it('calls onNodeReplaced after successful replacement', async () => {
-      const user = userEvent.setup()
-      const mockOnNodeReplaced = vi.fn()
-      const mockUpdateActivity = vi.fn()
-      const mockRemoveActivity = vi.fn()
-
-      const { useWorkflowStoreActions } = await import('../../stores/useWorkflowStore')
-      vi.mocked(useWorkflowStoreActions).mockReturnValue({
-        moveActivityAfter: vi.fn(),
-        updateActivity: mockUpdateActivity,
-        removeActivity: mockRemoveActivity,
-      } as never)
-
-      vi.mocked(useWorkflowStore.getState).mockReturnValue({
-        currentWorkflow: {
-          workflow: {
-            activities: [
-              { id: 'new-activity-id', name: 'New Activity', metadata: { __isGeneric: true, other: 'data' } },
-              { id: 'generic-123', name: 'Generic', metadata: { __isGeneric: true } },
-            ],
-          },
-        },
-      } as never)
-
-      const mockOnSubmit = vi.fn((_data, onSuccess) => {
-        onSuccess('new-activity-id')
-      })
-
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: mockOnSubmit,
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
-
-      render(<AddNodePanel onClose={mockOnClose} replacementNodeId="generic-123" onNodeReplaced={mockOnNodeReplaced} />)
-
-      await user.click(screen.getByRole('button', { name: /action/i }))
-      await user.click(screen.getByTestId('form-submit'))
-
-      expect(mockRemoveActivity).toHaveBeenCalledWith('new-activity-id')
-      expect(mockUpdateActivity).toHaveBeenCalled()
-      expect(mockOnNodeReplaced).toHaveBeenCalledWith('generic-123')
-    })
-
-    it('handles replacement when no newNodeId is returned', async () => {
-      const user = userEvent.setup()
-      const mockOnNodeReplaced = vi.fn()
-      const mockUpdateActivity = vi.fn()
-
-      const { useWorkflowStoreActions } = await import('../../stores/useWorkflowStore')
-      vi.mocked(useWorkflowStoreActions).mockReturnValue({
-        moveActivityAfter: vi.fn(),
-        updateActivity: mockUpdateActivity,
-        removeActivity: vi.fn(),
-      } as never)
-
-      vi.mocked(useWorkflowStore.getState).mockReturnValue({
-        currentWorkflow: {
-          workflow: {
-            activities: [{ id: 'generic-123', name: 'Generic', metadata: { __isGeneric: true, keepThis: 'value' } }],
-          },
-        },
-      } as never)
-
-      const mockOnSubmit = vi.fn((_data, onSuccess) => {
-        onSuccess() // No newNodeId
-      })
-
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: mockOnSubmit,
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
-
-      render(<AddNodePanel onClose={mockOnClose} replacementNodeId="generic-123" onNodeReplaced={mockOnNodeReplaced} />)
-
-      await user.click(screen.getByRole('button', { name: /action/i }))
-      await user.click(screen.getByTestId('form-submit'))
-
-      expect(mockUpdateActivity).toHaveBeenCalledWith('generic-123', { metadata: { keepThis: 'value' } })
-      expect(mockOnNodeReplaced).toHaveBeenCalledWith('generic-123')
-    })
-
-    it('handles replacement when activity has no metadata', async () => {
-      const user = userEvent.setup()
-      const mockUpdateActivity = vi.fn()
-
-      const { useWorkflowStoreActions } = await import('../../stores/useWorkflowStore')
-      vi.mocked(useWorkflowStoreActions).mockReturnValue({
-        moveActivityAfter: vi.fn(),
-        updateActivity: mockUpdateActivity,
-        removeActivity: vi.fn(),
-      } as never)
-
-      vi.mocked(useWorkflowStore.getState).mockReturnValue({
-        currentWorkflow: {
-          workflow: {
-            activities: [{ id: 'generic-123', name: 'Generic' }], // No metadata
-          },
-        },
-      } as never)
-
-      const mockOnSubmit = vi.fn((_data, onSuccess) => {
-        onSuccess()
-      })
-
-      const mockNodeTypes = [
-        {
-          id: 'action',
-          label: 'Action',
-          icon: () => <div>ActionIcon</div>,
-          category: 'action',
-          description: 'Execute scripts',
-          keywords: ['script'],
-          order: 30,
-          formComponent: MockFormComponent,
-          onSubmit: mockOnSubmit,
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-      vi.mocked(NodeRegistry.get).mockReturnValue(mockNodeTypes[0] as never)
-
-      render(<AddNodePanel onClose={mockOnClose} replacementNodeId="generic-123" />)
-
-      await user.click(screen.getByRole('button', { name: /action/i }))
-      await user.click(screen.getByTestId('form-submit'))
-
-      expect(mockUpdateActivity).toHaveBeenCalledWith('generic-123', { metadata: undefined })
-    })
-  })
-
-  describe('Custom Icon Rendering', () => {
-    it('renders AAP node with custom icon styling', () => {
-      const mockNodeTypes = [
-        {
-          id: 'aap',
-          label: 'AAP',
-          icon: () => <div data-testid="aap-icon">AAPIcon</div>,
-          category: 'action',
-          description: 'Ansible Automation Platform',
-          keywords: ['ansible'],
-          order: 20,
-          formComponent: MockFormComponent,
-          onSubmit: vi.fn(),
-        },
-      ]
-
-      vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never)
-
-      render(<AddNodePanel onClose={mockOnClose} />)
-
-      expect(screen.getByTestId('aap-icon')).toBeInTheDocument()
-    })
+    expect(screen.queryByRole('button', { name: 'Trigger' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Action' })).toBeInTheDocument()
   })
 })

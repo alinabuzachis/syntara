@@ -1,6 +1,8 @@
+import type { TaskActivity } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import type { ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as workflowStore from '../../../stores/useWorkflowStore'
 import type { WorkflowStore } from '../../../stores/useWorkflowStore'
@@ -110,6 +112,7 @@ vi.mock('../node-forms/AAPNodeForm', () => ({
     onSubmit: (data: Record<string, unknown>) => void
     onCancel: () => void
     submitButtonText?: string
+    onHeaderContentChange: (content: ReactNode | null) => void
   }) => (
     <div data-testid="aap-node-form">
       <button
@@ -160,6 +163,15 @@ vi.mock('./AIAgentNodeDetails', () => ({
 
 describe('TaskNodeDetails Component', () => {
   const mockOnClose = vi.fn()
+  const renderTaskNodeDetails = (taskData: TaskActivity, nodeId: string) =>
+    render(
+      <TaskNodeDetails
+        taskData={taskData as TaskActivity & { task: { executor: string; config: unknown } }}
+        nodeId={nodeId}
+        onClose={mockOnClose}
+        onHeaderContentChange={vi.fn()}
+      />
+    )
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -192,7 +204,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    render(<TaskNodeDetails taskData={taskData} nodeId="task-1" onClose={mockOnClose} />)
+    renderTaskNodeDetails(taskData, 'task-1')
 
     expect(screen.getByTestId('action-node-form')).toBeInTheDocument()
   })
@@ -211,7 +223,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    render(<TaskNodeDetails taskData={taskData} nodeId="task-2" onClose={mockOnClose} />)
+    renderTaskNodeDetails(taskData, 'task-2')
 
     expect(screen.getByTestId('action-node-form')).toBeInTheDocument()
   })
@@ -231,7 +243,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    render(<TaskNodeDetails taskData={taskData} nodeId="task-aap" onClose={mockOnClose} />)
+    renderTaskNodeDetails(taskData, 'task-aap')
 
     expect(screen.getByTestId('aap-node-form')).toBeInTheDocument()
   })
@@ -252,7 +264,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    render(<TaskNodeDetails taskData={taskData} nodeId="task-agent" onClose={mockOnClose} />)
+    renderTaskNodeDetails(taskData, 'task-agent')
 
     expect(screen.getByTestId('ai-agent-node-details')).toBeInTheDocument()
     expect(screen.getByTestId('agent-node-id')).toHaveTextContent('task-agent')
@@ -270,7 +282,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    const { container } = render(<TaskNodeDetails taskData={taskData} nodeId="task-3" onClose={mockOnClose} />)
+    const { container } = renderTaskNodeDetails(taskData, 'task-3')
 
     expect(container.firstChild).toBeNull()
   })
@@ -290,7 +302,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    render(<TaskNodeDetails taskData={taskData} nodeId="task-1" onClose={mockOnClose} />)
+    renderTaskNodeDetails(taskData, 'task-1')
 
     await user.click(screen.getByTestId('submit-button'))
 
@@ -318,7 +330,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    render(<TaskNodeDetails taskData={taskData} nodeId="task-aap" onClose={mockOnClose} />)
+    renderTaskNodeDetails(taskData, 'task-aap')
 
     await user.click(screen.getByTestId('aap-submit-button'))
 
@@ -358,7 +370,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    render(<TaskNodeDetails taskData={taskData} nodeId="task-1" onClose={mockOnClose} />)
+    renderTaskNodeDetails(taskData, 'task-1')
 
     expect(screen.getByText('Update node')).toBeInTheDocument()
   })
@@ -378,7 +390,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    render(<TaskNodeDetails taskData={taskData} nodeId="task-1" onClose={mockOnClose} />)
+    renderTaskNodeDetails(taskData, 'task-1')
 
     await user.click(screen.getByTestId('cancel-button'))
 
@@ -404,7 +416,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    const { container } = render(<TaskNodeDetails taskData={taskData} nodeId="task-approval" onClose={mockOnClose} />)
+    const { container } = renderTaskNodeDetails(taskData, 'task-approval')
 
     expect(container.firstChild).toBeNull()
   })
@@ -424,7 +436,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    render(<TaskNodeDetails taskData={taskData} nodeId="task-api" onClose={mockOnClose} />)
+    renderTaskNodeDetails(taskData, 'task-api')
 
     await user.click(screen.getByTestId('submit-api-button'))
 
@@ -460,7 +472,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    render(<TaskNodeDetails taskData={taskData} nodeId="task-api" onClose={mockOnClose} />)
+    renderTaskNodeDetails(taskData, 'task-api')
 
     await user.click(screen.getByTestId('submit-api-plain-body-button'))
 
@@ -494,7 +506,7 @@ describe('TaskNodeDetails Component', () => {
       },
     }
 
-    render(<TaskNodeDetails taskData={taskData} nodeId="task-1" onClose={mockOnClose} />)
+    renderTaskNodeDetails(taskData, 'task-1')
 
     await user.click(screen.getByTestId('submit-button'))
 

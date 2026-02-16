@@ -1,4 +1,5 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
@@ -11,9 +12,10 @@ interface ApprovalNodeDetailsProps {
   taskData: TaskActivity
   nodeId: string
   onClose: () => void
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
-export function ApprovalNodeDetails({ taskData, nodeId, onClose }: ApprovalNodeDetailsProps) {
+export function ApprovalNodeDetails({ taskData, nodeId, onClose, onHeaderContentChange }: ApprovalNodeDetailsProps) {
   const { showError } = useAlerts()
   const updateActivity = useWorkflowStore((state) => state.updateActivity)
 
@@ -54,6 +56,7 @@ export function ApprovalNodeDetails({ taskData, nodeId, onClose }: ApprovalNodeD
       onCancel={onClose}
       submitButtonText="Update node"
       initialData={initialData}
+      onHeaderContentChange={onHeaderContentChange}
     />
   )
 }

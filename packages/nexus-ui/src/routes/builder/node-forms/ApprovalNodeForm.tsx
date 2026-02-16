@@ -1,6 +1,5 @@
 import {
   Flex,
-  Form,
   FormGroup,
   FormHelperText,
   HelperText,
@@ -12,11 +11,13 @@ import {
   TextInput,
   Title,
 } from '@patternfly/react-core'
-import { useState } from 'react'
+import type { ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
 import { ActivityNameField } from './shared/ActivityNameField'
-import { FormSubmitButton } from './shared/FormSubmitButton'
+import { NodeFormContainer } from './shared/NodeFormContainer'
+import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
 // Helper function to break down total seconds into days, hours, minutes, seconds
 function secondsToTimeUnits(totalSeconds: number): {
@@ -76,14 +77,17 @@ interface ApprovalNodeFormProps {
   onCancel: () => void
   submitButtonText?: string
   initialData?: Partial<ApprovalFormSubmitData>
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
 function ApprovalFormFields({
   submitButtonText,
   initialApprovers,
+  onHeaderContentChange,
 }: {
   submitButtonText?: string
   initialApprovers: string[]
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }) {
   const { register, control, setValue } = useFormContext<ApprovalFormData>()
   const [inputValue, setInputValue] = useState('')
@@ -111,9 +115,20 @@ function ApprovalFormFields({
     setValue('approvers', updatedList.join(', '), { shouldValidate: true })
   }
 
-  return (
+  const nameField = useMemo(
+    () => <ActivityNameField register={register} fieldId="approval-name" ariaLabel="Name" />,
+    [register]
+  )
+
+  useEffect(() => {
+    onHeaderContentChange?.(nameField)
+    return () => {
+      onHeaderContentChange?.(null)
+    }
+  }, [nameField, onHeaderContentChange])
+
+  const parametersContent = (
     <Stack hasGutter>
-      <ActivityNameField register={register} fieldId="approval-name" label="Approval name" />
       <StackItem>
         <FormGroup label="Usernames to notify" isRequired fieldId="approval-approvers">
           <Controller
@@ -251,9 +266,10 @@ function ApprovalFormFields({
           />
         </FormGroup>
       </StackItem>
-      <FormSubmitButton submitButtonText={submitButtonText} />
     </Stack>
   )
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
 }
 
 export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
@@ -310,9 +326,13 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
 
   return (
     <FormProvider {...methods}>
-      <Form id="approval-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <ApprovalFormFields submitButtonText={props.submitButtonText} initialApprovers={initialApprovers} />
-      </Form>
+      <NodeFormContainer formId="approval-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+        <ApprovalFormFields
+          submitButtonText={props.submitButtonText}
+          initialApprovers={initialApprovers}
+          onHeaderContentChange={props.onHeaderContentChange}
+        />
+      </NodeFormContainer>
     </FormProvider>
   )
 }

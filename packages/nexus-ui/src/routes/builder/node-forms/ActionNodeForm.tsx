@@ -1,5 +1,4 @@
 import {
-  Form,
   FormGroup,
   FormHelperText,
   FormSelect,
@@ -12,9 +11,13 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
+import type { ReactNode } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
-import { FormSubmitButton } from './shared/FormSubmitButton'
+import { ActivityNameField } from './shared/ActivityNameField'
+import { NodeFormContainer } from './shared/NodeFormContainer'
+import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
 // Type definitions (Priority 2)
 export type ExecutorType = 'script' | 'api'
@@ -40,6 +43,7 @@ interface ActionNodeFormProps {
   onCancel: () => void
   submitButtonText?: string
   initialData?: Partial<ActionFormData>
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
 // Constants (Priority 4)
@@ -59,7 +63,13 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
 /**
  * Form fields component that manually registers fields with react-hook-form
  */
-function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
+function ActionFormFields({
+  submitButtonText,
+  onHeaderContentChange,
+}: {
+  submitButtonText?: string
+  onHeaderContentChange?: (content: ReactNode | null) => void
+}) {
   const {
     register,
     control,
@@ -67,7 +77,26 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
   } = useFormContext<ActionFormData>()
   const executor = useWatch({ control, name: 'executor' })
 
-  return (
+  const nameField = useMemo(
+    () => (
+      <ActivityNameField<ActionFormData>
+        register={register}
+        fieldId="action-name"
+        placeholder="Enter activity name"
+        ariaLabel="Name"
+      />
+    ),
+    [register]
+  )
+
+  useEffect(() => {
+    onHeaderContentChange?.(nameField)
+    return () => {
+      onHeaderContentChange?.(null)
+    }
+  }, [nameField, onHeaderContentChange])
+
+  const parametersContent = (
     <Stack
       hasGutter
       style={{
@@ -76,11 +105,6 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
       }}
     >
       <input type="hidden" {...register('executor')} />
-      <StackItem>
-        <FormGroup label="Name" fieldId="action-name">
-          <TextInput {...register('name')} id="action-name" placeholder="Enter activity name" type="text" />
-        </FormGroup>
-      </StackItem>
 
       {executor === 'script' && (
         <>
@@ -204,10 +228,10 @@ function ActionFormFields({ submitButtonText }: { submitButtonText?: string }) {
           </StackItem>
         </>
       )}
-
-      <FormSubmitButton submitButtonText={submitButtonText} />
     </Stack>
   )
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
 }
 
 export function ActionNodeForm(props: ActionNodeFormProps) {
@@ -242,9 +266,12 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
 
   return (
     <FormProvider {...methods}>
-      <Form id="action-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <ActionFormFields submitButtonText={props.submitButtonText} />
-      </Form>
+      <NodeFormContainer formId="action-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+        <ActionFormFields
+          submitButtonText={props.submitButtonText}
+          onHeaderContentChange={props.onHeaderContentChange}
+        />
+      </NodeFormContainer>
     </FormProvider>
   )
 }

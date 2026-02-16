@@ -1,8 +1,26 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { cloneElement, useState } from 'react'
+import type { ReactElement, ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AIAgentNodeForm } from './AIAgentNodeForm'
+
+function renderWithHeader(ui: ReactElement) {
+  function Wrapper() {
+    const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
+    return (
+      <>
+        {headerContent}
+        {cloneElement(ui as ReactElement<{ onHeaderContentChange?: (content: ReactNode | null) => void }>, {
+          onHeaderContentChange: setHeaderContent,
+        })}
+      </>
+    )
+  }
+
+  render(<Wrapper />)
+}
 
 // Mock file upload hook
 const mockUploadFiles = vi.fn()
@@ -65,16 +83,16 @@ describe('AIAgentNodeForm', () => {
   })
 
   it('renders form with all fields', () => {
-    render(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
-    expect(screen.getByLabelText(/Agent name/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toBeInTheDocument()
     expect(screen.getByLabelText(/Prompt/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Tools/i)).toBeInTheDocument()
   })
 
   it('submits form with minimal required fields', async () => {
     const user = userEvent.setup()
-    render(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
     await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
@@ -91,7 +109,7 @@ describe('AIAgentNodeForm', () => {
 
   it('submits form with required fields and default model', async () => {
     const user = userEvent.setup()
-    render(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Research Agent')
     await user.type(
@@ -110,7 +128,7 @@ describe('AIAgentNodeForm', () => {
   })
 
   it('populates form with initial data', () => {
-    render(
+    renderWithHeader(
       <AIAgentNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -129,13 +147,13 @@ describe('AIAgentNodeForm', () => {
   })
 
   it('uses custom submit button text when provided', () => {
-    render(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} submitButtonText="Update node" />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} submitButtonText="Update node" />)
 
     expect(screen.getByRole('button', { name: /Update node/i })).toBeInTheDocument()
   })
 
   it('has disabled tools dropdown', () => {
-    render(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     const toolsDropdown = screen.getByLabelText(/Tools/i)
     expect(toolsDropdown).toBeDisabled()
@@ -143,7 +161,7 @@ describe('AIAgentNodeForm', () => {
 
   it('submits with default model from environment', async () => {
     const user = userEvent.setup()
-    render(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
     await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
@@ -159,7 +177,7 @@ describe('AIAgentNodeForm', () => {
 
   it('preserves model from initial data when updating', async () => {
     const user = userEvent.setup()
-    render(
+    renderWithHeader(
       <AIAgentNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
@@ -183,14 +201,14 @@ describe('AIAgentNodeForm', () => {
   })
 
   it('renders file upload component', () => {
-    render(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     expect(screen.getByTestId('file-upload')).toBeInTheDocument()
   })
 
   it('handles file upload success', async () => {
     const user = userEvent.setup()
-    render(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     await user.click(screen.getByTestId('upload-files'))
 
@@ -201,7 +219,7 @@ describe('AIAgentNodeForm', () => {
 
   it('submits with uploaded file IDs', async () => {
     const user = userEvent.setup()
-    render(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     // Upload a file
     await user.click(screen.getByTestId('upload-files'))
@@ -230,7 +248,7 @@ describe('AIAgentNodeForm', () => {
     const user = userEvent.setup()
     mockUploadFiles.mockRejectedValueOnce(new Error('Upload failed'))
 
-    render(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     await user.click(screen.getByTestId('upload-files'))
 
@@ -241,7 +259,7 @@ describe('AIAgentNodeForm', () => {
 
   it('handles file removal', async () => {
     const user = userEvent.setup()
-    render(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     // Upload a file first
     await user.click(screen.getByTestId('upload-files'))

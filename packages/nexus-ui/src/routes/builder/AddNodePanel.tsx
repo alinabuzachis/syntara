@@ -1,46 +1,22 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import {
-  Button,
-  CompassPanel,
-  Flex,
-  FlexItem,
-  Icon,
-  PanelMain,
-  PanelMainBody,
-  Stack,
-  StackItem,
-  Title,
-  TitleSizes,
-} from '@patternfly/react-core'
+import { Button, CompassPanel, Flex, FlexItem, Icon, Stack, StackItem, Title, TitleSizes } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiArrowLeftIcon, RhUiAddSquareIcon } from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
-
-import { useWorkflowStore, useWorkflowStoreActions } from '../../stores/useWorkflowStore'
-
-type Activity = WorkflowAPI.components['schemas']['activity']
 
 import { NodeTypeOptionsList } from './NodeTypeOptionsList'
 import { NodeRegistry } from './registry/NodeRegistry'
 
 interface AddNodePanelProps {
   onClose: () => void
-  onNodeSelect?: (message: string, title: string) => void
-  onNodeError?: (error: string, title: string) => void
+  onSelectNode: (nodeTypeId: string, nodeSubtypeId?: string | null) => void
   sourceNodeId?: string | null
-  onConnect?: (sourceId: string, targetId: string) => void
   /** Project has no nodes in the builder */
   hasNoWorkflowNodes?: boolean
   /** ID of the node to replace (for generic node conversion) */
   replacementNodeId?: string | null
-  /** Callback when a node is successfully replaced */
-  onNodeReplaced?: (nodeId: string) => void
 }
 
 export function AddNodePanel(props: AddNodePanelProps) {
   const [selectedNodeType, setSelectedNodeType] = useState<string | null>(null)
-  const [selectedNodeSubtypeId, setSelectedNodeSubtypeId] = useState<string | null>(null)
-  // Use action accessor - component won't re-render when store state changes
-  const { moveActivityAfter, updateActivity, removeActivity } = useWorkflowStoreActions()
 
   // Get all registered node types
   // Filter out trigger nodes when adding via plus icon (sourceNodeId exists)
@@ -58,138 +34,22 @@ export function AddNodePanel(props: AddNodePanelProps) {
   }, [props.replacementNodeId, props.hasNoWorkflowNodes, props.sourceNodeId])
 
   const handleNodeClick = (nodeId: string) => {
-    setSelectedNodeType(nodeId)
-    setSelectedNodeSubtypeId(null)
-  }
-
-  const handleFormCancel = () => {
-    if (selectedNode?.subtypes?.length) {
-      setSelectedNodeSubtypeId(null)
+    const nodeDef = NodeRegistry.get(nodeId)
+    if (nodeDef?.subtypes?.length) {
+      setSelectedNodeType(nodeId)
       return
     }
+    props.onSelectNode(nodeId, null)
     setSelectedNodeType(null)
   }
 
   // Get the selected node type definition
   const enforcedSelectedNodeType = props.hasNoWorkflowNodes ? 'trigger' : selectedNodeType
   const selectedNode = enforcedSelectedNodeType ? NodeRegistry.get(enforcedSelectedNodeType) : null
-  const selectedSubtype = selectedNode?.subtypes?.find((subtype) => subtype.id === selectedNodeSubtypeId) ?? null
-  const isShowingSubtypeList = !!(selectedNode?.subtypes?.length && !selectedSubtype)
-
-  const configureTitle = selectedSubtype
-    ? (selectedSubtype.formTitle ?? `Configure ${selectedSubtype.label}`)
-    : selectedNode
-      ? `Configure ${selectedNode.label}`
-      : null
+  const isShowingSubtypeList = !!selectedNode?.subtypes?.length
 
   const panelTitle =
     isShowingSubtypeList && selectedNode ? (selectedNode.selectionTitle ?? 'Select a node') : 'Add node'
-
-  const renderForm = () => {
-    if (!selectedNode) return null
-
-    const FormComponent = selectedNode.formComponent
-    const subtypeFormProps = selectedSubtype?.formProps ?? {}
-
-    return (
-      <FormComponent
-        {...subtypeFormProps}
-        submitButtonText={props.replacementNodeId ? 'Update node' : 'Add node'}
-        initialData={selectedSubtype?.initialData}
-        onSubmit={(data) => {
-          selectedNode.onSubmit(
-            data,
-            (newNodeId?: string) => {
-              // Success callback - handle different modes
-              if (props.replacementNodeId) {
-                // REPLACEMENT MODE: Replace generic node with real node
-                if (newNodeId) {
-                  // If node was actually created, use its data
-                  const currentWorkflow = useWorkflowStore.getState().currentWorkflow
-                  const newActivity = currentWorkflow?.workflow.activities.find((a: Activity) => a.id === newNodeId)
-
-                  if (newActivity) {
-                    // Remove the temporary new activity first
-                    removeActivity(newNodeId)
-
-                    // Clean up metadata from new activity - remove __isGeneric flag
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    let cleanedMetadata: any = undefined
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    if ((newActivity as any).metadata) {
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-                      const { __isGeneric: _isGeneric, ...restMetadata } = (newActivity as any).metadata
-                      // Only keep metadata if there are other properties
-                      if (Object.keys(restMetadata).length > 0) {
-                        cleanedMetadata = restMetadata
-                      }
-                    }
-
-                    // Update the generic node to become the real node type
-                    // This preserves the ID and all connections
-                    // IMPORTANT: Must explicitly set metadata to ensure __isGeneric flag is removed
-                    updateActivity(props.replacementNodeId, {
-                      ...newActivity,
-                      id: props.replacementNodeId,
-                      metadata: cleanedMetadata,
-                    })
-                  }
-                } else {
-                  // Node didn't create an activity (placeholder implementation)
-                  // Just remove the __isGeneric flag to convert generic node to regular task node
-                  const currentWorkflow = useWorkflowStore.getState().currentWorkflow
-                  const genericActivity = currentWorkflow?.workflow.activities.find(
-                    (a: Activity) => a.id === props.replacementNodeId
-                  )
-
-                  if (genericActivity) {
-                    // Remove __isGeneric flag to make it render as a regular task node
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const currentMetadata = (genericActivity as any).metadata
-                    if (currentMetadata) {
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                      const { __isGeneric: _isGeneric, ...restMetadata } = currentMetadata
-                      const newMetadata = Object.keys(restMetadata).length > 0 ? restMetadata : undefined
-                      updateActivity(props.replacementNodeId, {
-                        metadata: newMetadata,
-                      })
-                    } else {
-                      // No metadata at all, make sure to clear it
-                      updateActivity(props.replacementNodeId, {
-                        metadata: undefined,
-                      })
-                    }
-                  }
-                }
-                // Notify parent that node was replaced so it can open the edit form
-                if (props.onNodeReplaced) {
-                  props.onNodeReplaced(props.replacementNodeId)
-                }
-              } else if (props.sourceNodeId && newNodeId) {
-                // CONNECT MODE: Move the newly added activity to the correct position (after sourceNodeId)
-                moveActivityAfter(newNodeId, props.sourceNodeId)
-
-                // Connect if onConnect callback exists
-                if (props.onConnect) {
-                  props.onConnect(props.sourceNodeId, newNodeId)
-                }
-              }
-              setSelectedNodeType(null)
-              setSelectedNodeSubtypeId(null)
-              props.onClose()
-            },
-            (error) => {
-              // Error callback - show error alert
-              if (props.onNodeError) {
-                props.onNodeError(error, 'Failed to add node')
-              }
-            }
-          )
-        }}
-        onCancel={handleFormCancel}
-      />
-    )
-  }
 
   return (
     <CompassPanel
@@ -219,7 +79,6 @@ export function AddNodePanel(props: AddNodePanelProps) {
                       variant="plain"
                       onClick={() => {
                         setSelectedNodeType(null)
-                        setSelectedNodeSubtypeId(null)
                       }}
                       aria-label="Back"
                     >
@@ -262,54 +121,18 @@ export function AddNodePanel(props: AddNodePanelProps) {
           }}
         >
           <Stack hasGutter>
-            {selectedNode ? (
-              selectedNode.subtypes?.length && !selectedSubtype ? (
-                <NodeTypeOptionsList
-                  nodeTypes={selectedNode.subtypes
-                    .map((subtype, index) => ({ subtype, index }))
-                    .sort((a, b) => (a.subtype.order ?? a.index) - (b.subtype.order ?? b.index))
-                    .map(({ subtype }) => subtype)}
-                  onSelect={(subtypeId) => setSelectedNodeSubtypeId(subtypeId)}
-                />
-              ) : (
-                // When a form is selected, only show that form
-                <StackItem>
-                  <CompassPanel>
-                    <PanelMain>
-                      <PanelMainBody>
-                        <Stack hasGutter>
-                          <StackItem>
-                            <Flex gap={{ default: 'gapXs' }}>
-                              <FlexItem>
-                                <Button
-                                  variant="plain"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleFormCancel()
-                                  }}
-                                  aria-label="Back"
-                                >
-                                  <Icon>
-                                    <RhUiArrowLeftIcon />
-                                  </Icon>
-                                </Button>
-                              </FlexItem>
-                              <FlexItem grow={{ default: 'grow' }}>
-                                <Title headingLevel="h3" size="md">
-                                  {configureTitle}
-                                </Title>
-                              </FlexItem>
-                            </Flex>
-                          </StackItem>
-                          <StackItem>{renderForm()}</StackItem>
-                        </Stack>
-                      </PanelMainBody>
-                    </PanelMain>
-                  </CompassPanel>
-                </StackItem>
-              )
+            {selectedNode && selectedNode.subtypes?.length ? (
+              <NodeTypeOptionsList
+                nodeTypes={selectedNode.subtypes
+                  .map((subtype, index) => ({ subtype, index }))
+                  .sort((a, b) => (a.subtype.order ?? a.index) - (b.subtype.order ?? b.index))
+                  .map(({ subtype }) => subtype)}
+                onSelect={(subtypeId) => {
+                  props.onSelectNode(selectedNode.id, subtypeId)
+                  setSelectedNodeType(null)
+                }}
+              />
             ) : (
-              // When no form is selected, show all node type cards
               <NodeTypeOptionsList nodeTypes={nodeTypes} onSelect={handleNodeClick} />
             )}
           </Stack>

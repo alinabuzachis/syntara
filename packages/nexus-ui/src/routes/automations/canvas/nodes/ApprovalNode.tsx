@@ -11,6 +11,7 @@ import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { executorMetadata, nodeMetadata } from './nodeMetadata'
+import { renderNodeIcon } from './renderNodeIcon'
 
 export type ApprovalNode = { type: 'approval' } & Node<TaskActivity>
 
@@ -22,7 +23,7 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
   })
 
   const executorMeta = executorMetadata.approval
-  const Icon = executorMeta?.icon
+  const iconNode = renderNodeIcon(executorMeta?.icon, 'approval')
   const taskExecutor = executorMeta?.label || 'Approval'
 
   // Extract execution state if present
@@ -48,7 +49,7 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
     >
       <>
         <StandardNodeHeader
-          icon={Icon ? <Icon /> : undefined}
+          icon={iconNode}
           title={props.data.name ?? 'Untitled Approval'}
           subtitle={taskExecutor}
           expandable

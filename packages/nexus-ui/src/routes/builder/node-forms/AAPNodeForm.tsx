@@ -1,5 +1,4 @@
 import {
-  Form,
   FormGroup,
   FormHelperText,
   FormSelect,
@@ -12,11 +11,13 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
-import { useState } from 'react'
+import type { ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
 import { ActivityNameField } from './shared/ActivityNameField'
-import { FormSubmitButton } from './shared/FormSubmitButton'
+import { NodeFormContainer } from './shared/NodeFormContainer'
+import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
 export interface AAPFormData {
   name: string
@@ -35,9 +36,16 @@ interface AAPNodeFormProps {
   onCancel: () => void
   initialData?: Partial<AAPFormData>
   submitButtonText?: string
+  onHeaderContentChange: (content: ReactNode | null) => void
 }
 
-function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
+function AAPFormFields({
+  submitButtonText,
+  onHeaderContentChange,
+}: {
+  submitButtonText?: string
+  onHeaderContentChange: (content: ReactNode | null) => void
+}) {
   const { register, control } = useFormContext<AAPFormData>()
   const [jsonError, setJsonError] = useState<string | null>(null)
 
@@ -59,9 +67,20 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
     }
   }
 
-  return (
+  const nameField = useMemo(
+    () => <ActivityNameField register={register} fieldId="aap-name" ariaLabel="Name" />,
+    [register]
+  )
+
+  useEffect(() => {
+    onHeaderContentChange(nameField)
+    return () => {
+      onHeaderContentChange(null)
+    }
+  }, [nameField, onHeaderContentChange])
+
+  const parametersContent = (
     <Stack hasGutter>
-      <ActivityNameField register={register} fieldId="aap-name" />
       <StackItem>
         <FormGroup label="Job template ID" isRequired fieldId="aap-jobTemplateId">
           <TextInput
@@ -103,10 +122,6 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
             {...register('extraVars', {
               validate: validateJSON,
             })}
-            onChange={(e) => {
-              const value = (e.target as HTMLTextAreaElement).value
-              validateJSON(value)
-            }}
             id="aap-extraVars"
             placeholder='{"version": "1.0", "environment": "prod"}'
             rows={4}
@@ -184,8 +199,15 @@ function AAPFormFields({ submitButtonText }: { submitButtonText?: string }) {
           </FormHelperText>
         </FormGroup>
       </StackItem>
-      <FormSubmitButton submitButtonText={submitButtonText} isDisabled={!!jsonError} />
     </Stack>
+  )
+
+  return (
+    <NodeFormTabsLayout
+      parametersContent={parametersContent}
+      submitButtonText={submitButtonText}
+      isSubmitDisabled={!!jsonError}
+    />
   )
 }
 
@@ -205,6 +227,8 @@ export function AAPNodeForm(props: AAPNodeFormProps) {
 
   const methods = useForm<AAPFormData>({
     defaultValues,
+    mode: 'onChange',
+    reValidateMode: 'onChange',
   })
 
   const handleSubmit = (data: AAPFormData) => {
@@ -213,9 +237,9 @@ export function AAPNodeForm(props: AAPNodeFormProps) {
 
   return (
     <FormProvider {...methods}>
-      <Form id="aap-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <AAPFormFields submitButtonText={props.submitButtonText} />
-      </Form>
+      <NodeFormContainer formId="aap-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+        <AAPFormFields submitButtonText={props.submitButtonText} onHeaderContentChange={props.onHeaderContentChange} />
+      </NodeFormContainer>
     </FormProvider>
   )
 }

@@ -39,10 +39,15 @@ export function useEdgeSynchronization({ edges, isInitialized, setStoredEdges }:
     // Prevent re-entrant syncing (when syncConvergeBranches modifies workflow → edges recompute → effect runs again)
     if (isSyncingRef.current) return
 
-    // Filter out button edges and placeholder-related edges
+    // Filter out button edges and placeholder/pending edges
     const realEdges = edges.filter(
       (edge) =>
-        !isButtonEdge(edge) && !edge.source.startsWith('placeholder-') && !edge.target.startsWith('placeholder-')
+        !isButtonEdge(edge) &&
+        !edge.id.startsWith('pending-') &&
+        !edge.source.startsWith('placeholder-') &&
+        !edge.target.startsWith('placeholder-') &&
+        !edge.source.startsWith('pending-target-') &&
+        !edge.target.startsWith('pending-target-')
     )
 
     // Convert to simplified format for storage

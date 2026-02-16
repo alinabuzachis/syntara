@@ -1,11 +1,19 @@
-import type { ConditionActivity, ConvergeActivity, LoopActivity, TaskActivity } from '@ansible/nexus-contracts'
-import { Button, CompassPanel, Flex, FlexItem, Icon, Stack, StackItem, Title, TitleSizes } from '@patternfly/react-core'
-import { RhUiDocumentFillIcon, RhUiCloseIcon } from '@patternfly/react-icons'
+import type {
+  ConditionActivity,
+  ConvergeActivity,
+  LoopActivity,
+  TaskActivity,
+  WorkflowAPI,
+} from '@ansible/nexus-contracts'
 import type { Node } from '@xyflow/react'
+import type { ReactNode } from 'react'
+import { useState } from 'react'
 
+import { useAlerts } from '../../components/alerts'
 import { FlowNodeType } from '../../constants'
-import { useWorkflowStore, selectCurrentWorkflow } from '../../stores/useWorkflowStore'
+import { useWorkflowStore, useWorkflowStoreActions, selectCurrentWorkflow } from '../../stores/useWorkflowStore'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
+import { renderNodeIcon } from '../automations/canvas/nodes/renderNodeIcon'
 
 import {
   ApprovalNodeDetails,
@@ -15,7 +23,11 @@ import {
   TaskNodeDetails,
   TriggerNodeDetails,
 } from './node-details'
+import { NodeEditorLayout } from './NodeEditorLayout'
 import { NodeRawDataView } from './NodeRawDataView'
+import { NodeRegistry } from './registry/NodeRegistry'
+import { resolveIconForNode, resolveIconForType } from './utils/nodeIcons'
+import { getDefaultNodeBaseName, getNodeDisplayName } from './utils/nodeNaming'
 
 /**
  * IMPORTANT: When adding a new node type, ensure the corresponding NodeDetails component
@@ -24,38 +36,140 @@ import { NodeRawDataView } from './NodeRawDataView'
  */
 
 interface NodeDetailsPanelProps {
-  node: Node<NodeType['data']>
+  mode: 'add' | 'edit'
+  node?: Node<NodeType['data']>
+  nodeTypeId?: string | null
+  nodeSubtypeId?: string | null
+  sourceNodeId?: string | null
+  replacementNodeId?: string | null
+  onConnect?: (sourceId: string, targetId: string) => void
   onClose: () => void
 }
 
 export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
-  const { node, onClose } = props
+  const { mode, node, nodeTypeId, nodeSubtypeId, sourceNodeId, replacementNodeId, onConnect, onClose } = props
+  const { showError } = useAlerts()
   // Use typed selector for optimized subscription
   const currentWorkflow = useWorkflowStore(selectCurrentWorkflow)
+  const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
+  // Use action accessor - component won't re-render when store state changes
+  const { moveActivityAfter, updateActivity, removeActivity } = useWorkflowStoreActions()
 
-  const getNodeTitle = () => {
-    if (node.type === FlowNodeType.TRIGGER) {
-      return 'Trigger Details'
-    }
-    if (node.type === FlowNodeType.TASK && typeof node.data === 'object' && node.data && 'name' in node.data) {
-      return node.data.name as string
-    }
-    if (node.type === FlowNodeType.APPROVAL && typeof node.data === 'object' && node.data && 'name' in node.data) {
-      return node.data.name as string
-    }
-    if (node.type === FlowNodeType.CONDITION && typeof node.data === 'object' && node.data && 'name' in node.data) {
-      return node.data.name as string
-    }
-    if (node.type === FlowNodeType.LOOP && typeof node.data === 'object' && node.data && 'name' in node.data) {
-      return node.data.name as string
-    }
-    if (node.type === 'converge' && typeof node.data === 'object' && node.data && 'name' in node.data) {
-      return node.data.name as string
-    }
-    return 'Node Details'
-  }
+  const iconDescriptor =
+    mode === 'edit' && node
+      ? resolveIconForNode(node, currentWorkflow)
+      : resolveIconForType({ nodeTypeId, nodeSubtypeId })
+  const headerIcon = renderNodeIcon(iconDescriptor.icon, iconDescriptor.id, 'header')
 
   const renderContent = () => {
+    if (mode === 'add') {
+      const selectedNode = nodeTypeId ? NodeRegistry.get(nodeTypeId) : null
+      const selectedSubtype = selectedNode?.subtypes?.find((subtype) => subtype.id === nodeSubtypeId) ?? null
+
+      if (!selectedNode) return null
+
+      const initialData = {
+        ...(selectedSubtype?.initialData ?? {}),
+      } as Record<string, unknown>
+
+      if (!initialData.name) {
+        initialData.name = getNodeDisplayName(
+          getDefaultNodeBaseName({
+            nodeTypeId: selectedNode.id,
+            nodeSubtypeId: selectedSubtype?.id,
+            initialData,
+            label: selectedSubtype?.label ?? selectedNode.label,
+          })
+        )
+      }
+
+      const FormComponent = selectedNode.formComponent
+      const subtypeFormProps = selectedSubtype?.formProps ?? {}
+      const submitButtonText = replacementNodeId ? 'Update node' : 'Add node'
+
+      const handleCreate = (data: Record<string, unknown>) => {
+        selectedNode.onSubmit(
+          data,
+          (newNodeId?: string) => {
+            if (replacementNodeId) {
+              if (newNodeId) {
+                const current = useWorkflowStore.getState().currentWorkflow
+                const newActivity = current?.workflow.activities.find(
+                  (activity: WorkflowAPI.components['schemas']['activity']) => activity.id === newNodeId
+                )
+
+                if (newActivity) {
+                  removeActivity(newNodeId)
+
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  let cleanedMetadata: any = undefined
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  if ((newActivity as any).metadata) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+                    const { __isGeneric: _isGeneric, ...restMetadata } = (newActivity as any).metadata
+                    if (Object.keys(restMetadata).length > 0) {
+                      cleanedMetadata = restMetadata
+                    }
+                  }
+
+                  updateActivity(replacementNodeId, {
+                    ...newActivity,
+                    id: replacementNodeId,
+                    metadata: cleanedMetadata,
+                  } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
+                }
+              } else {
+                const current = useWorkflowStore.getState().currentWorkflow
+                const genericActivity = current?.workflow.activities.find(
+                  (activity: WorkflowAPI.components['schemas']['activity']) => activity.id === replacementNodeId
+                )
+
+                if (genericActivity) {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const currentMetadata = (genericActivity as any).metadata
+                  if (currentMetadata) {
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { __isGeneric: _isGeneric, ...restMetadata } = currentMetadata
+                    const newMetadata = Object.keys(restMetadata).length > 0 ? restMetadata : undefined
+                    updateActivity(replacementNodeId, {
+                      metadata: newMetadata,
+                    } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
+                  } else {
+                    updateActivity(replacementNodeId, {
+                      metadata: undefined,
+                    } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
+                  }
+                }
+              }
+            } else if (sourceNodeId && newNodeId) {
+              moveActivityAfter(newNodeId, sourceNodeId)
+              if (onConnect) {
+                onConnect(sourceNodeId, newNodeId)
+              }
+            }
+
+            onClose()
+          },
+          (error: string) => {
+            showError(error, 'Failed to add node')
+          }
+        )
+      }
+
+      return (
+        <FormComponent
+          {...subtypeFormProps}
+          initialData={initialData}
+          submitButtonText={submitButtonText}
+          onSubmit={(data) => handleCreate(data as Record<string, unknown>)}
+          onCancel={onClose}
+          onHeaderContentChange={setHeaderContent}
+        />
+      )
+    }
+
+    if (!node) return null
+
     // Handle trigger node
     if (node.type === FlowNodeType.TRIGGER) {
       // Get trigger from workflow by index (assuming node id is "trigger-0", "trigger-1", etc.)
@@ -63,86 +177,91 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       const trigger = currentWorkflow?.triggers?.[triggerIndex]
 
       if (trigger) {
-        return <TriggerNodeDetails trigger={trigger} triggerIndex={triggerIndex} onClose={onClose} />
+        return (
+          <TriggerNodeDetails
+            trigger={trigger}
+            triggerIndex={triggerIndex}
+            onClose={onClose}
+            onHeaderContentChange={setHeaderContent}
+          />
+        )
       }
     }
 
     // Render appropriate form based on node type
     if (node.type === FlowNodeType.TASK) {
       const taskData = node.data as TaskActivity
-      return <TaskNodeDetails taskData={taskData} nodeId={node.id} onClose={onClose} />
+      return (
+        <TaskNodeDetails
+          taskData={taskData}
+          nodeId={node.id}
+          onClose={onClose}
+          onHeaderContentChange={setHeaderContent}
+        />
+      )
     }
 
     if (node.type === FlowNodeType.APPROVAL) {
       const taskData = node.data as TaskActivity
-      return <ApprovalNodeDetails taskData={taskData} nodeId={node.id} onClose={onClose} />
+      return (
+        <ApprovalNodeDetails
+          taskData={taskData}
+          nodeId={node.id}
+          onClose={onClose}
+          onHeaderContentChange={setHeaderContent}
+        />
+      )
     }
 
     if (node.type === FlowNodeType.CONDITION) {
       const conditionData = node.data as ConditionActivity
-      return <ConditionNodeDetails conditionData={conditionData} nodeId={node.id} onClose={onClose} />
+      return (
+        <ConditionNodeDetails
+          conditionData={conditionData}
+          nodeId={node.id}
+          onClose={onClose}
+          onHeaderContentChange={setHeaderContent}
+        />
+      )
     }
 
     if (node.type === FlowNodeType.LOOP) {
       const loopData = node.data as LoopActivity
-      return <LoopNodeDetails loopData={loopData} nodeId={node.id} onClose={onClose} />
+      return (
+        <LoopNodeDetails
+          loopData={loopData}
+          nodeId={node.id}
+          onClose={onClose}
+          onHeaderContentChange={setHeaderContent}
+        />
+      )
     }
 
     if (node.type === 'converge') {
       const convergeData = node.data as ConvergeActivity
-      return <ConvergeNodeDetails convergeData={convergeData} nodeId={node.id} onClose={onClose} />
+      return (
+        <ConvergeNodeDetails
+          convergeData={convergeData}
+          nodeId={node.id}
+          onClose={onClose}
+          onHeaderContentChange={setHeaderContent}
+        />
+      )
     }
 
     // Default fallback - show raw data
     return <NodeRawDataView node={node} />
   }
 
+  const showInputPanel = mode === 'add' ? nodeTypeId !== 'trigger' : node?.type !== FlowNodeType.TRIGGER
+
   return (
-    <CompassPanel
-      style={{
-        height: '100%',
-        maxHeight: '100%',
-        width: '24rem',
-        flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
-    >
-      <Stack>
-        <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--lg)' }}>
-          <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
-            <FlexItem>
-              <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-                <Icon>
-                  <RhUiDocumentFillIcon />
-                </Icon>
-                <Title headingLevel="h2" size={TitleSizes.lg}>
-                  {getNodeTitle()}
-                </Title>
-              </Flex>
-            </FlexItem>
-            <FlexItem>
-              <Button variant="plain" onClick={onClose} aria-label="Close">
-                <Icon>
-                  <RhUiCloseIcon />
-                </Icon>
-              </Button>
-            </FlexItem>
-          </Flex>
-        </StackItem>
-        <StackItem
-          isFilled
-          style={{
-            minHeight: 0,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            paddingBottom: 'var(--pf-t--global--spacer--lg)',
-          }}
-        >
-          {renderContent()}
-        </StackItem>
-      </Stack>
-    </CompassPanel>
+    <NodeEditorLayout
+      parametersContent={renderContent()}
+      headerContent={headerContent}
+      headerIcon={headerIcon}
+      showInputPanel={showInputPanel}
+      onClose={onClose}
+    />
   )
 }

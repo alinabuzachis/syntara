@@ -1,7 +1,6 @@
 import {
   Alert,
   AlertVariant,
-  Form,
   FormGroup,
   FormHelperText,
   FormSelect,
@@ -13,10 +12,13 @@ import {
   TextArea,
   TextInput,
 } from '@patternfly/react-core'
+import type { ReactNode } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { ActivityNameField } from './shared/ActivityNameField'
-import { FormSubmitButton } from './shared/FormSubmitButton'
+import { NodeFormContainer } from './shared/NodeFormContainer'
+import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
 export interface LogicFormData {
   name: string
@@ -37,16 +39,34 @@ interface LogicNodeFormProps {
   onCancel: () => void
   submitButtonText?: string
   initialData?: Partial<LogicFormData>
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
-function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
+function LogicFormFields({
+  submitButtonText,
+  onHeaderContentChange,
+}: {
+  submitButtonText?: string
+  onHeaderContentChange?: (content: ReactNode | null) => void
+}) {
   const { register, control } = useFormContext<LogicFormData>()
   const logicType = useWatch({ control, name: 'logicType' })
   const type = useWatch({ control, name: 'type' })
 
-  return (
+  const nameField = useMemo(
+    () => <ActivityNameField register={register} fieldId="logic-name" ariaLabel="Name" />,
+    [register]
+  )
+
+  useEffect(() => {
+    onHeaderContentChange?.(nameField)
+    return () => {
+      onHeaderContentChange?.(null)
+    }
+  }, [nameField, onHeaderContentChange])
+
+  const parametersContent = (
     <Stack hasGutter>
-      <ActivityNameField register={register} fieldId="logic-name" />
       <input type="hidden" {...register('logicType')} />
 
       {logicType === 'condition' && (
@@ -229,10 +249,10 @@ function LogicFormFields({ submitButtonText }: { submitButtonText?: string }) {
           </StackItem>
         </>
       )}
-
-      <FormSubmitButton submitButtonText={submitButtonText} />
     </Stack>
   )
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
 }
 
 export function LogicNodeForm(props: LogicNodeFormProps) {
@@ -276,9 +296,12 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
 
   return (
     <FormProvider {...methods}>
-      <Form id="logic-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <LogicFormFields submitButtonText={props.submitButtonText} />
-      </Form>
+      <NodeFormContainer formId="logic-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+        <LogicFormFields
+          submitButtonText={props.submitButtonText}
+          onHeaderContentChange={props.onHeaderContentChange}
+        />
+      </NodeFormContainer>
     </FormProvider>
   )
 }

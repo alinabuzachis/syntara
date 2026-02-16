@@ -70,3 +70,36 @@ export function getNodeDisplayNameForEdit(
 
   return makeUniqueName(baseName, existingNames)
 }
+
+export function getDefaultNodeBaseName({
+  nodeTypeId,
+  nodeSubtypeId,
+  initialData,
+  label,
+}: {
+  nodeTypeId: string
+  nodeSubtypeId?: string | null
+  initialData?: Record<string, unknown>
+  label?: string
+}): string {
+  if (nodeTypeId === 'trigger') return 'Trigger'
+
+  if (nodeTypeId === 'logic') {
+    const logicType = initialData?.logicType as string | undefined
+    if (logicType === 'condition') return 'Condition'
+    if (logicType === 'loop') return 'Loop'
+    return 'Converge'
+  }
+
+  if (nodeTypeId === 'action') {
+    const executor = initialData?.executor as string | undefined
+    if (executor === 'api') return 'REST API'
+    if (executor === 'script') return 'Script'
+  }
+
+  if (nodeSubtypeId) {
+    return label ?? nodeSubtypeId
+  }
+
+  return label ?? nodeTypeId
+}
