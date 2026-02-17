@@ -487,10 +487,10 @@ Coverage is enforced on changed files in PRs via `scripts/check-pr-coverage.js`.
 
 ```bash
 npm run test:coverage        # Generate coverage report
-npm run test:coverage:check  # Check coverage for changed files (reports files below 80%)
+npm run test:coverage:check  # Check coverage for changed files (fails if below 80%)
 ```
 
-CI automatically runs this check and **reports** coverage for changed source files. This check is currently **informational only** and does not block PRs. Once baseline coverage is improved across the codebase, this may be changed to enforce the threshold.
+CI automatically runs this check and **blocks PRs** where any changed source file falls below 80% on any of the four metrics (lines, statements, functions, branches). All new and modified source files must meet the threshold to merge.
 
 #### AAA Pattern (Arrange-Act-Assert)
 

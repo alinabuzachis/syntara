@@ -45,7 +45,7 @@ npm run test:coverage           # Generate coverage report
 npm run test:coverage:check     # Check coverage for changed files
 ```
 
-The check will **fail the PR** if any changed source file has less than 80% line coverage.
+The check will **fail the PR** if any changed source file has less than 80% coverage on any of the four metrics: lines, statements, functions, or branches.
 
 ## Test File Naming
 

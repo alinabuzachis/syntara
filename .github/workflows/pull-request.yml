@@ -3,6 +3,10 @@ name: Pull Request
 on:
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
@@ -28,11 +32,59 @@ jobs:
         run: npm run test:coverage
         working-directory: packages/nexus-ui
 
-      - name: Check PR coverage
+      - name: Enforce 80% coverage on changed files
+        id: coverage-check
         run: npm run test:coverage:check origin/${{ github.base_ref }}
         working-directory: packages/nexus-ui
         env:
           COVERAGE_THRESHOLD: 80
+
+      - name: Post coverage report on PR
+        if: >-
+          always()
+          && steps.coverage-check.outcome != 'skipped'
+          && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'packages/nexus-ui/coverage/pr-coverage-report.md';
+
+            if (!fs.existsSync(reportPath)) {
+              console.log('No coverage report found, skipping PR comment');
+              return;
+            }
+
+            const body = fs.readFileSync(reportPath, 'utf-8');
+            const marker = '<!-- coverage-report -->';
+            const commentBody = `${marker}\n${body}`;
+
+            // Find existing coverage comment to update (avoid spam)
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: commentBody,
+              });
+              console.log('Updated existing coverage comment');
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody,
+              });
+              console.log('Created new coverage comment');
+            }
 
   test-build:
     name: Test Container Build

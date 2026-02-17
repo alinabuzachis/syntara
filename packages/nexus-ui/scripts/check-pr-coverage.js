@@ -117,9 +117,8 @@ function calculateCoverage(metrics) {
 function generateMarkdownReport(results, passed, failed, warnings) {
   const lines = []
 
-  // Header - Note: Coverage check is informational only (does not block PRs)
-  const statusIcon = failed > 0 ? '⚠️' : '✅'
-  const statusText = failed > 0 ? 'Coverage Below Threshold' : 'Coverage Check Passed'
+  const statusIcon = failed > 0 ? '❌' : '✅'
+  const statusText = failed > 0 ? 'Coverage Check Failed' : 'Coverage Check Passed'
   lines.push(`## ${statusIcon} ${statusText}`)
   lines.push('')
   lines.push(
@@ -148,17 +147,18 @@ function generateMarkdownReport(results, passed, failed, warnings) {
 
   lines.push('')
 
-  // Tips for low coverage (informational)
   if (failed > 0) {
     lines.push('')
-    lines.push('> **Note:** This check is informational only and does not block PRs.')
-    lines.push('> Coverage is reported to help identify files that could benefit from additional tests.')
+    lines.push(
+      `> **${failed} file(s) below the ${COVERAGE_THRESHOLD}% threshold.** All changed source files must meet the coverage requirement.`
+    )
     lines.push('')
-    lines.push('### 💡 To improve coverage')
+    lines.push('### 💡 To fix coverage')
     lines.push('')
     lines.push('1. Run `npm run test:coverage` locally to see detailed coverage')
     lines.push('2. Open `coverage/index.html` for visual coverage report')
-    lines.push('3. Consider adding tests for uncovered code paths')
+    lines.push('3. Add tests for uncovered lines, branches, and functions')
+    lines.push('4. All four metrics (lines, statements, functions, branches) must be ≥ ' + COVERAGE_THRESHOLD + '%')
   }
 
   return lines.join('\n')
@@ -216,17 +216,33 @@ function main() {
 
     const pct = calculateCoverage(fileCoverage)
 
-    if (pct.lines < COVERAGE_THRESHOLD) {
+    const belowThreshold =
+      pct.lines < COVERAGE_THRESHOLD ||
+      pct.statements < COVERAGE_THRESHOLD ||
+      pct.functions < COVERAGE_THRESHOLD ||
+      pct.branches < COVERAGE_THRESHOLD
+
+    if (belowThreshold) {
       console.log(`❌ ${file}`)
-      console.log(`   Lines: ${pct.lines.toFixed(1)}% (need ${COVERAGE_THRESHOLD}%)`)
-      console.log(`   Statements: ${pct.statements.toFixed(1)}%`)
-      console.log(`   Functions: ${pct.functions.toFixed(1)}%`)
-      console.log(`   Branches: ${pct.branches.toFixed(1)}%`)
+      console.log(
+        `   Lines:      ${pct.lines.toFixed(1)}%${pct.lines < COVERAGE_THRESHOLD ? ` (need ${COVERAGE_THRESHOLD}%)` : ''}`
+      )
+      console.log(
+        `   Statements: ${pct.statements.toFixed(1)}%${pct.statements < COVERAGE_THRESHOLD ? ` (need ${COVERAGE_THRESHOLD}%)` : ''}`
+      )
+      console.log(
+        `   Functions:  ${pct.functions.toFixed(1)}%${pct.functions < COVERAGE_THRESHOLD ? ` (need ${COVERAGE_THRESHOLD}%)` : ''}`
+      )
+      console.log(
+        `   Branches:   ${pct.branches.toFixed(1)}%${pct.branches < COVERAGE_THRESHOLD ? ` (need ${COVERAGE_THRESHOLD}%)` : ''}`
+      )
       results.push({ file, status: 'fail', coverage: pct })
       hasFailures = true
     } else {
       console.log(`✅ ${file}`)
-      console.log(`   Lines: ${pct.lines.toFixed(1)}%`)
+      console.log(
+        `   Lines: ${pct.lines.toFixed(1)}% | Stmts: ${pct.statements.toFixed(1)}% | Funcs: ${pct.functions.toFixed(1)}% | Branches: ${pct.branches.toFixed(1)}%`
+      )
       results.push({ file, status: 'pass', coverage: pct })
     }
   }
@@ -253,15 +269,14 @@ function main() {
   }
 
   if (hasFailures) {
-    console.log(`\n⚠️  Coverage below threshold (informational only)`)
+    console.log(`\n❌ Coverage check FAILED`)
     console.log(`   ${failed} file(s) below ${COVERAGE_THRESHOLD}% threshold`)
-    console.log('\n💡 Tips:')
-    console.log('   - Add tests for uncovered code paths')
+    console.log(`   All four metrics (lines, statements, functions, branches) must be ≥ ${COVERAGE_THRESHOLD}%`)
+    console.log('\n💡 To fix:')
     console.log('   - Run "npm run test:coverage" to see detailed report')
     console.log('   - Open coverage/index.html for visual coverage report')
-    // Note: Exiting with 0 to not block PRs. Coverage is reported for visibility.
-    // Once baseline coverage is improved, this can be changed to exit(1) to enforce.
-    process.exit(0)
+    console.log('   - Add tests for uncovered code paths')
+    process.exit(1)
   }
 
   console.log('\n✅ Coverage check PASSED')
