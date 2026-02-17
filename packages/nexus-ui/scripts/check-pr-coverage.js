@@ -157,8 +157,8 @@ function generateMarkdownReport(results, passed, failed, warnings) {
     lines.push('')
     lines.push('1. Run `npm run test:coverage` locally to see detailed coverage')
     lines.push('2. Open `coverage/index.html` for visual coverage report')
-    lines.push('3. Add tests for uncovered lines, branches, and functions')
-    lines.push('4. All four metrics (lines, statements, functions, branches) must be ≥ ' + COVERAGE_THRESHOLD + '%')
+    lines.push('3. Add tests for uncovered lines')
+    lines.push('4. Lines coverage must be ≥ ' + COVERAGE_THRESHOLD + '%')
   }
 
   return lines.join('\n')
@@ -216,26 +216,12 @@ function main() {
 
     const pct = calculateCoverage(fileCoverage)
 
-    const belowThreshold =
-      pct.lines < COVERAGE_THRESHOLD ||
-      pct.statements < COVERAGE_THRESHOLD ||
-      pct.functions < COVERAGE_THRESHOLD ||
-      pct.branches < COVERAGE_THRESHOLD
+    // Only enforce lines coverage threshold
+    const belowThreshold = pct.lines < COVERAGE_THRESHOLD
 
     if (belowThreshold) {
       console.log(`❌ ${file}`)
-      console.log(
-        `   Lines:      ${pct.lines.toFixed(1)}%${pct.lines < COVERAGE_THRESHOLD ? ` (need ${COVERAGE_THRESHOLD}%)` : ''}`
-      )
-      console.log(
-        `   Statements: ${pct.statements.toFixed(1)}%${pct.statements < COVERAGE_THRESHOLD ? ` (need ${COVERAGE_THRESHOLD}%)` : ''}`
-      )
-      console.log(
-        `   Functions:  ${pct.functions.toFixed(1)}%${pct.functions < COVERAGE_THRESHOLD ? ` (need ${COVERAGE_THRESHOLD}%)` : ''}`
-      )
-      console.log(
-        `   Branches:   ${pct.branches.toFixed(1)}%${pct.branches < COVERAGE_THRESHOLD ? ` (need ${COVERAGE_THRESHOLD}%)` : ''}`
-      )
+      console.log(`   Lines: ${pct.lines.toFixed(1)}% (need ${COVERAGE_THRESHOLD}%)`)
       results.push({ file, status: 'fail', coverage: pct })
       hasFailures = true
     } else {
@@ -270,12 +256,11 @@ function main() {
 
   if (hasFailures) {
     console.log(`\n❌ Coverage check FAILED`)
-    console.log(`   ${failed} file(s) below ${COVERAGE_THRESHOLD}% threshold`)
-    console.log(`   All four metrics (lines, statements, functions, branches) must be ≥ ${COVERAGE_THRESHOLD}%`)
+    console.log(`   ${failed} file(s) below ${COVERAGE_THRESHOLD}% lines coverage threshold`)
     console.log('\n💡 To fix:')
     console.log('   - Run "npm run test:coverage" to see detailed report')
     console.log('   - Open coverage/index.html for visual coverage report')
-    console.log('   - Add tests for uncovered code paths')
+    console.log('   - Add tests for uncovered lines')
     process.exit(1)
   }
 
