@@ -34,6 +34,8 @@ interface ScrollableTableContainerProps {
   'aria-label': string
   /** Whether the table is expandable (affects table layout) */
   isExpandable?: boolean
+  /** Opt out of fixed table layout when not expandable */
+  useFixedLayout?: boolean
 }
 
 /**
@@ -45,6 +47,7 @@ export function ScrollableTableContainer({
   footer,
   'aria-label': ariaLabel,
   isExpandable,
+  useFixedLayout = true,
 }: ScrollableTableContainerProps) {
   return (
     <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
@@ -66,7 +69,7 @@ export function ScrollableTableContainer({
                   // PatternFly's expandable row layout relies on the browser's automatic table layout to
                   // correctly size columns and expansion control cells. For non-expandable tables, we use
                   // a fixed layout to keep column widths stable.
-                  ...(isExpandable ? {} : { tableLayout: 'fixed' }),
+                  ...(isExpandable || !useFixedLayout ? {} : { tableLayout: 'fixed' }),
                   width: '100%',
                 } as React.CSSProperties
               }

@@ -262,6 +262,7 @@ export default function Automations() {
       ) : (
         <ScrollableTableContainer
           aria-label="Automations table"
+          useFixedLayout={false}
           footer={{
             content: (
               <>
