@@ -64,6 +64,30 @@ describe('EdgeFactory', () => {
       expect(edge.type).toBe('default')
     })
 
+    it('creates approval edge with approved handle', () => {
+      const edge = EdgeFactory.createEdge({
+        source: 'approval-1',
+        target: 'task-1',
+        sourceHandle: 'approved',
+      })
+
+      expect(edge.id).toBe('approval-1-approved-task-1')
+      expect(edge.sourceHandle).toBe('approved')
+      expect(edge.type).toBe('default')
+    })
+
+    it('creates approval edge with rejected handle', () => {
+      const edge = EdgeFactory.createEdge({
+        source: 'approval-1',
+        target: 'task-2',
+        sourceHandle: 'rejected',
+      })
+
+      expect(edge.id).toBe('approval-1-rejected-task-2')
+      expect(edge.sourceHandle).toBe('rejected')
+      expect(edge.type).toBe('default')
+    })
+
     it('creates loopBack edge when targeting end handle', () => {
       const edge = EdgeFactory.createEdge({
         source: 'task-in-loop',
@@ -305,6 +329,50 @@ describe('EdgeFactory', () => {
 
       expect(result).toHaveLength(1)
       expect(result[0].id).toBe('edge-1')
+    })
+
+    it('removes specific approved handle button edge for approval node', () => {
+      const edges: EdgeType[] = [
+        {
+          id: 'button-approval-1-approved',
+          source: 'approval-1',
+          target: 'placeholder',
+          type: 'buttonEdge',
+        } as EdgeType,
+        {
+          id: 'button-approval-1-rejected',
+          source: 'approval-1',
+          target: 'placeholder',
+          type: 'buttonEdge',
+        } as EdgeType,
+      ]
+
+      const result = EdgeFactory.removeButtonEdge('approval-1', edges, 'approved')
+
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('button-approval-1-rejected')
+    })
+
+    it('removes specific rejected handle button edge for approval node', () => {
+      const edges: EdgeType[] = [
+        {
+          id: 'button-approval-1-approved',
+          source: 'approval-1',
+          target: 'placeholder',
+          type: 'buttonEdge',
+        } as EdgeType,
+        {
+          id: 'button-approval-1-rejected',
+          source: 'approval-1',
+          target: 'placeholder',
+          type: 'buttonEdge',
+        } as EdgeType,
+      ]
+
+      const result = EdgeFactory.removeButtonEdge('approval-1', edges, 'rejected')
+
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('button-approval-1-approved')
     })
   })
 

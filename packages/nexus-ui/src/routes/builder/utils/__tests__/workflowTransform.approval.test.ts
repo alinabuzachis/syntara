@@ -1,7 +1,8 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
-import type { Activity, EdgeConnection } from '@ansible/nexus-contracts'
+import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
+import type { EdgeConnection } from '../workflowTransform'
 import { WorkflowTransform } from '../workflowTransform'
 
 describe('WorkflowTransform - Approval Nodes', () => {
@@ -182,6 +183,70 @@ describe('WorkflowTransform - Approval Nodes', () => {
         })
       )
     })
+
+    it('creates edges from approval branch endpoints to converge node when approval is followed by converge', () => {
+      // Regression: when API returns approval with branches then converge,
+      // flatten must create edges from each branch endpoint to the converge node
+      const nestedActivities: Activity[] = [
+        {
+          type: 'approval',
+          id: 'approval-1',
+          name: 'Approval',
+          approval: {
+            approvers: ['user1'],
+            prompt: 'Approve?',
+          },
+          onApproved: [
+            {
+              type: 'task',
+              id: 'task-approved',
+              name: 'Approved Task',
+              task: {
+                executor: 'script',
+                config: { language: 'python', code: 'print("approved")' },
+              },
+            },
+          ],
+          onRejected: [
+            {
+              type: 'task',
+              id: 'task-rejected',
+              name: 'Rejected Task',
+              task: {
+                executor: 'script',
+                config: { language: 'python', code: 'print("rejected")' },
+              },
+            },
+          ],
+        },
+        {
+          type: 'converge',
+          id: 'converge-1',
+          name: 'Converge',
+          converge: {
+            branches: ['task-approved', 'task-rejected'],
+            strategy: 'all',
+            onTimeout: 'fail',
+            aggregateOutputs: true,
+          },
+        },
+      ]
+
+      const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+      expect(activities.map((a) => a.id)).toContain('approval-1')
+      expect(activities.map((a) => a.id)).toContain('task-approved')
+      expect(activities.map((a) => a.id)).toContain('task-rejected')
+      expect(activities.map((a) => a.id)).toContain('converge-1')
+
+      const approvedToConverge = edges.find((e) => e.source === 'task-approved' && e.target === 'converge-1')
+      expect(approvedToConverge).toBeDefined()
+      expect(approvedToConverge?.sourceHandle).toBe('source')
+
+      const rejectedToConverge = edges.find((e) => e.source === 'task-rejected' && e.target === 'converge-1')
+      expect(rejectedToConverge).toBeDefined()
+      expect(rejectedToConverge?.sourceHandle).toBe('source')
+    })
   })
 
   describe('nest - approval nodes', () => {
@@ -226,11 +291,13 @@ describe('WorkflowTransform - Approval Nodes', () => {
 
       const edges: EdgeConnection[] = [
         {
+          id: 'approval-1-approved-task-1',
           source: 'approval-1',
           sourceHandle: EdgeHandleEnum.APPROVED,
           target: 'task-1',
         },
         {
+          id: 'approval-1-rejected-task-2',
           source: 'approval-1',
           sourceHandle: EdgeHandleEnum.REJECTED,
           target: 'task-2',
@@ -291,11 +358,13 @@ describe('WorkflowTransform - Approval Nodes', () => {
 
       const edges: EdgeConnection[] = [
         {
+          id: 'approval-1-approved-task-1',
           source: 'approval-1',
           sourceHandle: EdgeHandleEnum.APPROVED,
           target: 'task-1',
         },
         {
+          id: 'task-1-task-2',
           source: 'task-1',
           target: 'task-2',
         },
@@ -395,6 +464,7 @@ describe('WorkflowTransform - Approval Nodes', () => {
 
       const edges: EdgeConnection[] = [
         {
+          id: 'approval-1-approved-task-1',
           source: 'approval-1',
           sourceHandle: EdgeHandleEnum.APPROVED,
           target: 'task-1',
@@ -443,6 +513,7 @@ describe('WorkflowTransform - Approval Nodes', () => {
 
       const edges: EdgeConnection[] = [
         {
+          id: 'approval-1-rejected-task-rejected',
           source: 'approval-1',
           sourceHandle: EdgeHandleEnum.REJECTED,
           target: 'task-rejected',
