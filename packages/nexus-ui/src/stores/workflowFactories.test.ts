@@ -477,13 +477,13 @@ describe('workflowFactories', () => {
           'Please approve'
         ) as any
 
-        expect(activity.type).toBe('task')
+        expect(activity.type).toBe('approval')
         expect(activity.id).toBe('appr-1')
         expect(activity.name).toBe('Approval Gate')
-        expect(activity.requiresApproval).toBe(true)
+        expect(activity.onApproved).toEqual([])
+        expect(activity.onRejected).toEqual([])
         expect(activity.approval.approvers).toEqual(['admin@example.com'])
         expect(activity.approval.prompt).toBe('Please approve')
-        expect(activity.metadata.__executorType).toBe('approval')
       })
 
       it('creates an approval activity with timeout', () => {

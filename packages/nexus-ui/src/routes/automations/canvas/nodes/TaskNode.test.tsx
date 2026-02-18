@@ -102,31 +102,105 @@ describe('TaskActivityDetails', () => {
     expect(screen.getByText('2 tools')).toBeInTheDocument()
   })
 
-  it.skip('renders AAP connector task with AAP label', () => {
-    // SKIPPED: SVG import issue in test environment
-    // This test verifies AAP connector detection, but the Ansible SVG icon
-    // import causes issues in Vitest. The functionality works in the browser.
+  it.skip('renders AAP job template task details correctly', () => {
+    // SKIPPED: SVG import issue with Ansible icon in test environment
     const mockAAPTask: TaskActivity = {
       type: 'task',
-      id: 'task-4',
-      name: 'Deploy Application',
+      id: 'task-5',
+      name: 'AAP Job',
       task: {
-        executor: 'connector',
+        executor: 'aap_job_template',
         config: {
-          connectorId: 'ansible-automation-platform',
-          operation: 'launch_job',
-          parameters: {
-            job_template_id: '42',
-          },
+          jobTemplateId: 123,
+          inventory: 456,
         },
       },
     }
 
     render(<TaskActivityDetails data={mockAAPTask} />)
 
-    expect(screen.getByText('Deploy Application')).toBeInTheDocument()
-    expect(screen.getByText('AAP Job Execution')).toBeInTheDocument()
-    expect(screen.getByText('ansible-automation-platform')).toBeInTheDocument()
-    expect(screen.getByText('launch_job')).toBeInTheDocument()
+    expect(screen.getByText('AAP Job')).toBeInTheDocument()
+    expect(screen.getByText('Job Template ID')).toBeInTheDocument()
+    expect(screen.getByText('123')).toBeInTheDocument()
+    expect(screen.getByText('Inventory ID')).toBeInTheDocument()
+    expect(screen.getByText('456')).toBeInTheDocument()
+  })
+
+  it('renders agentic task with fileIds (agent context)', () => {
+    const mockAgenticTaskWithFiles: TaskActivity = {
+      type: 'task',
+      id: 'task-6',
+      name: 'AI Agent with Context',
+      task: {
+        executor: 'agentic',
+        config: {
+          agent: '',
+          model: 'claude-3-opus',
+          prompt: 'Analyze these files',
+          tools: ['code_analysis'],
+          fileIds: ['file1', 'file2', 'file3'],
+        },
+      },
+    }
+
+    render(<TaskActivityDetails data={mockAgenticTaskWithFiles} />)
+
+    expect(screen.getByText('AI Agent with Context')).toBeInTheDocument()
+    expect(screen.getByText('Agent context')).toBeInTheDocument()
+    expect(screen.getByText('3 files')).toBeInTheDocument()
+  })
+
+  it('renders agentic task with single fileId (singular form)', () => {
+    const mockAgenticTaskWithSingleFile: TaskActivity = {
+      type: 'task',
+      id: 'task-7',
+      name: 'AI Agent with Single File',
+      task: {
+        executor: 'agentic',
+        config: {
+          agent: '',
+          model: 'claude-3-opus',
+          prompt: 'Analyze this file',
+          tools: [],
+          fileIds: ['file1'],
+        },
+      },
+    }
+
+    render(<TaskActivityDetails data={mockAgenticTaskWithSingleFile} />)
+
+    expect(screen.getByText('AI Agent with Single File')).toBeInTheDocument()
+    expect(screen.getByText('Agent context')).toBeInTheDocument()
+    expect(screen.getByText('1 file')).toBeInTheDocument()
+  })
+
+  it('renders disguised connector task (agentic executor with connector data)', () => {
+    const mockDisguisedConnectorTask: TaskActivity = {
+      type: 'task',
+      id: 'task-8',
+      name: 'Connector via Workaround',
+      task: {
+        executor: 'agentic',
+        config: {
+          agent: '',
+          model: '',
+          prompt: JSON.stringify({
+            __type: 'connector',
+            connectorId: 'salesforce',
+            operation: 'create_lead',
+            parameters: {
+              firstName: 'John',
+              lastName: 'Doe',
+            },
+          }),
+        },
+      },
+    }
+
+    render(<TaskActivityDetails data={mockDisguisedConnectorTask} />)
+
+    expect(screen.getByText('Connector via Workaround')).toBeInTheDocument()
+    expect(screen.getByText('salesforce')).toBeInTheDocument()
+    expect(screen.getByText('create_lead')).toBeInTheDocument()
   })
 })

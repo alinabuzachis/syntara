@@ -201,7 +201,7 @@ export class WorkflowTransform {
       }
 
       // Skip approval nodes - they have explicit branch edges (approved/rejected)
-      if (current.type === ActivityTypeEnum.TASK && current.requiresApproval && current.approval) {
+      if (current.type === ActivityTypeEnum.APPROVAL) {
         continue
       }
 
@@ -356,13 +356,16 @@ export class WorkflowTransform {
       return this.nest(result, edges)
     }
 
-    // 2. No more parallels - nest loops (they can contain conditions)
+    // 2. No more parallels - nest loops (they can contain conditions and approvals)
     result = this.nestLoops(result, edges)
 
-    // 3. Finally, nest conditions
+    // 3. Nest approvals (they can contain conditions)
+    result = this.nestApprovals(result, edges)
+
+    // 4. Finally, nest conditions
     // Track activities pulled from root level that should be removed from top level
     const usedRootActivityIds = new Set<string>()
-    result = this.nestConditions(result, edges, result, usedRootActivityIds)
+    result = this.nestConditions(result, edges, result, usedRootActivityIds, false, new Set<string>())
 
     // Remove activities that have been nested inside condition branches (pulled from root)
     result = result.filter((a) => !usedRootActivityIds.has(a.id))
@@ -405,6 +408,9 @@ export class WorkflowTransform {
     switch (activity.type) {
       case ActivityTypeEnum.CONDITION:
         this.flattenCondition(activity, flatActivities, edges)
+        break
+      case ActivityTypeEnum.APPROVAL:
+        this.flattenApproval(activity, flatActivities, edges)
         break
       case ActivityTypeEnum.PARALLEL:
         this.flattenParallel(activity, flatActivities, edges)
@@ -564,6 +570,38 @@ export class WorkflowTransform {
   }
 
   /**
+   * Flatten an approval node
+   */
+  private static flattenApproval(
+    activity: Extract<Activity, { type: 'approval' }>,
+    flatActivities: Activity[],
+    edges: EdgeConnection[]
+  ): void {
+    const onApprovedActivities = activity.onApproved || []
+    const onRejectedActivities = activity.onRejected || []
+
+    // Add approval with empty branches
+    flatActivities.push({
+      ...activity,
+      onApproved: [],
+      onRejected: [],
+    })
+
+    // Create edges to branches using EdgeGenerator
+    EdgeGenerator.createApprovalBranchEdge(activity.id, onApprovedActivities, EdgeHandleEnum.APPROVED, edges)
+    EdgeGenerator.createApprovalBranchEdge(activity.id, onRejectedActivities, EdgeHandleEnum.REJECTED, edges)
+
+    // Generate sequential edges within branches
+    this.generateSequentialEdges(onApprovedActivities, edges)
+    this.generateSequentialEdges(onRejectedActivities, edges)
+
+    // Recursively process nested activities
+    for (const nested of [...onApprovedActivities, ...onRejectedActivities]) {
+      this.flattenActivity(nested, flatActivities, edges)
+    }
+  }
+
+  /**
    * Generate sequential edges between top-level activities
    */
   private static generateSequentialEdges(activities: Activity[], edges: EdgeConnection[]): void {
@@ -675,9 +713,9 @@ export class WorkflowTransform {
   }
 
   /**
-   * Nest condition nodes based on edges
+   * Nest approval nodes based on edges
    */
-  private static nestConditions(
+  private static nestApprovals(
     flatActivities: Activity[],
     edges: EdgeConnection[],
     rootActivities: Activity[] = flatActivities,
@@ -685,13 +723,137 @@ export class WorkflowTransform {
     isRecursiveCall: boolean = false
   ): Activity[] {
     let result = [...flatActivities]
+    const approvalActivities = result.filter((a) => a.type === ActivityTypeEnum.APPROVAL)
+
+    for (const approvalActivity of approvalActivities) {
+      // Skip if already moved into another node's branches
+      if (!result.some((a) => a.id === approvalActivity.id)) {
+        continue
+      }
+
+      // Find edges from approved/rejected handles
+      const approvedEdges = edges.filter(
+        (e) => e.source === approvalActivity.id && e.sourceHandle === EdgeHandleEnum.APPROVED
+      )
+      const rejectedEdges = edges.filter(
+        (e) => e.source === approvalActivity.id && e.sourceHandle === EdgeHandleEnum.REJECTED
+      )
+
+      const approvedStartIds = approvedEdges.map((e) => e.target)
+      const rejectedStartIds = rejectedEdges.map((e) => e.target)
+
+      // Find all activities belonging to each branch
+      // CRITICAL: Use flatActivities (not result) to search for activities, as result gets modified during loop
+      const onApprovedActivities = this.findBranchActivities(
+        approvedStartIds,
+        edges,
+        flatActivities,
+        rootActivities,
+        usedRootActivityIds,
+        isRecursiveCall
+      )
+      const onRejectedActivities = this.findBranchActivities(
+        rejectedStartIds,
+        edges,
+        flatActivities,
+        rootActivities,
+        usedRootActivityIds,
+        isRecursiveCall
+      )
+
+      // Remove branch activities from top level
+      const allBranchActivityIds = new Set([
+        ...onApprovedActivities.map((a) => a.id),
+        ...onRejectedActivities.map((a) => a.id),
+      ])
+      result = result.filter((a) => !allBranchActivityIds.has(a.id))
+
+      // Recursively process nested nodes
+      // First nest any approvals, then nest conditions (approvals can contain conditions)
+      let processedApproved = this.nestApprovals(onApprovedActivities, edges, rootActivities, usedRootActivityIds, true)
+      processedApproved = this.nestConditions(
+        processedApproved,
+        edges,
+        rootActivities,
+        usedRootActivityIds,
+        true,
+        new Set<string>()
+      )
+
+      let processedRejected = this.nestApprovals(onRejectedActivities, edges, rootActivities, usedRootActivityIds, true)
+      processedRejected = this.nestConditions(
+        processedRejected,
+        edges,
+        rootActivities,
+        usedRootActivityIds,
+        true,
+        new Set<string>()
+      )
+
+      // Update approval with nested branches
+      const approvalIndex = result.findIndex((a) => a.id === approvalActivity.id)
+      if (approvalIndex !== -1) {
+        result[approvalIndex] = {
+          ...approvalActivity,
+          onApproved: processedApproved,
+          onRejected: processedRejected.length > 0 ? processedRejected : undefined,
+        } as Extract<Activity, { type: 'approval' }>
+      }
+    }
+
+    return result
+  }
+
+  /**
+   * Nest condition nodes based on edges
+   */
+  private static nestConditions(
+    flatActivities: Activity[],
+    edges: EdgeConnection[],
+    rootActivities: Activity[] = flatActivities,
+    usedRootActivityIds?: Set<string>,
+    isRecursiveCall: boolean = false,
+    processedConditionIds: Set<string> = new Set()
+  ): Activity[] {
+    let result = [...flatActivities]
     const conditionActivities = result.filter((a) => a.type === ActivityTypeEnum.CONDITION)
 
-    for (const conditionActivity of conditionActivities) {
+    // CRITICAL: Process conditions in the order they should be nested
+    // Conditions that are NOT reached via branch edges from other conditions should be processed first
+    // This ensures outer conditions are processed before their nested inner conditions
+    const conditionIds = new Set(conditionActivities.map((a) => a.id))
+    const nestedConditionIds = new Set<string>()
+
+    // Find conditions that are reached via branch edges from other conditions
+    for (const edge of edges) {
+      if (
+        conditionIds.has(edge.source) &&
+        (edge.sourceHandle === 'true' || edge.sourceHandle === 'false') &&
+        conditionIds.has(edge.target)
+      ) {
+        nestedConditionIds.add(edge.target)
+      }
+    }
+
+    // Sort conditions: top-level first, then nested
+    const sortedConditions = [
+      ...conditionActivities.filter((a) => !nestedConditionIds.has(a.id)),
+      ...conditionActivities.filter((a) => nestedConditionIds.has(a.id)),
+    ]
+
+    for (const conditionActivity of sortedConditions) {
+      // Skip if already processed in a parent call
+      if (processedConditionIds.has(conditionActivity.id)) {
+        continue
+      }
+
       // Skip if already moved into another condition's branches
       if (!result.some((a) => a.id === conditionActivity.id)) {
         continue
       }
+
+      // Mark this condition as processed
+      processedConditionIds.add(conditionActivity.id)
 
       // Find edges from true/false handles
       const trueEdges = edges.filter((e) => e.source === conditionActivity.id && e.sourceHandle === EdgeHandleEnum.TRUE)
@@ -703,12 +865,13 @@ export class WorkflowTransform {
       const falseStartIds = falseEdges.map((e) => e.target)
 
       // Find all activities belonging to each branch
-      // CRITICAL: Use rootActivities to find parallel containers that might be at top level
+      // CRITICAL: Use flatActivities (not result) to search for activities, as result gets modified during loop
+      // Use rootActivities to find parallel containers that might be at top level
       // Pass isRecursiveCall flag to track whether we're in a recursive call
       const thenActivities = this.findBranchActivities(
         trueStartIds,
         edges,
-        result,
+        flatActivities,
         rootActivities,
         usedRootActivityIds,
         isRecursiveCall
@@ -716,7 +879,7 @@ export class WorkflowTransform {
       const elseActivities = this.findBranchActivities(
         falseStartIds,
         edges,
-        result,
+        flatActivities,
         rootActivities,
         usedRootActivityIds,
         isRecursiveCall
@@ -728,8 +891,24 @@ export class WorkflowTransform {
 
       // Recursively process nested conditions (pass rootActivities and usedRootActivityIds through)
       // Mark recursive calls as recursive (true)
-      const processedThen = this.nestConditions(thenActivities, edges, rootActivities, usedRootActivityIds, true)
-      const processedElse = this.nestConditions(elseActivities, edges, rootActivities, usedRootActivityIds, true)
+      // CRITICAL: Use a NEW processedConditionIds set for each branch to allow conditions to be
+      // processed again if they appear in different branches (e.g., condition in approval's onApproved)
+      const processedThen = this.nestConditions(
+        thenActivities,
+        edges,
+        rootActivities,
+        usedRootActivityIds,
+        true,
+        new Set<string>()
+      )
+      const processedElse = this.nestConditions(
+        elseActivities,
+        edges,
+        rootActivities,
+        usedRootActivityIds,
+        true,
+        new Set<string>()
+      )
 
       // Update condition with nested branches
       const conditionIndex = result.findIndex((a) => a.id === conditionActivity.id)
@@ -980,6 +1159,28 @@ export class WorkflowTransform {
 
     visited.add(startId)
     const result = [activity]
+
+    // CRITICAL: For condition/approval nodes, collect their branch contents but don't follow sequential edges
+    // The branch contents need to be included so they can be recursively nested
+    if (activity.type === ActivityTypeEnum.CONDITION || activity.type === ActivityTypeEnum.APPROVAL) {
+      // Find and collect all activities in this node's branches
+      const branchEdges = edges.filter(
+        (e) =>
+          e.source === startId &&
+          (e.sourceHandle === EdgeHandleEnum.TRUE ||
+            e.sourceHandle === EdgeHandleEnum.FALSE ||
+            e.sourceHandle === EdgeHandleEnum.APPROVED ||
+            e.sourceHandle === EdgeHandleEnum.REJECTED)
+      )
+
+      for (const branchEdge of branchEdges) {
+        const branchActivities = this.collectSequentialActivities(branchEdge.target, edges, allActivities, visited)
+        result.push(...branchActivities)
+      }
+
+      // Don't follow sequential edges from condition/approval nodes
+      return result
+    }
 
     // CRITICAL: For parallel containers, collect activities that follow the parallel
     // For example: cond2 → parallel(A,B) → J means J should be in cond2.then

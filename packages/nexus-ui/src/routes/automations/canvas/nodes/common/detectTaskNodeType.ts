@@ -1,4 +1,4 @@
-import type { TaskActivity } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
 
 // Extended types for internal metadata and non-standard executors
 export type TaskActivityWithMetadata = TaskActivity & {
@@ -21,11 +21,10 @@ export type DetectedNodeTypeResult = {
 /**
  * Detects the actual node type from a TaskActivity.
  * This handles various workarounds where the backend stores nodes in non-standard formats:
- * - Approval nodes disguised as tasks
  * - AAP/Connector nodes stored as agentic executors
  * - Override executor types in metadata
  */
-export function detectNodeType(data: TaskActivity): DetectedNodeTypeResult {
+export function detectTaskNodeType(data: TaskActivity): DetectedNodeTypeResult {
   // Check if this is an AAP/connector node disguised as agentic (workaround for backend)
   const dataWithMetadata = data as TaskActivityWithMetadata
   const overrideExecutorType = dataWithMetadata.metadata?.__executorType
@@ -34,15 +33,9 @@ export function detectNodeType(data: TaskActivity): DetectedNodeTypeResult {
   let connectorData: { connectorId?: string; operation?: string; parameters?: Record<string, unknown> } | null = null
   let detectedExecutorType: string | undefined = overrideExecutorType
 
-  // Detect approval nodes - check for requiresApproval flag and approval configuration
-  // This handles cases where metadata is missing after save/load from backend
-  if (!detectedExecutorType && data.requiresApproval && data.approval) {
-    detectedExecutorType = 'approval'
-  }
-
   // If executor is agentic, check the prompt to detect connector/AAP nodes
   // This handles both cases: when metadata exists and when it's missing after save/load
-  if (data.task.executor === 'agentic') {
+  if (data.task.executor === ExecutorTypeEnum.AGENTIC) {
     try {
       const parsed = JSON.parse(data.task.config.prompt || '{}')
       if (parsed.__type === 'connector') {

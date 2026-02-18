@@ -5,6 +5,7 @@ import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
 import { FlowNodeType } from '../../../constants'
 import type { ConnectionState, PendingEdge } from '../types'
 import { EdgeFactory } from '../utils/EdgeFactory'
+import { getPlaceholderNodeId } from '../utils/edgeHelpers'
 import { consumePendingDragHandle } from '../utils/pendingDragHandle'
 import type { EdgeType, NodeType } from '../utils/workflowToGraph'
 
@@ -94,11 +95,7 @@ export function useConnectionHandlers({
       })
 
       // Determine the placeholder ID based on whether this is a condition node handle
-      const sourceHandle = connection.sourceHandle
-      const isConditionHandle = sourceHandle && ['true', 'false'].includes(sourceHandle)
-      const sourcePlaceholderId = isConditionHandle
-        ? `placeholder-${connection.source}-${sourceHandle}`
-        : `placeholder-${connection.source}`
+      const sourcePlaceholderId = getPlaceholderNodeId(connection.source, connection.sourceHandle ?? undefined)
 
       setNodes((nds) => {
         // Filter out the specific placeholder
@@ -113,7 +110,9 @@ export function useConnectionHandlers({
         if (isConditionNode) {
           // Check if there are any remaining condition handle placeholders for this node
           const hasRemainingPlaceholders = filtered.some(
-            (n) => n.id === `placeholder-${connection.source}-true` || n.id === `placeholder-${connection.source}-false`
+            (n) =>
+              n.id === getPlaceholderNodeId(connection.source, EdgeHandleEnum.TRUE) ||
+              n.id === getPlaceholderNodeId(connection.source, EdgeHandleEnum.FALSE)
           )
           if (hasRemainingPlaceholders) {
             // Keep the class since there are still button edges

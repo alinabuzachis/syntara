@@ -1,8 +1,8 @@
-import type { TaskActivity } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
-import { detectNodeType } from '../../../routes/automations/canvas/nodes/common/detectNodeType'
+import { detectTaskNodeType } from '../../../routes/automations/canvas/nodes/common/detectTaskNodeType'
 import { createAAPJobTemplateActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import { AAPNodeForm } from '../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../node-forms/AAPNodeForm'
@@ -24,12 +24,18 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
 
+  // Don't show action form for approval nodes - they have their own form
+  if (taskData.type === 'approval') {
+    return null
+  }
+
   // Detect the actual node type - handles disguised AAP/connector nodes
-  const { actualExecutor, detectedExecutorType } = detectNodeType(taskData)
+  const { actualExecutor, detectedExecutorType } = detectTaskNodeType(taskData)
+
   const executor = taskData.task.executor as string
 
   // Check if this is an agentic task
-  if (executor === 'agentic') {
+  if (executor === ExecutorTypeEnum.AGENTIC) {
     return (
       <AIAgentNodeDetails
         taskData={taskData as TaskActivity & { task: { executor: 'agentic'; config: unknown } }}
@@ -95,13 +101,8 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
     )
   }
 
-  // Handle standard executors (script, api, agentic) but exclude approval nodes
+  // Handle standard executors (script, api, agentic)
   if (executor !== 'script' && executor !== 'api' && executor !== 'agentic') {
-    return null
-  }
-
-  // Don't show action form for approval nodes - they have their own form
-  if (detectedExecutorType === 'approval') {
     return null
   }
 
@@ -111,10 +112,11 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
   const initialData: Partial<ActionFormData> = {
     name: taskData.name,
     executor: executor as 'script' | 'api',
-    language: executor === 'script' ? (taskData.task.config as { language?: string }).language : undefined,
-    code: executor === 'script' ? (taskData.task.config as { code?: string }).code : undefined,
+    language:
+      executor === ExecutorTypeEnum.SCRIPT ? (taskData.task.config as { language?: string }).language : undefined,
+    code: executor === ExecutorTypeEnum.SCRIPT ? (taskData.task.config as { code?: string }).code : undefined,
     method:
-      executor === 'api'
+      executor === ExecutorTypeEnum.API
         ? ((taskData.task.config as { method?: string }).method as
             | 'GET'
             | 'POST'
@@ -123,13 +125,13 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
             | 'DELETE'
             | undefined)
         : undefined,
-    url: executor === 'api' ? (taskData.task.config as { url?: string }).url : undefined,
+    url: executor === ExecutorTypeEnum.API ? (taskData.task.config as { url?: string }).url : undefined,
     headers:
-      executor === 'api' && (taskData.task.config as { headers?: unknown }).headers
+      executor === ExecutorTypeEnum.API && (taskData.task.config as { headers?: unknown }).headers
         ? JSON.stringify((taskData.task.config as { headers: unknown }).headers, null, 2)
         : undefined,
     body:
-      executor === 'api' && (taskData.task.config as { body?: unknown }).body
+      executor === ExecutorTypeEnum.API && (taskData.task.config as { body?: unknown }).body
         ? typeof (taskData.task.config as { body: unknown }).body === 'string'
           ? (taskData.task.config as { body: string }).body
           : JSON.stringify((taskData.task.config as { body: unknown }).body, null, 2)
@@ -140,10 +142,12 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
   const handleSubmit = (data: ActionFormData) => {
     try {
       const apiHeaders =
-        data.executor === 'api' && data.headers ? (JSON.parse(data.headers) as Record<string, string>) : undefined
+        data.executor === ExecutorTypeEnum.API && data.headers
+          ? (JSON.parse(data.headers) as Record<string, string>)
+          : undefined
 
       const mergedApiHeaders =
-        data.executor === 'api' && data.authentication
+        data.executor === ExecutorTypeEnum.API && data.authentication
           ? { ...(apiHeaders ?? {}), Authorization: data.authentication }
           : apiHeaders
 
@@ -154,7 +158,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
         task: {
           executor: data.executor,
           config:
-            data.executor === 'script'
+            data.executor === ExecutorTypeEnum.SCRIPT
               ? {
                   language: data.language ?? 'python',
                   code: data.code!,

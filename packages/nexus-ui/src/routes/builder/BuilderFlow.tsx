@@ -260,12 +260,12 @@ export function BuilderFlow(props: BuilderFlowProps) {
     const LOOP_NODE_WIDTH = 290 // Loop node default width + some margin
     const HORIZONTAL_SPACING = 50
 
-    taskActivities.forEach((activity: TaskActivity) => {
+    taskActivities.forEach((activity: TaskActivity | Extract<Activity, { type: 'approval' }>) => {
       // Check if this is a generic placeholder node
       const isGeneric = (activity as ActivityWithMetadata).metadata?.__isGeneric === true
 
-      // Check if this is an approval node
-      const isApproval = activity.requiresApproval && activity.approval
+      // Check if this is an approval node (by type field)
+      const isApproval = activity.type === ActivityTypeEnum.APPROVAL
 
       // Determine position: loop body nodes should be positioned to the right of their loop nodes
       let position = { x: 0, y: 0 }

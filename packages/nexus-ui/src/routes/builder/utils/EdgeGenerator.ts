@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../types/edge'
 
@@ -87,7 +87,7 @@ export class EdgeGenerator {
     const branches = parallel.branches || []
     const nextId = ActivityTraversal.getActivityId(next)
 
-    if (next.type === 'converge') {
+    if (next.type === ActivityTypeEnum.CONVERGE) {
       const convergeBranches = next.converge?.branches || []
       const convergeBranchSet = new Set(convergeBranches)
       this.createPartialConvergenceEdges(branches, convergeBranchSet, nextId, edges)
@@ -116,7 +116,7 @@ export class EdgeGenerator {
     const firstActivity = branchActivities[0]
 
     // If first activity is a parallel, create edges to all branches
-    if (firstActivity.type === 'parallel') {
+    if (firstActivity.type === ActivityTypeEnum.PARALLEL) {
       const branches = firstActivity.branches || []
       for (const branch of branches) {
         edges.push({
@@ -140,6 +140,49 @@ export class EdgeGenerator {
   }
 
   /**
+   * Create edges from an approval to its branch activities.
+   * Handles both single activities and parallel branches.
+   *
+   * @param approvalId - ID of the approval node
+   * @param branchActivities - Activities in the branch (onApproved or onRejected)
+   * @param handle - Source handle to use (EdgeHandleEnum.APPROVED or EdgeHandleEnum.REJECTED)
+   * @param edges - Array to push edges into
+   */
+  static createApprovalBranchEdge(
+    approvalId: string,
+    branchActivities: Activity[],
+    handle: typeof EdgeHandleEnum.APPROVED | typeof EdgeHandleEnum.REJECTED,
+    edges: EdgeConnection[]
+  ): void {
+    if (branchActivities.length === 0) return
+
+    const firstActivity = branchActivities[0]
+
+    // If first activity is a parallel, create edges to all branches
+    if (firstActivity.type === ActivityTypeEnum.PARALLEL) {
+      const branches = firstActivity.branches || []
+      for (const branch of branches) {
+        edges.push({
+          id: `${approvalId}-${handle}-${ActivityTraversal.getFirstActivityId(branch)}`,
+          source: approvalId,
+          target: ActivityTraversal.getFirstActivityId(branch),
+          sourceHandle: handle,
+          targetHandle: 'target',
+        })
+      }
+    } else {
+      // Regular activity - create single edge
+      edges.push({
+        id: `${approvalId}-${handle}-${ActivityTraversal.getFirstActivityId(firstActivity)}`,
+        source: approvalId,
+        target: ActivityTraversal.getFirstActivityId(firstActivity),
+        sourceHandle: handle,
+        targetHandle: 'target',
+      })
+    }
+  }
+
+  /**
    * Generate sequential edges between top-level activities.
    * Handles special cases like parallels, conditions, and converge nodes.
    */
@@ -149,16 +192,19 @@ export class EdgeGenerator {
       const next = activities[i + 1]
 
       // Skip condition nodes (they have explicit branch edges)
-      if (current.type === 'condition') continue
+      if (current.type === ActivityTypeEnum.CONDITION) continue
+
+      // Skip approval nodes (they have explicit branch edges)
+      if (current.type === ActivityTypeEnum.APPROVAL) continue
 
       // Parallel nodes need special edge handling to their branches
-      if (current.type === 'parallel') {
+      if (current.type === ActivityTypeEnum.PARALLEL) {
         this.createParallelToNextEdges(current, next, edges)
         continue
       }
 
       // If next is parallel, create edges from current to each branch
-      if (next.type === 'parallel') {
+      if (next.type === ActivityTypeEnum.PARALLEL) {
         const branches = next.branches || []
         for (const branch of branches) {
           // Use getFirstActivityId to handle sequence wrappers that will be flattened away

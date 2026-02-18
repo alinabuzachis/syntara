@@ -1,10 +1,10 @@
-import type { TaskActivity } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
 
 import { renderCondition, renderJson, renderObject, renderText } from './common/detailRenderers'
-import { detectNodeType, type TaskActivityWithMetadata } from './common/detectNodeType'
+import { detectTaskNodeType, type TaskActivityWithMetadata } from './common/detectTaskNodeType'
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
@@ -73,14 +73,17 @@ export function TaskActivityDetails(
   }>
 ) {
   // Detect the actual node type and extract any connector data
-  const { detectedExecutorType, connectorData, actualExecutor } = detectNodeType(props.data)
+  const { connectorData, actualExecutor } = detectTaskNodeType(props.data)
   const dataWithMetadata = props.data as TaskActivityWithMetadata
+
   const executorMeta = executorMetadata[actualExecutor] || executorMetadata[props.data.task.executor]
   const { id: iconId } = getTaskIconDescriptor(props.data)
   const iconNode = renderNodeIcon(executorMeta?.icon, iconId)
-  const taskExecutor = executorMeta?.label || 'Task'
+  const taskExecutorLabel = executorMeta?.label || 'Task'
+  const taskExecutor = actualExecutor || props.data.task.executor
   const aapTask = iconId === 'aap' ? (props.data as unknown as AAPJobTemplateTask) : null
-  const agentConfig = props.data.task.executor === 'agentic' ? (props.data.task.config as AgenticTaskConfig) : undefined
+  const agentConfig =
+    props.data.task.executor === ExecutorTypeEnum.AGENTIC ? (props.data.task.config as AgenticTaskConfig) : undefined
 
   const formatCount = (count: number, singular: string, plural = `${singular}s`) =>
     `${count} ${count === 1 ? singular : plural}`
@@ -92,21 +95,15 @@ export function TaskActivityDetails(
       <StandardNodeHeader
         icon={iconNode}
         title={props.data.name}
-        subtitle={taskExecutor}
+        subtitle={taskExecutorLabel}
         expandable
         menuActions={props.menuActions}
       />
       <NodeBody>
         <Details>
           {renderCondition(dataWithMetadata.condition)}
-          {/* Render approval details if this is an approval node */}
-          {detectedExecutorType === 'approval' && props.data.approval && (
-            <>{renderText('Usernames to notify', props.data.approval.approvers.join(', '))}</>
-          )}
-          {props.data.task.executor === 'script' && detectedExecutorType !== 'approval' && (
-            <>{renderText('Language', props.data.task.config.language)}</>
-          )}
-          {props.data.task.executor === 'api' && (
+          {taskExecutor === ExecutorTypeEnum.SCRIPT && <>{renderText('Language', props.data.task.config.language)}</>}
+          {taskExecutor === ExecutorTypeEnum.API && (
             <>
               {renderText('Method', props.data.task.config.method)}
               {renderText('URL', props.data.task.config.url)}
@@ -118,7 +115,7 @@ export function TaskActivityDetails(
               {renderText('Inventory ID', aapTask.task.config.inventory?.toString())}
             </>
           )}
-          {props.data.task.executor === 'connector' && (
+          {taskExecutor === ExecutorTypeEnum.CONNECTOR && (
             <>
               {renderText('Connector', props.data.task.config.connectorId)}
               {renderText('Operation', props.data.task.config.operation)}
@@ -126,7 +123,7 @@ export function TaskActivityDetails(
             </>
           )}
           {/* Render agentic task details */}
-          {props.data.task.executor === 'agentic' && !connectorData && detectedExecutorType !== 'approval' && (
+          {taskExecutor === ExecutorTypeEnum.AGENTIC && !connectorData && (
             <>
               {renderText('Model', props.data.task.config.model)}
               {renderText('Tools', toolsText)}
@@ -139,14 +136,14 @@ export function TaskActivityDetails(
             </>
           )}
           {/* Render connector details for workaround format (agentic executor with connector data) */}
-          {detectedExecutorType && detectedExecutorType !== 'approval' && connectorData && (
+          {connectorData && (
             <>
               {renderText('Connector', connectorData.connectorId)}
               {renderText('Operation', connectorData.operation)}
               {renderObject('Parameters', connectorData.parameters)}
             </>
           )}
-          {props.data.task.executor !== 'script' && renderJson(props.data, props.showJson)}
+          {taskExecutor !== ExecutorTypeEnum.SCRIPT && renderJson(props.data, props.showJson)}
         </Details>
       </NodeBody>
     </>

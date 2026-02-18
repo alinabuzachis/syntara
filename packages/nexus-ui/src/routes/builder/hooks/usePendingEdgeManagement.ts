@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import { getButtonEdgeId, getPendingEdgeId, getPendingTargetNodeId, getPlaceholderNodeId } from '../utils/edgeHelpers'
 import { markerEnd, type EdgeType } from '../utils/workflowToGraph'
 
 interface UsePendingEdgeManagementOptions {
@@ -24,8 +25,10 @@ export function usePendingEdgeManagement({
 }: UsePendingEdgeManagementOptions) {
   useEffect(() => {
     if (pendingEdge && isInitialized) {
-      const pendingNodeId = `pending-target-${pendingEdge.sourceNodeId}`
-      const pendingEdgeId = `pending-${pendingEdge.sourceNodeId}`
+      const pendingNodeId = getPendingTargetNodeId(pendingEdge.sourceNodeId)
+      const pendingEdgeId = getPendingEdgeId(pendingEdge.sourceNodeId)
+      const buttonEdgeId = getButtonEdgeId(pendingEdge.sourceNodeId, pendingEdge.sourceHandle)
+      const placeholderId = getPlaceholderNodeId(pendingEdge.sourceNodeId, pendingEdge.sourceHandle)
 
       setNodes((currentNodes) => {
         const withoutPendingNodes = currentNodes.filter((n) => !n.id.startsWith('pending-target-'))
@@ -49,15 +52,6 @@ export function usePendingEdgeManagement({
 
       setEdges((currentEdges) => {
         const withoutPendingEdges = currentEdges.filter((e) => !e.id.startsWith('pending-'))
-
-        // Determine the button edge ID based on whether this is a condition/approval handle
-        const sourceHandle = pendingEdge.sourceHandle
-        const isConditionHandle = sourceHandle && ['true', 'false'].includes(sourceHandle)
-        const isApprovalHandle = sourceHandle && ['approved', 'rejected'].includes(sourceHandle)
-        const buttonEdgeId =
-          isConditionHandle || isApprovalHandle
-            ? `button-${pendingEdge.sourceNodeId}-${sourceHandle}`
-            : `button-${pendingEdge.sourceNodeId}`
 
         const hasEdge = withoutPendingEdges.some((e) => e.id === pendingEdgeId)
 
@@ -84,16 +78,7 @@ export function usePendingEdgeManagement({
         return withoutPendingEdges
       })
 
-      // Determine the placeholder ID based on whether this is a condition/approval handle
-      const sourceHandle = pendingEdge.sourceHandle
-      const isConditionHandle = sourceHandle && ['true', 'false'].includes(sourceHandle)
-      const isApprovalHandle = sourceHandle && ['approved', 'rejected'].includes(sourceHandle)
-      const sourcePlaceholderId =
-        isConditionHandle || isApprovalHandle
-          ? `placeholder-${pendingEdge.sourceNodeId}-${sourceHandle}`
-          : `placeholder-${pendingEdge.sourceNodeId}`
-
-      setNodes((currentNodes) => currentNodes.filter((n) => n.id !== sourcePlaceholderId))
+      setNodes((currentNodes) => currentNodes.filter((n) => n.id !== placeholderId))
     } else if (!pendingEdge) {
       // Clear pending nodes and edges - button edge will be recreated by useButtonEdgeMaintenance
       // First remove pending target nodes

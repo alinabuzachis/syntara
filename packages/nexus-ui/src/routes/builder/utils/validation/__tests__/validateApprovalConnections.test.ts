@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
 import { makeCondition } from '../../../../../test/test-helpers'
@@ -9,12 +9,10 @@ describe('validateApprovalConnections', () => {
   it('returns no errors when approval node has approved branch connected', () => {
     const activities: Activity[] = [
       {
-        type: 'task',
+        type: 'approval',
         id: 'approval-1',
         name: 'Approval Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-        requiresApproval: true,
-        approval: { approvers: ['user1'], prompt: 'Approve?' },
+        approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
       },
       {
         type: 'task',
@@ -28,7 +26,7 @@ describe('validateApprovalConnections', () => {
         id: 'approval-1-task-1',
         source: 'approval-1',
         target: 'task-1',
-        sourceHandle: 'approved',
+        sourceHandle: EdgeHandleEnum.APPROVED,
         targetHandle: 'target',
       },
     ]
@@ -40,12 +38,10 @@ describe('validateApprovalConnections', () => {
   it('returns no errors when approval node has both branches connected', () => {
     const activities: Activity[] = [
       {
-        type: 'task',
+        type: 'approval',
         id: 'approval-1',
         name: 'Approval Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-        requiresApproval: true,
-        approval: { approvers: ['user1'], prompt: 'Approve?' },
+        approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
       },
       {
         type: 'task',
@@ -65,14 +61,14 @@ describe('validateApprovalConnections', () => {
         id: 'approval-1-task-approved',
         source: 'approval-1',
         target: 'task-approved',
-        sourceHandle: 'approved',
+        sourceHandle: EdgeHandleEnum.APPROVED,
         targetHandle: 'target',
       },
       {
         id: 'approval-1-task-rejected',
         source: 'approval-1',
         target: 'task-rejected',
-        sourceHandle: 'rejected',
+        sourceHandle: EdgeHandleEnum.REJECTED,
         targetHandle: 'target',
       },
     ]
@@ -84,12 +80,10 @@ describe('validateApprovalConnections', () => {
   it('detects missing approved branch connection', () => {
     const activities: Activity[] = [
       {
-        type: 'task',
+        type: 'approval',
         id: 'approval-1',
         name: 'Approval Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-        requiresApproval: true,
-        approval: { approvers: ['user1'], prompt: 'Approve?' },
+        approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
       },
       {
         type: 'task',
@@ -104,7 +98,7 @@ describe('validateApprovalConnections', () => {
         id: 'approval-1-task-rejected',
         source: 'approval-1',
         target: 'task-rejected',
-        sourceHandle: 'rejected',
+        sourceHandle: EdgeHandleEnum.REJECTED,
         targetHandle: 'target',
       },
     ]
@@ -122,12 +116,10 @@ describe('validateApprovalConnections', () => {
   it('detects missing approved branch when no edges exist', () => {
     const activities: Activity[] = [
       {
-        type: 'task',
+        type: 'approval',
         id: 'approval-1',
         name: 'Approval Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-        requiresApproval: true,
-        approval: { approvers: ['user1'], prompt: 'Approve?' },
+        approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
       },
     ]
     const edges: EdgeConnection[] = []
@@ -152,12 +144,10 @@ describe('validateApprovalConnections', () => {
         approval: { approvers: ['user1'], prompt: 'Approve?' },
       },
       {
-        type: 'task',
+        type: 'approval',
         id: 'approval-2',
         name: 'Second Approval',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-        requiresApproval: true,
-        approval: { approvers: ['user2'], prompt: 'Approve?' },
+        approval: { approvers: ['user2'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
       },
       {
         type: 'task',
@@ -172,7 +162,7 @@ describe('validateApprovalConnections', () => {
         id: 'approval-1-task-1',
         source: 'approval-1',
         target: 'task-1',
-        sourceHandle: 'approved',
+        sourceHandle: EdgeHandleEnum.APPROVED,
         targetHandle: 'target',
       },
       // Second approval is missing approved branch
@@ -240,12 +230,10 @@ describe('validateApprovalConnections', () => {
   it('includes suggestion in error message', () => {
     const activities: Activity[] = [
       {
-        type: 'task',
+        type: 'approval',
         id: 'approval-1',
         name: 'Approval Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-        requiresApproval: true,
-        approval: { approvers: ['user1'], prompt: 'Approve?' },
+        approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
       },
     ]
     const edges: EdgeConnection[] = []

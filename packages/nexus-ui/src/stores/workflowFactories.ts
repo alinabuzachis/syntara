@@ -535,37 +535,20 @@ export function createApprovalActivity(
   prompt: string,
   timeout?: number,
   onTimeout?: 'fail' | 'approve' | 'reject'
-): TaskActivity {
-  // Approval nodes are represented as generic tasks with requiresApproval flag
-  // and approval configuration containing the approval gate details
-  // Note: metadata is not in the API schema but is used by the UI to identify node types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activity: any = {
-    type: ActivityTypeEnum.TASK,
+): Extract<Activity, { type: 'approval' }> {
+  // Approval nodes match the workflow schema with onApproved/onRejected branches
+  // Pattern: Same as condition nodes, but with approval-specific fields
+  return {
+    type: 'approval',
     id,
     name,
-    // Mark this activity as requiring approval
-    requiresApproval: true,
-    // Approval configuration matching backend API structure
+    onApproved: [],
+    onRejected: [],
     approval: {
       approvers,
       prompt,
       ...(timeout && { timeout }),
       ...(onTimeout && { onTimeout }),
     },
-    // Add metadata to identify this as an approval node and display correct icon
-    metadata: {
-      __executorType: 'approval',
-    },
-    // Minimal task config - approval nodes don't execute code
-    task: {
-      executor: 'script',
-      config: {
-        language: 'python',
-        code: '# Approval gate - execution pauses here until approved',
-      },
-    },
   }
-
-  return activity as TaskActivity
 }

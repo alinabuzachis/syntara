@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../../workflowTransform'
 import type { ValidationError } from '../types'
@@ -16,8 +16,8 @@ import { validateBranchConnections } from './validateBranchConnections'
  */
 export function validateApprovalConnections(activities: Activity[], edges: EdgeConnection[]): ValidationError[] {
   return validateBranchConnections(activities, edges, {
-    nodeFilter: (a) => a.type === 'task' && a.requiresApproval === true && !!a.approval,
-    requiredHandle: 'approved',
+    nodeFilter: (a) => a.type === 'approval',
+    requiredHandle: EdgeHandleEnum.APPROVED,
     nodeTypeName: 'Approval',
     branchName: 'Approved',
     errorIdPrefix: 'approval-missing-approved',

@@ -13,6 +13,243 @@ import { loadWorkflow } from './loadWorkflow'
  */
 describe('Condition Node Integration', () => {
   describe('Simple condition round-trip', () => {
+    it('handles nested condition -> condition -> task (reproduces screenshot issue)', () => {
+      // This reproduces the exact scenario from the screenshot
+      const nestedWorkflow: Activity[] = [
+        {
+          type: 'condition',
+          id: 'condition2',
+          name: 'Condition2',
+          condition: 'b',
+          then: [
+            {
+              type: 'task',
+              id: 'script1',
+              name: 'Script',
+              task: { executor: 'script', config: { language: 'python', code: 'import time\ntime.sleep(2)' } },
+            },
+            {
+              type: 'condition',
+              id: 'condition',
+              name: 'Condition',
+              condition: 'a',
+              then: [
+                {
+                  type: 'task',
+                  id: 'script2',
+                  name: 'Script2',
+                  task: { executor: 'script', config: { language: 'python', code: 'import time\ntime.sleep(2)' } },
+                },
+              ],
+              else: [],
+            },
+          ],
+          else: [],
+        },
+      ]
+
+      // Step 1: Load from API - flatten
+      const { activities: flatActivities, edges } = loadWorkflow(nestedWorkflow)
+
+      // Should have 4 activities: Condition2, Script, Condition, Script2
+      expect(flatActivities).toHaveLength(4)
+      expect(flatActivities.map((a) => a.id)).toEqual(['condition2', 'script1', 'condition', 'script2'])
+
+      // Should have 3 edges:
+      // - Condition2 --true--> Script
+      // - Script --source--> Condition
+      // - Condition --true--> Script2
+      expect(edges).toHaveLength(3)
+      const c2ToScript1 = edges.find((e) => e.source === 'condition2' && e.target === 'script1')
+      expect(c2ToScript1).toMatchObject({ sourceHandle: 'true' })
+
+      const script1ToCondition = edges.find((e) => e.source === 'script1' && e.target === 'condition')
+      expect(script1ToCondition).toMatchObject({ sourceHandle: 'source' })
+
+      const conditionToScript2 = edges.find((e) => e.source === 'condition' && e.target === 'script2')
+      expect(conditionToScript2).toMatchObject({ sourceHandle: 'true' })
+
+      // Step 2: Save to API - rebuild nested structure
+      const rebuiltNested = buildNestedConditionStructure(flatActivities, edges)
+
+      // Verify round-trip preserves structure
+      expect(rebuiltNested).toHaveLength(1)
+      const condition2 = rebuiltNested[0] as Extract<Activity, { type: 'condition' }>
+      expect(condition2.id).toBe('condition2')
+      expect(condition2.then).toHaveLength(2)
+
+      // First activity in then branch should be Script
+      expect(condition2.then[0].id).toBe('script1')
+
+      // Second activity should be Condition
+      const innerCondition = condition2.then[1] as Extract<Activity, { type: 'condition' }>
+      expect(innerCondition.id).toBe('condition')
+      expect(innerCondition.then).toHaveLength(1)
+
+      // Script2 should be inside the inner Condition's then branch
+      expect(innerCondition.then[0].id).toBe('script2')
+    })
+
+    it('fails when edge is missing sourceHandle (demonstrates bug)', () => {
+      // This test demonstrates what happens when the edge from Condition to Script2
+      // is missing the sourceHandle: 'true'
+      const flatActivities: Activity[] = [
+        {
+          type: 'condition',
+          id: 'condition2',
+          name: 'Condition2',
+          condition: 'b',
+          then: [],
+          else: [],
+        },
+        {
+          type: 'task',
+          id: 'script1',
+          name: 'Script',
+          task: { executor: 'script', config: { language: 'python', code: 'import time\ntime.sleep(2)' } },
+        },
+        {
+          type: 'condition',
+          id: 'condition',
+          name: 'Condition',
+          condition: 'a',
+          then: [],
+          else: [],
+        },
+        {
+          type: 'task',
+          id: 'script2',
+          name: 'Script2',
+          task: { executor: 'script', config: { language: 'python', code: 'import time\ntime.sleep(2)' } },
+        },
+      ]
+
+      // BUG: Edge from Condition to Script2 is missing sourceHandle!
+      const edges = [
+        {
+          id: 'condition2-true-script1',
+          source: 'condition2',
+          target: 'script1',
+          sourceHandle: 'true',
+          targetHandle: 'target',
+        },
+        {
+          id: 'script1-condition',
+          source: 'script1',
+          target: 'condition',
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+        {
+          id: 'condition-script2', // Wrong ID format
+          source: 'condition',
+          target: 'script2',
+          sourceHandle: 'source', // WRONG! Should be 'true'
+          targetHandle: 'target',
+        },
+      ]
+
+      // Save to API - rebuild nested structure
+      const rebuiltNested = buildNestedConditionStructure(flatActivities, edges)
+
+
+      // With malformed edges (sourceHandle='source' instead of 'true'), Script2 ends up orphaned
+      // at the top level because it's not properly connected to Condition's branch
+      expect(rebuiltNested).toHaveLength(2) // Condition2 and orphaned Script2
+      const condition2 = rebuiltNested[0] as Extract<Activity, { type: 'condition' }>
+      const script2 = rebuiltNested[1]
+
+      expect(script2.id).toBe('script2')
+
+      // The inner condition has no activities in its then branch because the edge is wrong
+      const innerCondition = condition2.then.find((a) => a.id === 'condition') as Extract<
+        Activity,
+        { type: 'condition' }
+      >
+      expect(innerCondition.then).toHaveLength(0) // Script2 is NOT in the right place
+    })
+
+    it('handles manually created edges: condition -> condition -> task', () => {
+      // Simulates manual creation in the canvas
+      // User creates: Condition2, Script, Condition, Script2
+      // Then connects them manually
+      const flatActivities: Activity[] = [
+        {
+          type: 'condition',
+          id: 'condition2',
+          name: 'Condition2',
+          condition: 'b',
+          then: [],
+          else: [],
+        },
+        {
+          type: 'task',
+          id: 'script1',
+          name: 'Script',
+          task: { executor: 'script', config: { language: 'python', code: 'import time\ntime.sleep(2)' } },
+        },
+        {
+          type: 'condition',
+          id: 'condition',
+          name: 'Condition',
+          condition: 'a',
+          then: [],
+          else: [],
+        },
+        {
+          type: 'task',
+          id: 'script2',
+          name: 'Script2',
+          task: { executor: 'script', config: { language: 'python', code: 'import time\ntime.sleep(2)' } },
+        },
+      ]
+
+      // Edges created by manual connections
+      const edges = [
+        {
+          id: 'condition2-true-script1',
+          source: 'condition2',
+          target: 'script1',
+          sourceHandle: 'true',
+          targetHandle: 'target',
+        },
+        {
+          id: 'script1-condition',
+          source: 'script1',
+          target: 'condition',
+          sourceHandle: 'source',
+          targetHandle: 'target',
+        },
+        {
+          id: 'condition-true-script2',
+          source: 'condition',
+          target: 'script2',
+          sourceHandle: 'true',
+          targetHandle: 'target',
+        },
+      ]
+
+      // Save to API - rebuild nested structure
+      const rebuiltNested = buildNestedConditionStructure(flatActivities, edges)
+
+      // Verify structure is correct
+      expect(rebuiltNested).toHaveLength(1)
+      const condition2 = rebuiltNested[0] as Extract<Activity, { type: 'condition' }>
+      expect(condition2.id).toBe('condition2')
+      expect(condition2.then).toHaveLength(2)
+
+      // First activity in then branch should be Script
+      expect(condition2.then[0].id).toBe('script1')
+
+      // Second activity should be Condition
+      const innerCondition = condition2.then[1] as Extract<Activity, { type: 'condition' }>
+      expect(innerCondition.id).toBe('condition')
+      expect(innerCondition.then).toHaveLength(1)
+
+      // Script2 should be inside the inner Condition's then branch
+      expect(innerCondition.then[0].id).toBe('script2')
+    })
+
     it('preserves simple condition with then branch', () => {
       // Simulates a workflow from the API with nested structure
       const nestedWorkflow: Activity[] = [

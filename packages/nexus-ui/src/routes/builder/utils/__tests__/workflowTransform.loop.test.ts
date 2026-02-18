@@ -356,4 +356,52 @@ describe('WorkflowTransform - Loop Nesting', () => {
       targetHandle: 'end',
     })
   })
+
+  it('handles loop with no body (empty do array) during nesting', () => {
+    // This tests lines 628-631 where empty loop body is handled
+    const flatActivities: Activity[] = [
+      {
+        type: 'loop',
+        id: 'loop-1',
+        name: 'Empty Loop',
+        loop: {
+          items: '{{items}}',
+          do: [], // Empty body
+        },
+      },
+      {
+        type: 'task',
+        id: 'task-1',
+        name: 'Task After Loop',
+        task: {
+          executor: 'script',
+          config: {
+            language: 'python',
+            code: 'print("after")',
+          },
+        },
+      },
+    ]
+
+    // No edges from loop handle to any activities (no loop body)
+    const edges = [
+      {
+        id: 'loop-1-done-task-1',
+        source: 'loop-1',
+        sourceHandle: 'done',
+        target: 'task-1',
+        targetHandle: 'target',
+      },
+    ]
+
+    // Nest should handle the empty loop without crashing
+    const nested = WorkflowTransform.nest(flatActivities, edges)
+
+    // Should have 2 activities at top level
+    expect(nested).toHaveLength(2)
+    const loopNode = nested[0] as Extract<Activity, { type: 'loop' }>
+    expect(loopNode.type).toBe('loop')
+    // Loop should remain with empty do array
+    expect(loopNode.loop.do).toHaveLength(0)
+  })
 })

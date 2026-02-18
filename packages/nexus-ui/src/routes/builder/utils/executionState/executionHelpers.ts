@@ -1,3 +1,5 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+
 /**
  * Constants and utilities for execution state management.
  *
@@ -11,7 +13,14 @@
  * These handles are used on edges to indicate which branch of a conditional,
  * approval, or loop node an edge represents.
  */
-export const BRANCH_HANDLES = ['true', 'false', 'approved', 'rejected', 'done', 'loop'] as const
+export const BRANCH_HANDLES = [
+  EdgeHandleEnum.TRUE,
+  EdgeHandleEnum.FALSE,
+  EdgeHandleEnum.APPROVED,
+  EdgeHandleEnum.REJECTED,
+  EdgeHandleEnum.DONE,
+  EdgeHandleEnum.LOOP,
+] as const
 
 export type BranchHandle = (typeof BRANCH_HANDLES)[number]
 

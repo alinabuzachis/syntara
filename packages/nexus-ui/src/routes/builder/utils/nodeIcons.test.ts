@@ -1,10 +1,10 @@
 import type { ComponentType } from 'react'
-
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { resolveIconForNode, resolveIconForType } from './nodeIcons'
-import { NodeRegistry } from '../registry/NodeRegistry'
 import { getCanvasNodeIconDescriptor } from '../../automations/canvas/nodes/nodeIconResolver'
+import { NodeRegistry } from '../registry/NodeRegistry'
+
+import { resolveIconForNode, resolveIconForType } from './nodeIcons'
 
 vi.mock('../registry/NodeRegistry', () => ({
   NodeRegistry: {

@@ -2,7 +2,7 @@ import type { TaskActivity } from '@ansible/nexus-contracts'
 import type { Node } from '@xyflow/react'
 import type { ComponentType } from 'react'
 
-import { detectNodeType } from './common/detectNodeType'
+import { detectTaskNodeType } from './common/detectTaskNodeType'
 import { executorMetadata, nodeMetadata } from './nodeMetadata'
 import type { NodeType } from './NodeType'
 
@@ -12,7 +12,7 @@ export type IconDescriptor = {
 }
 
 export function getTaskIconDescriptor(taskData: TaskActivity): IconDescriptor {
-  const { detectedExecutorType, actualExecutor } = detectNodeType(taskData)
+  const { detectedExecutorType, actualExecutor } = detectTaskNodeType(taskData)
   const executorMeta = executorMetadata[actualExecutor] || executorMetadata[taskData.task.executor]
   let iconId = 'action-script'
 

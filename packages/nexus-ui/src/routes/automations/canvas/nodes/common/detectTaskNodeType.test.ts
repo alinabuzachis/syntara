@@ -1,9 +1,9 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
-import { detectNodeType, type TaskActivityWithMetadata } from './detectNodeType'
+import { detectTaskNodeType, type TaskActivityWithMetadata } from './detectTaskNodeType'
 
-describe('detectNodeType', () => {
+describe('detectTaskNodeType', () => {
   const createBaseTask = (overrides: Partial<TaskActivity> = {}): TaskActivity => ({
     type: 'task',
     id: 'test-task-1',
@@ -21,7 +21,7 @@ describe('detectNodeType', () => {
   describe('basic detection', () => {
     it('returns the executor type for a basic task', () => {
       const task = createBaseTask()
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result).toEqual({
         detectedExecutorType: undefined,
@@ -40,7 +40,7 @@ describe('detectNodeType', () => {
           },
         },
       })
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result.actualExecutor).toBe('agentic')
     })
@@ -52,7 +52,7 @@ describe('detectNodeType', () => {
           config: { method: 'GET', url: 'https://api.example.com' },
         },
       })
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result.actualExecutor).toBe('api')
     })
@@ -63,61 +63,13 @@ describe('detectNodeType', () => {
       const task = createBaseTask() as TaskActivityWithMetadata
       task.metadata = { __executorType: 'custom-executor' }
 
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result).toEqual({
         detectedExecutorType: 'custom-executor',
         connectorData: null,
         actualExecutor: 'custom-executor',
       })
-    })
-  })
-
-  describe('approval node detection', () => {
-    it('detects approval nodes from requiresApproval flag', () => {
-      const task = createBaseTask({
-        requiresApproval: true,
-        approval: {
-          approvers: ['admin'],
-          prompt: 'Please approve',
-        },
-      })
-
-      const result = detectNodeType(task)
-
-      expect(result).toEqual({
-        detectedExecutorType: 'approval',
-        connectorData: null,
-        actualExecutor: 'approval',
-      })
-    })
-
-    it('does not detect approval without approval config', () => {
-      const task = createBaseTask({
-        requiresApproval: true,
-        // No approval config
-      })
-
-      const result = detectNodeType(task)
-
-      expect(result.detectedExecutorType).toBeUndefined()
-      expect(result.actualExecutor).toBe('script')
-    })
-
-    it('metadata __executorType takes precedence over approval detection', () => {
-      const task = createBaseTask({
-        requiresApproval: true,
-        approval: {
-          approvers: ['admin'],
-          prompt: 'Please approve',
-        },
-      }) as TaskActivityWithMetadata
-      task.metadata = { __executorType: 'custom' }
-
-      const result = detectNodeType(task)
-
-      expect(result.detectedExecutorType).toBe('custom')
-      expect(result.actualExecutor).toBe('custom')
     })
   })
 
@@ -138,7 +90,7 @@ describe('detectNodeType', () => {
         },
       })
 
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result.connectorData).toEqual({
         connectorId: 'my-connector',
@@ -164,7 +116,7 @@ describe('detectNodeType', () => {
         },
       })
 
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result.detectedExecutorType).toBe('aap')
       expect(result.actualExecutor).toBe('aap')
@@ -190,7 +142,7 @@ describe('detectNodeType', () => {
         },
       })
 
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result.detectedExecutorType).toBe('aap')
     })
@@ -210,7 +162,7 @@ describe('detectNodeType', () => {
         },
       })
 
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result.detectedExecutorType).toBeUndefined()
       expect(result.actualExecutor).toBe('agentic')
@@ -229,7 +181,7 @@ describe('detectNodeType', () => {
         },
       })
 
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result).toEqual({
         detectedExecutorType: undefined,
@@ -249,7 +201,7 @@ describe('detectNodeType', () => {
         },
       })
 
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result.connectorData).toBeNull()
     })
@@ -264,7 +216,7 @@ describe('detectNodeType', () => {
         },
       })
 
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result.connectorData).toBeNull()
     })
@@ -283,7 +235,7 @@ describe('detectNodeType', () => {
         },
       })
 
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       expect(result.connectorData).toBeNull()
     })
@@ -303,7 +255,7 @@ describe('detectNodeType', () => {
       }) as TaskActivityWithMetadata
       task.metadata = { __executorType: 'connector' }
 
-      const result = detectNodeType(task)
+      const result = detectTaskNodeType(task)
 
       // Should use metadata override, not auto-detect AAP
       expect(result.detectedExecutorType).toBe('connector')

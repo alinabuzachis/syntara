@@ -67,14 +67,22 @@ export type EdgeType = {
 }
 
 /**
- * Recursively extracts all task activities from nested workflow structures.
- * Flattens parallel, sequence, condition, and loop activities to find all tasks.
+ * Recursively extracts all task and approval activities from nested workflow structures.
+ * Flattens parallel, sequence, condition, loop, and approval activities to find all renderable nodes.
  */
-export function extractTaskActivities(activities: Activity[]): TaskActivity[] {
-  const tasks: TaskActivity[] = []
+export function extractTaskActivities(
+  activities: Activity[]
+): (TaskActivity | Extract<Activity, { type: 'approval' }>)[] {
+  const tasks: (TaskActivity | Extract<Activity, { type: 'approval' }>)[] = []
   for (const activity of activities) {
     if (activity.type === ActivityTypeEnum.TASK) {
       tasks.push(activity)
+    } else if (activity.type === ActivityTypeEnum.APPROVAL) {
+      // Approval nodes are also rendered as nodes in the canvas
+      tasks.push(activity)
+      // Recursively extract from approval branches
+      if (activity.onApproved) tasks.push(...extractTaskActivities(activity.onApproved))
+      if (activity.onRejected) tasks.push(...extractTaskActivities(activity.onRejected))
     } else if (activity.type === ActivityTypeEnum.PARALLEL && activity.branches) {
       tasks.push(...extractTaskActivities(activity.branches))
     } else if (activity.type === ActivityTypeEnum.SEQUENCE && activity.steps) {

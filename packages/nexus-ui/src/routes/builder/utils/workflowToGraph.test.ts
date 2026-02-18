@@ -31,15 +31,21 @@ describe('workflowToGraph', () => {
       expect(tasks[1].id).toBe('task-2')
     })
 
-    it('skips non-task activities', () => {
+    it('includes task and approval activities but skips others', () => {
       const activities = [
         { id: 'trigger-1', type: 'trigger', name: 'Trigger', trigger: { executor: 'manual', config: {} } },
         { id: 'task-1', type: 'task', name: 'Task 1', task: {} },
-        { id: 'approval-1', type: 'approval', name: 'Approval' },
+        {
+          id: 'approval-1',
+          type: 'approval',
+          name: 'Approval',
+          approval: { prompt: 'Approve?', timeout: 3600, approvers: [], onTimeout: 'fail' },
+        },
       ] as unknown as Activity[]
       const tasks = extractTaskActivities(activities)
-      expect(tasks).toHaveLength(1)
+      expect(tasks).toHaveLength(2)
       expect(tasks[0].id).toBe('task-1')
+      expect(tasks[1].id).toBe('approval-1')
     })
 
     it('extracts tasks from parallel branches', () => {

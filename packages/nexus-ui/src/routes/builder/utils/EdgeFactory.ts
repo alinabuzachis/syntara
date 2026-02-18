@@ -3,6 +3,7 @@ import { addEdge } from '@xyflow/react'
 
 import type { EdgeConnection } from '../types/edge'
 
+import { getButtonEdgeId, isBranchHandle } from './edgeHelpers'
 import { markerEnd, type EdgeType } from './workflowToGraph'
 
 export interface CreateEdgeOptions {
@@ -49,10 +50,8 @@ export class EdgeFactory {
     const { source, target, sourceHandle, targetHandle, onAddNode } = options
 
     // Generate edge ID based on sourceHandle
-    const edgeId =
-      sourceHandle && [EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE].includes(sourceHandle)
-        ? `${source}-${sourceHandle}-${target}`
-        : `${source}-${target}`
+    // Include sourceHandle in ID for conditional and approval node branch edges
+    const edgeId = isBranchHandle(sourceHandle) ? `${source}-${sourceHandle}-${target}` : `${source}-${target}`
 
     // Determine edge type based on handles:
     // - loopBack: edges connecting TO loop's end handle (looping back)
@@ -167,21 +166,30 @@ export class EdgeFactory {
    * ```
    */
   static removeButtonEdge(nodeId: string, edges: EdgeType[], sourceHandle?: string): EdgeType[] {
-    if (
-      sourceHandle &&
-      [EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE, EdgeHandleEnum.DONE, EdgeHandleEnum.LOOP].includes(sourceHandle)
-    ) {
-      // Remove specific handle button edge for condition/loop nodes
-      return edges.filter((e) => e.id !== `button-${nodeId}-${sourceHandle}`)
+    const branchHandles = [
+      EdgeHandleEnum.TRUE,
+      EdgeHandleEnum.FALSE,
+      EdgeHandleEnum.DONE,
+      EdgeHandleEnum.LOOP,
+      EdgeHandleEnum.APPROVED,
+      EdgeHandleEnum.REJECTED,
+    ] as const
+
+    if (sourceHandle && (branchHandles as readonly string[]).includes(sourceHandle)) {
+      // Remove specific handle button edge for condition/approval/loop nodes
+      const buttonEdgeId = getButtonEdgeId(nodeId, sourceHandle)
+      return edges.filter((e) => e.id !== buttonEdgeId)
     }
-    // Remove regular button edge and any condition/loop handle button edges
+    // Remove regular button edge and any condition/approval/loop handle button edges
     return edges.filter(
       (e) =>
-        e.id !== `button-${nodeId}` &&
-        e.id !== `button-${nodeId}-true` &&
-        e.id !== `button-${nodeId}-false` &&
-        e.id !== `button-${nodeId}-done` &&
-        e.id !== `button-${nodeId}-loop`
+        e.id !== getButtonEdgeId(nodeId) &&
+        e.id !== getButtonEdgeId(nodeId, EdgeHandleEnum.TRUE) &&
+        e.id !== getButtonEdgeId(nodeId, EdgeHandleEnum.FALSE) &&
+        e.id !== getButtonEdgeId(nodeId, EdgeHandleEnum.APPROVED) &&
+        e.id !== getButtonEdgeId(nodeId, EdgeHandleEnum.REJECTED) &&
+        e.id !== getButtonEdgeId(nodeId, EdgeHandleEnum.DONE) &&
+        e.id !== getButtonEdgeId(nodeId, EdgeHandleEnum.LOOP)
     )
   }
 

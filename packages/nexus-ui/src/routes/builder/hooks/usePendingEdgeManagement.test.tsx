@@ -1,3 +1,4 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
@@ -145,7 +146,7 @@ describe('usePendingEdgeManagement', () => {
 
     renderHook(() =>
       usePendingEdgeManagement({
-        pendingEdge: { sourceNodeId: 'node-1', sourceHandle: 'approved', x: 100, y: 50 },
+        pendingEdge: { sourceNodeId: 'node-1', sourceHandle: EdgeHandleEnum.APPROVED, x: 100, y: 50 },
         isInitialized: true,
         setNodes: mockSetNodes,
         setEdges: mockSetEdges,

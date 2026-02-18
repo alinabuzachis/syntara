@@ -225,7 +225,7 @@ export function useButtonEdgeMaintenance({
         if (isApprovalNode) {
           processMultiHandleNode(
             node,
-            ['approved', 'rejected'] as const,
+            [EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED] as const,
             { approved: { yOffset: -30 }, rejected: { yOffset: 30 } },
             connectedHandles,
             pendingEdge,
@@ -327,7 +327,7 @@ export function useButtonEdgeMaintenance({
           existingButtonEdges
             .filter((edge) => edge.id.includes('-approved') || edge.id.includes('-rejected'))
             .map((edge) => {
-              const handleId = edge.id.endsWith('-approved') ? 'approved' : 'rejected'
+              const handleId = edge.id.endsWith('-approved') ? EdgeHandleEnum.APPROVED : EdgeHandleEnum.REJECTED
               return `${edge.source}-${handleId}`
             })
         )
@@ -372,7 +372,7 @@ export function useButtonEdgeMaintenance({
             }
           } else if (edge.id.includes('-approved') || edge.id.includes('-rejected')) {
             // Check if it's an approval handle button edge
-            const handleId = edge.id.endsWith('-approved') ? 'approved' : 'rejected'
+            const handleId = edge.id.endsWith('-approved') ? EdgeHandleEnum.APPROVED : EdgeHandleEnum.REJECTED
             const isNeeded = approvalHandlesNeedingButtonEdgesRef.current.some(
               (h) => h.nodeId === edge.source && h.handleId === handleId
             )

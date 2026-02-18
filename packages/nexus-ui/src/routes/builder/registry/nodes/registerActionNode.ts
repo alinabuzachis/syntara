@@ -4,7 +4,7 @@ import { createApiActivity, createScriptActivity, useWorkflowStore } from '../..
 import type { ActionFormData } from '../../hooks/useNodeCreation'
 import { ActionNodeForm } from '../../node-forms/ActionNodeForm'
 import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
-import { getDefaultNodeBaseName, getNodeDisplayName } from '../../utils/nodeNaming'
+import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 

@@ -485,4 +485,288 @@ describe('useButtonEdgeMaintenance', () => {
     // Should not throw - handles empty real nodes case
     expect(mockSetEdges).not.toHaveBeenCalled()
   })
+
+  it('updates button edge for condition node when activeEdgeButtonHandle matches', () => {
+    const edgesCalls: unknown[][] = []
+    mockSetEdges.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        const result = updater([
+          {
+            id: 'button-condition-1-true',
+            type: 'buttonEdge',
+            source: 'condition-1',
+            sourceHandle: 'true',
+            data: { isActive: false },
+          },
+        ])
+        edgesCalls.push(result)
+        return result
+      }
+    })
+
+    renderHook(() =>
+      useButtonEdgeMaintenance({
+        ...defaultOptions,
+        nodes: [{ id: 'condition-1', type: 'condition', position: { x: 100, y: 100 } }] as never[],
+        edges: [
+          {
+            id: 'button-condition-1-true',
+            type: 'buttonEdge',
+            source: 'condition-1',
+            sourceHandle: 'true',
+            data: { isActive: false },
+          },
+        ] as never[],
+        activeEdgeButtonNodeId: 'condition-1',
+        activeEdgeButtonHandle: 'true',
+      })
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    const allEdges = edgesCalls.flat()
+    const buttonEdge = allEdges.find((e) => (e as { id: string }).id === 'button-condition-1-true') as {
+      data: { isActive: boolean }
+    }
+    expect(buttonEdge?.data?.isActive).toBe(true)
+  })
+
+  it('updates button edge for loop node done handle', () => {
+    const edgesCalls: unknown[][] = []
+    mockSetEdges.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        const result = updater([
+          {
+            id: 'button-loop-1-done',
+            type: 'buttonEdge',
+            source: 'loop-1',
+            sourceHandle: 'done',
+            data: { isActive: false },
+          },
+        ])
+        edgesCalls.push(result)
+        return result
+      }
+    })
+
+    renderHook(() =>
+      useButtonEdgeMaintenance({
+        ...defaultOptions,
+        nodes: [{ id: 'loop-1', type: 'loop', position: { x: 100, y: 100 } }] as never[],
+        edges: [
+          {
+            id: 'button-loop-1-done',
+            type: 'buttonEdge',
+            source: 'loop-1',
+            sourceHandle: 'done',
+            data: { isActive: false },
+          },
+        ] as never[],
+        activeEdgeButtonNodeId: 'loop-1',
+        activeEdgeButtonHandle: 'done',
+      })
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    const allEdges = edgesCalls.flat()
+    const buttonEdge = allEdges.find((e) => (e as { id: string }).id === 'button-loop-1-done') as {
+      data: { isActive: boolean }
+    }
+    expect(buttonEdge?.data?.isActive).toBe(true)
+  })
+
+  it('updates button edge for approval node approved handle', () => {
+    const edgesCalls: unknown[][] = []
+    mockSetEdges.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        const result = updater([
+          {
+            id: 'button-approval-1-approved',
+            type: 'buttonEdge',
+            source: 'approval-1',
+            sourceHandle: 'approved',
+            data: { isActive: false },
+          },
+        ])
+        edgesCalls.push(result)
+        return result
+      }
+    })
+
+    renderHook(() =>
+      useButtonEdgeMaintenance({
+        ...defaultOptions,
+        nodes: [{ id: 'approval-1', type: 'approval', position: { x: 100, y: 100 } }] as never[],
+        edges: [
+          {
+            id: 'button-approval-1-approved',
+            type: 'buttonEdge',
+            source: 'approval-1',
+            sourceHandle: 'approved',
+            data: { isActive: false },
+          },
+        ] as never[],
+        activeEdgeButtonNodeId: 'approval-1',
+        activeEdgeButtonHandle: 'approved',
+      })
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    const allEdges = edgesCalls.flat()
+    const buttonEdge = allEdges.find((e) => (e as { id: string }).id === 'button-approval-1-approved') as {
+      data: { isActive: boolean }
+    }
+    expect(buttonEdge?.data?.isActive).toBe(true)
+  })
+
+  it('keeps button edge inactive when activeEdgeButtonHandle does not match', () => {
+    const edgesCalls: unknown[][] = []
+    mockSetEdges.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        const result = updater([
+          {
+            id: 'button-condition-1-true',
+            type: 'buttonEdge',
+            source: 'condition-1',
+            sourceHandle: 'true',
+            data: { isActive: false },
+          },
+        ])
+        edgesCalls.push(result)
+        return result
+      }
+    })
+
+    renderHook(() =>
+      useButtonEdgeMaintenance({
+        ...defaultOptions,
+        nodes: [{ id: 'condition-1', type: 'condition', position: { x: 100, y: 100 } }] as never[],
+        edges: [
+          {
+            id: 'button-condition-1-true',
+            type: 'buttonEdge',
+            source: 'condition-1',
+            sourceHandle: 'true',
+            data: { isActive: false },
+          },
+        ] as never[],
+        activeEdgeButtonNodeId: 'condition-1',
+        activeEdgeButtonHandle: 'false', // Different handle
+      })
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    const allEdges = edgesCalls.flat()
+    const buttonEdge = allEdges.find((e) => (e as { id: string }).id === 'button-condition-1-true') as {
+      data: { isActive: boolean }
+    }
+    // Should remain inactive because handle doesn't match
+    expect(buttonEdge?.data?.isActive).toBe(false)
+  })
+
+  it('creates new button edge when node has no outgoing edges and no existing button edge', () => {
+    const edgesCalls: unknown[][] = []
+    mockSetEdges.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        const result = updater([])
+        edgesCalls.push(result)
+        return result
+      }
+    })
+
+    renderHook(() =>
+      useButtonEdgeMaintenance({
+        ...defaultOptions,
+        nodes: [{ id: 'node-1', type: 'task', position: { x: 100, y: 100 } }] as never[],
+        edges: [] as never[],
+      })
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    const allEdges = edgesCalls.flat()
+    const buttonEdge = allEdges.find((e) => (e as { id: string }).id === 'button-node-1')
+    expect(buttonEdge).toBeDefined()
+  })
+
+  it('does not create button edge when activeEdgeButtonHandle is null for regular node', () => {
+    const edgesCalls: unknown[][] = []
+    mockSetEdges.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        const result = updater([])
+        edgesCalls.push(result)
+        return result
+      }
+    })
+
+    renderHook(() =>
+      useButtonEdgeMaintenance({
+        ...defaultOptions,
+        nodes: [{ id: 'node-1', type: 'task', position: { x: 100, y: 100 } }] as never[],
+        edges: [] as never[],
+        activeEdgeButtonNodeId: 'node-1',
+        activeEdgeButtonHandle: null,
+      })
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    const allEdges = edgesCalls.flat()
+    const buttonEdge = allEdges.find((e) => (e as { id: string }).id === 'button-node-1') as {
+      data?: { isActive?: boolean }
+    }
+    // Button edge should be created and active when activeEdgeButtonHandle is null for regular nodes
+    expect(buttonEdge).toBeDefined()
+    expect(buttonEdge?.data?.isActive).toBe(true)
+  })
+
+  it('removes button edge when node gets a real outgoing connection', () => {
+    const edgesCalls: unknown[][] = []
+    mockSetEdges.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        // Existing button edge should be removed when real edge is added
+        const result = updater([
+          { id: 'button-node-1', type: 'buttonEdge', source: 'node-1' },
+          { id: 'real-edge', source: 'node-1', target: 'node-2', sourceHandle: 'source' },
+        ])
+        edgesCalls.push(result)
+        return result
+      }
+    })
+
+    renderHook(() =>
+      useButtonEdgeMaintenance({
+        ...defaultOptions,
+        nodes: [
+          { id: 'node-1', type: 'task', position: { x: 100, y: 100 } },
+          { id: 'node-2', type: 'task', position: { x: 300, y: 100 } },
+        ] as never[],
+        edges: [{ id: 'real-edge', source: 'node-1', target: 'node-2', sourceHandle: 'source' }] as never[],
+      })
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    const allEdges = edgesCalls.flat()
+    const buttonEdge = allEdges.find((e) => (e as { id: string }).id === 'button-node-1')
+    // Button edge should be removed
+    expect(buttonEdge).toBeUndefined()
+  })
 })

@@ -248,6 +248,25 @@ describe('TaskNodeDetails Component', () => {
     expect(screen.getByTestId('aap-node-form')).toBeInTheDocument()
   })
 
+  it('renders AAPNodeForm with minimal config (only jobTemplateId)', () => {
+    const taskData = {
+      type: 'task' as const,
+      id: 'task-aap-minimal',
+      name: 'Minimal AAP Task',
+      task: {
+        executor: 'aap_job_template' as const,
+        config: {
+          jobTemplateId: 789,
+          // No inventory, credentials, extraVars, etc.
+        },
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-aap-minimal')
+
+    expect(screen.getByTestId('aap-node-form')).toBeInTheDocument()
+  })
+
   it('renders AIAgentNodeDetails for agentic task', () => {
     const taskData = {
       type: 'task' as const,
@@ -397,22 +416,16 @@ describe('TaskNodeDetails Component', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
-  it('returns null for approval node (script executor with approval)', () => {
-    const taskData = {
-      type: 'task' as const,
+  it('returns null for approval node (type approval)', () => {
+    const taskData: Extract<Activity, { type: 'approval' }> = {
+      type: 'approval' as const,
       id: 'task-approval',
       name: 'Approval Task',
-      requiresApproval: true,
+      onApproved: [],
+      onRejected: [],
       approval: {
         approvers: ['admin'],
         prompt: 'Please approve',
-      },
-      task: {
-        executor: 'script' as const,
-        config: {
-          language: 'python' as const,
-          code: '',
-        },
       },
     }
 
@@ -486,6 +499,49 @@ describe('TaskNodeDetails Component', () => {
         }),
       })
     )
+  })
+
+  it('renders API task with inputs/parameters', () => {
+    const taskData = {
+      type: 'task' as const,
+      id: 'task-api-params',
+      name: 'API Task with Params',
+      task: {
+        executor: 'api' as const,
+        config: {
+          method: 'POST' as const,
+          url: 'https://api.example.com',
+        },
+        inputs: {
+          userId: '{{user.id}}',
+          timestamp: '{{now}}',
+        },
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-api-params')
+
+    expect(screen.getByTestId('action-node-form')).toBeInTheDocument()
+  })
+
+  it('renders API task with string body in config', () => {
+    const taskData = {
+      type: 'task' as const,
+      id: 'task-api-string-body',
+      name: 'API Task with String Body',
+      task: {
+        executor: 'api' as const,
+        config: {
+          method: 'POST' as const,
+          url: 'https://api.example.com',
+          body: 'raw string body',
+        },
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-api-string-body')
+
+    expect(screen.getByTestId('action-node-form')).toBeInTheDocument()
   })
 
   it('shows error when updateActivity throws', async () => {

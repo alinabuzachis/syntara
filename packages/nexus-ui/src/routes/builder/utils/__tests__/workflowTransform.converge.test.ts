@@ -683,4 +683,297 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
     const convergeOutgoingEdges = edges.filter((e) => e.source === 'logic_1738587653833_sihq7u6g74oi6')
     expect(convergeOutgoingEdges).toHaveLength(0)
   })
+
+  it('handles converge node with undefined branches field', () => {
+    // Test edge case where converge node has no branches field at all
+    const activities: Activity[] = [
+      {
+        type: 'task',
+        id: 'task-1',
+        name: 'Task 1',
+        task: {
+          executor: 'script',
+          config: {
+            language: 'python',
+            code: 'print("task1")',
+          },
+        },
+      },
+      {
+        type: 'task',
+        id: 'task-2',
+        name: 'Task 2',
+        task: {
+          executor: 'script',
+          config: {
+            language: 'python',
+            code: 'print("task2")',
+          },
+        },
+      },
+    ]
+
+    const edges = [
+      { id: 'edge-1', source: 'task-1', target: 'converge-1' },
+      { id: 'edge-2', source: 'task-2', target: 'converge-1' },
+      { id: 'edge-3', source: 'converge-1', target: 'task-3' },
+    ]
+
+    // Manually add a converge node with undefined branches to the flat activities
+    const flatActivities = [
+      ...activities,
+      {
+        type: 'converge' as const,
+        id: 'converge-1',
+        name: 'Converge',
+        converge: {} as never, // No branches field
+      },
+      {
+        type: 'task' as const,
+        id: 'task-3',
+        name: 'Task 3',
+        task: {
+          executor: 'script' as const,
+          config: {
+            language: 'python' as const,
+            code: 'print("task3")',
+          },
+        },
+      },
+    ]
+
+    // Test the nest function with this edge case
+    const result = WorkflowTransform.nest(flatActivities, edges)
+
+    // Should handle undefined branches gracefully without crashing
+    expect(result).toBeDefined()
+    expect(Array.isArray(result)).toBe(true)
+  })
+
+  it('handles condition with only else branch (empty then) converging', () => {
+    // This tests lines 176-179 where else branch is checked for converge
+    const nestedActivities: Activity[] = [
+      {
+        type: 'condition',
+        id: 'condition-1',
+        name: 'Check',
+        condition: { expression: 'value > 10' },
+        then: [], // Empty then branch
+        else: [
+          {
+            type: 'task',
+            id: 'task-1',
+            name: 'Else Task',
+            task: {
+              executor: 'script',
+              config: {
+                language: 'python',
+                code: 'print("else")',
+              },
+            },
+          },
+        ],
+      },
+      {
+        type: 'converge',
+        id: 'converge-1',
+        name: 'Converge',
+        converge: { branches: ['task-1'] },
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+    // Verify condition and task are flattened
+    expect(activities).toHaveLength(3) // condition-1, task-1, converge-1
+
+    // Verify edge from condition to else task
+    expect(edges.some((e) => e.source === 'condition-1' && e.target === 'task-1')).toBe(true)
+  })
+
+  it('handles condition with only then branch (empty else) converging', () => {
+    // This tests lines 170-173 where then branch is checked for converge
+    const nestedActivities: Activity[] = [
+      {
+        type: 'condition',
+        id: 'condition-1',
+        name: 'Check',
+        condition: { expression: 'value > 10' },
+        then: [
+          {
+            type: 'task',
+            id: 'task-1',
+            name: 'Then Task',
+            task: {
+              executor: 'script',
+              config: {
+                language: 'python',
+                code: 'print("then")',
+              },
+            },
+          },
+        ],
+        else: [], // Empty else branch
+      },
+      {
+        type: 'converge',
+        id: 'converge-1',
+        name: 'Converge',
+        converge: { branches: ['task-1'] },
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+    // Verify condition and task are flattened
+    expect(activities).toHaveLength(3) // condition-1, task-1, converge-1
+
+    // Verify edge from condition to then task
+    expect(edges.some((e) => e.source === 'condition-1' && e.target === 'task-1')).toBe(true)
+  })
+
+  it('handles condition with both then and else branches converging', () => {
+    // This tests both lines 170-173 and 176-179 together
+    const nestedActivities: Activity[] = [
+      {
+        type: 'condition',
+        id: 'condition-1',
+        name: 'Check',
+        condition: { expression: 'value > 10' },
+        then: [
+          {
+            type: 'task',
+            id: 'task-then',
+            name: 'Then Task',
+            task: {
+              executor: 'script',
+              config: {
+                language: 'python',
+                code: 'print("then")',
+              },
+            },
+          },
+        ],
+        else: [
+          {
+            type: 'task',
+            id: 'task-else',
+            name: 'Else Task',
+            task: {
+              executor: 'script',
+              config: {
+                language: 'python',
+                code: 'print("else")',
+              },
+            },
+          },
+        ],
+      },
+      {
+        type: 'converge',
+        id: 'converge-1',
+        name: 'Converge',
+        converge: { branches: ['task-then', 'task-else'] },
+      },
+    ]
+
+    const { activities, edges } = WorkflowTransform.flatten(nestedActivities)
+
+    // Verify all activities are flattened
+    expect(activities).toHaveLength(4) // condition-1, task-then, task-else, converge-1
+
+    // Verify edges from condition to both branches
+    expect(edges.some((e) => e.source === 'condition-1' && e.target === 'task-then' && e.sourceHandle === 'true')).toBe(
+      true
+    )
+    expect(
+      edges.some((e) => e.source === 'condition-1' && e.target === 'task-else' && e.sourceHandle === 'false')
+    ).toBe(true)
+
+    // Verify edges from both branches to converge
+    expect(edges.some((e) => e.source === 'task-then' && e.target === 'converge-1')).toBe(true)
+    expect(edges.some((e) => e.source === 'task-else' && e.target === 'converge-1')).toBe(true)
+  })
+
+  it('handles nested parallel with partial convergence (not all branches converge)', () => {
+    // This tests the ternary at lines 1336-1338 for partial convergence
+    const originalNested: Activity[] = [
+      {
+        type: 'parallel',
+        id: 'parallel-1',
+        name: 'Parallel',
+        branches: [
+          {
+            type: 'task',
+            id: 'task-1',
+            name: 'Task 1',
+            task: {
+              executor: 'script',
+              config: {
+                language: 'python',
+                code: 'print("1")',
+              },
+            },
+          },
+          {
+            type: 'task',
+            id: 'task-2',
+            name: 'Task 2',
+            task: {
+              executor: 'script',
+              config: {
+                language: 'python',
+                code: 'print("2")',
+              },
+            },
+          },
+          {
+            type: 'task',
+            id: 'task-3',
+            name: 'Task 3',
+            task: {
+              executor: 'script',
+              config: {
+                language: 'python',
+                code: 'print("3")',
+              },
+            },
+          },
+        ],
+      },
+      {
+        type: 'converge',
+        id: 'converge-1',
+        name: 'Partial Converge',
+        converge: {
+          branches: ['task-1', 'task-2'], // Only 2 out of 3 branches converge
+        },
+      },
+      {
+        type: 'task',
+        id: 'task-after',
+        name: 'Task After Converge',
+        task: {
+          executor: 'script',
+          config: {
+            language: 'python',
+            code: 'print("after")',
+          },
+        },
+      },
+    ]
+
+    // Flatten
+    const { activities, edges } = WorkflowTransform.flatten(originalNested)
+
+    // Verify flattening
+    expect(activities).toHaveLength(5) // 3 tasks + converge + task-after
+
+    // Verify edges from task-1 and task-2 to converge (partial convergence)
+    expect(edges.some((e) => e.source === 'task-1' && e.target === 'converge-1')).toBe(true)
+    expect(edges.some((e) => e.source === 'task-2' && e.target === 'converge-1')).toBe(true)
+
+    // task-3 should NOT have an edge to converge (it's outside the partial convergence)
+    expect(edges.some((e) => e.source === 'task-3' && e.target === 'converge-1')).toBe(false)
+  })
 })

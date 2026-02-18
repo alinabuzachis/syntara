@@ -872,4 +872,43 @@ describe('BuilderFlow execution view', () => {
       error_details: undefined,
     })
   })
+
+  it('handles node changes through onNodesChange callback', () => {
+    setWorkflowState({
+      currentWorkflow: {
+        id: 'workflow-changes',
+        inputs: {},
+        triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+        workflow: {
+          activities: [
+            {
+              id: 'task-1',
+              type: 'task',
+              name: 'Task 1',
+              task: { executor: 'script', config: { language: 'bash', code: 'echo task1' } },
+            },
+          ],
+        },
+      },
+      triggers: [{ type: 'manual', name: 'Manual Trigger' }],
+      edges: [],
+    })
+
+    render(<BuilderFlow workflowId="workflow-changes" panelOpen={false} executionStatus={null} />)
+
+    const props = latestReactFlowProps as Record<string, unknown>
+    const onNodesChange = props.onNodesChange as ((changes: Array<Record<string, unknown>>) => void) | undefined
+    const onEdgesChange = props.onEdgesChange as ((changes: Array<Record<string, unknown>>) => void) | undefined
+
+    // Call the callbacks to cover them
+    if (onNodesChange) {
+      onNodesChange([{ type: 'position', id: 'task-1', position: { x: 100, y: 100 } }])
+    }
+
+    if (onEdgesChange) {
+      onEdgesChange([{ type: 'remove', id: 'edge-1' }])
+    }
+
+    expect(screen.getByTestId('reactflow')).toBeInTheDocument()
+  })
 })

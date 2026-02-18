@@ -160,12 +160,10 @@ describe('validateWorkflow', () => {
           trigger: { executor: 'manual', config: {} },
         },
         {
-          type: 'task',
+          type: 'approval',
           id: 'approval-1',
           name: 'Approval Task',
-          task: { executor: 'script', config: { language: 'python', code: '' } },
-          requiresApproval: true,
-          approval: { approvers: ['user1'], prompt: 'Approve?' },
+          approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
         },
         {
           type: 'task',

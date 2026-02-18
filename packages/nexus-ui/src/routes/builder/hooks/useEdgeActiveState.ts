@@ -1,3 +1,4 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { useEffect } from 'react'
 
 import { markerEnd, type EdgeType } from '../utils/workflowToGraph'
@@ -76,10 +77,19 @@ export function useEdgeActiveState({
           // For nodes with specific handles (condition: true/false, loop: done/loop, approval: approved/rejected),
           // both nodeId AND handle must match
           // For regular nodes (source handle), nodeId must match and handle should be 'source' or not specified
-          const isSpecificHandle = ['true', 'false', 'done', 'loop', 'approved', 'rejected'].includes(edgeHandle)
+          const specificHandles = [
+            EdgeHandleEnum.TRUE,
+            EdgeHandleEnum.FALSE,
+            EdgeHandleEnum.DONE,
+            EdgeHandleEnum.LOOP,
+            EdgeHandleEnum.APPROVED,
+            EdgeHandleEnum.REJECTED,
+          ] as const
+          const isSpecificHandle = (specificHandles as readonly string[]).includes(edgeHandle)
           const isActive = isSpecificHandle
             ? activeEdgeButtonNodeId === nodeId && activeEdgeButtonHandle === edgeHandle
-            : activeEdgeButtonNodeId === nodeId && (activeEdgeButtonHandle === 'source' || !activeEdgeButtonHandle)
+            : activeEdgeButtonNodeId === nodeId &&
+              (activeEdgeButtonHandle === EdgeHandleEnum.SOURCE || !activeEdgeButtonHandle)
 
           return {
             ...edge,
