@@ -16,7 +16,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import text
-from starlette.responses import JSONResponse
 from temporalio.service import RPCError
 
 from nexus.api.constants import API_V1_PATH_PREFIX
@@ -199,27 +198,6 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
             "database": db_status,
         },
     }
-
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:  # noqa: ARG001
-    """Handle HTTP exceptions consistently.
-
-    Args:
-        request: FastAPI request object
-        exc: HTTP exception
-
-    Returns:
-        JSONResponse: Formatted error response
-
-    """
-    detail: Any = exc.detail
-    content = detail if isinstance(detail, dict) else {"detail": detail}
-
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=content,
-    )
 
 
 @app.get("/", tags=["Root"])

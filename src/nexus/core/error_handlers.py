@@ -21,6 +21,8 @@ REQUEST_VALIDATION_ERROR: str = "Request Validation Error"
 
 # Problem type URIs for common error scenarios
 PROBLEM_TYPES = {
+    "unauthorized": "https://api.nexus.com/errors/unauthorized",
+    "forbidden": "https://api.nexus.com/errors/forbidden",
     "resource_not_found": "https://api.nexus.com/errors/resource-not-found",
     "name_conflict": "https://api.nexus.com/errors/name-conflict",
     "resource_conflict": "https://api.nexus.com/errors/resource-conflict",
@@ -93,8 +95,8 @@ def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse
     # Map status codes to problem types and titles
     status_mapping = {
         400: ("validation_error", "Bad Request"),
-        401: ("validation_error", "Unauthorized"),
-        403: ("validation_error", "Forbidden"),
+        401: ("unauthorized", "Unauthorized"),
+        403: ("forbidden", "Forbidden"),
         404: ("resource_not_found", "Not Found"),
         409: ("name_conflict", "Conflict"),
         422: ("validation_error", "Unprocessable Entity"),

@@ -51,8 +51,8 @@ class TestHttpExceptionHandler:
         ("status_code", "expected_problem_type", "expected_title"),
         [
             (400, "validation_error", "Bad Request"),
-            (401, "validation_error", "Unauthorized"),
-            (403, "validation_error", "Forbidden"),
+            (401, "unauthorized", "Unauthorized"),
+            (403, "forbidden", "Forbidden"),
             (404, "resource_not_found", "Not Found"),
             (409, "name_conflict", "Conflict"),
             (422, "validation_error", "Unprocessable Entity"),
