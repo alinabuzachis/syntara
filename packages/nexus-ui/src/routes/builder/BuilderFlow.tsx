@@ -22,6 +22,7 @@ import {
   selectTriggers,
   selectActivities,
 } from '../../stores/useWorkflowStore'
+import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
 import { CanvasControls } from '../automations/canvas/CanvasControls'
 import { edgeTypes } from '../automations/canvas/edges/EdgeType'
 import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
@@ -90,6 +91,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     onNodeClick,
     onAddNodeFromEdge,
     onNodesDeleted,
+    disableDeleteKey,
   } = props
 
   // Use typed selectors for optimized subscriptions
@@ -127,7 +129,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
     const triggersList = triggers || []
     triggersList.forEach((trigger: Trigger, index: number) => {
-      const triggerId = `trigger-${index}`
+      const triggerId = buildTriggerNodeId(index)
       const triggerData = {
         label: getTriggerLabel(trigger),
         triggerType: trigger.type,
@@ -423,7 +425,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         }
       })
       const triggers = currentWorkflow.triggers || []
-      triggers.forEach((_: unknown, index: number) => activityIds.add(`trigger-${index}`))
+      triggers.forEach((_: unknown, index: number) => activityIds.add(buildTriggerNodeId(index)))
 
       // CRITICAL: Check if ALL edges reference activities in this workflow
       // If ANY edge references an activity not in this workflow, edges are stale
@@ -727,11 +729,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
         defaultEdgeOptions={{ markerEnd }}
         isValidConnection={isValidConnection}
         proOptions={{ hideAttribution: true }}
-        zIndexMode="default"
+        deleteKeyCode={isExecutionView || disableDeleteKey ? null : ['Delete', 'Backspace']}
         fitView
         minZoom={0.1}
         maxZoom={1}
-        deleteKeyCode={isExecutionView ? null : ['Delete', 'Backspace']}
         nodesDraggable={!isExecutionView}
         nodesConnectable={!isExecutionView}
       >

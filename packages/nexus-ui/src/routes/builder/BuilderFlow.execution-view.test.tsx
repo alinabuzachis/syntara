@@ -231,7 +231,9 @@ describe('BuilderFlow execution view', () => {
     expect(nodes.some((node) => node.type === 'generic')).toBe(true)
     expect(edges.some((edge) => edge.type === 'loopBack')).toBe(true)
     expect(edges.some((edge) => edge.type === 'loopOutgoing')).toBe(true)
-    expect(edges.some((edge) => edge.data?.executionStatus === 'passed')).toBe(true)
+    expect(
+      edges.some((edge) => (edge.data as { executionStatus?: string } | undefined)?.executionStatus === 'passed')
+    ).toBe(true)
 
     expect(container.querySelector('.pf-v6-c-spinner')).toBeInTheDocument()
   })

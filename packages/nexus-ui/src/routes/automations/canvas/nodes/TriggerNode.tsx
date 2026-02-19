@@ -4,6 +4,7 @@ import { type Node, type NodeProps } from '@xyflow/react'
 import type { CSSProperties } from 'react'
 
 import { parseTriggerLabel } from '../../../../utils/triggerFormatting'
+import { parseTriggerIndex } from '../../../../utils/triggerNodeIds'
 import { useIsExecutionView } from '../../../builder/ExecutionViewContext'
 
 import { NodeBody } from './common/NodeBody'
@@ -33,7 +34,7 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   }
 
   // Extract trigger index from node id (format: trigger-0, trigger-1, etc.)
-  const triggerIndex = Number.parseInt(props.id.split('-')[1])
+  const triggerIndex = parseTriggerIndex(props.id) ?? 0
   const menuActions = useNodeMenuActions({
     nodeId: props.id,
     nodeType: MenuNodeType.TRIGGER,

@@ -1,7 +1,7 @@
 import { ActivityTypeEnum, EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
-import type { EdgeConnection } from '../../types/edge'
 
+import type { EdgeConnection } from '../../types/edge'
 import { EdgeGenerator } from '../EdgeGenerator'
 
 describe('EdgeGenerator', () => {

@@ -26,6 +26,8 @@ export interface BuilderFlowProps {
   onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string, sourceHandle?: string) => void
   /** Handler called after nodes are deleted */
   onNodesDeleted?: (deletedNodeIds: string[]) => void
+  /** Disable keyboard delete shortcuts (e.g., while editor overlay is open) */
+  disableDeleteKey?: boolean
 }
 
 /**

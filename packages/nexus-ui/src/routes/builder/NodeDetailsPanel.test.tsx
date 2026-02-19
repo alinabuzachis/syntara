@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import type { Node } from '@xyflow/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useNodeMenuActions } from '../automations/canvas/nodes/hooks/useNodeMenuActions'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
 import { NodeDetailsPanel } from './NodeDetailsPanel'
@@ -11,6 +12,7 @@ import { NodeRegistry } from './registry/NodeRegistry'
 const mockMoveActivityAfter = vi.fn()
 const mockUpdateActivity = vi.fn()
 const mockRemoveActivity = vi.fn()
+const mockShowError = vi.fn()
 
 const mockStoreState = vi.hoisted(() => ({
   currentWorkflow: { triggers: [], workflow: { activities: [] } },
@@ -38,7 +40,7 @@ vi.mock('../../stores/useWorkflowStore', () => ({
 
 vi.mock('../../components/alerts', () => ({
   useAlerts: vi.fn(() => ({
-    showError: vi.fn(),
+    showError: mockShowError,
   })),
 }))
 
@@ -60,6 +62,19 @@ vi.mock('./node-details', () => ({
 
 vi.mock('./NodeRawDataView', () => ({
   NodeRawDataView: () => <div data-testid="raw-node-view" />,
+}))
+
+vi.mock('../automations/canvas/nodes/hooks/useNodeMenuActions', () => ({
+  useNodeMenuActions: vi.fn(() => []),
+  MenuNodeType: { ACTIVITY: 'activity', TRIGGER: 'trigger' },
+}))
+
+vi.mock('../automations/canvas/nodes/common/NodeMenu', () => ({
+  NodeMenu: ({ menuActions }: { menuActions: Array<{ onClick: () => void }> }) => (
+    <button onClick={() => menuActions[0]?.onClick()} type="button">
+      Menu
+    </button>
+  ),
 }))
 
 describe('NodeDetailsPanel', () => {
@@ -93,6 +108,136 @@ describe('NodeDetailsPanel', () => {
     await user.click(screen.getByRole('button', { name: /Submit/i }))
 
     expect(mockOnClose).toHaveBeenCalled()
+  })
+
+  it('updates replacement node when new node is created', async () => {
+    const user = userEvent.setup()
+    const mockOnSubmit = vi.fn((_data, onSuccess: (nodeId?: string) => void) => onSuccess('new-1'))
+
+    mockStoreState.currentWorkflow = {
+      triggers: [],
+      workflow: {
+        activities: [
+          {
+            id: 'new-1',
+            type: 'task',
+            name: 'New Task',
+            task: { executor: 'script', config: {} },
+            metadata: { __isGeneric: true, foo: 'bar' },
+          },
+        ],
+      },
+    } as never
+
+    vi.mocked(NodeRegistry.get).mockReturnValue({
+      id: 'action',
+      label: 'Action',
+      icon: () => <div>ActionIcon</div>,
+      category: 'task',
+      formComponent: ({ onSubmit }: { onSubmit: (data: Record<string, unknown>) => void }) => (
+        <button onClick={() => onSubmit({})} type="button">
+          Submit
+        </button>
+      ),
+      onSubmit: mockOnSubmit,
+    } as never)
+
+    render(
+      <NodeDetailsPanel
+        mode="add"
+        nodeTypeId="action"
+        nodeSubtypeId={null}
+        replacementNodeId="replacement-1"
+        onClose={mockOnClose}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /Submit/i }))
+
+    expect(mockRemoveActivity).toHaveBeenCalledWith('new-1')
+    expect(mockUpdateActivity).toHaveBeenCalledWith(
+      'replacement-1',
+      expect.objectContaining({
+        id: 'replacement-1',
+        metadata: { foo: 'bar' },
+      })
+    )
+  })
+
+  it('clears metadata when replacement node update has no new node id', async () => {
+    const user = userEvent.setup()
+    const mockOnSubmit = vi.fn((_data, onSuccess: (nodeId?: string) => void) => onSuccess())
+
+    mockStoreState.currentWorkflow = {
+      triggers: [],
+      workflow: {
+        activities: [
+          {
+            id: 'replacement-1',
+            type: 'task',
+            name: 'Replacement Task',
+            task: { executor: 'script', config: {} },
+            metadata: { __isGeneric: true },
+          },
+        ],
+      },
+    } as never
+
+    vi.mocked(NodeRegistry.get).mockReturnValue({
+      id: 'action',
+      label: 'Action',
+      icon: () => <div>ActionIcon</div>,
+      category: 'task',
+      formComponent: ({ onSubmit }: { onSubmit: (data: Record<string, unknown>) => void }) => (
+        <button onClick={() => onSubmit({})} type="button">
+          Submit
+        </button>
+      ),
+      onSubmit: mockOnSubmit,
+    } as never)
+
+    render(
+      <NodeDetailsPanel
+        mode="add"
+        nodeTypeId="action"
+        nodeSubtypeId={null}
+        replacementNodeId="replacement-1"
+        onClose={mockOnClose}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /Submit/i }))
+
+    expect(mockUpdateActivity).toHaveBeenCalledWith(
+      'replacement-1',
+      expect.objectContaining({
+        metadata: undefined,
+      })
+    )
+  })
+
+  it('shows error when add node fails', async () => {
+    const user = userEvent.setup()
+    const mockOnSubmit = vi.fn((_data, _onSuccess, onError: (error: string) => void) => onError('boom'))
+
+    vi.mocked(NodeRegistry.get).mockReturnValue({
+      id: 'action',
+      label: 'Action',
+      icon: () => <div>ActionIcon</div>,
+      category: 'task',
+      formComponent: ({ onSubmit }: { onSubmit: (data: Record<string, unknown>) => void }) => (
+        <button onClick={() => onSubmit({})} type="button">
+          Submit
+        </button>
+      ),
+      onSubmit: mockOnSubmit,
+    } as never)
+
+    render(<NodeDetailsPanel mode="add" nodeTypeId="action" nodeSubtypeId={null} onClose={mockOnClose} />)
+
+    await user.click(screen.getByRole('button', { name: /Submit/i }))
+
+    expect(mockShowError).toHaveBeenCalledWith('boom', 'Failed to add node')
   })
 
   it('moves and connects new node when adding from an edge', async () => {
@@ -164,7 +309,7 @@ describe('NodeDetailsPanel', () => {
   })
 
   it('renders trigger details in edit mode when trigger exists', () => {
-    mockStoreState.currentWorkflow = { triggers: [{ type: 'manual' }], workflow: { activities: [] } }
+    mockStoreState.currentWorkflow = { triggers: [{ type: 'manual' }], workflow: { activities: [] } } as never
     const triggerNode: Node<NodeType['data']> = {
       id: 'trigger-0',
       type: 'trigger',
@@ -175,6 +320,30 @@ describe('NodeDetailsPanel', () => {
     render(<NodeDetailsPanel mode="edit" node={triggerNode} onClose={mockOnClose} />)
 
     expect(screen.getByTestId('trigger-details')).toBeInTheDocument()
+    expect(screen.queryByText('Input')).not.toBeInTheDocument()
+  })
+
+  it('renders menu actions in edit mode and closes on delete', async () => {
+    const user = userEvent.setup()
+    const deleteAction = vi.fn()
+
+    vi.mocked(useNodeMenuActions).mockReturnValueOnce([
+      { id: 'delete', label: 'Delete', onClick: deleteAction, variant: 'danger' as const },
+    ])
+
+    const taskNode: Node<NodeType['data']> = {
+      id: 'task-1',
+      type: 'task',
+      position: { x: 0, y: 0 },
+      data: { id: 'task-1', type: 'task', name: 'Task', task: { executor: 'script', config: {} } } as never,
+    }
+
+    render(<NodeDetailsPanel mode="edit" node={taskNode} onClose={mockOnClose} />)
+
+    await user.click(screen.getByRole('button', { name: /menu/i }))
+
+    expect(deleteAction).toHaveBeenCalledTimes(1)
+    expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
   it.each([
@@ -225,15 +394,30 @@ describe('NodeDetailsPanel', () => {
   })
 
   it('renders raw data view for unknown node types', () => {
-    const unknownNode: Node<NodeType['data']> = {
+    const unknownNode = {
       id: 'unknown-1',
-      type: 'email' as NodeType['data']['type'],
+      type: 'email',
       position: { x: 0, y: 0 },
-      data: { id: 'unknown-1', type: 'email' as NodeType['data']['type'], name: 'Email' } as never,
-    }
+      data: { id: 'unknown-1', type: 'email', name: 'Email' },
+    } as unknown as Node<NodeType['data']>
 
     render(<NodeDetailsPanel mode="edit" node={unknownNode} onClose={mockOnClose} />)
 
     expect(screen.getByTestId('raw-node-view')).toBeInTheDocument()
+  })
+
+  it('hides input panel when adding a trigger', () => {
+    vi.mocked(NodeRegistry.get).mockReturnValue({
+      id: 'trigger',
+      label: 'Trigger',
+      icon: () => <div>TriggerIcon</div>,
+      category: 'trigger',
+      formComponent: () => <div>Form</div>,
+      onSubmit: vi.fn(),
+    } as never)
+
+    render(<NodeDetailsPanel mode="add" nodeTypeId="trigger" nodeSubtypeId={null} onClose={mockOnClose} />)
+
+    expect(screen.queryByText('Input')).not.toBeInTheDocument()
   })
 })

@@ -18,6 +18,7 @@ interface NodeEditorLayoutProps {
   parametersContent: ReactNode
   headerContent?: ReactNode
   headerIcon?: ReactNode
+  headerActions?: ReactNode
   showInputPanel: boolean
   onClose?: () => void
   showClose?: boolean
@@ -49,6 +50,7 @@ export function NodeEditorLayout({
   parametersContent,
   headerContent,
   headerIcon,
+  headerActions,
   showInputPanel,
   onClose,
   showClose = true,
@@ -104,6 +106,7 @@ export function NodeEditorLayout({
                     Documentation
                   </Button>
                 </FlexItem>
+                {headerActions && <FlexItem>{headerActions}</FlexItem>}
                 {showClose && (
                   <FlexItem>
                     <Button variant="plain" onClick={onClose} aria-label="Close" type="button">

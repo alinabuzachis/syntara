@@ -12,6 +12,9 @@ import { useState } from 'react'
 import { useAlerts } from '../../components/alerts'
 import { FlowNodeType } from '../../constants'
 import { useWorkflowStore, useWorkflowStoreActions, selectCurrentWorkflow } from '../../stores/useWorkflowStore'
+import { parseTriggerIndex } from '../../utils/triggerNodeIds'
+import { NodeMenu } from '../automations/canvas/nodes/common/NodeMenu'
+import { MenuNodeType, useNodeMenuActions } from '../automations/canvas/nodes/hooks/useNodeMenuActions'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 import { renderNodeIcon } from '../automations/canvas/nodes/renderNodeIcon'
 
@@ -28,6 +31,7 @@ import { NodeRawDataView } from './NodeRawDataView'
 import { NodeRegistry } from './registry/NodeRegistry'
 import { resolveIconForNode, resolveIconForType } from './utils/nodeIcons'
 import { getDefaultNodeBaseName, getNodeDisplayName } from './utils/nodeNaming'
+import { buildPanelMenuActions } from './utils/panelMenuActions'
 
 /**
  * IMPORTANT: When adding a new node type, ensure the corresponding NodeDetails component
@@ -54,6 +58,16 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
   // Use action accessor - component won't re-render when store state changes
   const { moveActivityAfter, updateActivity, removeActivity } = useWorkflowStoreActions()
+  const isTriggerNode = node?.type === FlowNodeType.TRIGGER
+  const triggerIndex = isTriggerNode ? parseTriggerIndex(node?.id ?? '') : undefined
+  const nodeMenuType = isTriggerNode ? MenuNodeType.TRIGGER : MenuNodeType.ACTIVITY
+  const menuActions = useNodeMenuActions({
+    nodeId: node?.id ?? 'unknown',
+    nodeType: nodeMenuType,
+    triggerIndex: isTriggerNode ? triggerIndex : undefined,
+  })
+  const panelMenuActions = buildPanelMenuActions(mode, node, menuActions, onClose)
+  const headerActions = panelMenuActions.length > 0 ? <NodeMenu menuActions={panelMenuActions} /> : null
 
   const iconDescriptor =
     mode === 'edit' && node
@@ -173,7 +187,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     // Handle trigger node
     if (node.type === FlowNodeType.TRIGGER) {
       // Get trigger from workflow by index (assuming node id is "trigger-0", "trigger-1", etc.)
-      const triggerIndex = Number.parseInt(node.id.split('-')[1] || '0')
+      const triggerIndex = parseTriggerIndex(node.id) ?? 0
       const trigger = currentWorkflow?.triggers?.[triggerIndex]
 
       if (trigger) {
@@ -260,6 +274,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       parametersContent={renderContent()}
       headerContent={headerContent}
       headerIcon={headerIcon}
+      headerActions={headerActions}
       showInputPanel={showInputPanel}
       onClose={onClose}
     />

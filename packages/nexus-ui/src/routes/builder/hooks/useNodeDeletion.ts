@@ -4,6 +4,7 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 
 import { FlowNodeType } from '../../../constants'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
+import { parseTriggerIndex } from '../../../utils/triggerNodeIds'
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import type { EdgeConnection } from '../types/edge'
 import { EdgeFactory } from '../utils/EdgeFactory'
@@ -41,8 +42,8 @@ export function useNodeDeletion({
 
       deletedNodes.forEach((node) => {
         if (node.type === FlowNodeType.TRIGGER) {
-          const triggerIndex = Number.parseInt(node.id.split('-')[1])
-          if (!Number.isNaN(triggerIndex)) {
+          const triggerIndex = parseTriggerIndex(node.id)
+          if (triggerIndex !== undefined) {
             triggerIndices.push(triggerIndex)
           }
         } else if (node.type !== FlowNodeType.PLACEHOLDER) {

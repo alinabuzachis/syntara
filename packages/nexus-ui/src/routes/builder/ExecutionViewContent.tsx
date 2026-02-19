@@ -5,6 +5,7 @@ import '@xyflow/react/dist/style.css'
 import { useEffect, useRef } from 'react'
 
 import { useWorkflowStoreActions } from '../../stores/useWorkflowStore'
+import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
 import { useExecutionStoreActions } from '../automations/stores/useExecutionStore'
 
 import { BuilderFlow } from './BuilderFlow'
@@ -97,9 +98,10 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
             branches.forEach((branch: Activity) => {
               // Use getFirstActivityId to handle sequence wrappers that will be flattened away
               const targetId = WorkflowTransform.getFirstActivityId(branch)
+              const triggerId = buildTriggerNodeId(index)
               generatedEdges.push({
-                id: `trigger-${index}-${targetId}`,
-                source: `trigger-${index}`,
+                id: `${triggerId}-${targetId}`,
+                source: triggerId,
                 target: targetId,
                 sourceHandle: 'source',
                 targetHandle: 'target',
@@ -108,9 +110,10 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
           } else {
             // Regular activity - use getFirstActivityId to handle sequences
             const targetId = WorkflowTransform.getFirstActivityId(firstActivity)
+            const triggerId = buildTriggerNodeId(index)
             generatedEdges.push({
-              id: `trigger-${index}-${targetId}`,
-              source: `trigger-${index}`,
+              id: `${triggerId}-${targetId}`,
+              source: triggerId,
               target: targetId,
               sourceHandle: 'source',
               targetHandle: 'target',

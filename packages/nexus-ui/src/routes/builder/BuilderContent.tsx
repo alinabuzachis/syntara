@@ -45,13 +45,14 @@ import { useAlerts } from '../../components/alerts'
 import { FlowNodeType } from '../../constants'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
 import { NodeExpandedAllContext } from '../automations/canvas/nodes/common/NodeExpandedAllContext'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
 import { AddNodePanel } from './AddNodePanel'
 import { AutomationHistoryCard } from './AutomationHistoryCard'
 import { BuilderFlow } from './BuilderFlow'
-import { NodeDetailsPanel } from './NodeDetailsPanel'
+import { NodeEditorOverlay } from './components/NodeEditorOverlay'
 import { buildNestedConditionStructure } from './utils/buildNestedStructure'
 import { EdgeFactory } from './utils/EdgeFactory'
 import { ACTIVITY_TYPES } from './utils/executionState/executionHelpers'
@@ -171,6 +172,9 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         addNodePanelOpen: !state.detailsOpen ? false : state.addNodePanelOpen,
         historyCardOpen: !state.detailsOpen ? false : state.historyCardOpen,
         selectedNode: !state.detailsOpen ? null : state.selectedNode,
+        nodeEditorMode: !state.detailsOpen ? null : state.nodeEditorMode,
+        nodeEditorNodeTypeId: !state.detailsOpen ? null : state.nodeEditorNodeTypeId,
+        nodeEditorNodeSubtypeId: !state.detailsOpen ? null : state.nodeEditorNodeSubtypeId,
       }
     case 'SET_HISTORY_CARD_OPEN':
       return { ...state, historyCardOpen: action.payload }
@@ -181,6 +185,9 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         addNodePanelOpen: !state.historyCardOpen ? false : state.addNodePanelOpen,
         detailsOpen: !state.historyCardOpen ? false : state.detailsOpen,
         selectedNode: !state.historyCardOpen ? null : state.selectedNode,
+        nodeEditorMode: !state.historyCardOpen ? null : state.nodeEditorMode,
+        nodeEditorNodeTypeId: !state.historyCardOpen ? null : state.nodeEditorNodeTypeId,
+        nodeEditorNodeSubtypeId: !state.historyCardOpen ? null : state.nodeEditorNodeSubtypeId,
       }
     case 'SET_KEBAB_OPEN':
       return { ...state, isKebabOpen: action.payload }
@@ -479,9 +486,10 @@ export function BuilderContent(props: BuilderContentProps) {
             branches.forEach((branch) => {
               // CRITICAL: Use getFirstActivityId to handle sequence wrappers that will be flattened away
               const targetId = WorkflowTransform.getFirstActivityId(branch)
+              const triggerId = buildTriggerNodeId(index)
               generatedEdges.push({
-                id: `trigger-${index}-${targetId}`,
-                source: `trigger-${index}`,
+                id: `${triggerId}-${targetId}`,
+                source: triggerId,
                 target: targetId,
                 sourceHandle: 'source',
                 targetHandle: 'target',
@@ -490,9 +498,10 @@ export function BuilderContent(props: BuilderContentProps) {
           } else {
             // Regular activity - use getFirstActivityId to handle sequences
             const targetId = WorkflowTransform.getFirstActivityId(firstActivity)
+            const triggerId = buildTriggerNodeId(index)
             generatedEdges.push({
-              id: `trigger-${index}-${targetId}`,
-              source: `trigger-${index}`,
+              id: `${triggerId}-${targetId}`,
+              source: triggerId,
               target: targetId,
               sourceHandle: 'source',
               targetHandle: 'target',
@@ -784,6 +793,76 @@ export function BuilderContent(props: BuilderContentProps) {
     [reactFlowInstance]
   )
 
+  const handleConnectFromPanel = useCallback(
+    (sourceId: string, targetId: string) => {
+      const capturedEdgeIdToReplace = edgeIdToReplace
+      const capturedTargetNodeId = targetNodeId
+      const capturedSourceHandle = sourceHandle
+      const capturedTargetHandle = targetHandle
+      let attempts = 0
+      const checkAndConnect = () => {
+        const nodes = reactFlowInstance.getNodes()
+        const targetNode = nodes.find((n) => n.id === targetId)
+        if (targetNode?.measured) {
+          const newEdge = EdgeFactory.createEdge({
+            source: sourceId,
+            target: targetId,
+            sourceHandle: capturedSourceHandle,
+            targetHandle: 'target',
+            onAddNode: handleAddNodeFromEdge,
+          })
+          reactFlowInstance.setEdges((eds) => {
+            const filtered = EdgeFactory.removeButtonEdge(sourceId, eds as EdgeType[], capturedSourceHandle)
+            const withoutOldEdge = capturedEdgeIdToReplace
+              ? filtered.filter((e) => e.id !== capturedEdgeIdToReplace)
+              : filtered
+            return EdgeFactory.addEdge(newEdge, withoutOldEdge)
+          })
+          if (capturedEdgeIdToReplace && capturedTargetNodeId) {
+            const secondEdge = EdgeFactory.createEdge({
+              source: targetId,
+              target: capturedTargetNodeId,
+              sourceHandle: 'source',
+              targetHandle: capturedTargetHandle || 'target',
+              onAddNode: handleAddNodeFromEdge,
+            })
+            reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(secondEdge, eds as EdgeType[]))
+            useWorkflowStore.getState().moveActivityBefore(targetId, capturedTargetNodeId)
+          }
+          if (capturedSourceHandle === 'loop' && !capturedEdgeIdToReplace) {
+            const loopBackEdge = EdgeFactory.createEdge({
+              source: targetId,
+              target: sourceId,
+              sourceHandle: 'source',
+              targetHandle: 'end',
+              onAddNode: handleAddNodeFromEdge,
+            })
+            reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(loopBackEdge, eds as EdgeType[]))
+          }
+          const isConditionHandle = capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
+          const isLoopHandle = capturedSourceHandle && ['done', 'loop'].includes(capturedSourceHandle)
+          const sourcePlaceholderId =
+            isConditionHandle || isLoopHandle
+              ? `placeholder-${sourceId}-${capturedSourceHandle}`
+              : `placeholder-${sourceId}`
+          reactFlowInstance.setNodes((nds) => {
+            const filtered = nds.filter((n) => n.id !== sourcePlaceholderId)
+            const sourceNode = filtered.find((n) => n.id === sourceId)
+            if (!sourceNode) return filtered
+            if (sourceNode.type === FlowNodeType.CONDITION && hasConditionNodePlaceholders(filtered, sourceId))
+              return filtered
+            if (sourceNode.type === FlowNodeType.LOOP && hasLoopNodePlaceholders(filtered, sourceId)) return filtered
+            return removeButtonEdgeClass(filtered, sourceId)
+          })
+        } else if (attempts++ < 40) {
+          setTimeout(checkAndConnect, 50)
+        }
+      }
+      checkAndConnect()
+    },
+    [edgeIdToReplace, targetNodeId, sourceHandle, targetHandle, reactFlowInstance, handleAddNodeFromEdge]
+  )
+
   const handleNodesDeleted = useCallback((deletedNodeIds: string[]) => {
     dispatch({ type: 'CLEAR_SELECTED_IF_DELETED', payload: deletedNodeIds })
   }, [])
@@ -988,52 +1067,53 @@ export function BuilderContent(props: BuilderContentProps) {
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'row',
+                width: '100%',
               }}
             >
-              {!isNodeEditorOpen && (
-                <FlexItem
-                  style={{
-                    position: 'relative',
-                    minWidth: 0,
-                    flexGrow: 1,
-                    height: '100%',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Stack style={{ height: '100%', overflow: 'hidden', gap: 'var(--pf-t--global--spacer--sm)' }}>
-                    <StackItem
-                      isFilled
+              <FlexItem
+                style={{
+                  position: 'relative',
+                  minWidth: 0,
+                  flexGrow: 1,
+                  height: '100%',
+                  overflow: 'hidden',
+                  pointerEvents: isNodeEditorOpen ? 'none' : 'auto',
+                }}
+              >
+                <Stack style={{ height: '100%', overflow: 'hidden', gap: 'var(--pf-t--global--spacer--sm)' }}>
+                  <StackItem
+                    isFilled
+                    style={{
+                      minHeight: 0,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <CompassPanel
+                      hasNoPadding
                       style={{
-                        minHeight: 0,
+                        position: 'relative',
+                        minWidth: 0,
+                        width: '100%',
+                        height: '100%',
                         overflow: 'hidden',
                       }}
                     >
-                      <CompassPanel
-                        hasNoPadding
-                        style={{
-                          position: 'relative',
-                          minWidth: 0,
-                          width: '100%',
-                          height: '100%',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <BuilderFlow
-                          workflowId={workflowId}
-                          panelOpen={isAddNodePanelOpen || !!selectedNode}
-                          activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
-                          activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
-                          activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
-                          executionStatus={null}
-                          onNodeClick={handleNodeClick}
-                          onAddNodeFromEdge={handleAddNodeFromEdge}
-                          onNodesDeleted={handleNodesDeleted}
-                        />
-                      </CompassPanel>
-                    </StackItem>
-                  </Stack>
-                </FlexItem>
-              )}
+                      <BuilderFlow
+                        workflowId={workflowId}
+                        panelOpen={isAddNodePanelOpen || !!selectedNode}
+                        activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
+                        activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
+                        activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
+                        executionStatus={null}
+                        disableDeleteKey={isNodeEditorOpen}
+                        onNodeClick={handleNodeClick}
+                        onAddNodeFromEdge={handleAddNodeFromEdge}
+                        onNodesDeleted={handleNodesDeleted}
+                      />
+                    </CompassPanel>
+                  </StackItem>
+                </Stack>
+              </FlexItem>
 
               {isAddNodePanelOpen && !isNodeEditorOpen && (
                 <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
@@ -1085,100 +1165,17 @@ export function BuilderContent(props: BuilderContentProps) {
                 </FlexItem>
               )}
 
-              {isNodeEditorOpen && (
-                <FlexItem
-                  style={{
-                    flexGrow: 1,
-                    minWidth: 0,
-                    height: '100%',
-                  }}
-                >
-                  <NodeDetailsPanel
-                    mode={nodeEditorMode === 'edit' ? 'edit' : 'add'}
-                    node={nodeEditorMode === 'edit' ? (selectedNode ?? undefined) : undefined}
-                    nodeTypeId={nodeEditorMode === 'add' ? nodeEditorNodeTypeId : null}
-                    nodeSubtypeId={nodeEditorMode === 'add' ? nodeEditorNodeSubtypeId : null}
-                    sourceNodeId={sourceNodeId}
-                    replacementNodeId={replacementNodeId}
-                    onConnect={(sourceId, targetId) => {
-                      const capturedEdgeIdToReplace = edgeIdToReplace
-                      const capturedTargetNodeId = targetNodeId
-                      const capturedSourceHandle = sourceHandle
-                      const capturedTargetHandle = targetHandle
-                      let attempts = 0
-                      const checkAndConnect = () => {
-                        const nodes = reactFlowInstance.getNodes()
-                        const targetNode = nodes.find((n) => n.id === targetId)
-                        if (targetNode?.measured) {
-                          const newEdge = EdgeFactory.createEdge({
-                            source: sourceId,
-                            target: targetId,
-                            sourceHandle: capturedSourceHandle,
-                            targetHandle: 'target',
-                            onAddNode: handleAddNodeFromEdge,
-                          })
-                          reactFlowInstance.setEdges((eds) => {
-                            const filtered = EdgeFactory.removeButtonEdge(
-                              sourceId,
-                              eds as EdgeType[],
-                              capturedSourceHandle
-                            )
-                            const withoutOldEdge = capturedEdgeIdToReplace
-                              ? filtered.filter((e) => e.id !== capturedEdgeIdToReplace)
-                              : filtered
-                            return EdgeFactory.addEdge(newEdge, withoutOldEdge)
-                          })
-                          if (capturedEdgeIdToReplace && capturedTargetNodeId) {
-                            const secondEdge = EdgeFactory.createEdge({
-                              source: targetId,
-                              target: capturedTargetNodeId,
-                              sourceHandle: 'source',
-                              targetHandle: capturedTargetHandle || 'target',
-                              onAddNode: handleAddNodeFromEdge,
-                            })
-                            reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(secondEdge, eds as EdgeType[]))
-                            useWorkflowStore.getState().moveActivityBefore(targetId, capturedTargetNodeId)
-                          }
-                          if (capturedSourceHandle === 'loop' && !capturedEdgeIdToReplace) {
-                            const loopBackEdge = EdgeFactory.createEdge({
-                              source: targetId,
-                              target: sourceId,
-                              sourceHandle: 'source',
-                              targetHandle: 'end',
-                              onAddNode: handleAddNodeFromEdge,
-                            })
-                            reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(loopBackEdge, eds as EdgeType[]))
-                          }
-                          const isConditionHandle =
-                            capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
-                          const isLoopHandle = capturedSourceHandle && ['done', 'loop'].includes(capturedSourceHandle)
-                          const sourcePlaceholderId =
-                            isConditionHandle || isLoopHandle
-                              ? `placeholder-${sourceId}-${capturedSourceHandle}`
-                              : `placeholder-${sourceId}`
-                          reactFlowInstance.setNodes((nds) => {
-                            const filtered = nds.filter((n) => n.id !== sourcePlaceholderId)
-                            const sourceNode = filtered.find((n) => n.id === sourceId)
-                            if (!sourceNode) return filtered
-                            if (
-                              sourceNode.type === FlowNodeType.CONDITION &&
-                              hasConditionNodePlaceholders(filtered, sourceId)
-                            )
-                              return filtered
-                            if (sourceNode.type === FlowNodeType.LOOP && hasLoopNodePlaceholders(filtered, sourceId))
-                              return filtered
-                            return removeButtonEdgeClass(filtered, sourceId)
-                          })
-                        } else if (attempts++ < 40) {
-                          setTimeout(checkAndConnect, 50)
-                        }
-                      }
-                      checkAndConnect()
-                    }}
-                    onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
-                  />
-                </FlexItem>
-              )}
+              <NodeEditorOverlay
+                isOpen={isNodeEditorOpen}
+                mode={nodeEditorMode}
+                selectedNode={selectedNode}
+                nodeTypeId={nodeEditorNodeTypeId}
+                nodeSubtypeId={nodeEditorNodeSubtypeId}
+                sourceNodeId={sourceNodeId}
+                replacementNodeId={replacementNodeId}
+                onConnect={handleConnectFromPanel}
+                onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
+              />
             </Flex>
           </StackItem>
         </Stack>

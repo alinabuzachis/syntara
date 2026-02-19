@@ -2,6 +2,8 @@ import type { TaskActivity } from '@ansible/nexus-contracts'
 import type { Node } from '@xyflow/react'
 import type { ComponentType } from 'react'
 
+import { parseTriggerIndex } from '../../../../utils/triggerNodeIds'
+
 import { detectTaskNodeType } from './common/detectTaskNodeType'
 import { executorMetadata, nodeMetadata } from './nodeMetadata'
 import type { NodeType } from './NodeType'
@@ -33,7 +35,7 @@ export function getCanvasNodeIconDescriptor(
   currentWorkflow?: { triggers?: Array<{ type?: string }> } | null
 ): IconDescriptor {
   if (node.type === 'trigger') {
-    const triggerIndex = Number.parseInt(node.id.split('-')[1] || '0')
+    const triggerIndex = parseTriggerIndex(node.id) ?? 0
     const triggerType =
       currentWorkflow?.triggers?.[triggerIndex]?.type ?? (node.data as { triggerType?: string }).triggerType
     if (triggerType === 'scheduled') {

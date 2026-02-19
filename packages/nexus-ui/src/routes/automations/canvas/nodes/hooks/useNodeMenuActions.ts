@@ -1,7 +1,8 @@
 import { useReactFlow } from '@xyflow/react'
 import { useCallback } from 'react'
 
-import { MenuNodeType, type MenuNodeTypeValue } from '../../../../../constants'
+import { type MenuNodeTypeValue } from '../../../../../constants'
+import { resolveFlowNodeId } from '../../../../../utils/triggerNodeIds'
 
 // Re-export for convenience
 export { MenuNodeType, type MenuNodeTypeValue } from '../../../../../constants'
@@ -69,7 +70,7 @@ export function useNodeMenuActions(options: UseNodeMenuActionsOptions): NodeMenu
   const handleDelete = useCallback(() => {
     // Use React Flow's deleteElements to trigger proper cleanup via onNodesDelete
     // This ensures edges are removed and ButtonEdges are recreated correctly
-    const flowNodeId = nodeType === MenuNodeType.TRIGGER ? `trigger-${triggerIndex}` : nodeId
+    const flowNodeId = resolveFlowNodeId({ nodeId, nodeType, triggerIndex })
     void deleteElements({ nodes: [{ id: flowNodeId }] })
   }, [nodeType, nodeId, triggerIndex, deleteElements])
 

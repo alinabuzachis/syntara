@@ -152,7 +152,6 @@ describe('Condition Node Integration', () => {
       // Save to API - rebuild nested structure
       const rebuiltNested = buildNestedConditionStructure(flatActivities, edges)
 
-
       // With malformed edges (sourceHandle='source' instead of 'true'), Script2 ends up orphaned
       // at the top level because it's not properly connected to Condition's branch
       expect(rebuiltNested).toHaveLength(2) // Condition2 and orphaned Script2
