@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
@@ -16,8 +16,10 @@ vi.mock('../../../client', () => ({
   },
 }))
 
+const mockNavigate = vi.fn()
+
 vi.mock('wouter', () => ({
-  useLocation: () => ['/configuration/integrations', vi.fn()],
+  useLocation: () => ['/configuration/integrations', mockNavigate],
 }))
 
 // Create a QueryClient instance
@@ -80,6 +82,8 @@ describe('Integrations Component', () => {
 
   beforeEach(() => {
     // Reset mocks before each test
+    mockNavigate.mockClear()
+
     vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
       data: { resources: mockIntegrations },
       isPending: false,
@@ -187,37 +191,6 @@ describe('Integrations Component', () => {
       expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
       expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
       expect(screen.getByText('Development Server')).toBeInTheDocument()
-    })
-  })
-
-  describe('View Toggle', () => {
-    it('displays view toggle menu', () => {
-      render(<Integrations />, { wrapper })
-
-      // Menu button should be present (EllipsisVerticalIcon)
-      const buttons = screen.getAllByRole('button')
-      expect(buttons.length).toBeGreaterThan(0)
-    })
-
-    it('switches to cards view when selected', () => {
-      render(<Integrations />, { wrapper })
-
-      // Find all buttons and locate the menu trigger (button containing an SVG icon)
-      const buttons = screen.getAllByRole('button')
-      const menuButton = buttons.find((btn) => btn.querySelector('svg'))
-
-      if (menuButton) {
-        fireEvent.click(menuButton)
-
-        // Click on Cards option if available
-        const cardsOption = screen.queryByRole('menuitemradio', { name: 'Cards' })
-        if (cardsOption) {
-          fireEvent.click(cardsOption)
-        }
-      }
-
-      // Verify integrations are still displayed
-      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
     })
   })
 
@@ -510,41 +483,6 @@ describe('Integrations Component', () => {
     })
   })
 
-  describe('Cards View', () => {
-    it('renders cards view when cards is selected from menu', () => {
-      render(<Integrations />, { wrapper })
-
-      // Open the view menu
-      const menuToggle = screen.getByRole('button', { name: '' })
-      fireEvent.click(menuToggle)
-
-      // Select Cards view
-      const cardsOption = screen.getByRole('menuitem', { name: 'Cards' })
-      fireEvent.click(cardsOption)
-
-      // Integrations should still be visible in cards view
-      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
-    })
-
-    it('renders table view when table is selected from menu', () => {
-      render(<Integrations />, { wrapper })
-
-      // Open the view menu and select cards first
-      const menuToggle = screen.getByRole('button', { name: '' })
-      fireEvent.click(menuToggle)
-      const cardsOption = screen.getByRole('menuitem', { name: 'Cards' })
-      fireEvent.click(cardsOption)
-
-      // Now switch back to table
-      fireEvent.click(menuToggle)
-      const tableOption = screen.getByRole('menuitem', { name: 'Table' })
-      fireEvent.click(tableOption)
-
-      // Should show table with grid role
-      expect(screen.getByRole('grid', { name: 'Integrations table' })).toBeInTheDocument()
-    })
-  })
-
   describe('Sorting Functionality', () => {
     it('renders sortable column headers', () => {
       render(<Integrations />, { wrapper })
@@ -602,6 +540,333 @@ describe('Integrations Component', () => {
       expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
       expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
       expect(screen.getByText('Development Server')).toBeInTheDocument()
+    })
+
+    it('can sort by Status column', () => {
+      render(<Integrations />, { wrapper })
+
+      // Click Status header to sort by status
+      const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
+      const sortButton = within(statusHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All integrations should still be visible
+      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
+      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
+      expect(screen.getByText('Development Server')).toBeInTheDocument()
+    })
+
+    it('can sort by Integration type column', () => {
+      render(<Integrations />, { wrapper })
+
+      // Click Integration type header
+      const typeHeader = screen.getByRole('columnheader', { name: /Integration type/i })
+      const sortButton = within(typeHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All integrations should still be visible
+      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
+      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
+      expect(screen.getByText('Development Server')).toBeInTheDocument()
+    })
+  })
+
+  describe('Validate Dialog Flow', () => {
+    it('calls validate mutation when Validate button is clicked', () => {
+      const mockValidateMutate = vi.fn()
+      const mockDeleteMutate = vi.fn()
+      const mockRefetch = vi.fn()
+
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+        data: { resources: mockIntegrations },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+
+      vi.mocked(toolProvidersClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('validate')) {
+          return { mutate: mockValidateMutate, isPending: false } as never
+        }
+        return { mutate: mockDeleteMutate, isPending: false } as never
+      })
+
+      render(<Integrations />, { wrapper })
+
+      // Open actions menu and click validate (first row is ID 3 - Development Server, alphabetically)
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      fireEvent.click(actionButtons[0])
+      const validateOption = screen.getByRole('menuitem', { name: /validate connection/i })
+      fireEvent.click(validateOption)
+
+      // Click Validate button in dialog
+      const validateButton = screen.getByRole('button', { name: 'Validate' })
+      fireEvent.click(validateButton)
+
+      // Verify mutation was called with provider_id (first row is ID 3 due to alphabetical sort)
+      expect(mockValidateMutate).toHaveBeenCalled()
+      const callArgs = mockValidateMutate.mock.calls[0]
+      expect(callArgs[0]).toEqual({ params: { path: { provider_id: '3' } } })
+    })
+
+    it('shows success alert and closes dialog on successful validation', () => {
+      const mockValidateMutate = vi.fn()
+      const mockRefetch = vi.fn()
+
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+        data: { resources: mockIntegrations },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+
+      vi.mocked(toolProvidersClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('validate')) {
+          return { mutate: mockValidateMutate, isPending: false } as never
+        }
+        return { mutate: vi.fn(), isPending: false } as never
+      })
+
+      render(<Integrations />, { wrapper })
+
+      // Open validate dialog
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      fireEvent.click(actionButtons[0])
+      fireEvent.click(screen.getByRole('menuitem', { name: /validate connection/i }))
+
+      // Click Validate
+      fireEvent.click(screen.getByRole('button', { name: 'Validate' }))
+
+      // Simulate successful mutation by calling onSuccess and onSettled
+      const mutationCall = mockValidateMutate.mock.calls[0]
+      const callbacks = mutationCall[1]
+      act(() => {
+        callbacks.onSuccess()
+        callbacks.onSettled()
+      })
+
+      // Dialog should close (Validate button no longer visible)
+      expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
+      expect(mockRefetch).toHaveBeenCalled()
+    })
+
+    it('shows error alert on validation failure', () => {
+      const mockValidateMutate = vi.fn()
+
+      vi.mocked(toolProvidersClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('validate')) {
+          return { mutate: mockValidateMutate, isPending: false } as never
+        }
+        return { mutate: vi.fn(), isPending: false } as never
+      })
+
+      render(<Integrations />, { wrapper })
+
+      // Open validate dialog
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      fireEvent.click(actionButtons[0])
+      fireEvent.click(screen.getByRole('menuitem', { name: /validate connection/i }))
+
+      // Click Validate
+      fireEvent.click(screen.getByRole('button', { name: 'Validate' }))
+
+      // Simulate failed mutation
+      const callbacks = mockValidateMutate.mock.calls[0][1]
+      act(() => {
+        callbacks.onError(new Error('Connection timeout'))
+        callbacks.onSettled()
+      })
+
+      // Dialog should close
+      expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
+    })
+
+    it('closes validate dialog when Cancel button is clicked', () => {
+      render(<Integrations />, { wrapper })
+
+      // Open validate dialog
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      fireEvent.click(actionButtons[0])
+      fireEvent.click(screen.getByRole('menuitem', { name: /validate connection/i }))
+
+      // Verify dialog is open
+      expect(screen.getByText(/validate integration/i)).toBeInTheDocument()
+
+      // Click Cancel
+      const cancelButton = screen.getByRole('button', { name: 'Cancel' })
+      fireEvent.click(cancelButton)
+
+      // Dialog should close
+      expect(screen.queryByText(/Are you sure you want to validate/)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Delete Dialog Flow', () => {
+    it('calls delete mutation when Delete button is clicked', () => {
+      const mockValidateMutate = vi.fn()
+      const mockDeleteMutate = vi.fn()
+      const mockRefetch = vi.fn()
+
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+        data: { resources: mockIntegrations },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+
+      vi.mocked(toolProvidersClient.useMutation).mockImplementation((method: string) => {
+        if (method === 'delete') {
+          return { mutate: mockDeleteMutate, isPending: false } as never
+        }
+        return { mutate: mockValidateMutate, isPending: false } as never
+      })
+
+      render(<Integrations />, { wrapper })
+
+      // Open actions menu and click uninstall (first row is ID 3 - Development Server)
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      fireEvent.click(actionButtons[0])
+      const uninstallOption = screen.getByRole('menuitem', { name: /uninstall/i })
+      fireEvent.click(uninstallOption)
+
+      // Click Delete button in dialog
+      const deleteButton = screen.getByRole('button', { name: 'Delete' })
+      fireEvent.click(deleteButton)
+
+      // Verify mutation was called (first row is ID 3 due to alphabetical sort)
+      expect(mockDeleteMutate).toHaveBeenCalled()
+      const callArgs = mockDeleteMutate.mock.calls[0]
+      expect(callArgs[0]).toEqual({ params: { path: { provider_id: '3' } } })
+    })
+
+    it('shows success alert and closes dialog on successful delete', () => {
+      const mockDeleteMutate = vi.fn()
+      const mockRefetch = vi.fn()
+
+      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+        data: { resources: mockIntegrations },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+
+      vi.mocked(toolProvidersClient.useMutation).mockImplementation((method: string) => {
+        if (method === 'delete') {
+          return { mutate: mockDeleteMutate, isPending: false } as never
+        }
+        return { mutate: vi.fn(), isPending: false } as never
+      })
+
+      render(<Integrations />, { wrapper })
+
+      // Open delete dialog
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      fireEvent.click(actionButtons[0])
+      fireEvent.click(screen.getByRole('menuitem', { name: /uninstall/i }))
+
+      // Click Delete
+      fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+      // Simulate successful mutation
+      const callbacks = mockDeleteMutate.mock.calls[0][1]
+      act(() => {
+        callbacks.onSuccess()
+        callbacks.onSettled()
+      })
+
+      // Dialog should close
+      expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+      expect(mockRefetch).toHaveBeenCalled()
+    })
+
+    it('shows error alert on delete failure', () => {
+      const mockDeleteMutate = vi.fn()
+
+      vi.mocked(toolProvidersClient.useMutation).mockImplementation((method: string) => {
+        if (method === 'delete') {
+          return { mutate: mockDeleteMutate, isPending: false } as never
+        }
+        return { mutate: vi.fn(), isPending: false } as never
+      })
+
+      render(<Integrations />, { wrapper })
+
+      // Open delete dialog
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      fireEvent.click(actionButtons[0])
+      fireEvent.click(screen.getByRole('menuitem', { name: /uninstall/i }))
+
+      // Click Delete
+      fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+      // Simulate failed mutation
+      const callbacks = mockDeleteMutate.mock.calls[0][1]
+      act(() => {
+        callbacks.onError(new Error('Permission denied'))
+        callbacks.onSettled()
+      })
+
+      // Dialog should close
+      expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    })
+
+    it('closes delete dialog when Cancel button is clicked', () => {
+      render(<Integrations />, { wrapper })
+
+      // Open delete dialog
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      fireEvent.click(actionButtons[0])
+      fireEvent.click(screen.getByRole('menuitem', { name: /uninstall/i }))
+
+      // Verify dialog is open
+      expect(screen.getByText(/delete integration/i)).toBeInTheDocument()
+
+      // Click Cancel
+      const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
+      fireEvent.click(cancelButtons[cancelButtons.length - 1])
+
+      // Dialog should close
+      expect(screen.queryByText(/This action cannot be undone/)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Row Actions - View Tools', () => {
+    it('navigates to tools page when View tools action is clicked', () => {
+      render(<Integrations />, { wrapper })
+
+      // Open actions menu (first row is ID 3 - Development Server, alphabetically sorted)
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      fireEvent.click(actionButtons[0])
+
+      // Click view tools option
+      const viewToolsOption = screen.getByRole('menuitem', { name: /view and enable\/disable tools/i })
+      fireEvent.click(viewToolsOption)
+
+      // Verify navigation - first row is ID 3 due to alphabetical sort
+      expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/3/tools')
+    })
+  })
+
+  describe('Search Clear Button', () => {
+    it('clears search when X button is clicked', () => {
+      render(<Integrations />, { wrapper })
+
+      const searchInput = screen.getByPlaceholderText('Search integrations...')
+
+      // Type something
+      fireEvent.change(searchInput, { target: { value: 'test search' } })
+      expect((searchInput as HTMLInputElement).value).toBe('test search')
+
+      // Click the clear button (X)
+      const clearButton = screen.getByRole('button', { name: /reset/i })
+      fireEvent.click(clearButton)
+
+      // Search should be cleared
+      expect((searchInput as HTMLInputElement).value).toBe('')
     })
   })
 })

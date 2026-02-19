@@ -2,12 +2,6 @@ import type { ToolProvider } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
-  Dropdown,
-  DropdownGroup,
-  DropdownItem,
-  DropdownList,
-  Gallery,
-  MenuToggle,
   Modal,
   ModalBody,
   ModalFooter,
@@ -15,10 +9,8 @@ import {
   SearchInput,
   StackItem,
 } from '@patternfly/react-core'
-import type { MenuToggleElement } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
-  RhUiEllipsisVerticalFillIcon,
   RhUiViewIcon,
   RhUiTrashIcon,
   RhUiSyncIcon,
@@ -43,7 +35,6 @@ import { useFuse } from '../../../hooks/useFuse'
 import { useTableSort } from '../../../hooks/useTableSort'
 import { getErrorMessage } from '../../../utils/apiErrors'
 
-import { IntegrationCard } from './IntegrationCard'
 import { IntegrationEmptyState } from './IntegrationEmptyState'
 
 type ProviderStatus = 'available' | 'error' | 'validating'
@@ -79,8 +70,6 @@ interface IntegrationsState {
   providerToValidate: ToolProvider | null
   deleteDialogOpen: boolean
   providerToDelete: ToolProvider | null
-  view: 'table' | 'cards'
-  isViewMenuOpen: boolean
 }
 
 type IntegrationsAction =
@@ -89,8 +78,6 @@ type IntegrationsAction =
   | { type: 'SET_PROVIDER_TO_VALIDATE'; payload: ToolProvider | null }
   | { type: 'SET_DELETE_DIALOG'; payload: boolean }
   | { type: 'SET_PROVIDER_TO_DELETE'; payload: ToolProvider | null }
-  | { type: 'SET_VIEW'; payload: 'table' | 'cards' }
-  | { type: 'SET_VIEW_MENU_OPEN'; payload: boolean }
   | { type: 'OPEN_VALIDATE_DIALOG'; payload: ToolProvider }
   | { type: 'OPEN_DELETE_DIALOG'; payload: ToolProvider }
   | { type: 'CLOSE_VALIDATE_DIALOG' }
@@ -108,10 +95,6 @@ function integrationsReducer(state: IntegrationsState, action: IntegrationsActio
       return { ...state, deleteDialogOpen: action.payload }
     case 'SET_PROVIDER_TO_DELETE':
       return { ...state, providerToDelete: action.payload }
-    case 'SET_VIEW':
-      return { ...state, view: action.payload }
-    case 'SET_VIEW_MENU_OPEN':
-      return { ...state, isViewMenuOpen: action.payload }
     case 'OPEN_VALIDATE_DIALOG':
       return { ...state, providerToValidate: action.payload, validateDialogOpen: true }
     case 'OPEN_DELETE_DIALOG':
@@ -133,11 +116,8 @@ export default function Integrations() {
     providerToValidate: null,
     deleteDialogOpen: false,
     providerToDelete: null,
-    view: 'table',
-    isViewMenuOpen: false,
   })
-  const { cursor, validateDialogOpen, providerToValidate, deleteDialogOpen, providerToDelete, view, isViewMenuOpen } =
-    state
+  const { cursor, validateDialogOpen, providerToValidate, deleteDialogOpen, providerToDelete } = state
 
   const query = toolProvidersClient.useQuery('get', '/tool_providers', {
     params: {
@@ -286,112 +266,9 @@ export default function Integrations() {
           <Button variant="primary" onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}>
             Add integration
           </Button>
-          <Dropdown
-            isOpen={isViewMenuOpen}
-            onOpenChange={(isOpen) => dispatch({ type: 'SET_VIEW_MENU_OPEN', payload: isOpen })}
-            popperProps={{ position: 'right' }}
-            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-              <MenuToggle
-                ref={toggleRef}
-                onClick={() => dispatch({ type: 'SET_VIEW_MENU_OPEN', payload: !isViewMenuOpen })}
-                isExpanded={isViewMenuOpen}
-                variant="plain"
-              >
-                <RhUiEllipsisVerticalFillIcon />
-              </MenuToggle>
-            )}
-          >
-            <DropdownList>
-              <DropdownGroup label="View">
-                <DropdownItem
-                  key="table"
-                  isSelected={view === 'table'}
-                  onClick={() => {
-                    dispatch({ type: 'SET_VIEW', payload: 'table' })
-                    dispatch({ type: 'SET_VIEW_MENU_OPEN', payload: false })
-                  }}
-                >
-                  Table
-                </DropdownItem>
-                <DropdownItem
-                  key="cards"
-                  isSelected={view === 'cards'}
-                  onClick={() => {
-                    dispatch({ type: 'SET_VIEW', payload: 'cards' })
-                    dispatch({ type: 'SET_VIEW_MENU_OPEN', payload: false })
-                  }}
-                >
-                  Cards
-                </DropdownItem>
-              </DropdownGroup>
-            </DropdownList>
-          </Dropdown>
         </AppPageHeader>
       )}
-      {view !== 'cards' ? (
-        results.length === 0 ? (
-          search ? (
-            <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-              <CompassPanel isFullHeight>
-                <EmptyStateFilter
-                  clearAllFilters={() => setSearch('')}
-                  imageSrc={noResultsImage}
-                  imageAlt="No results"
-                />
-              </CompassPanel>
-            </StackItem>
-          ) : (
-            <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-              <IntegrationEmptyState />
-            </StackItem>
-          )
-        ) : (
-          <ScrollableTableContainer
-            aria-label="Integrations table"
-            footer={{
-              content: (
-                <>
-                  {results.length} {results.length === 1 ? 'integration' : 'integrations'}
-                  {query.data?.total && query.data.total > results.length && (
-                    <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                  )}
-                </>
-              ),
-              prev: query.data?.prev ?? null,
-              next: query.data?.next ?? null,
-              onPrev: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.prev ?? null }),
-              onNext: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.next ?? null }),
-            }}
-          >
-            <Thead>
-              <Tr>
-                <Th sort={getSortParams(0)}>Name</Th>
-                <Th sort={getSortParams(1)}>Status</Th>
-                <Th sort={getSortParams(2)}>Integration type</Th>
-                <Th sort={getSortParams(3)}>Tools</Th>
-                <Th screenReaderText="Actions" />
-              </Tr>
-            </Thead>
-            <Tbody>
-              {results.map((provider) => (
-                <Tr key={provider.id}>
-                  <Td dataLabel="Name">{provider.name}</Td>
-                  <Td dataLabel="Status">
-                    <StatusLabel status={provider.status ?? 'unknown'} />
-                  </Td>
-                  <Td dataLabel="Integration type">
-                    {(provider.configuration as { provider_type?: string }).provider_type}
-                  </Td>
-                  <Td dataLabel="Tools">{(provider as { tool_count?: number }).tool_count}</Td>
-                  <Td isActionCell>
-                    <ActionsColumn items={getRowActions(provider)} />
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </ScrollableTableContainer>
-        )
-      ) : results.length === 0 ? (
+      {results.length === 0 ? (
         search ? (
           <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
             <CompassPanel isFullHeight>
@@ -404,21 +281,50 @@ export default function Integrations() {
           </StackItem>
         )
       ) : (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel>
-            <Gallery hasGutter minWidths={{ default: '500px' }} style={{ padding: 'var(--pf-t--global--spacer--2xl)' }}>
-              {results.map((integration) => (
-                <IntegrationCard
-                  key={integration.id}
-                  integration={integration}
-                  onViewTools={() => navigate(`/configuration/integrations/${integration.id}/tools`)}
-                  onValidateConnection={() => dispatch({ type: 'OPEN_VALIDATE_DIALOG', payload: integration })}
-                  onUninstall={() => dispatch({ type: 'OPEN_DELETE_DIALOG', payload: integration })}
-                />
-              ))}
-            </Gallery>
-          </CompassPanel>
-        </StackItem>
+        <ScrollableTableContainer
+          aria-label="Integrations table"
+          footer={{
+            content: (
+              <>
+                {results.length} {results.length === 1 ? 'integration' : 'integrations'}
+                {query.data?.total && query.data.total > results.length && (
+                  <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                )}
+              </>
+            ),
+            prev: query.data?.prev ?? null,
+            next: query.data?.next ?? null,
+            onPrev: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.prev ?? null }),
+            onNext: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.next ?? null }),
+          }}
+        >
+          <Thead>
+            <Tr>
+              <Th sort={getSortParams(0)}>Name</Th>
+              <Th sort={getSortParams(1)}>Status</Th>
+              <Th sort={getSortParams(2)}>Integration type</Th>
+              <Th sort={getSortParams(3)}>Tools</Th>
+              <Th screenReaderText="Actions" />
+            </Tr>
+          </Thead>
+          <Tbody>
+            {results.map((provider) => (
+              <Tr key={provider.id}>
+                <Td dataLabel="Name">{provider.name}</Td>
+                <Td dataLabel="Status">
+                  <StatusLabel status={provider.status ?? 'unknown'} />
+                </Td>
+                <Td dataLabel="Integration type">
+                  {(provider.configuration as { provider_type?: string }).provider_type}
+                </Td>
+                <Td dataLabel="Tools">{(provider as { tool_count?: number }).tool_count}</Td>
+                <Td isActionCell>
+                  <ActionsColumn items={getRowActions(provider)} />
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </ScrollableTableContainer>
       )}
       <Modal
         isOpen={validateDialogOpen}
