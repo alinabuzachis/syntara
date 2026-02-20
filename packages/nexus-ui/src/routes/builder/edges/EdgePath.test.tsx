@@ -20,6 +20,9 @@ describe('EdgePath', () => {
   const mockEdgePath = 'M 0 0 L 100 100'
   const mockOnMouseEnter = vi.fn()
   const mockOnMouseLeave = vi.fn()
+  const expectStroke = (style: string | null, expectedHex: string, expectedRgb: string) => {
+    expect(style).toMatch(new RegExp(`stroke:\\s*(${expectedHex}|${expectedRgb})`))
+  }
 
   describe('execution status styling', () => {
     it('renders solid gray edge for passed status', () => {
@@ -41,7 +44,7 @@ describe('EdgePath', () => {
       expect(baseEdge).toBeInTheDocument()
 
       const style = baseEdge?.getAttribute('style')
-      expect(style).toContain('stroke: #6b7280')
+      expectStroke(style, '#6b7280', 'rgb\\(107, 114, 128\\)')
       expect(style).toContain('stroke-opacity: 1')
       expect(style).toContain('stroke-dasharray: none')
     })
@@ -65,7 +68,7 @@ describe('EdgePath', () => {
       expect(baseEdge).toBeInTheDocument()
 
       const style = baseEdge?.getAttribute('style')
-      expect(style).toContain('stroke: #9ca3af')
+      expectStroke(style, '#9ca3af', 'rgb\\(156, 163, 175\\)')
       expect(style).toContain('stroke-opacity: 0.4')
       expect(style).toContain('stroke-dasharray: 5,5')
     })
@@ -89,7 +92,7 @@ describe('EdgePath', () => {
       expect(baseEdge).toBeInTheDocument()
 
       const style = baseEdge?.getAttribute('style')
-      expect(style).toContain('stroke: #6b7280') // default
+      expectStroke(style, '#6b7280', 'rgb\\(107, 114, 128\\)') // default
       expect(style).toContain('stroke-opacity: 1')
       expect(style).toContain('stroke-dasharray: none')
     })
@@ -113,7 +116,7 @@ describe('EdgePath', () => {
 
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
-      expect(style).toContain('stroke: #e5e7eb') // highlighted
+      expectStroke(style, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
       expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
     })
 
@@ -134,7 +137,7 @@ describe('EdgePath', () => {
 
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
-      expect(style).toContain('stroke: #e5e7eb') // highlighted
+      expectStroke(style, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
       expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
     })
 
@@ -155,7 +158,7 @@ describe('EdgePath', () => {
 
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
-      expect(style).toContain('stroke: #e5e7eb') // highlighted
+      expectStroke(style, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
       expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
     })
   })
@@ -179,7 +182,7 @@ describe('EdgePath', () => {
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
       // Execution status takes precedence
-      expect(style).toContain('stroke: #6b7280') // passed
+      expectStroke(style, '#6b7280', 'rgb\\(107, 114, 128\\)') // passed
       expect(style).toContain('stroke-dasharray: none')
       // But still applies hover filter
       expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
@@ -203,7 +206,7 @@ describe('EdgePath', () => {
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
       // Execution status takes precedence
-      expect(style).toContain('stroke: #6b7280') // passed
+      expectStroke(style, '#6b7280', 'rgb\\(107, 114, 128\\)') // passed
       expect(style).toContain('stroke-dasharray: none')
       // But still applies selected filter
       expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
@@ -227,7 +230,7 @@ describe('EdgePath', () => {
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
       // Execution status takes precedence
-      expect(style).toContain('stroke: #9ca3af') // pending
+      expectStroke(style, '#9ca3af', 'rgb\\(156, 163, 175\\)') // pending
       expect(style).toContain('stroke-opacity: 0.4')
       expect(style).toContain('stroke-dasharray: 5,5')
       // But still applies active filter
